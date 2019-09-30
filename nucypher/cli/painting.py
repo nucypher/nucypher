@@ -422,7 +422,7 @@ Staking address: {staking_address}
                        division_message=division_message)
 
 
-def paint_receipt_summary(emitter, receipt, chain_name, transaction_type=None):
+def paint_receipt_summary(emitter, receipt, chain_name: str = None, transaction_type=None, provider_uri: str = None):
     tx_hash = receipt['transactionHash'].hex()
     emitter.echo("OK", color='green', nl=False, bold=True)
     if transaction_type:
@@ -431,6 +431,10 @@ def paint_receipt_summary(emitter, receipt, chain_name, transaction_type=None):
         emitter.echo(f" | {tx_hash}", color='yellow', nl=False)
     emitter.echo(f" ({receipt['gasUsed']} gas)")
     emitter.echo(f"Block #{receipt['blockNumber']} | {receipt['blockHash'].hex()}")
+
+    if not chain_name:
+        blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
+        chain_name = blockchain.client.chain_name
     try:
         url = etherscan_url(item=tx_hash, network=chain_name)
     except ValueError as e:

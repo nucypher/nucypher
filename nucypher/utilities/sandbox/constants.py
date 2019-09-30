@@ -19,6 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import contextlib
 import os
 import socket
+import string
 import tempfile
 import time
 from datetime import datetime
@@ -96,7 +97,9 @@ NUMBER_OF_ALLOCATIONS_IN_TESTS = 100  # TODO: Move to constants
 # Insecure Secrets
 #
 
-INSECURE_DEVELOPMENT_PASSWORD = ''.join(SystemRandom().choice(ascii_uppercase + digits) for _ in range(16))
+__valid_password_chars = string.ascii_uppercase + string.ascii_lowercase + string.digits
+
+INSECURE_DEVELOPMENT_PASSWORD = ''.join(SystemRandom().choice(__valid_password_chars) for _ in range(16))
 
 STAKING_ESCROW_DEPLOYMENT_SECRET = INSECURE_DEVELOPMENT_PASSWORD + str(os.urandom(16))
 
@@ -105,6 +108,10 @@ POLICY_MANAGER_DEPLOYMENT_SECRET = INSECURE_DEVELOPMENT_PASSWORD + str(os.urando
 USER_ESCROW_PROXY_DEPLOYMENT_SECRET = INSECURE_DEVELOPMENT_PASSWORD + str(os.urandom(16))
 
 ADJUDICATOR_DEPLOYMENT_SECRET = INSECURE_DEVELOPMENT_PASSWORD + str(os.urandom(16))
+
+INSECURE_DEPLOYMENT_SECRET_PLAINTEXT = bytes(''.join(SystemRandom().choice(__valid_password_chars) for _ in range(16)), encoding='utf-8')
+
+INSECURE_DEPLOYMENT_SECRET_HASH = keccak_digest(INSECURE_DEPLOYMENT_SECRET_PLAINTEXT)
 
 
 #
@@ -155,5 +162,3 @@ TEST_GAS_LIMIT = 8_000_000  # gas
 
 PYEVM_GAS_LIMIT = TEST_GAS_LIMIT  # TODO: move elsewhere (used to set pyevm gas limit in tests)?
 
-INSECURE_DEPLOYMENT_SECRET_PLAINTEXT = os.urandom(32)
-INSECURE_DEPLOYMENT_SECRET_HASH = keccak_digest(INSECURE_DEPLOYMENT_SECRET_PLAINTEXT)

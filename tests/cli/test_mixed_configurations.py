@@ -2,7 +2,6 @@ import os
 
 import pytest
 
-from nucypher.cli import deploy
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import FelixConfiguration, UrsulaConfiguration, AliceConfiguration
 from nucypher.config.keyring import NucypherKeyring
@@ -12,9 +11,9 @@ from nucypher.utilities.sandbox.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     TEST_PROVIDER_URI,
     MOCK_IP_ADDRESS,
-    MOCK_IP_ADDRESS_2
+    MOCK_IP_ADDRESS_2,
+    MOCK_REGISTRY_FILEPATH
 )
-from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 
 def test_destroy_with_no_configurations(click_runner, custom_filepath):
@@ -29,7 +28,6 @@ def test_destroy_with_no_configurations(click_runner, custom_filepath):
 
 def test_coexisting_configurations(click_runner,
                                    custom_filepath,
-                                   mock_primary_registry_filepath,
                                    testerchain,
                                    test_registry,
                                    agency):
@@ -78,7 +76,7 @@ def test_coexisting_configurations(click_runner,
                        '--network', TEMPORARY_DOMAIN,
                        '--provider', TEST_PROVIDER_URI,
                        '--checksum-address', felix,
-                       '--registry-filepath', mock_primary_registry_filepath,
+                       '--registry-filepath', MOCK_REGISTRY_FILEPATH,
                        '--debug')
 
     result = click_runner.invoke(nucypher_cli, felix_init_args, catch_exceptions=False, env=envvars)
@@ -95,7 +93,7 @@ def test_coexisting_configurations(click_runner,
                        '--network', TEMPORARY_DOMAIN,
                        '--provider', TEST_PROVIDER_URI,
                        '--pay-with', alice,
-                       '--registry-filepath', mock_primary_registry_filepath,
+                       '--registry-filepath', MOCK_REGISTRY_FILEPATH,
                        '--config-root', custom_filepath)
 
     result = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
@@ -113,7 +111,7 @@ def test_coexisting_configurations(click_runner,
                  '--worker-address', ursula,
                  '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS,
-                 '--registry-filepath', mock_primary_registry_filepath,
+                 '--registry-filepath', MOCK_REGISTRY_FILEPATH,
                  '--config-root', custom_filepath)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
@@ -131,7 +129,7 @@ def test_coexisting_configurations(click_runner,
                  '--worker-address', another_ursula,
                  '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS_2,
-                 '--registry-filepath', mock_primary_registry_filepath,
+                 '--registry-filepath', MOCK_REGISTRY_FILEPATH,
                  '--provider', TEST_PROVIDER_URI,
                  '--config-root', custom_filepath)
 
@@ -204,8 +202,7 @@ def test_coexisting_configurations(click_runner,
 
 def test_corrupted_configuration(click_runner,
                                  custom_filepath,
-                                 testerchain,
-                                 mock_primary_registry_filepath):
+                                 testerchain):
     alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
 
     init_args = ('ursula', 'init',
@@ -241,7 +238,7 @@ def test_corrupted_configuration(click_runner,
                  '--worker-address', another_ursula,
                  '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS,
-                 '--registry-filepath', mock_primary_registry_filepath,
+                 '--registry-filepath', MOCK_REGISTRY_FILEPATH,
                  '--config-root', custom_filepath)
 
     envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD}
@@ -258,7 +255,7 @@ def test_corrupted_configuration(click_runner,
         assert field in top_level_config_root
 
     # "Corrupt" the configuration by removing the contract registry
-    os.remove(mock_primary_registry_filepath)
+    os.remove(MOCK_REGISTRY_FILEPATH)
 
     # Attempt destruction with invalid configuration (missing registry)
     ursula_file_location = os.path.join(custom_filepath, default_filename)

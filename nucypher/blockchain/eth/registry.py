@@ -22,11 +22,12 @@ import tempfile
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
 from os.path import dirname, abspath
-from typing import Union
+from typing import Union, Iterator
 
 import requests
 from constant_sorrow.constants import REGISTRY_COMMITTED
 from twisted.logger import Logger
+from web3.contract import Contract
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
@@ -45,11 +46,14 @@ class BaseContractRegistry(ABC):
     _multi_contract = True
     _contract_name = NotImplemented
 
+    # Registry
+    REGISTRY_NAME = 'contract_registry.json'  # TODO: Save registry with ID-time-based filename
+    DEVELOPMENT_REGISTRY_NAME = 'dev_contract_registry.json'
+
     __PUBLICATION_USER = "nucypher"
     __PUBLICATION_REPO = f"{__PUBLICATION_USER}/ethereum-contract-registry"
-
-    # Registry
-    REGISTRY_NAME = 'contract_registry.json'
+    __PUBLICATION_BRANCH = 'goerli'          # TODO: Allow other branches to be used
+    PUBLICATION_ENDPOINT = f'https://raw.githubusercontent.com/{__PUBLICATION_REPO}/{__PUBLICATION_BRANCH}/{REGISTRY_NAME}'
 
     class RegistryError(Exception):
         pass
@@ -102,43 +106,41 @@ class BaseContractRegistry(ABC):
         raise NotImplementedError
 
     @classmethod
-    def fetch_latest_publication(cls, branch: str = 'goerli') -> bytes:
+    def fetch_latest_publication(cls) -> bytes:
         """
         Get the latest published contract registry from github and save it on the local file system.
-        # TODO: Allow other branches to be used
         """
 
         # Setup
-        github_endpoint = f'https://raw.githubusercontent.com/{cls.__PUBLICATION_REPO}/{branch}/{cls.REGISTRY_NAME}'
-        cls.logger.debug(f"Downloading contract registry from {github_endpoint}")
-        response = requests.get(github_endpoint)
+        cls.logger.debug(f"Downloading contract registry from {cls.PUBLICATION_ENDPOINT}")
+        response = requests.get(cls.PUBLICATION_ENDPOINT)
 
         # Fetch
         if response.status_code != 200:
-            error = f"Failed to fetch registry from {github_endpoint} with status code {response.status_code}"
+            error = f"Failed to fetch registry from {cls.PUBLICATION_ENDPOINT} with status code {response.status_code}"
             raise cls.RegistrySourceUnavailable(error)
 
         registry_data = response.content
         return registry_data
 
     @classmethod
-    def from_latest_publication(cls, branch: str = 'goerli', *args, **kwargs) -> 'BaseContractRegistry':
-        registry_data_bytes = cls.fetch_latest_publication(branch=branch)
+    def from_latest_publication(cls, *args, **kwargs) -> 'BaseContractRegistry':
+        registry_data_bytes = cls.fetch_latest_publication()
         instance = cls(*args, **kwargs)
         instance.write(registry_data=json.loads(registry_data_bytes))
         return instance
 
     @property
-    def enrolled_names(self):
+    def enrolled_names(self) -> Iterator:
         entries = iter(record[0] for record in self.read())
         return entries
 
     @property
-    def enrolled_addresses(self):
+    def enrolled_addresses(self) -> Iterator:
         entries = iter(record[1] for record in self.read())
         return entries
 
-    def enroll(self, contract_name, contract_address, contract_abi):
+    def enroll(self, contract_name, contract_address, contract_abi) -> None:
         """
         Enrolls a contract to the chain registry by writing the name, address,
         and abi information to the filesystem as JSON.
@@ -157,7 +159,7 @@ class BaseContractRegistry(ABC):
         self.write(registry_data)
         self.log.info("Enrolled {}:{} into registry.".format(contract_name, contract_address))
 
-    def search(self, contract_name: str = None, contract_address: str = None):
+    def search(self, contract_name: str = None, contract_address: str = None) -> tuple:
         """
         Searches the registry for a contract with the provided name or address
         and returns the contracts component data.
@@ -185,7 +187,8 @@ class BaseContractRegistry(ABC):
             self.log.critical(m)
             raise self.IllegalRegistry(m.format(contract_address))
 
-        return contracts if contract_name else contracts[0]
+        result = tuple(contracts) if contract_name else contracts[0]
+        return result
 
 
 class LocalContractRegistry(BaseContractRegistry):
@@ -316,14 +319,19 @@ class InMemoryContractRegistry(BaseContractRegistry):
                 raise
         return registry_data
 
-    def commit(self, filepath) -> str:
+    def commit(self, filepath: str = None, overwrite: bool = False) -> str:
         """writes the current state of the registry to a file"""
-        if 'tmp' not in filepath:
-            raise ValueError(f"Filepaths for saving in-memory registries must contain 'tmp'.  Got {filepath}")
-        self.log.info("Committing temporary registry to {}".format(filepath))
+        if not filepath:
+            filepath = os.path.join(DEFAULT_CONFIG_ROOT, self.REGISTRY_NAME)  # TODO: Use ID-based filename
+        self.log.info("Committing in-memory registry to disk.")
+        if os.path.exists(filepath) and not overwrite:
+            existing_registry = LocalContractRegistry(filepath=filepath)
+            raise self.RegistryError(f"Registry #{existing_registry.id[:16]} exists at {filepath} "
+                                     f"while writing Registry #{self.id[:16]}).  "
+                                     f"Pass overwrite=True to force it.")
         with open(filepath, 'w') as file:
             file.write(self.__registry_data)
-        self.log.info("Wrote in-memory registry to filesystem {}".format(filepath))
+        self.log.info("Wrote in-memory registry to '{}'".format(filepath))
         return filepath
 
     def _destroy(self) -> None:

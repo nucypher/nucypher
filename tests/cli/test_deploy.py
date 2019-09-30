@@ -32,19 +32,19 @@ def generate_insecure_secret() -> str:
     return formatted_secret
 
 
+# TODO: Use temp module
+DEPLOYMENT_REGISTRY_FILEPATH = os.path.join('/', 'tmp', 'nucypher-test-autodeploy.json')
 PLANNED_UPGRADES = 4
 INSECURE_SECRETS = {v: generate_insecure_secret() for v in range(1, PLANNED_UPGRADES+1)}
 
 
 @pytest.fixture(scope="module")
-def registry_filepath(test_registry):
-    # TODO: Use temp module
-    registry_filepath = os.path.join('tmp', 'nucypher-deploy-test.json')
-    if os.path.exists(registry_filepath):
-        os.remove(registry_filepath)
-    yield registry_filepath
-    if os.path.exists(registry_filepath):
-        os.remove(registry_filepath)
+def registry_filepath():
+    if os.path.exists(DEPLOYMENT_REGISTRY_FILEPATH):
+        os.remove(DEPLOYMENT_REGISTRY_FILEPATH)
+    yield DEPLOYMENT_REGISTRY_FILEPATH
+    if os.path.exists(DEPLOYMENT_REGISTRY_FILEPATH):
+        os.remove(DEPLOYMENT_REGISTRY_FILEPATH)
 
 
 def test_nucypher_deploy_contracts(click_runner,
@@ -55,6 +55,9 @@ def test_nucypher_deploy_contracts(click_runner,
     #
     # Main
     #
+
+    assert not os.path.exists(registry_filepath), f"Registry File '{registry_filepath}' Exists."
+    assert not os.path.lexists(registry_filepath), f"Registry File '{registry_filepath}' Exists."
 
     command = ['contracts',
                '--registry-outfile', registry_filepath,
@@ -219,9 +222,9 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
                                                              use_proxy_address=False)
 
         # Ensure the proxy targets the current deployed contract
-        proxy = testerchain.get_proxy(registry=registry,
-                                      target_address=real_old_contract.address,
-                                      proxy_name=proxy_name)
+        proxy = testerchain.get_proxy_contract(registry=registry,
+                                               target_address=real_old_contract.address,
+                                               proxy_name=proxy_name)
         targeted_address = proxy.functions.target().call()
         assert targeted_address == real_old_contract.address
 
@@ -231,11 +234,12 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
         # Select upgrade interactive input scenario
         current_version = version_tracker[contract_name]
         new_version = current_version + 1
-        user_input = upgrade_inputs[new_version]
+        user_input = upgrade_inputs[new_version] + f'Y\n'  # Yes to confirm
 
         # Execute upgrade (Meat)
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-        assert result.exit_code == 0  # TODO: Console painting
+        assert result.exit_code == 0
+        assert "Successfully deployed" in result.output
 
         # Mutate the version tracking
         version_tracker[contract_name] += 1
@@ -274,9 +278,9 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
         assert old_address != new_address
 
         # Ensure the proxy now targets the new deployment
-        proxy = testerchain.get_proxy(registry=registry,
-                                      target_address=new_address,
-                                      proxy_name=proxy_name)
+        proxy = testerchain.get_proxy_contract(registry=registry,
+                                               target_address=new_address,
+                                               proxy_name=proxy_name)
         targeted_address = proxy.functions.target().call()
         assert targeted_address != old_address
         assert targeted_address == new_address
@@ -323,13 +327,13 @@ def test_rollback(click_runner, testerchain, registry_filepath):
 
         # Ensure the proxy targets the rollback target (previous version)
         with pytest.raises(BlockchainInterface.UnknownContract):
-            testerchain.get_proxy(registry=registry,
-                                  target_address=current_target_address,
-                                  proxy_name='Dispatcher')
+            testerchain.get_proxy_contract(registry=registry,
+                                           target_address=current_target_address,
+                                           proxy_name='Dispatcher')
 
-        proxy = testerchain.get_proxy(registry=registry,
-                                      target_address=rollback_target_address,
-                                      proxy_name='Dispatcher')
+        proxy = testerchain.get_proxy_contract(registry=registry,
+                                               target_address=rollback_target_address,
+                                               proxy_name='Dispatcher')
 
         # Deeper - Ensure the proxy targets the old deployment on-chain
         targeted_address = proxy.functions.target().call()

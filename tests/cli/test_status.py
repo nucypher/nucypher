@@ -30,22 +30,13 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.status import status
-from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI
-
-registry_filepath = '/tmp/nucypher-test-registry.json'
-
-
-@pytest.fixture(scope='module', autouse=True)
-def temp_registry(testerchain, test_registry, agency):
-    # Disable registry fetching, use the mock one instead
-    InMemoryContractRegistry.download_latest_publication = lambda: registry_filepath
-    test_registry.commit(filepath=registry_filepath)
+from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI, MOCK_REGISTRY_FILEPATH
 
 
 def test_nucypher_status_network(click_runner, testerchain, test_registry, agency):
 
     network_command = ('network',
-                       '--registry-filepath', registry_filepath,
+                       '--registry-filepath', MOCK_REGISTRY_FILEPATH,
                        '--provider', TEST_PROVIDER_URI,
                        '--poa')
 
@@ -71,7 +62,7 @@ def test_nucypher_status_stakers(click_runner, testerchain, test_registry, agenc
 
     # Get all stakers info
     stakers_command = ('stakers',
-                       '--registry-filepath', registry_filepath,
+                       '--registry-filepath', MOCK_REGISTRY_FILEPATH,
                        '--provider', TEST_PROVIDER_URI,
                        '--poa')
 
@@ -89,7 +80,7 @@ def test_nucypher_status_stakers(click_runner, testerchain, test_registry, agenc
     some_dude = random.choice(stakers)
     staking_address = some_dude.checksum_address
     stakers_command = ('stakers', '--staking-address', staking_address,
-                       '--registry-filepath', registry_filepath,
+                       '--registry-filepath', MOCK_REGISTRY_FILEPATH,
                        '--provider', TEST_PROVIDER_URI,
                        '--poa')
 

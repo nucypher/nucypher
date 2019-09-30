@@ -26,6 +26,9 @@ from web3 import Web3
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
 
 
+UNKNOWN_DEVELOPMENT_CHAIN_ID.bool_value(True)
+
+
 class Web3ClientError(Exception):
     pass
 
@@ -138,7 +141,7 @@ class Web3Client:
             'node_technology': node_technology,
             'version': client_data[1],
             'backend': client_data[-1],
-            'platform': client_data[2] if len(client_data) == 4 else None  # Plaftorm is optional
+            'platform': client_data[2] if len(client_data) == 4 else None  # Platform is optional
         }
 
         instance = ClientSubclass._get_variant(w3)(w3, **client_kwargs)

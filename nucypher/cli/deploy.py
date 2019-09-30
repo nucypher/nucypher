@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
+import shutil
 
 import click
 
@@ -26,13 +27,14 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, Bloc
 from nucypher.blockchain.eth.registry import BaseContractRegistry, LocalContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.actions import get_client_password, select_client_account, confirm_deployment
+from nucypher.cli.actions import get_client_password, select_client_account, confirm_deployment, \
+    establish_deployer_registry
 from nucypher.cli.painting import (
     paint_staged_deployment,
     paint_deployment_delay,
     paint_contract_deployment,
-    paint_deployer_contract_inspection
-)
+    paint_deployer_contract_inspection,
+    paint_receipt_summary)
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
@@ -48,10 +50,12 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
 @click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
 @click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
 @click.option('--target-address', help="Recipient's checksum address for token or ownership transference.", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
 @click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
 @click.option('--dev', '-d', help="Forcibly use the development registry filepath.", is_flag=True)
+@click.option('--bare', help="Deploy a contract *only* without any additional operations.", is_flag=True)
 @click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
 @click.option('--allocation-outfile', help="Output path for token allocation JSON file", type=click.Path(exists=False, file_okay=True))
@@ -68,6 +72,8 @@ def deploy(action,
            registry_outfile,
            value,
            target_address,
+           retarget,
+           bare,
            config_root,
            hw_wallet,
            force,
@@ -98,9 +104,6 @@ def deploy(action,
     if not os.path.exists(config_root):
         os.makedirs(config_root)
 
-    if not provider_uri:
-        raise click.BadOptionUsage(message=f"--provider is required to deploy.", option_name="--provider")
-
     #
     # Pre-Launch Warnings
     #
@@ -117,9 +120,21 @@ def deploy(action,
                      "If you want to see deployed contracts and TXs in your browser, activate --etherscan.",
                      color='yellow')
 
+    if action == "download-registry":
+        if not force:
+            prompt = f"Fetch and download latest registry from {BaseContractRegistry.PUBLICATION_ENDPOINT}?"
+            click.confirm(prompt, abort=True)
+        registry = InMemoryContractRegistry.from_latest_publication()
+        output_filepath = registry.commit(filepath=registry_outfile, overwrite=force)
+        emitter.message(f"Successfully downloaded latest registry to {output_filepath}")
+        return  # Exit
+
     #
     # Connect to Blockchain
     #
+
+    if not provider_uri:
+        raise click.BadOptionUsage(message=f"--provider is required to deploy.", option_name="--provider")
 
     if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
         # Note: For test compatibility.
@@ -140,15 +155,11 @@ def deploy(action,
     #
     # Establish Registry
     #
-
-    # Establish a contract registry from disk if specified
-    default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, BaseContractRegistry.REGISTRY_NAME)
-    registry_filepath = (registry_outfile or registry_infile) or default_registry_filepath
-    if dev:
-        # TODO: Need a way to detect a geth --dev registry filepath here. (then deprecate the --dev flag)
-        registry_filepath = os.path.join(config_root, 'dev_contract_registry.json')
-    registry = LocalContractRegistry(filepath=registry_filepath)
-    emitter.message(f"Configured to registry filepath {registry_filepath}")
+    local_registry = establish_deployer_registry(emitter=emitter,
+                                                 use_existing_registry=bool(contract_name),
+                                                 registry_infile=registry_infile,
+                                                 registry_outfile=registry_outfile,
+                                                 dev=dev)
 
     #
     # Make Authenticated Deployment Actor
@@ -170,7 +181,7 @@ def deploy(action,
         password = get_client_password(checksum_address=deployer_address)
 
     # Produce Actor
-    ADMINISTRATOR = ContractAdministrator(registry=registry,
+    ADMINISTRATOR = ContractAdministrator(registry=local_registry,
                                           client_password=password,
                                           deployer_address=deployer_address)
 
@@ -189,10 +200,29 @@ def deploy(action,
             raise click.BadArgumentUsage(message="--contract-name is required when using --upgrade")
         existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True)
         new_secret = click.prompt('Enter new contract upgrade secret', hide_input=True, confirmation_prompt=True)
-        ADMINISTRATOR.upgrade_contract(contract_name=contract_name,
-                                       existing_plaintext_secret=existing_secret,
-                                       new_plaintext_secret=new_secret)
-        return  # Exit
+
+        if retarget:
+            if not target_address:
+                raise click.BadArgumentUsage(message="--target-address is required when using --retarget")
+            if not force:
+                click.confirm(f"Confirm re-target {contract_name}'s proxy to {target_address}?", abort=True)
+            receipt = ADMINISTRATOR.retarget_proxy(contract_name=contract_name,
+                                                   target_address=target_address,
+                                                   existing_plaintext_secret=existing_secret,
+                                                   new_plaintext_secret=new_secret)
+            emitter.message(f"Successfully re-targeted {contract_name} proxy to {target_address}", color='green')
+            paint_receipt_summary(emitter=emitter, receipt=receipt)
+            return  # Exit
+        else:
+            if not force:
+                click.confirm(f"Confirm deploy new version of {contract_name} and retarget proxy?", abort=True)
+            receipts = ADMINISTRATOR.upgrade_contract(contract_name=contract_name,
+                                                      existing_plaintext_secret=existing_secret,
+                                                      new_plaintext_secret=new_secret)
+            emitter.message(f"Successfully deployed and upgraded {contract_name}", color='green')
+            for name, receipt in receipts.items():
+                paint_receipt_summary(emitter=emitter, receipt=receipt)
+            return  # Exit
 
     elif action == 'rollback':
         if not contract_name:
@@ -217,19 +247,29 @@ def deploy(action,
                 message = f"No such contract {contract_name}. Available contracts are {ADMINISTRATOR.deployers.keys()}"
                 emitter.echo(message, color='red', bold=True)
                 raise click.Abort()
+
+            # Deploy
+            emitter.echo(f"Deploying {contract_name}")
+            if contract_deployer._upgradeable and not bare:
+                # NOTE: Bare deployments do not engage the proxy contract
+                secret = ADMINISTRATOR.collect_deployment_secret(deployer=contract_deployer)
+                receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
+                                                                plaintext_secret=secret,
+                                                                gas_limit=gas,
+                                                                bare=bare)
             else:
-                emitter.echo(f"Deploying {contract_name}")
-                if contract_deployer._upgradeable:
-                    secret = ADMINISTRATOR.collect_deployment_secret(deployer=contract_deployer)
-                    receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name, plaintext_secret=secret)
-                else:
-                    receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name, gas_limit=gas)
-                paint_contract_deployment(contract_name=contract_name,
-                                          contract_address=agent.contract_address,
-                                          receipts=receipts,
-                                          emitter=emitter,
-                                          chain_name=deployer_interface.client.chain_name,
-                                          open_in_browser=etherscan)
+                # Non-Upgradeable or Bare
+                receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
+                                                                gas_limit=gas,
+                                                                bare=bare)
+
+            # Report
+            paint_contract_deployment(contract_name=contract_name,
+                                      contract_address=agent.contract_address,
+                                      receipts=receipts,
+                                      emitter=emitter,
+                                      chain_name=deployer_interface.client.chain_name,
+                                      open_in_browser=etherscan)
             return  # Exit
 
         #
@@ -237,11 +277,11 @@ def deploy(action,
         #
 
         # Confirm filesystem registry writes.
-        if os.path.isfile(registry_filepath):
-            emitter.echo(f"\nThere is an existing contract registry at {registry_filepath}.\n"
+        if os.path.isfile(local_registry.filepath):
+            emitter.echo(f"\nThere is an existing contract registry at {local_registry.filepath}.\n"
                          f"Did you mean 'nucypher-deploy upgrade'?\n", color='yellow')
             click.confirm("*DESTROY* existing local registry and continue?", abort=True)
-            os.remove(registry_filepath)
+            os.remove(local_registry.filepath)
 
         # Stage Deployment
         secrets = ADMINISTRATOR.collect_deployment_secrets()
@@ -261,7 +301,7 @@ def deploy(action,
                                                                      etherscan=etherscan)
 
         # Paint outfile paths
-        registry_outfile = registry_filepath
+        registry_outfile = local_registry.filepath
         emitter.echo('Generated registry {}'.format(registry_outfile), bold=True, color='blue')
 
         # Save transaction metadata
@@ -278,7 +318,7 @@ def deploy(action,
         return  # Exit
 
     elif action == "transfer-tokens":
-        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
+        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=local_registry)
         if not target_address:
             target_address = click.prompt("Enter recipient's checksum address", type=EIP55_CHECKSUM_ADDRESS)
         if not value:

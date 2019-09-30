@@ -74,7 +74,7 @@ class BaseContractDeployer:
         # Defaults
         #
         self.registry = registry
-        self.deployment_receipts = CONTRACT_NOT_DEPLOYED
+        self.deployment_receipts = dict()
         self._contract = CONTRACT_NOT_DEPLOYED
         self.__proxy_contract = NotImplemented
         self.__deployer_address = deployer_address
@@ -165,6 +165,13 @@ class BaseContractDeployer:
         agent = self.agency(registry=self.registry, contract=self._contract)
         return agent
 
+    def get_latest_enrollment(self, registry: BaseContractRegistry) -> Contract:
+        """Get the latest enrolled version of the contract from the registry."""
+        contract = self.blockchain.get_contract_by_name(name=self.contract_name,
+                                                        registry=registry,
+                                                        use_proxy_address=False,
+                                                        version='latest')
+        return contract
 
 
 class OwnableContractMixin:
@@ -178,30 +185,33 @@ class OwnableContractMixin:
         if not self._ownable:
             raise self.ContractNotOwnable(f"{self.contract_name} is not ownable.")
 
-        # Get Bare Contracts
-        existing_bare_contract = self.get_latest_version(registry=self.registry,
-                                                         provider_uri=self.blockchain.provider_uri)
+        receipts = dict()
+        if self._upgradeable:
 
-        proxy_deployer = self._proxy_deployer(registry=self.registry,
-                                              target_contract=existing_bare_contract,
-                                              deployer_address=self.deployer_address,
-                                              bare=True)  # acquire agency for the dispatcher itself.
+            #
+            # Upgrade Proxy
+            #
 
-        # Stage
+            existing_bare_contract = self.get_principal_contract(registry=self.registry,
+                                                                 provider_uri=self.blockchain.provider_uri)
+
+            proxy_deployer = self.get_proxy_deployer(registry=self.registry)
+            proxy_contract_function = proxy_deployer.contract.functions.transferOwnership(new_owner)
+            proxy_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
+                                                             contract_function=proxy_contract_function,
+                                                             transaction_gas_limit=transaction_gas_limit)
+
+            receipts['proxy'] = proxy_receipt
+
+        #
+        # Upgrade Principal
+        #
+
         contract_function = existing_bare_contract.functions.transferOwnership(new_owner)
-        proxy_contract_function = proxy_deployer.contract.functions.transferOwnership(new_owner)
-
-        # Execute
         principal_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
                                                              contract_function=contract_function,
                                                              transaction_gas_limit=transaction_gas_limit)
-
-        proxy_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
-                                                         contract_function=proxy_contract_function,
-                                                         transaction_gas_limit=transaction_gas_limit)
-
-        # Report
-        receipts = {'principal': principal_receipt, 'proxy': proxy_receipt}
+        receipts['principal'] = principal_receipt
         return receipts
 
 
@@ -213,7 +223,7 @@ class UpgradeableContractMixin:
     class ContractNotUpgradeable(RuntimeError):
         pass
     
-    def deploy(self, secret_hash: bytes, gas_limit: int, progress) -> dict:
+    def deploy(self, secret_hash: bytes, initial_deployment: bool = True, gas_limit: int = None, progress = None) -> dict:
         """
         Provides for the setup, deployment, and initialization of ethereum smart contracts.
         Emits the configured blockchain network transactions for single contract instance publication.
@@ -222,54 +232,104 @@ class UpgradeableContractMixin:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
         raise NotImplementedError
 
-    @classmethod
-    def get_latest_version(cls, registry: BaseContractRegistry, provider_uri: str = None) -> Contract:
-        """Get the latest version of the contract without assembling it with it's proxy."""
-        if not cls._upgradeable:
-            raise cls.ContractNotUpgradeable(f"{cls.contract_name} is not upgradeable.")
+    def get_principal_contract(self, registry: BaseContractRegistry, provider_uri: str = None) -> Contract:
+        """
+        Get the on-chain targeted version of the principal contract directly
+        without assembling it with its proxy.
+        """
+        if not self._upgradeable:
+            raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
         blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
-        contract = blockchain.get_contract_by_name(name=cls.contract_name,
-                                                   registry=registry,
-                                                   proxy_name=cls._proxy_deployer.contract_name,
-                                                   use_proxy_address=False)
-        return contract
+        principal_contract = blockchain.get_contract_by_name(name=self.contract_name,
+                                                             registry=registry,
+                                                             proxy_name=self._proxy_deployer.contract_name,
+                                                             use_proxy_address=False)
+        return principal_contract
 
-    def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
+    def get_proxy_contract(self, registry: BaseContractRegistry, provider_uri: str = None) -> Contract:
+        if not self._upgradeable:
+            raise cls.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
+        blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
+        principal_contract = self.get_principal_contract(registry=registry, provider_uri=provider_uri)
+        proxy_contract = blockchain.get_proxy_contract(registry=registry,
+                                                       target_address=principal_contract.address,
+                                                       proxy_name=self._proxy_deployer.contract_name)
+        return proxy_contract
+
+    def get_proxy_deployer(self,
+                           registry: BaseContractRegistry,
+                           provider_uri: str = None
+                           ) -> BaseContractDeployer:
+        principal_contract = self.get_principal_contract(registry=registry, provider_uri=provider_uri)
+        proxy_deployer = self._proxy_deployer(registry=registry,
+                                              deployer_address=self.deployer_address,
+                                              target_contract=principal_contract,
+                                              bare=True)  # acquire access to the proxy itself.
+        return proxy_deployer
+
+    def retarget(self,
+                 target_address: str,
+                 existing_secret_plaintext: bytes,
+                 new_secret_hash: bytes,
+                 gas_limit: int = None):
+        """
+        Directly engage a proxy contract for an existing deployment, executing the proxy's
+        upgrade interfaces to verify upgradeability and modify the on-chain contract target.
+        """
+
         if not self._upgradeable:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
 
+        # 1 - Get Bare Contracts
+        existing_bare_contract = self.get_principal_contract(registry=self.registry, provider_uri=self.blockchain.provider_uri)
+        proxy_deployer = self.get_proxy_deployer(registry=self.registry, provider_uri=self.blockchain.provider_uri)
+
+        # 2 - Retarget
+        receipt = proxy_deployer.retarget(new_target=target_address,
+                                          existing_secret_plaintext=existing_secret_plaintext,
+                                          new_secret_hash=new_secret_hash,
+                                          gas_limit=gas_limit)
+        return receipt
+
+    def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
+        """
+        Deploy a new version of a contract, then engage the proxy contract's upgrade interfaces.
+        """
+
         # 1 - Raise if not all-systems-go #
+        if not self._upgradeable:
+            raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
         # TODO: Fails when this same object was used previously to deploy
         self.check_deployment_readiness()
 
         # 2 - Get Bare Contracts
-        existing_bare_contract = self.get_latest_version(registry=self.registry,
-                                                         provider_uri=self.blockchain.provider_uri)
+        existing_bare_contract = self.get_principal_contract(registry=self.registry, provider_uri=self.blockchain.provider_uri)
+        proxy_deployer = self.get_proxy_deployer(registry=self.registry, provider_uri=self.blockchain.provider_uri)
 
-        proxy_deployer = self._proxy_deployer(registry=self.registry,
-                                              target_contract=existing_bare_contract,
-                                              deployer_address=self.deployer_address,
-                                              bare=True)  # acquire agency for the dispatcher itself.
-
-        # 2 - Deploy new version #
+        # 3 - Deploy new version
         new_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit)
 
-        # 3 - Wrap the escrow contract #
+        # 4 - Wrap the escrow contract
         wrapped_contract = self.blockchain._wrap_contract(wrapper_contract=proxy_deployer.contract,
                                                           target_contract=new_contract)
 
-        # 4 - Set the new Dispatcher target #
+        # 5 - Set the new Dispatcher target
         upgrade_receipt = proxy_deployer.retarget(new_target=new_contract.address,
                                                   existing_secret_plaintext=existing_secret_plaintext,
                                                   new_secret_hash=new_secret_hash,
                                                   gas_limit=gas_limit)
 
-        # 5- Respond
+        # 6 - Respond
         upgrade_transaction = {'deploy': deploy_receipt, 'retarget': upgrade_receipt}
         self._contract = wrapped_contract  # Switch the contract for the wrapped one
         return upgrade_transaction
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
+        """
+        Execute an existing deployment's proxy contract, engaging the upgrade rollback interfaces,
+        modifying the proxy's on-chain contract target to the most recent previous target.
+        """
+
         if not self._upgradeable:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
 
@@ -277,17 +337,21 @@ class UpgradeableContractMixin:
                                                                       name=self.contract_name,
                                                                       proxy_name=self._proxy_deployer.contract_name,
                                                                       use_proxy_address=False)
-        proxy_deployer = self._proxy_deployer(registry=self.registry,
-                                              target_contract=existing_bare_contract,
-                                              deployer_address=self.deployer_address,
-                                              bare=True)  # acquire agency for the proxy itself.
-
+        proxy_deployer = self.get_proxy_deployer(registry=self.registry, provider_uri=self.blockchain.provider_uri)
         rollback_receipt = proxy_deployer.rollback(existing_secret_plaintext=existing_secret_plaintext,
                                                    new_secret_hash=new_secret_hash,
                                                    gas_limit=gas_limit)
 
         return rollback_receipt
 
+    def _finish_bare_deployment(self, deployment_receipt: dict, progress = None) -> dict:
+        """Used to divert flow control for bare contract deployments."""
+        deployment_step_name = self.deployment_steps[0]
+        result = {deployment_step_name: deployment_receipt}
+        self.deployment_receipts.update(result)
+        if progress:
+            progress.update(len(self.deployment_steps))  # Update the progress bar to completion.
+        return result
 
 
 class NucypherTokenDeployer(BaseContractDeployer):
@@ -334,9 +398,9 @@ class DispatcherDeployer(BaseContractDeployer, OwnableContractMixin):
         super().__init__(*args, **kwargs)
         self.target_contract = target_contract
         if bare:
-            self._contract = self.blockchain.get_proxy(target_address=self.target_contract.address,
-                                                       proxy_name=self.contract_name,
-                                                       registry=self.registry)
+            self._contract = self.blockchain.get_proxy_contract(target_address=self.target_contract.address,
+                                                                proxy_name=self.contract_name,
+                                                                registry=self.registry)
 
     def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None) -> dict:
         args = (self.deployer_address,
@@ -350,6 +414,7 @@ class DispatcherDeployer(BaseContractDeployer, OwnableContractMixin):
             progress.update(1)
 
         self._contract = dispatcher_contract
+        self.deployment_receipts.update({'deployment': receipt})
         return {self.deployment_steps[0]: receipt}
 
     @validate_secret
@@ -359,14 +424,10 @@ class DispatcherDeployer(BaseContractDeployer, OwnableContractMixin):
         if new_target == self._contract.address:
             raise self.ContractDeploymentError(f"{self.contract_name} {self._contract.address} cannot target itself.")
 
-        origin_args = {}  # TODO: Gas management
-        if gas_limit:
-            origin_args.update({'gas': gas_limit})
-
         upgrade_function = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash)
         upgrade_receipt = self.blockchain.send_transaction(contract_function=upgrade_function,
                                                            sender_address=self.deployer_address,
-                                                           payload=origin_args)
+                                                           transaction_gas_limit=gas_limit)
         return upgrade_receipt
 
     @validate_secret
@@ -417,7 +478,12 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
         return the_escrow_contract, deploy_receipt
 
-    def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None) -> dict:
+    def deploy(self,
+               initial_deployment: bool = True,
+               secret_hash: bytes = None,
+               gas_limit: int = None,
+               progress=None
+               ) -> dict:
         """
         Deploy and publish the StakingEscrow contract
         to the blockchain network specified in self.blockchain.network.
@@ -433,6 +499,10 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         Returns transaction hashes in a dict.
         """
 
+        if initial_deployment and not secret_hash:
+            raise ValueError(f"An upgrade secret hash is required to perform an initial"
+                             f" deployment series for {self.contract_name}.")
+
         # Raise if not all-systems-go
         self.check_deployment_readiness()
 
@@ -443,6 +513,13 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
         # 1 - Deploy #
         the_escrow_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit)
+
+        # This is the end of bare deployment.
+        if not initial_deployment:
+            self._contract = the_escrow_contract
+            return self._finish_bare_deployment(deployment_receipt=deploy_receipt,
+                                                progress=progress)
+
         if progress:
             progress.update(1)
 
@@ -524,11 +601,28 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                                                                                   gas_limit=gas_limit)
         return policy_manager_contract, deploy_receipt
 
-    def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None) -> Dict[str, dict]:
+    def deploy(self,
+               initial_deployment: bool = True,
+               secret_hash: bytes = None,
+               gas_limit: int = None,
+               progress=None
+               ) -> Dict[str, dict]:
+
+        if initial_deployment and not secret_hash:
+            raise ValueError(f"An upgrade secret hash is required to perform an initial"
+                             f" deployment series for {self.contract_name}.")
+
         self.check_deployment_readiness()
 
         # Creator deploys the policy manager
         policy_manager_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit)
+
+        # This is the end of bare deployment.
+        if not initial_deployment:
+            self._contract = policy_manager_contract
+            return self._finish_bare_deployment(deployment_receipt=deploy_receipt,
+                                                progress=progress)
+
         if progress:
             progress.update(1)
 
@@ -578,9 +672,9 @@ class LibraryLinkerDeployer(BaseContractDeployer, OwnableContractMixin):
         self.target_contract = target_contract
         super().__init__(*args, **kwargs)
         if bare:
-            self._contract = self.blockchain.get_proxy(registry=self.registry,
-                                                       target_address=self.target_contract.address,
-                                                       proxy_name=self.contract_name)
+            self._contract = self.blockchain.get_proxy_contract(registry=self.registry,
+                                                                target_address=self.target_contract.address,
+                                                                proxy_name=self.contract_name)
 
     def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None) -> dict:
         linker_args = (self.target_contract.address, secret_hash)
@@ -652,13 +746,30 @@ class UserEscrowProxyDeployer(BaseContractDeployer, UpgradeableContractMixin):
                                                                        gas_limit=gas_limit)
         return contract, deployment_receipt
 
-    def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None) -> dict:
+    def deploy(self,
+               initial_deployment: bool = True,
+               secret_hash: bytes = None,
+               gas_limit: int = None,
+               progress=None
+               ) -> dict:
         """
         Deploys a new UserEscrowProxy contract, and a new UserEscrowLibraryLinker, targeting the first.
         This is meant to be called only once per general deployment.
         """
+
+        if initial_deployment and not secret_hash:
+            raise ValueError(f"An upgrade secret hash is required to perform an initial"
+                             f" deployment series for {self.contract_name}.")
+
         # 1 - UserEscrowProxy
         user_escrow_proxy_contract, deployment_receipt = self._deploy_essential(gas_limit=gas_limit)
+
+        # This is the end of bare deployment.
+        if not initial_deployment:
+            self._contract = user_escrow_proxy_contract
+            return self._finish_bare_deployment(deployment_receipt=deployment_receipt,
+                                                progress=progress)
+
         if progress:
             progress.update(1)
 
@@ -760,12 +871,12 @@ class UserEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownable
 
         """
 
-        deposit_txhash = self.initial_deposit(value=value, duration_seconds=duration)
-        assign_txhash = self.assign_beneficiary(beneficiary_address=beneficiary_address)
+        deposit_receipt = self.initial_deposit(value=value, duration_seconds=duration)
+        assign_receipt = self.assign_beneficiary(beneficiary_address=beneficiary_address)
         self.enroll_principal_contract()
-        return dict(deposit_txhash=deposit_txhash, assign_txhash=assign_txhash)
+        return dict(deposit_receipt=deposit_receipt, assign_receipt=assign_receipt)
 
-    def deploy(self, gas_limit: int = None, progress=None) -> dict:
+    def deploy(self, initial_deployment: bool = True, gas_limit: int = None, progress=None) -> dict:
         """Deploy a new instance of UserEscrow to the blockchain."""
         self.check_deployment_readiness()
         linker_contract = self.blockchain.get_contract_by_name(registry=self.registry,
@@ -781,7 +892,7 @@ class UserEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownable
             progress.update(1)
 
         self._contract = user_escrow_contract
-        # TODO: Homogenize with rest of deployer receipts
+        self.deployment_receipts.update({'deployment': deploy_receipt})
         return deploy_receipt
 
 
@@ -810,10 +921,26 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
                                                                                gas_limit=gas_limit)
         return adjudicator_contract, deploy_receipt
 
-    def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None) -> Dict[str, str]:
+    def deploy(self,
+               initial_deployment: bool = True,
+               secret_hash: bytes = None,
+               gas_limit: int = None,
+               progress=None) -> Dict[str, str]:
+
+        if initial_deployment and not secret_hash:
+            raise ValueError(f"An upgrade secret hash is required to perform an initial"
+                             f" deployment series for {self.contract_name}.")
+
         self.check_deployment_readiness()
 
         adjudicator_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit)
+
+        # This is the end of bare deployment.
+        if not initial_deployment:
+            self._contract = adjudicator_contract
+            return self._finish_bare_deployment(deployment_receipt=deploy_receipt,
+                                                progress=progress)
+
         if progress:
             progress.update(1)
 

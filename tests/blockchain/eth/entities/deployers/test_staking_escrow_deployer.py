@@ -21,7 +21,8 @@ from eth_utils import keccak
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.deployers import (StakingEscrowDeployer,
                                                DispatcherDeployer)
-from nucypher.utilities.sandbox.constants import STAKING_ESCROW_DEPLOYMENT_SECRET
+from nucypher.crypto.api import keccak_digest
+from nucypher.utilities.sandbox.constants import STAKING_ESCROW_DEPLOYMENT_SECRET, TEST_PROVIDER_URI
 
 
 def test_staking_escrow_deployment(staking_escrow_deployer, deployment_progress):
@@ -79,21 +80,19 @@ def test_staking_escrow_has_dispatcher(staking_escrow_deployer, testerchain, tes
     assert target == existing_bare_contract.address
 
 
-def test_upgrade(testerchain, test_registry):
+def test_upgrade(testerchain, test_registry, token_economics):
     wrong_secret = b"on second thoughts..."
     old_secret = bytes(STAKING_ESCROW_DEPLOYMENT_SECRET, encoding='utf-8')
     new_secret_hash = keccak(b'new'+old_secret)
 
     deployer = StakingEscrowDeployer(registry=test_registry,
+                                     economics=token_economics,
                                      deployer_address=testerchain.etherbase_account)
 
     with pytest.raises(deployer.ContractDeploymentError):
-        deployer.upgrade(existing_secret_plaintext=wrong_secret,
-                         new_secret_hash=new_secret_hash)
+        deployer.upgrade(existing_secret_plaintext=wrong_secret, new_secret_hash=new_secret_hash)
 
-    receipts = deployer.upgrade(existing_secret_plaintext=old_secret,
-                                new_secret_hash=new_secret_hash)
-
+    receipts = deployer.upgrade(existing_secret_plaintext=old_secret, new_secret_hash=new_secret_hash)
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
 
@@ -109,8 +108,8 @@ def test_rollback(testerchain, test_registry):
     current_target = staking_agent.contract.functions.target().call()
 
     # Let's do one more upgrade
-    receipts = deployer.upgrade(existing_secret_plaintext=old_secret,
-                                new_secret_hash=new_secret_hash)
+    receipts = deployer.upgrade(existing_secret_plaintext=old_secret, new_secret_hash=new_secret_hash)
+
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
 
@@ -135,3 +134,74 @@ def test_rollback(testerchain, test_registry):
     new_target = staking_agent.contract.functions.target().call()
     assert new_target != current_target
     assert new_target == old_target
+
+
+def test_deploy_bare_upgradeable_contract_deployment(testerchain, test_registry, token_economics):
+    deployer = StakingEscrowDeployer(registry=test_registry,
+                                     deployer_address=testerchain.etherbase_account,
+                                     economics=token_economics)
+
+    enrolled_names = list(test_registry.enrolled_names)
+    old_number_of_enrollments = enrolled_names.count(StakingEscrowDeployer.contract_name)
+    old_number_of_proxy_enrollments = enrolled_names.count(StakingEscrowDeployer._proxy_deployer.contract_name)
+
+    receipts = deployer.deploy(initial_deployment=False)
+    for title, receipt in receipts.items():
+        assert receipt['status'] == 1
+
+    enrolled_names = list(test_registry.enrolled_names)
+    new_number_of_enrollments = enrolled_names.count(StakingEscrowDeployer.contract_name)
+    new_number_of_proxy_enrollments = enrolled_names.count(StakingEscrowDeployer._proxy_deployer.contract_name)
+
+    # The principal contract was deployed.
+    assert new_number_of_enrollments == (old_number_of_enrollments + 1)
+
+    # The Dispatcher was not deployed.
+    assert new_number_of_proxy_enrollments == old_number_of_proxy_enrollments
+
+
+def test_deployer_version_management(testerchain, test_registry, token_economics):
+    deployer = StakingEscrowDeployer(deployer_address=testerchain.etherbase_account,
+                                     registry=test_registry,
+                                     economics=token_economics)
+
+    untargeted_deployment = deployer.get_latest_enrollment(registry=test_registry)
+    latest_targeted_deployment = deployer.get_principal_contract(registry=test_registry)
+
+    proxy_deployer = deployer.get_proxy_deployer(registry=test_registry, provider_uri=TEST_PROVIDER_URI)
+    proxy_target = proxy_deployer.target_contract.address
+    assert latest_targeted_deployment.address == proxy_target
+    assert untargeted_deployment.address != latest_targeted_deployment.address
+
+
+def test_manual_proxy_retargeting(testerchain, test_registry, token_economics):
+
+    deployer = StakingEscrowDeployer(registry=test_registry,
+                                     deployer_address=testerchain.etherbase_account,
+                                     economics=token_economics)
+
+    # Get Proxy-Direct
+    proxy_deployer = deployer.get_proxy_deployer(registry=test_registry, provider_uri=TEST_PROVIDER_URI)
+
+    # Re-Deploy Staking Escrow
+    old_target = proxy_deployer.target_contract.address
+
+    old_secret = bytes("...maybe not.", encoding='utf-8')
+    new_secret = keccak_digest(bytes('thistimeforsure', encoding='utf-8'))
+
+    # Get the latest un-targeted contract from the registry
+    latest_deployment = deployer.get_latest_enrollment(registry=test_registry)
+    receipt = deployer.retarget(target_address=latest_deployment.address,
+                                existing_secret_plaintext=old_secret,
+                                new_secret_hash=new_secret)
+
+    assert receipt['status'] == 1
+
+    # Check proxy targets
+    new_target = proxy_deployer.contract.functions.target().call()
+    assert old_target != new_target
+    assert new_target == latest_deployment.address
+
+    # Check address consistency
+    new_bare_contract = deployer.get_principal_contract(registry=test_registry, provider_uri=TEST_PROVIDER_URI)
+    assert new_bare_contract.address == latest_deployment.address == new_target
