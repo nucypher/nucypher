@@ -18,7 +18,8 @@ from nucypher.network.middleware import RestMiddleware
 @click.option('--host', help="The host to run Moe services on", type=click.STRING, default='0.0.0.0')
 @click.option('--http-port', help="The network port to run Moe services on", type=NETWORK_PORT, default=12500)
 @click.option('--ws-port', help="The host port to run websocket network services on", type=NETWORK_PORT, default=9000)
-@click.option('--certificate-filepath', help="Pre-signed TLS Certificate filepath", type=EXISTING_READABLE_FILE)
+@click.option('--certificate-filepath', help="Pre-signed TLS certificate filepath")
+@click.option('--tls-key-filepath', help="TLS private key filepath")
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 @click.option('--learn-on-launch', help="Conduct first learning loop on main thread at launch.", is_flag=True)
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=False)
@@ -31,6 +32,7 @@ def moe(click_config,
         host,
         ws_port,
         certificate_filepath,
+        tls_key_filepath,
         dry_run,
         http_port,
         learn_on_launch,
@@ -71,7 +73,8 @@ def moe(click_config,
               federated_only=federated_only,
               host=host,
               port=http_port,
-              tls_certificate_filepath=certificate_filepath)
+              tls_certificate_filepath=certificate_filepath,
+              tls_private_key_filepath=tls_key_filepath)
 
     # Run
 
