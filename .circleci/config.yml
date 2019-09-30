@@ -181,6 +181,36 @@ workflows:
               only: /v[0-9]+.*/
             branches:
               ignore: /.*/
+  nightly:
+    triggers:
+      - schedule:
+          cron: "0 6 * * *"   # 0800 CEST - 2300 PDT
+          filters:
+            branches:
+              only:
+                - master
+                - foo
+    jobs:
+      - pipenv_install_36:
+          filters:
+            tags:
+              only: /.*/
+      - pip_install_36:
+          filters:
+            tags:
+              only: /.*/
+      - pipenv_install_37:
+          filters:
+            tags:
+              only: /.*/
+      - validate_reqs_files:
+          filters:
+            tags:
+              only: /.*/
+      - pip_install_37:
+          filters:
+            tags:
+              only: /.*/
 
 
 python_36_base: &python_36_base
