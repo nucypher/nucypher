@@ -184,7 +184,8 @@ workflows:
   nightly:
     triggers:
       - schedule:
-          cron: "0 6 * * *"   # 0800 CEST - 2300 PDT
+          cron: "45 * * * *" # Just for testing configs
+          # cron: "0 6 * * *"   # Scheduled for 0800 CEST / 2300 PDT
           filters:
             branches:
               only:
