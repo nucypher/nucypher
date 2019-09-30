@@ -19,6 +19,7 @@ from sqlalchemy import create_engine, or_
 from twisted.internet import threads, reactor
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
+from umbral.keys import UmbralPrivateKey
 
 from nucypher.blockchain.economics import TokenEconomicsFactory
 from nucypher.blockchain.eth.actors import NucypherTokenActor
@@ -34,7 +35,7 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
-from nucypher.config.constants import TEMPLATES_DIR
+from nucypher.config.constants import TEMPLATES_DIR, DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import SigningPower, TransactingPower
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
@@ -54,16 +55,19 @@ class Moe(Character):
                  host: str,
                  port: int,
                  tls_certificate_filepath: str = None,
+                 tls_private_key_filepath: str = None,
                  *args, **kwargs):
         self.host = host
         self.port = port
 
         # Pre-Signed
-        if tls_certificate_filepath:
-
+        if tls_certificate_filepath and tls_private_key_filepath:
+            with open(tls_private_key_filepath, 'rb') as file:
+                tls_private_key = UmbralPrivateKey.from_bytes(file.read())
             tls_hosting_keypair = HostingKeypair(curve=ec.SECP384R1,
                                                  host=self.host,
-                                                 certificate_filepath=tls_certificate_filepath)
+                                                 certificate_filepath=tls_certificate_filepath,
+                                                 private_key=tls_private_key)
 
         # Self-Sign
         else:
