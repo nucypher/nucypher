@@ -1122,3 +1122,69 @@ class SeederAgent(EthereumContractAgent):
             entry = self.contract.functions.seeds(ip).call()
             entries.append(entry)
         return entries
+
+
+class MultiSigAgent(EthereumContractAgent):
+
+    Vector = List[str, str, str]
+
+    def get_owners(self) -> Tuple[str]:
+        result = self.contract.functions.owners().call()
+        return tuple(result)
+
+    def get_threshold(self) -> int:
+        result = self.contract.functions.required().call()
+        return result
+
+    @validate_checksum_address
+    def is_owner(self, checksum_address: str) -> bool:
+        result = self.contract.functions.isOwner(checksum_address).call()
+        return result
+
+    def add_owner(self, new_owner_address: str, sender_address: str) -> dict:
+        transaction_function = self.contract.functions.addOwner(new_owner_address)
+        receipt = self.blockchain.send_transaction(contract_function=transaction_function,
+                                                   sender_address=sender_address)
+        return receipt
+
+    @validate_checksum_address
+    def remove_owner(self, checksum_address: str, sender_address: str):
+        transaction_function = self.contract.functions.removeOwner(checksum_address)
+        receipt = self.blockchain.send_transaction(contract_function=transaction_function,
+                                                   sender_address=sender_address)
+        return receipt
+
+    def get_unsigned_transaction_hash(self,
+                                      sender_address: str,
+                                      target_address: str,
+                                      value: int,
+                                      data: dict,
+                                      nonce: int
+                                      ) -> bytes:
+        transaction_hash = self.contract.functions.getUnsignedTransactionHash(
+            sender_address,
+            target_address,
+            value,
+            data,
+            nonce
+        ).call()
+        return transaction_hash
+
+    def execute(self,
+                v: Vector,
+                r: Vector,
+                s: Vector,
+                target_contract: str,
+                transaction_function,
+                value: int,
+                sender_address: str
+                ) -> dict:
+
+        contract_function = self.contract.functions.execute(v, r, s,
+                                                            target_contract,
+                                                            value,
+                                                            transaction_function.data)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=sender_address)
+        return receipt
+

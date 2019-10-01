@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from collections import OrderedDict
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List
 
 from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGURED, NO_BENEFICIARY
 from web3 import Web3
@@ -33,6 +33,7 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     WorkLockAgent,
     SeederAgent,
+    MultiSigAgent,
     ContractAgency
 )
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME
@@ -1171,3 +1172,35 @@ class SeederDeployer(BaseContractDeployer, OwnableContractMixin):
             progress.update(1)
         self.deployment_receipts.update({self.deployment_steps[0]: receipt})
         return self.deployment_receipts
+
+
+class MultiSigDeployer(BaseContractDeployer):
+
+    agency = MultiSigAgent
+    contract_name = agency.registry_contract_name
+    deployment_steps = ('contract_deployment', )
+
+    def _deploy_essential(self, threshold: int, owners: List[str], gas_limit: int = None):
+        constructor_args = (threshold, owners)
+
+        multisig_contract, deploy_receipt = self.blockchain.deploy_contract(self.deployer_address,
+                                                                            self.registry,
+                                                                            self.contract_name,
+                                                                            *constructor_args,
+                                                                            gas_limit=gas_limit)
+        return multisig_contract, deploy_receipt
+
+    def deploy(self, gas_limit: int, progress=None, *args, **kwargs) -> dict:
+        self.check_deployment_readiness()
+
+        multisig_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit, *args, **kwargs)
+
+        # Update the progress bar
+        if progress:
+            progress.update(1)
+
+        # Gather the transaction receipts
+        self.deployment_receipts.update({'deployment': deploy_receipt})
+        self._contract = multisig_contract
+        return deploy_receipt
+
