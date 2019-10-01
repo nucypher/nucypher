@@ -112,11 +112,15 @@ class TransactingPower(CryptoPowerUp):
     class InvalidSigningRequest(PowerUpError):
         pass
 
-    def __init__(self, account: str, password: str = None, cache: bool = False):
+    def __init__(self,
+                 account: str,
+                 provider_uri: str = None,
+                 password: str = None,
+                 cache: bool = False,):
         """
         Instantiates a TransactingPower for the given checksum_address.
         """
-        self.blockchain = BlockchainInterfaceFactory.get_interface()
+        self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=provider_uri)
         self.__account = account
 
         # TODO: Is there a better way to design this Flag?

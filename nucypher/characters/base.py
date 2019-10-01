@@ -40,8 +40,9 @@ from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.characters.control.controllers import JSONRPCController
+from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
@@ -77,9 +78,11 @@ class Character(Learner):
                  federated_only: bool = False,
                  checksum_address: str = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
                  network_middleware: RestMiddleware = None,
-                 keyring_root: str = None,
+                 keyring: NucypherKeyring = None,
+                 keyring_root: str = None,  # TODO
                  crypto_power: CryptoPower = None,
                  crypto_power_ups: List[CryptoPowerUp] = None,
+                 provider_uri: str = None,
                  registry: BaseContractRegistry = None,
                  *args, **kwargs
                  ) -> None:
@@ -111,13 +114,24 @@ class Character(Learner):
         #
         # Operating Mode
         #
-
+        if federated_only:
+            if registry or provider_uri:
+                raise ValueError(f"Cannot init federated-only character with {registry or provider_uri}.")
         self.federated_only = federated_only  # type: bool
-        self.registry = registry
 
         #
         # Powers
         #
+
+        # Derive powers from keyring
+        if keyring:
+            checksum_address = keyring.checksum_address
+            crypto_power_ups = list()
+            for power_up in self._default_crypto_powerups:
+                power = keyring.derive_crypto_power(power_class=power_up)
+                crypto_power_ups.append(power)
+        self.keyring = keyring
+
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
         crypto_power_ups = crypto_power_ups or list()  # type: list
@@ -138,13 +152,14 @@ class Character(Learner):
         #
         # Self-Character
         #
-        if is_me is True:
 
-            if not bool(federated_only) ^ bool(registry):
+        if is_me is True:
+            self.registry = registry or InMemoryContractRegistry.from_latest_publication()
+            if not bool(federated_only) ^ bool(self.registry):
                 raise ValueError(f"Pass either federated only or registry for is_me Characters.  \
                                  Got '{federated_only}' and '{registry}'.")
 
-            self.keyring_root = keyring_root  # type: str
+            self.provider_uri = provider_uri
             self.treasure_maps = {}  # type: dict
             self.network_middleware = network_middleware or RestMiddleware()
 
@@ -162,7 +177,7 @@ class Character(Learner):
             #
             Learner.__init__(self,
                              domains=domains,
-                             network_middleware=network_middleware,
+                             network_middleware=self.network_middleware,
                              *args, **kwargs)
 
         #
@@ -177,7 +192,6 @@ class Character(Learner):
                 raise TypeError("Registry cannot be attached to stranger-Characters.")
 
             self._stamp = StrangerStamp(self.public_keys(SigningPower))
-            self.keyring_root = STRANGER
             self.network_middleware = STRANGER
 
         #

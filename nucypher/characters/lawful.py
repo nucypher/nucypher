@@ -124,7 +124,9 @@ class Alice(Character, BlockchainPolicyAuthor):
                            *args, **kwargs)
 
         if is_me and not federated_only:  # TODO: #289
-            transacting_power = TransactingPower(account=self.checksum_address, password=client_password)
+            transacting_power = TransactingPower(account=self.checksum_address,
+                                                 password=client_password,
+                                                 provider_uri=self.provider_uri)
             self._crypto_power.consume_power_up(transacting_power)
             BlockchainPolicyAuthor.__init__(self,
                                             registry=self.registry,
@@ -1049,7 +1051,7 @@ class Ursula(Teacher, Character, Worker):
     @classmethod
     def from_seed_and_stake_info(cls,
                                  seed_uri: str,
-                                 federated_only: bool,
+                                 federated_only: bool = False,
                                  minimum_stake: int = 0,
                                  registry: BaseContractRegistry = None,
                                  network_middleware: RestMiddleware = None,

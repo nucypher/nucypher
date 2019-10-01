@@ -20,6 +20,7 @@ import json
 import os
 import stat
 from json import JSONDecodeError
+from os.path import dirname, abspath
 from typing import ClassVar, Tuple, Callable, Union, Dict, List
 
 from constant_sorrow.constants import FEDERATED_ADDRESS
@@ -73,6 +74,10 @@ __HKDF_HASH_ALGORITHM = BLAKE2B
 
 
 class PrivateKeyExistsError(RuntimeError):
+    pass
+
+
+class ExistingKeyringError(RuntimeError):
     pass
 
 
@@ -133,7 +138,7 @@ def _write_private_keyfile(keypath: str,
     ---------------------------------------------------------------------
     """
 
-    if os.path.isfile(keypath):
+    if os.path.exists(keypath):
         raise PrivateKeyExistsError(f"Private keyfile {keypath} already exists.")
     try:
         keyfile_descriptor = os.open(keypath, flags=__PRIVATE_FLAGS, mode=__PRIVATE_MODE)
@@ -510,8 +515,8 @@ class NucypherKeyring:
     def generate(cls,
                  checksum_address: str,
                  password: str,
-                 encrypting: bool,
-                 rest: bool,
+                 encrypting: bool = True,
+                 rest: bool = False,
                  host: str = None,
                  curve: EllipticCurve = None,
                  keyring_root: str = None,
@@ -600,30 +605,31 @@ class NucypherKeyring:
             # Write Keys
             #
 
-            if not os.path.isdir(keyring_root):
-                os.mkdir(keyring_root, mode=0o700)  # TODO: Keyring backend entry point - COS
-
+            # Create base paths if the do not exist.
+            os.makedirs(abspath(keyring_root), exist_ok=True, mode=0o700)
             if not os.path.isdir(_public_key_dir):
                 os.mkdir(_public_key_dir, mode=0o744)  # public dir
-
             if not os.path.isdir(_private_key_dir):
                 os.mkdir(_private_key_dir, mode=0o700)  # private dir
 
-            rootkey_path = _write_private_keyfile(keypath=__key_filepaths['root'],
-                                                  key_data=encrypting_key_metadata,
-                                                  serializer=cls._private_key_serializer)
+            try:
+                rootkey_path = _write_private_keyfile(keypath=__key_filepaths['root'],
+                                                      key_data=encrypting_key_metadata,
+                                                      serializer=cls._private_key_serializer)
 
-            sigkey_path = _write_private_keyfile(keypath=__key_filepaths['signing'],
-                                                 key_data=signing_key_metadata,
-                                                 serializer=cls._private_key_serializer)
+                sigkey_path = _write_private_keyfile(keypath=__key_filepaths['signing'],
+                                                     key_data=signing_key_metadata,
+                                                     serializer=cls._private_key_serializer)
 
-            delegating_key_path = _write_private_keyfile(keypath=__key_filepaths['delegating'],
-                                                         key_data=delegating_key_metadata,
-                                                         serializer=cls._private_key_serializer)
+                delegating_key_path = _write_private_keyfile(keypath=__key_filepaths['delegating'],
+                                                             key_data=delegating_key_metadata,
+                                                             serializer=cls._private_key_serializer)
 
-            # Write Public Keys
-            root_keypath = _write_public_keyfile(__key_filepaths['root_pub'], encrypting_public_key.to_bytes())
-            signing_keypath = _write_public_keyfile(__key_filepaths['signing_pub'], signing_public_key.to_bytes())
+                # Write Public Keys
+                root_keypath = _write_public_keyfile(__key_filepaths['root_pub'], encrypting_public_key.to_bytes())
+                signing_keypath = _write_public_keyfile(__key_filepaths['signing_pub'], signing_public_key.to_bytes())
+            except (PrivateKeyExistsError, FileExistsError):
+                raise ExistingKeyringError(f"There is an existing keyring for address '{checksum_address}'")
 
             # Commit
             keyring_args.update(
