@@ -79,7 +79,7 @@ class Character(Learner):
                  checksum_address: str = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
                  network_middleware: RestMiddleware = None,
                  keyring: NucypherKeyring = None,
-                 keyring_root: str = None,  # TODO
+                 keyring_root: str = None,
                  crypto_power: CryptoPower = None,
                  crypto_power_ups: List[CryptoPowerUp] = None,
                  provider_uri: str = None,
@@ -124,12 +124,16 @@ class Character(Learner):
         #
 
         # Derive powers from keyring
+        if keyring_root and keyring:
+            if keyring_root != keyring.keyring_root:
+                raise ValueError("Inconsistent keyring root directory path")
         if keyring:
-            checksum_address = keyring.checksum_address
+            keyring_root, checksum_address = keyring.keyring_root, keyring.checksum_address
             crypto_power_ups = list()
             for power_up in self._default_crypto_powerups:
                 power = keyring.derive_crypto_power(power_class=power_up)
                 crypto_power_ups.append(power)
+        self.keyring_root = keyring_root
         self.keyring = keyring
 
         if crypto_power and crypto_power_ups:
@@ -154,12 +158,10 @@ class Character(Learner):
         #
 
         if is_me is True:
-            self.registry = registry or InMemoryContractRegistry.from_latest_publication()
-            if not bool(federated_only) ^ bool(self.registry):
+            if not bool(federated_only) ^ bool(registry):
                 raise ValueError(f"Pass either federated only or registry for is_me Characters.  \
                                  Got '{federated_only}' and '{registry}'.")
 
-            self.provider_uri = provider_uri
             self.treasure_maps = {}  # type: dict
             self.network_middleware = network_middleware or RestMiddleware()
 
@@ -198,6 +200,9 @@ class Character(Learner):
         # Decentralized
         #
         if not federated_only:
+            self.provider_uri = provider_uri
+            self.registry = registry or InMemoryContractRegistry.from_latest_publication()
+
             if not checksum_address:
                 raise ValueError("No checksum_address provided to run in decentralized mode.")
             else:
