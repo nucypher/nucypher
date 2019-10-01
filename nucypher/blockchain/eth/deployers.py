@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from collections import OrderedDict
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List
 
 from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGURED, NO_BENEFICIARY
 from web3.contract import Contract
@@ -30,7 +30,8 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     PolicyManagerAgent,
     PreallocationEscrowAgent,
-    AdjudicatorAgent
+    AdjudicatorAgent,
+    MultiSigAgent,
 )
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_secret, validate_checksum_address
@@ -248,7 +249,7 @@ class UpgradeableContractMixin:
 
     def get_proxy_contract(self, registry: BaseContractRegistry, provider_uri: str = None) -> Contract:
         if not self._upgradeable:
-            raise cls.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
+            raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
         blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
         principal_contract = self.get_principal_contract(registry=registry, provider_uri=provider_uri)
         proxy_contract = blockchain.get_proxy_contract(registry=registry,
@@ -979,13 +980,10 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
         adjudicator_contract = wrapped
 
         # Configure the StakingEscrow contract by setting the Adjudicator
-        tx_args = {}
-        if gas_limit:
-            tx_args.update({'gas': gas_limit})
         set_adjudicator_function = self.staking_contract.functions.setAdjudicator(adjudicator_contract.address)
         set_adjudicator_receipt = self.blockchain.send_transaction(contract_function=set_adjudicator_function,
                                                                    sender_address=self.deployer_address,
-                                                                   payload=tx_args)
+                                                                   transaction_gas_limit=gas_limit)
         if progress:
             progress.update(1)
 
@@ -997,3 +995,34 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
         self._contract = adjudicator_contract
 
         return deployment_receipts
+
+
+class MultiSigDeployer(BaseContractDeployer):
+
+    agency = MultiSigAgent
+    contract_name = agency.registry_contract_name
+    deployment_steps = ('contract_deployment', )
+
+    def _deploy_essential(self, threshold: int, owners: List[str], gas_limit: int = None):
+        constructor_args = (threshold, owners)
+
+        multisig_contract, deploy_receipt = self.blockchain.deploy_contract(self.deployer_address,
+                                                                            self.registry,
+                                                                            self.contract_name,
+                                                                            *constructor_args,
+                                                                            gas_limit=gas_limit)
+        return multisig_contract, deploy_receipt
+
+    def deploy(self, gas_limit: int, progress=None, *args, **kwargs) -> dict:
+        self.check_deployment_readiness()
+
+        multisig_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit, *args, **kwargs)
+
+        # Update the progress bar
+        if progress:
+            progress.update(1)
+
+        # Gather the transaction receipts
+        self.deployment_receipts.update({'deployment': deploy_receipt})
+        self._contract = multisig_contract
+        return deploy_receipt
