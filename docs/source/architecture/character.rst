@@ -22,10 +22,10 @@ Alice::Grant
 .. image:: ../.static/img/alice_grant.svg
     :target: ../.static/img/alice_grant.svg
 
-Alice may have data that she wants to share and it is conceivable that she would want to classify/categorize
-her data according to how she intends to share it. Each of these subsets should have their own set of permissions - within NuCypher
+Alice has data that she wants to share and she wants to classify/categorize
+her data according to how she intends to share it. These subsets of data would have their own set of permissions - within NuCypher
 this concept is called a `label`. Alice uses this `label`  to categorize data and she creates an asymmetric encryption key
-for Enrico based on the `label`. For example, Alice may use different `labels` and therefore different Enricos for
+for Enrico characters based on the `label`. For example, Alice may use different `labels` and different Enricos for
 health data, personal data, and work-related data. Essentially, `labels` are a way to categorize data for sharing - you
 can think of file system folders as being somewhat analogous to `labels`. Alice can delegate access permissions to
 the encrypted data classified under a `label` to any recipient she sees fit.
@@ -68,8 +68,8 @@ Bob::Retrieve
 When Bob wants to access the data, he must first obtain the encrypted data and `capsule` from encrypted storage.
 However, this data is currently encrypted and inaccessible to Bob.
 
-Bob will need to get the `capsule` re-encrypted from the encryption key configured by Alice to
-his public key. Remember that when Alice granted access to Bob, she distributed `n`
+In order to gain access, Bob must request re-encryption of the `capsule` by the `n` Ursulas that Alice previously
+distributed `kFrags` to. Remember that when Alice granted access to Bob, she distributed `n`
 `kFrags` of a re-encryption key for Bob to `n` Ursulas on the network. Therefore, Bob sends his `capsule` to `n`
 Ursulas in the NuCypher Network that have a corresponding `kFrag` for that policy. Those Ursulas
 will use their `kFrag` to perform a partial re-encryption operation on the `capsule` and produce a corresponding

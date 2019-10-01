@@ -59,13 +59,14 @@ How does NuCypher work?
 anyone she wants by creating a policy and uploading it to
 the NuCypher network.
 
-2. A group of Ursulas, which are nodes of the NuCypher network,
+2. A group of Ursulas, which are nodes on the NuCypher network,
 receive information about the policy, called a PolicyArrangement that include
 a re-encryption key share. The Ursulas stand ready to re-encrypt data in exchange for payment
 in fees and token rewards. Thanks to the use of proxy re-encryption,
 Ursulas and the storage layer never have access to Alice's plaintext data.
 
-3. Using a configurable asymmetric encryption key, any entity (Enrico) can encrypt data on Alice's behalf.
+3. Each policy created by Alice has an associated encryption key, which can be used
+by any entity (Enrico) to encrypt data on Alice's behalf.
 This entity could be an IoT device in her car, a collaborator assigned
 the task of writing data to her policy, or even a third-party creating
 data that belongs to her – for example, a lab analyzing medical tests.
