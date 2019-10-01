@@ -116,7 +116,8 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
     (nucypher)$ nucypher ursula run --teacher <SEEDNODE_URI> --interactive
 
 The teacher ``SEEDNODE_URI`` is given in a form ``ip_address:port``, for example
-``13.48.124.134:9151``.
+``13.48.124.134:9151``. Choose from any of the available teacher nodes listed
+on https://status.nucypher.com:12500/.
 
 
 6. Verify Ursula Blockchain Connection (Interactive)
