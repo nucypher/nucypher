@@ -156,6 +156,12 @@ Whitepapers
 
    release_notes/genesis_release
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Glossary
+
+   glossary
+
 
 Indices and Tables
 ==================
