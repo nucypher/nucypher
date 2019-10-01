@@ -68,25 +68,25 @@ class CharacterSpecification(ABC):
 
 class AliceSpecification(CharacterSpecification):
 
-    __create_policy = {'in': ('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),
+    __create_policy = {'input': ('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),
                        'optional': ('value', 'first_period_reward', 'rate'),
-                       'out': ('label', 'policy_encrypting_key')}
+                       'output': ('label', 'policy_encrypting_key')}
 
     __derive_policy_encrypting_key = {'in': ('label', ),
                                       'out': ('policy_encrypting_key', 'label')}
 
-    __grant = {'in': ('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),
+    __grant = {'input': ('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),
                'optional': ('value', 'first_period_reward', 'rate'),
-               'out': ('treasure_map', 'policy_encrypting_key', 'alice_verifying_key')}
+               'output': ('treasure_map', 'policy_encrypting_key', 'alice_verifying_key')}
 
-    __revoke = {'in': ('label', 'bob_verifying_key', ),
-                'out': ('failed_revocations',)}
+    __revoke = {'input': ('label', 'bob_verifying_key', ),
+                'output': ('failed_revocations',)}
 
-    __decrypt = {'in': ('label', 'message_kit'),
-                 'out': ('cleartexts', )}
+    __decrypt = {'input': ('label', 'message_kit'),
+                 'output': ('cleartexts', )}
 
-    __public_keys = {'in': (),
-                     'out': ('alice_verifying_key',)}
+    __public_keys = {'input': (),
+                     'output': ('alice_verifying_key',)}
 
     _specifications = {'create_policy': __create_policy,  # type: Tuple[Tuple[str]]
                        'derive_policy_encrypting_key': __derive_policy_encrypting_key,
@@ -98,14 +98,14 @@ class AliceSpecification(CharacterSpecification):
 
 class BobSpecification(CharacterSpecification):
 
-    __join_policy = {'in': ('label', 'alice_verifying_key'),
-                     'out': ('policy_encrypting_key', )}
+    __join_policy = {'input': ('label', 'alice_verifying_key'),
+                     'output': ('policy_encrypting_key', )}
 
-    __retrieve = {'in': ('label', 'policy_encrypting_key', 'alice_verifying_key', 'message_kit'),
-                  'out': ('cleartexts', )}
+    __retrieve = {'input': ('label', 'policy_encrypting_key', 'alice_verifying_key', 'message_kit'),
+                  'output': ('cleartexts', )}
 
-    __public_keys = {'in': (),
-                     'out': ('bob_encrypting_key', 'bob_verifying_key')}
+    __public_keys = {'input': (),
+                     'output': ('bob_encrypting_key', 'bob_verifying_key')}
 
     _specifications = {'join_policy': __join_policy,
                        'retrieve': __retrieve,
@@ -114,7 +114,7 @@ class BobSpecification(CharacterSpecification):
 
 class EnricoSpecification(CharacterSpecification):
 
-    __encrypt_message = {'in': ('message', ),
-                         'out': ('message_kit', 'signature')}
+    __encrypt_message = {'input': ('message', ),
+                         'output': ('message_kit', 'signature')}
 
     _specifications = {'encrypt_message': __encrypt_message}
