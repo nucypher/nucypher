@@ -114,13 +114,22 @@ off).
 
 If you don't have a hardware wallet, you can create a software one:
 
+Whilst running the initialized node:
+
 .. code:: bash
 
+    Linux:
     $ geth attach /home/<username>/.ethereum/goerli/geth.ipc
     > personal.newAccount();
     > eth.accounts
     ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
-
+    
+    MacOS:
+    $ geth attach /Users/<username>/Library/Ethereum/goerli/geth.ipc
+    > personal.newAccount();
+    > eth.accounts
+    ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
+    
 Where ``0x287a817426dd1ae78ea23e9918e2273b6733a43d`` is your newly created
 account address and ``<username>`` is your user.
 
@@ -133,6 +142,8 @@ Initialize a new stakeholder
 
 If you ran ``geth`` node as above, your ``<PROVIDER>`` is
 ``ipc:///home/<username>/.ethereum/goerli/geth.ipc``.
+
+(``ipc:///Users/<username>/Library/Ethereum/goerli/geth.ipc`` on MacOS)
 
 Please note that you want to use ``--hw-wallet`` if you use a hardware wallet in
 order for ``nucypher`` to not ask you for the password.
@@ -215,8 +226,8 @@ attached a Worker node to your Staker, so you still have to do it!
 Bond an Ursula to a Staker
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-After you create an Ethereum node for your worker (see below about the worker),
-you can set the worker. Stakes which don't yet have a worker will be
+After you create an Ethereum node for your staker (see below about the worker),
+you can set the worker. Stakers which don't yet have a worker will be
 highlighted in yellow:
 
 .. code:: bash
