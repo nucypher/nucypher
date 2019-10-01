@@ -16,7 +16,7 @@ For testnet, it is:
 
 .. code:: bash
 
-    $ geth --goerli --no-usb
+    $ geth --goerli --nousb
 
 You need to create a software-controlled account in geth:
 
@@ -83,7 +83,7 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
     - ``ws://0.0.0.0:8080``     - Websocket Provider
 
 ``<YOUR STAKER ADDRESS>`` is the address you've staked from when following the
-:ref:`staking-guide`.
+ :ref:`staking-guide`.
 
 
 3. Enter or confirm your public-facing IPv4 address when prompted
