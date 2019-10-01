@@ -216,7 +216,8 @@ contract PolicyManager is Upgradeable {
         uint256 reward = node.reward;
         require(reward != 0);
         node.reward = 0;
-        _recipient.transfer(reward);
+        (bool success, ) = _recipient.call.value(reward)("");
+        require(success);
         emit Withdrawn(msg.sender, _recipient, reward);
         return reward;
     }
@@ -338,7 +339,8 @@ contract PolicyManager is Upgradeable {
             require(i < policy.arrangements.length);
         }
         if (refundValue > 0) {
-            msg.sender.transfer(refundValue);
+            (bool success, ) = msg.sender.call.value(refundValue)("");
+            require(success);
         }
     }
 
