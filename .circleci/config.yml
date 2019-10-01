@@ -184,7 +184,7 @@ workflows:
   nightly:
     triggers:
       - schedule:
-          cron: "0 6 * * *"   # Scheduled for 0800 CEST / 2300 PDT
+          cron: "0 6 * * *"   # Scheduled for 0600 UTC (0800 CEST, 2300 PDT)
           filters:
             branches:
               only:
@@ -689,5 +689,5 @@ jobs:
       - run:
           name: Statistical tests (e.g., sampling)
           command: |
-            pytest --run-nightly tests/blockchain/eth/contracts/main/staking_escrow/test_sampling_distribution.py
+            pytest --run-nightly --no-cov tests/blockchain/eth/contracts/main/staking_escrow/test_sampling_distribution.py
       - capture_test_results
