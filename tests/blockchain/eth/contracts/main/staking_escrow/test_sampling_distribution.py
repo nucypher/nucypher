@@ -20,10 +20,9 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 
 
-# TODO: #1288 - Consider moving this test out from regular CI workflow to a scheduled workflow (e.g., nightly)
-# @pytest.mark.slow
-@pytest.mark.skip("Until SAMPLES can be raised. See #1288")
+@pytest.mark.nightly
 def test_sampling_distribution(testerchain, token, deploy_contract):
+
 
     #
     # SETUP
@@ -90,7 +89,7 @@ def test_sampling_distribution(testerchain, token, deploy_contract):
     #
 
     ERROR_TOLERANCE = 0.05  # With this tolerance, all sampling ratios should between 5% and 15% (expected is 10%)
-    SAMPLES = 100
+    SAMPLES = 300
     quantity = 3
     import random
     from collections import Counter

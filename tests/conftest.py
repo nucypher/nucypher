@@ -86,6 +86,16 @@ def pytest_addoption(parser):
                      action="store_true",
                      default=False,
                      help="run tests even if they are marked as slow")
+    parser.addoption("--run-nightly",
+                     action="store_true",
+                     default=False,
+                     help="run tests even if they are marked as nightly")
+
+
+def pytest_configure(config):
+    message = "{0}: mark test as {0} to run (skipped by default, use '{1}' to include these tests)"
+    config.addinivalue_line("markers", message.format("slow", "--runslow"))
+    config.addinivalue_line("markers", message.format("nightly", "--run-nightly"))
 
 
 def pytest_collection_modifyitems(config, items):
@@ -94,12 +104,20 @@ def pytest_collection_modifyitems(config, items):
     # Handle slow tests marker
     #
 
-    if not config.getoption("--runslow"):  # --runslow given in cli: do not skip slow tests
-        skip_slow = pytest.mark.skip(reason="need --runslow option to run")
+    option_markers = {
+        "--runslow": "slow",
+        "--run-nightly": "nightly"
+    }
 
+    for option, marker in option_markers.items():
+        option_is_set = config.getoption(option)
+        if option_is_set:
+            continue
+
+        skip_reason = pytest.mark.skip(reason=f"need {option} option to run tests marked with '@pytest.mark.{marker}'")
         for item in items:
-            if "slow" in item.keywords:
-                item.add_marker(skip_slow)
+            if marker in item.keywords:
+                item.add_marker(skip_reason)
 
     #
     # Handle Log Level

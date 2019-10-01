@@ -184,13 +184,11 @@ workflows:
   nightly:
     triggers:
       - schedule:
-          cron: "45 * * * *" # Just for testing configs
-          # cron: "0 6 * * *"   # Scheduled for 0800 CEST / 2300 PDT
+          cron: "0 6 * * *"   # Scheduled for 0600 UTC (0800 CEST, 2300 PDT)
           filters:
             branches:
               only:
                 - master
-                - foo
     jobs:
       - pipenv_install_36:
           filters:
@@ -212,6 +210,13 @@ workflows:
           filters:
             tags:
               only: /.*/
+      - statistical_tests:
+          context: "Nightly Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
 
 
 python_36_base: &python_36_base
@@ -675,3 +680,14 @@ jobs:
           command: |
             echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
             docker push nucypher/nucypher:$CIRCLE_TAG
+
+  statistical_tests:
+      <<: *python_37_base
+      parallelism: 1
+      steps:
+      - prepare_environment
+      - run:
+          name: Statistical tests (e.g., sampling)
+          command: |
+            pytest --run-nightly --no-cov tests/blockchain/eth/contracts/main/staking_escrow/test_sampling_distribution.py
+      - capture_test_results
