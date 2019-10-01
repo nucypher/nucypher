@@ -1,4 +1,7 @@
 from abc import ABC
+from collections import namedtuple
+
+SpecificationTuple = namedtuple('SpecificationTuple', ['input', 'optional', 'output'])
 
 
 class CharacterSpecification(ABC):
@@ -26,9 +29,9 @@ class CharacterSpecification(ABC):
         except KeyError:
             raise cls.SpecificationError(f"{cls.__class__.__name__} has no such control interface: '{interface_name}'")
 
-        return spec.get('in', tuple()),\
-            spec.get('optional', tuple()),\
-            spec.get('out', tuple())
+        return SpecificationTuple(**{
+            k: spec.get(k, ())
+            for k in ['input', 'optional', 'output']})
 
     @classmethod
     def specifications(cls):
