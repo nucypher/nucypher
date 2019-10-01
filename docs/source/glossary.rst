@@ -48,7 +48,10 @@ Glossary
       The NuCypher token used by nodes for staking.
 
     NuNit
-        1 NU = 10\ :sup:`18` NuNits.
+      1 NU = 10\ :sup:`18` NuNits.
+
+    Period
+      A timeframe of approximately a day in the NuCypher Network.
 
     PKE
       Public-key encryption.
