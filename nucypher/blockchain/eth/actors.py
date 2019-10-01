@@ -19,7 +19,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import csv
 import json
 import os
-from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Tuple, List, Dict, Union
@@ -34,6 +33,7 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak, is_checksum_address, to_checksum_address
 from twisted.logger import Logger
 from web3 import Web3
+from web3.contract import ContractFunction
 
 from nucypher.blockchain.economics import StandardTokenEconomics, EconomicsFactory, BaseEconomics
 from nucypher.blockchain.eth.agents import (
@@ -43,8 +43,9 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
     PreallocationEscrowAgent,
+    MultiSigAgent,
     WorkLockAgent)
-from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.decorators import validate_checksum_address, only_me, save_receipt
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
@@ -58,6 +59,7 @@ from nucypher.blockchain.eth.deployers import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.multisig import MultiSigAuthorization
 from nucypher.blockchain.eth.registry import (
     AllocationRegistry,
     BaseContractRegistry,
@@ -75,24 +77,6 @@ from nucypher.cli.painting import (
 )
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
-
-
-def only_me(func):
-    """Decorator to enforce invocation of permissioned actor methods"""
-    def wrapped(actor=None, *args, **kwargs):
-        if not actor.is_me:
-            raise actor.StakerError("You are not {}".format(actor.__class.__.__name__))
-        return func(actor, *args, **kwargs)
-    return wrapped
-
-
-def save_receipt(actor_method):
-    """Decorator to save the receipts of transmitted transactions from actor methods"""
-    def wrapped(self, *args, **kwargs):
-        receipt = actor_method(self, *args, **kwargs)
-        self._saved_receipts.append((datetime.utcnow(), receipt))
-        return receipt
-    return wrapped
 
 
 class NucypherTokenActor:
@@ -656,6 +640,90 @@ class ContractAdministrator(NucypherTokenActor):
             data = json.dumps(data, indent=4)
             file.write(data)
         return filepath
+
+
+class MultiSigActor(NucypherTokenActor):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.multisig_agent = ContractAgency.get_agent(MultiSigAgent, registry=self.registry)
+
+
+class Trustee(MultiSigActor):
+    """
+    A member of a the MultiSigBoard given the power and
+    obligation to execute the authorized transaction on
+    behalf of the board executives.
+    """
+
+    class NoAuthorizations(RuntimeError):
+        """Raised when there are zero authorizations."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.authorizations = dict()
+
+    @property
+    def current_nonce(self) -> int:
+        # TODO: Move to clients
+        w3 = self.multisig_agent.blockchain.client.w3
+        nonce = w3.eth.getTransactionCount(self.checksum_address)
+        return nonce
+
+    def combine_authorizations(self) -> Tuple[List[bytes], ...]:
+        if not self.authorizations:
+            raise self.NoAuthorizations
+        all_v, all_r, all_s = list(), list(), list()
+        for authorization in self.authorizations.items():
+            v, r, s = authorization.get_components()
+            all_v.append(v)
+            all_r.append(r)
+            all_s.append(s)
+
+        # TODO: check for inconsistencies (nonce, etc.)
+        return all_v, all_r, all_s
+
+    def execute(self, contract_function: ContractFunction) -> dict:
+        v, r, s = self.combine_authorizations()
+        receipt = self.multisig_agent.execute(sender_address=self.checksum_address,
+                                              v=v, r=r, s=s,
+                                              transaction_function=contract_function,
+                                              value=None)  # TODO: Design Flaw...
+        return receipt
+
+    def change_threshold(self, new_threshold: int) -> dict:
+        # TODO: Implement Agent method for change threshold for function binding
+        receipt = self.multisig_agent.execute()
+        return receipt
+
+
+class Executive(MultiSigActor):
+    """
+    An actor having the power to authorize transaction executions to a delegated trustee.
+    """
+
+    def sign_hash(self, unsigned_hash: bytes) -> bytes:
+        blockchain = self.multisig_agent.blockchain
+        signed_hash = blockchain.transacting_power.sign_hash(unsigned_hash=unsigned_hash)
+        return signed_hash
+
+    def authorize(self, trustee, contract_function: ContractFunction) -> MultiSigAuthorization:
+        try:
+            transaction = contract_function.buildTransaction()
+        except (TransactionFailed, ValueError):
+            # TODO - Handle Validation Failure
+            raise
+        unsigned_transaction_hash = self.multisig_agent.get_unsigned_transaction_hash(
+            trustee_address=trustee.checksum_address,
+            target_address=contract_function.address,
+            value=transaction['value'],
+            data=transaction['data'],
+            nonce=trustee.current_nonce
+        )
+        signed_transaction_hash = self.sign_hash(unsigned_hash=unsigned_transaction_hash)
+        authorization = self.Authorization(trustee_address=trustee.checksum_address,
+                                           signed_transaction_hash=signed_transaction_hash)
+        return authorization
 
 
 class Staker(NucypherTokenActor):

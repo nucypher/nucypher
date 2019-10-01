@@ -1126,7 +1126,7 @@ class SeederAgent(EthereumContractAgent):
 
 class MultiSigAgent(EthereumContractAgent):
 
-    Vector = List[str, str, str]
+    Vector = List[str]
 
     def get_owners(self) -> Tuple[str]:
         result = self.contract.functions.owners().call()
@@ -1155,14 +1155,14 @@ class MultiSigAgent(EthereumContractAgent):
         return receipt
 
     def get_unsigned_transaction_hash(self,
-                                      sender_address: str,
+                                      trustee_address: str,
                                       target_address: str,
                                       value: int,
                                       data: dict,
                                       nonce: int
                                       ) -> bytes:
         transaction_hash = self.contract.functions.getUnsignedTransactionHash(
-            sender_address,
+            trustee_address,
             target_address,
             value,
             data,
@@ -1174,14 +1174,12 @@ class MultiSigAgent(EthereumContractAgent):
                 v: Vector,
                 r: Vector,
                 s: Vector,
-                target_contract: str,
                 transaction_function,
                 value: int,
                 sender_address: str
                 ) -> dict:
-
         contract_function = self.contract.functions.execute(v, r, s,
-                                                            target_contract,
+                                                            transaction_function.address,
                                                             value,
                                                             transaction_function.data)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,

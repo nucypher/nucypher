@@ -1,4 +1,5 @@
 import functools
+from datetime import datetime
 
 from twisted.logger import Logger
 from typing import Callable
@@ -102,4 +103,22 @@ def validate_secret(func: Callable) -> Callable:
             message = f"The secret provided for upgrade/rollback {self.contract_name} is not valid."
             raise self.ContractDeploymentError(message)
 
+    return wrapped
+
+
+def only_me(func):
+    """Decorator to enforce invocation of permissioned actor methods"""
+    def wrapped(actor=None, *args, **kwargs):
+        if not actor.is_me:
+            raise actor.StakerError("You are not {}".format(actor.__class.__.__name__))
+        return func(actor, *args, **kwargs)
+    return wrapped
+
+
+def save_receipt(actor_method):
+    """Decorator to save the receipts of transmitted transactions from actor methods"""
+    def wrapped(self, *args, **kwargs):
+        receipt = actor_method(self, *args, **kwargs)
+        self._saved_receipts.append((datetime.utcnow(), receipt))
+        return receipt
     return wrapped
