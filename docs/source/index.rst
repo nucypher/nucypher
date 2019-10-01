@@ -52,26 +52,33 @@ threshold proxy re-encryption scheme to provide cryptographic access control.
 How does NuCypher work?
 -----------------------
 
+.. image:: ./.static/img/nucypher_overview.svg
+    :target: ./.static/img/nucypher_overview.svg
+
 1. Alice, the data owner, grants access to her encrypted data to
 anyone she wants by creating a policy and uploading it to
 the NuCypher network.
 
-2. Using her policy's public key, any entity can encrypt data on Alice's behalf.
+2. A group of Ursulas, which are nodes on the NuCypher network,
+receive information about the policy, called a PolicyArrangement that include
+a re-encryption key share. The Ursulas stand ready to re-encrypt data in exchange for payment
+in fees and token rewards. Thanks to the use of proxy re-encryption,
+Ursulas and the storage layer never have access to Alice's plaintext data.
+
+3. Each policy created by Alice has an associated encryption key, which can be used
+by any entity (Enrico) to encrypt data on Alice's behalf.
 This entity could be an IoT device in her car, a collaborator assigned
 the task of writing data to her policy, or even a third-party creating
 data that belongs to her – for example, a lab analyzing medical tests.
 The resulting encrypted data can be uploaded to IPFS, Swarm, S3,
 or any other storage layer.
 
-3. A group of Ursulas, which are nodes of the NuCypher network,
-receive the access policy and stand ready to
-re-encrypt data in exchange for payment in fees and token rewards.
-Thanks to the use of proxy re-encryption,
-Ursulas and the storage layer never have access to Alice's plaintext data.
-
-4. Bob, a data recipient, sends an access request to the NuCypher network.
-If the policy is satisfied, the data is re-encrypted to his public key
+4. Bob, a data recipient, obtains the encrypted data from the storage layer and sends an access request
+to the NuCypher network. If the policy is satisfied, the data is re-encrypted to his public key
 and he can decrypt it with his private key.
+
+5. Ursulas earn fees and token rewards for performing
+re-encryption operations.
 
 More detailed information:
 
@@ -134,6 +141,7 @@ Whitepapers
    :maxdepth: 1
    :caption: Architecture
 
+   architecture/character
    architecture/contracts
    architecture/upgradeable_proxy_contracts
    architecture/slashing
