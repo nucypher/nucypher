@@ -96,7 +96,7 @@ def test_stake_via_contract(click_runner,
     # The good stuff: Using `nucypher stake create --escrow`
     #
 
-    # Staking contract has not stakes yet
+    # Staking contract has no stakes yet
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     stakes = list(staking_agent.get_all_stakes(staker_address=preallocation_contract_address))
     assert not stakes
