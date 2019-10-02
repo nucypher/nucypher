@@ -83,6 +83,12 @@ class NetworkStatusPage:
             nodes.append(node_data)
 
         return html.Div([
+            html.H4('Network Nodes'),
+            html.Div([
+                html.Div('* Current Teacher',
+                         style={'backgroundColor': '#1E65F3', 'color': 'white'},
+                         className='two columns'),
+            ], className='row'),
             html.Div([self.nodes_table(nodes, teacher_index, character.registry)],
                      className='row')
         ], className='row')
@@ -168,7 +174,7 @@ class NetworkStatusPage:
         if worker == BlockchainInterface.NULL_ADDRESS:
             missing_confirmations = BlockchainInterface.NULL_ADDRESS
 
-        color_codex = {-1: ('green', ''),  # Confirmed Next Period
+        color_codex = {-1: ('green', ' '),  # Confirmed Next Period
                        0: ('#e0b32d', 'Pending'),  # Pending Confirmation of Next Period
                        current_period: ('#525ae3', 'Idle'),  # Never confirmed
                        BlockchainInterface.NULL_ADDRESS: ('red', 'Headless')  # Headless Staker (No Worker)
@@ -178,7 +184,7 @@ class NetworkStatusPage:
         except KeyError:
             color, status_message = 'red', f'{missing_confirmations} Unconfirmed'
         status_cell = daq.Indicator(id='Status', color=color, value=True,
-                                    label=status_message, labelPosition='right', size=10)
+                                    label=status_message, labelPosition='bottom', size=10)
         status = html.Td(status_cell)
         return status
 
@@ -227,12 +233,13 @@ class MoeStatusPage(NetworkStatusPage):
                     html.Div(id='active-stakers'),
                     html.Div(id='registry-uri'),
                     html.Div(id='staked-tokens'),
-                    html.Div(id='locked-stake-graph'),
-                    #html.Div(id='schedule'),
+                    # html.Div(id='locked-stake-graph'),
+                    # html.Div(id='schedule'),
                 ], id='widgets'),
 
                 html.Div([
                     html.Div(id='prev-states'),
+                    html.Br(),
                     html.Div(id='known-nodes'),
                 ]),
 
@@ -321,37 +328,37 @@ class MoeStatusPage(NetworkStatusPage):
                        target='_blank'),
             ], className='stacked-widget')
 
-        @self.dash_app.callback(Output('locked-stake-graph', 'children'),
-                                [Input('hidden-node-button', 'n_clicks')])
-        def future_locked_tokens(pathname):
-            periods = 30
-            token_counter = self.moe_db_client.get_future_locked_tokens_over_day_range(periods)
-            period_range = list(range(1, periods + 1))
-            fig = go.Figure(data=[
-                                go.Bar(
-                                    textposition='auto',
-                                    x=period_range,
-                                    y=list(token_counter.values()),
-                                    name='Stake',
-                                    marker=go.bar.Marker(color='rgb(30, 101, 243)')
-                                )
-                            ],
-                            layout=go.Layout(
-                                title=f'Staked NU over the next {periods} days.',
-                                xaxis={'title': 'Days'},
-                                yaxis={'title': 'NU Tokens'},
-                                showlegend=False,
-                                legend=go.layout.Legend(x=0, y=1.0),
-                                paper_bgcolor='rgba(0,0,0,0)',
-                                plot_bgcolor='rgba(0,0,0,0)'
-                            ))
-
-            config = {"displaylogo": False,
-                      'autosizable': True,
-                      'responsive': True,
-                      'fillFrame': False,
-                      'displayModeBar': False}
-            return dcc.Graph(figure=fig, id='locked-graph', config=config)
+        # @self.dash_app.callback(Output('locked-stake-graph', 'children'),
+        #                         [Input('hidden-node-button', 'n_clicks')])
+        # def future_locked_tokens(pathname):
+        #     periods = 30
+        #     token_counter = self.moe_db_client.get_future_locked_tokens_over_day_range(periods)
+        #     period_range = list(range(1, periods + 1))
+        #     fig = go.Figure(data=[
+        #                         go.Bar(
+        #                             textposition='auto',
+        #                             x=period_range,
+        #                             y=list(token_counter.values()),
+        #                             name='Stake',
+        #                             marker=go.bar.Marker(color='rgb(30, 101, 243)')
+        #                         )
+        #                     ],
+        #                     layout=go.Layout(
+        #                         title=f'Staked NU over the next {periods} days.',
+        #                         xaxis={'title': 'Days'},
+        #                         yaxis={'title': 'NU Tokens'},
+        #                         showlegend=False,
+        #                         legend=go.layout.Legend(x=0, y=1.0),
+        #                         paper_bgcolor='rgba(0,0,0,0)',
+        #                         plot_bgcolor='rgba(0,0,0,0)'
+        #                     ))
+        #
+        #     config = {"displaylogo": False,
+        #               'autosizable': True,
+        #               'responsive': True,
+        #               'fillFrame': False,
+        #               'displayModeBar': False}
+        #     return dcc.Graph(figure=fig, id='locked-graph', config=config)
 
         # @self.dash_app.callback(Output('schedule', 'children'), [Input('url', 'pathname')])
         # def schedule(pathname):
