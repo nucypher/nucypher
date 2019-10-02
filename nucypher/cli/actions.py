@@ -382,6 +382,7 @@ def handle_client_account_for_staking(emitter,
         else:
             client_account = select_client_account(prompt="Select beneficiary account",
                                                    emitter=emitter,
+                                                   registry=stakeholder.registry,
                                                    provider_uri=stakeholder.wallet.blockchain.provider_uri)
         staking_address = stakeholder.check_if_staking_via_contract(checksum_address=client_account)
         if staking_address:
@@ -401,6 +402,7 @@ def handle_client_account_for_staking(emitter,
         else:
             client_account = select_client_account(prompt="Select staking account",
                                                    emitter=emitter,
+                                                   registry=stakeholder.registry,
                                                    provider_uri=stakeholder.wallet.blockchain.provider_uri)
             staking_address = client_account
 

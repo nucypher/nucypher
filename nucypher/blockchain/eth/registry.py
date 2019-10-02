@@ -194,10 +194,12 @@ class BaseContractRegistry(ABC):
 
 class LocalContractRegistry(BaseContractRegistry):
 
+    REGISTRY_TYPE = 'contract'
+
     def __init__(self, filepath: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__filepath = filepath
-        self.log.info("Using contract registry {}".format(self.__filepath))
+        self.log.info(f"Using {self.REGISTRY_TYPE} registry {filepath}")
 
     def __repr__(self):
         r = f"{self.__class__.__name__}(filepath={self.filepath})"
@@ -344,6 +346,7 @@ class AllocationRegistry(LocalContractRegistry):
     _multi_contract = False
     _contract_name = USER_ESCROW_CONTRACT_NAME
 
+    REGISTRY_TYPE = 'allocation'
     REGISTRY_NAME = 'allocation_registry.json'
 
     _default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, REGISTRY_NAME)

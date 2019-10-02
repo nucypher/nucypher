@@ -54,7 +54,7 @@ def test_nucypher_status_network(click_runner, testerchain, test_registry, agenc
         assert re.search(contract_regex, result.output, re.MULTILINE)
 
     assert re.search(f"^Provider URI \\.+ {TEST_PROVIDER_URI}", result.output, re.MULTILINE)
-    assert re.search(f"^Registry \\.+ {registry_filepath}", result.output, re.MULTILINE)
+    assert re.search(f"^Registry \\.+ {MOCK_REGISTRY_FILEPATH}", result.output, re.MULTILINE)
     assert re.search(f"^Current Period \\.+ {staking_agent.get_current_period()}", result.output, re.MULTILINE)
 
 
