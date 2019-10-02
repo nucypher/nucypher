@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import Dict
 
@@ -35,7 +36,7 @@ class MoeBlockchainCrawler:
     DB_NAME = 'network'
 
     DB_RETENTION_POLICY_NAME = 'network_info_retention'
-    DB_RETENTION_POLICY_PERIOD = '1w'  # 1 week of data
+    DB_RETENTION_POLICY_PERIOD = '5w'  # 5 weeks of data
     DB_RETENTION_POLICY_REPLICATION = '1'
 
     def __init__(self,
@@ -171,34 +172,37 @@ class MoeCrawlerDBClient:
     """
     Performs operations on data in the MoeBlockchainCrawler DB.
 
-    Helpful for data intensive long-running graphing calculations on data
+    Helpful for data intensive long-running graphing calculations on historical data.
     """
     def __init__(self, host, port, database):
         self._client = InfluxDBClient(host=host, port=port, database=database)
 
-    # def get_future_locked_tokens_over_day_range(self, days: int) -> Dict[int, float]:
-    #     tomorrow = datetime.utcnow() + timedelta(days=1)
-    #     period_0 = datetime(year=tomorrow.year, month=tomorrow.month,
-    #                         day=tomorrow.day, hour=0, minute=0, second=0, microsecond=0)
-    #
-    #     node_data = list(self._client.query("SELECT staker_address, start_date, end_date, LAST(locked_stake) as "
-    #                                         "locked_stake from moe_network_info GROUP BY staker_address").get_points())
-    #     result = dict()
-    #     day_range = list(range(1, days + 1))
-    #     current_period = period_0
-    #     for day in day_range:
-    #         current_period = current_period + timedelta(days=1)
-    #         total_locked_tokens = 0
-    #         for node_dict in node_data:
-    #             start_date = datetime.utcfromtimestamp(node_dict['start_date'])
-    #             end_date = datetime.utcfromtimestamp(node_dict['end_date'])
-    #
-    #             if start_date <= current_period <= end_date:
-    #                 total_locked_tokens += node_dict['locked_stake']
-    #
-    #         result[day] = total_locked_tokens
-    #
-    #     return result
+    def get_previously_locked_tokens_over_range(self, days: int):
+        today = datetime.utcnow()
+        range_end = datetime(year=today.year, month=today.month, day=today.day,
+                             hour=0, minute=0, second=0, microsecond=0)
+        range_begin = range_end - timedelta(days=days-1)
+        results = list(self._client.query(f"SELECT SUM(locked_stake) FROM "
+                                          f"("
+                                            f"SELECT staker_address, current_period, LAST(locked_stake) AS locked_stake "
+                                            f"FROM moe_network_info WHERE "
+                                            f"time >= '{MayaDT.from_datetime(range_begin).rfc3339()}' AND "
+                                            f"time < '{MayaDT.from_datetime(range_end + timedelta(days=1)).rfc3339()}' "
+                                            f"GROUP BY staker_address, time(1d)"
+                                          f") "
+                                          "GROUP BY time(1d)").get_points())  # 1 day measurements
+
+        # Note: all days may not have values eg. days before DB started getting populated
+        # As time progresses this should be less of an issue
+        end_time = MayaDT.from_datetime(range_end)
+        locked_tokens_dict = OrderedDict()
+        for r in results:
+            locked_stake = r['sum']
+            if locked_stake:
+                # Dash accepts datetime objects for graphs
+                locked_tokens_dict[MayaDT.from_rfc3339(r['time']).datetime()] = locked_stake
+
+        return locked_tokens_dict
 
     def close(self):
         self._client.close()
