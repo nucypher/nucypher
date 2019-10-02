@@ -82,7 +82,6 @@ workflows:
           requires:
             - pip_install_37
       - tests_ok:
-          context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
@@ -102,21 +101,18 @@ workflows:
           requires:
             - basics
       - finnegans_wake_demo:
-          context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
             - build_dev_docker_images
       - heartbeat_demo:
-          context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
             - build_dev_docker_images
       - estimate_gas:
-          context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
@@ -184,7 +180,7 @@ workflows:
   nightly:
     triggers:
       - schedule:
-          cron: "0 6 * * *"   # Scheduled for 0600 UTC (0800 CEST, 2300 PDT)
+          cron: "0 9 * * *"   # Scheduled for 0600 UTC (0800 CEST, 2300 PDT)
           filters:
             branches:
               only:
@@ -211,7 +207,6 @@ workflows:
             tags:
               only: /.*/
       - statistical_tests:
-          context: "Nightly Tests"
           filters:
             tags:
               only: /.*/
