@@ -176,29 +176,29 @@ class MoeCrawlerDBClient:
     def __init__(self, host, port, database):
         self._client = InfluxDBClient(host=host, port=port, database=database)
 
-    def get_future_locked_tokens_over_day_range(self, days: int) -> Dict[int, float]:
-        tomorrow = datetime.utcnow() + timedelta(days=1)
-        period_0 = datetime(year=tomorrow.year, month=tomorrow.month,
-                            day=tomorrow.day, hour=0, minute=0, second=0, microsecond=0)
-
-        node_data = list(self._client.query("SELECT staker_address, start_date, end_date, LAST(locked_stake) as "
-                                            "locked_stake from moe_network_info GROUP BY staker_address").get_points())
-        result = dict()
-        day_range = list(range(1, days + 1))
-        current_period = period_0
-        for day in day_range:
-            current_period = current_period + timedelta(days=1)
-            total_locked_tokens = 0
-            for node_dict in node_data:
-                start_date = datetime.utcfromtimestamp(node_dict['start_date'])
-                end_date = datetime.utcfromtimestamp(node_dict['end_date'])
-
-                if start_date <= current_period <= end_date:
-                    total_locked_tokens += node_dict['locked_stake']
-
-            result[day] = total_locked_tokens
-
-        return result
+    # def get_future_locked_tokens_over_day_range(self, days: int) -> Dict[int, float]:
+    #     tomorrow = datetime.utcnow() + timedelta(days=1)
+    #     period_0 = datetime(year=tomorrow.year, month=tomorrow.month,
+    #                         day=tomorrow.day, hour=0, minute=0, second=0, microsecond=0)
+    #
+    #     node_data = list(self._client.query("SELECT staker_address, start_date, end_date, LAST(locked_stake) as "
+    #                                         "locked_stake from moe_network_info GROUP BY staker_address").get_points())
+    #     result = dict()
+    #     day_range = list(range(1, days + 1))
+    #     current_period = period_0
+    #     for day in day_range:
+    #         current_period = current_period + timedelta(days=1)
+    #         total_locked_tokens = 0
+    #         for node_dict in node_data:
+    #             start_date = datetime.utcfromtimestamp(node_dict['start_date'])
+    #             end_date = datetime.utcfromtimestamp(node_dict['end_date'])
+    #
+    #             if start_date <= current_period <= end_date:
+    #                 total_locked_tokens += node_dict['locked_stake']
+    #
+    #         result[day] = total_locked_tokens
+    #
+    #     return result
 
     def close(self):
         self._client.close()
