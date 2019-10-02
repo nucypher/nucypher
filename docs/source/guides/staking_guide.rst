@@ -4,7 +4,7 @@
 NuCypher Staking Guide
 =======================
 
-The NuCypher Network status page can be found at https://status.nucypher.com:12500/.
+The NuCypher Network status page can be found at https://status.nucypher.network:12500/.
 
 The account which is actively doing work for the network (re-encryptions) needs to be a hot
 wallet. However, it doesn't have to be the same account as the one which receives and
