@@ -180,7 +180,7 @@ workflows:
   nightly:
     triggers:
       - schedule:
-          cron: "0 9 * * *"   # Scheduled for 0600 UTC (0800 CEST, 2300 PDT)
+          cron: "0 6 * * *"   # Scheduled for 0600 UTC (0800 CEST, 2300 PDT)
           filters:
             branches:
               only:
@@ -685,4 +685,13 @@ jobs:
           name: Statistical tests (e.g., sampling)
           command: |
             pytest --run-nightly --no-cov tests/blockchain/eth/contracts/main/staking_escrow/test_sampling_distribution.py
-      - capture_test_results
+      - store_test_results:
+          path: reports
+      - run:
+          name: Prepare test logs for storage as artifacts
+          command: |
+            mkdir -p ~/test-logs/
+            mv ~/.cache/nucypher/log/nucypher.log ~/test-logs/nucypher-container-$CIRCLE_NODE_INDEX.log
+          when: always
+      - store_artifacts:
+          path: ~/test-logs/
