@@ -237,7 +237,7 @@ highlighted in yellow:
 
     OK!
 
-Please note that the address should be in the format where checksum is encoded
+Please note that the worker's address should be in the format where checksum is encoded
 in the address. However, geth shows addresses in the lower case. You can convert
 the address to checksum format in geth console:
 
