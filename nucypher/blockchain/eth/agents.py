@@ -682,7 +682,6 @@ class UserEscrowAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    @validate_checksum_address
     def release_worker(self):
         receipt = self.set_worker(worker_address=BlockchainInterface.NULL_ADDRESS)
         return receipt
@@ -703,7 +702,6 @@ class UserEscrowAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    @validate_checksum_address
     def set_restaking(self, value: bool) -> dict:
         """
         Enable automatic restaking for a fixed duration of lock periods.
@@ -715,7 +713,6 @@ class UserEscrowAgent(EthereumContractAgent):
         # TODO: Handle ReStakeSet event (see #1193)
         return receipt
 
-    @validate_checksum_address
     def lock_restaking(self, release_period: int) -> dict:
         contract_function = self.__proxy_contract.functions.lockReStake(release_period)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,

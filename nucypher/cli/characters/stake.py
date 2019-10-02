@@ -421,6 +421,8 @@ def stake(click_config,
     elif action == 'collect-reward':
         """Withdraw staking reward to the specified wallet address"""
 
+        # TODO: Missing account selection
+
         password = None
         if not hw_wallet and not blockchain.client.is_local:
             password = get_client_password(checksum_address=staking_address)
