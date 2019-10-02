@@ -123,7 +123,7 @@ class TransactingPower(CryptoPowerUp):
         self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=provider_uri)
         self.__account = account
 
-        # TODO: Is there a better way to design this Flag?
+        # TODO: Is there a better way to design this Flag? See #1385
         self.device = True if not password else False
 
         self.__password = password
