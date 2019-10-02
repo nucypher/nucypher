@@ -1388,6 +1388,7 @@ class StakeHolder(Staker):
                 self.__get_accounts()
                 if checksum_address not in self:
                     raise self.UnknownAccount
+            # TODO: What if cached TransactingPower is wrongly initialized? See issue #1385
             try:
                 transacting_power = self.__transacting_powers[checksum_address]
             except KeyError:
@@ -1431,17 +1432,27 @@ class StakeHolder(Staker):
 
     @validate_checksum_address
     def assimilate(self, checksum_address: str, password: str = None) -> None:
+        if self.is_contract:
+            original_form = f"{self.beneficiary_address[0:8]} (contract {self.checksum_address[0:8]})"
+        else:
+            original_form = self.checksum_address
+
         # This handles both regular staking and staking via a contract
         staking_contract_address = self.check_if_staking_via_contract(checksum_address)
         staking_address = staking_contract_address or checksum_address
 
         self.wallet.activate_account(checksum_address=checksum_address, password=password)
-        original_form = self.checksum_address
         self.checksum_address = staking_address
         self.stakes = StakeList(registry=self.registry, checksum_address=staking_address)
         self.stakes.refresh()
         # TODO: Not sure how to log all this new info (i.e. old or new address may be via contract)
-        self.log.info(f"Resistance is futile - Assimilating Staker {original_form} -> {checksum_address}.")
+
+        if self.is_contract:
+            new_form = f"{self.beneficiary_address[0:8]} (contract {self.checksum_address[0:8]})"
+        else:
+            new_form = self.checksum_address
+
+        self.log.info(f"Resistance is futile - Assimilating Staker {original_form} -> {new_form}.")
 
     @property
     def all_stakes(self) -> list:

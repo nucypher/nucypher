@@ -322,8 +322,17 @@ class GethClient(Web3Client):
             # Geth --dev accounts are unlocked by default.
             return True
         debug_message = f"Unlocking account {address}"
+
+        if duration is None:
+            debug_message += f" for 5 minutes"
+        elif duration == 0:
+            debug_message += f" indefinitely"
+        elif duration > 0:
+            debug_message += f" for {duration} seconds"
+
         if password is None:
             debug_message += " with no password."
+
         self.log.debug(debug_message)
         return self.w3.geth.personal.unlockAccount(address, password, duration)
 
