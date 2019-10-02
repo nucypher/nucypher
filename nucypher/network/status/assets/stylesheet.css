@@ -150,12 +150,7 @@ a { color: slategrey;
     justify-content: space-between;
 }
 
-
-#locked-graph {
-    width: 100%;
-}
-
-#locked-graph {
+#prev-locked-graph {
     width: 100%;
 }
 
