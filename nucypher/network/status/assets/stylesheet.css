@@ -154,6 +154,10 @@ a { color: slategrey;
     width: 100%;
 }
 
+#prev-stakers-graph {
+    width: 100%;
+}
+
 #prev-states {
     width: 100% !important;
 }
