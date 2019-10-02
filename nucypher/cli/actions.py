@@ -392,7 +392,7 @@ def handle_client_account_for_staking(emitter,
                 click.confirm("Is this correct?", abort=True)
         else:
             message = (f"Beneficiary {client_account} doesn't have a preallocation contract in current registry.\n"
-                       f"Are you sure you are using the right allocation registry?\n"
+                       f"Are you sure you are using the correct allocation registry?\n"
                        f"Currently using {stakeholder.allocation_registry.filepath}")
             emitter.echo(message, color='red', verbosity=1)
             raise click.Abort()
