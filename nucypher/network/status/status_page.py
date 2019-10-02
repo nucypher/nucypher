@@ -233,6 +233,7 @@ class MoeStatusPage(NetworkStatusPage):
                     html.Div(id='active-stakers'),
                     html.Div(id='registry-uri'),
                     html.Div(id='staked-tokens'),
+                    html.Div(id='prev-num-stakers-graph'),
                     html.Div(id='prev-locked-stake-graph'),
                     # html.Div(id='locked-stake-graph'),
                     # html.Div(id='schedule'),
@@ -333,7 +334,7 @@ class MoeStatusPage(NetworkStatusPage):
                                 [Input('hidden-node-button', 'n_clicks')])
         def prev_locked_tokens(pathname):
             prior_periods = 30
-            locked_tokens_dict = self.moe_db_client.get_previously_locked_tokens_over_range(prior_periods)
+            locked_tokens_dict = self.moe_db_client.get_historical_locked_tokens_over_range(prior_periods)
             fig = go.Figure(data=[
                                 go.Bar(
                                     textposition='auto',
@@ -345,8 +346,14 @@ class MoeStatusPage(NetworkStatusPage):
                             ],
                             layout=go.Layout(
                                 title=f'Staked NU over the previous {prior_periods} days.',
-                                xaxis={'title': 'Days'},
-                                yaxis={'title': 'NU Tokens'},
+                                xaxis={
+                                    'title': 'Date',
+                                    'nticks': len(locked_tokens_dict),
+                                },
+                                yaxis={
+                                    'title': 'NU Tokens',
+                                    'zeroline': False,
+                                },
                                 showlegend=False,
                                 paper_bgcolor='rgba(0,0,0,0)',
                                 plot_bgcolor='rgba(0,0,0,0)'
@@ -354,6 +361,36 @@ class MoeStatusPage(NetworkStatusPage):
 
             return dcc.Graph(figure=fig, id='prev-locked-graph')
 
+        @self.dash_app.callback(Output('prev-num-stakers-graph', 'children'),
+                                [Input('hidden-node-button', 'n_clicks')])
+        def prev_locked_tokens(pathname):
+            prior_periods = 30
+            num_stakers_dict = self.moe_db_client.get_historical_num_stakers_over_range(prior_periods)
+            fig = go.Figure(data=[
+                                go.Scatter(
+                                    mode='lines+markers',
+                                    x=list(num_stakers_dict.keys()),
+                                    y=list(num_stakers_dict.values()),
+                                    name='Num Stakers',
+                                    marker={'color': 'rgb(30, 101, 243)'}
+                                )
+                            ],
+                            layout=go.Layout(
+                                title=f'Num Stakers over the previous {prior_periods} days.',
+                                xaxis={
+                                    'title': 'Date',
+                                    'nticks': len(num_stakers_dict)
+                                },
+                                yaxis={
+                                    'title': 'Stakers',
+                                    'zeroline': False,
+                                },
+                                showlegend=False,
+                                paper_bgcolor='rgba(0,0,0,0)',
+                                plot_bgcolor='rgba(0,0,0,0)'
+                            ))
+
+            return dcc.Graph(figure=fig, id='prev-stakers-graph')
 
         # @self.dash_app.callback(Output('locked-stake-graph', 'children'),
         #                         [Input('hidden-node-button', 'n_clicks')])
