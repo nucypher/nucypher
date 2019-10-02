@@ -89,7 +89,7 @@ def test_sampling_distribution(testerchain, token, deploy_contract):
     #
 
     ERROR_TOLERANCE = 0.05  # With this tolerance, all sampling ratios should between 5% and 15% (expected is 10%)
-    SAMPLES = 300
+    SAMPLES = 1000
     quantity = 3
     import random
     from collections import Counter
