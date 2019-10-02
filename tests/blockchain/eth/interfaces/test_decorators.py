@@ -52,6 +52,9 @@ def test_validate_checksum_address():
     with pytest.raises(InvalidChecksumAddress):
         optional_checksum_address(12, "0x_NOT_VALID")
 
+    with pytest.raises(InvalidChecksumAddress):
+        optional_checksum_address("whatever", get_random_checksum_address().lower())
+
     assert optional_checksum_address(123)
 
     assert optional_checksum_address(None, staking_address=get_random_checksum_address())

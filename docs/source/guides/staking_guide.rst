@@ -387,7 +387,8 @@ From the perspective of the main NuCypher contracts, each ``UserEscrow``
 contract represents a staker, no different from "regular" stakers.
 However, from the perspective of the preallocation user, things are different
 since the contract can't perform transactions, and it's the preallocation user
-(also known as the "`beneficiary`" of the contract) who have to operate.
+(also known as the "`beneficiary`" of the contract)
+who has to perform staking operations.
 
 In general, preallocation users can use all staking-related operations offered
 by the CLI in the same way as described above, except that they have to include
@@ -407,7 +408,7 @@ Or to set a worker:
     (nucypher)$ nucypher stake set-worker --hw-wallet --escrow
 
 
-Alternatively to the ``--escrow`` flag, preallocation users can directly specify
+As an alternative to the ``--escrow`` flag, preallocation users can directly specify
 their beneficiary address with the ``--beneficiary-address ADDRESS`` flag.
 
 The CLI will automatically look for a file named ``allocation_registry.json`` in
