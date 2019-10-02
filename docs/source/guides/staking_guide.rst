@@ -4,6 +4,8 @@
 NuCypher Staking Guide
 =======================
 
+The NuCypher Network status page can be found at https://status.nucypher.network:12500/.
+
 The account which is actively doing work for the network (re-encryptions) needs to be a hot
 wallet. However, it doesn't have to be the same account as the one which receives and
 sends NU tokens. The account which holds NU tokens is called StakeHolder, or
@@ -80,8 +82,8 @@ Staking Overview
 Most stakers on the Goerli testnet will complete the following steps:
 
 1) Install ``nucypher`` on StakeHolder node (See :doc:`/guides/installation_guide`)
-2) Install and run Geth, Parity or another ethereum node (can be used with software or hardware Ethereum wallet).
-3) Request testnet tokens from faucet
+2) Install and run Geth, Parity or another ethereum node (can be used with software or hardware Ethereum wallet)
+3) Request testnet tokens by joining the `Discord server <https://discord.gg/7rmXa3S>` and following the instructions in the #testnet-faucet channel
 4) Stake tokens (See Below)
 5) Install another Ethereum node at the Worker instance
 6) Initialize a Worker node [:ref:`ursula-config-guide`] and bond it to your Staker (``set-worker``)
