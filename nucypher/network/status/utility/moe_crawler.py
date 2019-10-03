@@ -17,7 +17,7 @@ class MoeBlockchainCrawler:
     """
     Obtain Blockchain information for Moe and output to a DB.
     """
-    DEFAULT_REFRESH_RATE = 15  # every 15s
+    DEFAULT_REFRESH_RATE = 60  # seconds
 
     # InfluxDB Line Protocol Format (note the spaces, commas):
     # +-----------+--------+-+---------+-+---------+
@@ -43,17 +43,23 @@ class MoeBlockchainCrawler:
                  moe: Moe,
                  refresh_rate=DEFAULT_REFRESH_RATE,
                  restart_on_error=True):
-        if not moe:
-            raise ValueError('Moe must be provided')
+
         self._moe = moe
         self._refresh_rate = refresh_rate
-        self._learning_task = task.LoopingCall(self._learn_about_network)
+        self._node_learning_task = task.LoopingCall(self._learn_about_nodes)
+        self._contract_learning_task = task.LoopingCall(self._learn_about_contracts)
         self._restart_on_error = restart_on_error
         self.log = Logger('moe-crawler')
 
         # initialize InfluxDB
         self._client = InfluxDBClient(host='localhost', port=8086, database=self.DB_NAME)
         self._ensure_db_exists()
+
+        self.__snapshot = dict()
+
+    @property
+    def snapshot(self):
+        return self.__snapshot
 
     def _ensure_db_exists(self):
         db_list = self._client.get_list_database()
@@ -71,7 +77,12 @@ class MoeBlockchainCrawler:
         else:
             self.log.info(f'Database {self.DB_NAME} already exists, no need to create it')
 
-    def _learn_about_network(self):
+    def _learn_about_contracts(self):
+        period_range = range(1, 365+1)
+        token_counter = {day: self._moe.staking_agent.get_all_locked_tokens(day) for day in period_range}
+        self.__snapshot['future_locked_tokens'] = token_counter
+
+    def _learn_about_nodes(self):
         agent = self._moe.staking_agent
 
         block_time = agent.blockchain.client.w3.eth.getBlock('latest').timestamp  # precision in seconds
@@ -130,7 +141,7 @@ class MoeBlockchainCrawler:
         cleaned_traceback = failure.getTraceback().replace('{', '').replace('}', '')
         if self._restart_on_error:
             self.log.warn(f'Unhandled error: {cleaned_traceback}. Attempting to restart crawler')
-            if not self._learning_task.running:
+            if not self._node_learning_task.running:
                 self.start()
         else:
             self.log.critical(f'Unhandled error: {cleaned_traceback}')
@@ -143,18 +154,24 @@ class MoeBlockchainCrawler:
             self.log.info('Starting Moe Crawler')
             if self._client is None:
                 self._client = InfluxDBClient(host='localhost', port=8086, database=self.DB_NAME)
-            learner_deferred = self._learning_task.start(interval=self._refresh_rate, now=True)
-            learner_deferred.addErrback(self._handle_errors)
+
+            offset = 2  # seconds
+            node_learner_deferred = self._node_learning_task.start(interval=self._refresh_rate, now=True)
+            contract_learner_deferred = self._contract_learning_task.start(interval=self._refresh_rate - offset, now=True)
+
+            node_learner_deferred.addErrback(self._handle_errors)
+            contract_learner_deferred.addErrback(self._handle_errors)
 
     def stop(self):
         """
         Stop the crawler if currently running
         """
-        if not self.is_running:
+        if self.is_running:
             self.log.info('Stopping Moe Crawler')
             self._client.close()
             self._client = None
-            self._learning_task.stop()
+            self._node_learning_task.stop()
+            self._contract_learning_task.stop()
 
     @property
     def is_running(self):
@@ -162,7 +179,7 @@ class MoeBlockchainCrawler:
         Returns True if currently running, False otherwise
         :return: True if currently running, False otherwise
         """
-        return self._learning_task.running
+        return self._node_learning_task.running and self._contract_learning_task.running
 
     def get_db_client(self):
         return MoeCrawlerDBClient(host='localhost', port=8086, database=self.DB_NAME)
@@ -182,15 +199,18 @@ class MoeCrawlerDBClient:
         range_end = datetime(year=today.year, month=today.month, day=today.day,
                              hour=0, minute=0, second=0, microsecond=0)
         range_begin = range_end - timedelta(days=days-1)
-        results = list(self._client.query(f"SELECT SUM(locked_stake) FROM "
-                                          f"("
-                                            f"SELECT staker_address, current_period, LAST(locked_stake) AS locked_stake "
-                                            f"FROM moe_network_info WHERE "
-                                            f"time >= '{MayaDT.from_datetime(range_begin).rfc3339()}' AND "
-                                            f"time < '{MayaDT.from_datetime(range_end + timedelta(days=1)).rfc3339()}' "
-                                            f"GROUP BY staker_address, time(1d)"
+        results = list(self._client.query(f"SELECT SUM(locked_stake) "
+                                          f"FROM ("
+                                          f"SELECT staker_address, current_period, "
+                                          f"LAST(locked_stake) "
+                                          f"AS locked_stake "
+                                          f"FROM moe_network_info "
+                                          f"WHERE time >= '{MayaDT.from_datetime(range_begin).rfc3339()}' "
+                                          f"AND "
+                                          f"time < '{MayaDT.from_datetime(range_end + timedelta(days=1)).rfc3339()}' "
+                                          f"GROUP BY staker_address, time(1d)"
                                           f") "
-                                          "GROUP BY time(1d)").get_points())  # 1 day measurements
+                                          f"GROUP BY time(1d)").get_points())
 
         # Note: all days may not have values eg. days before DB started getting populated
         # As time progresses this should be less of an issue
