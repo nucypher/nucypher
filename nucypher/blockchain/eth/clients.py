@@ -352,6 +352,10 @@ class GethClient(Web3Client):
         rlp_encoded_transaction = result.raw
         return rlp_encoded_transaction
 
+    @property
+    def wallets(self):
+        return self.w3.manager.request_blocking("personal_listWallets", [])
+
 
 class ParityClient(Web3Client):
 
