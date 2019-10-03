@@ -1,22 +1,43 @@
 body{
-    font-size: 14px;
+    font-size: 2em;
     line-height: 1.6;
     font-weight: 400;
-    color: #4d525a;
-    font-family: gt-america-mono-regular;
-    /*background-color: rgb(17, 17, 17);*/
+    color: rgb(230, 234, 232);
+    font-family: monospace;
+    background-color: rgb(17, 17, 17);
 }
 
 
-a { color: slategrey;
+a {
+    color: slategrey;
     text-decoration: none;
-    font-size: 15px;
+}
+
+th {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #E1E1E1;
+    flex: 1;
+}
+
+td {
+    padding: 12px 15px;
+    text-align: left;
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    justify-content: start;
+    border-bottom: none;
+}
+
+label, legend {
+    display: block;
+    margin: 0.25vh;
 }
 
 #react-entry-point {
     display: flex;
     width: 99%;
-    height: 99%;
     flex-flow: column;
     justify-content: space-between;
     position: absolute;
@@ -31,7 +52,7 @@ a { color: slategrey;
     flex-flow: column nowrap;
     justify-content: space-between;
     align-items: stretch;
-    margin: 1em;
+    margin: 0.2em;
     height: 100%;
 }
 
@@ -51,15 +72,16 @@ a { color: slategrey;
 }
 
 #widgets>div {
-    width: 33%;
-    border: 1px solid #e5e6ec;
+    width: 15%;
+    border: 1px solid #2b2b2b;
     text-align: center;
     display: flex;
     justify-content: center;
     flex-direction: column;
     align-items: center;
-    flex-grow: 2;
+    flex-grow: 6;
     padding-bottom: 20px;
+    border-radius: 6px;
 }
 
 .banner {
@@ -77,12 +99,14 @@ a { color: slategrey;
 .symbols {
     float: left;
     width: 100%;
+    opacity: 0.75;
 }
 
 .single-symbol {
-    font-size: 20px;
+    font-size: 2em;
     color: black;
     margin-right: 2px;
+    opacity: 0.75;
 }
 
 .nucypher-nickname-icon {
@@ -102,13 +126,17 @@ a { color: slategrey;
   border-radius: 50%;  /* (height/width + border-width) should equate to an even number */
 }
 
-#node-table {
+
+.table-header {
+    display: flex;
+    justify-content: space-between;
     width: 100%;
 }
 
-
-#node-table.row {
-    height: 2em;
+#node-table {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 
@@ -127,10 +155,7 @@ a { color: slategrey;
     text-shadow: none;
 }
 
-.state {
-    float:left;
-    text-align: center;
-}
+
 
 .logo-box {
 }
@@ -154,22 +179,62 @@ a { color: slategrey;
     width: 100%;
 }
 
+#locked-graph {
+    width: 98%;
+}
+
+#locked-stake-graph {
+    flex-basis: 100%;
+}
+
 #prev-stakers-graph {
     width: 100%;
 }
 
+#state-table {
+    display: flex;
+    flex-direction: row;
+    justify-content: start;
+    height: 8em;
+    align-items: center;
+}
+
+#state-table > td {
+    border-radius: 6px;
+    height: 100%;
+}
+
+
+.state {
+    float: left;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    width: 22em;
+}
+
 #prev-states {
-    width: 100% !important;
+    width: 100%;
 }
 
-#schedule {
-    width: 66% !important;
-    flex-grow: 2;
-    padding-left: 2em;
+
+.node-row {
+    -webkit-font-smoothing: antialiased;
+    box-shadow: rgb(229, 229, 229) 0 0 1px;
+    border: 1px solid lightslategrey;
+    padding-left: 2rem;
+    margin: 5px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding-right: 2rem;
+    overflow-y: hidden !important;
+    height: 2em;
 }
 
-#llamas-graph {
-    width: 100%
+.node-row:hover {
+    box-shadow: rgb(0, 101, 229) 0 0 20px;
 }
 
 .status-indicator {

@@ -53,23 +53,22 @@ class NetworkStatusPage:
             ], className='row')
 
     def states_table(self, states_dict) -> html.Table:
-        previous_states = list(states_dict.values())[:3]   # only latest 3
+        previous_states = list(states_dict.values())[:8]   # only latest 8
         row = []
         for state in previous_states:
             # store previous states in reverse order
             row.insert(0, html.Td(self.state_detail(state)))
-        return html.Table([html.Tr(row, id='state-table', className='row')])
+        return html.Table([html.Tr(row, id='state-table')])
 
     @staticmethod
     def state_detail(state) -> html.Div:
         return html.Div([
             html.Div([
-                html.Div(className='dot', style={'background-color': state['color_hex']}),
                 html.Div(state['symbol'], className='single-symbol'),
             ], className='nucypher-nickname-icon', style={'border-color': state['color_hex']}),
             html.Span(state['nickname']),
             html.Span(state['updated'], className='small'),
-        ], className='state')
+        ], className='state', style={'background-color': state['color_hex']})
 
     def known_nodes(self, character: Character) -> html.Div:
         nodes = list()
@@ -88,10 +87,9 @@ class NetworkStatusPage:
                 html.Div('* Current Teacher',
                          style={'backgroundColor': '#1E65F3', 'color': 'white'},
                          className='two columns'),
-            ], className='row'),
-            html.Div([self.nodes_table(nodes, teacher_index, character.registry)],
-                     className='row')
-        ], className='row')
+            ]),
+            html.Div([self.nodes_table(nodes, teacher_index, character.registry)])
+        ])
 
     def nodes_table(self, nodes, teacher_index, registry) -> html.Table:
         rows = []
@@ -110,11 +108,11 @@ class NetworkStatusPage:
                 style_dict['backgroundColor'] = '#1E65F3'
                 style_dict['color'] = 'white'
 
-            rows.append(html.Tr(row, style=style_dict, className='row'))
+            rows.append(html.Tr(row, style=style_dict, className='node-row'))
 
         table = html.Table(
             # header
-            [html.Tr([html.Th(col) for col in self.NODE_TABLE_COLUMNS], className='row')] +
+            [html.Tr([html.Th(col) for col in self.NODE_TABLE_COLUMNS], className='table-header')] +
             rows,
             id='node-table'
         )
@@ -174,7 +172,7 @@ class NetworkStatusPage:
         if worker == BlockchainInterface.NULL_ADDRESS:
             missing_confirmations = BlockchainInterface.NULL_ADDRESS
 
-        color_codex = {-1: ('green', ' '),  # Confirmed Next Period
+        color_codex = {-1: ('green', 'OK'),  # Confirmed Next Period
                        0: ('#e0b32d', 'Pending'),  # Pending Confirmation of Next Period
                        current_period: ('#525ae3', 'Idle'),  # Never confirmed
                        BlockchainInterface.NULL_ADDRESS: ('red', 'Headless')  # Headless Staker (No Worker)
@@ -183,8 +181,12 @@ class NetworkStatusPage:
             color, status_message = color_codex[missing_confirmations]
         except KeyError:
             color, status_message = 'red', f'{missing_confirmations} Unconfirmed'
-        status_cell = daq.Indicator(id='Status', color=color, value=True,
-                                    label=status_message, labelPosition='bottom', size=10)
+        status_cell = daq.Indicator(id='Status',
+                                    color=color,
+                                    value=True,
+                                    label=status_message,
+                                    labelPosition='right',
+                                    size=25)
         status = html.Td(status_cell)
         return status
 
@@ -235,7 +237,7 @@ class MoeStatusPage(NetworkStatusPage):
                     html.Div(id='staked-tokens'),
                     html.Div(id='prev-num-stakers-graph'),
                     html.Div(id='prev-locked-stake-graph'),
-                    # html.Div(id='locked-stake-graph'),
+                    html.Div(id='locked-stake-graph'),
                     # html.Div(id='schedule'),
                 ], id='widgets'),
 
@@ -249,7 +251,7 @@ class MoeStatusPage(NetworkStatusPage):
 
             dcc.Interval(
                 id='interval-component',
-                interval=30 * 1000,
+                interval=60 * 1000,
                 n_intervals=0
             ),
         ])
@@ -270,7 +272,7 @@ class MoeStatusPage(NetworkStatusPage):
             return self.known_nodes(moe)
 
         @self.dash_app.callback(Output('active-stakers', 'children'),
-                                [Input('hidden-node-button', 'n_clicks')])
+                                [Input('interval-component', 'n_intervals')])
         def active_stakers(n):
             staker_addresses = moe.staking_agent.get_stakers()
             return html.Div([html.H4("Active Ursulas"),
@@ -301,7 +303,7 @@ class MoeStatusPage(NetworkStatusPage):
             ])
 
         @self.dash_app.callback(Output('staked-tokens', 'children'),
-                                [Input('hidden-node-button', 'n_clicks')])
+                                [Input('interval-component', 'n_intervals')])
         def staked_tokens(pathname):
             nu = NU.from_nunits(moe.staking_agent.get_global_locked_tokens())
             return html.Div([
@@ -310,7 +312,7 @@ class MoeStatusPage(NetworkStatusPage):
             ])
 
         @self.dash_app.callback(Output('registry-uri', 'children'),
-                                [Input('hidden-node-button', 'n_clicks')])
+                                [Input('interval-component', 'n_intervals')])
         def contract_status(pathname):
             uri = moe.registry.id[:16]
             return html.Div([
@@ -335,25 +337,21 @@ class MoeStatusPage(NetworkStatusPage):
         def prev_locked_tokens(pathname):
             prior_periods = 30
             locked_tokens_dict = self.moe_db_client.get_historical_locked_tokens_over_range(prior_periods)
+            marker_color = 'rgb(0, 163, 239)'
+
             fig = go.Figure(data=[
                                 go.Bar(
                                     textposition='auto',
                                     x=list(locked_tokens_dict.keys()),
                                     y=list(locked_tokens_dict.values()),
                                     name='Locked Stake',
-                                    marker=go.bar.Marker(color='rgb(30, 101, 243)')
+                                    marker=go.bar.Marker(color=marker_color)
                                 )
                             ],
                             layout=go.Layout(
                                 title=f'Staked NU over the previous {prior_periods} days.',
-                                xaxis={
-                                    'title': 'Date',
-                                    'nticks': len(locked_tokens_dict),
-                                },
-                                yaxis={
-                                    'title': 'NU Tokens',
-                                    'zeroline': False,
-                                },
+                                xaxis={'title': 'Date', 'nticks': len(locked_tokens_dict)},
+                                yaxis={'title': 'NU Tokens', 'zeroline': False},
                                 showlegend=False,
                                 paper_bgcolor='rgba(0,0,0,0)',
                                 plot_bgcolor='rgba(0,0,0,0)'
@@ -366,13 +364,14 @@ class MoeStatusPage(NetworkStatusPage):
         def prev_locked_tokens(pathname):
             prior_periods = 30
             num_stakers_dict = self.moe_db_client.get_historical_num_stakers_over_range(prior_periods)
+            marker_color = 'rgb(0, 163, 239)'
             fig = go.Figure(data=[
                                 go.Scatter(
                                     mode='lines+markers',
                                     x=list(num_stakers_dict.keys()),
                                     y=list(num_stakers_dict.values()),
                                     name='Num Stakers',
-                                    marker={'color': 'rgb(30, 101, 243)'}
+                                    marker={'color': marker_color}
                                 )
                             ],
                             layout=go.Layout(
@@ -392,89 +391,44 @@ class MoeStatusPage(NetworkStatusPage):
 
             return dcc.Graph(figure=fig, id='prev-stakers-graph')
 
-        # @self.dash_app.callback(Output('locked-stake-graph', 'children'),
-        #                         [Input('hidden-node-button', 'n_clicks')])
-        # def future_locked_tokens(pathname):
-        #     periods = 30
-        #     token_counter = self.moe_db_client.get_future_locked_tokens_over_day_range(periods)
-        #     period_range = list(range(1, periods + 1))
-        #     fig = go.Figure(data=[
-        #                         go.Bar(
-        #                             textposition='auto',
-        #                             x=period_range,
-        #                             y=list(token_counter.values()),
-        #                             name='Stake',
-        #                             marker=go.bar.Marker(color='rgb(30, 101, 243)')
-        #                         )
-        #                     ],
-        #                     layout=go.Layout(
-        #                         title=f'Staked NU over the next {periods} days.',
-        #                         xaxis={'title': 'Days'},
-        #                         yaxis={'title': 'NU Tokens'},
-        #                         showlegend=False,
-        #                         legend=go.layout.Legend(x=0, y=1.0),
-        #                         paper_bgcolor='rgba(0,0,0,0)',
-        #                         plot_bgcolor='rgba(0,0,0,0)'
-        #                     ))
-        #
-        #     config = {"displaylogo": False,
-        #               'autosizable': True,
-        #               'responsive': True,
-        #               'fillFrame': False,
-        #               'displayModeBar': False}
-        #     return dcc.Graph(figure=fig, id='locked-graph', config=config)
+        @self.dash_app.callback(Output('locked-stake-graph', 'children'),
+                                [Input('url', 'pathname')])
+        def future_locked_tokens(pathname):
+            token_counter = self.moe_crawler.snapshot['future_locked_tokens']
+            periods = len(token_counter)
+            period_range = list(range(1, periods + 1))
+            marker_color = 'rgb(230, 234, 232)'
 
-        # @self.dash_app.callback(Output('schedule', 'children'), [Input('url', 'pathname')])
-        # def schedule(pathname):
-        #
-        #     current_period = moe.staking_agent.get_current_period()
-        #     staker_addresses = moe.staking_agent.get_stakers()
-        #
-        #     df = []
-        #     for index, address in enumerate(staker_addresses):
-        #         stakes = StakeList(checksum_address=address, registry=moe.registry)
-        #         stakes.refresh()
-        #         end = stakes.terminal_period
-        #         delta = end - current_period
-        #
-        #         economics = TokenEconomicsFactory.get_economics(registry=moe.registry)
-        #         start_date = datetime_at_period(current_period, seconds_per_period=economics.seconds_per_period)
-        #         end_date = datetime_at_period(stakes.terminal_period, seconds_per_period=economics.seconds_per_period)
-        #         stake = moe.staking_agent.get_locked_tokens(staker_address=address, periods=delta)
-        #         nu_stake = float(NU.from_nunits(stake).to_tokens())
-        #
-        #         row = dict(Task=address[:10],
-        #                    Start=str(start_date.date),
-        #                    Finish=str(end_date.date),
-        #                    Stake=nu_stake)
-        #         df.append(row)
-        #
-        #     # Normalize, Scale and Mutate
-        #     total = sum(row['Stake'] for row in df)
-        #     for row in df:
-        #         row['Stake'] = (row['Stake'] // total) * 100
-        #
-        #     color_scale = ['rgb(31, 141, 143)', 'rgb(31, 243, 243)']
-        #     fig = ff.create_gantt(df,
-        #                           colors=color_scale,
-        #                           index_col='Stake',
-        #                           title="Ursula Fleet Staking Schedule",
-        #                           bar_width=0.3,
-        #                           showgrid_x=True,
-        #                           showgrid_y=True)
-        #
-        #     fig['layout'].update(autosize=True,
-        #                          width=None,
-        #                          height=None)
-        #
-        #     config = {"displaylogo": False,
-        #               'autosizable': True,
-        #               'responsive': True,
-        #               'fillFrame': False,
-        #               'displayModeBar': False}
-        #
-        #     schedule_graph = dcc.Graph(figure=fig, id='llamas-graph', config=config)
-        #     return schedule_graph
+            fig = go.Figure(data=[
+                                go.Bar(
+                                    textposition='auto',
+                                    x=period_range,
+                                    y=list(token_counter.values()),
+                                    name='Stake',
+                                    marker=go.bar.Marker(color=marker_color)
+                                )
+                            ],
+                            layout=go.Layout(
+                                title=f'Staked NU over the next {periods} days.',
+                                xaxis={'title': 'Days'},
+                                yaxis={'title': 'NU Tokens'},
+                                showlegend=False,
+                                legend=go.layout.Legend(x=0, y=1.0),
+                                paper_bgcolor='rgba(0,0,0,0)',
+                                plot_bgcolor='rgba(0,0,0,0)'
+                            ))
+
+            fig['layout'].update(autosize=True,
+                                 width=None,
+                                 height=None)
+
+            config = {"displaylogo": False,
+                      'autosizable': True,
+                      'responsive': True,
+                      'fillFrame': False,
+                      'displayModeBar': False}
+
+            return dcc.Graph(figure=fig, id='locked-graph', config=config)
 
 
 class UrsulaStatusPage(NetworkStatusPage):
