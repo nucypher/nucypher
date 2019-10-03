@@ -118,17 +118,19 @@ class NetworkStatusPage:
         Update this depending on which columns you want to show links for
         and what you want those links to be.
         """
-        identity = html.Td(children=html.Div([html.Span(f'{node_info["icon_details"]["first_symbol"]}',
-                                                        className='single-symbol',
-                                                        style={'color': node_info["icon_details"]['first_color']}),
-                                              html.Span(f'{node_info["icon_details"]["second_symbol"]}',
-                                                        className='single-symbol',
-                                                        style={'color': node_info["icon_details"]['second_color']}),
-                                              html.A(node_info['nickname'],
-                                                     href=f'https://{node_info["rest_url"]}/status',
-                                                     target='_blank')
-                                              ],
-                                             className='symbols'))
+        identity = html.Td(children=html.Div([
+            html.Div([
+                html.Span(f'{node_info["icon_details"]["first_symbol"]}',
+                          className='single-symbol',
+                          style={'color': node_info["icon_details"]['first_color']}),
+                html.Span(f'{node_info["icon_details"]["second_symbol"]}',
+                          className='single-symbol',
+                          style={'color': node_info["icon_details"]['second_color']}),
+            ], className='symbols'),
+            html.A(node_info['nickname'],
+                   href=f'https://{node_info["rest_url"]}/status',
+                   target='_blank')
+        ]))
 
         # Fleet State
         fleet_state_div = []
