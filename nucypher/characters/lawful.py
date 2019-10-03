@@ -665,12 +665,26 @@ class Bob(Character):
                  retain_cfrags: bool=False,
                  use_attached_cfrags: bool=False,
                  use_precedent_work_orders: bool=False,
-                 policy_encrypting_key: UmbralPublicKey=None):
+                 policy_encrypting_key: UmbralPublicKey=None,
+                 treasure_map: Union['TreasureMap', bytes]=None):
+
         # Try our best to get an UmbralPublicKey from input
         alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
 
         # Part I: Assembling the WorkOrders.
         capsules_to_activate = set(mk.capsule for mk in message_kits)
+
+        hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
+        if treasure_map is not None:
+            from nucypher.policy.collections import TreasureMap
+
+            if isinstance(treasure_map, bytes):
+                tmap = TreasureMap.from_bytes(treasure_map)
+            else:
+                tmap = treasure_map
+            _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=tmap, block=True)
+        else:
+            _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
 
         for message in message_kits:
 
@@ -701,9 +715,6 @@ class Bob(Character):
             # OK, with the sanity checks behind us, we'll proceed to the WorkOrder assembly.
             # We'll start by following the treasure map, setting the correctness keys, and attaching cfrags from
             # WorkOrders that we have already completed in the past.
-
-            hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
-            _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
 
             capsule.set_correctness_keys(receiving=self.public_keys(DecryptingPower))
             capsule.set_correctness_keys(verifying=alice_verifying_key)
