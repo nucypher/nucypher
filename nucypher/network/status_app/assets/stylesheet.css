@@ -35,6 +35,10 @@ label, legend {
     margin: 0.25vh;
 }
 
+._dash-loading-callback {
+    display: none;
+}
+
 #react-entry-point {
     display: flex;
     width: 99%;
@@ -62,7 +66,7 @@ label, legend {
     padding: 1em;
 }
 
-#widgets {
+#stats, #widgets {
     display: flex;
     flex-flow: row;
     flex-wrap: wrap;
@@ -71,17 +75,26 @@ label, legend {
     margin-top: 5em;
 }
 
-#widgets>div {
-    width: 15%;
+#stats>div, #widgets>div {
     border: 1px solid #2b2b2b;
-    text-align: center;
+    /* text-align: center; */
     display: flex;
     justify-content: center;
     flex-direction: column;
-    align-items: center;
+    align-items: start;
     flex-grow: 6;
     padding-bottom: 20px;
     border-radius: 6px;
+    padding-left: 2em;
+}
+
+#stats>div {
+    width: 20%;
+}
+
+#widgets>div {
+    width: 33%;
+    min-height: 25em;
 }
 
 .banner {
@@ -131,6 +144,7 @@ label, legend {
     display: flex;
     justify-content: space-between;
     width: 100%;
+    margin-bottom: 1em;
 }
 
 #node-table {
@@ -179,17 +193,21 @@ label, legend {
     width: 100%;
 }
 
+#prev-locked-stake-graph[data-dash-is-loading] {}
+
 #locked-graph {
     width: 98%;
 }
 
-#locked-stake-graph {
-    flex-basis: 100%;
-}
+/*#locked-stake-graph {*/
+/*    flex-basis: 100%;*/
+/*}*/
 
 #prev-stakers-graph {
     width: 100%;
 }
+
+
 
 #state-table {
     display: flex;
@@ -230,7 +248,6 @@ label, legend {
     align-items: center;
     padding-right: 2rem;
     overflow-y: hidden !important;
-    height: 2em;
 }
 
 .node-row:hover {
