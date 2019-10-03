@@ -1,7 +1,5 @@
 import os
 
-import pytest
-
 from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     StakingEscrowAgent,
@@ -10,7 +8,7 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import StakingEscrowDeployer
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
+from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.cli.deploy import deploy
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,

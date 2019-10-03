@@ -442,7 +442,7 @@ def confirm_enable_restaking(emitter, staking_address: str) -> bool:
 
 def establish_deployer_registry(emitter,
                                 registry_infile: str = None,
-                                registry_outfile:str = None,
+                                registry_outfile: str = None,
                                 use_existing_registry: bool = False,
                                 dev: bool = False
                                 ) -> LocalContractRegistry:

@@ -31,9 +31,9 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     AdjudicatorAgent,
     PolicyManagerAgent,
-    StakingEscrowAgent
+    StakingEscrowAgent,
+    PreallocationEscrowAgent
 )
-from nucypher.blockchain.eth.agents import PreallocationEscrowAgent
 from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import DispatcherDeployer, StakingInterfaceRouterDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
@@ -228,10 +228,10 @@ Stakers population ....... {staking_agent.get_staker_population()}
     emitter.echo(sep)
 
 
-def paint_deployer_contract_inspection(emitter, administrator) -> None:
+def paint_deployer_contract_inspection(emitter, registry, deployer_address) -> None:
 
     blockchain = BlockchainInterfaceFactory.get_interface()
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=administrator.registry)
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
 
     sep = '-' * 45
     emitter.echo(sep)
@@ -242,7 +242,7 @@ def paint_deployer_contract_inspection(emitter, administrator) -> None:
 ====================================================================
 
 Provider URI ............. {blockchain.provider_uri}
-Registry  ................ {administrator.registry.filepath}
+Registry  ................ {registry.filepath}
 
 * Standard Deployments
 =====================================================================
@@ -257,19 +257,20 @@ Registry  ................ {administrator.registry.filepath}
 ====================================================================="""
     emitter.echo(banner)
 
-    for contract_deployer_class in administrator.dispatched_upgradeable_deployer_classes:
+    from nucypher.blockchain.eth.actors import ContractAdministrator
+    for contract_deployer_class in ContractAdministrator.dispatched_upgradeable_deployer_classes:
         try:
             bare_contract = blockchain.get_contract_by_name(name=contract_deployer_class.contract_name,
                                                             proxy_name=DispatcherDeployer.contract_name,
-                                                            registry=administrator.registry,
+                                                            registry=registry,
                                                             use_proxy_address=False)
 
-            dispatcher_deployer = DispatcherDeployer(registry=administrator.registry,
+            dispatcher_deployer = DispatcherDeployer(registry=registry,
                                                      target_contract=bare_contract,
-                                                     deployer_address=administrator.deployer_address,
+                                                     deployer_address=deployer_address,
                                                      bare=True)  # acquire agency for the dispatcher itself.
 
-            agent = contract_deployer_class.agency(registry=administrator.registry, contract=bare_contract)
+            agent = contract_deployer_class.agency(registry=registry, contract=bare_contract)
 
             proxy_payload = f"""
 {agent.contract_name} .... {bare_contract.address}
@@ -285,7 +286,7 @@ Registry  ................ {administrator.registry.filepath}
             emitter.echo(sep, nl=False)
 
         except BaseContractRegistry.UnknownContract:
-            message = f"\n{contract_deployer_class.contract_name} is not enrolled in {administrator.registry.filepath}"
+            message = f"\n{contract_deployer_class.contract_name} is not enrolled in {registry.filepath}"
             emitter.echo(message, color='yellow')
             emitter.echo(sep, nl=False)
 
@@ -295,15 +296,15 @@ Registry  ................ {administrator.registry.filepath}
         # StakingInterface
         #
 
-        staking_interface_agent = PreallocationEscrowAgent.StakingInterfaceAgent(registry=administrator.registry)
+        staking_interface_agent = PreallocationEscrowAgent.StakingInterfaceAgent(registry=registry)
         bare_contract = blockchain.get_contract_by_name(name=staking_interface_agent.contract_name,
                                                         proxy_name=StakingInterfaceRouterDeployer.contract_name,
                                                         use_proxy_address=False,
-                                                        registry=administrator.registry)
+                                                        registry=registry)
 
-        router_deployer = StakingInterfaceRouterDeployer(registry=administrator.registry,
+        router_deployer = StakingInterfaceRouterDeployer(registry=registry,
                                                          target_contract=bare_contract,
-                                                         deployer_address=administrator.deployer_address,
+                                                         deployer_address=deployer_address,
                                                          bare=True)  # acquire agency for the dispatcher itself.
 
         preallocation_escrow_payload = f"""
@@ -315,7 +316,7 @@ Registry  ................ {administrator.registry.filepath}
         emitter.echo(sep)
 
     except BaseContractRegistry.UnknownContract:
-        message = f"\nStakingInterface is not enrolled in {administrator.registry.filepath}"
+        message = f"\nStakingInterface is not enrolled in {registry.filepath}"
         emitter.echo(message, color='yellow')
 
     return

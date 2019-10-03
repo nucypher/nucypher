@@ -159,8 +159,7 @@ def deploy(action,
     #
 
     if action == "inspect":
-        administrator = ContractAdministrator(registry=local_registry, deployer_address=deployer_address)
-        paint_deployer_contract_inspection(emitter=emitter, administrator=administrator)
+        paint_deployer_contract_inspection(emitter=emitter, registry=local_registry, deployer_address=deployer_address)
         return  # Exit
 
     #
