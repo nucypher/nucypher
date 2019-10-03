@@ -43,7 +43,7 @@ class MoeStatusApp(NetworkStatusPage):
         template_path = os.path.join(self.TEMPLATE_DIR, 'moe.html')
         with open(template_path, 'r') as file:
             moe_template = file.read()
-            self.dash_app.index_string = Template(moe_template).substitute(ws_port=ws_port)
+            self.dash_app.index_string = Template(moe_template).substitute(ws_port=ws_port, ws_host='0.0.0.0')  # TODO
 
         self.dash_app.layout = html.Div([
             dcc.Location(id='url', refresh=False),
