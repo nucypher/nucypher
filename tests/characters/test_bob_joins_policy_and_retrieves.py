@@ -161,3 +161,19 @@ def test_treasure_map_serialization(enacted_federated_policy, federated_bob):
     deserialized_map.orient(compass)
     assert deserialized_map.m == treasure_map.m
     assert deserialized_map.destinations == treasure_map.destinations
+
+
+def test_bob_retrieves_with_treasure_map(
+        federated_bob, federated_ursulas,
+        enacted_federated_policy, capsule_side_channel):
+    message_kit, data_source = capsule_side_channel()
+    treasure_map = enacted_federated_policy.treasure_map
+    alice_verifying_key = enacted_federated_policy.alice.stamp
+
+    # Teach Bob about the network
+    federated_bob.remember_node(list(federated_ursulas)[0])
+    federated_bob.learn_from_teacher_node(eager=True)
+
+    federated_bob.retrieve(
+        message_kit, data_source, alice_verifying_key,
+        enacted_federated_policy.label, treasure_map=treasure_map)
