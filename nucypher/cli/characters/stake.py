@@ -166,11 +166,10 @@ def stake(click_config,
         allocation_registry = None
         initial_address = staking_address
 
-    dummy_password = "Look Away, I'm Hideous"  # TODO: See #1385
     STAKEHOLDER = stakeholder_config.produce(initial_address=initial_address,
-                                             allocation_registry=allocation_registry,
-                                             password=dummy_password)
+                                             allocation_registry=allocation_registry)
     blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)  # Eager connection
+
     economics = STAKEHOLDER.economics
 
     # Dynamic click types (Economics)

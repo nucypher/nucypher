@@ -19,6 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
 from typing import List, Tuple, Optional
 
+from eth_utils import to_checksum_address
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from hexbytes import HexBytes
 from umbral import pre
@@ -123,8 +124,19 @@ class TransactingPower(CryptoPowerUp):
         self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=provider_uri)
         self.__account = account
 
-        # TODO: Is there a better way to design this Flag? See #1385
-        self.device = True if not password else False
+        # TODO: Temporary fix for #1128 and #1385. It's ugly af, but it works. Move somewhere else?
+        try:
+            wallets = self.blockchain.client.wallets
+        except AttributeError:
+            is_from_hw_wallet = False
+        else:
+            HW_WALLET_URL_PREFIXES = ('trezor', 'ledger')
+            hw_accounts = [w['accounts'] for w in wallets if w['url'].startswith(HW_WALLET_URL_PREFIXES)]
+            hw_addresses = [to_checksum_address(account['address']) for sublist in hw_accounts for account in sublist]
+            is_from_hw_wallet = account in hw_addresses
+
+        self.device = is_from_hw_wallet
+
 
         self.__password = password
         self.__unlocked = False
