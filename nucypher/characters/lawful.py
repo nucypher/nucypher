@@ -1390,7 +1390,6 @@ class StakeHolder(Staker):
                 self.__get_accounts()
                 if checksum_address not in self:
                     raise self.UnknownAccount
-            # TODO: What if cached TransactingPower is wrongly initialized? See issue #1385
             try:
                 transacting_power = self.__transacting_powers[checksum_address]
             except KeyError:
