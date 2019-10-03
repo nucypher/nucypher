@@ -1,0 +1,33 @@
+pragma solidity ^0.5.3;
+
+
+/**
+* @dev Contract for reentrancy protection testing
+**/
+contract ReentrancyTest {
+
+    uint256 maxDepth = 1;
+    uint256 lockCounter;
+    address target;
+    uint256 value;
+    bytes data;
+
+    function setData(uint256 _maxDepth, address _target, uint256 _value, bytes calldata _data) external {
+        maxDepth = _maxDepth;
+        target = _target;
+        value = _value;
+        data = _data;
+    }
+
+    function () payable external {
+        // call only once
+        if (lockCounter >= maxDepth) {
+            return;
+        }
+        lockCounter++;
+        (bool callSuccess,) = target.call.value(value)(data);
+        require(callSuccess);
+        lockCounter--;
+    }
+
+}

@@ -86,13 +86,23 @@ contract StakingEscrowForPolicyMock {
 
     /**
     * @notice Emulate mint method
+    * @param _staker Staker on behalf of whom minting will be
+    * @param _startPeriod Start period for minting
+    * @param _numberOfPeriods Number periods for minting
+    **/
+    function mint(address _staker, uint16 _startPeriod, uint16 _numberOfPeriods) public {
+        for (uint16 i = 0; i < _numberOfPeriods; i++) {
+            policyManager.updateReward(_staker, i + _startPeriod);
+        }
+    }
+
+    /**
+    * @notice Emulate mint method
     * @param _startPeriod Start period for minting
     * @param _numberOfPeriods Number periods for minting
     **/
     function mint(uint16 _startPeriod, uint16 _numberOfPeriods) external {
-        for (uint16 i = 0; i < _numberOfPeriods; i++) {
-            policyManager.updateReward(msg.sender, i + _startPeriod);
-        }
+        mint(msg.sender, _startPeriod, _numberOfPeriods);
     }
 
     /**

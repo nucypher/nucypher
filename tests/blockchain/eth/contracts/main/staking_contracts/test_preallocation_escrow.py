@@ -16,7 +16,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import os
 import pytest
+from eth_utils import keccak
 from eth_tester.exceptions import TransactionFailed
 
 
@@ -371,3 +373,37 @@ def test_policy(testerchain, policy_manager, preallocation_escrow, preallocation
     event_args = events[0]['args']
     assert owner == event_args['sender']
     assert 222 == event_args['value']
+
+
+@pytest.mark.slow
+def test_reentrancy(testerchain, deploy_contract, token, escrow, policy_manager):
+    proxy, _ = deploy_contract('StakingInterfaceMockV2', token.address, escrow.address, policy_manager.address)
+    secret = os.urandom(32)
+    secret_hash = keccak(secret)
+    router, _ = deploy_contract('StakingInterfaceRouter', proxy.address, secret_hash)
+
+    # Prepare contracts
+    reentrancy_contract, _ = deploy_contract('ReentrancyTest')
+    contract_address = reentrancy_contract.address
+    preallocation_escrow, _ = deploy_contract('PreallocationEscrow', router.address, token.address)
+    tx = preallocation_escrow.functions.transferOwnership(contract_address).transact()
+    testerchain.wait_for_receipt(tx)
+
+    # Transfer ETH to user escrow
+    value = 10000
+    tx = reentrancy_contract.functions.setData(1, preallocation_escrow.address, value, bytes()).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = testerchain.client.send_transaction(
+        {'from': testerchain.client.coinbase, 'to': contract_address, 'value': value})
+    testerchain.wait_for_receipt(tx)
+    assert testerchain.client.get_balance(preallocation_escrow.address) == value
+
+    # Try to withdraw ETH twice
+    balance = testerchain.w3.eth.getBalance(contract_address)
+    transaction = preallocation_escrow.functions.withdrawETH().buildTransaction({'gas': 0})
+    tx = reentrancy_contract.functions.setData(2, transaction['to'], 0, transaction['data']).transact()
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = testerchain.client.send_transaction({'to': contract_address})
+        testerchain.wait_for_receipt(tx)
+    assert testerchain.w3.eth.getBalance(contract_address) == balance

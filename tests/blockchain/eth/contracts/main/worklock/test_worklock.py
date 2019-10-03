@@ -19,21 +19,27 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 
 
-@pytest.mark.slow
-def test_worklock(testerchain, token_economics, deploy_contract):
-    creator, ursula1, ursula2, *everyone_else = testerchain.w3.eth.accounts
+@pytest.fixture()
+def token(testerchain, token_economics, deploy_contract):
+    contract, _ = deploy_contract('NuCypherToken', _totalSupply=token_economics.erc20_total_supply)
+    return contract
 
-    # Create an ERC20 token
-    token, _ = deploy_contract('NuCypherToken', _totalSupply=token_economics.erc20_total_supply)
 
-    # Deploy MinersEscrow mock
-    escrow, _ = deploy_contract(
+@pytest.fixture()
+def escrow(testerchain, token_economics, deploy_contract, token):
+    contract, _ = deploy_contract(
         contract_name='StakingEscrowForWorkLockMock',
         _token=token.address,
         _minAllowableLockedTokens=token_economics.minimum_allowed_locked,
         _maxAllowableLockedTokens=token_economics.maximum_allowed_locked,
         _minLockedPeriods=token_economics.minimum_locked_periods
     )
+    return contract
+
+
+@pytest.mark.slow
+def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
+    creator, ursula1, ursula2, *everyone_else = testerchain.w3.eth.accounts
 
     # Deploy WorkLock
     now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
@@ -292,3 +298,68 @@ def test_worklock(testerchain, token_economics, deploy_contract):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.refund().transact({'from': ursula1, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
+
+
+@pytest.mark.slow
+def test_reentrancy(testerchain, token_economics, deploy_contract, token, escrow):
+    # Deploy WorkLock
+    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    start_bid_date = now
+    end_bid_date = start_bid_date + (60 * 60)
+    deposit_rate = 1
+    refund_rate = 1
+    worklock, _ = deploy_contract(
+        contract_name='WorkLock',
+        _token=token.address,
+        _escrow=escrow.address,
+        _startBidDate=start_bid_date,
+        _endBidDate=end_bid_date,
+        _depositRate=deposit_rate,
+        _refundRate=refund_rate,
+        _lockedPeriods=2 * token_economics.minimum_locked_periods
+    )
+    refund_log = worklock.events.Refund.createFilter(fromBlock='latest')
+    worklock_supply = 2 * token_economics.maximum_allowed_locked - 1
+    tx = token.functions.transfer(worklock.address, worklock_supply).transact()
+    testerchain.wait_for_receipt(tx)
+
+    reentrancy_contract, _ = deploy_contract('ReentrancyTest')
+    contract_address = reentrancy_contract.address
+    minimum_deposit_eth = token_economics.minimum_allowed_locked // deposit_rate
+    tx = testerchain.client.send_transaction(
+        {'from': testerchain.etherbase_account, 'to': contract_address, 'value': minimum_deposit_eth})
+    testerchain.wait_for_receipt(tx)
+
+    # Bid
+    transaction = worklock.functions.bid().buildTransaction({'gas': 0})
+    tx = reentrancy_contract.functions.setData(1, transaction['to'], minimum_deposit_eth, transaction['data']).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = testerchain.client.send_transaction({'to': contract_address})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.workInfo(contract_address).call()[0] == minimum_deposit_eth
+    assert testerchain.w3.eth.getBalance(worklock.address) == minimum_deposit_eth
+
+    # Claim
+    testerchain.time_travel(seconds=3600)  # Wait exactly 1 hour
+    transaction = worklock.functions.claim().buildTransaction({'gas': 0})
+    tx = reentrancy_contract.functions.setData(1, transaction['to'], 0, transaction['data']).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = testerchain.client.send_transaction({'to': contract_address})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.getRemainingWork(contract_address).call() == minimum_deposit_eth * refund_rate
+
+    # Prepare for refund and check reentrancy protection
+    balance = testerchain.w3.eth.getBalance(contract_address)
+    completed_work = refund_rate * minimum_deposit_eth // 3
+    tx = escrow.functions.setCompletedWork(contract_address, completed_work).transact()
+    testerchain.wait_for_receipt(tx)
+    transaction = worklock.functions.refund().buildTransaction({'gas': 0})
+    tx = reentrancy_contract.functions.setData(2, transaction['to'], 0, transaction['data']).transact()
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = testerchain.client.send_transaction({'to': contract_address})
+        testerchain.wait_for_receipt(tx)
+    assert testerchain.w3.eth.getBalance(contract_address) == balance
+    assert worklock.functions.workInfo(contract_address).call()[0] == minimum_deposit_eth
+    assert worklock.functions.getRemainingWork(contract_address).call() == 2 * minimum_deposit_eth * refund_rate // 3
+    assert len(refund_log.get_all_entries()) == 0
