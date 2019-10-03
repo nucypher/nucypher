@@ -1,11 +1,13 @@
+# Pre-Release Epics
+
+![](../.static/img/nu_epics.jpg)
+
 Before this codebase was ready for any kind of organized release methodology, we began the process of opening epic branches - branches into which feature-related PRs were open, but which didn't necessarily result in a passing test suite until their conclusion.
 
 For any reader trying to piece together the history of innovations in NuCypher, understanding these epics and their role in the evolution of our network is a must.
 
-
 ## Coffee
-10 Jul 2018
-https://github.com/nucypher/nucypher/pull/286
+**10 Jul 2018 <https://github.com/nucypher/nucypher/pull/286>**
 
 *Named because @jMyles and @kPrasch really needed some when they finally pushed the first breakages that led to this epic.*
 
@@ -21,8 +23,7 @@ It also included the first seeds of many of the metaphors that have become commo
 
 
 ## Kokonusswasser
-28 Sep 2018
-https://github.com/nucypher/nucypher/pull/435
+**28 Sep 2018 <https://github.com/nucypher/nucypher/pull/435>**
 
 *Named because the team was learning German and drinking coconut water.*
 
@@ -36,8 +37,7 @@ Kokonuswasser also introduced Vladimir, a metaphor for an unlawful, selfish node
 
 
 ## Cedar
-18 Nov 2018
-https://github.com/nucypher/nucypher/pull/490
+**18 Nov 2018 <https://github.com/nucypher/nucypher/pull/490>**
 
 *Named as a homophone for "seeder", as this epic introduced our seeder contract and concepts.*
 
@@ -60,8 +60,7 @@ Our Alpha release including a metric bajillion bugfixes, along with documentatio
 
 
 ## Carrot Juice
-15 Feb 2019
-https://github.com/nucypher/nucypher/pull/760
+**15 Feb 2019 <https://github.com/nucypher/nucypher/pull/760>**
 
 *Named because jMyles had had enough coffee and needed a change.*
 
@@ -79,8 +78,7 @@ Carrot Juice was the basis for the ETHDenver demo:
 
 
 ## Vodka
-25 Feb 2019
-https://github.com/nucypher/nucypher/pull/507
+**25 Feb 2019 <https://github.com/nucypher/nucypher/pull/507>**
 
 Our longest running epic - open for an entire season - Vodka offered a major critique to a several cryptoeconomic norms, most notably offering a zero-knowledge verification of re-encryption correctness.
 

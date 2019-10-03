@@ -163,6 +163,7 @@ Whitepapers
    :caption: Release Notes
 
    release_notes/genesis_release
+   release_notes/pre_release_epics
 
 .. toctree::
    :maxdepth: 1
