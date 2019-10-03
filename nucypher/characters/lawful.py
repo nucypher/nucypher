@@ -585,18 +585,24 @@ class Bob(Character):
 
     def work_orders_for_capsules(self,
                                  *capsules,
-                                 map_id: str,
+                                 map_or_id: Union['TreasureMap', str],
                                  alice_verifying_key: UmbralPublicKey,
                                  num_ursulas: int = None,
                                  ):
 
         from nucypher.policy.collections import WorkOrder  # Prevent circular import
+        from nucypher.policy.collections import TreasureMap
 
-        try:
-            treasure_map_to_use = self.treasure_maps[map_id]
-        except KeyError:
-            raise KeyError(
-                "Bob doesn't have the TreasureMap {}; can't generate work orders.".format(map_id))
+        if isinstance(map_or_id, TreasureMap):
+            map_id = map_or_id.public_id()
+            treasure_map_to_use = map_or_id
+        else:
+            map_id = map_or_id
+            try:
+                treasure_map_to_use = self.treasure_maps[map_id]
+            except KeyError:
+                raise KeyError(
+                    "Bob doesn't have the TreasureMap {}; can't generate work orders.".format(map_id))
 
         incomplete_work_orders = OrderedDict()
         complete_work_orders = OrderedDict()
@@ -679,10 +685,11 @@ class Bob(Character):
             from nucypher.policy.collections import TreasureMap
 
             if isinstance(treasure_map, bytes):
-                tmap = TreasureMap.from_bytes(treasure_map)
-            else:
-                tmap = treasure_map
-            _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=tmap, block=True)
+                treasure_map = TreasureMap.from_bytes(treasure_map)
+                alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
+                compass = self.make_compass_for_alice(alice)
+                treasure_map.orient(compass)
+            _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=treasure_map, block=True)
         else:
             _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
 
@@ -720,7 +727,7 @@ class Bob(Character):
             capsule.set_correctness_keys(verifying=alice_verifying_key)
 
             new_work_orders, complete_work_orders = self.work_orders_for_capsules(
-                map_id=map_id,
+                map_or_id=treasure_map or map_id,
                 alice_verifying_key=alice_verifying_key,
                 *capsules_to_activate)
 
