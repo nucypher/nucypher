@@ -1,8 +1,6 @@
-# NuCypher Release Notes
+# Genesis Release (v0.1.0-alpha.0)
 
 ![](https://goo.gl/C1Gpwa)
-
-## v0.1.0-alpha.0 (Genesis Release)
  
    1. In the beginning cryptography created the ciphertext and the plaintext.
    
