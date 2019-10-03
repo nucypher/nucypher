@@ -156,20 +156,19 @@ class MoeStatusApp(NetworkStatusPage):
         def prev_locked_tokens(pathname):
             prior_periods = 30
             locked_tokens_dict = self.moe_db_client.get_historical_locked_tokens_over_range(prior_periods)
-            marker_color = 'rgb(0, 163, 239)'
-
+            token_values = list(locked_tokens_dict.values())
             fig = go.Figure(data=[
                                 go.Bar(
                                     textposition='auto',
                                     x=list(locked_tokens_dict.keys()),
-                                    y=list(locked_tokens_dict.values()),
+                                    y=token_values,
                                     name='Locked Stake',
-                                    marker=go.bar.Marker(color=marker_color)
+                                    marker=go.bar.Marker(color=token_values, colorscale='Viridis')
                                 )
                             ],
                             layout=go.Layout(
                                 title=f'Staked NU over the previous {prior_periods} days.',
-                                xaxis={'title': 'Date', 'nticks': len(locked_tokens_dict)},
+                                xaxis={'title': 'Date', 'nticks': len(locked_tokens_dict) + 1},
                                 yaxis={'title': 'NU Tokens', 'zeroline': False},
                                 showlegend=False,
                                 paper_bgcolor='rgba(0,0,0,0)',
@@ -196,8 +195,8 @@ class MoeStatusApp(NetworkStatusPage):
                             ],
                             layout=go.Layout(
                                 title=f'Num Stakers over the previous {prior_periods} days.',
-                                xaxis={'title': 'Date', 'nticks': len(num_stakers_dict)},
-                                yaxis={'title': 'Stakers', 'zeroline': False},
+                                xaxis={'title': 'Date', 'nticks': len(num_stakers_dict) + 1, 'showgrid': False},
+                                yaxis={'title': 'Stakers', 'zeroline': False, 'showgrid': False},
                                 showlegend=False,
                                 paper_bgcolor='rgba(0,0,0,0)',
                                 plot_bgcolor='rgba(0,0,0,0)'
@@ -212,15 +211,14 @@ class MoeStatusApp(NetworkStatusPage):
             token_counter = self.moe_crawler.snapshot['future_locked_tokens']
             periods = len(token_counter)
             period_range = list(range(1, periods + 1))
-            marker_color = 'rgb(230, 234, 232)'
-
+            token_counter_values = list(token_counter.values())
             fig = go.Figure(data=[
                                 go.Bar(
                                     textposition='auto',
                                     x=period_range,
-                                    y=list(token_counter.values()),
+                                    y=token_counter_values,
                                     name='Stake',
-                                    marker=go.bar.Marker(color=marker_color)
+                                    marker=go.bar.Marker(color=token_counter_values, colorscale='Viridis')
                                 )
                             ],
                             layout=go.Layout(
