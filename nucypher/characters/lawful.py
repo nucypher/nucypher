@@ -68,7 +68,7 @@ from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
-from nucypher.network.status.status_page import UrsulaStatusPage
+from nucypher.network.status_app.ursula import UrsulaStatusApp
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -881,10 +881,10 @@ class Ursula(Teacher, Character, Worker):
                     serving_domains=domains,
                 )
                 # attach status app to rest_app
-                UrsulaStatusPage(ursula=self,
-                                 title=self.nickname,
-                                 flask_server=rest_app,
-                                 route_url='/status/')
+                UrsulaStatusApp(ursula=self,
+                                title=self.nickname,
+                                flask_server=rest_app,
+                                route_url='/status/')
 
                 #
                 # TLSHostingPower (Ephemeral Self-Ursula)
