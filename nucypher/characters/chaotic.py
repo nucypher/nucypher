@@ -14,18 +14,21 @@ from flask_limiter.util import get_remote_address
 from hendrix.deploy.base import HendrixDeploy
 from hendrix.experience import hey_joe
 from nacl.hash import sha256
+from nucypher.network.status_app.moe import MoeStatusApp
 from sqlalchemy import create_engine, or_
 from twisted.internet import threads, reactor
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 
-from hendrix.deploy.base import HendrixDeploy
-from hendrix.experience import hey_joe
 from nucypher.blockchain.economics import TokenEconomicsFactory
-from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import NucypherTokenActor
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency, StakingEscrowAgent, PolicyManagerAgent, \
+from nucypher.blockchain.eth.agents import (
+    NucypherTokenAgent,
+    ContractAgency,
+    StakingEscrowAgent,
+    PolicyManagerAgent,
     AdjudicatorAgent
+)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
@@ -34,8 +37,7 @@ from nucypher.characters.base import Character
 from nucypher.config.constants import TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower, TransactingPower
 from nucypher.keystore.threading import ThreadedSession
-from nucypher.network.nodes import FleetStateTracker, Learner
-from nucypher.network.status.status_page import MoeStatusPage
+from nucypher.network.nodes import FleetStateTracker
 
 
 class Moe(Character):
@@ -101,11 +103,11 @@ class Moe(Character):
         self.rest_app = Flask("fleet-monitor")
         rest_app = self.rest_app
         # attach status app to rest_app
-        MoeStatusPage(moe=self,
-                      title='Moe Monitoring Application',
-                      flask_server=self.rest_app,
-                      route_url='/',
-                      ws_port=ws_port)
+        MoeStatusApp(moe=self,
+                     title='Moe Monitoring Application',
+                     flask_server=self.rest_app,
+                     route_url='/',
+                     ws_port=ws_port)
 
         #
         # Server
