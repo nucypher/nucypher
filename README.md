@@ -32,7 +32,7 @@ threshold proxy re-encryption scheme to provide cryptographic access control.
 
 # How does NuCypher work?
 
-![](./docs/source/.static/img/nucypher_overview.svg)
+![](./docs/source/.static/img/nucypher_overview.png)
 
 01. Alice, the data owner, grants access to her encrypted data to
 anyone she wants by creating a policy and uploading it to
