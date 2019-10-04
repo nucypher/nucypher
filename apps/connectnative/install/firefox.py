@@ -40,6 +40,7 @@ def install():
 
     for dest in FILE_LOCATIONS[this_os]:
         location = os.path.join(home, dest, 'nucypher.json')
+        os.makedirs(os.path.dirname(location), exist_ok=True)
         with open(location, 'w') as outfile:
             json.dump(install_data, outfile)
             print (f"wrote extension data to {location}...")
