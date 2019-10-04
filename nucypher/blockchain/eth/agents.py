@@ -374,7 +374,8 @@ class StakingEscrowAgent(EthereumContractAgent):
     def collect_staking_reward(self, staker_address: str):
         """Withdraw tokens rewarded for staking."""
         reward_amount = self.calculate_staking_reward(staker_address=staker_address)
-        self.log.debug(f"Withdrawing staking reward, {reward_amount}, to {staker_address}")
+        from nucypher.blockchain.eth.token import NU
+        self.log.debug(f"Withdrawing staking reward ({NU.from_nunits(reward_amount)}) to {staker_address}")
         return self.withdraw(staker_address=staker_address, amount=reward_amount)
 
     @validate_checksum_address

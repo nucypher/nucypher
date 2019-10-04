@@ -796,6 +796,7 @@ class Ursula(Teacher, Character, Worker):
                  checksum_address: str = None,  # Staker address
                  worker_address: str = None,
                  work_tracker: WorkTracker = None,
+                 start_working_now: bool = True,
                  client_password: str = None,
 
                  # Character
@@ -856,7 +857,8 @@ class Ursula(Teacher, Character, Worker):
                                 registry=self.registry,
                                 checksum_address=checksum_address,
                                 worker_address=worker_address,
-                                work_tracker=work_tracker)
+                                work_tracker=work_tracker,
+                                start_working_now=start_working_now)
 
         #
         # ProxyRESTServer and TLSHostingPower #

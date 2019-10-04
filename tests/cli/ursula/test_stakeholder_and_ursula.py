@@ -400,9 +400,8 @@ def test_collect_rewards_integration(click_runner,
     verifying_key = blockchain_alice.stamp.as_umbral_pubkey()
 
     for index in range(half_stake_time - 5):
-        ursula.confirm_activity()
-
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
+        ursula.confirm_activity()
 
         # Encrypt
         random_data = os.urandom(random.randrange(20, 100))
@@ -421,10 +420,10 @@ def test_collect_rewards_integration(click_runner,
 
     # Finish the passage of time for the first Stake
     for _ in range(5):  # plus the extended periods from stake division
-        ursula.confirm_activity()
-        current_period += 1
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
+        ursula.confirm_activity()
         testerchain.time_travel(periods=1)
+        current_period += 1
 
     #
     # WHERES THE MONEY URSULA?? - Collecting Rewards
@@ -438,6 +437,7 @@ def test_collect_rewards_integration(click_runner,
 
     # Rewards will be unlocked after the
     # final confirmed period has passed (+1).
+    logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
     testerchain.time_travel(periods=1)
     current_period += 1
     logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
@@ -479,14 +479,18 @@ def test_collect_rewards_integration(click_runner,
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
         testerchain.time_travel(periods=1)
 
-    # Collect Inflation Reward
+    #
+    # Collect Staking Reward
+    #
+
+    balance_before_collecting = staker.token_agent.get_balance(address=staker_address)
+
     collection_args = ('stake', 'collect-reward',
                        '--mock-networking',
                        '--config-file', stakeholder_configuration_file_location,
                        '--no-policy-reward',
                        '--staking-reward',
                        '--staking-address', staker_address,
-                       '--withdraw-address', burner_wallet.address,
                        '--force')
 
     result = click_runner.invoke(nucypher_cli,
@@ -495,8 +499,8 @@ def test_collect_rewards_integration(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    # The burner wallet has the reward ethers
-    assert staker.token_agent.get_balance(address=staker_address)
+    # The staker has withdrawn her staking rewards
+    assert staker.token_agent.get_balance(address=staker_address) >= balance_before_collecting
 
 
 def test_stake_detach_worker(click_runner,
