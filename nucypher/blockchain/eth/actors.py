@@ -827,8 +827,8 @@ class Staker(NucypherTokenActor):
         """Withdraw tokens rewarded for staking."""
         if self.is_contract:
             reward_amount = self.staking_agent.calculate_staking_reward(staker_address=self.checksum_address)
-            self.log.debug(f"Withdrawing staking reward, {reward_amount}, to {self.checksum_address}")
-            receipt = self.user_escrow_agent.withdraw_as_staker(amount=reward_amount)
+            self.log.debug(f"Withdrawing staking reward ({NU.from_nunits(reward_amount)}) to {self.checksum_address}")
+            receipt = self.user_escrow_agent.withdraw_as_staker(value=reward_amount)
         else:
             receipt = self.staking_agent.collect_staking_reward(staker_address=self.checksum_address)
         return receipt
@@ -838,7 +838,7 @@ class Staker(NucypherTokenActor):
     def withdraw(self, amount: NU) -> str:
         """Withdraw tokens (assuming they're unlocked)"""
         if self.is_contract:
-            receipt = self.user_escrow_agent.withdraw_as_staker(amount=int(amount))
+            receipt = self.user_escrow_agent.withdraw_as_staker(value=int(amount))
         else:
             receipt = self.staking_agent.withdraw(staker_address=self.checksum_address,
                                                   amount=int(amount))
@@ -861,7 +861,6 @@ class Worker(NucypherTokenActor):
                  work_tracker: WorkTracker = None,
                  worker_address: str = None,
                  start_working_now: bool = True,
-                 confirm_now: bool = True,
                  check_active_worker: bool = True,
                  *args, **kwargs):
 

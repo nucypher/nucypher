@@ -191,6 +191,7 @@ def stake(click_config,
         return  # Exit
 
     elif action == 'accounts':
+        # TODO: Order accounts like shown by blockchain.client.accounts
         for address, balances in STAKEHOLDER.wallet.balances.items():
             emitter.echo(f"{address} | {Web3.fromWei(balances['ETH'], 'ether')} ETH | {NU.from_nunits(balances['NU'])}")
         return  # Exit
@@ -420,16 +421,22 @@ def stake(click_config,
     elif action == 'collect-reward':
         """Withdraw staking reward to the specified wallet address"""
 
-        # TODO: Missing account selection
+        # Authenticate
+        client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
+                                                                            stakeholder=STAKEHOLDER,
+                                                                            staking_address=staking_address,
+                                                                            is_preallocation_staker=is_preallocation_staker,
+                                                                            beneficiary_address=beneficiary_address,
+                                                                            force=force)
 
         password = None
         if not hw_wallet and not blockchain.client.is_local:
-            password = get_client_password(checksum_address=staking_address)
+            password = get_client_password(checksum_address=client_account)
 
         if not staking_reward and not policy_reward:
             raise click.BadArgumentUsage(f"Either --staking-reward or --policy-reward must be True to collect rewards.")
 
-        STAKEHOLDER.assimilate(checksum_address=staking_address, password=password)
+        STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
         if staking_reward:
             # Note: Sending staking / inflation rewards to another account is not allowed.
             staking_receipt = STAKEHOLDER.collect_staking_reward()
