@@ -68,9 +68,6 @@ try:
         else:
             options.append('--json-ipc')
 
-            if command_data.get("options"):
-                options.append('--options')
-
             for param, value in command_data['args'].items():
                 param = param.replace("_", "-")
                 if value is True:
@@ -80,10 +77,10 @@ try:
 
             ####
             # INTERNAL INTERFACE
-            logging.error(f"calling NuCypher CLI with {NUCYPHER_KEYRING_PASSWORD}")
             environ = {'NUCYPHER_KEYRING_PASSWORD': NUCYPHER_KEYRING_PASSWORD}
             result = None
             try:
+                logging.error(f"calling nucypher with options: {' '.join(options)}")
                 nc_result = click_runner.invoke(nucypher_cli, options, catch_exceptions=True, env=environ)
                 logging.error(f"result is: {nc_result.output}")
                 result = nc_result.output
@@ -94,6 +91,8 @@ try:
                 lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
                 err = ''.join('\n'+line for line in lines)  # Log it or whatever here
                 logging.error(f"NuCypher CLI error ==== \n {err}")
+            except Exception as e:
+                logging.error(f"NuCypher CLI error ==== \n {'.'.join(dir(e).keys())}")
             ####
 
             del command_data['keyring_password']
