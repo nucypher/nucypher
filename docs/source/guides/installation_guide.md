@@ -5,6 +5,7 @@
 
 * [System Requirements and Dependencies](#System-Requirements-and-Dependencies)
 * [Standard Installation](#Standard-Installation)
+* [Docker Installation](#Docker-Installation)
 * [Development Installation](#Development-Installation)
 * [Running Ursula with Systemd](#Systemd-Service-Installation)
 
@@ -102,6 +103,41 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
     ```python
     import nucypher
     ```
+
+## Docker Installation
+
+The intention of the Docker configurations in this directory is to enable anyone to develop and test NuCypher on all major operating systems with minimal prerequisites and installation hassle.
+
+### Standard Docker Installation
+* install [Docker](https://docs.docker.com/install/)
+* install [Docker Compose](https://docs.docker.com/compose/install/)
+* cd to dev/docker
+* `docker-compose up --build` **this must be done once to complete install**
+
+### Running NuCypher
+Then you can do things like:
+* run the tests:
+`docker-compose run nucypher-dev pytest`
+* start up an ursula:
+`docker-compose run nucypher-dev nucypher ursula run --dev --federated-only`
+* open a shell:
+`docker-compose run nucypher-dev bash`
+
+* try some of the scripts in `dev/docker/scripts/`
+
+**tested on (Ubuntu 16, MacOS 10.14, Windows 10)*
+
+From there you can develop, modify code, test as normal.
+
+### Other cases
+
+* run a network of 8 independent Ursulas
+`docker-compose -f 8-federated-ursulas.yml up`
+*  get the local ports these ursulas will be exposed on
+`docker ps`
+* to stop them...
+ `docker-compose -f 8-federated-ursulas.yml stop`
+
 
 ## Development Installation
 
