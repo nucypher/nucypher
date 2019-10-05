@@ -441,7 +441,7 @@ def echo_schema(command, character_name: str, action: str = None):
 
     result = dict()
     for interface, io in specification._specifications.items():
-        input_spec, output_spec = io
+        input_spec = io['input']
         result[interface] = {option: click_schema[option] for option in input_spec}
 
     if action:
