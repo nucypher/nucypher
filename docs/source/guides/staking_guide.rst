@@ -83,7 +83,8 @@ Most stakers on the Goerli testnet will complete the following steps:
 
 1) Install ``nucypher`` on StakeHolder node (See :doc:`/guides/installation_guide`)
 2) Install and run Geth, Parity or another ethereum node (can be used with software or hardware Ethereum wallet)
-3) Request testnet tokens by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and following the instructions in the #testnet-faucet channel
+3) Request testnet tokens by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and type ``.getfunded <YOUR_CHECKSUM_ETH_ADDRESS>`` in
+the #testnet-faucet channel
 4) Stake tokens (See Below)
 5) Install another Ethereum node at the Worker instance
 6) Initialize a Worker node [:ref:`ursula-config-guide`] and bond it to your Staker (``set-worker``)
