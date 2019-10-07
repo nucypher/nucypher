@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import collections
 import os
 import pprint
@@ -691,6 +693,15 @@ class BlockchainInterfaceFactory:
     class FactoryError(Exception):
         pass
 
+    class NoRegisteredInterfaces(FactoryError):
+        pass
+
+    class InterfaceNotInitialized(FactoryError):
+        pass
+
+    class InterfaceAlreadyInitialized(FactoryError):
+        pass
+
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
             cls._instance = super().__new__(cls, *args, **kwargs)
@@ -712,7 +723,8 @@ class BlockchainInterfaceFactory:
 
         provider_uri = interface.provider_uri
         if provider_uri in cls._interfaces:
-            raise cls.FactoryError(f"A connection already exists for {provider_uri}.  Use .get_interface instead.")
+            raise cls.InterfaceAlreadyInitialized(f"A connection already exists for {provider_uri}. "
+                                                  "Use .get_interface instead.")
         cached = cls.CachedInterface(interface=interface, sync=sync, show_sync_progress=show_sync_progress)
         cls._interfaces[provider_uri] = cached
 
@@ -727,7 +739,8 @@ class BlockchainInterfaceFactory:
                              ) -> None:
 
         if provider_uri in cls._interfaces:
-            raise cls.FactoryError(f"A connection already exists for {provider_uri}.  Use .get_interface instead.")
+            raise cls.InterfaceAlreadyInitialized(f"A connection already exists for {provider_uri}.  "
+                                                  f"Use .get_interface instead.")
 
         # Interface does not exist, initialize a new one.
         if not interface_class:
@@ -745,15 +758,15 @@ class BlockchainInterfaceFactory:
             try:
                 cached_interface = cls._interfaces[provider_uri]
             except KeyError:
-                raise cls.FactoryError(f"There is no connection for {provider_uri}. "
-                                       f"Call .initialize_connection, then try again.")
+                raise cls.InterfaceNotInitialized(f"There is no connection for {provider_uri}. "
+                                                  f"Call .initialize_connection, then try again.")
 
         # Try to use the most recently created interface by default.
         else:
             try:
                 cached_interface = list(cls._interfaces.values())[-1]
             except IndexError:
-                raise cls.FactoryError(f"There is no existing blockchain connection.")
+                raise cls.NoRegisteredInterfaces(f"There is no existing blockchain connection.")
 
         # Connect and Sync
         interface, sync, show_sync_progress = cached_interface
@@ -761,4 +774,13 @@ class BlockchainInterfaceFactory:
             interface.connect()
             if sync:
                 interface.sync(show_progress=show_sync_progress)
+        return interface
+
+    @classmethod
+    def get_or_create_interface(cls, provider_uri: str) -> BlockchainInterface:
+        try:
+            interface = cls.get_interface(provider_uri=provider_uri)
+        except (cls.InterfaceNotInitialized, cls.NoRegisteredInterfaces):
+            cls.initialize_interface(provider_uri=provider_uri)
+            interface = cls.get_interface(provider_uri=provider_uri)
         return interface

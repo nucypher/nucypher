@@ -47,14 +47,19 @@ class ContractAgency:
     __agents = dict()
 
     @classmethod
-    def get_agent(cls, agent_class, registry: BaseContractRegistry):
+    def get_agent(cls,
+                  agent_class,
+                  registry: BaseContractRegistry,
+                  provider_uri: str = None,
+                  ) -> 'EthereumContractAgent':
+
         if not issubclass(agent_class, EthereumContractAgent):
             raise TypeError(f"Only agent subclasses can be used from the agency.")
         registry_id = registry.id
         try:
             return cls.__agents[registry_id][agent_class]
         except KeyError:
-            agent = agent_class(registry=registry)
+            agent = agent_class(registry=registry, provider_uri=provider_uri)
             cls.__agents[registry_id] = cls.__agents.get(registry_id, dict())
             cls.__agents[registry_id][agent_class] = agent
             return agent
@@ -77,6 +82,7 @@ class EthereumContractAgent:
 
     def __init__(self,
                  registry: BaseContractRegistry,
+                 provider_uri: str = None,
                  contract: Contract = None,
                  transaction_gas: int = None
                  ) -> None:
@@ -86,7 +92,7 @@ class EthereumContractAgent:
         self.registry = registry
 
         # NOTE: Entry-point for multi-provider support
-        self.blockchain = BlockchainInterfaceFactory.get_interface()
+        self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=provider_uri)
 
         if contract is None:  # Fetch the contract
             contract = self.blockchain.get_contract_by_name(registry=self.registry,
