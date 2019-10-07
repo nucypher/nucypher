@@ -22,12 +22,11 @@ import tempfile
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
 from os.path import dirname, abspath
-from typing import Union, Iterator
+from typing import Union, Iterator, List, Dict
 
 import requests
 from constant_sorrow.constants import REGISTRY_COMMITTED
 from twisted.logger import Logger
-from web3.contract import Contract
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
@@ -51,10 +50,9 @@ class BaseContractRegistry(ABC):
     REGISTRY_NAME = 'contract_registry.json'  # TODO: Save registry with ID-time-based filename
     DEVELOPMENT_REGISTRY_NAME = 'dev_contract_registry.json'
 
-    __PUBLICATION_USER = "nucypher"
-    __PUBLICATION_REPO = f"{__PUBLICATION_USER}/ethereum-contract-registry"
-    __PUBLICATION_BRANCH = 'goerli'          # TODO: Allow other branches to be used
-    PUBLICATION_ENDPOINT = f'https://raw.githubusercontent.com/{__PUBLICATION_REPO}/{__PUBLICATION_BRANCH}/{REGISTRY_NAME}'
+    _PUBLICATION_USER = "nucypher"
+    _PUBLICATION_REPO = f"{_PUBLICATION_USER}/ethereum-contract-registry"
+    _PUBLICATION_BRANCH = 'goerli'          # TODO: Allow other branches to be used
 
     class RegistryError(Exception):
         pass
@@ -107,18 +105,20 @@ class BaseContractRegistry(ABC):
         raise NotImplementedError
 
     @classmethod
-    def fetch_latest_publication(cls) -> bytes:
-        """
-        Get the latest published contract registry from github and save it on the local file system.
-        """
+    def get_publication_endpoint(cls) -> str:
+        url = f'https://raw.githubusercontent.com/{cls._PUBLICATION_REPO}/{cls._PUBLICATION_BRANCH}/{cls.REGISTRY_NAME}'
+        return url
 
+    @classmethod
+    def fetch_latest_publication(cls) -> bytes:
         # Setup
-        cls.logger.debug(f"Downloading contract registry from {cls.PUBLICATION_ENDPOINT}")
-        response = requests.get(cls.PUBLICATION_ENDPOINT)
+        publication_endpoint = cls.get_publication_endpoint()
+        cls.logger.debug(f"Downloading contract registry from {publication_endpoint}")
+        response = requests.get(publication_endpoint)
 
         # Fetch
         if response.status_code != 200:
-            error = f"Failed to fetch registry from {cls.PUBLICATION_ENDPOINT} with status code {response.status_code}"
+            error = f"Failed to fetch registry from {publication_endpoint} with status code {response.status_code}"
             raise cls.RegistrySourceUnavailable(error)
 
         registry_data = response.content
@@ -126,6 +126,9 @@ class BaseContractRegistry(ABC):
 
     @classmethod
     def from_latest_publication(cls, *args, **kwargs) -> 'BaseContractRegistry':
+        """
+        Get the latest published contract registry from github and save it on the local file system.
+        """
         registry_data_bytes = cls.fetch_latest_publication()
         instance = cls(*args, **kwargs)
         instance.write(registry_data=json.loads(registry_data_bytes))
@@ -242,7 +245,7 @@ class LocalContractRegistry(BaseContractRegistry):
 
         return registry_data
 
-    def write(self, registry_data: list) -> None:
+    def write(self, registry_data: Union[List, Dict]) -> None:
         """
         Writes the registry data list as JSON to the registry file. If no
         file exists, it will create it and write the data. If a file does exist
@@ -428,10 +431,10 @@ class InMemoryAllocationRegistry(AllocationRegistry):
     def _swap_registry(self, filepath: str) -> bool:
         raise NotImplementedError
 
-    def write(self, registry_data: list) -> None:
+    def write(self, registry_data: dict) -> None:
         self.__registry_data = json.dumps(registry_data)
 
-    def read(self) -> list:
+    def read(self) -> dict:
         try:
             registry_data = json.loads(self.__registry_data)
         except TypeError:
@@ -440,3 +443,22 @@ class InMemoryAllocationRegistry(AllocationRegistry):
             else:
                 raise
         return registry_data
+
+
+class IndividualAllocationRegistry(InMemoryAllocationRegistry):
+
+    REGISTRY_NAME = "individual_allocation_ABI.json"
+
+    def __init__(self, beneficiary_address: str, contract_address: str, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.beneficiary_address = beneficiary_address
+        self.contract_address = contract_address
+
+        # Download individual allocation template. Fill the template with beneficiary and contract addresses
+        individual_allocation_template = json.loads(self.fetch_latest_publication())
+        contract_data = [*individual_allocation_template.values()].pop()
+        contract_abi = contract_data[1]
+        individual_allocation = {beneficiary_address: [contract_address, contract_abi]}
+
+        self.write(registry_data=individual_allocation)
