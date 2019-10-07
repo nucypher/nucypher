@@ -96,7 +96,7 @@ Note that the Geth console does not return EIP-55 compliant checksum addresses, 
 the *lowercase* version of the address.  Since Nucypher requires EIP-55 checksum addresses, you will need 
 to convert your address to checksum format:
 
-```bash
+```javascript
 > web3.toChecksumAddress(eth.accounts[0])
 "0x287A817426DD1AE78ea23e9918e2273b6733a43D"
 ```
@@ -127,8 +127,8 @@ from nucypher.characters.lawful import Ursula
 seed_uri = "https://0.0.0.0:9151"
 seed_uri2 = "https://0.0.0.0:9151"
 
-ursula = Ursula.from_seed_and_stake_info(seed_uri=seed_uri, federated_only=False)
-another_ursula = Ursula.from_seed_and_stake_info(seed_uri=seed_uri2, federated_only=False)
+ursula = Ursula.from_seed_and_stake_info(seed_uri=seed_uri)
+another_ursula = Ursula.from_seed_and_stake_info(seed_uri=seed_uri2)
 ```
 
 Stranger `Ursula`s can be created by invoking the `from_seed_and_stake_info` method, then a `list` of `known_nodes`
@@ -147,16 +147,27 @@ see <https://docs.nucypher.com/en/latest/guides/staking_guide.html>
 
 ### Setup Alice
 
+#### Create a NuCypher Keyring
+
+```python
+from nucypher.config import NucypherKeyring
+keyring = NucypherKeyring.generate(checksum_address='0x287A817426DD1AE78ea23e9918e2273b6733a43D', password=PASSWORD)
+```
+
 ```python
 from nucypher.characters.lawful import Alice, Ursula
-from nucypher.network.middleware import RestMiddleware
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 
-ursula = Ursula.from_seed_and_stake_info(seed_uri='https://0.0.0.0:9151', federated_only=False)
-alice = Alice(known_nodes=[ursula],
-              checksum_address="0x287A817426DD1AE78ea23e9918e2273b6733a43D", 
-              registry=InMemoryContractRegistry.from_latest_publication(),
-              network_middleware=RestMiddleware())
+ursula = Ursula.from_seed_and_stake_info(seed_uri='https://0.0.0.0:9151')
+
+# Unlock Alice's Keyring
+keyring = NucypherKeyring(account='0x287A817426DD1AE78ea23e9918e2273b6733a43D')
+keyring.unlock(password=PASSWORD)
+
+# Instantiate Alice
+alice = Alice(keyring=keyring, known_nodes=[ursula], provider_uri='~/.ethereum/goerli/geth.ipc')
+
+# Start Node Discovery
+alice.start_learning_loop(now=True)
 ```
 
 Alice needs to know about Bob in order to grant access by acquiring Bob's public key's through 
@@ -167,7 +178,6 @@ from umbral.keys import UmbralPublicKey
 
 verifying_key = UmbralPublicKey.from_hex(verifying_key),
 encrypting_key = UmbralPublicKey.from_hex(encryption_key)
-
 ```
 
 ### Grant
@@ -225,8 +235,6 @@ be fetched from the application side channel.  Then, Bob constructs his perspect
 
 ```python
 from nucypher.characters.lawful import Alice, Bob, Enrico, Ursula
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from nucypher.network.middleware import RestMiddleware
 
 # Application Side-Channel
 # --------------------------
@@ -236,13 +244,16 @@ from nucypher.network.middleware import RestMiddleware
 # alice_verifying_key = <Side Channel>
 
 # Everyone!
-ursula = Ursula.from_seed_and_stake_info(seed_uri='https://0.0.0.0:9151', federated_only=False)
+ursula = Ursula.from_seed_and_stake_info(seed_uri='https://0.0.0.0:9151')
 alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
-bob = Bob(known_nodes=[ursula],
-          checksum_address="0xC080708026a3A280894365Efd51Bb64521c45147",
-          registry=InMemoryContractRegistry.from_latest_publication(),
-          network_middleware=RestMiddleware())
 enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
+
+# Generate and unlock Bob's keyring
+keyring = NucypherKeyring.generate(checksum_address='0xC080708026a3A280894365Efd51Bb64521c45147', password=PASSWORD)
+keyring.unlock(PASSWORD)
+
+# Make Bob
+bob = Bob(known_nodes=[ursula], checksum_address="0xC080708026a3A280894365Efd51Bb64521c45147")
 ```
 
 ### Join a Policy
