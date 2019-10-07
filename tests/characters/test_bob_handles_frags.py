@@ -22,6 +22,7 @@ from umbral import pre
 from umbral.cfrags import CapsuleFrag
 from umbral.kfrags import KFrag
 
+from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware, NodeIsDownMiddleware
 
@@ -654,13 +655,23 @@ def test_bob_retrieves_multiple_messages_in_a_single_adventure(federated_bob,
     message2, enrico2 = capsule_side_channel.reset()  # Second message
     message3, enrico3 = capsule_side_channel.reset()  # Third message
 
+    # We'll cast the kits to bytes as if to pretend that Bob has stored them to disk or is accessing them via the web extension.
+    # This is meaningful as a regression test (as distinct from the single-Capsule tests) because it shows that we are
+    # properly adhering the three different sender_verifying_keys.
+    message1_bytes = bytes(message1)
+    message2_bytes = bytes(message2)
+    message3_bytes = bytes(message3)
+
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
-    delivered_cleartexts = federated_bob.retrieve(message1,
-                                                  message2,
-                                                  message3,
+    delivered_cleartexts = federated_bob.retrieve(PolicyMessageKit.from_bytes(message1_bytes),
+                                                  PolicyMessageKit.from_bytes(message2_bytes),
+                                                  PolicyMessageKit.from_bytes(message3_bytes),
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
-                                                  use_precedent_work_orders=True)
+                                                  use_precedent_work_orders=True,
+                                                  policy_encrypting_key=enacted_federated_policy.public_key)
 
-    assert False
+    assert b"Welcome to flippering number 0." == delivered_cleartexts[0]
+    assert b"Welcome to flippering number 0." == delivered_cleartexts[1]
+    assert b"Welcome to flippering number 0." == delivered_cleartexts[2]
