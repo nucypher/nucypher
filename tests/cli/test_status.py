@@ -92,7 +92,7 @@ def test_nucypher_status_stakers(click_runner, testerchain, test_registry, agenc
 
     assert re.search(f"^Current period: {staking_agent.get_current_period()}", result.output, re.MULTILINE)
     assert re.search(r"Worker:\s+" + some_dude.worker_address, result.output, re.MULTILINE)
-    assert re.search(r"Stake:\s+" + str(round(owned_tokens, 2)), result.output, re.MULTILINE)
-    assert re.search(r"Locked: " + str(round(locked_tokens, 2)), result.output, re.MULTILINE)
+    assert re.search(r"Owned:\s+" + str(round(owned_tokens, 2)), result.output, re.MULTILINE)
+    assert re.search(r"Staked: " + str(round(locked_tokens, 2)), result.output, re.MULTILINE)
 
 
