@@ -606,11 +606,9 @@ class Staker(NucypherTokenActor):
     @property
     def current_stake(self) -> NU:
         """
-        The total number of staked tokens, either locked or unlocked in the current period.
+        The total number of staked tokens, i.e., tokens locked in the current period.
         """
-        stake = self.staking_agent.owned_tokens(staker_address=self.checksum_address)
-        nu_stake = NU.from_nunits(stake)
-        return nu_stake
+        return self.locked_tokens(periods=0)
 
     @only_me
     def divide_stake(self,

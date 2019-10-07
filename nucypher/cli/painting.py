@@ -519,16 +519,16 @@ def paint_stakers(emitter, stakers: List[str], agent) -> None:
         emitter.echo(f"{staker}  {'Nickname:':10} {nickname} {symbols}")
         tab = " " * len(staker)
 
-        stake = agent.owned_tokens(staker)
+        owned_tokens = agent.owned_tokens(staker)
         last_confirmed_period = agent.get_last_active_period(staker)
         worker = agent.get_worker_from_staker(staker)
         is_restaking = agent.is_restaking(staker)
 
         missing_confirmations = current_period - last_confirmed_period
-        stake_in_nu = round(NU.from_nunits(stake), 2)
+        owned_in_nu = round(NU.from_nunits(owned_tokens), 2)
         locked_tokens = round(NU.from_nunits(agent.get_locked_tokens(staker)), 2)
 
-        emitter.echo(f"{tab}  {'Stake:':10} {stake_in_nu}  (Locked: {locked_tokens})")
+        emitter.echo(f"{tab}  {'Owned:':10} {owned_in_nu}  (Staked: {locked_tokens})")
         if is_restaking:
             if agent.is_restaking_locked(staker):
                 unlock_period = agent.get_restake_unlock_period(staker)
