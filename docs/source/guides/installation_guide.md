@@ -58,7 +58,7 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
 2. Install Application Code with Pip
     
     ```bash
-    $(nucypher-venv) pip install -U nucypher
+    $(nucypher-venv) pip3 install -U nucypher
     ```
 
 
@@ -148,7 +148,7 @@ $(nucypher) pipenv run install-solc
 Alternately, you can install the development dependencies with pip:
 
 ```bash
-$ pip install -e .[development]
+$ pip3 install -e .[development]
 $ ./scripts/installation/install_solc.sh
 ```
 
