@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import collections
 import os
 import pprint
@@ -722,7 +724,7 @@ class BlockchainInterfaceFactory:
         provider_uri = interface.provider_uri
         if provider_uri in cls._interfaces:
             raise cls.InterfaceAlreadyInitialized(f"A connection already exists for {provider_uri}. "
-                                                  f" Use .get_interface instead.")
+                                                  "Use .get_interface instead.")
         cached = cls.CachedInterface(interface=interface, sync=sync, show_sync_progress=show_sync_progress)
         cls._interfaces[provider_uri] = cached
 

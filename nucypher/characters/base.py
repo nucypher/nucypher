@@ -157,7 +157,7 @@ class Character(Learner):
         # Self-Character
         #
 
-        if is_me is True:
+        if is_me:
             if not bool(federated_only) ^ bool(registry):
                 raise ValueError(f"Pass either federated only or registry for is_me Characters.  \
                                  Got '{federated_only}' and '{registry}'.")
