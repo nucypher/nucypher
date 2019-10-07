@@ -26,6 +26,7 @@ dash-html-components==1.0.1
 dash-renderer==1.0.1
 dash-table==4.2.0
 dash[testing]==1.2.0
+dash_daq==0.1.7
 dateparser==0.7.1
 eth-abi==2.0.0
 eth-account==0.4.0
@@ -49,6 +50,7 @@ hyperlink==19.0.0
 idna==2.8
 importlib-metadata==0.22 ; python_version < '3.8'
 incremental==17.5.0
+influxdb==5.2.3
 ipfshttpclient==0.4.12
 itsdangerous==1.1.0
 jinja2==2.10.1
@@ -68,7 +70,7 @@ parsimonious==0.8.1
 pathtools==0.1.2
 pendulum==2.0.5
 percy==2.0.2
-plotly==4.1.1
+plotly==3.10.0
 pluggy==0.13.0
 protobuf==3.10.0rc1
 py-ecc==1.7.1
