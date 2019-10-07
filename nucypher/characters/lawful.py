@@ -731,7 +731,6 @@ class Bob(Character):
             # TODO Optimization: Block here (or maybe even later) until map is done being followed (instead of blocking above). #1114
             the_airing_of_grievances = []
 
-
             for work_order in new_work_orders.values():
                 for capsule in work_order.tasks:
                     work_order_is_useful = False
@@ -752,7 +751,7 @@ class Bob(Character):
                 # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
                 try:
                     self.get_reencrypted_cfrags(work_order, retain_cfrags=retain_cfrags)
-                except NodeSeemsToBeDown:
+                except NodeSeemsToBeDown as e:
                     # TODO: What to do here?  Ursula isn't supposed to be down.
                     self.log.info(
                         f"Ursula ({work_order.ursula}) seems to be down while trying to complete WorkOrder: {work_order}")
@@ -1396,8 +1395,8 @@ class Enrico(Character):
     _interface_class = EnricoInterface
     _default_crypto_powerups = [SigningPower]
 
-    def __init__(self, policy_encrypting_key, controller: bool = True, *args, **kwargs):
-        self.policy_pubkey = policy_encrypting_key
+    def __init__(self, policy_encrypting_key=None, controller: bool = True, *args, **kwargs):
+        self._policy_pubkey = policy_encrypting_key
 
         # Encrico never uses the blockchain, hence federated_only)
         kwargs['federated_only'] = True
@@ -1407,7 +1406,7 @@ class Enrico(Character):
         if controller:
             self.make_cli_controller()
 
-        self.log = Logger(f'{self.__class__.__name__}-{bytes(policy_encrypting_key).hex()[:6]}')
+        self.log = Logger(f'{self.__class__.__name__}-{bytes(self.public_keys(SigningPower)).hex()[:6]}')
         self.log.info(self.banner.format(policy_encrypting_key))
 
     def encrypt_message(self,
@@ -1429,6 +1428,12 @@ class Enrico(Character):
         policy_pubkey_enc = alice.get_policy_encrypting_key_from_label(label)
         return cls(crypto_power_ups={SigningPower: alice.stamp.as_umbral_pubkey()},
                    policy_encrypting_key=policy_pubkey_enc)
+
+    @property
+    def policy_pubkey(self):
+        if not self._policy_pubkey:
+            raise TypeError("This Enrico doesn't know which policy encrypting key he used.  Oh well.")
+        return self._policy_pubkey
 
     def make_web_controller(drone_enrico, crash_on_error: bool = False):
 
