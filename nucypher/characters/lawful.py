@@ -664,7 +664,8 @@ class Bob(Character):
                  enrico: "Enrico" = None,
                  retain_cfrags: bool=False,
                  use_attached_cfrags: bool=False,
-                 use_precedent_work_orders: bool=False):
+                 use_precedent_work_orders: bool=False,
+                 policy_encrypting_key: UmbralPublicKey=None):
         # Try our best to get an UmbralPublicKey from input
         alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
 
@@ -681,6 +682,10 @@ class Bob(Character):
                     raise ValueError
             elif enrico:
                 message.sender = enrico
+            elif message.sender_verifying_key and policy_encrypting_key:
+                # Well, after all, this is all we *really* need.
+                message.sender = Enrico.from_public_keys(verifying_key=message.sender_verifying_key,
+                                                         policy_encrypting_key=policy_encrypting_key)
             else:
                 raise TypeError
 
