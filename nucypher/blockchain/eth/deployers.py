@@ -900,6 +900,11 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
         self.deployment_receipts.update({'deployment': deploy_receipt})
         return deploy_receipt
 
+    def get_contract_abi(self):
+        contract_factory = self.blockchain.get_contract_factory(contract_name=self.contract_name)
+        abi = contract_factory.abi
+        return abi
+
 
 class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):
 

@@ -21,6 +21,7 @@ import os
 from datetime import datetime
 from decimal import Decimal
 from json import JSONDecodeError
+from pathlib import Path
 from typing import Tuple, List, Dict, Union, Optional
 
 import click
@@ -54,7 +55,12 @@ from nucypher.blockchain.eth.deployers import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry, InMemoryAllocationRegistry
+from nucypher.blockchain.eth.registry import (
+    AllocationRegistry,
+    BaseContractRegistry,
+    InMemoryAllocationRegistry,
+    IndividualAllocationRegistry
+)
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration, datetime_at_period
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -408,6 +414,20 @@ class ContractAdministrator(NucypherTokenActor):
         allocation_receipts, failed, allocated = dict(), list(), list()
         total_deployment_transactions = len(allocations) * 4
 
+        # Create an allocation template file, containing the allocation contract ABI and placeholder values
+        # for the beneficiary and contract addresses. This file will be shared with all allocation users.
+        empty_user_escrow_deployer = UserEscrowDeployer(registry=self.registry)
+        allocation_contract_abi = empty_user_escrow_deployer.get_contract_abi()
+        allocation_template = {
+            "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", allocation_contract_abi]
+        }
+
+        template_filename = IndividualAllocationRegistry.REGISTRY_NAME
+        template_parent_path = Path(allocation_registry.filepath).parent  # Use same folder as allocation registry
+        template_filepath = os.path.join(template_parent_path, template_filename)
+        AllocationRegistry(filepath=template_filepath).write(registry_data=allocation_template)
+
+        # Deploy each allocation contract
         with click.progressbar(length=total_deployment_transactions,
                                label="Allocation progress",
                                show_eta=False) as bar:
@@ -465,7 +485,7 @@ class ContractAdministrator(NucypherTokenActor):
 
             if failed:
                 # TODO: More with these failures: send to isolated logfile, and reattempt
-                self.log.critical(f"FAILED TOKEN ALLOCATION - {len(failed)} Allocations failed.")
+                self.log.critical(f"FAILED TOKEN ALLOCATION - {len(failed)} allocations failed.")
 
         return allocation_receipts
 
