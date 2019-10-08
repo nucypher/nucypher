@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import csv
 import time
 import webbrowser
 from collections import Counter
@@ -617,3 +618,16 @@ def paint_deployed_allocations(emitter, allocations, failed) -> None:
         emitter.echo(f"{beneficiary} | {name:20} | FAILED", color='red')
     emitter.echo()
 
+
+def write_deployed_allocations_to_csv(filepath: str, allocated: list, failed: list):
+    fieldnames = ['Beneficiary', 'Name', 'Contract address']
+    allocated += [(failed_allocation, "FAILED") for failed_allocation in failed]
+
+    with open(filepath, 'w', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for allocation, contract_address in allocated:
+            beneficiary = allocation['beneficiary_address']
+            name = allocation.get('name', 'No name provided')
+            row = (beneficiary, name, contract_address)
+            writer.writerow(dict(zip(fieldnames, row)))

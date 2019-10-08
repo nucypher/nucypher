@@ -64,7 +64,12 @@ from nucypher.blockchain.eth.registry import (
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration, datetime_at_period
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.painting import paint_contract_deployment, paint_input_allocation_file, paint_deployed_allocations
+from nucypher.cli.painting import (
+    paint_contract_deployment,
+    paint_input_allocation_file,
+    paint_deployed_allocations,
+    write_deployed_allocations_to_csv
+)
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
 
@@ -426,6 +431,8 @@ class ContractAdministrator(NucypherTokenActor):
         template_parent_path = Path(allocation_registry.filepath).parent  # Use same folder as allocation registry
         template_filepath = os.path.join(template_parent_path, template_filename)
         AllocationRegistry(filepath=template_filepath).write(registry_data=allocation_template)
+        if emitter:
+            emitter.echo(f"Saved allocation template file to {template_filepath}", color='blue', bold=True)
 
         # Deploy each allocation contract
         with click.progressbar(length=total_deployment_transactions,
@@ -482,6 +489,12 @@ class ContractAdministrator(NucypherTokenActor):
 
             if emitter:
                 paint_deployed_allocations(emitter, allocated, failed)
+
+            csv_filename = f'allocations-{self.deployer_address[:6]}-{maya.now().epoch}.csv'
+            csv_filepath = os.path.join(template_parent_path, csv_filename)
+            write_deployed_allocations_to_csv(csv_filepath, allocated, failed)
+            if emitter:
+                emitter.echo(f"Saved allocation summary CSV to {csv_filepath}", color='blue', bold=True)
 
             if failed:
                 # TODO: More with these failures: send to isolated logfile, and reattempt
