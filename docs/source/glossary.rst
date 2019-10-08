@@ -39,7 +39,7 @@ Glossary
       A title for a classification/categorization of data according to how it is intended to be shared.
 
     MessageKit
-      The :term:`KEM` and :term:`DEM` encrypted data that are stored together.
+      The ciphertext (data encrypted with a symmetric key) and the :term:`Capsule` (encrypted symmetric key) that are stored together.
 
     Moe
       *"The Monitor"* :term:`Character` - provides a high-level view of the NuCypher Network.
@@ -72,7 +72,7 @@ Glossary
       The public key for a :term:`Character`'s signing key pair.
 
     Treasure Map
-      The locations of :term:`Ursulas<Ursula>` that have the relevant :term:`kFrags<kFrag>` for a policy. :term:`Bob` will use the treasure map to determine which :term:`Ursulas<Ursula>` to contact when he wants to retrieve the data :term:`Alice` has shared with him.
+      The locations of :term:`Ursulas<Ursula>` that have the relevant :term:`kFrags<kFrag>` for a policy. :term:`Bob` will use the treasure map to determine which :term:`Ursulas<Ursula>` to contact to re-encrypt the data :term:`Alice` has shared with him.
 
     Umbral
       NuCypher's threshold proxy re-encryption scheme - it takes standard :term:`PRE` and increases security and performance. See Umbral_.
