@@ -39,7 +39,7 @@ Glossary
       A title for a classification/categorization of data according to how it is intended to be shared.
 
     MessageKit
-      The :term:`KEM` and :term:`DEM` encrypted data that is stored together.
+      The ciphertext (data encrypted with a symmetric key) and the :term:`Capsule` (encrypted symmetric key) that are stored together.
 
     Moe
       *"The Monitor"* :term:`Character` - provides a high-level view of the NuCypher Network.
@@ -71,11 +71,14 @@ Glossary
     Stamp
       The public key for a :term:`Character`'s signing key pair.
 
+    Treasure Map
+      The locations of :term:`Ursulas<Ursula>` that have the relevant :term:`kFrags<kFrag>` for a policy. :term:`Bob` will use the treasure map to determine which :term:`Ursulas<Ursula>` to contact to re-encrypt the data :term:`Alice` has shared with him.
+
     Umbral
-      NuCypher's threshold proxy re-encryption scheme - it takes standard :term:`PRE` and increases the security and performance. See Umbral_.
+      NuCypher's threshold proxy re-encryption scheme - it takes standard :term:`PRE` and increases security and performance. See Umbral_.
 
     Ursula
       *"The Proxy in PRE"* :term:`Character` - the nodes on the NuCypher Network that stand ready to re-encrypt data in exchange for payment in fees and token rewards; they enforce the access policy created by :term:`Alice`.
 
     Worker
-      An account that is actively doing work in the network as an :term:`Ursula` node - a worker is bonded to, and performs work on behalf of, a :term:`Staker`.
+      An account that is actively doing work in the network as an :term:`Ursula` node. A worker is bonded to, and performs work on behalf of, a :term:`Staker`.
