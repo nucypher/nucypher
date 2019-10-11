@@ -1441,14 +1441,24 @@ class StakeHolder(Staker):
             original_form = self.checksum_address
 
         # This handles both regular staking and staking via a contract
-        staking_contract_address = self.check_if_staking_via_contract(checksum_address)
-        staking_address = staking_contract_address or checksum_address
+        if self.individual_allocation:
+            if checksum_address != self.individual_allocation.beneficiary_address:
+                raise ValueError(f"Beneficiary {self.individual_allocation.beneficiary_address} in individual "
+                                 f"allocation doesn't match this checksum address ({checksum_address})")
+            staking_address = self.individual_allocation.contract_address
+            self.beneficiary_address = self.individual_allocation.beneficiary_address
+            self.preallocation_escrow_agent = PreallocationEscrowAgent(registry=self.registry,
+                                                                       allocation_registry=self.individual_allocation,
+                                                                       beneficiary=self.beneficiary_address)
+        else:
+            staking_address = checksum_address
+            self.beneficiary_address = None
+            self.preallocation_escrow_agent = None
 
         self.wallet.activate_account(checksum_address=checksum_address, password=password)
         self.checksum_address = staking_address
         self.stakes = StakeList(registry=self.registry, checksum_address=staking_address)
         self.stakes.refresh()
-        # TODO: Not sure how to log all this new info (i.e. old or new address may be via contract)
 
         if self.is_contract:
             new_form = f"{self.beneficiary_address[0:8]} (contract {self.checksum_address[0:8]})"

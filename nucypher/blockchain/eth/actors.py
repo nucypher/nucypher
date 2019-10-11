@@ -574,7 +574,7 @@ class Staker(NucypherTokenActor):
 
     def __init__(self,
                  is_me: bool,
-                 allocation_registry: AllocationRegistry = None,
+                 individual_allocation: IndividualAllocationRegistry = None,
                  *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
@@ -589,32 +589,19 @@ class Staker(NucypherTokenActor):
         self.economics = TokenEconomicsFactory.get_economics(registry=self.registry)
 
         # Staking via contract
-        self.allocation_registry = allocation_registry or InMemoryAllocationRegistry()  # FIXME: This is a workaround for regular stakers
-        self.beneficiary_address = None
-        self.preallocation_escrow_agent = None
-        self.check_if_staking_via_contract(self.checksum_address)
+        self.individual_allocation = individual_allocation
+        if self.individual_allocation:
+            self.beneficiary_address = individual_allocation.beneficiary_address
+            self.checksum_address = individual_allocation.contract_address
+            self.preallocation_escrow_agent = PreallocationEscrowAgent(registry=self.registry,
+                                                                       allocation_registry=self.individual_allocation,
+                                                                       beneficiary=self.beneficiary_address)
+        else:
+            self.beneficiary_address = None
+            self.preallocation_escrow_agent = None
 
         # Check stakes
         self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
-
-    # TODO: This function not only "checks". Find a better name
-    def check_if_staking_via_contract(self, checksum_address: str) -> Optional[str]:
-        if not checksum_address:
-            return None
-
-        has_staking_contract = self.allocation_registry.is_beneficiary_enrolled(checksum_address)
-        if has_staking_contract:
-            self.beneficiary_address = checksum_address
-            self.preallocation_escrow_agent = PreallocationEscrowAgent(registry=self.registry,
-                                                                       allocation_registry=self.allocation_registry,
-                                                                       beneficiary=self.beneficiary_address)
-            staking_address = self.preallocation_escrow_agent.principal_contract.address
-            self.checksum_address = staking_address
-            return staking_address
-        else:
-            self.preallocation_escrow_agent = None
-            self.beneficiary_address = None
-            return None
 
     @property
     def is_contract(self) -> bool:
