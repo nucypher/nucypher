@@ -421,15 +421,15 @@ class ContractAdministrator(NucypherTokenActor):
 
         # Create an allocation template file, containing the allocation contract ABI and placeholder values
         # for the beneficiary and contract addresses. This file will be shared with all allocation users.
-        empty_user_escrow_deployer = UserEscrowDeployer(registry=self.registry)
-        allocation_contract_abi = empty_user_escrow_deployer.get_contract_abi()
+        empty_allocation_escrow_deployer = PreallocationEscrowDeployer(registry=self.registry)
+        allocation_contract_abi = empty_allocation_escrow_deployer.get_contract_abi()
         allocation_template = {
             "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", allocation_contract_abi]
         }
 
+        parent_path = Path(allocation_registry.filepath).parent  # Use same folder as allocation registry
         template_filename = IndividualAllocationRegistry.REGISTRY_NAME
-        template_parent_path = Path(allocation_registry.filepath).parent  # Use same folder as allocation registry
-        template_filepath = os.path.join(template_parent_path, template_filename)
+        template_filepath = os.path.join(parent_path, template_filename)
         AllocationRegistry(filepath=template_filepath).write(registry_data=allocation_template)
         if emitter:
             emitter.echo(f"Saved allocation template file to {template_filepath}", color='blue', bold=True)
@@ -474,9 +474,20 @@ class ContractAdministrator(NucypherTokenActor):
 
                 else:
                     allocation_receipts[beneficiary] = receipts
-                    principal_address = deployer.contract_address
-                    self.log.info(f"Created PreallocationEscrow contract at {principal_address} for beneficiary {beneficiary}.")
-                    allocated.append((allocation, principal_address))
+                    allocation_contract_address = deployer.contract_address
+                    self.log.info(f"Created {deployer.contract_name} contract at {allocation_contract_address} "
+                                  f"for beneficiary {beneficiary}.")
+                    allocated.append((allocation, allocation_contract_address))
+
+                    # Create individual allocation file
+                    individual_allocation_filename = f'allocation-{beneficiary}.json'
+                    individual_allocation_filepath = os.path.join(parent_path, individual_allocation_filename)
+                    individual_allocation_file_data = {
+                        'beneficiary_address': beneficiary,
+                        'contract_address': allocation_contract_address
+                    }
+                    with open(individual_allocation_filepath, 'w') as outfile:
+                        json.dump(individual_allocation_file_data, outfile)
 
                     if emitter:
                         blockchain = BlockchainInterfaceFactory.get_interface()
@@ -486,12 +497,14 @@ class ContractAdministrator(NucypherTokenActor):
                                                   emitter=emitter,
                                                   chain_name=blockchain.client.chain_name,
                                                   open_in_browser=False)
+                        emitter.echo(f"Saved individual allocation file to {individual_allocation_filepath}",
+                                     color='blue', bold=True)
 
             if emitter:
                 paint_deployed_allocations(emitter, allocated, failed)
 
             csv_filename = f'allocations-{self.deployer_address[:6]}-{maya.now().epoch}.csv'
-            csv_filepath = os.path.join(template_parent_path, csv_filename)
+            csv_filepath = os.path.join(parent_path, csv_filename)
             write_deployed_allocations_to_csv(csv_filepath, allocated, failed)
             if emitter:
                 emitter.echo(f"Saved allocation summary CSV to {csv_filepath}", color='blue', bold=True)

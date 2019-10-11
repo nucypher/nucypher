@@ -265,8 +265,8 @@ class LocalContractRegistry(BaseContractRegistry):
     @classmethod
     def from_dict(cls, payload: dict, **overrides) -> 'LocalContractRegistry':
         payload.update({k: v for k, v in overrides.items() if v is not None})
-        blockchain = cls(filepath=payload['filepath'])
-        return blockchain
+        registry = cls(filepath=payload['filepath'])
+        return registry
 
     def to_dict(self) -> dict:
         payload = dict(filepath=self.__filepath)
@@ -384,6 +384,7 @@ class AllocationRegistry(LocalContractRegistry):
 
         elif contract_address:
             records = list()
+            # FIXME: Searching by contract_address seems broken. Also, no tests.
             for beneficiary_address, contract_data in allocation_data.items():
                 contract_address, contract_abi = contract_data['address'], contract_data['abi']
                 records.append(dict(address=contract_address, abi=contract_abi))
@@ -449,16 +450,26 @@ class IndividualAllocationRegistry(InMemoryAllocationRegistry):
 
     REGISTRY_NAME = "individual_allocation_ABI.json"
 
-    def __init__(self, beneficiary_address: str, contract_address: str, *args, **kwargs):
+    def __init__(self, beneficiary_address: str, contract_address: str, contract_abi=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.beneficiary_address = beneficiary_address
         self.contract_address = contract_address
 
-        # Download individual allocation template. Fill the template with beneficiary and contract addresses
-        individual_allocation_template = json.loads(self.fetch_latest_publication())
-        contract_data = [*individual_allocation_template.values()].pop()
-        contract_abi = contract_data[1]
-        individual_allocation = {beneficiary_address: [contract_address, contract_abi]}
+        if not contract_abi:
+            # Download individual allocation template to extract contract_abi
+            individual_allocation_template = json.loads(self.fetch_latest_publication())
+            contract_data = [*individual_allocation_template.values()].pop()
+            contract_abi = contract_data[1]
 
+        # Fill template with beneficiary and contract addresses
+        individual_allocation = {beneficiary_address: [contract_address, contract_abi]}
         self.write(registry_data=individual_allocation)
+
+    @classmethod
+    def from_allocation_file(cls, filepath: str, **kwargs) -> 'IndividualAllocationRegistry':
+        with open(filepath) as file:
+            individual_allocation_file_data = json.load(file)
+
+        registry = cls(**individual_allocation_file_data, **kwargs)
+        return registry
