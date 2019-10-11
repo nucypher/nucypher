@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
+import functools
 
 import click
 
@@ -28,23 +29,36 @@ from nucypher.cli.painting import paint_contract_status, paint_stakers, paint_lo
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 
 
+# Args (provider_uri, geth, poa, registry_filepath)
+def _common_options(func):
+    @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING, default="auto://")
+    @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
+    @click.option('--poa', help="Inject POA middleware", is_flag=True, default=False)
+    @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper
+
+
 @click.group()
 def status():
     """
     Echo a snapshot of live NuCypher Network metadata.
     """
+    pass
 
 
 @status.command()
-@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING, default="auto://")
-@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-@click.option('--poa', help="Inject POA middleware", is_flag=True, default=False)
-@click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+@_common_options
 @nucypher_click_config
-def network(click_config, provider_uri, geth, poa, registry_filepath):
+def network(click_config,
+            provider_uri, geth, poa, registry_filepath  # common
+            ):
     """
     Overall information of the NuCypher Network.
     """
+    # Init
     emitter = _setup_emitter(click_config)
     staking_agent = _get_staking_agent(click_config, emitter, geth, poa, provider_uri, registry_filepath)
 
@@ -52,33 +66,34 @@ def network(click_config, provider_uri, geth, poa, registry_filepath):
 
 
 @status.command()
-@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING, default="auto://")
-@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-@click.option('--poa', help="Inject POA middleware", is_flag=True, default=False)
-@click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+@_common_options
 @click.option('--staking-address', help="Address of a NuCypher staker", type=EIP55_CHECKSUM_ADDRESS)
 @nucypher_click_config
-def stakers(click_config, provider_uri, geth, poa, registry_filepath, staking_address):
+def stakers(click_config,
+            provider_uri, geth, poa, registry_filepath,  # common
+            staking_address):
     """
     Show relevant information about stakers.
     """
+    # Init
     emitter = _setup_emitter(click_config)
     staking_agent = _get_staking_agent(click_config, emitter, geth, poa, provider_uri, registry_filepath)
+
     stakers = [staking_address] if staking_address else staking_agent.get_stakers()
     paint_stakers(emitter=emitter, stakers=stakers, agent=staking_agent)
 
 
 @status.command(name='locked-tokens')
-@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING, default="auto://")
-@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-@click.option('--poa', help="Inject POA middleware", is_flag=True, default=False)
-@click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+@_common_options
 @click.option('--periods', help="Number of periods", type=click.INT, default=90)
 @nucypher_click_config
-def locked_tokens(click_config, provider_uri, geth, poa, registry_filepath, periods):
+def locked_tokens(click_config,
+                  provider_uri, geth, poa, registry_filepath,  # common
+                  periods):
     """
     Display a graph of the number of locked tokens over time.
     """
+    # Init
     emitter = _setup_emitter(click_config)
     staking_agent = _get_staking_agent(click_config, emitter, geth, poa, provider_uri, registry_filepath)
 

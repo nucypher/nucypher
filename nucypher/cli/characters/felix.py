@@ -1,3 +1,4 @@
+import functools
 import os
 
 import click
@@ -12,38 +13,52 @@ from nucypher.config.characters import FelixConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
+# Args (checksum_address, geth, dev, network, registry_filepath,  provider_uri, host, db_filepath, poa)
+def _common_options(func):
+    @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
+    @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
+    @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
+    @click.option('--network', help="Network Domain Name", type=click.STRING)
+    @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+    @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
+    @click.option('--host', help="The host to run Felix HTTP services on", type=click.STRING, default='127.0.0.1')
+    @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
+    @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper
+
+
+# Args (config_file, port, teacher_uri)
+def _admin_options(func):
+    @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
+    @click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT,
+                  default=FelixConfiguration.DEFAULT_REST_PORT)
+    @click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper
+
+
 @click.group()
 def felix():
     """
     "Felix the Faucet" management commands.
     """
+    pass
 
 
 @felix.command()
-@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-@click.option('--dev', '-d', help="Enable development mode", is_flag=True)
+@_common_options
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
-@click.option('--host', help="The host to run Felix HTTP services on", type=click.STRING, default='127.0.0.1')
 @click.option('--discovery-port', help="The host port to run Felix Node Discovery services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_LEARNER_PORT)
-@click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
-@click.option('--network', help="Network Domain Name", type=click.STRING)
-@click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
-@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
-@click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
 @nucypher_click_config
 def init(click_config,
-         geth,
-         dev,
+         checksum_address, geth, dev, network, registry_filepath,  provider_uri, host, db_filepath, poa,  # common
          config_root,
-         host,
-         discovery_port,
-         db_filepath,
-         network,
-         checksum_address,
-         registry_filepath,
-         provider_uri,
-         poa):
+         discovery_port):
     """
     Create a brand-new Felix.
     """
@@ -81,20 +96,14 @@ def init(click_config,
 
 
 @felix.command()
-@click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-@click.option('--dev', '-d', help="Enable development mode", is_flag=True)
-@click.option('--network', help="Network Domain Name", type=click.STRING)
+@_common_options
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-@click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
-@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
-@click.option('--host', help="The host to run Felix HTTP services on", type=click.STRING, default='127.0.0.1')
 @click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_REST_PORT)
-@click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
-@click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @nucypher_click_config
-def destroy(click_config, checksum_address, geth, dev, network, config_file, registry_filepath, provider_uri, host, port, db_filepath, poa, force):
+def destroy(click_config,
+            checksum_address, geth, dev, network, registry_filepath,  provider_uri, host, db_filepath, poa,  # common
+            config_file, port, force):
     """
     Destroy Felix Configuration.
     """
@@ -110,22 +119,15 @@ def destroy(click_config, checksum_address, geth, dev, network, config_file, reg
 
 
 @felix.command()
-@click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-@click.option('--dev', '-d', help="Enable development mode", is_flag=True)
-@click.option('--network', help="Network Domain Name", type=click.STRING)
-@click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-@click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
-@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
-@click.option('--host', help="The host to run Felix HTTP services on", type=click.STRING, default='127.0.0.1')
-@click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_REST_PORT)
-@click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
-@click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
+@_common_options
+@_admin_options
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
-@click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @nucypher_click_config
-def createdb(click_config, checksum_address, geth, dev, network, config_file, registry_filepath, provider_uri, host, port, db_filepath, poa, force, teacher_uri, min_stake):
+def createdb(click_config,
+             checksum_address, geth, dev, network, registry_filepath,  provider_uri, host, db_filepath, poa,  # common
+             config_file, port, teacher_uri,  # admin
+             force, min_stake):
     """
     Create Felix DB.
     """
@@ -149,22 +151,16 @@ def createdb(click_config, checksum_address, geth, dev, network, config_file, re
     FELIX.create_tables()
     emitter.echo(f"\nCreated new database at {FELIX.db_filepath}", color='green')
 
+
 @felix.command()
-@click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-@click.option('--dev', '-d', help="Enable development mode", is_flag=True)
-@click.option('--network', help="Network Domain Name", type=click.STRING)
-@click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-@click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
-@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
-@click.option('--host', help="The host to run Felix HTTP services on", type=click.STRING, default='127.0.0.1')
-@click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_REST_PORT)
-@click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
-@click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
-@click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
+@_common_options
+@_admin_options
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @nucypher_click_config
-def view(click_config, checksum_address, geth, dev, network, config_file, registry_filepath, provider_uri, host, port, db_filepath, poa, teacher_uri, min_stake):
+def view(click_config,
+         checksum_address, geth, dev, network, registry_filepath,  provider_uri, host, db_filepath, poa,  # common
+         config_file, port, teacher_uri,  # admin
+         min_stake):
     """
     View Felix token balance.
     """
@@ -189,21 +185,14 @@ def view(click_config, checksum_address, geth, dev, network, config_file, regist
 
 
 @felix.command()
-@click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-@click.option('--dev', '-d', help="Enable development mode", is_flag=True)
-@click.option('--network', help="Network Domain Name", type=click.STRING)
-@click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-@click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
-@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
-@click.option('--host', help="The host to run Felix HTTP services on", type=click.STRING, default='127.0.0.1')
-@click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_REST_PORT)
-@click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
-@click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
-@click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
+@_common_options
+@_admin_options
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @nucypher_click_config
-def accounts(click_config, checksum_address, geth, dev, network, config_file, registry_filepath, provider_uri, host, port, db_filepath, poa, teacher_uri, min_stake):
+def accounts(click_config,
+             checksum_address, geth, dev, network, registry_filepath,  provider_uri, host, db_filepath, poa,  # common
+             config_file, port, teacher_uri,  # admin
+             min_stake):
     """
     View Felix known accounts.
     """
@@ -224,22 +213,15 @@ def accounts(click_config, checksum_address, geth, dev, network, config_file, re
 
 
 @felix.command()
+@_common_options
+@_admin_options
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True, default=False)
-@click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-@click.option('--dev', '-d', help="Enable development mode", is_flag=True)
-@click.option('--network', help="Network Domain Name", type=click.STRING)
-@click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-@click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
-@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
-@click.option('--host', help="The host to run Felix HTTP services on", type=click.STRING, default='127.0.0.1')
-@click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_REST_PORT)
-@click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
-@click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
-@click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @nucypher_click_config
-def run(click_config, dry_run, checksum_address, geth, dev, network, config_file, registry_filepath, provider_uri, host, port, db_filepath, poa, teacher_uri, min_stake):
+def run(click_config,
+        checksum_address, geth, dev, network, registry_filepath,  provider_uri, host, db_filepath, poa,  # common
+        config_file, port, teacher_uri,  # admin
+        dry_run, min_stake):
     """
     Run Felix service.
     """
