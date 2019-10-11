@@ -20,7 +20,7 @@ import click
 from web3 import Web3
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import AllocationRegistry
+from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.lawful import StakeHolder
@@ -51,7 +51,7 @@ from nucypher.config.characters import StakeHolderConfiguration
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
 @click.option('--provider', 'provider_uri', help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'", type=click.STRING)
-@click.option('--staking-address', help="Address to stake NU ERC20 tokens", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--staking-address', help="Address to stake NU tokens", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--worker-address', help="Address to assign as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--staking-reward/--no-staking-reward', is_flag=True, default=False)
 @click.option('--policy-reward/--no-policy-reward', is_flag=True, default=False)
@@ -61,9 +61,8 @@ from nucypher.config.characters import StakeHolderConfiguration
 @click.option('--index', help="A specific stake index to resume", type=click.INT)
 @click.option('--enable/--disable', help="Used to enable and disable re-staking", is_flag=True, default=True)
 @click.option('--lock-until', help="Period to release re-staking lock", type=click.IntRange(min=0))
-@click.option('--escrow', help="Use a pre-allocation escrow contract", is_flag=True)  # TODO: #1351 - Refactor allocation registry?
 @click.option('--beneficiary-address', help="Address of a pre-allocation beneficiary", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--allocation-filepath', help="Custom allocation registry filepath", type=EXISTING_READABLE_FILE)
+@click.option('--allocation-filepath', help="Path to individual allocation file", type=EXISTING_READABLE_FILE)
 @nucypher_click_config
 def stake(click_config,
           action,
@@ -93,7 +92,6 @@ def stake(click_config,
           lock_until,
 
           # Allocation stakers
-          escrow,
           beneficiary_address,
           allocation_filepath,
           ) -> None:
@@ -152,22 +150,33 @@ def stake(click_config,
     #
 
     # First let's check whether we're dealing here with a regular staker or a preallocation staker
-    is_preallocation_staker = escrow or beneficiary_address
-
-    if staking_address and is_preallocation_staker:
-        raise click.BadOptionUsage("--escrow and --beneficiary-address are incompatible with --staking-address")
+    is_preallocation_staker = (beneficiary_address and staking_address) or allocation_filepath
 
     if is_preallocation_staker:
-        # This assumes the user has an allocation registry in disk,
-        # in a specified filepath or in a default location (when filepath is None)
-        allocation_registry = AllocationRegistry(allocation_filepath)
-        initial_address = beneficiary_address
+        if allocation_filepath:
+            if beneficiary_address or staking_address:
+                message = "--allocation-filepath is incompatible with --beneficiary-address and --staking-address."
+                raise click.BadOptionUsage(option_name="--allocation-filepath", message=message)
+
+            # This assumes the user has an individual allocation file in disk
+            individual_allocation = IndividualAllocationRegistry.from_allocation_file(allocation_filepath)
+            initial_address = individual_allocation.beneficiary_address
+        elif beneficiary_address and staking_address:
+            individual_allocation = IndividualAllocationRegistry(beneficiary_address=beneficiary_address,
+                                                                 contract_address=staking_address)
+            initial_address = beneficiary_address
+        else:
+            option = "--beneficiary_address" if beneficiary_address else "--staking-address"
+            raise click.BadOptionUsage(option_name=option,
+                                       message=f"You must specify both --beneficiary-address and --staking-address. "
+                                               f"Only {option} was provided. As an alternative you can input just an "
+                                               f"individual allocation with --allocation-file <PATH>")
     else:
-        allocation_registry = None
+        individual_allocation = None
         initial_address = staking_address
 
     STAKEHOLDER = stakeholder_config.produce(initial_address=initial_address,
-                                             allocation_registry=allocation_registry)
+                                             individual_allocation=individual_allocation)
     blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)  # Eager connection
 
     economics = STAKEHOLDER.economics
@@ -201,8 +210,7 @@ def stake(click_config,
         client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
                                                                             stakeholder=STAKEHOLDER,
                                                                             staking_address=staking_address,
-                                                                            is_preallocation_staker=is_preallocation_staker,
-                                                                            beneficiary_address=beneficiary_address,
+                                                                            individual_allocation=individual_allocation,
                                                                             force=force)
 
         if not worker_address:
@@ -239,8 +247,7 @@ def stake(click_config,
         client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
                                                                             stakeholder=STAKEHOLDER,
                                                                             staking_address=staking_address,
-                                                                            is_preallocation_staker=is_preallocation_staker,
-                                                                            beneficiary_address=beneficiary_address,
+                                                                            individual_allocation=individual_allocation,
                                                                             force=force)
 
         if worker_address:
@@ -280,8 +287,7 @@ def stake(click_config,
         client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
                                                                             stakeholder=STAKEHOLDER,
                                                                             staking_address=staking_address,
-                                                                            is_preallocation_staker=is_preallocation_staker,
-                                                                            beneficiary_address=beneficiary_address,
+                                                                            individual_allocation=individual_allocation,
                                                                             force=force)
 
         password = None
@@ -338,8 +344,7 @@ def stake(click_config,
         client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
                                                                             stakeholder=STAKEHOLDER,
                                                                             staking_address=staking_address,
-                                                                            is_preallocation_staker=is_preallocation_staker,
-                                                                            beneficiary_address=beneficiary_address,
+                                                                            individual_allocation=individual_allocation,
                                                                             force=force)
 
         password = None
@@ -425,8 +430,7 @@ def stake(click_config,
         client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
                                                                             stakeholder=STAKEHOLDER,
                                                                             staking_address=staking_address,
-                                                                            is_preallocation_staker=is_preallocation_staker,
-                                                                            beneficiary_address=beneficiary_address,
+                                                                            individual_allocation=individual_allocation,
                                                                             force=force)
 
         password = None

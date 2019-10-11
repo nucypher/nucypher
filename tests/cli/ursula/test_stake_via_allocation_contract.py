@@ -27,6 +27,8 @@ from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency, PreallocationEscrowAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer
+from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeList
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
@@ -40,6 +42,7 @@ from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
     MOCK_KNOWN_URSULAS_CACHE,
     select_test_port,
+    MOCK_INDIVIDUAL_ALLOCATION_FILEPATH
 )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
@@ -49,8 +52,27 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 #
 
 
+@pytest.fixture(autouse=True, scope='module')
+def patch_fetch_latest_publication(test_registry):
+    empty_allocation_escrow_deployer = PreallocationEscrowDeployer(registry=test_registry)
+    allocation_contract_abi = empty_allocation_escrow_deployer.get_contract_abi()
+    allocation_template = {
+        "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", allocation_contract_abi]
+    }
+    new_fetch_result = json.dumps(allocation_template).encode()
+
+    original_fetch = IndividualAllocationRegistry.fetch_latest_publication
+
+    def new_fetch(*args, **kwargs):
+        return new_fetch_result
+
+    IndividualAllocationRegistry.fetch_latest_publication = new_fetch
+    yield
+    IndividualAllocationRegistry.fetch_latest_publication = original_fetch
+
+
 @pytest.fixture(scope='module')
-def beneficiary(testerchain):
+def beneficiary(testerchain, mock_allocation_registry):
     # First, let's be give the beneficiary some cash for TXs
     beneficiary = testerchain.unassigned_accounts[0]
     tx = {'to': beneficiary,
@@ -59,14 +81,29 @@ def beneficiary(testerchain):
 
     txhash = testerchain.client.w3.eth.sendTransaction(tx)
     _receipt = testerchain.wait_for_receipt(txhash)
-    return beneficiary
+
+    # .. and create a mock individual allocation file
+    contract_data = mock_allocation_registry.search(beneficiary_address=beneficiary)
+    contract_address = contract_data[0]
+    individual_allocation_file_data = {
+        'beneficiary_address': beneficiary,
+        'contract_address': contract_address
+    }
+    with open(MOCK_INDIVIDUAL_ALLOCATION_FILEPATH, 'w') as outfile:
+        json.dump(individual_allocation_file_data, outfile)
+
+    yield beneficiary
+
+    if os.path.isfile(MOCK_INDIVIDUAL_ALLOCATION_FILEPATH):
+        os.remove(MOCK_INDIVIDUAL_ALLOCATION_FILEPATH)
 
 
 @pytest.fixture(scope='module')
 def preallocation_escrow_agent(beneficiary, test_registry, mock_allocation_registry):
+    individual_allocation = IndividualAllocationRegistry.from_allocation_file(MOCK_INDIVIDUAL_ALLOCATION_FILEPATH)
     preallocation_escrow_agent = PreallocationEscrowAgent(beneficiary=beneficiary,
                                                           registry=test_registry,
-                                                          allocation_registry=mock_allocation_registry)
+                                                          allocation_registry=individual_allocation)
     return preallocation_escrow_agent
 
 
@@ -117,9 +154,7 @@ def test_stake_via_contract(click_runner,
 
     stake_args = ('stake', 'create',
                   '--config-file', stakeholder_configuration_file_location,
-                  '--escrow',
-                  '--beneficiary-address', beneficiary,
-                  '--allocation-filepath', mock_allocation_registry.filepath,
+                  '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                   '--value', stake_value.to_tokens(),
                   '--lock-periods', token_economics.minimum_locked_periods,
                   '--force')
@@ -162,9 +197,7 @@ def test_stake_set_worker(click_runner,
 
     init_args = ('stake', 'set-worker',
                  '--config-file', stakeholder_configuration_file_location,
-                 '--escrow',
-                 '--beneficiary-address', beneficiary,
-                 '--allocation-filepath', mock_allocation_registry.filepath,
+                 '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                  '--worker-address', manual_worker,
                  '--force')
 
@@ -175,9 +208,10 @@ def test_stake_set_worker(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
+    individual_allocation = IndividualAllocationRegistry.from_allocation_file(MOCK_INDIVIDUAL_ALLOCATION_FILEPATH)
     staker = Staker(is_me=True,
                     checksum_address=beneficiary,
-                    allocation_registry=mock_allocation_registry,
+                    individual_allocation=individual_allocation,
                     registry=test_registry)
 
     assert staker.worker_address == manual_worker
@@ -202,9 +236,7 @@ def test_stake_detach_worker(click_runner,
 
     init_args = ('stake', 'detach-worker',
                  '--config-file', stakeholder_configuration_file_location,
-                 '--escrow',
-                 '--beneficiary-address', beneficiary,
-                 '--allocation-filepath', mock_allocation_registry.filepath,
+                 '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                  '--force')
 
     result = click_runner.invoke(nucypher_cli,
@@ -213,9 +245,10 @@ def test_stake_detach_worker(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
+    individual_allocation = IndividualAllocationRegistry.from_allocation_file(MOCK_INDIVIDUAL_ALLOCATION_FILEPATH)
     staker = Staker(is_me=True,
                     checksum_address=beneficiary,
-                    allocation_registry=mock_allocation_registry,
+                    individual_allocation=individual_allocation,
                     registry=test_registry)
 
     assert not staker.worker_address
@@ -224,9 +257,7 @@ def test_stake_detach_worker(click_runner,
 
     init_args = ('stake', 'set-worker',
                  '--config-file', stakeholder_configuration_file_location,
-                 '--escrow',
-                 '--beneficiary-address', beneficiary,
-                 '--allocation-filepath', mock_allocation_registry.filepath,
+                 '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                  '--worker-address', manual_worker,
                  '--force')
 
@@ -239,7 +270,7 @@ def test_stake_detach_worker(click_runner,
 
     staker = Staker(is_me=True,
                     checksum_address=beneficiary,
-                    allocation_registry=mock_allocation_registry,
+                    individual_allocation=individual_allocation,
                     registry=test_registry)
 
     assert staker.worker_address == manual_worker
@@ -254,18 +285,17 @@ def test_stake_restake(click_runner,
                        testerchain,
                        stakeholder_configuration_file_location):
 
+    individual_allocation = IndividualAllocationRegistry.from_allocation_file(MOCK_INDIVIDUAL_ALLOCATION_FILEPATH)
     staker = Staker(is_me=True,
                     checksum_address=beneficiary,
                     registry=test_registry,
-                    allocation_registry=mock_allocation_registry)
+                    individual_allocation=individual_allocation)
     assert not staker.is_restaking
 
     restake_args = ('stake', 'restake',
                     '--enable',
                     '--config-file', stakeholder_configuration_file_location,
-                    '--escrow',
-                    '--beneficiary-address', beneficiary,
-                    '--allocation-filepath', mock_allocation_registry.filepath,
+                    '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                     '--force')
 
     result = click_runner.invoke(nucypher_cli,
@@ -282,9 +312,7 @@ def test_stake_restake(click_runner,
     lock_args = ('stake', 'restake',
                  '--lock-until', release_period,
                  '--config-file', stakeholder_configuration_file_location,
-                 '--escrow',
-                 '--beneficiary-address', beneficiary,
-                 '--allocation-filepath', mock_allocation_registry.filepath,
+                 '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                  '--force')
 
     result = click_runner.invoke(nucypher_cli,
@@ -309,9 +337,7 @@ def test_stake_restake(click_runner,
     disable_args = ('stake', 'restake',
                     '--disable',
                     '--config-file', stakeholder_configuration_file_location,
-                    '--escrow',
-                    '--beneficiary-address', beneficiary,
-                    '--allocation-filepath', mock_allocation_registry.filepath,
+                    '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                     '--force')
 
     result = click_runner.invoke(nucypher_cli,
@@ -326,7 +352,7 @@ def test_stake_restake(click_runner,
     staker = Staker(is_me=True,
                     checksum_address=beneficiary,
                     registry=test_registry,
-                    allocation_registry=mock_allocation_registry)
+                    individual_allocation=individual_allocation)
     assert not staker.is_restaking
     assert "Successfully disabled" in result.output
 
@@ -531,9 +557,7 @@ def test_collect_rewards_integration(click_runner,
                        '--policy-reward',
                        '--no-staking-reward',
                        '--withdraw-address', burner_wallet.address,
-                       '--escrow',
-                       '--beneficiary-address', beneficiary,
-                       '--allocation-filepath', mock_allocation_registry.filepath,
+                       '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                        '--force')
 
     result = click_runner.invoke(nucypher_cli,
@@ -558,9 +582,7 @@ def test_collect_rewards_integration(click_runner,
                        '--config-file', stakeholder_configuration_file_location,
                        '--no-policy-reward',
                        '--staking-reward',
-                       '--escrow',
-                       '--beneficiary-address', beneficiary,
-                       '--allocation-filepath', mock_allocation_registry.filepath,
+                       '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                        '--force')
 
     result = click_runner.invoke(nucypher_cli,
