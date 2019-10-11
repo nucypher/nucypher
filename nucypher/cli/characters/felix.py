@@ -47,7 +47,7 @@ def init(click_config,
     """
     Create a brand-new Felix.
     """
-    emitter = setup_emitter(click_config, checksum_address)
+    emitter = _setup_emitter(click_config, checksum_address)
 
     ETH_NODE = NO_BLOCKCHAIN_CONNECTION
     if geth:
@@ -98,14 +98,14 @@ def destroy(click_config, checksum_address, geth, dev, network, config_file, reg
     """
     Destroy Felix Configuration.
     """
-    emitter = setup_emitter(click_config, checksum_address)
+    emitter = _setup_emitter(click_config, checksum_address)
 
     ETH_NODE = NO_BLOCKCHAIN_CONNECTION
     if geth:
         ETH_NODE = actions.get_provider_process(dev)
         provider_uri = ETH_NODE.provider_uri
 
-    felix_config = get_config(emitter, network, config_file, registry_filepath, ETH_NODE, provider_uri, host, port, db_filepath, poa)
+    felix_config = _get_config(emitter, network, config_file, registry_filepath, ETH_NODE, provider_uri, host, port, db_filepath, poa)
     actions.destroy_configuration(emitter, character_config=felix_config, force=force)
 
 
@@ -129,16 +129,16 @@ def createdb(click_config, checksum_address, geth, dev, network, config_file, re
     """
     Create Felix DB.
     """
-    emitter = setup_emitter(click_config, checksum_address)
+    emitter = _setup_emitter(click_config, checksum_address)
 
     ETH_NODE = NO_BLOCKCHAIN_CONNECTION
     if geth:
         ETH_NODE = actions.get_provider_process(dev)
         provider_uri = ETH_NODE.provider_uri
 
-    felix_config = get_config(emitter, network, config_file, registry_filepath, ETH_NODE, provider_uri, host, port,
-                              db_filepath, poa)
-    FELIX = create_felix(emitter, click_config, felix_config, teacher_uri, min_stake, network)
+    felix_config = _get_config(emitter, network, config_file, registry_filepath, ETH_NODE, provider_uri, host, port,
+                               db_filepath, poa)
+    FELIX = _create_felix(emitter, click_config, felix_config, teacher_uri, min_stake, network)
 
     if os.path.isfile(FELIX.db_filepath):
         if not force:
@@ -168,16 +168,16 @@ def view(click_config, checksum_address, geth, dev, network, config_file, regist
     """
     View Felix token balance.
     """
-    emitter = setup_emitter(click_config, checksum_address)
+    emitter = _setup_emitter(click_config, checksum_address)
 
     ETH_NODE = NO_BLOCKCHAIN_CONNECTION
     if geth:
         ETH_NODE = actions.get_provider_process(dev)
         provider_uri = ETH_NODE.provider_uri
 
-    felix_config = get_config(emitter, network, config_file, registry_filepath, ETH_NODE, provider_uri, host, port,
-                              db_filepath, poa)
-    FELIX = create_felix(emitter, click_config, felix_config, teacher_uri, min_stake, network)
+    felix_config = _get_config(emitter, network, config_file, registry_filepath, ETH_NODE, provider_uri, host, port,
+                               db_filepath, poa)
+    FELIX = _create_felix(emitter, click_config, felix_config, teacher_uri, min_stake, network)
 
     token_balance = FELIX.token_balance
     eth_balance = FELIX.eth_balance
@@ -207,16 +207,16 @@ def accounts(click_config, checksum_address, geth, dev, network, config_file, re
     """
     View Felix known accounts.
     """
-    emitter = setup_emitter(click_config, checksum_address)
+    emitter = _setup_emitter(click_config, checksum_address)
 
     ETH_NODE = NO_BLOCKCHAIN_CONNECTION
     if geth:
         ETH_NODE = actions.get_provider_process(dev)
         provider_uri = ETH_NODE.provider_uri
 
-    felix_config = get_config(emitter, network, config_file, registry_filepath, ETH_NODE, provider_uri, host, port,
-                              db_filepath, poa)
-    FELIX = create_felix(emitter, click_config, felix_config, teacher_uri, min_stake, network)
+    felix_config = _get_config(emitter, network, config_file, registry_filepath, ETH_NODE, provider_uri, host, port,
+                               db_filepath, poa)
+    FELIX = _create_felix(emitter, click_config, felix_config, teacher_uri, min_stake, network)
 
     accounts = FELIX.blockchain.client.accounts
     for account in accounts:
@@ -243,16 +243,16 @@ def run(click_config, dry_run, checksum_address, geth, dev, network, config_file
     """
     Run Felix service.
     """
-    emitter = setup_emitter(click_config, checksum_address)
+    emitter = _setup_emitter(click_config, checksum_address)
 
     ETH_NODE = NO_BLOCKCHAIN_CONNECTION
     if geth:
         ETH_NODE = actions.get_provider_process(dev)
         provider_uri = ETH_NODE.provider_uri
 
-    felix_config = get_config(emitter, network, config_file, registry_filepath, ETH_NODE, provider_uri, host, port,
-                              db_filepath, poa)
-    FELIX = create_felix(emitter, click_config, felix_config, teacher_uri, min_stake, network)
+    felix_config = _get_config(emitter, network, config_file, registry_filepath, ETH_NODE, provider_uri, host, port,
+                               db_filepath, poa)
+    FELIX = _create_felix(emitter, click_config, felix_config, teacher_uri, min_stake, network)
 
     emitter.echo("Waiting for blockchain sync...", color='yellow')
     emitter.message(f"Running Felix on {host}:{port}")
@@ -263,7 +263,7 @@ def run(click_config, dry_run, checksum_address, geth, dev, network, config_file
                 crash_on_error=click_config.debug)
 
 
-def create_felix(emitter, click_config, felix_config, teacher_uri, min_stake, network):
+def _create_felix(emitter, click_config, felix_config, teacher_uri, min_stake, network):
     try:
         # Authenticate
         unlock_nucypher_keyring(emitter,
@@ -291,7 +291,7 @@ def create_felix(emitter, click_config, felix_config, teacher_uri, min_stake, ne
             raise click.Abort
 
 
-def get_config(emitter, network, config_file, registry_filepath, eth_node, provider_uri, host, port, db_filepath, poa):
+def _get_config(emitter, network, config_file, registry_filepath, eth_node, provider_uri, host, port, db_filepath, poa):
     # Domains -> bytes | or default
     domains = [network] if network else None
 
@@ -314,7 +314,7 @@ def get_config(emitter, network, config_file, registry_filepath, eth_node, provi
         raise click.Abort
 
 
-def setup_emitter(click_config, checksum_address):
+def _setup_emitter(click_config, checksum_address):
     emitter = click_config.emitter
 
     # Intro
