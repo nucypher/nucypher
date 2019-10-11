@@ -53,7 +53,12 @@ def status():
 @_common_options
 @nucypher_click_config
 def network(click_config,
-            provider_uri, geth, poa, registry_filepath  # common
+
+            # Common Options
+            provider_uri,
+            geth,
+            poa,
+            registry_filepath
             ):
     """
     Overall information of the NuCypher Network.
@@ -70,7 +75,14 @@ def network(click_config,
 @click.option('--staking-address', help="Address of a NuCypher staker", type=EIP55_CHECKSUM_ADDRESS)
 @nucypher_click_config
 def stakers(click_config,
-            provider_uri, geth, poa, registry_filepath,  # common
+
+            # Common Options
+            provider_uri,
+            geth,
+            poa,
+            registry_filepath,
+
+            # Other
             staking_address):
     """
     Show relevant information about stakers.
@@ -88,7 +100,14 @@ def stakers(click_config,
 @click.option('--periods', help="Number of periods", type=click.INT, default=90)
 @nucypher_click_config
 def locked_tokens(click_config,
-                  provider_uri, geth, poa, registry_filepath,  # common
+
+                  # Common Options
+                  provider_uri,
+                  geth,
+                  poa,
+                  registry_filepath,
+
+                  # Other
                   periods):
     """
     Display a graph of the number of locked tokens over time.

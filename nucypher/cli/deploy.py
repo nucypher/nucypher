@@ -37,7 +37,8 @@ from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
-# Args (provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address, registry_infile, registry_outfile, dev)
+# Args (provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
+#       registry_infile, registry_outfile, dev)
 def _admin_actor_options(func):
     @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING, required=True)
     @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
@@ -110,8 +111,23 @@ def inspect(provider_uri, config_root, registry_infile, deployer_address, poa):
 @deploy.command()
 @_admin_actor_options
 @click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
-@click.option('--target-address', help="Recipient's checksum address for token or ownership transference.", type=EIP55_CHECKSUM_ADDRESS)
-def upgrade(provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address, registry_infile, registry_outfile, dev,  # admin_actor
+@click.option('--target-address', help="Recipient's checksum address for token or ownership transference.",
+              type=EIP55_CHECKSUM_ADDRESS)
+def upgrade(
+            # Admin Actor Options
+            provider_uri,
+            contract_name,
+            config_root,
+            poa,
+            force,
+            etherscan,
+            hw_wallet,
+            deployer_address,
+            registry_infile,
+            registry_outfile,
+            dev,
+
+            # Other
             retarget, target_address):
     """
     Upgrade NuCypher existing proxy contract deployments.
@@ -168,7 +184,19 @@ def upgrade(provider_uri, contract_name, config_root, poa, force, etherscan, hw_
 
 @deploy.command()
 @_admin_actor_options
-def rollback(provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address, registry_infile, registry_outfile, dev  # admin_actor
+def rollback(
+             # Admin Actor Options
+             provider_uri,
+             contract_name,
+             config_root,
+             poa,
+             force,
+             etherscan,
+             hw_wallet,
+             deployer_address,
+             registry_infile,
+             registry_outfile,
+             dev,
              ):
     """
     Rollback a proxy contract's target.
@@ -208,7 +236,21 @@ def rollback(provider_uri, contract_name, config_root, poa, force, etherscan, hw
 @_admin_actor_options
 @click.option('--bare', help="Deploy a contract *only* without any additional operations.", is_flag=True)
 @click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
-def contracts(provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address, registry_infile, registry_outfile, dev,  # admin_actor
+def contracts(
+              # Admin Actor Options
+              provider_uri,
+              contract_name,
+              config_root,
+              poa,
+              force,
+              etherscan,
+              hw_wallet,
+              deployer_address,
+              registry_infile,
+              registry_outfile,
+              dev,
+
+              # Other
               bare, gas):
     """
     Compile and deploy contracts.
@@ -311,8 +353,23 @@ def contracts(provider_uri, contract_name, config_root, poa, force, etherscan, h
 @deploy.command()
 @_admin_actor_options
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
-@click.option('--allocation-outfile', help="Output path for token allocation JSON file", type=click.Path(exists=False, file_okay=True))
-def allocations(provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address, registry_infile, registry_outfile, dev,  # admin_actor
+@click.option('--allocation-outfile', help="Output path for token allocation JSON file",
+              type=click.Path(exists=False, file_okay=True))
+def allocations(
+                # Admin Actor Options
+                provider_uri,
+                contract_name,
+                config_root,
+                poa,
+                force,
+                etherscan,
+                hw_wallet,
+                deployer_address,
+                registry_infile,
+                registry_outfile,
+                dev,
+
+                # Other
                 allocation_infile, allocation_outfile):
     """
     Deploy pre-allocation contracts.
@@ -348,9 +405,24 @@ def allocations(provider_uri, contract_name, config_root, poa, force, etherscan,
 
 @deploy.command(name='transfer-tokens')
 @_admin_actor_options
-@click.option('--target-address', help="Recipient's checksum address for token or ownership transference.", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--target-address', help="Recipient's checksum address for token or ownership transference.",
+              type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
-def transfer_tokens(provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address, registry_infile, registry_outfile, dev,  # admin_actor
+def transfer_tokens(
+                    # Admin Actor Options
+                    provider_uri,
+                    contract_name,
+                    config_root,
+                    poa,
+                    force,
+                    etherscan,
+                    hw_wallet,
+                    deployer_address,
+                    registry_infile,
+                    registry_outfile,
+                    dev,
+
+                    # Other
                     target_address, value):
     """
     Transfer tokens from a contract to another address using the owner's address.
@@ -393,9 +465,24 @@ def transfer_tokens(provider_uri, contract_name, config_root, poa, force, ethers
 
 @deploy.command("transfer-ownership")
 @_admin_actor_options
-@click.option('--target-address', help="Recipient's checksum address for token or ownership transference.", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--target-address', help="Recipient's checksum address for token or ownership transference.",
+              type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
-def transfer_ownership(provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address, registry_infile, registry_outfile, dev,  # admin_actor
+def transfer_ownership(
+                       # Admin Actor Options
+                       provider_uri,
+                       contract_name,
+                       config_root,
+                       poa,
+                       force,
+                       etherscan,
+                       hw_wallet,
+                       deployer_address,
+                       registry_infile,
+                       registry_outfile,
+                       dev,
+
+                       # Other
                        target_address, gas):
     """
     Transfer ownership of contracts to another address.

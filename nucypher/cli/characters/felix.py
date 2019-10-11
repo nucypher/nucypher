@@ -56,7 +56,19 @@ def felix():
 @click.option('--discovery-port', help="The host port to run Felix Node Discovery services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_LEARNER_PORT)
 @nucypher_click_config
 def init(click_config,
-         checksum_address, geth, dev, network, registry_filepath,  provider_uri, host, db_filepath, poa,  # common
+
+         # Common Options
+         checksum_address,
+         geth,
+         dev,
+         network,
+         registry_filepath,
+         provider_uri,
+         host,
+         db_filepath,
+         poa,
+
+         # Other
          config_root,
          discovery_port):
     """
@@ -102,7 +114,19 @@ def init(click_config,
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @nucypher_click_config
 def destroy(click_config,
-            checksum_address, geth, dev, network, registry_filepath,  provider_uri, host, db_filepath, poa,  # common
+
+            # Common Options
+            checksum_address,
+            geth,
+            dev,
+            network,
+            registry_filepath,
+            provider_uri,
+            host,
+            db_filepath,
+            poa,
+
+            # Other
             config_file, port, force):
     """
     Destroy Felix Configuration.
@@ -125,8 +149,24 @@ def destroy(click_config,
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @nucypher_click_config
 def createdb(click_config,
-             checksum_address, geth, dev, network, registry_filepath,  provider_uri, host, db_filepath, poa,  # common
-             config_file, port, teacher_uri,  # admin
+
+             # Common Options
+             checksum_address,
+             geth,
+             dev,
+             network,
+             registry_filepath,
+             provider_uri,
+             host,
+             db_filepath,
+             poa,
+
+             # Admin Options
+             config_file,
+             port,
+             teacher_uri,
+
+             # Other
              force, min_stake):
     """
     Create Felix DB.
@@ -158,8 +198,24 @@ def createdb(click_config,
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @nucypher_click_config
 def view(click_config,
-         checksum_address, geth, dev, network, registry_filepath,  provider_uri, host, db_filepath, poa,  # common
-         config_file, port, teacher_uri,  # admin
+
+         # Common Options
+         checksum_address,
+         geth,
+         dev,
+         network,
+         registry_filepath,
+         provider_uri,
+         host,
+         db_filepath,
+         poa,
+
+         # Admin Options
+         config_file,
+         port,
+         teacher_uri,
+
+         # Other
          min_stake):
     """
     View Felix token balance.
@@ -190,8 +246,24 @@ def view(click_config,
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @nucypher_click_config
 def accounts(click_config,
-             checksum_address, geth, dev, network, registry_filepath,  provider_uri, host, db_filepath, poa,  # common
-             config_file, port, teacher_uri,  # admin
+
+             # Common Options
+             checksum_address,
+             geth,
+             dev,
+             network,
+             registry_filepath,
+             provider_uri,
+             host,
+             db_filepath,
+             poa,
+
+             # Admin Options
+             config_file,
+             port,
+             teacher_uri,
+
+             # Other
              min_stake):
     """
     View Felix known accounts.
@@ -219,8 +291,24 @@ def accounts(click_config,
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @nucypher_click_config
 def run(click_config,
-        checksum_address, geth, dev, network, registry_filepath,  provider_uri, host, db_filepath, poa,  # common
-        config_file, port, teacher_uri,  # admin
+
+        # Common Options
+        checksum_address,
+        geth,
+        dev,
+        network,
+        registry_filepath,
+        provider_uri,
+        host,
+        db_filepath,
+        poa,
+
+        # Admin Options
+        config_file,
+        port,
+        teacher_uri,
+
+        # Other
         dry_run, min_stake):
     """
     Run Felix service.
