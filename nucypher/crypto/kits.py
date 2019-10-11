@@ -70,8 +70,8 @@ class MessageKit(CryptoKit):
     @classmethod
     def splitter(cls, *args, **kwargs):
         return BytestringKwargifier(cls,
-                                    capsule=(capsule_splitter, {'single': True}),
-                                    sender_verifying_key=(key_splitter, {'single': True}),
+                                    capsule=capsule_splitter,
+                                    sender_verifying_key=key_splitter,
                                     ciphertext=VariableLengthBytestring)
 
     @property
