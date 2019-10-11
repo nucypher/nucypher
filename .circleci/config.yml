@@ -267,7 +267,9 @@ commands:
     steps:
       - run:
           name: Install Python Dependencies with Pip
-          command: pip3 install --user -e .
+          command: |
+            python setup.py install_egg_info --install-dir=/home/circleci/.local/lib/python3.7/site-packages
+            pip3 install --user -e .
       - check_nucypher_entrypoints   # Ensure Standard Installation Entry-points Work
       - run:
           name: Install Python Development Dependencies with Pip
