@@ -58,4 +58,5 @@ def test_alice_uses_keyring(tmpdir):
         encrypting=True,
         rest=False,
         keyring_root=tmpdir)
+    keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     Alice(federated_only=True, start_learning_now=False, keyring=keyring)
