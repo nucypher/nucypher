@@ -8,6 +8,8 @@ from nucypher.crypto.powers import DelegatingPower, DecryptingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from constant_sorrow.constants import FEDERATED_ADDRESS
 
+from nucypher.characters.lawful import Alice
+
 
 def test_generate_alice_keyring(tmpdir):
 
@@ -47,3 +49,13 @@ def test_generate_alice_keyring(tmpdir):
     another_delegating_pubkey = another_delegating_power.get_pubkey_from_label(label)
 
     assert delegating_pubkey == another_delegating_pubkey
+
+
+def test_alice_uses_keyring(tmpdir):
+    keyring = NucypherKeyring.generate(
+        checksum_address=FEDERATED_ADDRESS,
+        password=INSECURE_DEVELOPMENT_PASSWORD,
+        encrypting=True,
+        rest=False,
+        keyring_root=tmpdir)
+    Alice(federated_only=True, start_learning_now=False, keyring=keyring)
