@@ -102,6 +102,7 @@ class BobSpecification(CharacterSpecification):
                      'output': ('policy_encrypting_key', )}
 
     __retrieve = {'input': ('label', 'policy_encrypting_key', 'alice_verifying_key', 'message_kit'),
+                  'optional': ('treasure_map',),
                   'output': ('cleartexts', )}
 
     __public_keys = {'input': (),
