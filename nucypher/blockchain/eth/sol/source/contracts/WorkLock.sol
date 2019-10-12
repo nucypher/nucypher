@@ -8,6 +8,7 @@ import "contracts/NuCypherToken.sol";
 import "contracts/StakingEscrow.sol";
 //import "contracts/UserEscrow.sol";
 //import "contracts/UserEscrowLibraryLinker.sol";
+import "contracts/lib/AdditionalMath.sol";
 
 
 /**
@@ -16,6 +17,7 @@ import "contracts/StakingEscrow.sol";
 contract WorkLock {
     using SafeERC20 for NuCypherToken;
     using SafeMath for uint256;
+    using AdditionalMath for uint256;
 //    using Address for address payable;
 
     event Deposited(address indexed sender, uint256 value);
@@ -23,7 +25,7 @@ contract WorkLock {
     event Claimed(address indexed staker, uint256 claimedTokens);
     event Refund(address indexed staker, uint256 refundETH, uint256 completedWork);
     event Burnt(address indexed sender, uint256 value);
-    event Canceled(address indexed sender, uint256 value);
+    event Canceled(address indexed staker, uint256 value);
 
     struct WorkInfo {
         uint256 depositedETH;
@@ -44,7 +46,7 @@ contract WorkLock {
     uint256 public tokenSupply;
     uint256 public ethSupply;
     uint256 public unclaimedTokens;
-    uint16 public lockedDuration;
+//    uint16 public lockedDuration;
     mapping(address => WorkInfo) public workInfo;
 
     /**
@@ -54,7 +56,7 @@ contract WorkLock {
     * @param _startBidDate Timestamp when bidding starts
     * @param _endBidDate Timestamp when bidding will end
     * @param _boostingRefund Coefficient to boost refund ETH
-    * @param _lockedDuration Duration of tokens locking
+    * @dev _lockedDuration Duration of tokens locking
     */
     constructor(
         NuCypherToken _token,
@@ -62,8 +64,8 @@ contract WorkLock {
 //        UserEscrowLibraryLinker _linker,
         uint256 _startBidDate,
         uint256 _endBidDate,
-        uint256 _boostingRefund,
-        uint16 _lockedDuration
+        uint256 _boostingRefund//,
+//        uint16 _lockedDuration
     )
         public
     {
@@ -72,15 +74,15 @@ contract WorkLock {
 //            _linker.target().isContract() &&
             _endBidDate > _startBidDate &&
             _endBidDate > block.timestamp &&
-            _boostingRefund > 0 &&
-            _lockedDuration > 0);
+            _boostingRefund > 0);// &&
+//            _lockedDuration > 0);
         token = _token;
         escrow = _escrow;
 //        linker = _linker;
         startBidDate = _startBidDate;
         endBidDate = _endBidDate;
         boostingRefund = _boostingRefund;
-        lockedDuration = _lockedDuration;
+//        lockedDuration = _lockedDuration;
     }
 
     /**
@@ -107,7 +109,7 @@ contract WorkLock {
     * @dev This value will be fixed only after end of bidding
     **/
     function ethToWork(uint256 _ethAmount) public view returns (uint256) {
-        return _ethAmount.mul(tokenSupply).mul(SLOWING_REFUND).div(ethSupply).div(boostingRefund);
+        return _ethAmount.mul(tokenSupply).mul(SLOWING_REFUND).divCeil(ethSupply.mul(boostingRefund));
     }
 
     /**
@@ -115,7 +117,20 @@ contract WorkLock {
     * @dev This value will be fixed only after end of bidding
     **/
     function workToETH(uint256 _completedWork) public view returns (uint256) {
-        return _completedWork.mul(ethSupply).mul(boostingRefund).div(tokenSupply).div(SLOWING_REFUND);
+        return _completedWork.mul(ethSupply).mul(boostingRefund).div(tokenSupply.mul(SLOWING_REFUND));
+    }
+
+    /**
+    * @notice Get remaining work to full refund
+    */
+    function getRemainingWork(address _staker) public view returns (uint256) {
+        WorkInfo storage info = workInfo[_staker];
+        uint256 completedWork = escrow.getCompletedWork(_staker).sub(info.completedWork);
+        uint256 remainingWork = ethToWork(info.depositedETH);
+        if (remainingWork <= completedWork) {
+            return 0;
+        }
+        return remainingWork.sub(completedWork);
     }
 
     /**
@@ -159,6 +174,7 @@ contract WorkLock {
         require(!info.claimed, "Tokens are already claimed");
         info.claimed = true;
         claimedTokens = ethToTokens(info.depositedETH); // TODO check for overflow before
+        info.completedWork = escrow.setWorkMeasurement(msg.sender, true);
         token.safeTransfer(msg.sender, claimedTokens);
         emit Claimed(msg.sender, claimedTokens);
 
@@ -212,19 +228,6 @@ contract WorkLock {
         // TODO UE?
 //        emit Refund(msg.sender, _userEscrow, refundETH, completedWork);
         msg.sender.sendValue(refundETH);
-    }
-
-    /**
-    * @notice Get remaining work to full refund
-    */
-    function getRemainingWork(address _staker) public view returns (uint256) {
-        WorkInfo storage info = workInfo[_staker];
-        uint256 completedWork = escrow.getCompletedWork(_staker).sub(info.completedWork);
-        uint256 remainingWork = ethToWork(info.depositedETH);
-        if (remainingWork <= completedWork) {
-            return 0;
-        }
-        return remainingWork.sub(completedWork);
     }
 
     /**
