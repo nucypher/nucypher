@@ -20,7 +20,7 @@ import json
 import os
 import stat
 from json import JSONDecodeError
-from os.path import dirname, abspath
+from os.path import abspath
 from typing import ClassVar, Tuple, Callable, Union, Dict, List
 
 from constant_sorrow.constants import FEDERATED_ADDRESS
@@ -49,8 +49,7 @@ from nucypher.crypto.powers import (
     SigningPower,
     DecryptingPower,
     KeyPairBasedPower,
-    DerivedKeyBasedPower,
-    TransactingPower
+    DerivedKeyBasedPower
 )
 from nucypher.network.server import TLSHostingPower
 
@@ -404,6 +403,10 @@ class NucypherKeyring:
     @property
     def certificate_filepath(self) -> str:
         return self.__tls_certificate
+
+    @property
+    def keyring_root(self) -> str:
+        return self.__keyring_root
 
     #
     # Utils
