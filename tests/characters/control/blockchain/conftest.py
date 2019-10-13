@@ -1,5 +1,6 @@
 import datetime
 from base64 import b64encode
+from collections import OrderedDict
 
 import maya
 import pytest
@@ -125,7 +126,7 @@ def make_retrieve_control_request(blockchain_bob, enacted_blockchain_policy, cap
             'alice_verifying_key': bytes(enacted_blockchain_policy.alice.stamp).hex(),
             'message_kit': b64encode(message_kit.to_bytes()).decode(),
         }
-        return {'method': method_name, 'params': params}
+        return OrderedDict([('method', method_name), ('params', params)])
     return f
 
 

@@ -128,5 +128,5 @@ def test_bob_rpc_character_control_retrieve(
             b'Wrong!')
     wrong_tmap = b64encode(bytes(wrong_tmap)).decode()
     request_data['params']['treasure_map'] = wrong_tmap
-    with pytest.raises:
+    with pytest.raises(Exception):
         bob_rpc_controller.send(request_data)
