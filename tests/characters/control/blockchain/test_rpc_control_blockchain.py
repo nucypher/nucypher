@@ -4,7 +4,6 @@ from base64 import b64encode
 from nucypher.characters.control.specifications import AliceSpecification, BobSpecification, EnricoSpecification
 from nucypher.policy.collections import TreasureMap
 from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.characters.lawful import Ursula
 
 alice_specification = AliceSpecification()
 bob_specification = BobSpecification()
@@ -102,37 +101,32 @@ def test_enrico_rpc_character_control_encrypt_message(enrico_rpc_controller_test
                                            specification=enrico_specification)
 
 
-def test_bob_rpc_character_control_retrieve(bob_rpc_controller, retrieve_control_request):
-    method_name, params = retrieve_control_request
-    request_data = {'method': method_name, 'params': params}
+def test_bob_rpc_character_control_retrieve(
+        bob_rpc_controller, make_retrieve_control_request,
+        blockchain_bob, blockchain_alice,
+        capsule_side_channel_blockchain, enacted_blockchain_policy
+        ):
+    request_data = make_retrieve_control_request()
     response = bob_rpc_controller.send(request_data)
     assert validate_json_rpc_response_data(response=response,
-                                           method_name=method_name,
+                                           method_name=request_data['method'],
                                            specification=bob_specification)
+    assert response.data['result']['cleartexts'][0] == 'Welcome to flippering number 2.'
 
-
-def test_bob_rpc_character_control_retrieve_with_tmap(
-        enacted_blockchain_policy, blockchain_bob, blockchain_alice,
-        bob_rpc_controller, retrieve_control_request):
-    tmap_64 = b64encode(bytes(enacted_blockchain_policy.treasure_map)).decode()
-    method_name, params = retrieve_control_request
-    params['treasure_map'] = tmap_64
-    request_data = {'method': method_name, 'params': params}
+    request_data = make_retrieve_control_request()
+    tmap = b64encode(bytes(enacted_blockchain_policy.treasure_map)).decode()
+    request_data['params']['treasure_map'] = tmap
     response = bob_rpc_controller.send(request_data)
-    assert validate_json_rpc_response_data(response=response,
-                                           method_name=method_name,
-                                           specification=bob_specification)
-    assert response.data['result']['cleartexts'][0] == 'Welcome to flippering number 1.'
+    assert response.data['result']['cleartexts'][0] == 'Welcome to flippering number 3.'
 
-    # Make a wrong (empty) treasure map
-
+    request_data = make_retrieve_control_request()
     wrong_tmap = TreasureMap(m=0)
     wrong_tmap.prepare_for_publication(
             blockchain_bob.public_keys(DecryptingPower),
             blockchain_bob.public_keys(SigningPower),
             blockchain_alice.stamp,
             b'Wrong!')
-    tmap_64 = b64encode(bytes(wrong_tmap)).decode()
-    params['treasure_map'] = tmap_64
-    with pytest.raises(Ursula.NotEnoughUrsulas):
+    wrong_tmap = b64encode(bytes(wrong_tmap)).decode()
+    request_data['params']['treasure_map'] = wrong_tmap
+    with pytest.raises:
         bob_rpc_controller.send(request_data)
