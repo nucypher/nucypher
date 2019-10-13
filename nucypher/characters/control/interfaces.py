@@ -192,7 +192,8 @@ class BobInterface(CharacterPublicInterface, BobSpecification):
                  label: bytes,
                  policy_encrypting_key: bytes,
                  alice_verifying_key: bytes,
-                 message_kit: bytes):
+                 message_kit: bytes,
+                 treasure_map: bytes = None):
         """
         Character control endpoint for re-encrypting and decrypting policy data.
         """
@@ -206,11 +207,13 @@ class BobInterface(CharacterPublicInterface, BobSpecification):
                                               policy_encrypting_key=policy_encrypting_key,
                                               label=label)
 
-        self.bob.join_policy(label=label, alice_verifying_key=alice_verifying_key)
+        if not treasure_map:
+            self.bob.join_policy(label=label, alice_verifying_key=alice_verifying_key)
         plaintexts = self.bob.retrieve(message_kit,
                                        enrico=data_source,
                                        alice_verifying_key=alice_verifying_key,
-                                       label=label)
+                                       label=label,
+                                       treasure_map=treasure_map)
 
         response_data = {'cleartexts': plaintexts}
         return response_data
