@@ -114,17 +114,19 @@ def join_control_request(blockchain_bob, enacted_blockchain_policy):
 
 
 @pytest.fixture(scope='module')
-def retrieve_control_request(blockchain_bob, enacted_blockchain_policy, capsule_side_channel_blockchain):
-    method_name = 'retrieve'
-    message_kit, data_source = capsule_side_channel_blockchain()
+def make_retrieve_control_request(blockchain_bob, enacted_blockchain_policy, capsule_side_channel_blockchain):
+    def f():
+        method_name = 'retrieve'
+        message_kit, data_source = capsule_side_channel_blockchain()
 
-    params = {
-        'label': enacted_blockchain_policy.label.decode(),
-        'policy_encrypting_key': bytes(enacted_blockchain_policy.public_key).hex(),
-        'alice_verifying_key': bytes(enacted_blockchain_policy.alice.stamp).hex(),
-        'message_kit': b64encode(message_kit.to_bytes()).decode(),
-    }
-    return method_name, params
+        params = {
+            'label': enacted_blockchain_policy.label.decode(),
+            'policy_encrypting_key': bytes(enacted_blockchain_policy.public_key).hex(),
+            'alice_verifying_key': bytes(enacted_blockchain_policy.alice.stamp).hex(),
+            'message_kit': b64encode(message_kit.to_bytes()).decode(),
+        }
+        return {'method': method_name, 'params': params}
+    return f
 
 
 @pytest.fixture(scope='module')
