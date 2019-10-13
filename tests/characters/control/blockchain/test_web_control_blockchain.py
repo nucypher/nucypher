@@ -8,7 +8,7 @@ from click.testing import CliRunner
 
 import nucypher
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import DecryptingPower
+from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.policy.collections import TreasureMap
 
 click_runner = CliRunner()
@@ -169,8 +169,11 @@ def test_bob_character_control_join_policy(bob_web_controller_test_client, enact
     assert response.status_code == 400
 
 
-def test_bob_web_character_control_retrieve(bob_web_controller_test_client, retrieve_control_request):
-    method_name, params = retrieve_control_request
+def test_bob_web_character_control_retrieve(
+        bob_web_controller_test_client, make_retrieve_control_request,
+        blockchain_alice, blockchain_bob,
+        capsule_side_channel_blockchain, enacted_blockchain_policy):
+    method_name, params = make_retrieve_control_request().values()
     endpoint = f'/{method_name}'
 
     response = bob_web_controller_test_client.post(endpoint, data=json.dumps(params))
@@ -186,19 +189,24 @@ def test_bob_web_character_control_retrieve(bob_web_controller_test_client, retr
     response = bob_web_controller_test_client.post(endpoint, data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
-    del(params['alice_verifying_key'])
-    response = bob_web_controller_test_client.put(endpoint, data=json.dumps(params))
-
-
-def test_bob_web_character_control_retrieve_with_tmap(
-        enacted_blockchain_policy, bob_web_controller_test_client, retrieve_control_request):
-    tmap_64 = b64encode(bytes(enacted_blockchain_policy.treasure_map)).decode()
-    method_name, params = retrieve_control_request
-    params['treasure_map'] = tmap_64
-    endpoint = f'/{method_name}'
-
+    method_name, params = make_retrieve_control_request().values()
+    tmap = b64encode(bytes(enacted_blockchain_policy.treasure_map)).decode()
+    params['treasure_map'] = tmap
     response = bob_web_controller_test_client.post(endpoint, data=json.dumps(params))
     assert response.status_code == 200
+    assert response_data['result']['cleartexts']
+
+    method_name, params = make_retrieve_control_request().values()
+    wrong_tmap = TreasureMap(m=0)
+    wrong_tmap.prepare_for_publication(
+            blockchain_bob.public_keys(DecryptingPower),
+            blockchain_bob.public_keys(SigningPower),
+            blockchain_alice.stamp,
+            b'Wrong!')
+    wrong_tmap = b64encode(bytes(wrong_tmap)).decode()
+    params['treasure_map'] = wrong_tmap
+    response = bob_web_controller_test_client.post(endpoint, data=json.dumps(params))
+    assert response.status_code == 200  # XXX
 
 
 def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test_client, encrypt_control_request):
