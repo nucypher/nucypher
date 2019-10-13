@@ -23,13 +23,7 @@ from eth_utils import to_checksum_address
 from nucypher.blockchain.eth.decorators import validate_checksum_address, InvalidChecksumAddress
 
 
-def get_random_checksum_address():
-    canonical_address = os.urandom(20)
-    checksum_address = to_checksum_address(canonical_address)
-    return checksum_address
-
-
-def test_validate_checksum_address():
+def test_validate_checksum_address(get_random_checksum_address):
 
     # Simple case: just one parameter, called "checksum_address"
     @validate_checksum_address

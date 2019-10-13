@@ -187,7 +187,7 @@ class BaseContractRegistry(ABC):
             raise self.UnknownContract(contract_name)
 
         if contract_address and len(contracts) > 1:
-            m = "Multiple records returned for address {}"
+            m = f"Multiple records returned for address {contract_address}"
             self.log.critical(m)
             raise self.IllegalRegistry(m.format(contract_address))
 
@@ -379,21 +379,26 @@ class AllocationRegistry(LocalContractRegistry):
         if beneficiary_address:
             try:
                 contract_data = allocation_data[beneficiary_address]
+                result = contract_data
             except KeyError:
                 raise self.UnknownBeneficiary
 
         elif contract_address:
             records = list()
-            # FIXME: Searching by contract_address seems broken. Also, no tests.
             for beneficiary_address, contract_data in allocation_data.items():
-                contract_address, contract_abi = contract_data['address'], contract_data['abi']
-                records.append(dict(address=contract_address, abi=contract_abi))
+                if contract_address == contract_data[0]:
+                    contract_abi = contract_data[1]
+                    records.append([beneficiary_address, contract_abi])
             if len(records) > 1:
-                raise self.RegistryError("Multiple {} deployments for beneficiary {}".format(self._contract_name, beneficiary_address))
+                raise self.RegistryError(f"Multiple {self._contract_name} deployments found ({len(records)}) "
+                                         f"for contract address {contract_address}")
+            elif not records:
+                raise self.UnknownContract(f"No {self._contract_name} deployments found "
+                                           f"for contract address {contract_address}")
             else:
-                contract_data = records[0]
+                result = records[0]
 
-        return contract_data
+        return result
 
     def is_beneficiary_enrolled(self, beneficiary_address: str) -> bool:
         try:
