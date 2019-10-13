@@ -205,8 +205,9 @@ def test_bob_web_character_control_retrieve(
             b'Wrong!')
     wrong_tmap = b64encode(bytes(wrong_tmap)).decode()
     params['treasure_map'] = wrong_tmap
-    response = bob_web_controller_test_client.post(endpoint, data=json.dumps(params))
-    assert response.status_code == 200  # XXX
+    with pytest.raises(Exception):
+        # Do we have raise on error in tests?
+        response = bob_web_controller_test_client.post(endpoint, data=json.dumps(params))
 
 
 def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test_client, encrypt_control_request):
