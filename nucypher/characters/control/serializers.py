@@ -171,6 +171,8 @@ class BobControlJSONSerializer(CharacterControlJSONSerializer, MessageHandlerMix
                             policy_encrypting_key=bytes.fromhex(request['policy_encrypting_key']),
                             alice_verifying_key=bytes.fromhex(request['alice_verifying_key']),
                             message_kit=self.decode(request['message_kit']))
+        if 'treasure_map' in request:
+            parsed_input['treasure_map'] = self.decode(request['treasure_map'])
         return parsed_input
 
     def dump_retrieve_output(self, response: dict):
