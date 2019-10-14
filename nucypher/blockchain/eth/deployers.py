@@ -509,7 +509,8 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             "_minLockedPeriods": args[4],
             "_minAllowableLockedTokens": args[5],
             "_maxAllowableLockedTokens": args[6],
-            "_minWorkerPeriods": args[7]
+            "_minWorkerPeriods": args[7],
+            "_isTestContract": False
         }
         constructor_kwargs.update(overrides)
         constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}

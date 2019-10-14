@@ -116,6 +116,7 @@ contract StakingEscrow is Issuer {
     PolicyManagerInterface public policyManager;
     AdjudicatorInterface public adjudicator;
     WorkLockInterface public workLock;
+    bool public isTestContract;
 
     /**
     * @notice Constructor sets address of token contract and coefficients for mining
@@ -128,6 +129,7 @@ contract StakingEscrow is Issuer {
     * @param _minAllowableLockedTokens Min amount of tokens that can be locked
     * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
     * @param _minWorkerPeriods Min amount of periods while a worker can't be changed
+    * @param _isTestContract True if contract is only for tests
     */
     constructor(
         NuCypherToken _token,
@@ -138,7 +140,8 @@ contract StakingEscrow is Issuer {
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods
+        uint16 _minWorkerPeriods,
+        bool _isTestContract
     )
         public
         Issuer(
@@ -155,6 +158,7 @@ contract StakingEscrow is Issuer {
         minAllowableLockedTokens = _minAllowableLockedTokens;
         maxAllowableLockedTokens = _maxAllowableLockedTokens;
         minWorkerPeriods = _minWorkerPeriods;
+        isTestContract = _isTestContract;
     }
 
     /**
@@ -194,7 +198,7 @@ contract StakingEscrow is Issuer {
     */
     function setWorkLock(WorkLockInterface _workLock) external onlyOwner {
         // WorkLock can be set only once
-        require(address(workLock) == address(0));
+        require(address(workLock) == address(0) || isTestContract);
         // This escrow must be the escrow for the new worklock
         require(_workLock.escrow() == address(this));
         workLock = _workLock;
@@ -1211,6 +1215,7 @@ contract StakingEscrow is Issuer {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public {
         super.verifyState(_testTarget);
+        require(delegateGet(_testTarget, "isTestContract()") == 0 ? !isTestContract : isTestContract);
         require(uint16(delegateGet(_testTarget, "minWorkerPeriods()")) == minWorkerPeriods);
         require(delegateGet(_testTarget, "minAllowableLockedTokens()") == minAllowableLockedTokens);
         require(delegateGet(_testTarget, "maxAllowableLockedTokens()") == maxAllowableLockedTokens);
@@ -1275,6 +1280,7 @@ contract StakingEscrow is Issuer {
         minAllowableLockedTokens = escrow.minAllowableLockedTokens();
         maxAllowableLockedTokens = escrow.maxAllowableLockedTokens();
         minWorkerPeriods = escrow.minWorkerPeriods();
+        isTestContract = escrow.isTestContract();
 
         // Create fake period
         lockedPerPeriod[RESERVED_PERIOD] = 111;

@@ -19,7 +19,8 @@ contract StakingEscrowBad is StakingEscrow {
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods
+        uint16 _minWorkerPeriods,
+        bool _isTestContract
     )
         public
         StakingEscrow(
@@ -31,7 +32,8 @@ contract StakingEscrowBad is StakingEscrow {
             _minLockedPeriods,
             _minAllowableLockedTokens,
             _maxAllowableLockedTokens,
-            _minWorkerPeriods
+            _minWorkerPeriods,
+            _isTestContract
         )
     {
     }
@@ -60,6 +62,7 @@ contract StakingEscrowV2Mock is StakingEscrow {
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
         uint16 _minWorkerPeriods,
+        bool _isTestContract,
         uint256 _valueToCheck
     )
         public
@@ -72,7 +75,8 @@ contract StakingEscrowV2Mock is StakingEscrow {
             _minLockedPeriods,
             _minAllowableLockedTokens,
             _maxAllowableLockedTokens,
-            _minWorkerPeriods
+            _minWorkerPeriods,
+            _isTestContract
         )
     {
         valueToCheck = _valueToCheck;
@@ -90,6 +94,7 @@ contract StakingEscrowV2Mock is StakingEscrow {
     function finishUpgrade(address _target) public onlyWhileUpgrading {
         StakingEscrowV2Mock escrow = StakingEscrowV2Mock(_target);
         valueToCheck = escrow.valueToCheck();
+        isTestContract = escrow.isTestContract();
         emit UpgradeFinished(_target, msg.sender);
     }
 }

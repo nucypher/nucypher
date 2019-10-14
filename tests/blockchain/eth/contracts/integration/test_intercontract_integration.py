@@ -70,7 +70,7 @@ def token(token_economics, deploy_contract):
 def escrow(testerchain, token, token_economics, deploy_contract):
     # Creator deploys the escrow
     contract, _ = deploy_contract(
-        'StakingEscrow', token.address, *token_economics.staking_deployment_parameters
+        'StakingEscrow', token.address, *token_economics.staking_deployment_parameters, True
     )
 
     secret_hash = testerchain.w3.keccak(escrow_secret)
