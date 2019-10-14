@@ -1,7 +1,7 @@
 pragma solidity ^0.5.3;
 
 
-import "contracts/UserEscrow.sol";
+import "contracts/staking_contracts/StakingContractBase.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/StakingEscrow.sol";
 import "contracts/PolicyManager.sol";
@@ -56,7 +56,7 @@ contract UserEscrowProxy {
     **/
     function getStateContract() internal view returns (UserEscrowProxy) {
         address payable userEscrowAddress = address(bytes20(address(this)));
-        UserEscrowLibraryLinker linker = UserEscrow(userEscrowAddress).linker();
+        UserEscrowLibraryLinker linker = StakingContractBase(userEscrowAddress).linker();
         return UserEscrowProxy(linker.target());
     }
 
