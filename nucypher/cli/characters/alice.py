@@ -46,7 +46,7 @@ def _api_options(func):
 @click.group()
 def alice():
     """
-    Alice the Policy Authority" management commands.
+    "Alice the Policy Authority" management commands.
     """
     pass
 
@@ -208,7 +208,7 @@ def run(click_config,
                                                    geth, network, pay_with, provider_uri, registry_filepath)
     #############
 
-    ALICE = _create_alice(alice_config, click_config, dev, emitter, hw_wallet, min_stake, teacher_uri)
+    ALICE = _create_alice(alice_config, click_config, dev, emitter, hw_wallet, teacher_uri, min_stake)
 
     try:
         # RPC
@@ -263,7 +263,7 @@ def public_keys(click_config,
                                                    geth, network, pay_with, provider_uri, registry_filepath)
     #############
 
-    ALICE = _create_alice(alice_config, click_config, dev, emitter, hw_wallet, min_stake, teacher_uri)
+    ALICE = _create_alice(alice_config, click_config, dev, emitter, hw_wallet, teacher_uri, min_stake)
 
     response = ALICE.controller.public_keys()
     return response
@@ -301,7 +301,7 @@ def derive_policy_pubkey(click_config,
                                                    geth, network, pay_with, provider_uri, registry_filepath)
     #############
 
-    ALICE = _create_alice(alice_config, click_config, dev, emitter, hw_wallet, min_stake, teacher_uri)
+    ALICE = _create_alice(alice_config, click_config, dev, emitter, hw_wallet, teacher_uri, min_stake)
 
     # Request
     return ALICE.controller.derive_policy_encrypting_key(label=label)
@@ -347,7 +347,7 @@ def grant(click_config,
                                                    geth, network, pay_with, provider_uri, registry_filepath)
     #############
 
-    ALICE = _create_alice(alice_config, click_config, dev, emitter, hw_wallet, min_stake, teacher_uri)
+    ALICE = _create_alice(alice_config, click_config, dev, emitter, hw_wallet, teacher_uri, min_stake)
 
     # Request
     grant_request = {
@@ -398,7 +398,7 @@ def revoke(click_config,
                                                    geth, network, pay_with, provider_uri, registry_filepath)
     #############
 
-    ALICE = _create_alice(alice_config, click_config, dev, emitter, hw_wallet, min_stake, teacher_uri)
+    ALICE = _create_alice(alice_config, click_config, dev, emitter, hw_wallet, teacher_uri, min_stake)
 
     # Request
     revoke_request = {'label': label, 'bob_verifying_key': bob_verifying_key}
@@ -439,7 +439,7 @@ def decrypt(click_config,
                                                    geth, network, pay_with, provider_uri, registry_filepath)
     #############
 
-    ALICE = _create_alice(alice_config, click_config, dev, emitter, hw_wallet, min_stake, teacher_uri)
+    ALICE = _create_alice(alice_config, click_config, dev, emitter, hw_wallet, teacher_uri, min_stake)
 
     # Request
     request_data = {'label': label, 'message_kit': message_kit}
@@ -502,7 +502,7 @@ def _get_or_create_alice_config(click_config, dev, network, eth_node, provider_u
     return alice_config
 
 
-def _create_alice(alice_config, click_config, dev, emitter, hw_wallet, min_stake, teacher_uri):
+def _create_alice(alice_config, click_config, dev, emitter, hw_wallet, teacher_uri, min_stake):
     #
     # Produce Alice
     #
@@ -518,8 +518,9 @@ def _create_alice(alice_config, click_config, dev, emitter, hw_wallet, min_stake
                                            teacher_uri=teacher_uri,
                                            min_stake=min_stake,
                                            client_password=client_password)
+
+        return ALICE
     except NucypherKeyring.AuthenticationFailed as e:
         emitter.echo(str(e), color='red', bold=True)
         click.get_current_context().exit(1)
         # TODO: Exit codes (not only for this, but for other exceptions)
-    return ALICE

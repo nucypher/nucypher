@@ -214,7 +214,7 @@ def destroy(click_config,
     return actions.destroy_configuration(emitter, character_config=bob_config)
 
 
-@bob.command('public-keys')
+@bob.command(name='public-keys')
 @_api_options
 @nucypher_click_config
 def public_keys(click_config,

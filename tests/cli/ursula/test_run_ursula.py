@@ -172,6 +172,7 @@ def test_persistent_node_storage_integration(click_runner,
     assert result.exit_code == 0
 
 
+# TODO: test can probably be removed (--dev is not a valid option for `init`)
 def test_ursula_cannot_init_with_dev_flag(click_runner):
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
@@ -179,7 +180,7 @@ def test_ursula_cannot_init_with_dev_flag(click_runner):
                  '--dev')
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
     assert result.exit_code == 2
-    assert 'Cannot create a persistent development character' in result.output, 'Missing or invalid error message was produced.'
+    assert 'no such option: --dev' in result.output, 'Missing or invalid error message was produced.'
 
 
 def test_ursula_rest_host_determination(click_runner):
