@@ -201,7 +201,7 @@ def test_stake_set_worker(click_runner,
                  '--worker-address', manual_worker,
                  '--force')
 
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
+    user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(nucypher_cli,
                                  init_args,
                                  input=user_input,
@@ -261,7 +261,7 @@ def test_stake_detach_worker(click_runner,
                  '--worker-address', manual_worker,
                  '--force')
 
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
+    user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(nucypher_cli,
                                  init_args,
                                  input=user_input,

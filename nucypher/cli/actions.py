@@ -294,7 +294,7 @@ def make_cli_character(character_config,
                                      network_middleware=character_config.network_middleware,
                                      **config_args)
     except CryptoError:
-        raise character_config.keyring.AuthenticationFailed("Failed keyring unlocking. "
+        raise character_config.keyring.AuthenticationFailed("Failed to unlock keyring. "
                                                             "Are you sure you provided the correct password?")
     #
     # Post-Init

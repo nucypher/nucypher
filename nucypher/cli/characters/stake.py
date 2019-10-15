@@ -169,8 +169,8 @@ def stake(click_config,
             option = "--beneficiary_address" if beneficiary_address else "--staking-address"
             raise click.BadOptionUsage(option_name=option,
                                        message=f"You must specify both --beneficiary-address and --staking-address. "
-                                               f"Only {option} was provided. As an alternative you can input just an "
-                                               f"individual allocation with --allocation-file <PATH>")
+                                               f"Only {option} was provided. As an alternative, you can simply "
+                                               f"provide an individual allocation with --allocation-file <PATH>")
     else:
         individual_allocation = None
         initial_address = staking_address

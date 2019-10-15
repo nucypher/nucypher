@@ -128,7 +128,7 @@ def test_stake_list(click_runner,
     stake_args = ('stake', 'list',
                   '--config-file', stakeholder_configuration_file_location)
 
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
+    user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     assert str(stake_value) in result.output
@@ -159,7 +159,7 @@ def test_staker_divide_stakes(click_runner,
                   '--config-file', stakeholder_configuration_file_location,
                   '--poa')
 
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
+    user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     assert str(NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens()) in result.output
@@ -178,7 +178,7 @@ def test_stake_set_worker(click_runner,
                  '--worker-address', manual_worker,
                  '--force')
 
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
+    user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(nucypher_cli,
                                  init_args,
                                  input=user_input,
