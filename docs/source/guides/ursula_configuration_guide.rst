@@ -11,6 +11,10 @@ If you want to run a NuCypher node that participates in the decentralized networ
 you need to install it first. The installation procedure for the Ursula (Worker)
 node is exactly the same as for Staker.
 
+You will need a machine (could be a physical computer or a cloud instance) which
+can be externally accessed via a TCP port 9151 (make sure it can be accessed
+from the outside).
+
 First, you install geth. You'll need to run it in the background and sync up.
 For testnet, it is:
 
@@ -29,6 +33,9 @@ You need to create a software-controlled account in geth:
 
 So, your worker account is ``0xc080708026a3a280894365efd51bb64521c45147`` in
 this case.
+
+Fund this account with Görli testnet ETH! To do it, go to
+https://goerli-faucet.slock.it/.
 
 Before installing ``nucypher``, you may need to install necessary developer
 tools and headers, if you don't have them already. In Ubuntu, Debian, Linux Mint
@@ -93,6 +100,8 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
 
     Enter Nodes Public IPv4 Address: <YOUR NODE IP HERE>
 
+Additionally, make sure that your port 9151 is open.
+
 
 4. Create a password when prompted
 -----------------------------------------
@@ -136,6 +145,8 @@ Verify that the node setup was successful by running the ``status`` command.
 
 
 You can also view your node’s network status webpage by navigating your web browser to ``https://<your-node-ip-address>:9151/status``.
+It's a good idea to ensure that this URL can be accessed publicly: it means that
+your node can be seen by other NuCypher nodes.
 
 .. NOTE::
     Since Ursulas self-sign TLS certificates, you may receive a warning from your web browser.
