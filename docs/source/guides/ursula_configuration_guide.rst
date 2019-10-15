@@ -145,7 +145,7 @@ Verify that the node setup was successful by running the ``status`` command.
 
 
 You can also view your node’s network status webpage by navigating your web browser to ``https://<your-node-ip-address>:9151/status``.
-It's a good idea to check that this URL opens from the outside: it means that
+It's a good idea to ensure that this URL can be accessed publicly: it means that
 your node can be seen by other NuCypher nodes.
 
 .. NOTE::
