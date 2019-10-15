@@ -259,7 +259,7 @@ def test_corrupted_configuration(click_runner,
 
     # Attempt destruction with invalid configuration (missing registry)
     ursula_file_location = os.path.join(custom_filepath, default_filename)
-    destruction_args = ('ursula', '--debug', 'destroy', '--config-file', ursula_file_location)
+    destruction_args = ('ursula', 'destroy', '--debug', '--config-file', ursula_file_location)
     result = click_runner.invoke(nucypher_cli, destruction_args, input='Y\n', catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 

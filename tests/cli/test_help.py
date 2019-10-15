@@ -49,4 +49,4 @@ def test_nucypher_deploy_help_message(click_runner):
     help_args = ('--help', )
     result = click_runner.invoke(deploy, help_args, catch_exceptions=False)
     assert result.exit_code == 0
-    assert 'deploy [OPTIONS] ACTION' in result.output, 'Missing or invalid help text was produced.'
+    assert 'deploy [OPTIONS] COMMAND [ARGS]' in result.output, 'Missing or invalid help text was produced.'
