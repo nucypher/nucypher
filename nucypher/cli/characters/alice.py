@@ -12,9 +12,8 @@ from nucypher.config.characters import AliceConfiguration
 from nucypher.config.keyring import NucypherKeyring
 
 
-# Args (geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath, config_file, discovery_port,
-#       hw_wallet, teacher_uri, min_stake)
-def _api_options(func):
+# Args (geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath)
+def _admin_options(func):
     @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
     @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
     @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
@@ -22,6 +21,16 @@ def _api_options(func):
     @click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
     @click.option('--network', help="Network Domain Name", type=click.STRING)
     @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper
+
+
+# Args (geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath, config_file, discovery_port,
+#       hw_wallet, teacher_uri, min_stake)
+def _api_options(func):
+    @_admin_options
     @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
     @click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT)
     @click.option('--hw-wallet/--no-hw-wallet', default=False)
@@ -43,22 +52,27 @@ def alice():
 
 
 @alice.command()
-@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
+@_admin_options
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
-@click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
-@click.option('--dev', '-d', help="Enable development mode", is_flag=True)
-@click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--network', help="Network Domain Name", type=click.STRING)
-@click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
 @click.option('--m', help="M-Threshold KFrags", type=click.INT)
 @click.option('--n', help="N-Total KFrags", type=click.INT)
 @click.option('--rate', help="Policy rate per period in wei", type=click.FLOAT)
 @click.option('--duration-periods', help="Policy duration in periods", type=click.FLOAT)
 @nucypher_click_config
-def init(click_config, geth, provider_uri, config_root, federated_only, dev, pay_with,
-         network, registry_filepath, poa, m, n, rate, duration_periods):
+def init(click_config,
+
+         # Admin Options
+         geth,
+         provider_uri,
+         federated_only,
+         dev,
+         pay_with,
+         network,
+         registry_filepath,
+
+         # Other
+         config_root, poa, m, n, rate, duration_periods):
     """
     Create a brand new persistent Alice.
     """
@@ -125,18 +139,23 @@ def view(click_config, config_file):
 
 
 @alice.command()
-@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
-@click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
-@click.option('--dev', '-d', help="Enable development mode", is_flag=True)
-@click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--network', help="Network Domain Name", type=click.STRING)
-@click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+@_admin_options
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @nucypher_click_config
-def destroy(click_config, geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath,
+def destroy(click_config,
+
+            # Admin Options
+            geth,
+            provider_uri,
+            federated_only,
+            dev,
+            pay_with,
+            network,
+            registry_filepath,
+
+            # Other
             config_file, discovery_port, force):
     """
     Delete existing Alice's configuration.
@@ -504,5 +523,3 @@ def _create_alice(alice_config, click_config, dev, emitter, hw_wallet, min_stake
         click.get_current_context().exit(1)
         # TODO: Exit codes (not only for this, but for other exceptions)
     return ALICE
-
-

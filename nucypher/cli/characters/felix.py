@@ -36,6 +36,8 @@ def _admin_options(func):
     @click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT,
                   default=FelixConfiguration.DEFAULT_REST_PORT)
     @click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
+    @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT,
+                  default=0)
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -146,7 +148,6 @@ def destroy(click_config,
 @_common_options
 @_admin_options
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
-@click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @nucypher_click_config
 def createdb(click_config,
 
@@ -165,9 +166,10 @@ def createdb(click_config,
              config_file,
              port,
              teacher_uri,
+             min_stake,
 
              # Other
-             force, min_stake):
+             force):
     """
     Create Felix DB.
     """
@@ -195,7 +197,6 @@ def createdb(click_config,
 @felix.command()
 @_common_options
 @_admin_options
-@click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @nucypher_click_config
 def view(click_config,
 
@@ -214,8 +215,6 @@ def view(click_config,
          config_file,
          port,
          teacher_uri,
-
-         # Other
          min_stake):
     """
     View Felix token balance.
@@ -243,7 +242,6 @@ def view(click_config,
 @felix.command()
 @_common_options
 @_admin_options
-@click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @nucypher_click_config
 def accounts(click_config,
 
@@ -262,8 +260,6 @@ def accounts(click_config,
              config_file,
              port,
              teacher_uri,
-
-             # Other
              min_stake):
     """
     View Felix known accounts.
@@ -288,7 +284,6 @@ def accounts(click_config,
 @_common_options
 @_admin_options
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True, default=False)
-@click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @nucypher_click_config
 def run(click_config,
 
@@ -307,9 +302,10 @@ def run(click_config,
         config_file,
         port,
         teacher_uri,
+        min_stake,
 
         # Other
-        dry_run, min_stake):
+        dry_run):
     """
     Run Felix service.
     """
