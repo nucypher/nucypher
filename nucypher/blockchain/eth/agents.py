@@ -562,6 +562,11 @@ class PolicyManagerAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
         return receipt
 
+    @validate_checksum_address
+    def get_reward_amount(self, staker_address: str) -> int:
+        reward_amount = self.contract.functions.nodes(staker_address).call()[0]
+        return reward_amount
+
 
 class PreallocationEscrowAgent(EthereumContractAgent):
 

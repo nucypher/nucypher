@@ -584,8 +584,8 @@ class Staker(NucypherTokenActor):
         self.__worker_address = None
 
         # Blockchain
-        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
-        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)  # type: PolicyManagerAgent
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)  # type: StakingEscrowAgent
         self.economics = TokenEconomicsFactory.get_economics(registry=self.registry)
 
         # Staking via contract
@@ -835,9 +835,13 @@ class Staker(NucypherTokenActor):
             receipt = self.staking_agent.mint(staker_address=self.checksum_address)
         return receipt
 
-    def calculate_reward(self) -> int:
+    def calculate_staking_reward(self) -> int:
         staking_reward = self.staking_agent.calculate_staking_reward(staker_address=self.checksum_address)
         return staking_reward
+
+    def calculate_policy_reward(self) -> int:
+        policy_reward = self.policy_agent.get_reward_amount(staker_address=self.checksum_address)
+        return policy_reward
 
     @only_me
     @save_receipt
@@ -857,7 +861,7 @@ class Staker(NucypherTokenActor):
     def collect_staking_reward(self) -> str:
         """Withdraw tokens rewarded for staking."""
         if self.is_contract:
-            reward_amount = self.staking_agent.calculate_staking_reward(staker_address=self.checksum_address)
+            reward_amount = self.calculate_staking_reward()
             self.log.debug(f"Withdrawing staking reward ({NU.from_nunits(reward_amount)}) to {self.checksum_address}")
             receipt = self.preallocation_escrow_agent.withdraw_as_staker(value=reward_amount)
         else:

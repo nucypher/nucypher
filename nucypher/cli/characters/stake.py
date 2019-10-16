@@ -442,12 +442,16 @@ def stake(click_config,
         STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
         if staking_reward:
             # Note: Sending staking / inflation rewards to another account is not allowed.
+            reward_amount = NU.from_nunits(STAKEHOLDER.calculate_staking_reward())
+            emitter.echo(message=f'Collecting {reward_amount} from staking rewards...')
             staking_receipt = STAKEHOLDER.collect_staking_reward()
             paint_receipt_summary(receipt=staking_receipt,
                                   chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
                                   emitter=emitter)
 
         if policy_reward:
+            reward_amount = Web3.fromWei(STAKEHOLDER.calculate_policy_reward(), 'ether')
+            emitter.echo(message=f'Collecting {reward_amount} ETH from policy rewards...')
             policy_receipt = STAKEHOLDER.collect_policy_reward(collector_address=withdraw_address)
             paint_receipt_summary(receipt=policy_receipt,
                                   chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
