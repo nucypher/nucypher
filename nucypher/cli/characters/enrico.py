@@ -31,7 +31,11 @@ def enrico():
 @click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT)
 @nucypher_click_config
 def run(click_config,
-        policy_encrypting_key,  # common
+
+        # Common
+        policy_encrypting_key,
+
+        # Other
         dry_run, http_port):
     """
     Start Enrico's controller.
@@ -51,12 +55,17 @@ def run(click_config,
 
 
 @enrico.command()
-@_common_options
 @click.option('--message', help="A unicode message to encrypt for a policy", type=click.STRING, required=True)
+@_common_options
 @nucypher_click_config
 def encrypt(click_config,
-            policy_encrypting_key,  # common
-            message):
+
+            # Other (required)
+            message,
+
+            # Common
+            policy_encrypting_key,
+            ):
     """
     Encrypt a message under a given policy public key.
     """

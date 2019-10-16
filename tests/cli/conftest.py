@@ -20,7 +20,6 @@ import contextlib
 import json
 import os
 import shutil
-import sys
 
 import pytest
 from click.testing import CliRunner
@@ -29,10 +28,11 @@ from nucypher.blockchain.eth.registry import AllocationRegistry, InMemoryContrac
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.sandbox.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH,
+    MOCK_CUSTOM_INSTALLATION_PATH_2,
+    INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_ALLOCATION_INFILE,
     MOCK_REGISTRY_FILEPATH,
     ONE_YEAR_IN_SECONDS)
-from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH_2, INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.fixture(scope='module')

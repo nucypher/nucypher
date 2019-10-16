@@ -270,10 +270,13 @@ def public_keys(click_config,
 
 
 @alice.command('derive-policy-pubkey')
-@_api_options
 @click.option('--label', help="The label for a policy", type=click.STRING, required=True)
+@_api_options
 @nucypher_click_config
 def derive_policy_pubkey(click_config,
+
+                         # Other (required)
+                         label,
 
                          # API Options
                          geth,
@@ -288,9 +291,7 @@ def derive_policy_pubkey(click_config,
                          hw_wallet,
                          teacher_uri,
                          min_stake,
-
-                         # Other
-                         label):
+                         ):
     """
     Get a policy public key from a policy label.
     """
@@ -308,7 +309,6 @@ def derive_policy_pubkey(click_config,
 
 
 @alice.command()
-@_api_options
 @click.option('--bob-encrypting-key', help="Bob's encrypting key as a hexadecimal string", type=click.STRING,
               required=True)
 @click.option('--bob-verifying-key', help="Bob's verifying key as a hexadecimal string", type=click.STRING,
@@ -318,8 +318,14 @@ def derive_policy_pubkey(click_config,
 @click.option('--n', help="N-Total KFrags", type=click.INT)
 @click.option('--expiration', help="Expiration Datetime of a policy", type=click.STRING)  # TODO: click.DateTime()
 @click.option('--value', help="Total policy value (in Wei)", type=types.WEI)
+@_api_options
 @nucypher_click_config
 def grant(click_config,
+          # Other (required)
+          bob_encrypting_key, bob_verifying_key, label,
+
+          # Other
+          m, n, expiration, value,
 
           # API Options
           geth,
@@ -334,9 +340,7 @@ def grant(click_config,
           hw_wallet,
           teacher_uri,
           min_stake,
-
-          # Other
-          bob_encrypting_key, bob_verifying_key, label, m, n, expiration, value):
+          ):
     """
     Create and enact an access policy for some Bob.
     """
@@ -365,12 +369,15 @@ def grant(click_config,
 
 
 @alice.command()
-@_api_options
 @click.option('--bob-verifying-key', help="Bob's verifying key as a hexadecimal string", type=click.STRING,
               required=True)
 @click.option('--label', help="The label for a policy", type=click.STRING, required=True)
+@_api_options
 @nucypher_click_config
 def revoke(click_config,
+
+           # Other (required)
+           bob_verifying_key, label,
 
            # API Options
            geth,
@@ -385,9 +392,7 @@ def revoke(click_config,
            hw_wallet,
            teacher_uri,
            min_stake,
-
-           # Other
-           bob_verifying_key, label):
+           ):
     """
     Revoke a policy.
     """
@@ -406,12 +411,15 @@ def revoke(click_config,
 
 
 @alice.command()
-@_api_options
 @click.option('--label', help="The label for a policy", type=click.STRING, required=True)
 @click.option('--message-kit', help="The message kit unicode string encoded in base64", type=click.STRING,
               required=True)
+@_api_options
 @nucypher_click_config
 def decrypt(click_config,
+
+            # Other (required)
+            label, message_kit,
 
             # API Options
             geth,
@@ -426,9 +434,7 @@ def decrypt(click_config,
             hw_wallet,
             teacher_uri,
             min_stake,
-
-            # Other
-            label, message_kit):
+            ):
     """
     Decrypt data encrypted under an Alice's policy public key.
     """

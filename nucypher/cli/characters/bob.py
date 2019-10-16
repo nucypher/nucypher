@@ -181,6 +181,7 @@ def view(click_config,
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT)
+@click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @nucypher_click_config
 def destroy(click_config,
 
@@ -194,6 +195,7 @@ def destroy(click_config,
             dev,
             config_file,
             discovery_port,
+            force
             ):
     """
     Delete existing Bob's configuration.
@@ -201,8 +203,8 @@ def destroy(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    bob_config = _get_bob_config(click_config, provider_uri, network, registry_filepath, checksum_address,
-                                 dev, config_file, discovery_port)
+    bob_config = _get_bob_config(click_config, dev, provider_uri, network, registry_filepath, checksum_address,
+                                 config_file, discovery_port)
     #############
 
     # Validate
@@ -211,7 +213,7 @@ def destroy(click_config,
         raise click.BadOptionUsage(option_name='--dev', message=message)
 
     # Request
-    return actions.destroy_configuration(emitter, character_config=bob_config)
+    return actions.destroy_configuration(emitter, character_config=bob_config, force=force)
 
 
 @bob.command(name='public-keys')

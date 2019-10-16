@@ -509,7 +509,6 @@ def transfer_ownership(
                                                                                            dev,
                                                                                            force)
 
-
     if not target_address:
         target_address = click.prompt("Enter new owner's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 

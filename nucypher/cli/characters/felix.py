@@ -14,7 +14,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
 # Args (checksum_address, geth, dev, network, registry_filepath,  provider_uri, host, db_filepath, poa)
-def _common_options(func):
+def _admin_options(func):
     @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
     @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
     @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
@@ -31,7 +31,8 @@ def _common_options(func):
 
 
 # Args (config_file, port, teacher_uri)
-def _admin_options(func):
+def _api_options(func):
+    @_admin_options
     @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
     @click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT,
                   default=FelixConfiguration.DEFAULT_REST_PORT)
@@ -53,13 +54,13 @@ def felix():
 
 
 @felix.command()
-@_common_options
+@_admin_options
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--discovery-port', help="The host port to run Felix Node Discovery services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_LEARNER_PORT)
 @nucypher_click_config
 def init(click_config,
 
-         # Common Options
+         # Admin Options
          checksum_address,
          geth,
          dev,
@@ -110,14 +111,14 @@ def init(click_config,
 
 
 @felix.command()
-@_common_options
+@_admin_options
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_REST_PORT)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @nucypher_click_config
 def destroy(click_config,
 
-            # Common Options
+            # Admin Options
             checksum_address,
             geth,
             dev,
@@ -145,13 +146,12 @@ def destroy(click_config,
 
 
 @felix.command()
-@_common_options
-@_admin_options
+@_api_options
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @nucypher_click_config
 def createdb(click_config,
 
-             # Common Options
+             # API Options
              checksum_address,
              geth,
              dev,
@@ -161,8 +161,6 @@ def createdb(click_config,
              host,
              db_filepath,
              poa,
-
-             # Admin Options
              config_file,
              port,
              teacher_uri,
@@ -195,12 +193,11 @@ def createdb(click_config,
 
 
 @felix.command()
-@_common_options
-@_admin_options
+@_api_options
 @nucypher_click_config
 def view(click_config,
 
-         # Common Options
+         # API Options
          checksum_address,
          geth,
          dev,
@@ -210,8 +207,6 @@ def view(click_config,
          host,
          db_filepath,
          poa,
-
-         # Admin Options
          config_file,
          port,
          teacher_uri,
@@ -240,12 +235,11 @@ def view(click_config,
 
 
 @felix.command()
-@_common_options
-@_admin_options
+@_api_options
 @nucypher_click_config
 def accounts(click_config,
 
-             # Common Options
+             # API Options
              checksum_address,
              geth,
              dev,
@@ -255,8 +249,6 @@ def accounts(click_config,
              host,
              db_filepath,
              poa,
-
-             # Admin Options
              config_file,
              port,
              teacher_uri,
@@ -281,13 +273,12 @@ def accounts(click_config,
 
 
 @felix.command()
-@_common_options
-@_admin_options
+@_api_options
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True, default=False)
 @nucypher_click_config
 def run(click_config,
 
-        # Common Options
+        # API Options
         checksum_address,
         geth,
         dev,
@@ -297,8 +288,6 @@ def run(click_config,
         host,
         db_filepath,
         poa,
-
-        # Admin Options
         config_file,
         port,
         teacher_uri,

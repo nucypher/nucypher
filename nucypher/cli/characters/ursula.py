@@ -199,6 +199,7 @@ def destroy(click_config,
 
 
 @ursula.command()
+@_admin_options
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
 @nucypher_click_config
@@ -370,7 +371,7 @@ def save_metadata(click_config,
 
     URSULA = _create_ursula(ursula_config, click_config, dev, emitter, lonely, teacher_uri, min_stake)
 
-    metadata_path = ursula.write_node_metadata(node=URSULA)
+    metadata_path = URSULA.write_node_metadata(node=URSULA)
     emitter.message(f"Successfully saved node metadata to {metadata_path}.", color='green')
 
 
