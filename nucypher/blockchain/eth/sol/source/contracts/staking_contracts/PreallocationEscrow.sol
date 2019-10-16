@@ -5,14 +5,14 @@ import "zeppelin/ownership/Ownable.sol";
 import "zeppelin/token/ERC20/SafeERC20.sol";
 import "zeppelin/math/SafeMath.sol";
 import "contracts/NuCypherToken.sol";
-import "contracts/staking_contracts/StakingContractBase.sol";
+import "contracts/staking_contracts/AbstractStakingContract.sol";
 
 
 /**
 * @notice Contract holds tokens for vesting.
 * Also tokens can be used as a stake in the staking escrow contract
 **/
-contract UserEscrow is StakingContractBase, Ownable {
+contract PreallocationEscrow is AbstractStakingContract, Ownable {
     using SafeERC20 for NuCypherToken;
     using SafeMath for uint256;
 
@@ -25,10 +25,10 @@ contract UserEscrow is StakingContractBase, Ownable {
     uint256 public endLockTimestamp;
 
     /**
-    * @param _linker StakerProxyLinker contract address
+    * @param _router Interface router contract address
     * @param _token Token contract
     **/
-    constructor(UserEscrowLibraryLinker _linker, NuCypherToken _token) public StakingContractBase(_linker) {
+    constructor(StakingInterfaceRouter _router, NuCypherToken _token) public AbstractStakingContract(_router) {
         // check that the input address is contract
         require(_token.totalSupply() > 0);
         token = _token;

@@ -6,16 +6,16 @@ import "zeppelin/utils/Address.sol";
 
 
 /**
-* @notice Links library with staking contracts
+* @notice Router for accessing interface contract
 **/
-contract UserEscrowLibraryLinker is Ownable {
+contract StakingInterfaceRouter is Ownable {
     using Address for address;
 
     address public target;
     bytes32 public secretHash;
 
     /**
-    * @param _target Address of the library contract
+    * @param _target Address of the interface contract
     * @param _newSecretHash Secret hash (keccak256)
     **/
     constructor(address _target, bytes32 _newSecretHash) public {
@@ -25,7 +25,7 @@ contract UserEscrowLibraryLinker is Ownable {
     }
 
     /**
-    * @notice Upgrade library
+    * @notice Upgrade interface
     * @param _target New contract address
     * @param _secret Secret for proof of contract owning
     * @param _newSecretHash New secret hash (keccak256)
@@ -44,18 +44,18 @@ contract UserEscrowLibraryLinker is Ownable {
 * @notice Base class for any staking contract
 * @dev Implement `isFallbackAllowed()` or override fallback function
 **/
-contract StakingContractBase {
+contract AbstractStakingContract {
     using Address for address;
 
-    UserEscrowLibraryLinker public linker;
+    StakingInterfaceRouter public router;
 
     /**
-    * @param _linker StakerProxyLinker contract address
+    * @param _router Interface router contract address
     **/
-    constructor(UserEscrowLibraryLinker _linker) public {
+    constructor(StakingInterfaceRouter _router) public {
         // check that the input address is contract
-        require(_linker.target().isContract());
-        linker = _linker;
+        require(_router.target().isContract());
+        router = _router;
     }
 
     /**
@@ -68,10 +68,10 @@ contract StakingContractBase {
     **/
     function () external payable {
         require(isFallbackAllowed());
-        address proxy = linker.target();
-        require(proxy.isContract());
-        // execute requested function from target contract using storage of the dispatcher
-        (bool callSuccess,) = proxy.delegatecall(msg.data);
+        address target = router.target();
+        require(target.isContract());
+        // execute requested function from target contract
+        (bool callSuccess,) = target.delegatecall(msg.data);
         if (callSuccess) {
             // copy result of the request to the return data
             // we can use the second return value from `delegatecall` (bytes memory)
