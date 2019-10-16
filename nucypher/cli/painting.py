@@ -387,8 +387,11 @@ def prettify_stake(stake, index: int = None) -> str:
 
 
 def paint_stakes(emitter, stakes):
-    if not stakes:
+    active_stakes = sorted((stake for stake in stakes if stake.is_active),
+                           key=lambda some_stake: some_stake.address_index_ordering_key)
+    if not active_stakes:
         emitter.echo(f"There are no active stakes")
+        return
 
     title = "======================================= Active Stakes =========================================\n"
 
@@ -399,7 +402,7 @@ def paint_stakes(emitter, stakes):
     emitter.echo(header, bold=True)
     emitter.echo(breaky, bold=True)
 
-    for index, stake in enumerate(sorted(stakes, key=lambda some_stake: some_stake.address_index_ordering_key)):
+    for index, stake in enumerate(active_stakes):
         row = prettify_stake(stake=stake, index=index)
         row_color = 'yellow' if stake.worker_address == BlockchainInterface.NULL_ADDRESS else 'white'
         emitter.echo(row, color=row_color)
