@@ -5,9 +5,9 @@ import "contracts/NuCypherToken.sol";
 
 
 /**
-* @notice Contract for using in UserEscrow tests
+* @notice Contract for using in staking contracts tests
 **/
-contract StakingEscrowForUserEscrowMock {
+contract StakingEscrowForStakingContractMock {
 
     NuCypherToken token;
     uint32 public secondsPerPeriod = 1;
@@ -71,9 +71,9 @@ contract StakingEscrowForUserEscrowMock {
 
 
 /**
-* @notice Contract for testing user escrow contract
+* @notice Contract for staking contract tests
 **/
-contract PolicyManagerForUserEscrowMock {
+contract PolicyManagerForStakingContractMock {
 
     uint32 public secondsPerPeriod = 1;
     uint256 public minRewardRate;
@@ -98,9 +98,9 @@ contract PolicyManagerForUserEscrowMock {
 
 
 /**
-* @notice Contract for user escrow tests
+* @notice Contract for staking contract tests
 **/
-contract UserEscrowLibraryMockV1 {
+contract StakingInterfaceMockV1 {
 
     function firstMethod() public pure {}
 
@@ -112,9 +112,9 @@ contract UserEscrowLibraryMockV1 {
 
 
 /**
-* @notice Contract for user escrow tests
+* @notice Contract for staking contract tests
 **/
-contract UserEscrowLibraryMockV2 {
+contract StakingInterfaceMockV2 {
 
     function () external payable {
         // can only use with ETH
@@ -133,9 +133,9 @@ contract UserEscrowLibraryMockV2 {
 
 
 /**
-* @dev Library that could be destroyed by selfdestruct
+* @dev Interface that could be destroyed by selfdestruct
 **/
-contract DestroyableUserEscrowLibrary {
+contract DestroyableStakingInterface {
 
     function method() public pure returns (uint256) {
         return 15;

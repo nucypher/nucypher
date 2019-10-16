@@ -1,18 +1,18 @@
 pragma solidity ^0.5.3;
 
 
-import "contracts/staking_contracts/StakingContractBase.sol";
+import "contracts/staking_contracts/AbstractStakingContract.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/StakingEscrow.sol";
 import "contracts/PolicyManager.sol";
 
 
 /**
-* @notice Proxy to access main contracts from the UserEscrow contract
+* @notice Interface for accessing main contracts from a staking contract
 * @dev All methods must be stateless because this code will execute by delegatecall call
 * If state is needed - use getStateContract() method to access state of this contract
 **/
-contract UserEscrowProxy {
+contract StakingInterface {
 
     event DepositedAsStaker(address indexed sender, uint256 value, uint16 periods);
     event WithdrawnAsStaker(address indexed sender, uint256 value);
@@ -52,12 +52,12 @@ contract UserEscrowProxy {
 
     /**
     * @notice Get contract which stores state
-    * @dev Assume that `this` is the UserEscrow contract
+    * @dev Assume that `this` is the staking contract
     **/
-    function getStateContract() internal view returns (UserEscrowProxy) {
-        address payable userEscrowAddress = address(bytes20(address(this)));
-        UserEscrowLibraryLinker linker = StakingContractBase(userEscrowAddress).linker();
-        return UserEscrowProxy(linker.target());
+    function getStateContract() internal view returns (StakingInterface) {
+        address payable stakingContractAddress = address(bytes20(address(this)));
+        StakingInterfaceRouter router = AbstractStakingContract(stakingContractAddress).router();
+        return StakingInterface(router.target());
     }
 
     /**
@@ -91,10 +91,9 @@ contract UserEscrowProxy {
     * @notice Deposit tokens to the staking escrow
     * @param _value Amount of token to deposit
     * @param _periods Amount of periods during which tokens will be locked
-    * @dev Assume that `this` is the UserEscrow contract
     **/
     function depositAsStaker(uint256 _value, uint16 _periods) public {
-        UserEscrowProxy state = getStateContract();
+        StakingInterface state = getStateContract();
         NuCypherToken tokenFromState = state.token();
         require(tokenFromState.balanceOf(address(this)) >= _value);
         StakingEscrow escrowFromState = state.escrow();
@@ -104,7 +103,7 @@ contract UserEscrowProxy {
     }
 
     /**
-    * @notice Withdraw available amount of tokens from the staking escrow to the user escrow
+    * @notice Withdraw available amount of tokens from the staking escrow to the staking contract
     * @param _value Amount of token to withdraw
     **/
     function withdrawAsStaker(uint256 _value) public {
@@ -148,7 +147,7 @@ contract UserEscrowProxy {
     }
 
     /**
-    * @notice Withdraw available reward from the policy manager to the user escrow
+    * @notice Withdraw available reward from the policy manager to the staking contract
     **/
     function withdrawPolicyReward(address payable _recipient) public {
         uint256 value = getStateContract().policyManager().withdraw(_recipient);
