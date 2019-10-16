@@ -63,6 +63,7 @@ from nucypher.config.characters import StakeHolderConfiguration
 @click.option('--lock-until', help="Period to release re-staking lock", type=click.IntRange(min=0))
 @click.option('--beneficiary-address', help="Address of a pre-allocation beneficiary", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--allocation-filepath', help="Path to individual allocation file", type=EXISTING_READABLE_FILE)
+@click.option('--all', help="List all stakes, including inactive", is_flag=True)
 @nucypher_click_config
 def stake(click_config,
           action,
@@ -90,6 +91,7 @@ def stake(click_config,
           staking_reward,
           enable,
           lock_until,
+          all,
 
           # Allocation stakers
           beneficiary_address,
@@ -192,7 +194,7 @@ def stake(click_config,
     #
 
     if action == 'list':
-        painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER.all_stakes)
+        painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER.all_stakes, paint_inactive=all)
         return  # Exit
 
     elif action == 'accounts':
