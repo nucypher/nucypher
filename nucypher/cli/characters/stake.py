@@ -304,8 +304,8 @@ def stake(click_config,
             prompt = f"Enter stake duration ({STAKEHOLDER.economics.minimum_locked_periods} periods minimum)"
             lock_periods = click.prompt(prompt, type=stake_duration_range)
 
-        start_period = STAKEHOLDER.staking_agent.get_current_period()
-        end_period = start_period + lock_periods
+        start_period = STAKEHOLDER.staking_agent.get_current_period() + 1
+        unlock_period = start_period + lock_periods
 
         #
         # Review
@@ -318,7 +318,7 @@ def stake(click_config,
                                         stake_value=value,
                                         lock_periods=lock_periods,
                                         start_period=start_period,
-                                        end_period=end_period)
+                                        unlock_period=unlock_period)
 
             confirm_staged_stake(staker_address=staking_address, value=value, lock_periods=lock_periods)
 

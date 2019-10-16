@@ -329,8 +329,19 @@ def paint_staged_stake(emitter,
                        stake_value,
                        lock_periods,
                        start_period,
-                       end_period,
+                       unlock_period,
                        division_message: str = None):
+    start_datetime = datetime_at_period(period=start_period,
+                                        seconds_per_period=stakeholder.economics.seconds_per_period,
+                                        start_of_period=True)
+
+    unlock_datetime = datetime_at_period(period=unlock_period,
+                                         seconds_per_period=stakeholder.economics.seconds_per_period,
+                                         start_of_period=True)
+
+    start_datetime_pretty = start_datetime.local_datetime().strftime("%b %d %H:%M %Z")
+    unlock_datetime_pretty = unlock_datetime.local_datetime().strftime("%b %d %H:%M %Z")
+
     if division_message:
         emitter.echo(f"\n{'=' * 30} ORIGINAL STAKE {'=' * 28}", bold=True)
         emitter.echo(division_message)
@@ -340,14 +351,10 @@ def paint_staged_stake(emitter,
     emitter.echo(f"""
 Staking address: {staking_address}
 ~ Chain      -> ID # {stakeholder.wallet.blockchain.client.chain_id} | {stakeholder.wallet.blockchain.client.chain_name}
-~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NuNits)
+~ Value      -> {stake_value} ({int(stake_value)} NuNits)
 ~ Duration   -> {lock_periods} Days ({lock_periods} Periods)
-~ Enactment  -> {datetime_at_period(period=start_period,
-                                    seconds_per_period=stakeholder.economics.seconds_per_period,
-                                    start_of_period=True)} (period #{start_period})
-~ Expiration -> {datetime_at_period(period=end_period,
-                                    seconds_per_period=stakeholder.economics.seconds_per_period,
-                                    start_of_period=True)} (period #{end_period})
+~ Enactment  -> {start_datetime_pretty} (period #{start_period})
+~ Expiration -> {unlock_datetime_pretty} (period #{unlock_period})
     """)
 
     # TODO: periods != Days - Do we inform the user here?
@@ -429,7 +436,7 @@ Staking address: {staking_address}
                        stake_value=target_value,
                        lock_periods=new_duration_periods,
                        start_period=original_stake.start_period,
-                       end_period=new_end_period,
+                       unlock_period=new_end_period,
                        division_message=division_message)
 
 
