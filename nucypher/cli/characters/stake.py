@@ -200,8 +200,7 @@ def stake(click_config,
         return  # Exit
 
     elif action == 'accounts':
-        # TODO: Order accounts like shown by blockchain.client.accounts
-        for address, balances in STAKEHOLDER.wallet.balances.items():
+        for address, balances in sorted(STAKEHOLDER.wallet.balances.items()):
             emitter.echo(f"{address} | {Web3.fromWei(balances['ETH'], 'ether')} ETH | {NU.from_nunits(balances['NU'])}")
         return  # Exit
 

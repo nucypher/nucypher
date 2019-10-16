@@ -220,7 +220,13 @@ class Stake:
         return r
 
     def __eq__(self, other) -> bool:
+        # TODO: Is this right? Two stakes from different accounts, durations, etc, but of the same value, are equal?
         return bool(self.value == other.value)
+
+    @property
+    def address_index_ordering_key(self):
+        """To be used as a lexicographical order key for Stakes based on the tuple (staker_address, index)."""
+        return self.staker_address, self.index
 
     #
     # Metadata

@@ -1402,7 +1402,7 @@ class StakeHolder(Staker):
         @property
         def balances(self) -> Dict[str, int]:
             balances = dict()
-            for account in self.__accounts:
+            for account in self.accounts:
                 funds = {'ETH': self.blockchain.client.get_balance(account),  # TODO: EthAgent or something?
                          'NU': self.token_agent.get_balance(account)}
                 balances.update({account: funds})

@@ -393,7 +393,8 @@ def paint_stakes(emitter, stakes):
     emitter.echo(title)
     emitter.echo(header, bold=True)
     emitter.echo(breaky, bold=True)
-    for index, stake in enumerate(stakes):
+
+    for index, stake in enumerate(sorted(stakes, key=lambda some_stake: some_stake.address_index_ordering_key)):
         row = prettify_stake(stake=stake, index=index)
         row_color = 'yellow' if stake.worker_address == BlockchainInterface.NULL_ADDRESS else 'white'
         emitter.echo(row, color=row_color)
