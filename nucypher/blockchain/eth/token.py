@@ -205,9 +205,11 @@ class Stake:
 
         # Time
         self.start_datetime = datetime_at_period(period=first_locked_period,
-                                                 seconds_per_period=self.economics.seconds_per_period)
+                                                 seconds_per_period=self.economics.seconds_per_period,
+                                                 start_of_period=True)
         self.unlock_datetime = datetime_at_period(period=final_locked_period + 1,
-                                                  seconds_per_period=self.economics.seconds_per_period)
+                                                  seconds_per_period=self.economics.seconds_per_period,
+                                                  start_of_period=True)
 
         if validate_now:
             self.validate_duration()

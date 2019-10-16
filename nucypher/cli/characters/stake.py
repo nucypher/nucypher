@@ -224,7 +224,9 @@ def stake(click_config,
         bonded_date = datetime_at_period(period=current_period, seconds_per_period=economics.seconds_per_period)
         min_worker_periods = STAKEHOLDER.staking_agent.staking_parameters()[7]
         release_period = current_period + min_worker_periods
-        release_date = datetime_at_period(period=release_period, seconds_per_period=economics.seconds_per_period)
+        release_date = datetime_at_period(period=release_period,
+                                          seconds_per_period=economics.seconds_per_period,
+                                          start_of_period=True)
 
         emitter.echo(f"\nWorker {worker_address} successfully bonded to staker {staking_address}", color='green')
         paint_receipt_summary(emitter=emitter,

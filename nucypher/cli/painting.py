@@ -343,9 +343,11 @@ Staking address: {staking_address}
 ~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NuNits)
 ~ Duration   -> {lock_periods} Days ({lock_periods} Periods)
 ~ Enactment  -> {datetime_at_period(period=start_period,
-                                    seconds_per_period=stakeholder.economics.seconds_per_period)} (period #{start_period})
+                                    seconds_per_period=stakeholder.economics.seconds_per_period,
+                                    start_of_period=True)} (period #{start_period})
 ~ Expiration -> {datetime_at_period(period=end_period,
-                                    seconds_per_period=stakeholder.economics.seconds_per_period)} (period #{end_period})
+                                    seconds_per_period=stakeholder.economics.seconds_per_period,
+                                    start_of_period=True)} (period #{end_period})
     """)
 
     # TODO: periods != Days - Do we inform the user here?
@@ -367,8 +369,8 @@ or set your Ursula worker node address by running 'nucypher stake set-worker'.
 
 
 def prettify_stake(stake, index: int = None) -> str:
-    start_datetime = stake.start_datetime.local_datetime().strftime("%b %d %H:%M:%S %Z")
-    expiration_datetime = stake.unlock_datetime.local_datetime().strftime("%b %d %H:%M:%S %Z")
+    start_datetime = stake.start_datetime.local_datetime().strftime("%b %d %H:%M %Z")
+    expiration_datetime = stake.unlock_datetime.local_datetime().strftime("%b %d %H:%M %Z")
     duration = stake.duration
 
     pretty_periods = f'{duration} periods {"." if len(str(duration)) == 2 else ""}'

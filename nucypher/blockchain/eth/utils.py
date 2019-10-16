@@ -31,22 +31,33 @@ def datetime_to_period(datetime: maya.MayaDT, seconds_per_period: int) -> int:
     return int(future_period)
 
 
-def datetime_at_period(period: int, seconds_per_period: int) -> maya.MayaDT:
-    """Returns the datetime object at a given period, future, or past."""
+def period_to_epoch(period: int, seconds_per_period: int) -> int:
+    epoch = period * seconds_per_period
+    return epoch
 
-    now = maya.now()
-    current_period = datetime_to_period(datetime=now, seconds_per_period=seconds_per_period)
-    delta_periods = period - current_period
 
-    # +
-    if delta_periods:
-        target_period = now + maya.timedelta(days=delta_periods)
-
-    # -
+def datetime_at_period(period: int, seconds_per_period: int, start_of_period: bool = False) -> maya.MayaDT:
+    """
+    Returns the datetime object at a given period, future, or past.
+    If start_of_period, the datetime object represents the first second of said period.
+    """
+    if start_of_period:
+        datetime_at_start_of_period = maya.MayaDT(epoch=period_to_epoch(period, seconds_per_period))
+        return datetime_at_start_of_period
     else:
-        target_period = now - maya.timedelta(days=delta_periods)
+        now = maya.now()
+        current_period = datetime_to_period(datetime=now, seconds_per_period=seconds_per_period)
+        delta_periods = period - current_period
 
-    return target_period
+        # +
+        if delta_periods:
+            target_datetime = now + maya.timedelta(days=delta_periods)
+
+        # -
+        else:
+            target_datetime = now - maya.timedelta(days=delta_periods)
+
+        return target_datetime
 
 
 def calculate_period_duration(future_time: maya.MayaDT, seconds_per_period: int) -> int:
