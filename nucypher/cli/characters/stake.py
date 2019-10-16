@@ -192,16 +192,11 @@ def stake(click_config,
     #
 
     if action == 'list':
-        stakes = STAKEHOLDER.all_stakes
-        if not stakes:
-            emitter.echo(f"There are no active stakes")
-        else:
-            painting.paint_stakes(emitter=emitter, stakes=stakes)
+        painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER.all_stakes)
         return  # Exit
 
     elif action == 'accounts':
-        for address, balances in sorted(STAKEHOLDER.wallet.balances.items()):
-            emitter.echo(f"{address} | {Web3.fromWei(balances['ETH'], 'ether')} ETH | {NU.from_nunits(balances['NU'])}")
+        painting.paint_accounts(emitter=emitter, balances=STAKEHOLDER.wallet.balances)
         return  # Exit
 
     elif action == 'set-worker':

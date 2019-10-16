@@ -385,6 +385,9 @@ def prettify_stake(stake, index: int = None) -> str:
 
 
 def paint_stakes(emitter, stakes):
+    if not stakes:
+        emitter.echo(f"There are no active stakes")
+
     title = "======================================= Active Stakes =========================================\n"
 
     header = f'| ~ | Staker | Worker | # | Value    | Duration     | Enactment          '
@@ -423,6 +426,22 @@ Staking address: {staking_address}
                        start_period=original_stake.start_period,
                        end_period=new_end_period,
                        division_message=division_message)
+
+
+def paint_accounts(emitter, balances):
+    rows = list()
+    max_eth_len, max_nu_len = 0, 0
+    for address, balances in sorted(balances.items()):
+        eth = str(Web3.fromWei(balances['ETH'], 'ether')) + " ETH"
+        nu = str(NU.from_nunits(balances['NU']))
+
+        max_eth_len = max(max_eth_len, len(eth))
+        max_nu_len = max(max_nu_len, len(nu))
+
+        rows.append((address, eth, nu))
+
+    for address, eth, nu in rows:
+        emitter.echo(f"{address} | {eth:{max_eth_len}} | {nu:{max_nu_len}}")
 
 
 def paint_receipt_summary(emitter, receipt, chain_name: str = None, transaction_type=None, provider_uri: str = None):
