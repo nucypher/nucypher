@@ -19,9 +19,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 
 from nucypher.blockchain.eth.deployers import (
-    UserEscrowDeployer,
-    UserEscrowProxyDeployer,
-    LibraryLinkerDeployer,
+    PreallocationEscrowDeployer,
+    StakingInterfaceDeployer,
+    StakingInterfaceRouterDeployer,
     NucypherTokenDeployer,
     StakingEscrowDeployer,
     PolicyManagerDeployer,
@@ -29,17 +29,17 @@ from nucypher.blockchain.eth.deployers import (
 )
 from nucypher.crypto.api import keccak_digest
 from nucypher.utilities.sandbox.constants import (
-    USER_ESCROW_PROXY_DEPLOYMENT_SECRET,
+    STAKING_INTERFACE_DEPLOYMENT_SECRET,
     INSECURE_DEPLOYMENT_SECRET_PLAINTEXT,
     INSECURE_DEPLOYMENT_SECRET_HASH
 )
 
-user_escrow_contracts = list()
+preallocation_escrow_contracts = list()
 NUMBER_OF_PREALLOCATIONS = 50
 
 
 @pytest.mark.slow()
-def test_user_escrow_proxy_deployer(testerchain, deployment_progress, test_registry):
+def test_staking_interface_deployer(testerchain, deployment_progress, test_registry):
 
     #
     # Setup
@@ -63,16 +63,16 @@ def test_user_escrow_proxy_deployer(testerchain, deployment_progress, test_regis
     # Test
     #
 
-    user_escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=origin, registry=test_registry)
-    user_escrow_proxy_receipts = user_escrow_proxy_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH,
+    staking_interface_deployer = StakingInterfaceDeployer(deployer_address=origin, registry=test_registry)
+    staking_interface_receipts = staking_interface_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH,
                                                                    progress=deployment_progress)
 
     # deployment steps must match expected number of steps
-    assert deployment_progress.num_steps == len(user_escrow_proxy_deployer.deployment_steps) == 2
-    assert len(user_escrow_proxy_receipts) == 2
+    assert deployment_progress.num_steps == len(staking_interface_deployer.deployment_steps) == 2
+    assert len(staking_interface_receipts) == 2
 
-    for step in user_escrow_proxy_deployer.deployment_steps:
-        assert user_escrow_proxy_receipts[step]['status'] == 1
+    for step in staking_interface_deployer.deployment_steps:
+        assert staking_interface_receipts[step]['status'] == 1
 
 
 @pytest.mark.slow()
@@ -80,48 +80,48 @@ def test_deploy_multiple_preallocations(testerchain, test_registry):
     testerchain = testerchain
     deployer_account = testerchain.etherbase_account
 
-    linker = testerchain.get_contract_by_name(registry=test_registry, name=LibraryLinkerDeployer.contract_name)
-    linker_address = linker.address
+    router = testerchain.get_contract_by_name(registry=test_registry, name=StakingInterfaceRouterDeployer.contract_name)
+    router_address = router.address
     for index in range(NUMBER_OF_PREALLOCATIONS):
-        deployer = UserEscrowDeployer(deployer_address=deployer_account, registry=test_registry)
+        deployer = PreallocationEscrowDeployer(deployer_address=deployer_account, registry=test_registry)
 
         deployment_receipt = deployer.deploy()
         assert deployment_receipt['status'] == 1
 
-        user_escrow_contract = deployer.contract
-        linker = user_escrow_contract.functions.linker().call()
-        assert linker == linker_address
+        preallocation_escrow_contract = deployer.contract
+        router = preallocation_escrow_contract.functions.router().call()
+        assert router == router_address
 
-        user_escrow_contracts.append(user_escrow_contract)
+        preallocation_escrow_contracts.append(preallocation_escrow_contract)
 
         # simulates passage of time / blocks
         if index % 5 == 0:
             testerchain.w3.eth.web3.testing.mine(1)
             testerchain.time_travel(seconds=5)
 
-    assert len(user_escrow_contracts) == NUMBER_OF_PREALLOCATIONS
+    assert len(preallocation_escrow_contracts) == NUMBER_OF_PREALLOCATIONS
 
 
 @pytest.mark.slow()
-def test_upgrade_user_escrow_proxy(testerchain, test_registry):
+def test_upgrade_staking_interface(testerchain, test_registry):
 
     old_secret = INSECURE_DEPLOYMENT_SECRET_PLAINTEXT
-    new_secret = 'new' + USER_ESCROW_PROXY_DEPLOYMENT_SECRET
+    new_secret = 'new' + STAKING_INTERFACE_DEPLOYMENT_SECRET
     new_secret_hash = keccak_digest(new_secret.encode())
-    linker = testerchain.get_contract_by_name(registry=test_registry, name=LibraryLinkerDeployer.contract_name)
+    router = testerchain.get_contract_by_name(registry=test_registry, name=StakingInterfaceRouterDeployer.contract_name)
 
     contract = testerchain.get_contract_by_name(registry=test_registry,
-                                                name=UserEscrowProxyDeployer.contract_name,
-                                                proxy_name=LibraryLinkerDeployer.contract_name,
+                                                name=StakingInterfaceDeployer.contract_name,
+                                                proxy_name=StakingInterfaceRouterDeployer.contract_name,
                                                 use_proxy_address=False)
 
-    target = linker.functions.target().call()
+    target = router.functions.target().call()
     assert target == contract.address
 
-    user_escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=testerchain.etherbase_account,
-                                                         registry=test_registry)
+    staking_interface_deployer = StakingInterfaceDeployer(deployer_address=testerchain.etherbase_account,
+                                                          registry=test_registry)
 
-    receipts = user_escrow_proxy_deployer.upgrade(existing_secret_plaintext=old_secret,
+    receipts = staking_interface_deployer.upgrade(existing_secret_plaintext=old_secret,
                                                   new_secret_hash=new_secret_hash)
 
     assert len(receipts) == 2
@@ -129,14 +129,14 @@ def test_upgrade_user_escrow_proxy(testerchain, test_registry):
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
 
-    for user_escrow_contract in user_escrow_contracts:
-        linker_address = user_escrow_contract.functions.linker().call()
-        assert linker.address == linker_address
+    for preallocation_escrow_contract in preallocation_escrow_contracts:
+        router_address = preallocation_escrow_contract.functions.router().call()
+        assert router.address == router_address
 
-    new_target = linker.functions.target().call()
+    new_target = router.functions.target().call()
     contract = testerchain.get_contract_by_name(registry=test_registry,
-                                                name=UserEscrowProxyDeployer.contract_name,
-                                                proxy_name=LibraryLinkerDeployer.contract_name,
+                                                name=StakingInterfaceDeployer.contract_name,
+                                                proxy_name=StakingInterfaceRouterDeployer.contract_name,
                                                 use_proxy_address=False)
     assert new_target == contract.address
     assert new_target != target

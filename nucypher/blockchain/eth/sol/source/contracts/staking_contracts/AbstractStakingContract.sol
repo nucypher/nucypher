@@ -64,7 +64,7 @@ contract AbstractStakingContract {
     function isFallbackAllowed() public returns (bool);
 
     /**
-    * @dev Function sends all requests to the target proxy contract
+    * @dev Function sends all requests to the target contract
     **/
     function () external payable {
         require(isFallbackAllowed());

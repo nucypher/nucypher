@@ -33,9 +33,9 @@ from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     StakingEscrowAgent
 )
-from nucypher.blockchain.eth.agents import UserEscrowAgent
+from nucypher.blockchain.eth.agents import PreallocationEscrowAgent
 from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME
-from nucypher.blockchain.eth.deployers import DispatcherDeployer, LibraryLinkerDeployer
+from nucypher.blockchain.eth.deployers import DispatcherDeployer, StakingInterfaceRouterDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
@@ -292,30 +292,30 @@ Registry  ................ {administrator.registry.filepath}
     try:
 
         #
-        # UserEscrowProxy
+        # StakingInterface
         #
 
-        user_escrow_proxy_agent = UserEscrowAgent.UserEscrowProxyAgent(registry=administrator.registry)
-        bare_contract = blockchain.get_contract_by_name(name=user_escrow_proxy_agent.contract_name,
-                                                        proxy_name=LibraryLinkerDeployer.contract_name,
+        staking_interface_agent = PreallocationEscrowAgent.StakingInterfaceAgent(registry=administrator.registry)
+        bare_contract = blockchain.get_contract_by_name(name=staking_interface_agent.contract_name,
+                                                        proxy_name=StakingInterfaceRouterDeployer.contract_name,
                                                         use_proxy_address=False,
                                                         registry=administrator.registry)
 
-        linker_deployer = LibraryLinkerDeployer(registry=administrator.registry,
-                                                target_contract=bare_contract,
-                                                deployer_address=administrator.deployer_address,
-                                                bare=True)  # acquire agency for the dispatcher itself.
+        router_deployer = StakingInterfaceRouterDeployer(registry=administrator.registry,
+                                                         target_contract=bare_contract,
+                                                         deployer_address=administrator.deployer_address,
+                                                         bare=True)  # acquire agency for the dispatcher itself.
 
-        user_escrow_payload = f"""
-{user_escrow_proxy_agent.contract_name} .......... {bare_contract.address}
-    ~ LibraryLinker ...... {linker_deployer.contract.address}
-        ~ Owner .......... {linker_deployer.contract.functions.owner().call()}
-        ~ Target ......... {linker_deployer.contract.functions.target().call()}"""
-        emitter.echo(user_escrow_payload)
+        preallocation_escrow_payload = f"""
+{staking_interface_agent.contract_name} .......... {bare_contract.address}
+    ~ StakingInterfaceRouter ...... {router_deployer.contract.address}
+        ~ Owner .......... {router_deployer.contract.functions.owner().call()}
+        ~ Target ......... {router_deployer.contract.functions.target().call()}"""
+        emitter.echo(preallocation_escrow_payload)
         emitter.echo(sep)
 
     except BaseContractRegistry.UnknownContract:
-        message = f"\nUserEscrowProxy is not enrolled in {administrator.registry.filepath}"
+        message = f"\nStakingInterface is not enrolled in {administrator.registry.filepath}"
         emitter.echo(message, color='yellow')
 
     return
@@ -604,7 +604,7 @@ def paint_input_allocation_file(emitter, allocations) -> None:
 
 def paint_deployed_allocations(emitter, allocations, failed) -> None:
     emitter.echo(f"\n{'='*45} DEPLOYED ALLOCATIONS {'='*44}", bold=True)
-    emitter.echo(f"\n{'Beneficiary':42} | {'Name':20} | {'UserEscrow contract':42} ", bold=True)
+    emitter.echo(f"\n{'Beneficiary':42} | {'Name':20} | {'PreallocationEscrow contract':42} ", bold=True)
     emitter.echo("-"*(42+3+20+3+42), bold=True)
     for allocation, contract_address in allocations:
         beneficiary = allocation['beneficiary_address']

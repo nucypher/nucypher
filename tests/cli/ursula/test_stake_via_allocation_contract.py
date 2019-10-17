@@ -21,7 +21,7 @@ import pytest
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency, UserEscrowAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency, PreallocationEscrowAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.cli.main import nucypher_cli
 from nucypher.utilities.sandbox.constants import (
@@ -31,7 +31,7 @@ from nucypher.utilities.sandbox.constants import (
 
 #
 # This test module is intended to mirror tests/cli/ursula/test_stakeholder_and_ursula.py,
-# but using a staking contract (namely, UserEscrow)
+# but using a staking contract (namely, PreallocationEscrow)
 #
 
 
@@ -49,11 +49,11 @@ def beneficiary(testerchain):
 
 
 @pytest.fixture(scope='module')
-def user_escrow_agent(beneficiary, test_registry, mock_allocation_registry):
-    user_escrow_agent = UserEscrowAgent(beneficiary=beneficiary,
-                                        registry=test_registry,
-                                        allocation_registry=mock_allocation_registry)
-    return user_escrow_agent
+def preallocation_escrow_agent(beneficiary, test_registry, mock_allocation_registry):
+    preallocation_escrow_agent = PreallocationEscrowAgent(beneficiary=beneficiary,
+                                                          registry=test_registry,
+                                                          allocation_registry=mock_allocation_registry)
+    return preallocation_escrow_agent
 
 
 def test_stake_via_contract(click_runner,
@@ -67,7 +67,7 @@ def test_stake_via_contract(click_runner,
                             token_economics,
                             agency,
                             beneficiary,
-                            user_escrow_agent
+                            preallocation_escrow_agent
                             ):
 
     #
@@ -78,7 +78,7 @@ def test_stake_via_contract(click_runner,
     assert mock_allocation_registry.is_beneficiary_enrolled(beneficiary)
 
     # ... and that the pre-allocation contract has enough tokens
-    preallocation_contract_address = user_escrow_agent.principal_contract.address
+    preallocation_contract_address = preallocation_escrow_agent.principal_contract.address
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     assert token_agent.get_balance(preallocation_contract_address) >= token_economics.minimum_allowed_locked
 
@@ -171,7 +171,7 @@ def test_stake_set_worker(click_runner,
 
 def test_stake_restake(click_runner,
                        beneficiary,
-                       user_escrow_agent,
+                       preallocation_escrow_agent,
                        mock_allocation_registry,
                        test_registry,
                        manual_worker,
@@ -244,7 +244,7 @@ def test_stake_restake(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    allocation_contract_address = user_escrow_agent.principal_contract.address
+    allocation_contract_address = preallocation_escrow_agent.principal_contract.address
     assert not staking_agent.is_restaking(allocation_contract_address)
 
     staker = Staker(is_me=True,

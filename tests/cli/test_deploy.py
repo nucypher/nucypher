@@ -9,7 +9,7 @@ from eth_utils import to_checksum_address
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
-    UserEscrowAgent,
+    PreallocationEscrowAgent,
     PolicyManagerAgent,
     AdjudicatorAgent,
     ContractAgency,
@@ -183,16 +183,16 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
     contracts_to_upgrade = ('StakingEscrow',      # v1 -> v2
                             'PolicyManager',      # v1 -> v2
                             'Adjudicator',        # v1 -> v2
-                            'UserEscrowProxy',    # v1 -> v2
+                            'StakingInterface',    # v1 -> v2
 
                             'StakingEscrow',      # v2 -> v3
                             'StakingEscrow',      # v3 -> v4
 
                             'Adjudicator',        # v2 -> v3
                             'PolicyManager',      # v2 -> v3
-                            'UserEscrowProxy',    # v2 -> v3
+                            'StakingInterface',    # v2 -> v3
 
-                            'UserEscrowProxy',    # v3 -> v4
+                            'StakingInterface',    # v3 -> v4
                             'PolicyManager',      # v3 -> v4
                             'Adjudicator',        # v3 -> v4
 
@@ -207,9 +207,9 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
 
     for contract_name in contracts_to_upgrade:
 
-        # Select proxy (Dispatcher vs Linker)
-        if contract_name == "UserEscrowProxy":
-            proxy_name = "UserEscrowLibraryLinker"
+        # Select proxy (Dispatcher vs Router)
+        if contract_name == "StakingInterface":
+            proxy_name = "StakingInterfaceRouter"
         else:
             proxy_name = 'Dispatcher'
 
@@ -372,7 +372,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
     beneficiary = testerchain.client.accounts[-1]
     allocation_registry = AllocationRegistry(filepath=MOCK_ALLOCATION_REGISTRY_FILEPATH)
     registry = LocalContractRegistry(filepath=registry_filepath)
-    user_escrow_agent = UserEscrowAgent(registry=registry,
-                                        beneficiary=beneficiary,
-                                        allocation_registry=allocation_registry)
-    assert user_escrow_agent.unvested_tokens == 2 * token_economics.minimum_allowed_locked
+    preallocation_escrow_agent = PreallocationEscrowAgent(registry=registry,
+                                                          beneficiary=beneficiary,
+                                                          allocation_registry=allocation_registry)
+    assert preallocation_escrow_agent.unvested_tokens == 2 * token_economics.minimum_allowed_locked

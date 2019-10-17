@@ -40,15 +40,15 @@ from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     AdjudicatorAgent,
     ContractAgency,
-    UserEscrowAgent,
+    PreallocationEscrowAgent,
 )
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
     PolicyManagerDeployer,
-    UserEscrowProxyDeployer,
-    UserEscrowDeployer,
+    StakingInterfaceDeployer,
+    PreallocationEscrowDeployer,
     AdjudicatorDeployer,
     BaseContractDeployer
 )
@@ -154,7 +154,7 @@ class ContractAdministrator(NucypherTokenActor):
 
     upgradeable_deployer_classes = (
         *dispatched_upgradeable_deployer_classes,
-        UserEscrowProxyDeployer,
+        StakingInterfaceDeployer,
     )
 
     ownable_deployer_classes = (*dispatched_upgradeable_deployer_classes, )
@@ -181,7 +181,7 @@ class ContractAdministrator(NucypherTokenActor):
         self.economics = economics or StandardTokenEconomics()
 
         self.registry = registry
-        self.user_escrow_deployers = dict()
+        self.preallocation_escrow_deployers = dict()
         self.deployers = {d.contract_name: d for d in self.deployer_classes}
 
         self.transacting_power = TransactingPower(password=client_password, account=deployer_address)
@@ -266,14 +266,14 @@ class ContractAdministrator(NucypherTokenActor):
                                      new_secret_hash=new_secret_hash)
         return receipts
 
-    def deploy_user_escrow(self, allocation_registry: AllocationRegistry, progress=None) -> UserEscrowDeployer:
-        user_escrow_deployer = UserEscrowDeployer(registry=self.registry,
-                                                  deployer_address=self.deployer_address,
-                                                  allocation_registry=allocation_registry)
-        user_escrow_deployer.deploy(progress=progress)
-        principal_address = user_escrow_deployer.contract.address
-        self.user_escrow_deployers[principal_address] = user_escrow_deployer
-        return user_escrow_deployer
+    def deploy_preallocation_escrow(self, allocation_registry: AllocationRegistry, progress=None) -> PreallocationEscrowDeployer:
+        preallocation_escrow_deployer = PreallocationEscrowDeployer(registry=self.registry,
+                                                                    deployer_address=self.deployer_address,
+                                                                    allocation_registry=allocation_registry)
+        preallocation_escrow_deployer.deploy(progress=progress)
+        principal_address = preallocation_escrow_deployer.contract.address
+        self.preallocation_escrow_deployers[principal_address] = preallocation_escrow_deployer
+        return preallocation_escrow_deployer
 
     def deploy_network_contracts(self,
                                  secrets: dict,
@@ -424,12 +424,12 @@ class ContractAdministrator(NucypherTokenActor):
                                      f"beneficiary {beneficiary} ({name})")
 
                 if emitter:
-                    emitter.echo(f"\nDeploying UserEscrow contract for beneficiary {beneficiary} ({name})...")
+                    emitter.echo(f"\nDeploying PreallocationEscrow contract for beneficiary {beneficiary} ({name})...")
                     bar._last_line = None
                     bar.render_progress()
 
-                deployer = self.deploy_user_escrow(allocation_registry=allocation_registry,
-                                                   progress=bar)
+                deployer = self.deploy_preallocation_escrow(allocation_registry=allocation_registry,
+                                                            progress=bar)
 
                 amount = allocation['amount']
                 duration = allocation['duration_seconds']
@@ -448,7 +448,7 @@ class ContractAdministrator(NucypherTokenActor):
                 else:
                     allocation_receipts[beneficiary] = receipts
                     principal_address = deployer.contract_address
-                    self.log.info(f"Created UserEscrow contract at {principal_address} for beneficiary {beneficiary}.")
+                    self.log.info(f"Created PreallocationEscrow contract at {principal_address} for beneficiary {beneficiary}.")
                     allocated.append((allocation, principal_address))
 
                     if emitter:
@@ -545,7 +545,7 @@ class Staker(NucypherTokenActor):
         # Staking via contract
         self.allocation_registry = allocation_registry or InMemoryAllocationRegistry()  # FIXME: This is a workaround for regular stakers
         self.beneficiary_address = None
-        self.user_escrow_agent = None
+        self.preallocation_escrow_agent = None
         self.check_if_staking_via_contract(self.checksum_address)
 
         # Check stakes
@@ -559,20 +559,20 @@ class Staker(NucypherTokenActor):
         has_staking_contract = self.allocation_registry.is_beneficiary_enrolled(checksum_address)
         if has_staking_contract:
             self.beneficiary_address = checksum_address
-            self.user_escrow_agent = UserEscrowAgent(registry=self.registry,
-                                                     allocation_registry=self.allocation_registry,
-                                                     beneficiary=self.beneficiary_address)
-            staking_address = self.user_escrow_agent.principal_contract.address
+            self.preallocation_escrow_agent = PreallocationEscrowAgent(registry=self.registry,
+                                                                       allocation_registry=self.allocation_registry,
+                                                                       beneficiary=self.beneficiary_address)
+            staking_address = self.preallocation_escrow_agent.principal_contract.address
             self.checksum_address = staking_address
             return staking_address
         else:
-            self.user_escrow_agent = None
+            self.preallocation_escrow_agent = None
             self.beneficiary_address = None
             return None
 
     @property
     def is_contract(self) -> bool:
-        return self.user_escrow_agent is not None
+        return self.preallocation_escrow_agent is not None
 
     def to_dict(self) -> dict:
         stake_info = [stake.to_stake_info() for stake in self.stakes]
@@ -699,7 +699,7 @@ class Staker(NucypherTokenActor):
             approve_receipt = self.token_agent.approve_transfer(amount=amount,
                                                                 target_address=self.staking_agent.contract_address,
                                                                 sender_address=self.beneficiary_address)
-            deposit_receipt = self.user_escrow_agent.deposit_as_staker(amount=amount, lock_periods=lock_periods)
+            deposit_receipt = self.preallocation_escrow_agent.deposit_as_staker(amount=amount, lock_periods=lock_periods)
         else:
             approve_receipt = self.token_agent.approve_transfer(amount=amount,
                                                                 target_address=self.staking_agent.contract_address,
@@ -719,7 +719,7 @@ class Staker(NucypherTokenActor):
     @save_receipt
     def _set_restaking_value(self, value: bool) -> dict:
         if self.is_contract:
-            receipt = self.user_escrow_agent.set_restaking(value=value)
+            receipt = self.preallocation_escrow_agent.set_restaking(value=value)
         else:
             receipt = self.staking_agent.set_restaking(staker_address=self.checksum_address, value=value)
         return receipt
@@ -736,7 +736,7 @@ class Staker(NucypherTokenActor):
             raise ValueError(f"Release period for re-staking lock must be in the future.  "
                              f"Current period is {current_period}, got '{release_period}'.")
         if self.is_contract:
-            receipt = self.user_escrow_agent.lock_restaking(release_period=release_period)
+            receipt = self.preallocation_escrow_agent.lock_restaking(release_period=release_period)
         else:
             receipt = self.staking_agent.lock_restaking(staker_address=self.checksum_address,
                                                         release_period=release_period)
@@ -760,7 +760,7 @@ class Staker(NucypherTokenActor):
     @validate_checksum_address
     def set_worker(self, worker_address: str) -> str:
         if self.is_contract:
-            receipt = self.user_escrow_agent.set_worker(worker_address=worker_address)
+            receipt = self.preallocation_escrow_agent.set_worker(worker_address=worker_address)
         else:
             receipt = self.staking_agent.set_worker(staker_address=self.checksum_address,
                                                     worker_address=worker_address)
@@ -784,7 +784,7 @@ class Staker(NucypherTokenActor):
     @save_receipt
     def detach_worker(self) -> str:
         if self.is_contract:
-            receipt = self.user_escrow_agent.release_worker()
+            receipt = self.preallocation_escrow_agent.release_worker()
         else:
             receipt = self.staking_agent.release_worker(staker_address=self.checksum_address)
         self.__worker_address = BlockchainInterface.NULL_ADDRESS
@@ -799,7 +799,7 @@ class Staker(NucypherTokenActor):
     def mint(self) -> Tuple[str, str]:
         """Computes and transfers tokens to the staker's account"""
         if self.is_contract:
-            receipt = self.user_escrow_agent.mint()
+            receipt = self.preallocation_escrow_agent.mint()
         else:
             receipt = self.staking_agent.mint(staker_address=self.checksum_address)
         return receipt
@@ -815,7 +815,7 @@ class Staker(NucypherTokenActor):
         """Collect rewarded ETH."""
         withdraw_address = collector_address or self.checksum_address
         if self.is_contract:
-            receipt = self.user_escrow_agent.collect_policy_reward(collector_address=withdraw_address)
+            receipt = self.preallocation_escrow_agent.collect_policy_reward(collector_address=withdraw_address)
         else:
             receipt = self.policy_agent.collect_policy_reward(collector_address=withdraw_address,
                                                               staker_address=self.checksum_address)
@@ -828,7 +828,7 @@ class Staker(NucypherTokenActor):
         if self.is_contract:
             reward_amount = self.staking_agent.calculate_staking_reward(staker_address=self.checksum_address)
             self.log.debug(f"Withdrawing staking reward, {reward_amount}, to {self.checksum_address}")
-            receipt = self.user_escrow_agent.withdraw_as_staker(amount=reward_amount)
+            receipt = self.preallocation_escrow_agent.withdraw_as_staker(amount=reward_amount)
         else:
             receipt = self.staking_agent.collect_staking_reward(staker_address=self.checksum_address)
         return receipt
@@ -838,7 +838,7 @@ class Staker(NucypherTokenActor):
     def withdraw(self, amount: NU) -> str:
         """Withdraw tokens (assuming they're unlocked)"""
         if self.is_contract:
-            receipt = self.user_escrow_agent.withdraw_as_staker(amount=int(amount))
+            receipt = self.preallocation_escrow_agent.withdraw_as_staker(amount=int(amount))
         else:
             receipt = self.staking_agent.withdraw(staker_address=self.checksum_address,
                                                   amount=int(amount))

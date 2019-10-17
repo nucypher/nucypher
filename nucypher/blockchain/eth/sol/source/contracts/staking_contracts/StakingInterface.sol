@@ -162,4 +162,6 @@ contract StakingInterface {
         emit MinRewardRateSet(msg.sender, _minRewardRate);
     }
 
+    // TODO add prolong
+
 }
