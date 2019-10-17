@@ -55,11 +55,7 @@ def status():
 def network(click_config,
 
             # Common Options
-            provider_uri,
-            geth,
-            poa,
-            registry_filepath
-            ):
+            provider_uri, geth, poa, registry_filepath):
     """
     Overall information of the NuCypher Network.
     """
@@ -77,10 +73,7 @@ def network(click_config,
 def stakers(click_config,
 
             # Common Options
-            provider_uri,
-            geth,
-            poa,
-            registry_filepath,
+            provider_uri, geth, poa, registry_filepath,
 
             # Other
             staking_address):
@@ -102,10 +95,7 @@ def stakers(click_config,
 def locked_tokens(click_config,
 
                   # Common Options
-                  provider_uri,
-                  geth,
-                  poa,
-                  registry_filepath,
+                  provider_uri, geth, poa, registry_filepath,
 
                   # Other
                   periods):

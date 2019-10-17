@@ -147,13 +147,7 @@ def view(click_config, config_file):
 def destroy(click_config,
 
             # Admin Options
-            geth,
-            provider_uri,
-            federated_only,
-            dev,
-            pay_with,
-            network,
-            registry_filepath,
+            geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath,
 
             # Other
             config_file, discovery_port, force):
@@ -182,18 +176,8 @@ def destroy(click_config,
 def run(click_config,
 
         # API Options
-        geth,
-        provider_uri,
-        federated_only,
-        dev,
-        pay_with,
-        network,
-        registry_filepath,
-        config_file,
-        discovery_port,
-        hw_wallet,
-        teacher_uri,
-        min_stake,
+        geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath,
+        config_file, discovery_port, hw_wallet, teacher_uri, min_stake,
 
         # Other
         controller_port, dry_run):
@@ -240,19 +224,8 @@ def run(click_config,
 def public_keys(click_config,
 
                 # API Options
-                geth,
-                provider_uri,
-                federated_only,
-                dev,
-                pay_with,
-                network,
-                registry_filepath,
-                config_file,
-                discovery_port,
-                hw_wallet,
-                teacher_uri,
-                min_stake,
-                ):
+                geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath,
+                config_file, discovery_port, hw_wallet, teacher_uri, min_stake):
     """
     Obtain Alice's public verification and encryption keys.
     """
@@ -279,19 +252,9 @@ def derive_policy_pubkey(click_config,
                          label,
 
                          # API Options
-                         geth,
-                         provider_uri,
-                         federated_only,
-                         dev,
-                         pay_with,
-                         network,
-                         registry_filepath,
-                         config_file,
-                         discovery_port,
-                         hw_wallet,
-                         teacher_uri,
-                         min_stake,
-                         ):
+                         # API Options
+                         geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath,
+                         config_file, discovery_port, hw_wallet, teacher_uri, min_stake):
     """
     Get a policy public key from a policy label.
     """
@@ -328,19 +291,8 @@ def grant(click_config,
           m, n, expiration, value,
 
           # API Options
-          geth,
-          provider_uri,
-          federated_only,
-          dev,
-          pay_with,
-          network,
-          registry_filepath,
-          config_file,
-          discovery_port,
-          hw_wallet,
-          teacher_uri,
-          min_stake,
-          ):
+          geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath,
+          config_file, discovery_port, hw_wallet, teacher_uri, min_stake):
     """
     Create and enact an access policy for some Bob.
     """
@@ -380,19 +332,8 @@ def revoke(click_config,
            bob_verifying_key, label,
 
            # API Options
-           geth,
-           provider_uri,
-           federated_only,
-           dev,
-           pay_with,
-           network,
-           registry_filepath,
-           config_file,
-           discovery_port,
-           hw_wallet,
-           teacher_uri,
-           min_stake,
-           ):
+           geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath,
+           config_file, discovery_port, hw_wallet, teacher_uri, min_stake):
     """
     Revoke a policy.
     """
@@ -422,19 +363,8 @@ def decrypt(click_config,
             label, message_kit,
 
             # API Options
-            geth,
-            provider_uri,
-            federated_only,
-            dev,
-            pay_with,
-            network,
-            registry_filepath,
-            config_file,
-            discovery_port,
-            hw_wallet,
-            teacher_uri,
-            min_stake,
-            ):
+            geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath,
+            config_file, discovery_port, hw_wallet, teacher_uri, min_stake):
     """
     Decrypt data encrypted under an Alice's policy public key.
     """

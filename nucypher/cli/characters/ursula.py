@@ -97,17 +97,8 @@ def ursula():
 def init(click_config,
 
          # Admin Options
-         geth,
-         provider_uri,
-         network,
-         registry_filepath,
-         staker_address,
-         worker_address,
-         federated_only,
-         rest_host,
-         rest_port,
-         db_filepath,
-         poa,
+         geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
+         rest_port, db_filepath, poa,
 
          # Other
          force, config_root):
@@ -165,17 +156,8 @@ def init(click_config,
 def destroy(click_config,
 
             # Admin Options
-            geth,
-            provider_uri,
-            network,
-            registry_filepath,
-            staker_address,
-            worker_address,
-            federated_only,
-            rest_host,
-            rest_port,
-            db_filepath,
-            poa,
+            geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
+            rest_port, db_filepath, poa,
 
             # Other
             config_file, force, dev):
@@ -206,17 +188,8 @@ def destroy(click_config,
 def forget(click_config,
 
            # Admin Options
-           geth,
-           provider_uri,
-           network,
-           registry_filepath,
-           staker_address,
-           worker_address,
-           federated_only,
-           rest_host,
-           rest_port,
-           db_filepath,
-           poa,
+           geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
+           rest_port, db_filepath, poa,
 
            # Other
            config_file,  dev):
@@ -247,22 +220,8 @@ def forget(click_config,
 def run(click_config,
 
         # API Options
-        geth,
-        provider_uri,
-        network,
-        registry_filepath,
-        staker_address,
-        worker_address,
-        federated_only,
-        rest_host,
-        rest_port,
-        db_filepath,
-        poa,
-        config_file,
-        dev,
-        lonely,
-        teacher_uri,
-        min_stake,
+        geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
+        rest_port, db_filepath, poa, config_file, dev, lonely, teacher_uri, min_stake,
 
         # Other
         interactive, dry_run):
@@ -337,23 +296,8 @@ def run(click_config,
 def save_metadata(click_config,
 
                   # API Options
-                  geth,
-                  provider_uri,
-                  network,
-                  registry_filepath,
-                  staker_address,
-                  worker_address,
-                  federated_only,
-                  rest_host,
-                  rest_port,
-                  db_filepath,
-                  poa,
-                  config_file,
-                  dev,
-                  lonely,
-                  teacher_uri,
-                  min_stake
-                  ):
+                  geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only,
+                  rest_host, rest_port, db_filepath, poa, config_file, dev, lonely, teacher_uri, min_stake):
     """
     Manually write node metadata to disk without running.
     """
@@ -381,23 +325,8 @@ def save_metadata(click_config,
 def view(click_config,
 
          # API Options
-         geth,
-         provider_uri,
-         network,
-         registry_filepath,
-         staker_address,
-         worker_address,
-         federated_only,
-         rest_host,
-         rest_port,
-         db_filepath,
-         poa,
-         config_file,
-         dev,
-         lonely,
-         teacher_uri,
-         min_stake
-         ):
+         geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
+         rest_port, db_filepath, poa, config_file, dev, lonely, teacher_uri, min_stake):
     """
     View the Ursula node's configuration.
     """
@@ -439,23 +368,8 @@ def view(click_config,
 def confirm_activity(click_config,
 
                      # API Options
-                     geth,
-                     provider_uri,
-                     network,
-                     registry_filepath,
-                     staker_address,
-                     worker_address,
-                     federated_only,
-                     rest_host,
-                     rest_port,
-                     db_filepath,
-                     poa,
-                     config_file,
-                     dev,
-                     lonely,
-                     teacher_uri,
-                     min_stake
-                     ):
+                     geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only,
+                     rest_host, rest_port, db_filepath, poa, config_file, dev, lonely, teacher_uri, min_stake):
     """
     Manually confirm-activity for the current period.
     """

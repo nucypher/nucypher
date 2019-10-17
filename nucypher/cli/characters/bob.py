@@ -56,10 +56,7 @@ def bob():
 def init(click_config,
 
          # Admin Options
-         provider_uri,
-         network,
-         registry_filepath,
-         checksum_address,
+         provider_uri, network, registry_filepath, checksum_address,
 
          # Other
          federated_only, config_root):
@@ -93,15 +90,8 @@ def init(click_config,
 def run(click_config,
 
         # API Options
-        provider_uri,
-        network,
-        registry_filepath,
-        checksum_address,
-        dev,
-        config_file,
-        discovery_port,
-        teacher_uri,
-        min_stake,
+        provider_uri, network, registry_filepath, checksum_address, dev, config_file, discovery_port,
+        teacher_uri, min_stake,
 
         # Other
         controller_port, dry_run):
@@ -145,16 +135,8 @@ def run(click_config,
 def view(click_config,
 
          # API Options
-         provider_uri,
-         network,
-         registry_filepath,
-         checksum_address,
-         dev,
-         config_file,
-         discovery_port,
-         teacher_uri,
-         min_stake,
-         ):
+         provider_uri, network, registry_filepath, checksum_address, dev, config_file, discovery_port,
+         teacher_uri, min_stake):
     """
     View existing Bob's configuration.
     """
@@ -186,16 +168,10 @@ def view(click_config,
 def destroy(click_config,
 
             # Admin Options
-            provider_uri,
-            network,
-            registry_filepath,
-            checksum_address,
+            provider_uri, network, registry_filepath, checksum_address,
 
             # Other
-            dev,
-            config_file,
-            discovery_port,
-            force
+            dev, config_file, discovery_port, force
             ):
     """
     Delete existing Bob's configuration.
@@ -222,16 +198,8 @@ def destroy(click_config,
 def public_keys(click_config,
 
                 # API Options
-                provider_uri,
-                network,
-                registry_filepath,
-                checksum_address,
-                dev,
-                config_file,
-                discovery_port,
-                teacher_uri,
-                min_stake,
-                ):
+                provider_uri, network, registry_filepath, checksum_address, dev, config_file, discovery_port,
+                teacher_uri, min_stake):
     """
     Obtain Bob's public verification and encryption keys.
     """
@@ -264,22 +232,11 @@ def public_keys(click_config,
 def retrieve(click_config,
 
              # API Options
-             provider_uri,
-             network,
-             registry_filepath,
-             checksum_address,
-             dev,
-             config_file,
-             discovery_port,
-             teacher_uri,
-             min_stake,
+             provider_uri, network, registry_filepath, checksum_address, dev, config_file, discovery_port,
+             teacher_uri, min_stake,
 
              # Other
-             label,
-             policy_encrypting_key,
-             alice_verifying_key,
-             message_kit
-             ):
+             label, policy_encrypting_key, alice_verifying_key, message_kit):
     """
     Obtain plaintext from encrypted data, if access was granted.
     """

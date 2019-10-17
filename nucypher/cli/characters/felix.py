@@ -61,19 +61,10 @@ def felix():
 def init(click_config,
 
          # Admin Options
-         checksum_address,
-         geth,
-         dev,
-         network,
-         registry_filepath,
-         provider_uri,
-         host,
-         db_filepath,
-         poa,
+         checksum_address, geth, dev, network, registry_filepath, provider_uri, host, db_filepath, poa,
 
          # Other
-         config_root,
-         discovery_port):
+         config_root, discovery_port):
     """
     Create a brand-new Felix.
     """
@@ -119,15 +110,7 @@ def init(click_config,
 def destroy(click_config,
 
             # Admin Options
-            checksum_address,
-            geth,
-            dev,
-            network,
-            registry_filepath,
-            provider_uri,
-            host,
-            db_filepath,
-            poa,
+            checksum_address, geth, dev, network, registry_filepath, provider_uri, host, db_filepath, poa,
 
             # Other
             config_file, port, force):
@@ -152,19 +135,8 @@ def destroy(click_config,
 def createdb(click_config,
 
              # API Options
-             checksum_address,
-             geth,
-             dev,
-             network,
-             registry_filepath,
-             provider_uri,
-             host,
-             db_filepath,
-             poa,
-             config_file,
-             port,
-             teacher_uri,
-             min_stake,
+             checksum_address, geth, dev, network, registry_filepath, provider_uri, host, db_filepath, poa,
+             config_file, port, teacher_uri, min_stake,
 
              # Other
              force):
@@ -198,19 +170,8 @@ def createdb(click_config,
 def view(click_config,
 
          # API Options
-         checksum_address,
-         geth,
-         dev,
-         network,
-         registry_filepath,
-         provider_uri,
-         host,
-         db_filepath,
-         poa,
-         config_file,
-         port,
-         teacher_uri,
-         min_stake):
+         checksum_address, geth, dev, network, registry_filepath, provider_uri, host, db_filepath, poa,
+         config_file, port, teacher_uri, min_stake):
     """
     View Felix token balance.
     """
@@ -240,19 +201,8 @@ def view(click_config,
 def accounts(click_config,
 
              # API Options
-             checksum_address,
-             geth,
-             dev,
-             network,
-             registry_filepath,
-             provider_uri,
-             host,
-             db_filepath,
-             poa,
-             config_file,
-             port,
-             teacher_uri,
-             min_stake):
+             checksum_address, geth, dev, network, registry_filepath, provider_uri, host, db_filepath, poa,
+             config_file, port, teacher_uri, min_stake):
     """
     View Felix known accounts.
     """
@@ -279,19 +229,8 @@ def accounts(click_config,
 def run(click_config,
 
         # API Options
-        checksum_address,
-        geth,
-        dev,
-        network,
-        registry_filepath,
-        provider_uri,
-        host,
-        db_filepath,
-        poa,
-        config_file,
-        port,
-        teacher_uri,
-        min_stake,
+        checksum_address, geth, dev, network, registry_filepath, provider_uri, host, db_filepath, poa,
+        config_file, port, teacher_uri, min_stake,
 
         # Other
         dry_run):

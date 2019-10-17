@@ -108,9 +108,8 @@ def init_stakeholder(click_config,
                      # Other
                      config_root, force,
 
-                     # Admin Option
-                     poa,
-                     registry_filepath):
+                     # Admin Options
+                     poa, registry_filepath):
     """
     Create a new stakeholder configuration.
     """
@@ -132,11 +131,7 @@ def init_stakeholder(click_config,
 def list(click_config,
 
          # API Options
-         poa,
-         registry_filepath,
-         config_file,
-         provider_uri,
-         staking_address):
+         poa, registry_filepath, config_file, provider_uri, staking_address):
     """
     List active stakes for current stakeholder.
     """
@@ -161,11 +156,7 @@ def list(click_config,
 def accounts(click_config,
 
              # API Options
-             poa,
-             registry_filepath,
-             config_file,
-             provider_uri,
-             staking_address):
+             poa, registry_filepath, config_file, provider_uri, staking_address):
     """
     Show ETH and NU balances for stakeholder's accounts.
     """
@@ -186,13 +177,7 @@ def accounts(click_config,
 def set_worker(click_config,
 
                # Worker Options
-               poa,
-               registry_filepath,
-               config_file,
-               provider_uri,
-               staking_address,
-               hw_wallet,
-               worker_address):
+               poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet, worker_address):
     """
     Bond a worker to a staker.
     """
@@ -243,13 +228,7 @@ def set_worker(click_config,
 def detach_worker(click_config,
 
                   # Worker Options
-                  poa,
-                  registry_filepath,
-                  config_file,
-                  provider_uri,
-                  staking_address,
-                  hw_wallet,
-                  worker_address):
+                  poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet, worker_address):
     """
     Detach worker currently bonded to a staker.
     """
@@ -302,17 +281,10 @@ def detach_worker(click_config,
 def create(click_config,
 
            # Stake Options
-           poa,
-           registry_filepath,
-           config_file,
-           provider_uri,
-           staking_address,
-           hw_wallet,
+           poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
 
            # Other
-           force,
-           value,
-           lock_periods):
+           force, value, lock_periods):
     """
     Initialize a new stake.
     """
@@ -397,17 +369,10 @@ def create(click_config,
 def restake(click_config,
 
             # Stake Options
-            poa,
-            registry_filepath,
-            config_file,
-            provider_uri,
-            staking_address,
-            hw_wallet,
+            poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
 
             # Other
-            enable,
-            lock_until,
-            force):
+            enable, lock_until, force):
     """
     Manage re-staking with --enable or --disable.
     """
@@ -457,18 +422,10 @@ def restake(click_config,
 def divide(click_config,
 
            # Stake Options
-           poa,
-           registry_filepath,
-           config_file,
-           provider_uri,
-           staking_address,
-           hw_wallet,
+           poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
 
            # Other
-           force,
-           value,
-           lock_periods,
-           index):
+           force, value, lock_periods, index):
     """
     Create a new stake from part of an existing one.
     """
@@ -541,18 +498,11 @@ def divide(click_config,
 @nucypher_click_config
 def collect_reward(click_config,
 
-                   # API Options
-                   poa,
-                   registry_filepath,
-                   config_file,
-                   provider_uri,
-                   staking_address,
-                   hw_wallet,
+                   # Stake Options
+                   poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
 
                    # Other
-                   staking_reward,
-                   policy_reward,
-                   withdraw_address):
+                   staking_reward, policy_reward, withdraw_address):
     """
     Withdraw staking reward.
     """

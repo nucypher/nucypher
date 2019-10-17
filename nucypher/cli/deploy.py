@@ -113,19 +113,9 @@ def inspect(provider_uri, config_root, registry_infile, deployer_address, poa):
 @click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
 @click.option('--target-address', help="Recipient's checksum address for token or ownership transference.",
               type=EIP55_CHECKSUM_ADDRESS)
-def upgrade(
-            # Admin Actor Options
-            provider_uri,
-            contract_name,
-            config_root,
-            poa,
-            force,
-            etherscan,
-            hw_wallet,
-            deployer_address,
-            registry_infile,
-            registry_outfile,
-            dev,
+def upgrade(# Admin Actor Options
+            provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
+            registry_infile, registry_outfile, dev,
 
             # Other
             retarget, target_address):
@@ -184,20 +174,9 @@ def upgrade(
 
 @deploy.command()
 @_admin_actor_options
-def rollback(
-             # Admin Actor Options
-             provider_uri,
-             contract_name,
-             config_root,
-             poa,
-             force,
-             etherscan,
-             hw_wallet,
-             deployer_address,
-             registry_infile,
-             registry_outfile,
-             dev,
-             ):
+def rollback(# Admin Actor Options
+             provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
+             registry_infile, registry_outfile, dev):
     """
     Rollback a proxy contract's target.
     """
@@ -236,19 +215,9 @@ def rollback(
 @_admin_actor_options
 @click.option('--bare', help="Deploy a contract *only* without any additional operations.", is_flag=True)
 @click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
-def contracts(
-              # Admin Actor Options
-              provider_uri,
-              contract_name,
-              config_root,
-              poa,
-              force,
-              etherscan,
-              hw_wallet,
-              deployer_address,
-              registry_infile,
-              registry_outfile,
-              dev,
+def contracts(# Admin Actor Options
+              provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
+              registry_infile, registry_outfile, dev,
 
               # Other
               bare, gas):
@@ -355,19 +324,9 @@ def contracts(
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
 @click.option('--allocation-outfile', help="Output path for token allocation JSON file",
               type=click.Path(exists=False, file_okay=True))
-def allocations(
-                # Admin Actor Options
-                provider_uri,
-                contract_name,
-                config_root,
-                poa,
-                force,
-                etherscan,
-                hw_wallet,
-                deployer_address,
-                registry_infile,
-                registry_outfile,
-                dev,
+def allocations(# Admin Actor Options
+                provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
+                registry_infile, registry_outfile, dev,
 
                 # Other
                 allocation_infile, allocation_outfile):
@@ -408,19 +367,9 @@ def allocations(
 @click.option('--target-address', help="Recipient's checksum address for token or ownership transference.",
               type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
-def transfer_tokens(
-                    # Admin Actor Options
-                    provider_uri,
-                    contract_name,
-                    config_root,
-                    poa,
-                    force,
-                    etherscan,
-                    hw_wallet,
-                    deployer_address,
-                    registry_infile,
-                    registry_outfile,
-                    dev,
+def transfer_tokens(# Admin Actor Options
+                    provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
+                    registry_infile, registry_outfile, dev,
 
                     # Other
                     target_address, value):
@@ -468,19 +417,9 @@ def transfer_tokens(
 @click.option('--target-address', help="Recipient's checksum address for token or ownership transference.",
               type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
-def transfer_ownership(
-                       # Admin Actor Options
-                       provider_uri,
-                       contract_name,
-                       config_root,
-                       poa,
-                       force,
-                       etherscan,
-                       hw_wallet,
-                       deployer_address,
-                       registry_infile,
-                       registry_outfile,
-                       dev,
+def transfer_ownership(# Admin Actor Options
+                       provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
+                       registry_infile, registry_outfile, dev,
 
                        # Other
                        target_address, gas):
