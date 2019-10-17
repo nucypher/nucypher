@@ -67,8 +67,8 @@ def test_nucypher_deploy_contracts(click_runner,
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    # Ensure there is a report on each contract
-    contract_names = tuple(a.registry_contract_name for a in EthereumContractAgent.__subclasses__())
+    # Ensure there is a report on each contract except PreallocationEscrow
+    contract_names = tuple(a.registry_contract_name for a in EthereumContractAgent.__subclasses__() if a != PreallocationEscrowAgent)
     for registry_name in contract_names:
         assert registry_name in result.output
 
