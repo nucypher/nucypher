@@ -358,7 +358,7 @@ class ParityClient(Web3Client):
         return to_checksum_address(new_account)  # cast and validate
 
     def unlock_account(self, address, password, duration: int = None) -> bool:
-        return self.w3.parity.unlockAccount.unlockAccount(address, password, duration)
+        return self.w3.parity.personal.unlockAccount(address, password, duration)
 
     def lock_account(self, address):
         return self.w3.parity.personal.lockAccount(address)
