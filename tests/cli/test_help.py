@@ -19,6 +19,7 @@ import pytest
 import nucypher
 from nucypher.cli.deploy import deploy
 from nucypher.cli.main import nucypher_cli, ENTRY_POINTS
+import click
 
 
 def test_echo_nucypher_version(click_runner):
@@ -37,12 +38,27 @@ def test_nucypher_help_message(click_runner, command):
     assert all(e in result.output for e in entry_points)
 
 
-@pytest.mark.parametrize('entry_point', tuple(command.name for command in ENTRY_POINTS))
-def test_character_help_messages(click_runner, entry_point):
-    help_args = (entry_point, '--help')
+@pytest.mark.parametrize('entry_point_name, entry_point', ([command.name, command] for command in ENTRY_POINTS))
+def test_character_help_messages(click_runner, entry_point_name, entry_point):
+    help_args = (entry_point_name, '--help')
     result = click_runner.invoke(nucypher_cli, help_args, catch_exceptions=False)
     assert result.exit_code == 0
-    assert f'{entry_point}' in result.output, 'Missing or invalid help text was produced.'
+    assert f'{entry_point_name}' in result.output, 'Missing or invalid help text was produced.'
+    if isinstance(entry_point, click.Group):
+        for sub_command in entry_point.commands:
+            assert f'{sub_command}' in result.output, f'Sub command {sub_command} is missing from help text'
+
+
+@pytest.mark.parametrize('entry_point_name, entry_point', ([command.name, command] for command in ENTRY_POINTS))
+def test_character_sub_command_help_messages(click_runner, entry_point_name, entry_point):
+    if isinstance(entry_point, click.Group):
+        for sub_command in entry_point.commands:
+            result = click_runner.invoke(nucypher_cli,
+                                         (entry_point_name, sub_command, '--help'),
+                                         catch_exceptions=False)
+            assert result.exit_code == 0
+            assert f'{entry_point_name} {sub_command}' in result.output, \
+                f'Sub command {sub_command} has missing or invalid help text.'
 
 
 def test_nucypher_deploy_help_message(click_runner):
