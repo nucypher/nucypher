@@ -179,6 +179,9 @@ def test_staker(testerchain, token, escrow, preallocation_escrow, preallocation_
     with pytest.raises((TransactionFailed, ValueError)):
         tx = staking_interface.functions.setWorker(owner).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.prolongStake(2, 2).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
 
     locks = preallocation_escrow_interface.events.Locked.createFilter(fromBlock='latest')
     divides = preallocation_escrow_interface.events.Divided.createFilter(fromBlock='latest')
@@ -188,6 +191,7 @@ def test_staker(testerchain, token, escrow, preallocation_escrow, preallocation_
     re_stakes = preallocation_escrow_interface.events.ReStakeSet.createFilter(fromBlock='latest')
     re_stake_locks = preallocation_escrow_interface.events.ReStakeLocked.createFilter(fromBlock='latest')
     worker_logs = preallocation_escrow_interface.events.WorkerSet.createFilter(fromBlock='latest')
+    prolong_logs = preallocation_escrow_interface.events.Prolonged.createFilter(fromBlock='latest')
 
     # Use stakers methods through the preallocation escrow
     tx = preallocation_escrow_interface.functions.lock(100, 1).transact({'from': owner})
@@ -200,6 +204,7 @@ def test_staker(testerchain, token, escrow, preallocation_escrow, preallocation_
     assert 1500 == escrow.functions.value().call()
     assert 1700 == escrow.functions.lockedValue().call()
     assert 1 == escrow.functions.index().call()
+    assert 7 == escrow.functions.periods().call()
     tx = preallocation_escrow_interface.functions.mint().transact({'from': owner})
     testerchain.wait_for_receipt(tx)
     assert 2500 == escrow.functions.value().call()
@@ -213,6 +218,10 @@ def test_staker(testerchain, token, escrow, preallocation_escrow, preallocation_
     assert 0 == escrow.functions.value().call()
     assert 9000 == token.functions.balanceOf(escrow.address).call()
     assert 3000 == token.functions.balanceOf(preallocation_escrow.address).call()
+    tx = preallocation_escrow_interface.functions.prolongStake(2, 2).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert 2 == escrow.functions.index().call()
+    assert 9 == escrow.functions.periods().call()
 
     # Test re-stake methods
     tx = preallocation_escrow_interface.functions.setReStake(True).transact({'from': owner})
@@ -273,6 +282,13 @@ def test_staker(testerchain, token, escrow, preallocation_escrow, preallocation_
     event_args = events[0]['args']
     assert owner == event_args['sender']
     assert owner == event_args['worker']
+
+    events = prolong_logs.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['sender']
+    assert 2 == event_args['index']
+    assert 2 == event_args['periods']
 
     # Owner can withdraw reward for mining but no more than locked
     with pytest.raises((TransactionFailed, ValueError)):

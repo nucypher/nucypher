@@ -67,6 +67,11 @@ contract StakingEscrowForStakingContractMock {
     function setWorker(address _worker) public {
         worker = _worker;
     }
+
+    function prolongStake(uint256 _index, uint16 _periods) public {
+        index = _index;
+        periods += _periods;
+    }
 }
 
 
