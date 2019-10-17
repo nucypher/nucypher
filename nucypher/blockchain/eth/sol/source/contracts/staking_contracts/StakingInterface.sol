@@ -24,6 +24,7 @@ contract StakingInterface {
     event ReStakeSet(address indexed sender, bool reStake);
     event ReStakeLocked(address indexed sender, uint16 lockUntilPeriod);
     event WorkerSet(address indexed sender, address worker);
+    event Prolonged(address indexed sender, uint256 index, uint16 periods);
 
     NuCypherToken public token;
     StakingEscrow public escrow;
@@ -162,6 +163,15 @@ contract StakingInterface {
         emit MinRewardRateSet(msg.sender, _minRewardRate);
     }
 
-    // TODO add prolong
+
+    /**
+    * @notice Prolong active sub stake
+    * @param _index Index of the sub stake
+    * @param _periods Amount of periods for extending sub stake
+    **/
+    function prolongStake(uint256 _index, uint16 _periods) public {
+        getStateContract().escrow().prolongStake(_index, _periods);
+        emit Prolonged(msg.sender, _index, _periods);
+    }
 
 }
