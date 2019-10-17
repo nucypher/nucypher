@@ -383,9 +383,9 @@ Staking using a preallocation contract
 ---------------------------------------
 
 Each NuCypher staker with a preallocation will have some amount of tokens locked
-in a preallocation contract named ``UserEscrow``, which is used to stake and
+in a preallocation contract named ``PreallocationEscrow``, which is used to stake and
 perform other staker-related operations.
-From the perspective of the main NuCypher contracts, each ``UserEscrow``
+From the perspective of the main NuCypher contracts, each ``PreallocationEscrow``
 contract represents a staker, no different from "regular" stakers.
 However, from the perspective of the preallocation user, things are different
 since the contract can't perform transactions, and it's the preallocation user

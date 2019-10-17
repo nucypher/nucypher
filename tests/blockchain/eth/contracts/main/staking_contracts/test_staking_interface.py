@@ -35,14 +35,14 @@ def test_staking_interface(testerchain, policy_manager, preallocation_escrow):
     owner = testerchain.client.accounts[1]
 
     # Create fake instance of the user escrow contract
-    fake_user_escrow = testerchain.client.get_contract(
+    fake_preallocation_escrow = testerchain.client.get_contract(
         abi=policy_manager.abi,
         address=preallocation_escrow.address,
         ContractFactoryClass=Contract)
 
     # Can't execute method that not in the interface
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = fake_user_escrow.functions.additionalMethod(1).transact({'from': owner})
+        tx = fake_preallocation_escrow.functions.additionalMethod(1).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
 
     # And can't send ETH to the preallocation escrow without payable fallback function
@@ -169,7 +169,7 @@ def test_upgrading(testerchain, token, deploy_contract):
 
 
 @pytest.mark.slow
-def test_proxy_selfdestruct(testerchain, token, deploy_contract):
+def test_interface_selfdestruct(testerchain, token, deploy_contract):
     creator = testerchain.client.accounts[0]
     account = testerchain.client.accounts[1]
 
@@ -186,7 +186,7 @@ def test_proxy_selfdestruct(testerchain, token, deploy_contract):
     with pytest.raises((BadFunctionCallOutput, ValueError)):
         interface1.functions.method().call()
 
-    # Can't create linker using address without contract
+    # Can't create router using address without contract
     with pytest.raises((TransactionFailed, ValueError)):
         deploy_contract('StakingInterfaceRouter', BlockchainInterface.NULL_ADDRESS, secret_hash)
     with pytest.raises((TransactionFailed, ValueError)):
@@ -229,7 +229,7 @@ def test_proxy_selfdestruct(testerchain, token, deploy_contract):
     # Destroy library
     tx = interface2.functions.destroy().transact()
     testerchain.wait_for_receipt(tx)
-    # User escrow must determine that there is no contract
+    # Preallocation escrow must determine that there is no contract
     with pytest.raises((TransactionFailed, ValueError)):
         preallocation_escrow_interface.functions.method().call()
 

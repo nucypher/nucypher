@@ -21,9 +21,9 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import is_checksum_address, to_wei
 
-from nucypher.blockchain.eth.agents import UserEscrowAgent
+from nucypher.blockchain.eth.agents import PreallocationEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProxyDeployer, DispatcherDeployer
+from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer, StakingInterfaceDeployer, DispatcherDeployer
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
@@ -39,7 +39,7 @@ def allocation_value(token_economics):
 
 
 @pytest.fixture(scope='function')
-def agent(testerchain, test_registry, allocation_value, agency) -> UserEscrowAgent:
+def agent(testerchain, test_registry, allocation_value, agency) -> PreallocationEscrowAgent:
     deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
 
     # Mock Powerup consumption (Deployer)
@@ -48,9 +48,9 @@ def agent(testerchain, test_registry, allocation_value, agency) -> UserEscrowAge
     testerchain.transacting_power.activate()
 
     # Escrow
-    escrow_deployer = UserEscrowDeployer(deployer_address=deployer_address,
-                                         registry=test_registry,
-                                         allocation_registry=TEST_ALLOCATION_REGISTRY)
+    escrow_deployer = PreallocationEscrowDeployer(deployer_address=deployer_address,
+                                                  registry=test_registry,
+                                                  allocation_registry=TEST_ALLOCATION_REGISTRY)
 
     _receipt = escrow_deployer.deploy()
 
@@ -61,9 +61,9 @@ def agent(testerchain, test_registry, allocation_value, agency) -> UserEscrowAge
     assert escrow_deployer.contract.functions.getLockedTokens().call() == allocation_value
     agent = escrow_deployer.make_agent()
 
-    direct_agent = UserEscrowAgent(registry=test_registry,
-                                   allocation_registry=TEST_ALLOCATION_REGISTRY,
-                                   beneficiary=beneficiary_address)
+    direct_agent = PreallocationEscrowAgent(registry=test_registry,
+                                            allocation_registry=TEST_ALLOCATION_REGISTRY,
+                                            beneficiary=beneficiary_address)
 
     assert direct_agent == agent
     assert direct_agent.contract.abi == agent.contract.abi
@@ -77,19 +77,19 @@ def agent(testerchain, test_registry, allocation_value, agency) -> UserEscrowAge
     TEST_ALLOCATION_REGISTRY.clear()
 
 
-def test_user_escrow_agent_represents_beneficiary(agent, agency):
+def test_preallocation_escrow_agent_represents_beneficiary(agent, agency):
     token_agent, staking_agent, policy_agent = agency
 
     # Name
-    assert agent.registry_contract_name == UserEscrowAgent.registry_contract_name
+    assert agent.registry_contract_name == PreallocationEscrowAgent.registry_contract_name
 
     # Not Equal to StakingEscrow
-    assert agent != staking_agent, "UserEscrow Agent is connected to the StakingEscrow's contract"
-    assert agent.contract_address != staking_agent.contract_address, "UserEscrow and StakingEscrow agents represent the same contract"
+    assert agent != staking_agent, "PreallocationEscrow Agent is connected to the StakingEscrow's contract"
+    assert agent.contract_address != staking_agent.contract_address, "PreallocationEscrow and StakingEscrow agents represent the same contract"
 
-    # Proxy Target Accuracy
-    assert agent.principal_contract.address == agent.proxy_contract.address
-    assert agent.principal_contract.abi != agent.proxy_contract.abi
+    # Interface Target Accuracy
+    assert agent.principal_contract.address == agent.interface_contract.address
+    assert agent.principal_contract.abi != agent.interface_contract.abi
 
     assert agent.principal_contract.address == agent.contract.address
     assert agent.principal_contract.abi == agent.contract.abi
@@ -138,7 +138,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     receipt = agent.deposit_as_staker(amount=token_economics.minimum_allowed_locked, lock_periods=token_economics.minimum_locked_periods)
     assert receipt  # TODO
 
-    # User sets a worker in StakingEscrow via UserEscrow
+    # Owner sets a worker in StakingEscrow via PreallocationEscrow
     worker = testerchain.ursula_account(0)
     _receipt = agent.set_worker(worker_address=worker)
 
@@ -192,7 +192,7 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
     _receipt = agent.deposit_as_staker(amount=token_economics.minimum_allowed_locked,
                                        lock_periods=token_economics.minimum_locked_periods)
 
-    # User sets a worker in StakingEscrow via UserEscrow
+    # Owner sets a worker in StakingEscrow via PreallocationEscrow
     worker = testerchain.ursula_account(0)
     _receipt = agent.set_worker(worker_address=worker)
 

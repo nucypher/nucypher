@@ -51,7 +51,7 @@ def policy_manager(testerchain, deploy_contract):
 
 @pytest.fixture()
 def staking_interface(testerchain, token, escrow, policy_manager, deploy_contract):
-    # Creator deploys the user escrow proxy
+    # Creator deploys the staking interface
     contract, _ = deploy_contract(
         'StakingInterface', token.address, escrow.address, policy_manager.address)
     return contract

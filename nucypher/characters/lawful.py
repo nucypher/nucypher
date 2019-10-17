@@ -42,7 +42,7 @@ from umbral.signing import Signature
 
 import nucypher
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker, Staker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent, ContractAgency, UserEscrowAgent
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent, ContractAgency, PreallocationEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, AllocationRegistry, InMemoryAllocationRegistry
@@ -1418,7 +1418,7 @@ class StakeHolder(Staker):
                  password: str = None,
                  *args, **kwargs):
 
-        self.user_escrow_agent = None
+        self.staking_interface_agent = None
 
         super().__init__(is_me=is_me, checksum_address=initial_address, *args, **kwargs)
         self.log = Logger(f"stakeholder")

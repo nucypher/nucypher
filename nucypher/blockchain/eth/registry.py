@@ -30,7 +30,7 @@ from twisted.logger import Logger
 from web3.contract import Contract
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.blockchain.eth.constants import USER_ESCROW_CONTRACT_NAME
+from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 
 
 class BaseContractRegistry(ABC):
@@ -344,7 +344,7 @@ class InMemoryContractRegistry(BaseContractRegistry):
 class AllocationRegistry(LocalContractRegistry):
 
     _multi_contract = False
-    _contract_name = USER_ESCROW_CONTRACT_NAME
+    _contract_name = PREALLOCATION_ESCROW_CONTRACT_NAME
 
     REGISTRY_TYPE = 'allocation'
     REGISTRY_NAME = 'allocation_registry.json'

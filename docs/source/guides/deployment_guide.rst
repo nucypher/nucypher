@@ -47,7 +47,7 @@ A summary of deployed contract addresses, transactions, and gas usage will be di
     Repeat for confirmation:
     Enter PolicyManager Deployment Secret:
     Repeat for confirmation:
-    Enter UserEscrowProxy Deployment Secret:
+    Enter StakingInterface Deployment Secret:
     Repeat for confirmation:
     Enter Adjudicator Deployment Secret:
     Repeat for confirmation:
@@ -114,15 +114,15 @@ A summary of deployed contract addresses, transactions, and gas usage will be di
     OK | set_policy_manager | 0x43608517bd064b93a81affe4f9bdaea86262a457e031c55a176cf0ba9faab3b2 (51556 gas)
     Block #64 | 0xc5d70ae626ec708e3a785f18710f135be8d0aaaffc56dc33f6daa6d3b7a96ed4
 
-    Press any key to continue with deployment of UserEscrowProxy
+    Press any key to continue with deployment of StakingInterface
 
-    Deploying UserEscrowProxy ...
+    Deploying StakingInterface ...
 
-    UserEscrowProxy (0x45e32FFf386Ace887474F66dCcc719628E27f2C8)
+    StakingInterface (0x45e32FFf386Ace887474F66dCcc719628E27f2C8)
     ************************************************************
     OK | contract_deployment | 0xb66d0350ec6c33ef287e1967977600c97166021328557fad5a0c6f47115594fd (1302643 gas)
     Block #66 | 0xa89f9f6411af7e5f1cd20e9cceff55a5d90fb6c0fbcc7856b9cc75aa7bb93094
-    OK | linker_deployment | 0x1b29376235954d08edaca80c4537f27ae582299e812f5c9affe828a26cea3103 (395961 gas)
+    OK | router_deployment | 0x1b29376235954d08edaca80c4537f27ae582299e812f5c9affe828a26cea3103 (395961 gas)
     Block #68 | 0x4a08ff8a47cef9de42aa8488ab5f8e03adf27d8959ad62604897143a2504e186
 
     Press any key to continue with deployment of Adjudicator

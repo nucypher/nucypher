@@ -20,7 +20,7 @@ import random
 
 import pytest
 
-from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProxyDeployer
+from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer, StakingInterfaceDeployer
 
 
 @pytest.mark.slow()
@@ -35,7 +35,7 @@ def test_deploy_and_allocate(agency, token_economics, test_registry):
 
     _last_deployment_address = None
     for index in range(number_of_deployments):
-        escrow_deployer = UserEscrowDeployer(deployer_address=origin, registry=test_registry)
+        escrow_deployer = PreallocationEscrowDeployer(deployer_address=origin, registry=test_registry)
 
         _deployment_txhashes = escrow_deployer.deploy()
 

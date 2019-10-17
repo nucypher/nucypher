@@ -413,7 +413,7 @@ class Stake:
         # Transmit
         #
 
-        # TODO: Entrypoint for UserEscrowAgent here
+        # TODO: Entrypoint for PreallocationEscrowAgent here
         # Transmit the stake division transaction
         receipt = self.staking_agent.divide_stake(staker_address=self.staker_address,
                                                   stake_index=self.index,

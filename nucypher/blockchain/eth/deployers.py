@@ -28,7 +28,7 @@ from nucypher.blockchain.eth.agents import (
     StakingEscrowAgent,
     NucypherTokenAgent,
     PolicyManagerAgent,
-    UserEscrowAgent,
+    PreallocationEscrowAgent,
     AdjudicatorAgent
 )
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME
@@ -662,9 +662,9 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         return deployment_receipts
 
 
-class LibraryLinkerDeployer(BaseContractDeployer, OwnableContractMixin):
+class StakingInterfaceRouterDeployer(BaseContractDeployer, OwnableContractMixin):
 
-    contract_name = 'UserEscrowLibraryLinker'
+    contract_name = 'StakingInterfaceRouter'
     deployment_steps = ('contract_deployment', )
 
     def __init__(self, target_contract: Contract, bare: bool = False, *args, **kwargs):
@@ -676,16 +676,16 @@ class LibraryLinkerDeployer(BaseContractDeployer, OwnableContractMixin):
                                                                 proxy_name=self.contract_name)
 
     def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None) -> dict:
-        linker_args = (self.target_contract.address, secret_hash)
-        linker_contract, receipt = self.blockchain.deploy_contract(self.deployer_address,
+        router_args = (self.target_contract.address, secret_hash)
+        router_contract, receipt = self.blockchain.deploy_contract(self.deployer_address,
                                                                    self.registry,
                                                                    self.contract_name,
-                                                                   *linker_args,
+                                                                   *router_args,
                                                                    gas_limit=gas_limit)
         if progress:
             progress.update(1)
 
-        self._contract = linker_contract
+        self._contract = router_contract
         return {self.deployment_steps[0]: receipt}
 
     @validate_secret
@@ -705,12 +705,12 @@ class LibraryLinkerDeployer(BaseContractDeployer, OwnableContractMixin):
         return retarget_receipt
 
 
-class UserEscrowProxyDeployer(BaseContractDeployer, UpgradeableContractMixin):
+class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
 
-    contract_name = 'UserEscrowProxy'
-    deployment_steps = ('contract_deployment', 'linker_deployment')
+    contract_name = 'StakingInterface'
+    deployment_steps = ('contract_deployment', 'router_deployment')
     number_of_deployment_transactions = 2
-    _proxy_deployer = LibraryLinkerDeployer
+    _proxy_deployer = StakingInterfaceRouterDeployer
     _ownable = False
 
     def __init__(self, *args, **kwargs):
@@ -752,7 +752,7 @@ class UserEscrowProxyDeployer(BaseContractDeployer, UpgradeableContractMixin):
                progress=None
                ) -> dict:
         """
-        Deploys a new UserEscrowProxy contract, and a new UserEscrowLibraryLinker, targeting the first.
+        Deploys a new StakingInterface contract, and a new StakingInterfaceRouter, targeting the first.
         This is meant to be called only once per general deployment.
         """
 
@@ -760,42 +760,42 @@ class UserEscrowProxyDeployer(BaseContractDeployer, UpgradeableContractMixin):
             raise ValueError(f"An upgrade secret hash is required to perform an initial"
                              f" deployment series for {self.contract_name}.")
 
-        # 1 - UserEscrowProxy
-        user_escrow_proxy_contract, deployment_receipt = self._deploy_essential(gas_limit=gas_limit)
+        # 1 - StakingInterface
+        staking_interface_contract, deployment_receipt = self._deploy_essential(gas_limit=gas_limit)
 
         # This is the end of bare deployment.
         if not initial_deployment:
-            self._contract = user_escrow_proxy_contract
+            self._contract = staking_interface_contract
             return self._finish_bare_deployment(deployment_receipt=deployment_receipt,
                                                 progress=progress)
 
         if progress:
             progress.update(1)
 
-        # 2 - UserEscrowLibraryLinker
-        linker_deployer = self._proxy_deployer(registry=self.registry,
+        # 2 - StakingInterfaceRouter
+        router_deployer = self._proxy_deployer(registry=self.registry,
                                                deployer_address=self.deployer_address,
-                                               target_contract=user_escrow_proxy_contract)
+                                               target_contract=staking_interface_contract)
 
-        linker_deployment_receipts = linker_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
-        linker_deployment_receipt = linker_deployment_receipts[linker_deployer.deployment_steps[0]]
+        router_deployment_receipts = router_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+        router_deployment_receipt = router_deployment_receipts[router_deployer.deployment_steps[0]]
         if progress:
             progress.update(1)
 
         # Gather the transaction receipts
-        ordered_receipts = (deployment_receipt, linker_deployment_receipt)
+        ordered_receipts = (deployment_receipt, router_deployment_receipt)
         deployment_receipts = dict(zip(self.deployment_steps, ordered_receipts))
 
-        self._contract = user_escrow_proxy_contract
+        self._contract = staking_interface_contract
         return deployment_receipts
 
 
-class UserEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):
+class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):
 
-    agency = UserEscrowAgent
+    agency = PreallocationEscrowAgent
     contract_name = agency.registry_contract_name
     deployment_steps = ('contract_deployment', )
-    _linker_deployer = LibraryLinkerDeployer
+    _router_deployer = StakingInterfaceRouterDeployer
     __allocation_registry = AllocationRegistry
 
     def __init__(self, allocation_registry: AllocationRegistry = None, *args, **kwargs) -> None:
@@ -820,7 +820,7 @@ class UserEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownable
 
     @validate_checksum_address
     def assign_beneficiary(self, checksum_address: str) -> dict:
-        """Relinquish ownership of a UserEscrow deployment to the beneficiary"""
+        """Relinquish ownership of a PreallocationEscrow deployment to the beneficiary"""
         # TODO: #413, #842 - Gas Management
         payload = {'gas': 500_000}
         transfer_owner_function = self.contract.functions.transferOwnership(checksum_address)
@@ -882,21 +882,21 @@ class UserEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownable
         return dict(deposit_receipt=deposit_receipt, assign_receipt=assign_receipt)
 
     def deploy(self, initial_deployment: bool = True, gas_limit: int = None, progress=None) -> dict:
-        """Deploy a new instance of UserEscrow to the blockchain."""
+        """Deploy a new instance of PreallocationEscrow to the blockchain."""
         self.check_deployment_readiness()
-        linker_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                               name=self._linker_deployer.contract_name)
+        router_contract = self.blockchain.get_contract_by_name(registry=self.registry,
+                                                               name=self._router_deployer.contract_name)
         args = (self.deployer_address,
                 self.registry,
                 self.contract_name,
-                linker_contract.address,
+                router_contract.address,
                 self.token_contract.address)
 
-        user_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(*args, gas_limit=gas_limit, enroll=False)
+        preallocation_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(*args, gas_limit=gas_limit, enroll=False)
         if progress:
             progress.update(1)
 
-        self._contract = user_escrow_contract
+        self._contract = preallocation_escrow_contract
         self.deployment_receipts.update({'deployment': deploy_receipt})
         return deploy_receipt
 
