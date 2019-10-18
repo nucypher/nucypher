@@ -45,6 +45,7 @@ option_bob_verifying_key = click.option(
 )
 
 option_pay_with = click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
+option_rate = click.option('--rate', help="Policy rate per period (in wei)", type=types.WEI)  # TODO: Is wei a sane unit here? Perhaps gwei?
 
 
 class AliceConfigOptions:
@@ -218,7 +219,7 @@ def alice():
 @option_light
 @option_m
 @option_n
-@click.option('--rate', help="Policy rate per period in wei", type=click.FLOAT)
+@option_rate
 @click.option('--duration-periods', help="Policy duration in periods", type=click.FLOAT)
 @group_general_config
 def init(general_config, config_options, config_root, poa, light, m, n, rate, duration_periods):
@@ -326,7 +327,6 @@ def derive_policy_pubkey(general_config, label, character_options, config_file):
     """
     Get a policy public key from a policy label.
     """
-    ### Setup ###
     emitter = _setup_emitter(general_config)
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
     return ALICE.controller.derive_policy_encrypting_key(label=label)
@@ -339,6 +339,7 @@ def derive_policy_pubkey(general_config, label, character_options, config_file):
 @option_label(required=True)
 @option_m
 @option_n
+@option_rate
 @click.option('--expiration', help="Expiration Datetime of a policy", type=click.STRING)  # TODO: click.DateTime()
 @click.option('--value', help="Total policy value (in Wei)", type=types.WEI)
 @group_character_options
@@ -349,7 +350,7 @@ def grant(general_config,
           bob_encrypting_key, bob_verifying_key, label,
 
           # Other
-          m, n, expiration, value,
+          m, n, expiration, value, rate,
 
           # API Options
           character_options, config_file
@@ -357,7 +358,6 @@ def grant(general_config,
     """
     Create and enact an access policy for some Bob.
     """
-    ### Setup ###
     emitter = _setup_emitter(general_config)
 
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
@@ -373,7 +373,7 @@ def grant(general_config,
     }
 
     if not ALICE.federated_only:
-        grant_request.update({'value': value})
+        grant_request.update({'value': value, 'rate': rate})
     return ALICE.controller.grant(request=grant_request)
 
 
@@ -394,7 +394,6 @@ def revoke(general_config,
     """
     Revoke a policy.
     """
-    ### Setup ###
     emitter = _setup_emitter(general_config)
 
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
@@ -421,7 +420,6 @@ def decrypt(general_config,
     """
     Decrypt data encrypted under an Alice's policy public key.
     """
-    ### Setup ###
     emitter = _setup_emitter(general_config)
 
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)

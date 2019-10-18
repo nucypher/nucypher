@@ -123,7 +123,8 @@ class AliceControlJSONSerializer(CharacterControlJSONSerializer, MessageHandlerM
                             label=request['label'].encode(),
                             m=request['m'],
                             n=request['n'],
-                            value=request.get('value'),  # optional / unused in federation mode
+                            value=request.get('value'),  # optional / unused in federated mode
+                            rate=request.get('rate'),  # optional / unused in federated mode
                             expiration=maya.MayaDT.from_iso8601(iso8601_string=request['expiration']))
         return parsed_input
 
