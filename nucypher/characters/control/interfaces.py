@@ -103,6 +103,7 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
               n: int,
               expiration: maya.MayaDT,
               value: int = None,
+              rate: int = None,
               ) -> dict:
 
         from nucypher.characters.lawful import Bob
@@ -114,6 +115,7 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
                                           m=m,
                                           n=n,
                                           value=value,
+                                          rate=rate,
                                           expiration=expiration)
 
         response_data = {'treasure_map': new_policy.treasure_map,

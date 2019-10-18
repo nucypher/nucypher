@@ -58,7 +58,7 @@ def alice():
 @click.option('--light', help="Indicate that node is light", is_flag=True, default=False)
 @click.option('--m', help="M-Threshold KFrags", type=click.INT)
 @click.option('--n', help="N-Total KFrags", type=click.INT)
-@click.option('--rate', help="Policy rate per period in wei", type=click.FLOAT)
+@click.option('--rate', help="Policy rate per period in wei", type=types.WEI)
 @click.option('--duration-periods', help="Policy duration in periods", type=click.FLOAT)
 @nucypher_click_config
 def init(click_config,
@@ -282,6 +282,7 @@ def derive_policy_pubkey(click_config,
 @click.option('--n', help="N-Total KFrags", type=click.INT)
 @click.option('--expiration', help="Expiration Datetime of a policy", type=click.STRING)  # TODO: click.DateTime()
 @click.option('--value', help="Total policy value (in Wei)", type=types.WEI)
+@click.option('--rate', help="Policy rate per period in wei", type=types.WEI)
 @_api_options
 @nucypher_click_config
 def grant(click_config,
@@ -289,7 +290,7 @@ def grant(click_config,
           bob_encrypting_key, bob_verifying_key, label,
 
           # Other
-          m, n, expiration, value,
+          m, n, expiration, value, rate,
 
           # API Options
           geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath,
@@ -317,7 +318,7 @@ def grant(click_config,
     }
 
     if not ALICE.federated_only:
-        grant_request.update({'value': value})
+        grant_request.update({'value': value, 'rate': rate})
     return ALICE.controller.grant(request=grant_request)
 
 
