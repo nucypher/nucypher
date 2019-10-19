@@ -189,7 +189,7 @@ class BaseContractRegistry(ABC):
         if contract_address and len(contracts) > 1:
             m = f"Multiple records returned for address {contract_address}"
             self.log.critical(m)
-            raise self.IllegalRegistry(m.format(contract_address))
+            raise self.IllegalRegistry(m)
 
         result = tuple(contracts) if contract_name else contracts[0]
         return result
@@ -464,7 +464,9 @@ class IndividualAllocationRegistry(InMemoryAllocationRegistry):
         if not contract_abi:
             # Download individual allocation template to extract contract_abi
             individual_allocation_template = json.loads(self.fetch_latest_publication())
-            contract_data = [*individual_allocation_template.values()].pop()
+            if len(individual_allocation_template) != 1:
+                raise self.IllegalRegistry("Individual allocation template must contain a single entry")
+            contract_data = list(individual_allocation_template.values()).pop()
             contract_abi = contract_data[1]
 
         # Fill template with beneficiary and contract addresses
