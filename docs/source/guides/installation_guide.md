@@ -14,8 +14,7 @@
 
 * At least 1 GB of RAM is required for secure password-based key derivation with [scrypt](http://www.tarsnap.com/scrypt.html).
 * We have tested `nucypher` with Windows, Mac OS, and GNU/Linux (GNU/Linux is recommended).
-* If you don’t already have it, install [Python](https://www.python.org/downloads/).
-As of August 2019, we are working with Python 3.6, 3.7, and 3.8.
+* If you don’t already have it, install [Python](https://www.python.org/downloads/). As of August 2019, we are working with Python 3.6, 3.7, and 3.8.
 * We also require the following system packages (Linux):
 
     - `libffi-dev`
@@ -24,7 +23,7 @@ As of August 2019, we are working with Python 3.6, 3.7, and 3.8.
 
 ## Standard Installation
 
-We recommend installing `nucypher` with either `pip` or `pipenv`
+We recommend installing `nucypher` with either `pip` or `pipenv` or `docker`
 
 * [Pip Documentation](https://pip.pypa.io/en/stable/installing/)
 * [Pipenv Documentation](https://pipenv.readthedocs.io/en/latest/)
@@ -105,68 +104,19 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
     import nucypher
     ```
 
-## Standard Docker Install
-##### --- for running Nucypher Nodes and using Nucypher Characters
-* install [Docker](https://docs.docker.com/install/)
-* (optional) follow these post install instructions: https://docs.docker.com/install/linux/linux-postinstall/
-* get the latest nucypher image:
-  * `(maybe sudo) docker pull nucypher/nucypher:latest`
-* that's it.  Now you can `docker run -v /home/ubuntu:/root/.local/share/ nucypher/nucypher:latest nucypher alice init`
+### Standard Docker Install
+1. Install [Docker](https://docs.docker.com/install/)
 
-    * *Note the volume mounts. `-v <path to a directory on your computer>:/root/.local/share/`
+2. (Optional) Follow these post install instructions: https://docs.docker.com/install/linux/linux-postinstall/
+
+3. Get the latest nucypher image:
+
+  `(maybe sudo) docker pull nucypher/nucypher:latest`
+
+4. That's it. Now you can run commands like `docker run -v /home/ubuntu:/root/.local/share/ nucypher/nucypher:latest nucypher alice init`
+
+*Note the volume mounts. `-v <path to a directory on your computer>:/root/.local/share/`
 This is important because it allows your Nucypher node to store persistent data as well as commonly access ipc with a locally running geth node.*
-
-
-Here is an example of how to run an Ursula worker node on Ubuntu. It assumes you have a geth node running locally with `--datadir=~/geth`
-
-
-```
-export NUCYPHER_KEYRING_PASSWORD=<your keyring password>
-export MY_IP=$(wget -q -O - ifconfig.me);
-export NUCYPHER_WORKER_ADDRESS=<eth account checksum of your worker>
-export NUCYPHER_STAKER_ADDRESS=<eth account checksum of your staker>
-export NUCYPHER_WORKER_ETH_PASSWORD=<your eth account password>
-
-# init your worker
-docker run -v /home/ubuntu:/root/.local/share/ -e NUCYPHER_KEYRING_PASSWORD -it nucypher/nucypher:latest nucypher ursula init --provider /root/.local/share/geth/.ethereum/goerli/geth.ipc --poa --worker-address $NUCYPHER_WORKER_ADDRESS --staker-address $NUCYPHER_STAKER_ADDRESS --rest-host $MY_IP --sync
-
-# and then run the worker in the background
-docker run -v /home/ubuntu:/root/.local/share/ -dit --restart unless-stopped -p 9151:9151  -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD  nucypher/nucypher:latest nucypher ursula run --teacher discover.nucypher.network:9151 --sync --poa
-```
-
-## Development Docker Installation
-##### --- for using docker for easier Nucypher development
-The intention of the Docker configurations in this directory is to enable anyone to develop and test NuCypher on all major operating systems with minimal prerequisites and installation hassle.
-
-### Start with standard Docker Installation
-* install [Docker](https://docs.docker.com/install/)
-* install [Docker Compose](https://docs.docker.com/compose/install/)
-* cd to dev/docker
-* `docker-compose up --build` **this must be done once to complete install**
-
-### Running NuCypher
-Then you can do things like:
-* run the tests:
-`docker-compose run nucypher-dev pytest`
-* start up an ursula:
-`docker-compose run nucypher-dev nucypher ursula run --dev --federated-only`
-* open a shell:
-`docker-compose run nucypher-dev bash`
-
-* try some of the scripts in `dev/docker/scripts/`
-
-**tested on (Ubuntu 16, MacOS 10.14, Windows 10)*
-
-From there you can develop, modify code, test as normal.
-
-### Other cases
-
-* run a network of 8 independent Ursulas
-`docker-compose -f 8-federated-ursulas.yml up`
-*  get the local ports these ursulas will be exposed on
-`docker ps`
-* to stop them...
- `docker-compose -f 8-federated-ursulas.yml stop`
 
 
 ## Development Installation
@@ -217,6 +167,40 @@ Alternately, you can install the development dependencies with pip:
 $ pip3 install -e .[development]
 $ ./scripts/installation/install_solc.sh
 ```
+
+### Development Docker Installation
+The intention of the Docker configurations in this directory is to enable anyone to develop and test NuCypher on all major operating systems with minimal prerequisites and installation hassle.
+
+#### Start with standard Docker Installation
+1. Install [Docker](https://docs.docker.com/install/)
+2. Install [Docker Compose](https://docs.docker.com/compose/install/)
+3. `cd` to `dev/docker
+4. Run `docker-compose up --build` **this must be done once to complete install**
+
+#### Running NuCypher
+Then you can do things like:
+* Run the tests:
+`docker-compose run nucypher-dev pytest`
+* Start up an Ursula:
+`docker-compose run nucypher-dev nucypher ursula run --dev --federated-only`
+* Open a shell:
+`docker-compose run nucypher-dev bash`
+
+* try some of the scripts in `dev/docker/scripts/`
+
+**tested on (Ubuntu 16, MacOS 10.14, Windows 10)*
+
+From there you can develop, modify code, test as normal.
+
+#### Other cases
+
+* Run a network of 8 independent Ursulas
+`docker-compose -f 8-federated-ursulas.yml up`
+* Get the local ports these ursulas will be exposed on
+`docker ps`
+* To stop them...
+ `docker-compose -f 8-federated-ursulas.yml stop`
+
 
 ## Systemd Service Installation
 
