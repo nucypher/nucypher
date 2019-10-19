@@ -423,6 +423,7 @@ def testerchain(_testerchain):
     pyevm_backend = testerchain.provider.ethereum_tester.backend
     snapshot = pyevm_backend.chain.get_canonical_block_by_number(0).hash
     pyevm_backend.revert_to_snapshot(snapshot)
+    testerchain.nonces = {}
 
     coinbase, *addresses = testerchain.client.accounts
 

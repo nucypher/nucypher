@@ -58,7 +58,6 @@ from nucypher.blockchain.eth.providers import (
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.utilities.logging import console_observer, GlobalLoggerSettings
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
@@ -172,6 +171,7 @@ class BlockchainInterface:
         self.w3 = NO_BLOCKCHAIN_CONNECTION
         self.client = NO_BLOCKCHAIN_CONNECTION
         self.transacting_power = READ_ONLY_INTERFACE
+        self.nonces = {}
 
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
@@ -349,7 +349,16 @@ class BlockchainInterface:
         if not payload:
             payload = {}
 
-        nonce = self.client.w3.eth.getTransactionCount(sender_address)
+        geth_nonce = self.client.w3.eth.getTransactionCount(sender_address)
+        if sender_address in self.nonces:
+            self.nonces[sender_address] += 1
+            if self.nonces[sender_address] < geth_nonce:
+                # In case someone external to nucypher did a geth tx
+                self.nonces[sender_address] = geth_nonce
+            nonce = self.nonces[sender_address]
+        else:
+            self.nonces[sender_address] = geth_nonce
+            nonce = geth_nonce
         payload.update({'chainId': int(self.client.chain_id),
                         'nonce': nonce,
                         'from': sender_address,
@@ -381,7 +390,11 @@ class BlockchainInterface:
             # TODO: Handle validation failures for gas limits, invalid fields, etc.
             # Note: Geth raises ValueError in the same condition that pyevm raises ValidationError here.
             # Treat this condition as "Transaction Failed".
+            self.nonces[sender_address] -= 1
             self.log.critical(f"Validation error: {e}")
+            raise
+        except Exception:
+            self.nonces[sender_address] -= 1
             raise
         else:
             if deployment:
@@ -392,7 +405,11 @@ class BlockchainInterface:
         #
 
         signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction)
-        txhash = self.client.send_raw_transaction(signed_raw_transaction)
+        try:
+            txhash = self.client.send_raw_transaction(signed_raw_transaction)
+        except Exception:
+            self.nonces[sender_address] -= 1
+            raise
 
         try:
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT)
