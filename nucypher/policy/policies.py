@@ -550,7 +550,7 @@ class BlockchainPolicy(Policy):
         return params
 
     def __find_ursulas(self,
-                       ether_addresses: List[str],
+                       checksum_addresses: List[str],
                        target_quantity: int,
                        timeout: int = 10) -> set:  # TODO #843: Make timeout configurable
 
@@ -562,22 +562,22 @@ class BlockchainPolicy(Policy):
             delta = maya.now() - start_time                # check for a timeout
             if delta.total_seconds() >= timeout:
                 missing_nodes = ', '.join(a for a in unknown_addresses)
-                raise RuntimeError("Timed out after {} seconds; Cannot find {}.".format(timeout, missing_nodes))
+                raise RuntimeError(f"Timed out after {timeout} seconds; Cannot find {missing_nodes}.")
 
-            # Select an ether_address: Prefer the selection pool, then unknowns queue
-            if ether_addresses:
-                ether_address = ether_addresses.pop()
+            # Select a checksum_address: Prefer the selection pool, then unknowns queue
+            if checksum_addresses:
+                checksum_address = checksum_addresses.pop()
             else:
-                ether_address = unknown_addresses.popleft()
+                checksum_address = unknown_addresses.popleft()
 
             try:
                 # Check if this is a known node.
-                selected_ursula = self.alice.known_nodes[ether_address]
+                selected_ursula = self.alice.known_nodes[checksum_address]
 
             except KeyError:
                 # Unknown Node
-                self.alice.learn_about_specific_nodes({ether_address})  # enter address in learning loop
-                unknown_addresses.append(ether_address)
+                self.alice.learn_about_specific_nodes({checksum_address})  # enter address in learning loop
+                unknown_addresses.append(checksum_address)
                 continue
 
             else:
@@ -599,7 +599,9 @@ class BlockchainPolicy(Policy):
 
         # Capture the selection and search the network for those Ursulas
         selected_addresses.update(sampled_addresses)
-        found_ursulas = self.__find_ursulas(sampled_addresses, quantity)
+        found_ursulas = self.__find_ursulas(checksum_addresses=sampled_addresses,
+                                            target_quantity=quantity,
+                                            timeout=300)  # FIXME: Workaround until LL is optimized
         return found_ursulas
 
     def publish(self, **kwargs) -> dict:
