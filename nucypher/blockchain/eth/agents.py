@@ -171,9 +171,11 @@ class NucypherTokenAgent(EthereumContractAgent):
                                                    sender_address=sender_address)
         return receipt
 
-    def transfer(self, amount: int, target_address: str, sender_address: str):
+    def transfer(self, amount: int, target_address: str, sender_address: str, gas_limit: int = None):
         contract_function = self.contract.functions.transfer(target_address, amount)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=sender_address,
+                                                   transaction_gas_limit=gas_limit)
         return receipt
 
 

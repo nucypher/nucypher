@@ -405,7 +405,8 @@ class Felix(Character, NucypherTokenActor):
         self.__disbursement += 1
         receipt = self.token_agent.transfer(amount=disbursement,
                                             target_address=recipient_address,
-                                            sender_address=self.checksum_address)
+                                            sender_address=self.checksum_address,
+                                            gas_limit=100_000)
         txhash = receipt['transactionHash']
         if self.distribute_ether:
             ether = self.ETHER_AIRDROP_AMOUNT
@@ -511,7 +512,8 @@ class Felix(Character, NucypherTokenActor):
             for recipient, disbursement in staged_disbursement:
 
                 # Perform the transfer... leaky faucet.
-                self.__transfer(disbursement=disbursement, recipient_address=recipient.address)
+                self.__transfer(disbursement=disbursement,
+                                recipient_address=recipient.address)
                 self.__distributed += disbursement
 
                 # Update the database record
