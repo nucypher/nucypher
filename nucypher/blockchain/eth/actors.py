@@ -982,7 +982,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
 
         # From defaults
-        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)  # type: StakingEscrowAgent
         self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
 
         self.economics = TokenEconomicsFactory.get_economics(registry=self.registry)

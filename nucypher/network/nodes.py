@@ -819,8 +819,7 @@ class Learner:
 
             except node.NotStaking:
                 self.log.warn(f'Verification Failed - '
-                              f'{node} has no active stakes in the current period '
-                              f'({self.staking_agent.get_current_period()}')
+                              f'{node} has no active stakes in the current period')
 
             except node.InvalidWorkerSignature:
                 self.log.warn(f'Verification Failed - '
