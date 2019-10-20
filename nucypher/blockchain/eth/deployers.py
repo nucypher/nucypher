@@ -598,14 +598,14 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         # Switch the contract for the wrapped one
         the_escrow_contract = wrapped_escrow_contract
 
-        # 3 - Transfer the reward supply tokens to StakingEscrow #
-        reward_function = self.token_contract.functions.approve(the_escrow_contract.address,
-                                                                self.economics.erc20_reward_supply)
+        # 3 - Approve transfer the reward supply tokens to StakingEscrow #
+        approve_reward_function = self.token_contract.functions.approve(the_escrow_contract.address,
+                                                                        self.economics.erc20_reward_supply)
 
         # TODO: Confirmations / Successful Transaction Indicator / Events ??  - #1193, #1194
-        reward_receipt = self.blockchain.send_transaction(contract_function=reward_function,
-                                                          sender_address=self.deployer_address,
-                                                          payload=origin_args)
+        approve_reward_receipt = self.blockchain.send_transaction(contract_function=approve_reward_function,
+                                                                  sender_address=self.deployer_address,
+                                                                  payload=origin_args)
         if progress:
             progress.update(1)
 
@@ -619,7 +619,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             progress.update(1)
 
         # Gather the transaction receipts
-        ordered_receipts = (deploy_receipt, dispatcher_deploy_receipt, reward_receipt, init_receipt)
+        ordered_receipts = (deploy_receipt, dispatcher_deploy_receipt, approve_reward_receipt, init_receipt)
         deployment_receipts = dict(zip(self.deployment_steps, ordered_receipts))
 
         # Set the contract and transaction receipts #

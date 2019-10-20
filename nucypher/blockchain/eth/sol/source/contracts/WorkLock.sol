@@ -3,11 +3,11 @@ pragma solidity ^0.5.3;
 
 import "zeppelin/math/SafeMath.sol";
 import "zeppelin/token/ERC20/SafeERC20.sol";
-//import "zeppelin/utils/Address.sol";
+import "zeppelin/utils/Address.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/StakingEscrow.sol";
-//import "contracts/UserEscrow.sol";
-//import "contracts/UserEscrowLibraryLinker.sol";
+import "contracts/staking_contracts/PreallocationEscrow.sol";
+import "contracts/staking_contracts/AbstractStakingContract.sol";
 import "contracts/lib/AdditionalMath.sol";
 
 
@@ -18,12 +18,12 @@ contract WorkLock {
     using SafeERC20 for NuCypherToken;
     using SafeMath for uint256;
     using AdditionalMath for uint256;
-//    using Address for address payable;
+    using Address for address payable;
 
     event Deposited(address indexed sender, uint256 value);
     event Bid(address indexed staker, uint256 depositedETH);
-    event Claimed(address indexed staker, uint256 claimedTokens);
-    event Refund(address indexed staker, uint256 refundETH, uint256 completedWork);
+    event Claimed(address indexed staker, address preallocationEscrow, uint256 claimedTokens);
+    event Refund(address indexed staker, address preallocationEscrow, uint256 refundETH, uint256 completedWork);
     event Burnt(address indexed sender, uint256 value);
     event Canceled(address indexed staker, uint256 value);
 
@@ -35,54 +35,56 @@ contract WorkLock {
 
     NuCypherToken public token;
     StakingEscrow public escrow;
-//    UserEscrowLibraryLinker public linker;
+    StakingInterfaceRouter public router;
 
     uint256 public startBidDate;
     uint256 public endBidDate;
 
+    // TODO describe calculations in comments
     uint256 public boostingRefund;
     uint16 public constant SLOWING_REFUND = 100;
 
     uint256 public tokenSupply;
     uint256 public ethSupply;
     uint256 public unclaimedTokens;
-//    uint16 public lockedDuration;
+    uint16 public lockedDuration;
     mapping(address => WorkInfo) public workInfo;
+    mapping(address => address) public depositors;
 
     /**
     * @param _token Token contract
     * @param _escrow Escrow contract
-    * @dev _linker Linker contract
+    * @param _router Router contract
     * @param _startBidDate Timestamp when bidding starts
     * @param _endBidDate Timestamp when bidding will end
     * @param _boostingRefund Coefficient to boost refund ETH
-    * @dev _lockedDuration Duration of tokens locking
+    * @param _lockedDuration Duration of tokens locking
     */
     constructor(
         NuCypherToken _token,
         StakingEscrow _escrow,
-//        UserEscrowLibraryLinker _linker,
+        StakingInterfaceRouter _router,
         uint256 _startBidDate,
         uint256 _endBidDate,
-        uint256 _boostingRefund//,
-//        uint16 _lockedDuration
+        uint256 _boostingRefund,
+        uint16 _lockedDuration
     )
         public
     {
         require(_token.totalSupply() > 0 &&
             _escrow.secondsPerPeriod() > 0 &&
-//            _linker.target().isContract() &&
+            _router.target().isContract() &&
             _endBidDate > _startBidDate &&
             _endBidDate > block.timestamp &&
-            _boostingRefund > 0);// &&
-//            _lockedDuration > 0);
+            _boostingRefund > 0 &&
+            _lockedDuration > 0);
         token = _token;
         escrow = _escrow;
-//        linker = _linker;
+        router = _router;
         startBidDate = _startBidDate;
         endBidDate = _endBidDate;
         boostingRefund = _boostingRefund;
-//        lockedDuration = _lockedDuration;
+        lockedDuration = _lockedDuration;
     }
 
     /**
@@ -174,39 +176,27 @@ contract WorkLock {
         require(!info.claimed, "Tokens are already claimed");
         info.claimed = true;
         claimedTokens = ethToTokens(info.depositedETH); // TODO check for overflow before
-        info.completedWork = escrow.setWorkMeasurement(msg.sender, true);
-        token.safeTransfer(msg.sender, claimedTokens);
-        emit Claimed(msg.sender, claimedTokens);
 
-        // TODO UE?
-//        UserEscrow userEscrow = new UserEscrow(linker, token);
-//        token.approve(address(escrow), claimedTokens);
-//        userEscrow.initialDeposit(claimedTokens, lockedDuration);
-//        userEscrow.transferOwnership(msg.sender);
-//        depositors[userEscrow] = msg.sender;
-//        info.completedWork = escrow.setWorkMeasurement(address(userEscrow), true);
-//        emit Claimed(msg.sender, userEscrow, claimedTokens);
+        PreallocationEscrow preallocationEscrow = new PreallocationEscrow(router, token);
+        token.approve(address(escrow), claimedTokens);
+        preallocationEscrow.initialDeposit(claimedTokens, lockedDuration);
+        preallocationEscrow.transferOwnership(msg.sender);
+        depositors[address(preallocationEscrow)] = msg.sender;
+        info.completedWork = escrow.setWorkMeasurement(address(preallocationEscrow), true);
+        emit Claimed(msg.sender, address(preallocationEscrow), claimedTokens);
     }
 
     /**
     * @notice Refund ETH for the completed work
     */
-    function refund() public returns (uint256 refundETH) {
-    // TODO UE?
-//    function refund(UserEscrow _userEscrow) public returns (uint256 refundETH) {
-        WorkInfo storage info = workInfo[msg.sender];
-        require(info.claimed, "Tokens are not claimed");
+    function refund(PreallocationEscrow _preallocationEscrow) public returns (uint256 refundETH) {
+        address depositor = depositors[address(_preallocationEscrow)];
+        require(depositor != address(0), "Untrusted contract");
+        WorkInfo storage info = workInfo[depositor];
+        require(info.claimed, "Tokens are not claimed"); // TODO unreachable?
         require(info.depositedETH > 0, "Nothing deposited");
-        uint256 currentWork = escrow.getCompletedWork(msg.sender);
-
-        // TODO UE?
-//        address depositor = depositors[_userEscrow];
-//        require(depositor != 0x0, "Untrusted contract");
-//        WorkInfo storage info = workInfo[depositor];
-//        require(info.claimed, "Tokens are not claimed"); // TODO unreachable?
-//        require(info.depositedETH > 0, "Nothing deposited");
-//        require(_userEscrow.owner() == msg.sender, "Only the owner of specified contract can request a refund");
-//        uint256 currentWork = escrow.getCompletedWork(_userEscrow);
+        require(_preallocationEscrow.owner() == msg.sender, "Only the owner of specified contract can request a refund");
+        uint256 currentWork = escrow.getCompletedWork(address(_preallocationEscrow));
 
         uint256 completedWork = currentWork.sub(info.completedWork);
         require(completedWork > 0, "No work that has been completed.");
@@ -216,17 +206,13 @@ contract WorkLock {
             refundETH = info.depositedETH;
         }
         if (refundETH == info.depositedETH) {
-            escrow.setWorkMeasurement(msg.sender, false);
-        // TODO UE?
-//            escrow.setWorkMeasurement(_userEscrow, false);
+            escrow.setWorkMeasurement(address(_preallocationEscrow), false);
         }
         info.depositedETH = info.depositedETH.sub(refundETH);
         completedWork = ethToWork(refundETH);
 
         info.completedWork = info.completedWork.add(completedWork);
-        emit Refund(msg.sender, refundETH, completedWork);
-        // TODO UE?
-//        emit Refund(msg.sender, _userEscrow, refundETH, completedWork);
+        emit Refund(msg.sender, address(_preallocationEscrow), refundETH, completedWork);
         msg.sender.sendValue(refundETH);
     }
 
