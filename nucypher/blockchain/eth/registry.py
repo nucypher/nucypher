@@ -466,7 +466,11 @@ class IndividualAllocationRegistry(InMemoryAllocationRegistry):
             individual_allocation_template = json.loads(self.fetch_latest_publication())
             if len(individual_allocation_template) != 1:
                 raise self.IllegalRegistry("Individual allocation template must contain a single entry")
-            contract_data = list(individual_allocation_template.values()).pop()
+            try:
+                contract_data = individual_allocation_template["BENEFICIARY_ADDRESS"]
+            except KeyError:
+                raise self.IllegalRegistry("Bad format of individual allocation template. "
+                                           "Expected a 'BENEFICIARY_ADDRESS' key.")
             contract_abi = contract_data[1]
 
         # Fill template with beneficiary and contract addresses
