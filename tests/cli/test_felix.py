@@ -2,6 +2,7 @@ import os
 
 import pytest
 import pytest_twisted
+from nucypher.cli.actions import SUCCESSFUL_DESTRUCTION
 from twisted.internet import threads
 from twisted.internet.task import Clock
 
@@ -145,3 +146,31 @@ def test_run_felix(click_runner,
     next_airdrop = staged_airdrops[0]
     next_airdrop.addCallback(confirm_airdrop)
     yield next_airdrop
+
+    # Felix view
+    view_args = ('felix', 'view',
+                 '--config-file', configuration_file_location,
+                 '--provider', TEST_PROVIDER_URI)
+    result = click_runner.invoke(nucypher_cli, view_args, catch_exceptions=False, env=envvars)
+    assert result.exit_code == 0
+    assert "Address" in result.output
+    assert "NU" in result.output
+    assert "ETH" in result.output
+
+    # Felix accounts
+    accounts_args = ('felix', 'accounts',
+                     '--config-file', configuration_file_location,
+                     '--provider', TEST_PROVIDER_URI)
+    result = click_runner.invoke(nucypher_cli, accounts_args, catch_exceptions=False, env=envvars)
+    assert result.exit_code == 0
+    assert testerchain.client.accounts[-1] in result.output
+
+    # Felix destroy
+    destroy_args = ('felix', 'destroy',
+                    '--config-file', configuration_file_location,
+                    '--provider', TEST_PROVIDER_URI,
+                    '--force')
+    result = click_runner.invoke(nucypher_cli, destroy_args, catch_exceptions=False, env=envvars)
+    assert result.exit_code == 0
+    assert SUCCESSFUL_DESTRUCTION in result.output
+    assert not os.path.exists(configuration_file_location), "Felix configuration file was deleted"

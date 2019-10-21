@@ -137,7 +137,7 @@ def test_ursula_view_configuration(custom_filepath, click_runner, nominal_federa
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
-    view_args = ('ursula', 'view', '--config-file', os.path.join(custom_filepath, UrsulaConfiguration.generate_filename()))
+    view_args = ('ursula', 'view', '--config-file', custom_config_filepath)
 
     # View the configuration
     result = click_runner.invoke(nucypher_cli, view_args,
@@ -180,6 +180,19 @@ def test_run_federated_ursula_from_config_file(custom_filepath, click_runner):
     assert "'help' or '?'" in result.output
 
 
+def test_ursula_save_metadata(click_runner, custom_filepath):
+    # Run Ursula
+    save_metadata_args = ('ursula', 'save-metadata',
+                          '--dev',
+                          '--federated-only')
+
+    result = click_runner.invoke(nucypher_cli, save_metadata_args, catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert "Successfully saved node metadata" in result.output, "Node metadata successfully saved"
+
+
+# Should be the last test since it deletes the configuration file
 def test_ursula_destroy_configuration(custom_filepath, click_runner):
 
     preexisting_live_configuration = os.path.isdir(DEFAULT_CONFIG_ROOT)
@@ -217,3 +230,4 @@ def test_ursula_destroy_configuration(custom_filepath, click_runner):
     if preexisting_live_configuration_file:
         file_still_exists = os.path.isfile(os.path.join(DEFAULT_CONFIG_ROOT, UrsulaConfiguration.generate_filename()))
         assert file_still_exists, 'WARNING: Test command deleted live non-test files'
+

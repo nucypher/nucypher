@@ -356,8 +356,9 @@ def _cli_lifecycle(click_runner,
                          '--policy-encrypting-key', policy_encrypting_key,
                          '--alice-verifying-key', alice_signing_key)
 
-        if federated:
-            retrieve_args += ('--federated-only',)
+        # TODO: Remove - Federated not used for retrieve any more
+        # if federated:
+        #    retrieve_args += ('--federated-only',)
 
         retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
         assert retrieve_response.exit_code == 0

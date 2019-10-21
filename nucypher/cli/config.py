@@ -201,6 +201,8 @@ def nucypher_click_config(func):
                 debug,
                 **kwargs):
 
+        # NOTE: `set_options` MUST maintain same order as click_options provided - there is a unit test that depends
+        #       on this order being maintained
         config.set_options(
             mock_networking,
             etherscan,
