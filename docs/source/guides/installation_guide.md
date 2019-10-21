@@ -3,12 +3,11 @@
 
 ## Contents
 
-* [System Requirements and Dependencies](#System-Requirements-and-Dependencies)
-* [Standard Installation](#Standard-Installation)
-* [Docker Installation](#Docker-Installation)
-* [Development Installation](#Development-Installation)
-* [Development Docker Installation](#Development-Docker-Installation)
-* [Running Ursula with Systemd](#Systemd-Service-Installation)
+* [System Requirements and Dependencies](#system-requirements-and-dependencies)
+* [Standard Installation](#standard-installation)
+* [Docker Installation](#docker-installation)
+* [Development Installation](#development-installation)
+* [Running Ursula with Systemd](#systemd-service-installation)
 
 ## System Requirements and Dependencies
 
@@ -23,7 +22,7 @@
 
 ## Standard Installation
 
-We recommend installing `nucypher` with either `pip` or `pipenv` or `docker`
+We recommend installing `nucypher` with either `pip`, `pipenv`, or `docker`
 
 * [Pip Documentation](https://pip.pypa.io/en/stable/installing/)
 * [Pipenv Documentation](https://pipenv.readthedocs.io/en/latest/)
@@ -104,14 +103,14 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
     import nucypher
     ```
 
-### Standard Docker Install
+## Docker Installation
 1. Install [Docker](https://docs.docker.com/install/)
 
-2. (Optional) Follow these post install instructions: https://docs.docker.com/install/linux/linux-postinstall/
+2. (Optional) Follow these post install instructions: [https://docs.docker.com/install/linux/linux-postinstall/](https://docs.docker.com/install/linux/linux-postinstall/)
 
 3. Get the latest nucypher image:
 
-  `(maybe sudo) docker pull nucypher/nucypher:latest`
+  `docker pull nucypher/nucypher:latest`
 
 4. That's it. Now you can run commands like `docker run -v /home/ubuntu:/root/.local/share/ nucypher/nucypher:latest nucypher alice init`
 
@@ -169,7 +168,7 @@ $ ./scripts/installation/install_solc.sh
 ```
 
 ### Development Docker Installation
-The intention of the Docker configurations in this directory is to enable anyone to develop and test NuCypher on all major operating systems with minimal prerequisites and installation hassle.
+The intention of the Docker configurations in this directory is to enable anyone to develop and test NuCypher on all major operating systems with minimal prerequisites and installation hassle (tested on Ubuntu 16, MacOS 10.14, Windows 10).
 
 #### Start with standard Docker Installation
 1. Install [Docker](https://docs.docker.com/install/)
@@ -186,9 +185,7 @@ Then you can do things like:
 * Open a shell:
 `docker-compose run nucypher-dev bash`
 
-* try some of the scripts in `dev/docker/scripts/`
-
-**tested on (Ubuntu 16, MacOS 10.14, Windows 10)*
+* Try some of the scripts in `dev/docker/scripts/`
 
 From there you can develop, modify code, test as normal.
 
