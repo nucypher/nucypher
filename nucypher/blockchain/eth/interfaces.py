@@ -349,7 +349,7 @@ class BlockchainInterface:
         if not payload:
             payload = {}
 
-        nonce = self.client.w3.eth.getTransactionCount(sender_address)
+        nonce = self.client.w3.eth.getTransactionCount(sender_address, 'pending')
         payload.update({'chainId': int(self.client.chain_id),
                         'nonce': nonce,
                         'from': sender_address,
