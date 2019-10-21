@@ -43,7 +43,7 @@ def _api_options(func):
 @click.group()
 def bob():
     """
-    "Bob" management commands.
+    "Bob the Data Recipient" management commands.
     """
     pass
 

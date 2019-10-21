@@ -442,7 +442,6 @@ def _create_alice(alice_config, click_config, dev, emitter, hw_wallet, teacher_u
     #
     # Produce Alice
     #
-    # TODO: OH MY.
     client_password = None
     if not alice_config.federated_only:
         if (not hw_wallet or not dev) and not click_config.json_ipc:
@@ -459,4 +458,3 @@ def _create_alice(alice_config, click_config, dev, emitter, hw_wallet, teacher_u
     except NucypherKeyring.AuthenticationFailed as e:
         emitter.echo(str(e), color='red', bold=True)
         click.get_current_context().exit(1)
-        # TODO: Exit codes (not only for this, but for other exceptions)
