@@ -101,10 +101,10 @@ Execute the following commands (Ubuntu):
     export NUCYPHER_WORKER_ETH_PASSWORD=<your eth account password>
 
     # init your worker
-    docker run -v /home/ubuntu:/root/.local/share/ -e NUCYPHER_KEYRING_PASSWORD -it nucypher/nucypher:latest nucypher ursula init --provider /root/.local/share/geth/.ethereum/goerli/geth.ipc --poa --worker-address $NUCYPHER_WORKER_ADDRESS --staker-address $NUCYPHER_STAKER_ADDRESS --rest-host $MY_IP --sync
+    docker run -v /home/ubuntu:/root/.local/share/ -e NUCYPHER_KEYRING_PASSWORD -it nucypher/nucypher:latest nucypher ursula init --provider /root/.local/share/geth/.ethereum/goerli/geth.ipc --poa --worker-address $NUCYPHER_WORKER_ADDRESS --staker-address $NUCYPHER_STAKER_ADDRESS --rest-host $MY_IP
 
     # and then run the worker in the background
-    docker run -v /home/ubuntu:/root/.local/share/ -dit --restart unless-stopped -p 9151:9151  -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD  nucypher/nucypher:latest nucypher ursula run --teacher discover.nucypher.network:9151 --sync --poa
+    docker run -v /home/ubuntu:/root/.local/share/ -dit --restart unless-stopped -p 9151:9151  -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD  nucypher/nucypher:latest nucypher ursula run --teacher discover.nucypher.network:9151 --poa
 
 
 Without Docker

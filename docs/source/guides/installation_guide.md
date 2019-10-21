@@ -13,7 +13,7 @@
 
 * At least 1 GB of RAM is required for secure password-based key derivation with [scrypt](http://www.tarsnap.com/scrypt.html).
 * We have tested `nucypher` with Windows, Mac OS, and GNU/Linux (GNU/Linux is recommended).
-* If you don’t already have it, install [Python](https://www.python.org/downloads/). As of August 2019, we are working with Python 3.6, 3.7, and 3.8.
+* If you don’t already have it, install [Python](https://www.python.org/downloads/). As of October 2019, we are working with Python 3.6 and 3.7.
 * We also require the following system packages (Linux):
 
     - `libffi-dev`
