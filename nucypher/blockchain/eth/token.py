@@ -205,9 +205,11 @@ class Stake:
 
         # Time
         self.start_datetime = datetime_at_period(period=first_locked_period,
-                                                 seconds_per_period=self.economics.seconds_per_period)
+                                                 seconds_per_period=self.economics.seconds_per_period,
+                                                 start_of_period=True)
         self.unlock_datetime = datetime_at_period(period=final_locked_period + 1,
-                                                  seconds_per_period=self.economics.seconds_per_period)
+                                                  seconds_per_period=self.economics.seconds_per_period,
+                                                  start_of_period=True)
 
         if validate_now:
             self.validate_duration()
@@ -220,7 +222,13 @@ class Stake:
         return r
 
     def __eq__(self, other) -> bool:
+        # TODO: Is this right? Two stakes from different accounts, durations, etc, but of the same value, are equal?
         return bool(self.value == other.value)
+
+    @property
+    def address_index_ordering_key(self):
+        """To be used as a lexicographical order key for Stakes based on the tuple (staker_address, index)."""
+        return self.staker_address, self.index
 
     #
     # Metadata

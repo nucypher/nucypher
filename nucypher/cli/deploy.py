@@ -122,7 +122,7 @@ def deploy(action,
 
     if action == "download-registry":
         if not force:
-            prompt = f"Fetch and download latest registry from {BaseContractRegistry.PUBLICATION_ENDPOINT}?"
+            prompt = f"Fetch and download latest registry from {BaseContractRegistry.get_publication_endpoint()}?"
             click.confirm(prompt, abort=True)
         registry = InMemoryContractRegistry.from_latest_publication()
         output_filepath = registry.commit(filepath=registry_outfile, overwrite=force)
@@ -159,8 +159,7 @@ def deploy(action,
     #
 
     if action == "inspect":
-        administrator = ContractAdministrator(registry=local_registry, deployer_address=deployer_address)
-        paint_deployer_contract_inspection(emitter=emitter, administrator=administrator)
+        paint_deployer_contract_inspection(emitter=emitter, registry=local_registry, deployer_address=deployer_address)
         return  # Exit
 
     #

@@ -36,7 +36,12 @@ from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry, LocalContractRegistry
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    InMemoryContractRegistry,
+    LocalContractRegistry,
+    IndividualAllocationRegistry
+)
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.token import Stake
 from nucypher.cli import painting
@@ -288,8 +293,9 @@ def make_cli_character(character_config,
         CHARACTER = character_config(known_nodes=teacher_nodes,
                                      network_middleware=character_config.network_middleware,
                                      **config_args)
-    except CryptoError as e:
-        raise character_config.keyring.AuthenticationFailed(str(e))
+    except CryptoError:
+        raise character_config.keyring.AuthenticationFailed("Failed to unlock keyring. "
+                                                            "Are you sure you provided the correct password?")
     #
     # Post-Init
     #
@@ -306,8 +312,10 @@ def make_cli_character(character_config,
 
 def select_stake(stakeholder, emitter) -> Stake:
     stakes = stakeholder.all_stakes
-    enumerated_stakes = dict(enumerate(stakes))
-    painting.paint_stakes(stakes=stakes, emitter=emitter)
+    active_stakes = sorted((stake for stake in stakes if stake.is_active),
+                           key=lambda some_stake: some_stake.address_index_ordering_key)
+    enumerated_stakes = dict(enumerate(active_stakes))
+    painting.paint_stakes(stakes=active_stakes, emitter=emitter)
     choice = click.prompt("Select Stake", type=click.IntRange(min=0, max=len(enumerated_stakes)-1))
     chosen_stake = enumerated_stakes[choice]
     return chosen_stake
@@ -363,8 +371,7 @@ def select_client_account(emitter,
 def handle_client_account_for_staking(emitter,
                                       stakeholder,
                                       staking_address: str,
-                                      is_preallocation_staker: bool,
-                                      beneficiary_address: str,
+                                      individual_allocation: IndividualAllocationRegistry,
                                       force: bool,
                                       ) -> Tuple[str, str]:
     """
@@ -376,26 +383,14 @@ def handle_client_account_for_staking(emitter,
     then the local client account is the beneficiary, and the staking address is the address of the staking contract.
     """
 
-    if is_preallocation_staker:
-        if beneficiary_address:
-            client_account = beneficiary_address
-        else:
-            client_account = select_client_account(prompt="Select beneficiary account",
-                                                   emitter=emitter,
-                                                   registry=stakeholder.registry,
-                                                   provider_uri=stakeholder.wallet.blockchain.provider_uri)
-        staking_address = stakeholder.check_if_staking_via_contract(checksum_address=client_account)
-        if staking_address:
-            message = f"Beneficiary {client_account} will use preallocation contract {staking_address} to stake."
-            emitter.echo(message, color='yellow', verbosity=1)
-            if not force:
-                click.confirm("Is this correct?", abort=True)
-        else:
-            message = (f"Beneficiary {client_account} doesn't have a preallocation contract in current registry.\n"
-                       f"Are you sure you are using the correct allocation registry?\n"
-                       f"Currently using {stakeholder.allocation_registry.filepath}")
-            emitter.echo(message, color='red', verbosity=1)
-            raise click.Abort()
+    if individual_allocation:
+        client_account = individual_allocation.beneficiary_address
+        staking_address = individual_allocation.contract_address
+
+        message = f"Beneficiary {client_account} will use preallocation contract {staking_address} to stake."
+        emitter.echo(message, color='yellow', verbosity=1)
+        if not force:
+            click.confirm("Is this correct?", abort=True)
     else:
         if staking_address:
             client_account = staking_address
@@ -442,7 +437,7 @@ def confirm_enable_restaking(emitter, staking_address: str) -> bool:
 
 def establish_deployer_registry(emitter,
                                 registry_infile: str = None,
-                                registry_outfile:str = None,
+                                registry_outfile: str = None,
                                 use_existing_registry: bool = False,
                                 dev: bool = False
                                 ) -> LocalContractRegistry:

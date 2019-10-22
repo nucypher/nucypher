@@ -796,6 +796,7 @@ class Ursula(Teacher, Character, Worker):
                  checksum_address: str = None,  # Staker address
                  worker_address: str = None,
                  work_tracker: WorkTracker = None,
+                 start_working_now: bool = True,
                  client_password: str = None,
 
                  # Character
@@ -856,7 +857,8 @@ class Ursula(Teacher, Character, Worker):
                                 registry=self.registry,
                                 checksum_address=checksum_address,
                                 worker_address=worker_address,
-                                work_tracker=work_tracker)
+                                work_tracker=work_tracker,
+                                start_working_now=start_working_now)
 
         #
         # ProxyRESTServer and TLSHostingPower #
@@ -1390,7 +1392,6 @@ class StakeHolder(Staker):
                 self.__get_accounts()
                 if checksum_address not in self:
                     raise self.UnknownAccount
-            # TODO: What if cached TransactingPower is wrongly initialized? See issue #1385
             try:
                 transacting_power = self.__transacting_powers[checksum_address]
             except KeyError:
@@ -1401,7 +1402,7 @@ class StakeHolder(Staker):
         @property
         def balances(self) -> Dict[str, int]:
             balances = dict()
-            for account in self.__accounts:
+            for account in self.accounts:
                 funds = {'ETH': self.blockchain.client.get_balance(account),  # TODO: EthAgent or something?
                          'NU': self.token_agent.get_balance(account)}
                 balances.update({account: funds})
@@ -1440,14 +1441,24 @@ class StakeHolder(Staker):
             original_form = self.checksum_address
 
         # This handles both regular staking and staking via a contract
-        staking_contract_address = self.check_if_staking_via_contract(checksum_address)
-        staking_address = staking_contract_address or checksum_address
+        if self.individual_allocation:
+            if checksum_address != self.individual_allocation.beneficiary_address:
+                raise ValueError(f"Beneficiary {self.individual_allocation.beneficiary_address} in individual "
+                                 f"allocation doesn't match this checksum address ({checksum_address})")
+            staking_address = self.individual_allocation.contract_address
+            self.beneficiary_address = self.individual_allocation.beneficiary_address
+            self.preallocation_escrow_agent = PreallocationEscrowAgent(registry=self.registry,
+                                                                       allocation_registry=self.individual_allocation,
+                                                                       beneficiary=self.beneficiary_address)
+        else:
+            staking_address = checksum_address
+            self.beneficiary_address = None
+            self.preallocation_escrow_agent = None
 
         self.wallet.activate_account(checksum_address=checksum_address, password=password)
         self.checksum_address = staking_address
         self.stakes = StakeList(registry=self.registry, checksum_address=staking_address)
         self.stakes.refresh()
-        # TODO: Not sure how to log all this new info (i.e. old or new address may be via contract)
 
         if self.is_contract:
             new_form = f"{self.beneficiary_address[0:8]} (contract {self.checksum_address[0:8]})"

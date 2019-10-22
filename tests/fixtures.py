@@ -23,9 +23,8 @@ import tempfile
 
 import maya
 import pytest
-from eth_tester import PyEVMBackend
 
-from constant_sorrow.constants import NON_PAYMENT
+from eth_utils import to_checksum_address
 from sqlalchemy.engine import create_engine
 from twisted.logger import Logger
 from umbral import pre
@@ -809,3 +808,12 @@ def mock_registry_filepath(testerchain, agency, test_registry):
 
     if os.path.isfile(MOCK_REGISTRY_FILEPATH):
         os.remove(MOCK_REGISTRY_FILEPATH)
+
+
+@pytest.fixture(scope='module')
+def get_random_checksum_address():
+    def _get_random_checksum_address():
+        canonical_address = os.urandom(20)
+        checksum_address = to_checksum_address(canonical_address)
+        return checksum_address
+    return _get_random_checksum_address
