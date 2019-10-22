@@ -457,9 +457,7 @@ def test_collect_rewards_integration(click_runner,
                        '--policy-reward',
                        '--no-staking-reward',
                        '--staking-address', staker_address,
-                       '--withdraw-address', burner_wallet.address,
-                       '--force')
-
+                       '--withdraw-address', burner_wallet.address)
     result = click_runner.invoke(nucypher_cli,
                                  collection_args,
                                  input=INSECURE_DEVELOPMENT_PASSWORD,

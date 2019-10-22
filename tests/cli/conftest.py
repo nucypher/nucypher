@@ -30,10 +30,11 @@ from nucypher.config.characters import UrsulaConfiguration, StakeHolderConfigura
 from nucypher.utilities.sandbox.constants import (
     MOCK_ALLOCATION_REGISTRY_FILEPATH,
     MOCK_CUSTOM_INSTALLATION_PATH,
+    MOCK_CUSTOM_INSTALLATION_PATH_2,
+    INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_ALLOCATION_INFILE,
     MOCK_REGISTRY_FILEPATH,
     ONE_YEAR_IN_SECONDS)
-from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH_2, INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.fixture(scope='module')

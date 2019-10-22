@@ -4,6 +4,7 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, \
     MOCK_IP_ADDRESS, MOCK_CUSTOM_INSTALLATION_PATH, TEMPORARY_DOMAIN
+from nucypher.cli.actions import SUCCESSFUL_DESTRUCTION
 
 
 def test_initialize_alice_defaults(click_runner, mocker):
@@ -81,12 +82,12 @@ def test_alice_control_starts_with_preexisting_configuration(click_runner, custo
 
     custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.generate_filename())
 
-    init_args = ('alice', 'run',
-                 '--dry-run',
-                 '--config-file', custom_config_filepath)
+    run_args = ('alice', 'run',
+                '--dry-run',
+                '--config-file', custom_config_filepath)
 
     user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
-    result = click_runner.invoke(nucypher_cli, init_args, input=user_input)
+    result = click_runner.invoke(nucypher_cli, run_args, input=user_input)
     assert result.exit_code == 0
 
 
@@ -97,4 +98,58 @@ def test_alice_cannot_init_with_dev_flag(click_runner):
                  '--dev')
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
     assert result.exit_code == 2
-    assert 'Cannot create a persistent development character' in result.output, 'Missing or invalid error message was produced.'
+    assert 'Cannot create a persistent development character' in result.output, \
+        'Missing or invalid error message was produced.'
+
+
+def test_alice_derive_policy_pubkey(click_runner):
+    label = 'random_label'
+    derive_key_args = ('alice', 'derive-policy-pubkey',
+                       '--label', label,
+                       '--dev')
+
+    result = click_runner.invoke(nucypher_cli, derive_key_args, catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert "policy_encrypting_key" in result.output
+    assert "label" in result.output
+    assert label in result.output
+
+
+def test_alice_public_keys(click_runner):
+    derive_key_args = ('alice', 'public-keys',
+                       '--dev')
+
+    result = click_runner.invoke(nucypher_cli, derive_key_args, catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert "alice_verifying_key" in result.output
+
+
+def test_alice_view_with_preexisting_configuration(click_runner, custom_filepath):
+    custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.generate_filename())
+
+    view_args = ('alice', 'view',
+                 '--config-file', custom_config_filepath)
+
+    user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
+    result = click_runner.invoke(nucypher_cli, view_args, input=user_input)
+
+    assert result.exit_code == 0
+    assert "checksum_address" in result.output
+    assert "domains" in result.output
+    assert TEMPORARY_DOMAIN in result.output
+    assert custom_filepath in result.output
+
+
+# Should be the last test since it deletes the configuration file
+def test_alice_destroy(click_runner, custom_filepath):
+    custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.generate_filename())
+    destroy_args = ('alice', 'destroy',
+                    '--config-file', custom_config_filepath,
+                    '--force')
+
+    result = click_runner.invoke(nucypher_cli, destroy_args, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert SUCCESSFUL_DESTRUCTION in result.output
+    assert not os.path.exists(custom_config_filepath), "Alice config file was deleted"

@@ -4,7 +4,7 @@
 Ursula Configuration Guide
 ==========================
 
-1. Install NuCypher and geth
+1. Install geth Ethereum node
 ------------------------------
 
 If you want to run a NuCypher node that participates in the decentralized network,
@@ -36,6 +36,14 @@ this case.
 
 Fund this account with Görli testnet ETH! To do it, go to
 https://goerli-faucet.slock.it/.
+
+2. Install NuCypher
+--------------------------------
+
+Install ``nucypher`` with ``docker`` (See :doc:`/guides/installation_guide`) or ``pip`` (below).
+
+Standard Pip Install
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Before installing ``nucypher``, you may need to install necessary developer
 tools and headers, if you don't have them already. In Ubuntu, Debian, Linux Mint
@@ -74,8 +82,33 @@ If your installation is non-functional, be sure you have the latest version inst
 
 
 
-2. Configure a new Ursula node
+3. Configure a new Ursula node
 --------------------------------
+
+With Docker
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Recall the volume mounts: `-v <path to a directory on your computer>:/root/.local/share/` which is where your Nucypher node stores persistent data as well as accesses ipc with your locally running geth node.
+
+Execute the following commands (Ubuntu):
+
+.. code:: bash
+
+    export NUCYPHER_KEYRING_PASSWORD=<your keyring password>
+    export MY_IP=$(wget -q -O - ifconfig.me);
+    export NUCYPHER_WORKER_ADDRESS=<eth account checksum of your worker>
+    export NUCYPHER_STAKER_ADDRESS=<eth account checksum of your staker>
+    export NUCYPHER_WORKER_ETH_PASSWORD=<your eth account password>
+
+    # init your worker
+    docker run -v /home/ubuntu:/root/.local/share/ -e NUCYPHER_KEYRING_PASSWORD -it nucypher/nucypher:latest nucypher ursula init --provider /root/.local/share/geth/.ethereum/goerli/geth.ipc --poa --worker-address $NUCYPHER_WORKER_ADDRESS --staker-address $NUCYPHER_STAKER_ADDRESS --rest-host $MY_IP
+
+    # and then run the worker in the background
+    docker run -v /home/ubuntu:/root/.local/share/ -dit --restart unless-stopped -p 9151:9151  -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD  nucypher/nucypher:latest nucypher ursula run --teacher discover.nucypher.network:9151 --poa
+
+
+Without Docker
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
