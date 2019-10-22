@@ -46,7 +46,7 @@ def mario_box_cli(click_config, plaintext_dir, alice_config, label, outfile):
                 # Collect Bob Retrieve JSON Requests
                 retrieve_payload = {'label': label,
                                     'policy-encrypting-key': policy_encrypting_key_hex,
-                                    'alice-verifying-key': bytes(alice_signing_key).hex(),
+                                    'alice-verifying-key': alice_signing_key.hex(),
                                     'message-kit': base64_message_kit}
 
                 output.append(retrieve_payload)
