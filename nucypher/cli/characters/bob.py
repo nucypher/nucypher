@@ -6,6 +6,25 @@ import click
 from nucypher.characters.banners import BOB_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import get_nucypher_password, select_client_account
+from nucypher.cli.common_options import (
+    option_checksum_address,
+    option_config_file,
+    option_config_root,
+    option_controller_port,
+    option_dev,
+    option_discovery_port,
+    option_dry_run,
+    option_federated_only,
+    option_force,
+    option_label,
+    option_message_kit,
+    option_min_stake,
+    option_network,
+    option_policy_encrypting_key,
+    option_provider_uri,
+    option_registry_filepath,
+    option_teacher_uri,
+    )
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import BobConfiguration
@@ -18,10 +37,10 @@ from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 
 def _admin_options(func):
-    @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
-    @click.option('--network', help="Network Domain Name", type=click.STRING)
-    @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
-    @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
+    @option_provider_uri()
+    @option_network
+    @option_registry_filepath
+    @option_checksum_address
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -32,12 +51,11 @@ def _admin_options(func):
 #       teacher_uri, min_stake)
 def _api_options(func):
     @_admin_options
-    @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
-    @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-    @click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT)
-    @click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
-    @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT,
-                  default=0)
+    @option_dev
+    @option_config_file
+    @option_discovery_port()
+    @option_teacher_uri
+    @option_min_stake
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -54,8 +72,8 @@ def bob():
 
 @bob.command()
 @_admin_options
-@click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
-@click.option('--config-root', help="Custom configuration directory", type=click.Path())
+@option_federated_only
+@option_config_root
 @nucypher_click_config
 def init(click_config,
 
@@ -87,9 +105,8 @@ def init(click_config,
 
 @bob.command()
 @_api_options
-@click.option('--controller-port', help="The host port to run Bob HTTP services on", type=NETWORK_PORT,
-              default=BobConfiguration.DEFAULT_CONTROLLER_PORT)
-@click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
+@option_controller_port(default=BobConfiguration.DEFAULT_CONTROLLER_PORT)
+@option_dry_run
 @nucypher_click_config
 def run(click_config,
 
@@ -156,10 +173,10 @@ def view(click_config,
 
 @bob.command()
 @_admin_options
-@click.option('--dev', '-d', help="Enable development mode", is_flag=True)
-@click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-@click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT)
-@click.option('--force', help="Don't ask for confirmation", is_flag=True)
+@option_dev
+@option_config_file
+@option_discovery_port()
+@option_force
 @nucypher_click_config
 def destroy(click_config,
 
@@ -221,11 +238,10 @@ def public_keys(click_config,
 
 @bob.command()
 @_api_options
-@click.option('--label', help="The label for a policy", type=click.STRING)
-@click.option('--policy-encrypting-key', help="Encrypting Public Key for Policy as hexadecimal string",
-              type=click.STRING)
+@option_label()
+@option_policy_encrypting_key()
 @click.option('--alice-verifying-key', help="Alice's verifying key as a hexadecimal string", type=click.STRING)
-@click.option('--message-kit', help="The message kit unicode string encoded in base64", type=click.STRING)
+@option_message_kit()
 @nucypher_click_config
 def retrieve(click_config,
 

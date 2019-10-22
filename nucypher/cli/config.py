@@ -25,6 +25,7 @@ import click
 from twisted.logger import Logger
 
 from nucypher.characters.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
+from nucypher.cli.common_options import option_etherscan
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import GlobalLoggerSettings
@@ -164,7 +165,7 @@ _nucypher_click_config = click.make_pass_decorator(NucypherClickConfig, ensure=T
 def nucypher_click_config(func):
     @_nucypher_click_config
     @click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True)
-    @click.option('--etherscan/--no-etherscan', help="Enable/disable viewing TX in Etherscan", default=False)
+    @option_etherscan
     @click.option('-J', '--json-ipc', help="Send all IPC output to stdout as JSON, and turn off the rest", is_flag=True)
     @click.option('-v', '--verbose', help="Verbose console messages", is_flag=True)
     @click.option('-Q', '--quiet', help="Disable console messages", is_flag=True)

@@ -25,6 +25,14 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.characters.banners import NU_BANNER
 from nucypher.cli.actions import get_provider_process
+from nucypher.cli.common_options import (
+    option_geth,
+    option_light,
+    option_poa,
+    option_provider_uri,
+    option_registry_filepath,
+    option_staking_address,
+    )
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.painting import paint_contract_status, paint_stakers, paint_locked_tokens_status
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
@@ -32,11 +40,11 @@ from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 
 # Args (provider_uri, geth, poa, registry_filepath)
 def _common_options(func):
-    @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING, default="auto://")
-    @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-    @click.option('--poa', help="Inject POA middleware", is_flag=True, default=False)
-    @click.option('--light', help="Indicate that node is light", is_flag=True, default=False)
-    @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+    @option_provider_uri(default="auto://")
+    @option_geth
+    @option_poa
+    @option_light
+    @option_registry_filepath
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -69,7 +77,7 @@ def network(click_config,
 
 @status.command()
 @_common_options
-@click.option('--staking-address', help="Address of a NuCypher staker", type=EIP55_CHECKSUM_ADDRESS)
+@option_staking_address
 @nucypher_click_config
 def stakers(click_config,
 

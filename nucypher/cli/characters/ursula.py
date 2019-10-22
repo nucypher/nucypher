@@ -31,6 +31,23 @@ from nucypher.cli.actions import (
     select_client_account,
     get_client_password
 )
+from nucypher.cli.common_options import (
+    option_config_file,
+    option_config_root,
+    option_db_filepath,
+    option_dev,
+    option_dry_run,
+    option_federated_only,
+    option_force,
+    option_geth,
+    option_light,
+    option_min_stake,
+    option_network,
+    option_poa,
+    option_provider_uri,
+    option_registry_filepath,
+    option_teacher_uri,
+    )
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import (
@@ -48,19 +65,19 @@ from nucypher.utilities.sandbox.constants import (
 # Args (geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
 #       rest_port, db_filepath, poa)
 def _admin_options(func):
-    @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-    @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
-    @click.option('--network', help="Network Domain Name", type=click.STRING)
-    @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+    @option_geth
+    @option_provider_uri()
+    @option_network
+    @option_registry_filepath
     @click.option('--staker-address', help="Run on behalf of a specified staking account", type=EIP55_CHECKSUM_ADDRESS)
     @click.option('--worker-address', help="Run the worker-ursula with a specified address",
                   type=EIP55_CHECKSUM_ADDRESS)
-    @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=None)
+    @option_federated_only
     @click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING)
     @click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT)
-    @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
-    @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
-    @click.option('--light', help="Indicate that node is light", is_flag=True, default=False)
+    @option_db_filepath
+    @option_poa
+    @option_light
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -71,12 +88,11 @@ def _admin_options(func):
 #       rest_port, db_filepath, poa, config_file, dev, lonely, teacher_uri, min_stake)
 def _api_options(func):
     @_admin_options
-    @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-    @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
+    @option_config_file
+    @option_dev
     @click.option('--lonely', help="Do not connect to seednodes", is_flag=True)
-    @click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
-    @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT,
-                  default=0)
+    @option_teacher_uri
+    @option_min_stake
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -94,8 +110,8 @@ def ursula():
 
 @ursula.command()
 @_admin_options
-@click.option('--force', help="Don't ask for confirmation", is_flag=True)
-@click.option('--config-root', help="Custom configuration directory", type=click.Path())
+@option_force
+@option_config_root
 @nucypher_click_config
 def init(click_config,
 
@@ -152,9 +168,9 @@ def init(click_config,
 
 @ursula.command()
 @_admin_options
-@click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-@click.option('--dev', '-d', help="Enable development mode", is_flag=True)
-@click.option('--force', help="Don't ask for confirmation", is_flag=True)
+@option_config_file
+@option_dev
+@option_force
 @nucypher_click_config
 def destroy(click_config,
 
@@ -185,8 +201,8 @@ def destroy(click_config,
 
 @ursula.command()
 @_admin_options
-@click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-@click.option('--dev', '-d', help="Enable development mode", is_flag=True)
+@option_config_file
+@option_dev
 @nucypher_click_config
 def forget(click_config,
 
@@ -218,7 +234,7 @@ def forget(click_config,
 @_api_options
 @click.option('--interactive', '-I', help="Launch command interface after connecting to seednodes.", is_flag=True,
               default=False)
-@click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
+@option_dry_run
 @nucypher_click_config
 def run(click_config,
 

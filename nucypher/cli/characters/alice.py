@@ -7,10 +7,38 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.cli import actions, painting, types
 from nucypher.cli.actions import get_nucypher_password, select_client_account, get_client_password
+from nucypher.cli.common_options import (
+    option_config_file,
+    option_config_root,
+    option_controller_port,
+    option_dev,
+    option_discovery_port,
+    option_dry_run,
+    option_federated_only,
+    option_force,
+    option_geth,
+    option_hw_wallet,
+    option_label,
+    option_light,
+    option_m,
+    option_message_kit,
+    option_min_stake,
+    option_n,
+    option_network,
+    option_poa,
+    option_provider_uri,
+    option_registry_filepath,
+    option_teacher_uri,
+    )
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.keyring import NucypherKeyring
+
+
+option_bob_verifying_key = click.option(
+    '--bob-verifying-key', help="Bob's verifying key as a hexadecimal string", type=click.STRING,
+    required=True)
 
 
 # Args (geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath)
@@ -18,13 +46,13 @@ from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 
 def _admin_options(func):
-    @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-    @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
-    @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
-    @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
+    @option_geth
+    @option_provider_uri()
+    @option_federated_only
+    @option_dev
     @click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-    @click.option('--network', help="Network Domain Name", type=click.STRING)
-    @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+    @option_network
+    @option_registry_filepath
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -35,12 +63,11 @@ def _admin_options(func):
 #       hw_wallet, teacher_uri, min_stake)
 def _api_options(func):
     @_admin_options
-    @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-    @click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT)
-    @click.option('--hw-wallet/--no-hw-wallet', default=False)
-    @click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
-    @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT,
-                  default=0)
+    @option_config_file
+    @option_discovery_port()
+    @option_hw_wallet
+    @option_teacher_uri
+    @option_min_stake
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -57,11 +84,11 @@ def alice():
 
 @alice.command()
 @_admin_options
-@click.option('--config-root', help="Custom configuration directory", type=click.Path())
-@click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
-@click.option('--light', help="Indicate that node is light", is_flag=True, default=False)
-@click.option('--m', help="M-Threshold KFrags", type=click.INT)
-@click.option('--n', help="N-Total KFrags", type=click.INT)
+@option_config_root
+@option_poa
+@option_light
+@option_m
+@option_n
 @click.option('--rate', help="Policy rate per period in wei", type=click.FLOAT)
 @click.option('--duration-periods', help="Policy duration in periods", type=click.FLOAT)
 @nucypher_click_config
@@ -131,7 +158,7 @@ def init(click_config,
 
 
 @alice.command()
-@click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
+@option_config_file
 @nucypher_click_config
 def view(click_config, config_file):
     """
@@ -146,9 +173,9 @@ def view(click_config, config_file):
 
 @alice.command()
 @_admin_options
-@click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-@click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT)
-@click.option('--force', help="Don't ask for confirmation", is_flag=True)
+@option_config_file
+@option_discovery_port()
+@option_force
 @nucypher_click_config
 def destroy(click_config,
 
@@ -175,9 +202,8 @@ def destroy(click_config,
 
 @alice.command()
 @_api_options
-@click.option('--controller-port', help="The host port to run Alice HTTP services on", type=NETWORK_PORT,
-              default=AliceConfiguration.DEFAULT_CONTROLLER_PORT)
-@click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
+@option_controller_port(default=AliceConfiguration.DEFAULT_CONTROLLER_PORT)
+@option_dry_run
 @nucypher_click_config
 def run(click_config,
 
@@ -250,7 +276,7 @@ def public_keys(click_config,
 
 
 @alice.command('derive-policy-pubkey')
-@click.option('--label', help="The label for a policy", type=click.STRING, required=True)
+@option_label(required=True)
 @_api_options
 @nucypher_click_config
 def derive_policy_pubkey(click_config,
@@ -281,11 +307,10 @@ def derive_policy_pubkey(click_config,
 @alice.command()
 @click.option('--bob-encrypting-key', help="Bob's encrypting key as a hexadecimal string", type=click.STRING,
               required=True)
-@click.option('--bob-verifying-key', help="Bob's verifying key as a hexadecimal string", type=click.STRING,
-              required=True)
-@click.option('--label', help="The label for a policy", type=click.STRING, required=True)
-@click.option('--m', help="M-Threshold KFrags", type=click.INT)
-@click.option('--n', help="N-Total KFrags", type=click.INT)
+@option_bob_verifying_key
+@option_label(required=True)
+@option_m
+@option_n
 @click.option('--expiration', help="Expiration Datetime of a policy", type=click.STRING)  # TODO: click.DateTime()
 @click.option('--value', help="Total policy value (in Wei)", type=types.WEI)
 @_api_options
@@ -328,9 +353,8 @@ def grant(click_config,
 
 
 @alice.command()
-@click.option('--bob-verifying-key', help="Bob's verifying key as a hexadecimal string", type=click.STRING,
-              required=True)
-@click.option('--label', help="The label for a policy", type=click.STRING, required=True)
+@option_bob_verifying_key
+@option_label(required=True)
 @_api_options
 @nucypher_click_config
 def revoke(click_config,
@@ -359,9 +383,8 @@ def revoke(click_config,
 
 
 @alice.command()
-@click.option('--label', help="The label for a policy", type=click.STRING, required=True)
-@click.option('--message-kit', help="The message kit unicode string encoded in base64", type=click.STRING,
-              required=True)
+@option_label(required=True)
+@option_message_kit(required=True)
 @_api_options
 @nucypher_click_config
 def decrypt(click_config,

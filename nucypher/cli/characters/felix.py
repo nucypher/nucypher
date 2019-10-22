@@ -7,23 +7,44 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from nucypher.characters.banners import FELIX_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import get_nucypher_password, unlock_nucypher_keyring
+from nucypher.cli.common_options import (
+    option_checksum_address,
+    option_config_file,
+    option_config_root,
+    option_db_filepath,
+    option_dev,
+    option_discovery_port,
+    option_dry_run,
+    option_force,
+    option_geth,
+    option_min_stake,
+    option_network,
+    option_poa,
+    option_provider_uri,
+    option_registry_filepath,
+    option_teacher_uri,
+    )
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import FelixConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
+option_port = click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT,
+                  default=FelixConfiguration.DEFAULT_REST_PORT)
+
+
 # Args (checksum_address, geth, dev, network, registry_filepath,  provider_uri, host, db_filepath, poa)
 def _admin_options(func):
-    @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-    @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-    @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
-    @click.option('--network', help="Network Domain Name", type=click.STRING)
-    @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
-    @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
+    @option_checksum_address
+    @option_geth
+    @option_dev
+    @option_network
+    @option_registry_filepath
+    @option_provider_uri()
     @click.option('--host', help="The host to run Felix HTTP services on", type=click.STRING, default='127.0.0.1')
-    @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
-    @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
+    @option_db_filepath
+    @option_poa
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -33,12 +54,10 @@ def _admin_options(func):
 # Args (config_file, port, teacher_uri)
 def _api_options(func):
     @_admin_options
-    @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-    @click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT,
-                  default=FelixConfiguration.DEFAULT_REST_PORT)
-    @click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
-    @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT,
-                  default=0)
+    @option_config_file
+    @option_port
+    @option_teacher_uri
+    @option_min_stake
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -55,8 +74,8 @@ def felix():
 
 @felix.command()
 @_admin_options
-@click.option('--config-root', help="Custom configuration directory", type=click.Path())
-@click.option('--discovery-port', help="The host port to run Felix Node Discovery services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_LEARNER_PORT)
+@option_config_root
+@option_discovery_port(default=FelixConfiguration.DEFAULT_LEARNER_PORT)
 @nucypher_click_config
 def init(click_config,
 
@@ -103,9 +122,9 @@ def init(click_config,
 
 @felix.command()
 @_admin_options
-@click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-@click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_REST_PORT)
-@click.option('--force', help="Don't ask for confirmation", is_flag=True)
+@option_config_file
+@option_port
+@option_force
 @nucypher_click_config
 def destroy(click_config,
 
@@ -130,7 +149,7 @@ def destroy(click_config,
 
 @felix.command()
 @_api_options
-@click.option('--force', help="Don't ask for confirmation", is_flag=True)
+@option_force
 @nucypher_click_config
 def createdb(click_config,
 
@@ -224,7 +243,7 @@ def accounts(click_config,
 
 @felix.command()
 @_api_options
-@click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True, default=False)
+@option_dry_run
 @nucypher_click_config
 def run(click_config,
 

@@ -37,6 +37,14 @@ from nucypher.cli.actions import (
     confirm_deployment,
     establish_deployer_registry
 )
+from nucypher.cli.common_options import (
+    option_config_root,
+    option_etherscan,
+    option_force,
+    option_hw_wallet,
+    option_poa,
+    option_provider_uri,
+    )
 from nucypher.cli.painting import (
     paint_staged_deployment,
     paint_deployment_delay,
@@ -47,19 +55,26 @@ from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
+option_deployer_address = click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
+option_registry_infile = click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
+option_registry_outfile = click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
+option_target_address = click.option('--target-address', help="Address of the target contract", type=EIP55_CHECKSUM_ADDRESS)
+option_gas = click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
+option_network__eth = click.option('--network', help="", type=click.Choice(CanonicalRegistrySource.networks), default='goerli')  # TODO: #1496
+
 # Args (provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
 #       registry_infile, registry_outfile, dev)
 def _admin_actor_options(func):
-    @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING, required=True)
+    @option_provider_uri(required=True)
     @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
-    @click.option('--config-root', help="Custom configuration directory", type=click.Path())
-    @click.option('--poa', help="Inject POA middleware", is_flag=True)
-    @click.option('--force', is_flag=True)
-    @click.option('--etherscan/--no-etherscan', help="Enable/disable viewing TX in Etherscan", default=False)
-    @click.option('--hw-wallet/--no-hw-wallet', default=False)  # TODO: Make True by default.
-    @click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
-    @click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
-    @click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
+    @option_config_root
+    @option_poa
+    @option_force
+    @option_etherscan
+    @option_hw_wallet
+    @option_deployer_address
+    @option_registry_infile
+    @option_registry_outfile
     @click.option('--dev', '-d', help="Forcibly use the development registry filepath.", is_flag=True)
     @click.option('--se-test-mode', help="Enable test mode for StakingEscrow in deployment.", is_flag=True)
     @functools.wraps(func)
@@ -77,10 +92,10 @@ def deploy():
 
 
 @deploy.command(name='download-registry')
-@click.option('--config-root', help="Custom configuration directory", type=click.Path())
-@click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
-@click.option('--network', help="", type=click.Choice(CanonicalRegistrySource.networks), default='goerli')  # TODO: #1496
-@click.option('--force', is_flag=True)
+@option_config_root
+@option_registry_outfile
+@option_network__eth
+@option_force
 def download_registry(config_root, registry_outfile, network, force):
     """
     Download the latest registry.
@@ -110,11 +125,11 @@ def download_registry(config_root, registry_outfile, network, force):
 
 
 @deploy.command()
-@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING, required=True)
-@click.option('--config-root', help="Custom configuration directory", type=click.Path())
-@click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
-@click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--poa', help="Inject POA middleware", is_flag=True)
+@option_provider_uri(required=True)
+@option_config_root
+@option_registry_infile
+@option_deployer_address
+@option_poa
 def inspect(provider_uri, config_root, registry_infile, deployer_address, poa):
     """
     Echo owner information and bare contract metadata.
@@ -135,7 +150,7 @@ def inspect(provider_uri, config_root, registry_infile, deployer_address, poa):
 @deploy.command()
 @_admin_actor_options
 @click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
-@click.option('--target-address', help="Address of the target contract", type=EIP55_CHECKSUM_ADDRESS)
+@option_target_address
 @click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
 def upgrade(# Admin Actor Options
             provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
@@ -241,7 +256,7 @@ def rollback(# Admin Actor Options
 @deploy.command()
 @_admin_actor_options
 @click.option('--bare', help="Deploy a contract *only* without any additional operations.", is_flag=True)
-@click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
+@option_gas
 @click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
 def contracts(# Admin Actor Options
               provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
@@ -416,8 +431,7 @@ def allocations(# Admin Actor Options
 
 @deploy.command(name='transfer-tokens')
 @_admin_actor_options
-@click.option('--target-address', help="Recipient's checksum address for token or ownership transference.",
-              type=EIP55_CHECKSUM_ADDRESS)
+@option_target_address
 @click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
 def transfer_tokens(# Admin Actor Options
                     provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
@@ -467,9 +481,8 @@ def transfer_tokens(# Admin Actor Options
 
 @deploy.command("transfer-ownership")
 @_admin_actor_options
-@click.option('--target-address', help="Recipient's checksum address for token or ownership transference.",
-              type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
+@option_target_address
+@option_gas
 def transfer_ownership(# Admin Actor Options
                        provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
                        registry_infile, registry_outfile, dev, se_test_mode,

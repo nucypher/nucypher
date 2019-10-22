@@ -34,6 +34,17 @@ from nucypher.cli.actions import (
     confirm_enable_restaking_lock,
     confirm_enable_restaking
 )
+from nucypher.cli.common_options import (
+    option_config_file,
+    option_config_root,
+    option_force,
+    option_hw_wallet,
+    option_light,
+    option_poa,
+    option_provider_uri,
+    option_registry_filepath,
+    option_staking_address,
+    )
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.painting import paint_receipt_summary, paint_preallocation_status
 from nucypher.cli.types import (
@@ -43,11 +54,15 @@ from nucypher.cli.types import (
 from nucypher.config.characters import StakeHolderConfiguration
 
 
+option_value = click.option('--value', help="Token value of stake", type=click.INT)
+option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
+
+
 # Args (poa, registry_filepath)
 def _admin_options(func):
-    @click.option('--poa', help="Inject POA middleware", is_flag=True)
-    @click.option('--light', help="Indicate that node is light", is_flag=True, default=False)
-    @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+    @option_poa
+    @option_light
+    @option_registry_filepath
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -57,10 +72,9 @@ def _admin_options(func):
 # Args (poa, registry_filepath, config_file, provider_uri, staking_address)
 def _api_options(func):
     @_admin_options
-    @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-    @click.option('--provider', 'provider_uri', help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'",
-                  type=click.STRING)
-    @click.option('--staking-address', help="Address to stake NU tokens", type=EIP55_CHECKSUM_ADDRESS)
+    @option_config_file
+    @option_provider_uri()
+    @option_staking_address
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -71,7 +85,7 @@ def _api_options(func):
 #       beneficiary_address, allocation_filepath)
 def _stake_options(func):
     @_api_options
-    @click.option('--hw-wallet/--no-hw-wallet', default=False)  # TODO: Make True or deprecate.
+    @option_hw_wallet
     @click.option('--beneficiary-address', help="Address of a pre-allocation beneficiary", type=EIP55_CHECKSUM_ADDRESS)
     @click.option('--allocation-filepath', help="Path to individual allocation file", type=EXISTING_READABLE_FILE)
     @functools.wraps(func)
@@ -102,10 +116,9 @@ def stake():
 
 
 @stake.command(name='init-stakeholder')
-@click.option('--provider', 'provider_uri', help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'",
-              type=click.STRING, required=True)
-@click.option('--config-root', help="Custom configuration directory", type=click.Path())
-@click.option('--force', help="Don't ask for confirmation", is_flag=True)
+@option_provider_uri(required=True)
+@option_config_root
+@option_force
 @_admin_options
 @nucypher_click_config
 def init_stakeholder(click_config,
@@ -195,15 +208,15 @@ def accounts(click_config,
 
 @stake.command('set-worker')
 @_worker_options
-@click.option('--force', help="Don't ask for confirmation", is_flag=True)
+@option_force
 @nucypher_click_config
 def set_worker(click_config,
 
                # Worker Options
                poa, light, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
                beneficiary_address, allocation_filepath,
-               worker_address, 
-               
+               worker_address,
+
                # Other options
                force):
     """
@@ -271,15 +284,15 @@ def set_worker(click_config,
 
 @stake.command('detach-worker')
 @_worker_options
-@click.option('--force', help="Don't ask for confirmation", is_flag=True)
+@option_force
 @nucypher_click_config
 def detach_worker(click_config,
 
                   # Worker Options
                   poa, light, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
                   beneficiary_address, allocation_filepath,
-                  worker_address, 
-                  
+                  worker_address,
+
                   # Other options
                   force):
     """
@@ -336,9 +349,9 @@ def detach_worker(click_config,
 
 @stake.command()
 @_stake_options
-@click.option('--force', help="Don't ask for confirmation", is_flag=True)
-@click.option('--value', help="Token value of stake", type=click.INT)
-@click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
+@option_force
+@option_value
+@option_lock_periods
 @nucypher_click_config
 def create(click_config,
 
@@ -444,7 +457,7 @@ def create(click_config,
 @_stake_options
 @click.option('--enable/--disable', help="Used to enable and disable re-staking", is_flag=True, default=True)
 @click.option('--lock-until', help="Period to release re-staking lock", type=click.IntRange(min=0))
-@click.option('--force', help="Don't ask for confirmation", is_flag=True)
+@option_force
 @nucypher_click_config
 def restake(click_config,
 
@@ -506,9 +519,9 @@ def restake(click_config,
 
 @stake.command()
 @_stake_options
-@click.option('--force', help="Don't ask for confirmation", is_flag=True)
-@click.option('--value', help="Token value of stake", type=click.INT)
-@click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
+@option_force
+@option_value
+@option_lock_periods
 @click.option('--index', help="A specific stake index to resume", type=click.INT)
 @nucypher_click_config
 def divide(click_config,
@@ -616,7 +629,7 @@ def divide(click_config,
 @click.option('--staking-reward/--no-staking-reward', is_flag=True, default=False)
 @click.option('--policy-reward/--no-policy-reward', is_flag=True, default=False)
 @click.option('--withdraw-address', help="Send reward collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--force', help="Don't ask for confirmation", is_flag=True)
+@option_force
 @nucypher_click_config
 def collect_reward(click_config,
 
@@ -678,7 +691,7 @@ def collect_reward(click_config,
 @stake.command('preallocation')
 @_stake_options
 @click.argument('action', type=click.Choice(['status', 'withdraw']))
-@click.option('--force', help="Don't ask for confirmation", is_flag=True)
+@option_force
 @nucypher_click_config
 def preallocation(click_config,
 
