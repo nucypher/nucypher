@@ -69,7 +69,7 @@ class BaseContractRegistry(ABC):
     class UnknownContract(RegistryError):
         pass
 
-    class IllegalRegistry(RegistryError):
+    class InvalidRegistry(RegistryError):
         """Raised when invalid data is encountered in the registry"""
 
     def __init__(self, *args, **kwargs):
@@ -181,7 +181,7 @@ class BaseContractRegistry(ABC):
         except ValueError:
             message = "Missing or corrupted registry data"
             self.log.critical(message)
-            raise self.IllegalRegistry(message)
+            raise self.InvalidRegistry(message)
 
         if not contracts:
             raise self.UnknownContract(contract_name)
@@ -189,7 +189,7 @@ class BaseContractRegistry(ABC):
         if contract_address and len(contracts) > 1:
             m = f"Multiple records returned for address {contract_address}"
             self.log.critical(m)
-            raise self.IllegalRegistry(m)
+            raise self.InvalidRegistry(m)
 
         result = tuple(contracts) if contract_name else contracts[0]
         return result
@@ -368,7 +368,7 @@ class AllocationRegistry(LocalContractRegistry):
 
     def search(self, beneficiary_address: str = None, contract_address: str = None):
         if not (bool(beneficiary_address) ^ bool(contract_address)):
-            raise ValueError(f"Pass either beneficiary_address or contract_address. "
+            raise ValueError(f"Pass either beneficiary_address or contract_address, not both. "
                              f"Got {beneficiary_address} and {contract_address}.")
 
         try:
@@ -465,11 +465,11 @@ class IndividualAllocationRegistry(InMemoryAllocationRegistry):
             # Download individual allocation template to extract contract_abi
             individual_allocation_template = json.loads(self.fetch_latest_publication())
             if len(individual_allocation_template) != 1:
-                raise self.IllegalRegistry("Individual allocation template must contain a single entry")
+                raise self.InvalidRegistry("Individual allocation template must contain a single entry")
             try:
                 contract_data = individual_allocation_template["BENEFICIARY_ADDRESS"]
             except KeyError:
-                raise self.IllegalRegistry("Bad format of individual allocation template. "
+                raise self.InvalidRegistry("Bad format of individual allocation template. "
                                            "Expected a 'BENEFICIARY_ADDRESS' key.")
             contract_abi = contract_data[1]
 

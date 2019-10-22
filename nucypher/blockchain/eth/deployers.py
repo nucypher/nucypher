@@ -752,7 +752,7 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
                progress=None
                ) -> dict:
         """
-        Deploys a new StakingInterface contract, and a new StakingInterfaceRouter, targeting the first.
+        Deploys a new StakingInterface contract, and a new StakingInterfaceRouter, targeting the former.
         This is meant to be called only once per general deployment.
         """
 

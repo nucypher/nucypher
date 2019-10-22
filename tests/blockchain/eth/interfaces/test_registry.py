@@ -95,7 +95,7 @@ def test_contract_registry(tempfile_path):
     test_registry.write(current_dataset)
 
     # Check that searching for an unknown contract raises
-    with pytest.raises(BaseContractRegistry.IllegalRegistry):
+    with pytest.raises(BaseContractRegistry.InvalidRegistry):
         test_registry.search(contract_address=test_addr)
 
 

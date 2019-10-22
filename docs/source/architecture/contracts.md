@@ -10,7 +10,7 @@
 * `WorkLock` Manages token distribution
 * `Upgradeable` Base contract for [upgrading](/architecture/upgradeable_proxy_contracts)
 * `Dispatcher` Proxy to other contracts and provides upgrading of the `StakingEscrow`, `PolicyManager` and `Adjudicator` contracts
-* `PreallocationEscrow` Locks tokens for predetermined time. Tokens will be unlocked after specified time and all tokens can be used as stake in the `StakingEscrow` contract
+* `PreallocationEscrow` Locks tokens for some predetermined time. Tokens will be unlocked after the specified time and all tokens can be used as stake in the `StakingEscrow` contract
 
 ## Deployment Procedure
 

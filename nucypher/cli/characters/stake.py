@@ -188,7 +188,10 @@ def set_worker(click_config,
                # Worker Options
                poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
                beneficiary_address, allocation_filepath,
-               worker_address, force):
+               worker_address, 
+               
+               # Other options
+               force):
     """
     Bond a worker to a staker.
     """
@@ -249,7 +252,10 @@ def detach_worker(click_config,
                   # Worker Options
                   poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
                   beneficiary_address, allocation_filepath,
-                  worker_address, force):
+                  worker_address, 
+                  
+                  # Other options
+                  force):
     """
     Detach worker currently bonded to a staker.
     """
