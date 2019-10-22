@@ -18,10 +18,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from ipaddress import ip_address
 
 import click
+from cryptography import exceptions
 from eth_utils import to_checksum_address
-
-from nucypher.blockchain.economics import StandardTokenEconomics
-from nucypher.blockchain.eth.token import NU
+from umbral.keys import UmbralPublicKey
 
 
 class ChecksumAddress(click.ParamType):
@@ -43,7 +42,31 @@ class IPv4Address(click.ParamType):
             return value
 
 
-WEI = click.IntRange(min=1, clamp=False)  # TODO: Better validation for ether and wei values?
+class HexParamType(click.ParamType):
+    name = 'hex_string'
+
+    def convert(self, value, param, ctx):
+        try:
+            _ = bytes.fromhex(value)
+        except ValueError as e:
+            self.fail(str(e))
+        else:
+            return value
+
+
+class PublicKeyHexParamType(click.ParamType):
+    name = 'public_key_hex'
+
+    def convert(self, value, param, ctx):
+        try:
+            _ = UmbralPublicKey.from_bytes(bytes.fromhex(value))
+        except exceptions.InternalError as e:
+            self.fail(str(e))
+        else:
+            return value
+
+
+
 
 # Filesystem
 EXISTING_WRITABLE_DIRECTORY = click.Path(exists=True, dir_okay=True, file_okay=False, writable=True)
@@ -53,3 +76,8 @@ EXISTING_READABLE_FILE = click.Path(exists=True, dir_okay=False, file_okay=True,
 NETWORK_PORT = click.IntRange(min=0, max=65535, clamp=False)
 IPV4_ADDRESS = IPv4Address()
 EIP55_CHECKSUM_ADDRESS = ChecksumAddress()
+
+# Other
+WEI = click.IntRange(min=1, clamp=False)  # TODO: Better validation for ether and wei values?
+HEX_STRING = HexParamType()
+PUBLIC_KEY_HEX = PublicKeyHexParamType()

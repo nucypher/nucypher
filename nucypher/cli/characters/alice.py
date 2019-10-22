@@ -25,7 +25,7 @@ from nucypher.characters.banners import ALICE_BANNER
 from nucypher.cli import actions, painting, types
 from nucypher.cli.actions import get_nucypher_password, select_client_account, get_client_password
 from nucypher.cli.config import nucypher_click_config
-from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
+from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS, HEX_STRING, PUBLIC_KEY_HEX
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.keyring import NucypherKeyring
 
@@ -291,10 +291,10 @@ def derive_policy_pubkey(click_config,
 
 
 @alice.command()
-@click.option('--bob-encrypting-key', help="Bob's encrypting key as a hexadecimal string", type=click.STRING,
-              required=True)
-@click.option('--bob-verifying-key', help="Bob's verifying key as a hexadecimal string", type=click.STRING,
-              required=True)
+@click.option('--bob-encrypting-key', help="Bob's encrypting key as a hexadecimal string",
+              type=PUBLIC_KEY_HEX, required=True)
+@click.option('--bob-verifying-key', help="Bob's verifying key as a hexadecimal string",
+              type=PUBLIC_KEY_HEX, required=True)
 @click.option('--label', help="The label for a policy", type=click.STRING, required=True)
 @click.option('--m', help="M-Threshold KFrags", type=click.INT)
 @click.option('--n', help="N-Total KFrags", type=click.INT)
@@ -341,8 +341,8 @@ def grant(click_config,
 
 
 @alice.command()
-@click.option('--bob-verifying-key', help="Bob's verifying key as a hexadecimal string", type=click.STRING,
-              required=True)
+@click.option('--bob-verifying-key', help="Bob's verifying key as a hexadecimal string",
+              type=PUBLIC_KEY_HEX, required=True)
 @click.option('--label', help="The label for a policy", type=click.STRING, required=True)
 @_api_options
 @nucypher_click_config
