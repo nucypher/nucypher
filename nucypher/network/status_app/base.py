@@ -13,7 +13,7 @@ import nucypher
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.characters.base import Character
-from nucypher.network.nodes import Learner
+from nucypher.network.nodes import Learner, FleetStateTracker
 
 
 class NetworkStatusPage:
@@ -38,31 +38,30 @@ class NetworkStatusPage:
         return html.Div([html.Div(f'v{nucypher.__version__}', id='version')], className="logo-widget")
 
     def previous_states(self, learner: Learner) -> html.Div:
-        states_dict = learner.known_nodes.abridged_states_dict()
+        previous_states = list(reversed(learner.known_nodes.states.values()))[:5]  # only latest 5
         return html.Div([
                 html.H4('Previous States'),
                 html.Div([
-                    self.states_table(states_dict)
+                    self._states_table(previous_states)
                 ]),
             ], className='row')
 
-    def states_table(self, states_dict) -> html.Table:
-        previous_states = list(states_dict.values())[:8]   # only latest 8
+    def _states_table(self, states) -> html.Table:
         row = []
-        for state in previous_states:
-            # store previous states in reverse order
-            row.insert(0, html.Td(self.state_detail(state)))
+        for state in states:
+            # add previous states in order (already reversed)
+            row.append(html.Td(self.state_detail(FleetStateTracker.abridged_state_details(state))))
         return html.Table([html.Tr(row, id='state-table')])
 
     @staticmethod
-    def state_detail(state) -> html.Div:
+    def state_detail(state_detail_dict) -> html.Div:
         return html.Div([
             html.Div([
-                html.Div(state['symbol'], className='single-symbol'),
-            ], className='nucypher-nickname-icon', style={'border-color': state['color_hex']}),
-            html.Span(state['nickname']),
-            html.Span(state['updated'], className='small'),
-        ], className='state', style={'background-color': state['color_hex']})
+                html.Div(state_detail_dict['symbol'], className='single-symbol'),
+            ], className='nucypher-nickname-icon', style={'border-color': state_detail_dict['color_hex']}),
+            html.Span(state_detail_dict['nickname']),
+            html.Span(state_detail_dict['updated'], className='small'),
+        ], className='state', style={'background-color': state_detail_dict['color_hex']})
 
     def known_nodes(self, character: Character) -> html.Div:
         nodes = list()
@@ -148,7 +147,7 @@ class NetworkStatusPage:
         last_confirmed_period = agent.get_last_active_period(staker_address)
         status = NetworkStatusPage.get_node_status(agent, staker_address, current_period, last_confirmed_period)
 
-        etherscan_url = f'https://goerli.etherscan.io/address/{node_info["checksum_address"]}'
+        etherscan_url = f'https://goerli.etherscan.io/address/{node_info["staker_address"]}'
         try:
             slang_last_seen = MayaDT.from_rfc3339(node_info['last_seen']).slang_time()
         except ParserError:
@@ -156,7 +155,7 @@ class NetworkStatusPage:
 
         components = {
             'Status': status,
-            'Checksum': html.Td(html.A(f'{node_info["checksum_address"][:10]}...',
+            'Checksum': html.Td(html.A(f'{node_info["staker_address"][:10]}...',
                                        href=etherscan_url,
                                        target='_blank')),
             'Nickname': identity,
