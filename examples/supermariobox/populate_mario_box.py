@@ -26,7 +26,7 @@ def mario_box_cli(click_config, plaintext_dir, alice_config, label, outfile):
     alice = make_cli_character(character_config=alice_configuration, click_config=click_config)
     alice_signing_key = alice.public_keys(SigningPower)
     policy_encrypting_key = alice.get_policy_encrypting_key_from_label(label=label.encode())
-    policy_encrypting_key_hex = bytes(policy_encrypting_key).hex()
+    policy_encrypting_key_hex = policy_encrypting_key.hex()
 
     output = list()
     paths = list(os.listdir(plaintext_dir))
