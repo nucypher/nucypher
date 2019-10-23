@@ -19,6 +19,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 # Hardcoded teacher nodes for, both, our testnet and mainnet.
 # Stored as a dict with the domain as the key.
 TEACHER_NODES = {
-    'goerli': ['https://165.22.21.214:9151'],
+    'goerli': ['https://discover.nucypher.network'],
     'mainnet': [],
 }
