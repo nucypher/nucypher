@@ -20,7 +20,7 @@ import json
 import nucypher
 from nucypher.cli.deploy import deploy
 from nucypher.cli.main import nucypher_cli
-
+from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.characters.control.specifications import CharacterSpecification
 
 
@@ -38,8 +38,9 @@ def test_echo_options(click_runner):
                 '--options',
                 '--json-ipc',
             )
-            result = click_runner.invoke(
-                nucypher_cli, args, catch_exceptions=False
-            )
-            result_json = json.loads(result.stdout)
-            assert list(result_json['result'].keys())== list(io['input'])
+            with GlobalLoggerSettings.pause_console_logging_while():
+                result = click_runner.invoke(
+                    nucypher_cli, args, catch_exceptions=False
+                )
+                result_json = json.loads(result.stdout)
+                assert list(result_json['result'].keys())== list(io['input'])
