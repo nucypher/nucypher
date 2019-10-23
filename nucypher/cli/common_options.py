@@ -1,3 +1,6 @@
+from collections import namedtuple
+import functools
+
 import click
 
 from nucypher.cli.types import (
@@ -108,3 +111,38 @@ option_teacher_uri = click.option(
     '--teacher', 'teacher_uri',
     help="An Ursula URI to start learning from (seednode)",
     type=click.STRING)
+
+
+def group_options(option_class, **options):
+
+    argnames = sorted(list(options.keys()))
+    decorators = list(options.values())
+
+    if isinstance(option_class, str):
+        option_name = option_class
+        option_class = namedtuple(option_class, argnames)
+    else:
+        option_name = option_class.__option_name__
+
+    def _decorator(func):
+
+        @functools.wraps(func)
+        def wrapper(**kwargs):
+            to_group = {}
+            for name in argnames:
+                if name not in kwargs:
+                    raise ValueError(
+                        f"When trying to group CLI options into {option_name}, "
+                        f"{name} was not found among arguments")
+                to_group[name] = kwargs[name]
+                del kwargs[name]
+
+            kwargs[option_name] = option_class(**to_group)
+            return func(**kwargs)
+
+        for dec in decorators:
+            wrapper = dec(wrapper)
+
+        return wrapper
+
+    return _decorator

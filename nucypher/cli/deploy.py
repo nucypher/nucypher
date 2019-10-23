@@ -38,6 +38,7 @@ from nucypher.cli.actions import (
     establish_deployer_registry
 )
 from nucypher.cli.common_options import (
+    group_options,
     option_config_root,
     option_etherscan,
     option_force,
@@ -62,25 +63,22 @@ option_target_address = click.option('--target-address', help="Address of the ta
 option_gas = click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
 option_network__eth = click.option('--network', help="", type=click.Choice(CanonicalRegistrySource.networks), default='goerli')  # TODO: #1496
 
-# Args (provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
-#       registry_infile, registry_outfile, dev)
-def _admin_actor_options(func):
-    @option_provider_uri(required=True)
-    @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
-    @option_config_root
-    @option_poa
-    @option_force
-    @option_etherscan
-    @option_hw_wallet
-    @option_deployer_address
-    @option_registry_infile
-    @option_registry_outfile
-    @click.option('--dev', '-d', help="Forcibly use the development registry filepath.", is_flag=True)
-    @click.option('--se-test-mode', help="Enable test mode for StakingEscrow in deployment.", is_flag=True)
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
-    return wrapper
+
+group_admin_actor = group_options(
+    'admin_actor',
+    provider_uri=option_provider_uri(required=True),
+    contract_name=click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING),
+    config_root=option_config_root,
+    poa=option_poa,
+    force=option_force,
+    etherscan=option_etherscan,
+    hw_wallet=option_hw_wallet,
+    deployer_address=option_deployer_address,
+    registry_infile=option_registry_infile,
+    registry_outfile=option_registry_outfile,
+    dev=click.option('--dev', '-d', help="Forcibly use the development registry filepath.", is_flag=True),
+    se_test_mode = click.option('--se-test-mode', help="Enable test mode for StakingEscrow in deployment.", is_flag=True),
+    )
 
 
 @click.group()
@@ -148,13 +146,12 @@ def inspect(provider_uri, config_root, registry_infile, deployer_address, poa):
 
 
 @deploy.command()
-@_admin_actor_options
+@group_admin_actor
 @click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
 @option_target_address
 @click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
 def upgrade(# Admin Actor Options
-            provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
-            registry_infile, registry_outfile, dev, se_test_mode,
+            admin_actor,
 
             # Other
             retarget, target_address, ignore_deployed):
@@ -163,26 +160,28 @@ def upgrade(# Admin Actor Options
     """
     # Init
     emitter = StdoutEmitter()
-    _ensure_config_root(config_root)
-    deployer_interface = _initialize_blockchain(poa, provider_uri)
+    _ensure_config_root(admin_actor.config_root)
+    deployer_interface = _initialize_blockchain(admin_actor.poa, admin_actor.provider_uri)
 
     # Warnings
-    _pre_launch_warnings(emitter, etherscan, hw_wallet)
+    _pre_launch_warnings(emitter, admin_actor.etherscan, admin_actor.hw_wallet)
 
     #
     # Make Authenticated Deployment Actor
     #
     ADMINISTRATOR, deployer_address, local_registry = _make_authenticated_deployment_actor(emitter,
-                                                                                           provider_uri,
-                                                                                           deployer_address,
+                                                                                           admin_actor.provider_uri,
+                                                                                           admin_actor.deployer_address,
                                                                                            deployer_interface,
-                                                                                           contract_name,
-                                                                                           registry_infile,
-                                                                                           registry_outfile,
-                                                                                           hw_wallet,
-                                                                                           dev,
-                                                                                           force,
-                                                                                           se_test_mode)
+                                                                                           admin_actor.contract_name,
+                                                                                           admin_actor.registry_infile,
+                                                                                           admin_actor.registry_outfile,
+                                                                                           admin_actor.hw_wallet,
+                                                                                           admin_actor.dev,
+                                                                                           admin_actor.force,
+                                                                                           admin_actor.se_test_mode)
+
+    contract_name = admin_actor.contract_name
 
     if not contract_name:
         raise click.BadArgumentUsage(message="--contract-name is required when using --upgrade")
@@ -193,7 +192,7 @@ def upgrade(# Admin Actor Options
     if retarget:
         if not target_address:
             raise click.BadArgumentUsage(message="--target-address is required when using --retarget")
-        if not force:
+        if not admin_actor.force:
             click.confirm(f"Confirm re-target {contract_name}'s proxy to {target_address}?", abort=True)
         receipt = ADMINISTRATOR.retarget_proxy(contract_name=contract_name,
                                                target_address=target_address,
@@ -202,7 +201,7 @@ def upgrade(# Admin Actor Options
         emitter.message(f"Successfully re-targeted {contract_name} proxy to {target_address}", color='green')
         paint_receipt_summary(emitter=emitter, receipt=receipt)
     else:
-        if not force:
+        if not admin_actor.force:
             click.confirm(f"Confirm deploy new version of {contract_name} and retarget proxy?", abort=True)
         receipts = ADMINISTRATOR.upgrade_contract(contract_name=contract_name,
                                                   existing_plaintext_secret=existing_secret,
@@ -214,53 +213,52 @@ def upgrade(# Admin Actor Options
 
 
 @deploy.command()
-@_admin_actor_options
+@group_admin_actor
 def rollback(# Admin Actor Options
-             provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
-             registry_infile, registry_outfile, dev, se_test_mode):
+             admin_actor,
+             ):
     """
     Rollback a proxy contract's target.
     """
     # Init
     emitter = StdoutEmitter()
-    _ensure_config_root(config_root)
-    deployer_interface = _initialize_blockchain(poa, provider_uri)
+    _ensure_config_root(admin_actor.config_root)
+    deployer_interface = _initialize_blockchain(admin_actor.poa, admin_actor.provider_uri)
 
     # Warnings
-    _pre_launch_warnings(emitter, etherscan, hw_wallet)
+    _pre_launch_warnings(emitter, admin_actor.etherscan, admin_actor.hw_wallet)
 
     #
     # Make Authenticated Deployment Actor
     #
     ADMINISTRATOR, deployer_address, local_registry = _make_authenticated_deployment_actor(emitter,
-                                                                                           provider_uri,
-                                                                                           deployer_address,
+                                                                                           admin_actor.provider_uri,
+                                                                                           admin_actor.deployer_address,
                                                                                            deployer_interface,
-                                                                                           contract_name,
-                                                                                           registry_infile,
-                                                                                           registry_outfile,
-                                                                                           hw_wallet,
-                                                                                           dev,
-                                                                                           force,
-                                                                                           se_test_mode)
+                                                                                           admin_actor.contract_name,
+                                                                                           admin_actor.registry_infile,
+                                                                                           admin_actor.registry_outfile,
+                                                                                           admin_actor.hw_wallet,
+                                                                                           admin_actor.dev,
+                                                                                           admin_actor.force,
+                                                                                           admin_actor.se_test_mode)
 
-    if not contract_name:
+    if not admin_actor.contract_name:
         raise click.BadArgumentUsage(message="--contract-name is required when using --rollback")
     existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True)
     new_secret = click.prompt('Enter new contract upgrade secret', hide_input=True, confirmation_prompt=True)
-    ADMINISTRATOR.rollback_contract(contract_name=contract_name,
+    ADMINISTRATOR.rollback_contract(contract_name=admin_actor.contract_name,
                                     existing_plaintext_secret=existing_secret,
                                     new_plaintext_secret=new_secret)
 
 
 @deploy.command()
-@_admin_actor_options
+@group_admin_actor
 @click.option('--bare', help="Deploy a contract *only* without any additional operations.", is_flag=True)
 @option_gas
 @click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
 def contracts(# Admin Actor Options
-              provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
-              registry_infile, registry_outfile, dev, se_test_mode,
+              admin_actor,
 
               # Other
               bare, gas, ignore_deployed):
@@ -269,31 +267,32 @@ def contracts(# Admin Actor Options
     """
     # Init
     emitter = StdoutEmitter()
-    _ensure_config_root(config_root)
-    deployer_interface = _initialize_blockchain(poa, provider_uri)
+    _ensure_config_root(admin_actor.config_root)
+    deployer_interface = _initialize_blockchain(admin_actor.poa, admin_actor.provider_uri)
 
     # Warnings
-    _pre_launch_warnings(emitter, etherscan, hw_wallet)
+    _pre_launch_warnings(emitter, admin_actor.etherscan, admin_actor.hw_wallet)
+
 
     #
     # Make Authenticated Deployment Actor
     #
     ADMINISTRATOR, deployer_address, local_registry = _make_authenticated_deployment_actor(emitter,
-                                                                                           provider_uri,
-                                                                                           deployer_address,
+                                                                                           admin_actor.provider_uri,
+                                                                                           admin_actor.deployer_address,
                                                                                            deployer_interface,
-                                                                                           contract_name,
-                                                                                           registry_infile,
-                                                                                           registry_outfile,
-                                                                                           hw_wallet,
-                                                                                           dev,
-                                                                                           force,
-                                                                                           se_test_mode)
+                                                                                           admin_actor.contract_name,
+                                                                                           admin_actor.registry_infile,
+                                                                                           admin_actor.registry_outfile,
+                                                                                           admin_actor.hw_wallet,
+                                                                                           admin_actor.dev,
+                                                                                           admin_actor.force,
+                                                                                           admin_actor.se_test_mode)
 
     #
     # Deploy Single Contract (Amend Registry)
     #
-
+    contract_name = admin_actor.contract_name
     if contract_name:
         try:
             contract_deployer = ADMINISTRATOR.deployers[contract_name]
@@ -325,7 +324,7 @@ def contracts(# Admin Actor Options
                                   receipts=receipts,
                                   emitter=emitter,
                                   chain_name=deployer_interface.client.chain_name,
-                                  open_in_browser=etherscan)
+                                  open_in_browser=admin_actor.etherscan)
         return  # Exit
 
     #
@@ -353,8 +352,8 @@ def contracts(# Admin Actor Options
     # Execute Deployment
     deployment_receipts = ADMINISTRATOR.deploy_network_contracts(secrets=secrets,
                                                                  emitter=emitter,
-                                                                 interactive=not force,
-                                                                 etherscan=etherscan,
+                                                                 interactive=not admin_actor.force,
+                                                                 etherscan=admin_actor.etherscan,
                                                                  ignore_deployed=ignore_deployed)
 
     # Paint outfile paths
@@ -367,15 +366,14 @@ def contracts(# Admin Actor Options
 
 
 @deploy.command()
-@_admin_actor_options
+@group_admin_actor
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
 @click.option('--allocation-outfile', help="Output path for token allocation JSON file",
               type=click.Path(exists=False, file_okay=True))
 @click.option('--sidekick-account', help="A software-controlled account to assist the deployment",
               type=EIP55_CHECKSUM_ADDRESS)
 def allocations(# Admin Actor Options
-                provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
-                registry_infile, registry_outfile, dev, se_test_mode,
+                admin_actor,
 
                 # Other
                 allocation_infile, allocation_outfile, sidekick_account):
@@ -384,26 +382,26 @@ def allocations(# Admin Actor Options
     """
     # Init
     emitter = StdoutEmitter()
-    _ensure_config_root(config_root)
-    deployer_interface = _initialize_blockchain(poa, provider_uri)
+    _ensure_config_root(admin_actor.config_root)
+    deployer_interface = _initialize_blockchain(admin_actor.poa, admin_actor.provider_uri)
 
     # Warnings
-    _pre_launch_warnings(emitter, etherscan, hw_wallet)
+    _pre_launch_warnings(emitter, admin_actor.etherscan, admin_actor.hw_wallet)
 
     #
     # Make Authenticated Deployment Actor
     #
     ADMINISTRATOR, deployer_address, local_registry = _make_authenticated_deployment_actor(emitter,
-                                                                                           provider_uri,
-                                                                                           deployer_address,
+                                                                                           admin_actor.provider_uri,
+                                                                                           admin_actor.deployer_address,
                                                                                            deployer_interface,
-                                                                                           contract_name,
-                                                                                           registry_infile,
-                                                                                           registry_outfile,
-                                                                                           hw_wallet,
-                                                                                           dev,
-                                                                                           force,
-                                                                                           se_test_mode)
+                                                                                           admin_actor.contract_name,
+                                                                                           admin_actor.registry_infile,
+                                                                                           admin_actor.registry_outfile,
+                                                                                           admin_actor.hw_wallet,
+                                                                                           admin_actor.dev,
+                                                                                           admin_actor.force,
+                                                                                           admin_actor.se_test_mode)
 
     if not sidekick_account and click.confirm('Do you want to use a sidekick account to assist during deployment?'):
         prompt = "Select sidekick account"
@@ -426,16 +424,15 @@ def allocations(# Admin Actor Options
     ADMINISTRATOR.deploy_beneficiaries_from_file(allocation_data_filepath=allocation_infile,
                                                  allocation_outfile=allocation_outfile,
                                                  emitter=emitter,
-                                                 interactive=not force)
+                                                 interactive=not admin_actor.force)
 
 
 @deploy.command(name='transfer-tokens')
-@_admin_actor_options
+@group_admin_actor
 @option_target_address
 @click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
 def transfer_tokens(# Admin Actor Options
-                    provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
-                    registry_infile, registry_outfile, dev, se_test_mode,
+                    admin_actor,
 
                     # Other
                     target_address, value):
@@ -444,26 +441,26 @@ def transfer_tokens(# Admin Actor Options
     """
     # Init
     emitter = StdoutEmitter()
-    _ensure_config_root(config_root)
-    deployer_interface = _initialize_blockchain(poa, provider_uri)
+    _ensure_config_root(admin_actor.config_root)
+    deployer_interface = _initialize_blockchain(admin_actor.poa, admin_actor.provider_uri)
 
     # Warnings
-    _pre_launch_warnings(emitter, etherscan, hw_wallet)
+    _pre_launch_warnings(emitter, admin_actor.etherscan, admin_actor.hw_wallet)
 
     #
     # Make Authenticated Deployment Actor
     #
     ADMINISTRATOR, deployer_address, local_registry = _make_authenticated_deployment_actor(emitter,
-                                                                                           provider_uri,
-                                                                                           deployer_address,
+                                                                                           admin_actor.provider_uri,
+                                                                                           admin_actor.deployer_address,
                                                                                            deployer_interface,
-                                                                                           contract_name,
-                                                                                           registry_infile,
-                                                                                           registry_outfile,
-                                                                                           hw_wallet,
-                                                                                           dev,
-                                                                                           force,
-                                                                                           se_test_mode)
+                                                                                           admin_actor.contract_name,
+                                                                                           admin_actor.registry_infile,
+                                                                                           admin_actor.registry_outfile,
+                                                                                           admin_actor.hw_wallet,
+                                                                                           admin_actor.dev,
+                                                                                           admin_actor.force,
+                                                                                           admin_actor.se_test_mode)
 
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=local_registry)
     if not target_address:
@@ -480,12 +477,11 @@ def transfer_tokens(# Admin Actor Options
 
 
 @deploy.command("transfer-ownership")
-@_admin_actor_options
+@group_admin_actor
 @option_target_address
 @option_gas
 def transfer_ownership(# Admin Actor Options
-                       provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
-                       registry_infile, registry_outfile, dev, se_test_mode,
+                       admin_actor,
 
                        # Other
                        target_address, gas):
@@ -494,30 +490,31 @@ def transfer_ownership(# Admin Actor Options
     """
     # Init
     emitter = StdoutEmitter()
-    _ensure_config_root(config_root)
-    deployer_interface = _initialize_blockchain(poa, provider_uri)
+    _ensure_config_root(admin_actor.config_root)
+    deployer_interface = _initialize_blockchain(admin_actor.poa, admin_actor.provider_uri)
 
     # Warnings
-    _pre_launch_warnings(emitter, etherscan, hw_wallet)
+    _pre_launch_warnings(emitter, admin_actor.etherscan, admin_actor.hw_wallet)
 
     #
     # Make Authenticated Deployment Actor
     #
     ADMINISTRATOR, deployer_address, local_registry = _make_authenticated_deployment_actor(emitter,
-                                                                                           provider_uri,
-                                                                                           deployer_address,
+                                                                                           admin_actor.provider_uri,
+                                                                                           admin_actor.deployer_address,
                                                                                            deployer_interface,
-                                                                                           contract_name,
-                                                                                           registry_infile,
-                                                                                           registry_outfile,
-                                                                                           hw_wallet,
-                                                                                           dev,
-                                                                                           force,
-                                                                                           se_test_mode)
+                                                                                           admin_actor.contract_name,
+                                                                                           admin_actor.registry_infile,
+                                                                                           admin_actor.registry_outfile,
+                                                                                           admin_actor.hw_wallet,
+                                                                                           admin_actor.dev,
+                                                                                           admin_actor.force,
+                                                                                           admin_actor.se_test_mode)
 
     if not target_address:
         target_address = click.prompt("Enter new owner's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 
+    contract_name = admin_actor.contract_name
     if contract_name:
         try:
             contract_deployer_class = ADMINISTRATOR.deployers[contract_name]

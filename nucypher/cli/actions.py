@@ -64,7 +64,7 @@ Delete all {name} character files including:
     - Known Nodes             ({nodestore})
     - Node Configuration File ({config})
     - Database                ({database})
-    
+
 Are you sure?'''
 
 SUCCESSFUL_DESTRUCTION = "Successfully destroyed NuCypher configuration"
@@ -269,8 +269,8 @@ By agreeing to stake {str(value)} ({str(value.to_nunits())} NuNits):
 
 - Staked tokens will be locked for the stake duration.
 
-- You are obligated to maintain a networked and available Ursula-Worker node 
-  bonded to the staker address {staker_address} for the duration 
+- You are obligated to maintain a networked and available Ursula-Worker node
+  bonded to the staker address {staker_address} for the duration
   of the stake(s) ({lock_periods} periods).
 
 - Agree to allow NuCypher network users to carry out uninterrupted re-encryption
@@ -308,14 +308,14 @@ def get_provider_process(start_now: bool = False):
 
 
 def make_cli_character(character_config,
-                       click_config,
+                       general_config,
                        unlock_keyring: bool = True,
                        teacher_uri: str = None,
                        min_stake: int = 0,
                        load_preferred_teachers: bool = True,
                        **config_args):
 
-    emitter = click_config.emitter
+    emitter = general_config.emitter
 
     #
     # Pre-Init
@@ -485,7 +485,7 @@ def confirm_deployment(emitter, deployer_interface) -> bool:
 
 def confirm_enable_restaking_lock(emitter, staking_address: str, release_period: int) -> bool:
     restaking_lock_agreement = f"""
-By enabling the re-staking lock for {staking_address}, you are committing to automatically 
+By enabling the re-staking lock for {staking_address}, you are committing to automatically
 re-stake all rewards until a future period.  You will not be able to disable re-staking until {release_period}.
     """
     emitter.message(restaking_lock_agreement)

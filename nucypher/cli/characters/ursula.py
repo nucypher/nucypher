@@ -32,6 +32,7 @@ from nucypher.cli.actions import (
     get_client_password
 )
 from nucypher.cli.common_options import (
+    group_options,
     option_config_file,
     option_config_root,
     option_db_filepath,
@@ -48,7 +49,7 @@ from nucypher.cli.common_options import (
     option_registry_filepath,
     option_teacher_uri,
     )
-from nucypher.cli.config import nucypher_click_config
+from nucypher.cli.config import group_general_config
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
@@ -62,42 +63,35 @@ from nucypher.utilities.sandbox.constants import (
 )
 
 
-# Args (geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
-#       rest_port, db_filepath, poa)
-def _admin_options(func):
-    @option_geth
-    @option_provider_uri()
-    @option_network
-    @option_registry_filepath
-    @click.option('--staker-address', help="Run on behalf of a specified staking account", type=EIP55_CHECKSUM_ADDRESS)
-    @click.option('--worker-address', help="Run the worker-ursula with a specified address",
-                  type=EIP55_CHECKSUM_ADDRESS)
-    @option_federated_only
-    @click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING)
-    @click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT)
-    @option_db_filepath
-    @option_poa
-    @option_light
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
-    return wrapper
+group_admin = group_options(
+    'admin',
+    geth=option_geth,
+    provider_uri=option_provider_uri(),
+    network=option_network,
+    registry_filepath=option_registry_filepath,
+    staker_address=click.option('--staker-address', help="Run on behalf of a specified staking account", type=EIP55_CHECKSUM_ADDRESS),
+    worker_address=click.option('--worker-address', help="Run the worker-ursula with a specified address",
+                  type=EIP55_CHECKSUM_ADDRESS),
+    federated_only=option_federated_only,
+    rest_host=click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING),
+    rest_port=click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT),
+    db_filepath=option_db_filepath,
+    poa=option_poa,
+    light=option_light,
+    )
 
 
 # Args (geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
 #       rest_port, db_filepath, poa, config_file, dev, lonely, teacher_uri, min_stake)
-def _api_options(func):
-    @_admin_options
-    @option_config_file
-    @option_dev
-    @click.option('--lonely', help="Do not connect to seednodes", is_flag=True)
-    @option_teacher_uri
-    @option_min_stake
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
-    return wrapper
-
+group_api = group_options(
+    'api',
+    admin=group_admin,
+    config_file=option_config_file,
+    dev=option_dev,
+    lonely=click.option('--lonely', help="Do not connect to seednodes", is_flag=True),
+    teacher_uri=option_teacher_uri,
+    min_stake=option_min_stake,
+    )
 
 @click.group()
 def ursula():
@@ -109,15 +103,14 @@ def ursula():
 
 
 @ursula.command()
-@_admin_options
+@group_admin
 @option_force
 @option_config_root
-@nucypher_click_config
-def init(click_config,
+@group_general_config
+def init(general_config,
 
          # Admin Options
-         geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
-         rest_port, db_filepath, poa, light,
+         admin,
 
          # Other
          force, config_root):
@@ -126,19 +119,22 @@ def init(click_config,
     """
 
     ### Setup ###
-    _validate_args(geth, federated_only, staker_address, registry_filepath)
+    _validate_args(admin.geth, admin.federated_only, admin.staker_address, admin.registry_filepath)
 
-    emitter = _setup_emitter(click_config, worker_address)
+    emitter = _setup_emitter(general_config, admin.worker_address)
 
     _pre_launch_warnings(emitter, dev=None, force=force)
 
     ETH_NODE = NO_BLOCKCHAIN_CONNECTION
-    if geth:
+    provider_uri = admin.provider_uri
+    if admin.geth:
         ETH_NODE = actions.get_provider_process()
         provider_uri = ETH_NODE.provider_uri(scheme='file')
     #############
 
-    if (not staker_address or not worker_address) and not federated_only:
+    staker_address = admin.staker_address
+    worker_address = admin.worker_address
+    if (not staker_address or not worker_address) and not admin.federated_only:
         if not staker_address:
             staker_address = click.prompt("Enter staker address", type=EIP55_CHECKSUM_ADDRESS)
 
@@ -146,37 +142,38 @@ def init(click_config,
             prompt = "Select worker account"
             worker_address = select_client_account(emitter=emitter, prompt=prompt, provider_uri=provider_uri)
     if not config_root:  # Flag
-        config_root = click_config.config_file  # Envvar
+        config_root = general_config.config_file  # Envvar
+
+    rest_host = admin.rest_host
     if not rest_host:
         rest_host = actions.determine_external_ip_address(emitter, force=force)
     ursula_config = UrsulaConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                  config_root=config_root,
                                                  rest_host=rest_host,
-                                                 rest_port=rest_port,
-                                                 db_filepath=db_filepath,
-                                                 domains={network} if network else None,
-                                                 federated_only=federated_only,
+                                                 rest_port=admin.rest_port,
+                                                 db_filepath=admin.db_filepath,
+                                                 domains={admin.network} if admin.network else None,
+                                                 federated_only=admin.federated_only,
                                                  checksum_address=staker_address,
                                                  worker_address=worker_address,
-                                                 registry_filepath=registry_filepath,
+                                                 registry_filepath=admin.registry_filepath,
                                                  provider_process=ETH_NODE,
                                                  provider_uri=provider_uri,
-                                                 poa=poa,
-                                                 light=light)
+                                                 poa=admin.poa,
+                                                 light=admin.light)
     painting.paint_new_installation_help(emitter, new_configuration=ursula_config)
 
 
 @ursula.command()
-@_admin_options
+@group_admin
 @option_config_file
 @option_dev
 @option_force
-@nucypher_click_config
-def destroy(click_config,
+@group_general_config
+def destroy(general_config,
 
             # Admin Options
-            geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
-            rest_port, db_filepath, poa, light,
+            admin,
 
             # Other
             config_file, force, dev):
@@ -185,30 +182,30 @@ def destroy(click_config,
     """
 
     ### Setup ###
-    _validate_args(geth, federated_only, staker_address, registry_filepath)
+    _validate_args(admin.geth, admin.federated_only, admin.staker_address, admin.registry_filepath)
 
-    emitter = _setup_emitter(click_config, worker_address)
+    emitter = _setup_emitter(general_config, admin.worker_address)
 
     _pre_launch_warnings(emitter, dev=dev, force=force)
 
-    ursula_config, provider_uri = _get_ursula_config(emitter, geth, provider_uri, network, registry_filepath, dev,
-                                                     config_file, staker_address, worker_address, federated_only,
-                                                     rest_host, rest_port, db_filepath, poa, light)
+    ursula_config, provider_uri = _get_ursula_config(
+        emitter, admin.geth, admin.provider_uri, admin.network, admin.registry_filepath, dev,
+        config_file, admin.staker_address, admin.worker_address, admin.federated_only,
+        admin.rest_host, admin.rest_port, admin.db_filepath, admin.poa, admin.light)
     #############
 
     actions.destroy_configuration(emitter, character_config=ursula_config, force=force)
 
 
 @ursula.command()
-@_admin_options
+@group_admin
 @option_config_file
 @option_dev
-@nucypher_click_config
-def forget(click_config,
+@group_general_config
+def forget(general_config,
 
            # Admin Options
-           geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
-           rest_port, db_filepath, poa, light,
+           admin,
 
            # Other
            config_file,  dev):
@@ -216,31 +213,32 @@ def forget(click_config,
     Forget all known nodes.
     """
     ### Setup ###
-    _validate_args(geth, federated_only, staker_address, registry_filepath)
+    _validate_args(admin.geth, admin.federated_only, admin.staker_address, admin.registry_filepath)
 
-    emitter = _setup_emitter(click_config, worker_address)
+    emitter = _setup_emitter(general_config, admin.worker_address)
 
     _pre_launch_warnings(emitter, dev=dev, force=None)
 
-    ursula_config, provider_uri = _get_ursula_config(emitter, geth, provider_uri, network, registry_filepath, dev,
-                                                     config_file, staker_address, worker_address, federated_only,
-                                                     rest_host, rest_port, db_filepath, poa, light)
+    ursula_config, provider_uri = _get_ursula_config(
+        emitter, admin.geth, admin.provider_uri, admin.network, admin.registry_filepath, dev,
+        config_file, admin.staker_address, admin.worker_address, admin.federated_only,
+        admin.rest_host, admin.rest_port, admin.db_filepath, admin.poa, admin.light)
+
     #############
 
     actions.forget(emitter, configuration=ursula_config)
 
 
 @ursula.command()
-@_api_options
+@group_api
 @click.option('--interactive', '-I', help="Launch command interface after connecting to seednodes.", is_flag=True,
               default=False)
 @option_dry_run
-@nucypher_click_config
-def run(click_config,
+@group_general_config
+def run(general_config,
 
         # API Options
-        geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
-        rest_port, db_filepath, poa, light, config_file, dev, lonely, teacher_uri, min_stake,
+        api,
 
         # Other
         interactive, dry_run):
@@ -249,18 +247,21 @@ def run(click_config,
     """
 
     ### Setup ###
-    _validate_args(geth, federated_only, staker_address, registry_filepath)
+    admin = api.admin
+    _validate_args(admin.geth, admin.federated_only, admin.staker_address, admin.registry_filepath)
 
-    emitter = _setup_emitter(click_config, worker_address)
+    emitter = _setup_emitter(general_config, admin.worker_address)
 
-    _pre_launch_warnings(emitter, dev=dev, force=None)
+    _pre_launch_warnings(emitter, dev=api.dev, force=None)
 
-    ursula_config, provider_uri = _get_ursula_config(emitter, geth, provider_uri, network, registry_filepath, dev,
-                                                     config_file, staker_address, worker_address, federated_only,
-                                                     rest_host, rest_port, db_filepath, poa, light)
+    ursula_config, provider_uri = _get_ursula_config(
+        emitter, admin.geth, admin.provider_uri, admin.network, admin.registry_filepath, api.dev,
+        api.config_file, admin.staker_address, admin.worker_address, admin.federated_only,
+        admin.rest_host, admin.rest_port, admin.db_filepath, admin.poa, admin.light)
+
     #############
 
-    URSULA = _create_ursula(ursula_config, click_config, dev, emitter, lonely, teacher_uri, min_stake)
+    URSULA = _create_ursula(ursula_config, general_config, api.dev, emitter, api.lonely, api.teacher_uri, api.min_stake)
 
     # GO!
     try:
@@ -310,91 +311,100 @@ def run(click_config,
 
 
 @ursula.command(name='save-metadata')
-@_api_options
-@nucypher_click_config
-def save_metadata(click_config,
+@group_api
+@group_general_config
+def save_metadata(general_config,
 
                   # API Options
-                  geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only,
-                  rest_host, rest_port, db_filepath, poa, light, config_file, dev, lonely, teacher_uri, min_stake):
+                  api
+                  ):
     """
     Manually write node metadata to disk without running.
     """
     ### Setup ###
-    _validate_args(geth, federated_only, staker_address, registry_filepath)
+    admin = api.admin
+    _validate_args(admin.geth, admin.federated_only, admin.staker_address, admin.registry_filepath)
 
-    emitter = _setup_emitter(click_config, worker_address)
+    emitter = _setup_emitter(general_config, admin.worker_address)
 
-    _pre_launch_warnings(emitter, dev=dev, force=None)
+    _pre_launch_warnings(emitter, dev=api.dev, force=None)
 
-    ursula_config, provider_uri = _get_ursula_config(emitter, geth, provider_uri, network, registry_filepath, dev,
-                                                     config_file, staker_address, worker_address, federated_only,
-                                                     rest_host, rest_port, db_filepath, poa, light)
+    ursula_config, provider_uri = _get_ursula_config(
+        emitter, admin.geth, admin.provider_uri, admin.network, admin.registry_filepath, api.dev,
+        api.config_file, admin.staker_address, admin.worker_address, admin.federated_only,
+        admin.rest_host, admin.rest_port, admin.db_filepath, admin.poa, admin.light)
+
     #############
 
-    URSULA = _create_ursula(ursula_config, click_config, dev, emitter, lonely,
-                            teacher_uri, min_stake, load_seednodes=False)
+    URSULA = _create_ursula(ursula_config, general_config, api.dev, emitter, api.lonely,
+                            api.teacher_uri, api.min_stake, load_seednodes=False)
 
     metadata_path = URSULA.write_node_metadata(node=URSULA)
     emitter.message(f"Successfully saved node metadata to {metadata_path}.", color='green')
 
 
 @ursula.command()
-@_api_options
-@nucypher_click_config
-def view(click_config,
+@group_api
+@group_general_config
+def view(general_config,
 
          # API Options
-         geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
-         rest_port, db_filepath, poa, light, config_file, dev, lonely, teacher_uri, min_stake):
+         api,
+         ):
     """
     View the Ursula node's configuration.
     """
 
     ### Setup ###
-    _validate_args(geth, federated_only, staker_address, registry_filepath)
+    admin = api.admin
+    _validate_args(admin.geth, admin.federated_only, admin.staker_address, admin.registry_filepath)
 
-    emitter = _setup_emitter(click_config, worker_address)
+    emitter = _setup_emitter(general_config, admin.worker_address)
 
-    _pre_launch_warnings(emitter, dev=dev, force=None)
+    _pre_launch_warnings(emitter, dev=api.dev, force=None)
 
-    ursula_config, provider_uri = _get_ursula_config(emitter, geth, provider_uri, network, registry_filepath, dev,
-                                                     config_file, staker_address, worker_address, federated_only,
-                                                     rest_host, rest_port, db_filepath, poa, light)
+    ursula_config, provider_uri = _get_ursula_config(
+        emitter, admin.geth, admin.provider_uri, admin.network, admin.registry_filepath, api.dev,
+        api.config_file, admin.staker_address, admin.worker_address, admin.federated_only,
+        admin.rest_host, admin.rest_port, admin.db_filepath, admin.poa, admin.light)
+
     #############
 
-    filepath = config_file or ursula_config.config_file_location
+    filepath = api.config_file or ursula_config.config_file_location
     emitter.echo(f"Ursula Configuration {filepath} \n {'='*55}")
     response = UrsulaConfiguration._read_configuration_file(filepath=filepath)
     return emitter.echo(json.dumps(response, indent=4))
 
 
 @ursula.command(name='confirm-activity')
-@_api_options
-@nucypher_click_config
-def confirm_activity(click_config,
+@group_api
+@group_general_config
+def confirm_activity(general_config,
 
                      # API Options
-                     geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only,
-                     rest_host, rest_port, db_filepath, poa, light, config_file, dev, lonely, teacher_uri, min_stake):
+                     api
+                     ):
     """
     Manually confirm-activity for the current period.
     """
 
     ### Setup ###
-    _validate_args(geth, federated_only, staker_address, registry_filepath)
+    admin = api.admin
+    _validate_args(admin.geth, admin.federated_only, admin.staker_address, admin.registry_filepath)
 
-    emitter = _setup_emitter(click_config, worker_address)
+    emitter = _setup_emitter(general_config, admin.worker_address)
 
-    _pre_launch_warnings(emitter, dev=dev, force=None)
+    _pre_launch_warnings(emitter, dev=api.dev, force=None)
 
-    ursula_config, provider_uri = _get_ursula_config(emitter, geth, provider_uri, network, registry_filepath, dev,
-                                                     config_file, staker_address, worker_address, federated_only,
-                                                     rest_host, rest_port, db_filepath, poa, light)
+    ursula_config, provider_uri = _get_ursula_config(
+        emitter, admin.geth, admin.provider_uri, admin.network, admin.registry_filepath, api.dev,
+        api.config_file, admin.staker_address, admin.worker_address, admin.federated_only,
+        admin.rest_host, admin.rest_port, admin.db_filepath, admin.poa, admin.light)
+
     #############
 
-    URSULA = _create_ursula(ursula_config, click_config, dev, emitter,
-                            lonely, teacher_uri, min_stake, load_seednodes=False)
+    URSULA = _create_ursula(ursula_config, general_config, api.dev, emitter,
+                            api.lonely, api.teacher_uri, api.min_stake, load_seednodes=False)
 
     confirmed_period = URSULA.staking_agent.get_current_period() + 1
     click.echo(f"Confirming activity for period {confirmed_period}", color='blue')
@@ -414,9 +424,9 @@ def confirm_activity(click_config,
     # TODO: Check ActivityConfirmation event (see #1193)
 
 
-def _setup_emitter(click_config, worker_address):
+def _setup_emitter(general_config, worker_address):
     # Banner
-    emitter = click_config.emitter
+    emitter = general_config.emitter
     emitter.clear()
     emitter.banner(URSULA_BANNER.format(worker_address or ''))
 
@@ -495,20 +505,20 @@ def _get_ursula_config(emitter, geth, provider_uri, network, registry_filepath, 
     return ursula_config, provider_uri
 
 
-def _create_ursula(ursula_config, click_config, dev, emitter, lonely, teacher_uri, min_stake, load_seednodes=True):
+def _create_ursula(ursula_config, general_config, dev, emitter, lonely, teacher_uri, min_stake, load_seednodes=True):
     #
     # Make Ursula
     #
 
     client_password = None
     if not ursula_config.federated_only:
-        if not dev and not click_config.json_ipc:
+        if not dev and not general_config.json_ipc:
             client_password = get_client_password(checksum_address=ursula_config.worker_address,
                                                   envvar="NUCYPHER_WORKER_ETH_PASSWORD")
 
     try:
         URSULA = actions.make_cli_character(character_config=ursula_config,
-                                            click_config=click_config,
+                                            general_config=general_config,
                                             min_stake=min_stake,
                                             teacher_uri=teacher_uri,
                                             unlock_keyring=not dev,

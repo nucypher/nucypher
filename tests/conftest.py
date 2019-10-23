@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 
 from nucypher.characters.control.emitters import WebEmitter
-from nucypher.cli.config import NucypherClickConfig
+from nucypher.cli.config import GroupGeneralConfig
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
@@ -30,8 +30,8 @@ from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 # Disable click sentry and file logging
-NucypherClickConfig.log_to_sentry = False
-NucypherClickConfig.log_to_file = True
+GroupGeneralConfig.log_to_sentry = False
+GroupGeneralConfig.log_to_file = True
 
 # Crash on server error by default
 WebEmitter._crash_on_error_default = True

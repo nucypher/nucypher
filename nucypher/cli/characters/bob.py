@@ -7,6 +7,7 @@ from nucypher.characters.banners import BOB_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import get_nucypher_password, select_client_account
 from nucypher.cli.common_options import (
+    group_options,
     option_checksum_address,
     option_config_file,
     option_config_root,
@@ -25,41 +26,32 @@ from nucypher.cli.common_options import (
     option_registry_filepath,
     option_teacher_uri,
     )
-from nucypher.cli.config import nucypher_click_config
+from nucypher.cli.config import group_general_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import BobConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import DecryptingPower
-
-
-# Args (provider_uri, network, registry_filepath, checksum_address)
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 
-def _admin_options(func):
-    @option_provider_uri()
-    @option_network
-    @option_registry_filepath
-    @option_checksum_address
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
-    return wrapper
+group_admin = group_options(
+    'admin',
+    provider_uri=option_provider_uri(),
+    network=option_network,
+    registry_filepath=option_registry_filepath,
+    checksum_address=option_checksum_address,
+    )
 
 
-# Args (provider_uri, network, registry_filepath, checksum_address, dev, config_file, discovery_port,
-#       teacher_uri, min_stake)
-def _api_options(func):
-    @_admin_options
-    @option_dev
-    @option_config_file
-    @option_discovery_port()
-    @option_teacher_uri
-    @option_min_stake
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
-    return wrapper
+group_api = group_options(
+    'api',
+    admin=group_admin,
+    dev=option_dev,
+    config_file=option_config_file,
+    discovery_port=option_discovery_port(),
+    teacher_uri=option_teacher_uri,
+    min_stake=option_min_stake,
+    )
 
 
 @click.group()
@@ -71,14 +63,14 @@ def bob():
 
 
 @bob.command()
-@_admin_options
+@group_admin
 @option_federated_only
 @option_config_root
-@nucypher_click_config
-def init(click_config,
+@group_general_config
+def init(general_config,
 
          # Admin Options
-         provider_uri, network, registry_filepath, checksum_address,
+         admin,
 
          # Other
          federated_only, config_root):
@@ -86,33 +78,34 @@ def init(click_config,
     """
     Create a brand new persistent Bob.
     """
-    emitter = _setup_emitter(click_config)
+    emitter = _setup_emitter(general_config)
 
     if not config_root:  # Flag
-        config_root = click_config.config_file  # Envvar
+        config_root = general_config.config_file  # Envvar
+
+    checksum_address = admin.checksum_address
     if not checksum_address and not federated_only:
-        checksum_address = select_client_account(emitter=emitter, provider_uri=provider_uri)
+        checksum_address = select_client_account(emitter=emitter, provider_uri=admin.provider_uri)
 
     new_bob_config = BobConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                config_root=config_root or DEFAULT_CONFIG_ROOT,
                                                checksum_address=checksum_address,
-                                               domains={network} if network else None,
+                                               domains={admin.network} if admin.network else None,
                                                federated_only=federated_only,
-                                               registry_filepath=registry_filepath,
-                                               provider_uri=provider_uri)
+                                               registry_filepath=admin.registry_filepath,
+                                               provider_uri=admin.provider_uri)
     return painting.paint_new_installation_help(emitter, new_configuration=new_bob_config)
 
 
 @bob.command()
-@_api_options
+@group_api
 @option_controller_port(default=BobConfiguration.DEFAULT_CONTROLLER_PORT)
 @option_dry_run
-@nucypher_click_config
-def run(click_config,
+@group_general_config
+def run(general_config,
 
         # API Options
-        provider_uri, network, registry_filepath, checksum_address, dev, config_file, discovery_port,
-        teacher_uri, min_stake,
+        api,
 
         # Other
         controller_port, dry_run):
@@ -121,20 +114,23 @@ def run(click_config,
     """
 
     ### Setup ###
-    emitter = _setup_emitter(click_config)
+    emitter = _setup_emitter(general_config)
 
-    bob_config = _get_bob_config(click_config, dev, provider_uri, network, registry_filepath, checksum_address,
-                                 config_file, discovery_port)
+    admin = api.admin
+
+    bob_config = _get_bob_config(
+        general_config, api.dev, admin.provider_uri, admin.network, admin.registry_filepath, admin.checksum_address,
+        api.config_file, api.discovery_port)
     #############
 
     BOB = actions.make_cli_character(character_config=bob_config,
-                                     click_config=click_config,
-                                     unlock_keyring=not dev,
-                                     teacher_uri=teacher_uri,
-                                     min_stake=min_stake)
+                                     general_config=general_config,
+                                     unlock_keyring=not api.dev,
+                                     teacher_uri=api.teacher_uri,
+                                     min_stake=api.min_stake)
 
     # RPC
-    if click_config.json_ipc:
+    if general_config.json_ipc:
         rpc_controller = BOB.make_rpc_controller()
         _transport = rpc_controller.make_control_transport()
         rpc_controller.start()
@@ -145,43 +141,51 @@ def run(click_config,
     bob_encrypting_key = bytes(BOB.public_keys(DecryptingPower)).hex()
     emitter.message(f"Bob Encrypting Key {bob_encrypting_key}", color="blue", bold=True)
     # Start Controller
-    controller = BOB.make_web_controller(crash_on_error=click_config.debug)
+    controller = BOB.make_web_controller(crash_on_error=general_config.debug)
     BOB.log.info('Starting HTTP Character Web Controller')
     return controller.start(http_port=controller_port, dry_run=dry_run)
 
 
 @bob.command()
-@_api_options
-@nucypher_click_config
-def view(click_config,
+@group_api
+@group_general_config
+def view(general_config,
 
          # API Options
-         provider_uri, network, registry_filepath, checksum_address, dev, config_file, discovery_port,
-         teacher_uri, min_stake):
+         api
+         ):
     """
     View existing Bob's configuration.
     """
-    emitter = _setup_emitter(click_config)
-    bob_config = _get_bob_config(click_config, dev, provider_uri, network, registry_filepath, checksum_address,
-                                 config_file, discovery_port)
+
+    ### Setup ###
+    emitter = _setup_emitter(general_config)
+
+    admin = api.admin
+
+    bob_config = _get_bob_config(
+        general_config, api.dev, admin.provider_uri, admin.network, admin.registry_filepath, admin.checksum_address,
+        api.config_file, api.discovery_port)
+
     #############
-    filepath = config_file or bob_config.config_file_location
+
+    filepath = api.config_file or bob_config.config_file_location
     emitter.echo(f"Bob Configuration {filepath} \n {'='*55}")
     response = BobConfiguration._read_configuration_file(filepath=filepath)
     return emitter.echo(json.dumps(response, indent=4))
 
 
 @bob.command()
-@_admin_options
+@group_admin
 @option_dev
 @option_config_file
 @option_discovery_port()
 @option_force
-@nucypher_click_config
-def destroy(click_config,
+@group_general_config
+def destroy(general_config,
 
             # Admin Options
-            provider_uri, network, registry_filepath, checksum_address,
+            admin,
 
             # Other
             dev, config_file, discovery_port, force
@@ -190,10 +194,12 @@ def destroy(click_config,
     Delete existing Bob's configuration.
     """
     ### Setup ###
-    emitter = _setup_emitter(click_config)
+    emitter = _setup_emitter(general_config)
 
-    bob_config = _get_bob_config(click_config, dev, provider_uri, network, registry_filepath, checksum_address,
-                                 config_file, discovery_port)
+    bob_config = _get_bob_config(
+        general_config, dev, admin.provider_uri, admin.network, admin.registry_filepath, admin.checksum_address,
+        config_file, discovery_port)
+
     #############
 
     # Validate
@@ -206,29 +212,33 @@ def destroy(click_config,
 
 
 @bob.command(name='public-keys')
-@_api_options
-@nucypher_click_config
-def public_keys(click_config,
+@group_api
+@group_general_config
+def public_keys(general_config,
 
                 # API Options
-                provider_uri, network, registry_filepath, checksum_address, dev, config_file, discovery_port,
-                teacher_uri, min_stake):
+                api
+                ):
     """
     Obtain Bob's public verification and encryption keys.
     """
 
     ### Setup ###
-    _setup_emitter(click_config)
+    _setup_emitter(general_config)
 
-    bob_config = _get_bob_config(click_config, dev, provider_uri, network, registry_filepath, checksum_address,
-                                 config_file, discovery_port)
+    admin = api.admin
+
+    bob_config = _get_bob_config(
+        general_config, api.dev, admin.provider_uri, admin.network, admin.registry_filepath, admin.checksum_address,
+        api.config_file, api.discovery_port)
+
     #############
 
     BOB = actions.make_cli_character(character_config=bob_config,
-                                     click_config=click_config,
-                                     unlock_keyring=not dev,
-                                     teacher_uri=teacher_uri,
-                                     min_stake=min_stake,
+                                     general_config=general_config,
+                                     unlock_keyring=not api.dev,
+                                     teacher_uri=api.teacher_uri,
+                                     min_stake=api.min_stake,
                                      load_preferred_teachers=False,
                                      start_learning_now=False)
 
@@ -237,17 +247,16 @@ def public_keys(click_config,
 
 
 @bob.command()
-@_api_options
+@group_api
 @option_label()
 @option_policy_encrypting_key()
 @click.option('--alice-verifying-key', help="Alice's verifying key as a hexadecimal string", type=click.STRING)
 @option_message_kit()
-@nucypher_click_config
-def retrieve(click_config,
+@group_general_config
+def retrieve(general_config,
 
              # API Options
-             provider_uri, network, registry_filepath, checksum_address, dev, config_file, discovery_port,
-             teacher_uri, min_stake,
+             api,
 
              # Other
              label, policy_encrypting_key, alice_verifying_key, message_kit):
@@ -256,17 +265,21 @@ def retrieve(click_config,
     """
 
     ### Setup ###
-    _setup_emitter(click_config)
+    _setup_emitter(general_config)
 
-    bob_config = _get_bob_config(click_config, dev, provider_uri, network, registry_filepath, checksum_address,
-                                 config_file, discovery_port)
+    admin = api.admin
+
+    bob_config = _get_bob_config(
+        general_config, api.dev, admin.provider_uri, admin.network, admin.registry_filepath, admin.checksum_address,
+        api.config_file, api.discovery_port)
+
     #############
 
     BOB = actions.make_cli_character(character_config=bob_config,
-                                     click_config=click_config,
-                                     unlock_keyring=not dev,
-                                     teacher_uri=teacher_uri,
-                                     min_stake=min_stake)
+                                     general_config=general_config,
+                                     unlock_keyring=not api.dev,
+                                     teacher_uri=api.teacher_uri,
+                                     min_stake=api.min_stake)
 
     # Validate
     if not all((label, policy_encrypting_key, alice_verifying_key, message_kit)):
@@ -286,7 +299,7 @@ def retrieve(click_config,
     return response
 
 
-def _get_bob_config(click_config, dev, provider_uri, network, registry_filepath, checksum_address, config_file,
+def _get_bob_config(general_config, dev, provider_uri, network, registry_filepath, checksum_address, config_file,
                     discovery_port):
     if dev:
         bob_config = BobConfiguration(dev_mode=True,
@@ -294,7 +307,7 @@ def _get_bob_config(click_config, dev, provider_uri, network, registry_filepath,
                                       provider_uri=provider_uri,
                                       federated_only=True,
                                       checksum_address=checksum_address,
-                                      network_middleware=click_config.middleware)
+                                      network_middleware=general_config.middleware)
     else:
 
         try:
@@ -305,7 +318,7 @@ def _get_bob_config(click_config, dev, provider_uri, network, registry_filepath,
                 rest_port=discovery_port,
                 provider_uri=provider_uri,
                 registry_filepath=registry_filepath,
-                network_middleware=click_config.middleware)
+                network_middleware=general_config.middleware)
         except FileNotFoundError:
             return actions.handle_missing_configuration_file(character_config_class=BobConfiguration,
                                                              config_file=config_file)
@@ -313,9 +326,9 @@ def _get_bob_config(click_config, dev, provider_uri, network, registry_filepath,
     return bob_config
 
 
-def _setup_emitter(click_config):
+def _setup_emitter(general_config):
     # Banner
-    emitter = click_config.emitter
+    emitter = general_config.emitter
     emitter.clear()
     emitter.banner(BOB_BANNER)
 
