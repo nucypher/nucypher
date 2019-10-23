@@ -120,6 +120,13 @@ workflows:
               only: /.*/
           requires:
             - build_dev_docker_images
+      - cli_demo:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
+            - tests_ok
       - estimate_gas:
           filters:
             tags:
@@ -140,6 +147,7 @@ workflows:
             - build_docs
             - heartbeat_demo
             - finnegans_wake_demo
+            - cli_demo
       - build_docker:
           filters:
             tags:
@@ -532,6 +540,19 @@ jobs:
           command: ./scripts/circle/run_finnegans_wake_demo_docker-circle.sh
       - store_artifacts:
           path: /tmp/ursulas-logs
+
+  cli_demo:
+    <<: *python_37_base
+    steps:
+    - prepare_environment
+    - run:
+        name: Run a CLI demo in NuCypher testnet
+        command: |
+          cd ~/nucypher
+          pip3 install --user -e .
+          ./examples/cli_demo/bob-retrieve.sh
+    - store_artifacts:
+        path: /home/circleci/bob/retrieve-output.txt
 
   validate_reqs_files:
     working_directory: ~/nucypher
