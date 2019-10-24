@@ -552,7 +552,7 @@ jobs:
           pip3 install --user -e .
           ./examples/cli_demo/bob-retrieve.sh
     - store_artifacts:
-        path: /home/circleci/bob/retrieve-output.txt
+        path: /tmp/cli-demo
 
   validate_reqs_files:
     working_directory: ~/nucypher

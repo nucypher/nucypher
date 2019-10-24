@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 
 # Setup Bob prefabricated keyring
-tar -xzvf ~/nucypher/examples/cli_demo/bob.tar.gz -C ~
+tar -xzf ~/nucypher/examples/cli_demo/bob.tar.gz -C ~
 mkdir --parents ~/bob/known_nodes/metadata
 mkdir ~/bob/known_nodes/certificates
+mkdir /tmp/cli-demo
 
 # Setup runtime environment
 export NUCYPHER_KEYRING_PASSWORD=$TEST_BOB_KEYRING_PASSWORD
@@ -18,7 +19,7 @@ nucypher enrico encrypt --policy-encrypting-key $POLICY_KEY_1_1 --message $MESSA
 
 MESSAGE_KIT=$(cat /tmp/enrico.json | python3 -c "import sys, json; print(json.load(sys.stdin)['result']['message_kit'])")
 
-# Retrieve cleartext for message kit
+# Bob retrieves cleartext for message kit
 nucypher bob retrieve \
     --label aceituno \
     --message-kit $MESSAGE_KIT \
@@ -33,3 +34,8 @@ nucypher bob retrieve \
 # Test that the retrieved cleartext is correct
 cat /tmp/retrieve.json \
 | python3 -c "import sys, json, base64; assert b'$MESSAGE' == base64.b64decode(json.load(sys.stdin)['result']['cleartexts'][0])"
+
+# Save artifacts for later inspection
+cp .cache/nucypher/log/nucypher.log /tmp/cli-demo
+cp /tmp/retrieve.json /tmp/cli-demo
+cp /tmp/enrico.json /tmp/cli-demo
