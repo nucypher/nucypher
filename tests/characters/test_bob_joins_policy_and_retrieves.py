@@ -175,12 +175,14 @@ def test_bob_retrieves_with_treasure_map(
     federated_bob.learn_from_teacher_node(eager=True)
 
     # Deserialized treasure map
-    federated_bob.retrieve(
+    text1 = federated_bob.retrieve(
         message_kit, data_source, alice_verifying_key,
         enacted_federated_policy.label, treasure_map=treasure_map)
 
     message_kit.capsule.clear_cfrags()  # Return back to a non re-encrypted state
     # Serialized treasure map
-    federated_bob.retrieve(
+    text2 = federated_bob.retrieve(
         message_kit, data_source, alice_verifying_key,
         enacted_federated_policy.label, treasure_map=bytes(treasure_map))
+
+    assert text1[0] == text2[0] == b'Welcome to flippering number 2.'
