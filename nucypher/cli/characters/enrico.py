@@ -4,12 +4,13 @@ from umbral.keys import UmbralPublicKey
 from nucypher.characters.banners import ENRICO_BANNER
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.config import nucypher_click_config
-from nucypher.cli.types import NETWORK_PORT
+from nucypher.cli.types import NETWORK_PORT, PUBLIC_KEY_HEX
 
 
-policy_encrypting_key_option =  \
-    click.option('--policy-encrypting-key', help="Encrypting Public Key for Policy as hexadecimal string",
-                 type=click.STRING, required=True)
+policy_encrypting_key_option = click.option('--policy-encrypting-key',
+                                            help="Encrypting Public Key for Policy as hexadecimal string",
+                                            type=PUBLIC_KEY_HEX,
+                                            required=True)
 
 
 @click.group()
