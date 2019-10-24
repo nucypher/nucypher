@@ -10,6 +10,7 @@ import nucypher
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.policy.collections import TreasureMap
+from nucypher.network.nodes import Learner
 
 click_runner = CliRunner()
 
@@ -197,7 +198,9 @@ def test_bob_web_character_control_retrieve(
     assert response_data['result']['cleartexts']
 
     method_name, params = make_retrieve_control_request().values()
-    wrong_tmap = TreasureMap(m=0)
+    wrong_tmap = TreasureMap(
+            m=1,
+            destinations={'0x0000000000000000000000000000000000000000': b'\x00' * 32})
     wrong_tmap.prepare_for_publication(
             blockchain_bob.public_keys(DecryptingPower),
             blockchain_bob.public_keys(SigningPower),
@@ -205,8 +208,7 @@ def test_bob_web_character_control_retrieve(
             b'Wrong!')
     wrong_tmap = b64encode(bytes(wrong_tmap)).decode()
     params['treasure_map'] = wrong_tmap
-    with pytest.raises(Exception):
-        # Do we have raise on error in tests?
+    with pytest.raises(Learner.NotEnoughTeachers):
         response = bob_web_controller_test_client.post(endpoint, data=json.dumps(params))
 
 
