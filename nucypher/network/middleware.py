@@ -21,17 +21,14 @@ import ssl
 
 import requests
 import time
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, EXEMPT_FROM_VERIFICATION
-
-
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from twisted.logger import Logger
+
 from umbral.cfrags import CapsuleFrag
 from umbral.signing import Signature
-
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-
 
 EXEMPT_FROM_VERIFICATION.bool_value(False)
 
@@ -233,6 +230,22 @@ class RestMiddleware:
             node_or_sprout=work_order.ursula,
             path=f"kFrag/{id_as_hex}/reencrypt",
             data=payload, timeout=2)
+
+    def node_information(self, host, port, certificate_filepath=None):
+        response = self.client.get(host=host, port=port,
+                                   path="public_information",
+                                   timeout=2,
+                                   certificate_filepath=certificate_filepath)
+        return response.content
+
+    def ping(self, host, port, certificate_filepath=None):
+        response = self.client.get(host=host, port=port,
+                                   path="ping",
+                                   timeout=2,
+                                   certificate_filepath=certificate_filepath)
+        if response.status_code != 200:
+            raise RuntimeError("Your node could not successfully be pinged from the remote node.")
+        return True
 
     def get_nodes_via_rest(self,
                            node,

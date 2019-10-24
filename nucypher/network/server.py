@@ -19,14 +19,18 @@ import binascii
 import os
 from typing import Tuple
 
+import requests
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
-from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES, NO_BLOCKCHAIN_CONNECTION
-from flask import Flask, Response, jsonify
-from flask import request
+from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
+from flask import Flask, Response, request
+from flask import jsonify
 from hendrix.experience import crosstown_traffic
 from jinja2 import Template, TemplateError
 from twisted.logger import Logger
+from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
 from web3.exceptions import TimeExhausted
 
 import nucypher
@@ -41,8 +45,6 @@ from nucypher.datastore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
@@ -120,6 +122,26 @@ def make_rest_app(
             mimetype='application/octet-stream')
 
         return response
+
+    @rest_app.route("/ping")
+    def ping():
+        """
+        Returns network information about the accessor's connection to
+        the node.
+        TODO: Parameterize the port.
+        TODO: Fix certificate verification check so we don't pass verify=False
+        TODO: Figure out how to test this.
+        """
+        node_ip = request.environ['REMOTE_ADDR']
+
+        try:
+            result = requests.get(f"https://{node_ip}:9151/public_information", verify=False)
+        except requests.exceptions.ConnectionError:
+            return Response(status=400)
+
+        if result.status_code != 200:
+            return Response(status=400)
+        return Response(status=200)
 
     @rest_app.route('/node_metadata', methods=["GET"])
     def all_known_nodes():
