@@ -4,6 +4,7 @@ from base64 import b64encode
 from nucypher.characters.control.specifications import AliceSpecification, BobSpecification, EnricoSpecification
 from nucypher.policy.collections import TreasureMap
 from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.network.nodes import Learner
 
 alice_specification = AliceSpecification()
 bob_specification = BobSpecification()
@@ -120,7 +121,9 @@ def test_bob_rpc_character_control_retrieve(
     assert response.data['result']['cleartexts'][0] == 'Welcome to flippering number 3.'
 
     request_data = make_retrieve_control_request()
-    wrong_tmap = TreasureMap(m=0)
+    wrong_tmap = TreasureMap(
+            m=1,
+            destinations={'0x0000000000000000000000000000000000000000': b'\x00' * 32})
     wrong_tmap.prepare_for_publication(
             blockchain_bob.public_keys(DecryptingPower),
             blockchain_bob.public_keys(SigningPower),
@@ -128,5 +131,5 @@ def test_bob_rpc_character_control_retrieve(
             b'Wrong!')
     wrong_tmap = b64encode(bytes(wrong_tmap)).decode()
     request_data['params']['treasure_map'] = wrong_tmap
-    with pytest.raises(Exception):
+    with pytest.raises(Learner.NotEnoughTeachers):
         bob_rpc_controller.send(request_data)
