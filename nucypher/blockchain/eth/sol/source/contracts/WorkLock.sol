@@ -19,18 +19,19 @@ contract WorkLock {
     using SafeMath for uint256;
     using AdditionalMath for uint256;
     using Address for address payable;
+    using Address for address;
 
     event Deposited(address indexed sender, uint256 value);
-    event Bid(address indexed staker, uint256 depositedETH);
-    event Claimed(address indexed staker, address preallocationEscrow, uint256 claimedTokens);
-    event Refund(address indexed staker, address preallocationEscrow, uint256 refundETH, uint256 completedWork);
+    event Bid(address indexed sender, uint256 depositedETH);
+    event Claimed(address indexed sender, address preallocationEscrow, uint256 claimedTokens);
+    event Refund(address indexed sender, address preallocationEscrow, uint256 refundETH, uint256 completedWork);
     event Burnt(address indexed sender, uint256 value);
-    event Canceled(address indexed staker, uint256 value);
+    event Canceled(address indexed sender, uint256 value);
 
     struct WorkInfo {
         uint256 depositedETH;
         uint256 completedWork;
-        bool claimed;
+        PreallocationEscrow preallocationEscrow;
     }
 
     NuCypherToken public token;
@@ -40,9 +41,16 @@ contract WorkLock {
     uint256 public startBidDate;
     uint256 public endBidDate;
 
-    // TODO describe calculations in comments
+    /*
+    * @dev WorkLock calculations:
+    * depositRate = tokenSupply / ethSupply
+    * claimedTokens = depositedETH * depositRate
+    * refundRate = depositRate * SLOWING_REFUND / boostingRefund
+    * refundETH = completedWork / refundRate
+    */
     uint256 public boostingRefund;
     uint16 public constant SLOWING_REFUND = 100;
+    uint256 private constant MAX_ETH_SUPPLY = 200000000000000000000000000;
 
     uint256 public tokenSupply;
     uint256 public ethSupply;
@@ -71,13 +79,19 @@ contract WorkLock {
     )
         public
     {
-        require(_token.totalSupply() > 0 &&
+        uint256 totalSupply = _token.totalSupply();
+        require(totalSupply > 0 &&
             _escrow.secondsPerPeriod() > 0 &&
             _router.target().isContract() &&
             _endBidDate > _startBidDate &&
             _endBidDate > block.timestamp &&
             _boostingRefund > 0 &&
             _lockedDuration > 0);
+        // worst case for `ethToWork()` and `workToETH()`,
+        // when ethSupply == MAX_ETH_SUPPLY and tokenSupply == totalSupply
+        require(MAX_ETH_SUPPLY * totalSupply * SLOWING_REFUND / MAX_ETH_SUPPLY / totalSupply == SLOWING_REFUND &&
+            MAX_ETH_SUPPLY * totalSupply * _boostingRefund / MAX_ETH_SUPPLY / totalSupply == _boostingRefund);
+
         token = _token;
         escrow = _escrow;
         router = _router;
@@ -125,9 +139,10 @@ contract WorkLock {
     /**
     * @notice Get remaining work to full refund
     */
-    function getRemainingWork(address _staker) public view returns (uint256) {
-        WorkInfo storage info = workInfo[_staker];
-        uint256 completedWork = escrow.getCompletedWork(_staker).sub(info.completedWork);
+    function getRemainingWork(address _preallocationEscrow) public view returns (uint256) {
+        address depositor = depositors[_preallocationEscrow];
+        WorkInfo storage info = workInfo[depositor];
+        uint256 completedWork = escrow.getCompletedWork(_preallocationEscrow).sub(info.completedWork);
         uint256 remainingWork = ethToWork(info.depositedETH);
         if (remainingWork <= completedWork) {
             return 0;
@@ -151,11 +166,10 @@ contract WorkLock {
     * @notice Cancel bid and refund deposited ETH
     */
     function cancelBid() external {
-        // TODO check date?
-        // TODO check minimum amount of tokens?
+        // TODO check date? check minimum amount of tokens?
         WorkInfo storage info = workInfo[msg.sender];
         require(info.depositedETH > 0, "No bid to cancel");
-        require(!info.claimed, "Tokens are already claimed");
+        require(address(info.preallocationEscrow) == address(0), "Tokens are already claimed");
         uint256 refundETH = info.depositedETH;
         info.depositedETH = 0;
         if (block.timestamp <= endBidDate) {
@@ -170,18 +184,19 @@ contract WorkLock {
     /**
     * @notice Claimed tokens will be deposited and locked as stake in the StakingEscrow contract.
     */
-    function claim() external returns (uint256 claimedTokens) {
+    function claim() external returns (PreallocationEscrow preallocationEscrow, uint256 claimedTokens) {
         require(block.timestamp >= endBidDate, "Claiming tokens allowed after bidding is over");
         WorkInfo storage info = workInfo[msg.sender];
-        require(!info.claimed, "Tokens are already claimed");
-        info.claimed = true;
-        claimedTokens = ethToTokens(info.depositedETH); // TODO check for overflow before
+        require(address(info.preallocationEscrow) == address(0), "Tokens are already claimed");
+        claimedTokens = ethToTokens(info.depositedETH);
+        require(claimedTokens > 0, "Nothing to claim");
 
-        PreallocationEscrow preallocationEscrow = new PreallocationEscrow(router, token);
-        token.approve(address(escrow), claimedTokens);
+        preallocationEscrow = new PreallocationEscrow(router, token);
+        token.approve(address(preallocationEscrow), claimedTokens);
         preallocationEscrow.initialDeposit(claimedTokens, lockedDuration);
         preallocationEscrow.transferOwnership(msg.sender);
         depositors[address(preallocationEscrow)] = msg.sender;
+        info.preallocationEscrow = preallocationEscrow;
         info.completedWork = escrow.setWorkMeasurement(address(preallocationEscrow), true);
         emit Claimed(msg.sender, address(preallocationEscrow), claimedTokens);
     }
@@ -193,9 +208,9 @@ contract WorkLock {
         address depositor = depositors[address(_preallocationEscrow)];
         require(depositor != address(0), "Untrusted contract");
         WorkInfo storage info = workInfo[depositor];
-        require(info.claimed, "Tokens are not claimed"); // TODO unreachable?
         require(info.depositedETH > 0, "Nothing deposited");
         require(_preallocationEscrow.owner() == msg.sender, "Only the owner of specified contract can request a refund");
+        assert(_preallocationEscrow == info.preallocationEscrow);
         uint256 currentWork = escrow.getCompletedWork(address(_preallocationEscrow));
 
         uint256 completedWork = currentWork.sub(info.completedWork);
