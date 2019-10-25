@@ -103,7 +103,7 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
     end_bid_date = start_bid_date + (60 * 60)
     boosting_refund = 50
     slowing_refund = 100
-    locked_duration = 60 * 60
+    locking_duration = 60 * 60
     worklock, _ = deploy_contract(
         contract_name='WorkLock',
         _token=token.address,
@@ -112,13 +112,13 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
         _startBidDate=start_bid_date,
         _endBidDate=end_bid_date,
         _boostingRefund=boosting_refund,
-        _lockedDuration=locked_duration
+        _lockingDuration=locking_duration
     )
     assert worklock.functions.startBidDate().call() == start_bid_date
     assert worklock.functions.endBidDate().call() == end_bid_date
     assert worklock.functions.boostingRefund().call() == boosting_refund
     assert worklock.functions.SLOWING_REFUND().call() == slowing_refund
-    assert worklock.functions.lockedDuration().call() == locked_duration
+    assert worklock.functions.lockingDuration().call() == locking_duration
 
     deposit_log = worklock.events.Deposited.createFilter(fromBlock='latest')
     bidding_log = worklock.events.Bid.createFilter(fromBlock='latest')
@@ -316,6 +316,8 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
     assert preallocation_escrow_1.functions.router().call() == router.address
     assert preallocation_escrow_1.functions.lockedValue().call() == staker1_tokens
     assert preallocation_escrow_1.functions.getLockedTokens().call() == staker1_tokens
+    assert preallocation_escrow_1.functions.endLockTimestamp().call() == \
+           testerchain.w3.eth.getBlock(block_identifier='latest').timestamp + locking_duration
     staker1_remaining_work = int(-(-8 * worklock_supply * slowing_refund // (boosting_refund * 10)))  # div ceil
     assert worklock.functions.ethToWork(2 * deposit_eth_1).call() == staker1_remaining_work
     assert worklock.functions.workToETH(staker1_remaining_work).call() == 2 * deposit_eth_1

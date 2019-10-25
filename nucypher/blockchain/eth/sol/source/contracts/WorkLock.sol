@@ -55,7 +55,7 @@ contract WorkLock {
     uint256 public tokenSupply;
     uint256 public ethSupply;
     uint256 public unclaimedTokens;
-    uint16 public lockedDuration;
+    uint256 public lockingDuration;
     mapping(address => WorkInfo) public workInfo;
     mapping(address => address) public depositors;
 
@@ -66,7 +66,7 @@ contract WorkLock {
     * @param _startBidDate Timestamp when bidding starts
     * @param _endBidDate Timestamp when bidding will end
     * @param _boostingRefund Coefficient to boost refund ETH
-    * @param _lockedDuration Duration of tokens locking
+    * @param _lockingDuration Duration of tokens locking
     */
     constructor(
         NuCypherToken _token,
@@ -75,7 +75,7 @@ contract WorkLock {
         uint256 _startBidDate,
         uint256 _endBidDate,
         uint256 _boostingRefund,
-        uint16 _lockedDuration
+        uint256 _lockingDuration
     )
         public
     {
@@ -86,7 +86,7 @@ contract WorkLock {
             _endBidDate > _startBidDate &&
             _endBidDate > block.timestamp &&
             _boostingRefund > 0 &&
-            _lockedDuration > 0);
+            _lockingDuration > 0);
         // worst case for `ethToWork()` and `workToETH()`,
         // when ethSupply == MAX_ETH_SUPPLY and tokenSupply == totalSupply
         require(MAX_ETH_SUPPLY * totalSupply * SLOWING_REFUND / MAX_ETH_SUPPLY / totalSupply == SLOWING_REFUND &&
@@ -98,7 +98,7 @@ contract WorkLock {
         startBidDate = _startBidDate;
         endBidDate = _endBidDate;
         boostingRefund = _boostingRefund;
-        lockedDuration = _lockedDuration;
+        lockingDuration = _lockingDuration;
     }
 
     /**
@@ -193,7 +193,7 @@ contract WorkLock {
 
         preallocationEscrow = new PreallocationEscrow(router, token);
         token.approve(address(preallocationEscrow), claimedTokens);
-        preallocationEscrow.initialDeposit(claimedTokens, lockedDuration);
+        preallocationEscrow.initialDeposit(claimedTokens, lockingDuration);
         preallocationEscrow.transferOwnership(msg.sender);
         depositors[address(preallocationEscrow)] = msg.sender;
         info.preallocationEscrow = preallocationEscrow;
