@@ -757,7 +757,8 @@ jobs:
     parallelism: 1
     steps:
     - restore_cache:
-        key: geth-goerli-light
+        keys:
+          - geth-goerli-light-v1-
     - run:
         name: Download geth and run it to sync goerli chain in light mode
         command: |
@@ -769,7 +770,7 @@ jobs:
           du -h -s ~/.ethereum/goerli/geth/lightchaindata
         when: always
     - save_cache:
-        key: geth-goerli-light
+        key: geth-goerli-light-v1-{{ epoch }}
         paths:
           - "/home/circleci/geth"
           - "/home/circleci/.ethereum/goerli/geth/lightchaindata"
