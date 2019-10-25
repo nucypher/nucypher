@@ -760,15 +760,25 @@ jobs:
         keys:
           - geth-goerli-light-v1-
     - run:
-        name: Download geth and run it to sync goerli chain in light mode
+        name: Download geth, in case it wasn't cached
         command: |
           GETH_URL='https://gethstore.blob.core.windows.net/builds/geth-linux-amd64-1.9.6-bd059680.tar.gz'
           cd ~
           [ -d "geth" ] || curl -o g.tar.gz $GETH_URL && tar -xzf g.tar.gz && mv geth-linux-amd64-1.9.6-bd059680 geth
-          geth/geth --goerli --syncmode light --exitwhensynced 2>&1 | tee /tmp/geth-sync.log
+          geth/geth version
+    - run:
+        name: Add static nodes
+        command: |
+          echo -e "[" >> ~/.ethereum/goerli/static-nodes.json
+          echo -e "  $ENODE_1," >> ~/.ethereum/goerli/static-nodes.json
+          echo -e "  $ENODE_2 " >> ~/.ethereum/goerli/static-nodes.json
+          echo -e "]" >> ~/.ethereum/goerli/static-nodes.json
+    - run:
+        name: Run geth to sync goerli chain in light mode. Exit when synced.
+        command: |
+          ~/geth/geth --goerli --syncmode light --exitwhensynced 2>&1 | tee /tmp/geth-sync.log
           echo -e "\nSize of synced chaindata:\n"
           du -h -s ~/.ethereum/goerli/geth/lightchaindata
-        when: always
     - save_cache:
         key: geth-goerli-light-v1-{{ epoch }}
         paths:
