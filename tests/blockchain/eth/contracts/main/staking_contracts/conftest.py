@@ -34,7 +34,7 @@ def token(testerchain, deploy_contract):
 def escrow(testerchain, token, deploy_contract):
     creator = testerchain.client.accounts[0]
     # Creator deploys the escrow
-    contract, _ = deploy_contract('StakingEscrowForUserEscrowMock', token.address)
+    contract, _ = deploy_contract('StakingEscrowForStakingContractMock', token.address)
 
     # Give some coins to the escrow
     tx = token.functions.transfer(contract.address, 10000).transact({'from': creator})
@@ -45,32 +45,32 @@ def escrow(testerchain, token, deploy_contract):
 
 @pytest.fixture()
 def policy_manager(testerchain, deploy_contract):
-    contract, _ = deploy_contract('PolicyManagerForUserEscrowMock')
+    contract, _ = deploy_contract('PolicyManagerForStakingContractMock')
     return contract
 
 
 @pytest.fixture()
-def proxy(testerchain, token, escrow, policy_manager, deploy_contract):
-    # Creator deploys the user escrow proxy
+def staking_interface(testerchain, token, escrow, policy_manager, deploy_contract):
+    # Creator deploys the staking interface
     contract, _ = deploy_contract(
-        'UserEscrowProxy', token.address, escrow.address, policy_manager.address)
+        'StakingInterface', token.address, escrow.address, policy_manager.address)
     return contract
 
 
 @pytest.fixture()
-def linker(testerchain, proxy, deploy_contract):
+def router(testerchain, staking_interface, deploy_contract):
     secret = os.urandom(32)
     secret_hash = keccak(secret)
-    linker, _ = deploy_contract('UserEscrowLibraryLinker', proxy.address, secret_hash)
-    return linker
+    contract, _ = deploy_contract('StakingInterfaceRouter', staking_interface.address, secret_hash)
+    return contract
 
 
 @pytest.fixture()
-def user_escrow(testerchain, token, linker, deploy_contract):
+def preallocation_escrow(testerchain, token, router, deploy_contract):
     creator = testerchain.client.accounts[0]
     user = testerchain.client.accounts[1]
 
-    contract, _ = deploy_contract('UserEscrow', linker.address, token.address)
+    contract, _ = deploy_contract('PreallocationEscrow', router.address, token.address)
 
     # Transfer ownership
     tx = contract.functions.transferOwnership(user).transact({'from': creator})
@@ -79,8 +79,8 @@ def user_escrow(testerchain, token, linker, deploy_contract):
 
 
 @pytest.fixture()
-def user_escrow_proxy(testerchain, proxy, user_escrow):
+def preallocation_escrow_interface(testerchain, staking_interface, preallocation_escrow):
     return testerchain.client.get_contract(
-        abi=proxy.abi,
-        address=user_escrow.address,
+        abi=staking_interface.abi,
+        address=preallocation_escrow.address,
         ContractFactoryClass=Contract)

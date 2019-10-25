@@ -1,18 +1,18 @@
 pragma solidity ^0.5.3;
 
 
-import "contracts/UserEscrow.sol";
+import "contracts/staking_contracts/AbstractStakingContract.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/StakingEscrow.sol";
 import "contracts/PolicyManager.sol";
 
 
 /**
-* @notice Proxy to access main contracts from the UserEscrow contract
+* @notice Interface for accessing main contracts from a staking contract
 * @dev All methods must be stateless because this code will execute by delegatecall call
 * If state is needed - use getStateContract() method to access state of this contract
 **/
-contract UserEscrowProxy {
+contract StakingInterface {
 
     event DepositedAsStaker(address indexed sender, uint256 value, uint16 periods);
     event WithdrawnAsStaker(address indexed sender, uint256 value);
@@ -24,6 +24,7 @@ contract UserEscrowProxy {
     event ReStakeSet(address indexed sender, bool reStake);
     event ReStakeLocked(address indexed sender, uint16 lockUntilPeriod);
     event WorkerSet(address indexed sender, address worker);
+    event Prolonged(address indexed sender, uint256 index, uint16 periods);
 
     NuCypherToken public token;
     StakingEscrow public escrow;
@@ -52,12 +53,12 @@ contract UserEscrowProxy {
 
     /**
     * @notice Get contract which stores state
-    * @dev Assume that `this` is the UserEscrow contract
+    * @dev Assume that `this` is the staking contract
     **/
-    function getStateContract() internal view returns (UserEscrowProxy) {
-        address payable userEscrowAddress = address(bytes20(address(this)));
-        UserEscrowLibraryLinker linker = UserEscrow(userEscrowAddress).linker();
-        return UserEscrowProxy(linker.target());
+    function getStateContract() internal view returns (StakingInterface) {
+        address payable stakingContractAddress = address(bytes20(address(this)));
+        StakingInterfaceRouter router = AbstractStakingContract(stakingContractAddress).router();
+        return StakingInterface(router.target());
     }
 
     /**
@@ -93,9 +94,9 @@ contract UserEscrowProxy {
     * @param _periods Amount of periods during which tokens will be locked
     **/
     function depositAsStaker(uint256 _value, uint16 _periods) public {
-        UserEscrowProxy state = getStateContract();
+        StakingInterface state = getStateContract();
         NuCypherToken tokenFromState = state.token();
-        require(tokenFromState.balanceOf(address(this)) > _value);
+        require(tokenFromState.balanceOf(address(this)) >= _value);
         StakingEscrow escrowFromState = state.escrow();
         tokenFromState.approve(address(escrowFromState), _value);
         escrowFromState.deposit(_value, _periods);
@@ -103,7 +104,7 @@ contract UserEscrowProxy {
     }
 
     /**
-    * @notice Withdraw available amount of tokens from the staking escrow to the user escrow
+    * @notice Withdraw available amount of tokens from the staking escrow to the staking contract
     * @param _value Amount of token to withdraw
     **/
     function withdrawAsStaker(uint256 _value) public {
@@ -147,11 +148,11 @@ contract UserEscrowProxy {
     }
 
     /**
-    * @notice Withdraw available reward from the policy manager to the user escrow
+    * @notice Withdraw available reward from the policy manager to the staking contract
     **/
-    function withdrawPolicyReward() public {
-        uint256 value = getStateContract().policyManager().withdraw(msg.sender);
-        emit PolicyRewardWithdrawn(msg.sender, value);
+    function withdrawPolicyReward(address payable _recipient) public {
+        uint256 value = getStateContract().policyManager().withdraw(_recipient);
+        emit PolicyRewardWithdrawn(_recipient, value);
     }
 
     /**
@@ -160,6 +161,17 @@ contract UserEscrowProxy {
     function setMinRewardRate(uint256 _minRewardRate) public {
         getStateContract().policyManager().setMinRewardRate(_minRewardRate);
         emit MinRewardRateSet(msg.sender, _minRewardRate);
+    }
+
+
+    /**
+    * @notice Prolong active sub stake
+    * @param _index Index of the sub stake
+    * @param _periods Amount of periods for extending sub stake
+    **/
+    function prolongStake(uint256 _index, uint16 _periods) public {
+        getStateContract().escrow().prolongStake(_index, _periods);
+        emit Prolonged(msg.sender, _index, _periods);
     }
 
 }

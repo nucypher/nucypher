@@ -1,10 +1,26 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import datetime
 import json
 import os
 import random
 
 import maya
-import pytest
 from twisted.logger import Logger
 
 from nucypher.blockchain.eth.actors import Staker
@@ -12,10 +28,9 @@ from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.characters import UrsulaConfiguration, BobConfiguration, StakeHolderConfiguration
+from nucypher.config.characters import UrsulaConfiguration, StakeHolderConfiguration
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import (
-    MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_IP_ADDRESS,
     TEST_PROVIDER_URI,
     MOCK_URSULA_STARTING_PORT,
@@ -25,37 +40,6 @@ from nucypher.utilities.sandbox.constants import (
     select_test_port,
 )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-
-
-@pytest.fixture(scope='module')
-def worker_configuration_file_location(custom_filepath):
-    _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH, UrsulaConfiguration.generate_filename())
-    return _configuration_file_location
-
-
-@pytest.fixture(scope='module')
-def stakeholder_configuration_file_location(custom_filepath):
-    _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH, StakeHolderConfiguration.generate_filename())
-    return _configuration_file_location
-
-
-@pytest.fixture(scope="module")
-def charlie_blockchain_test_config(blockchain_ursulas, agency):
-    token_agent, staking_agent, policy_agent = agency
-    etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.client.accounts
-
-    config = BobConfiguration(dev_mode=True,
-                              provider_uri=TEST_PROVIDER_URI,
-                              checksum_address=bob_address,
-                              network_middleware=MockRestMiddleware(),
-                              known_nodes=blockchain_ursulas,
-                              start_learning_now=False,
-                              abort_on_learning_error=True,
-                              federated_only=False,
-                              save_metadata=False,
-                              reload_metadata=False)
-    yield config
-    config.cleanup()
 
 
 def test_new_stakeholder(click_runner,
@@ -69,9 +53,7 @@ def test_new_stakeholder(click_runner,
                  '--provider', TEST_PROVIDER_URI,
                  '--registry-filepath', mock_registry_filepath)
 
-    result = click_runner.invoke(nucypher_cli,
-                                 init_args,
-                                 catch_exceptions=False)
+    result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
     assert result.exit_code == 0
 
     # Files and Directories
@@ -108,7 +90,7 @@ def test_stake_init(click_runner,
                   '--lock-periods', token_economics.minimum_locked_periods,
                   '--force')
 
-    # TODO: This test it writing to the default system directory and ignoring updates to the passes filepath
+    # TODO: This test is writing to the default system directory and ignoring updates to the passed filepath
     user_input = f'0\n' + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + f'Y\n'
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
@@ -146,7 +128,7 @@ def test_stake_list(click_runner,
     stake_args = ('stake', 'list',
                   '--config-file', stakeholder_configuration_file_location)
 
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
+    user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     assert str(stake_value) in result.output
@@ -177,7 +159,7 @@ def test_staker_divide_stakes(click_runner,
                   '--config-file', stakeholder_configuration_file_location,
                   '--poa')
 
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
+    user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     assert str(NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens()) in result.output
@@ -193,9 +175,10 @@ def test_stake_set_worker(click_runner,
     init_args = ('stake', 'set-worker',
                  '--config-file', stakeholder_configuration_file_location,
                  '--staking-address', manual_staker,
-                 '--worker-address', manual_worker)
+                 '--worker-address', manual_worker,
+                 '--force')
 
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
+    user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(nucypher_cli,
                                  init_args,
                                  input=user_input,
@@ -284,8 +267,7 @@ def test_stake_restake(click_runner,
                     '--enable',
                     '--config-file', stakeholder_configuration_file_location,
                     '--staking-address', manual_staker,
-                    '--force',
-                    '--debug')
+                    '--force')
 
     result = click_runner.invoke(nucypher_cli,
                                  restake_args,
@@ -302,8 +284,7 @@ def test_stake_restake(click_runner,
                  '--lock-until', release_period,
                  '--config-file', stakeholder_configuration_file_location,
                  '--staking-address', manual_staker,
-                 '--force',
-                 '--debug')
+                 '--force')
 
     result = click_runner.invoke(nucypher_cli,
                                  lock_args,
@@ -328,8 +309,7 @@ def test_stake_restake(click_runner,
                     '--disable',
                     '--config-file', stakeholder_configuration_file_location,
                     '--staking-address', manual_staker,
-                    '--force',
-                    '--debug')
+                    '--force')
 
     result = click_runner.invoke(nucypher_cli,
                                  disable_args,
@@ -420,9 +400,8 @@ def test_collect_rewards_integration(click_runner,
     verifying_key = blockchain_alice.stamp.as_umbral_pubkey()
 
     for index in range(half_stake_time - 5):
-        ursula.confirm_activity()
-
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
+        ursula.confirm_activity()
 
         # Encrypt
         random_data = os.urandom(random.randrange(20, 100))
@@ -441,10 +420,10 @@ def test_collect_rewards_integration(click_runner,
 
     # Finish the passage of time for the first Stake
     for _ in range(5):  # plus the extended periods from stake division
-        ursula.confirm_activity()
-        current_period += 1
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
+        ursula.confirm_activity()
         testerchain.time_travel(periods=1)
+        current_period += 1
 
     #
     # WHERES THE MONEY URSULA?? - Collecting Rewards
@@ -458,6 +437,7 @@ def test_collect_rewards_integration(click_runner,
 
     # Rewards will be unlocked after the
     # final confirmed period has passed (+1).
+    logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
     testerchain.time_travel(periods=1)
     current_period += 1
     logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
@@ -497,14 +477,19 @@ def test_collect_rewards_integration(click_runner,
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
         testerchain.time_travel(periods=1)
 
-    # Collect Inflation Reward
+    #
+    # Collect Staking Reward
+    #
+
+    balance_before_collecting = staker.token_agent.get_balance(address=staker_address)
+
     collection_args = ('stake', 'collect-reward',
                        '--mock-networking',
                        '--config-file', stakeholder_configuration_file_location,
                        '--no-policy-reward',
                        '--staking-reward',
                        '--staking-address', staker_address,
-                       '--withdraw-address', burner_wallet.address)
+                       '--force')
 
     result = click_runner.invoke(nucypher_cli,
                                  collection_args,
@@ -512,8 +497,8 @@ def test_collect_rewards_integration(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    # The burner wallet has the reward ethers
-    assert staker.token_agent.get_balance(address=staker_address)
+    # The staker has withdrawn her staking rewards
+    assert staker.token_agent.get_balance(address=staker_address) >= balance_before_collecting
 
 
 def test_stake_detach_worker(click_runner,

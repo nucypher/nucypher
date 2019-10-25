@@ -50,12 +50,12 @@ def test_nucypher_status_network(click_runner, testerchain, test_registry, agenc
 
     agents = (token_agent, staking_agent, policy_agent, adjudicator_agent)
     for agent in agents:
-        contract_regex = f"^{agent.contract_name} \.+ {agent.contract_address}"
+        contract_regex = f"^{agent.contract_name} \\.+ {agent.contract_address}"
         assert re.search(contract_regex, result.output, re.MULTILINE)
 
-    assert re.search(f"^Provider URI \.+ {TEST_PROVIDER_URI}", result.output, re.MULTILINE)
-    #assert re.search(f"^Registry \.+ {registry_filepath}", result.output, re.MULTILINE)
-    assert re.search(f"^Current Period \.+ {staking_agent.get_current_period()}", result.output, re.MULTILINE)
+    assert re.search(f"^Provider URI \\.+ {TEST_PROVIDER_URI}", result.output, re.MULTILINE)
+    assert re.search(f"^Registry \\.+ {MOCK_REGISTRY_FILEPATH}", result.output, re.MULTILINE)
+    assert re.search(f"^Current Period \\.+ {staking_agent.get_current_period()}", result.output, re.MULTILINE)
 
 
 def test_nucypher_status_stakers(click_runner, testerchain, test_registry, agency, stakers):
@@ -91,7 +91,8 @@ def test_nucypher_status_stakers(click_runner, testerchain, test_registry, agenc
     locked_tokens = NU.from_nunits(staking_agent.get_locked_tokens(staking_address))
 
     assert re.search(f"^Current period: {staking_agent.get_current_period()}", result.output, re.MULTILINE)
-    assert re.search(f"Worker:\s+{some_dude.worker_address}", result.output, re.MULTILINE)
-    assert re.search(f"Stake:\s+{round(owned_tokens, 2)}  \(Locked: {round(locked_tokens, 2)}\)", result.output, re.MULTILINE)
+    assert re.search(r"Worker:\s+" + some_dude.worker_address, result.output, re.MULTILINE)
+    assert re.search(r"Owned:\s+" + str(round(owned_tokens, 2)), result.output, re.MULTILINE)
+    assert re.search(r"Staked: " + str(round(locked_tokens, 2)), result.output, re.MULTILINE)
 
 

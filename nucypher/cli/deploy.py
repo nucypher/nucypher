@@ -25,8 +25,12 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, Bloc
 from nucypher.blockchain.eth.registry import BaseContractRegistry, LocalContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.actions import get_client_password, select_client_account, confirm_deployment, \
+from nucypher.cli.actions import (
+    get_client_password,
+    select_client_account,
+    confirm_deployment,
     establish_deployer_registry
+)
 from nucypher.cli.painting import (
     paint_staged_deployment,
     paint_deployment_delay,
@@ -78,7 +82,7 @@ def download_registry(config_root, registry_outfile, force):
     _ensure_config_root(config_root)
 
     if not force:
-        prompt = f"Fetch and download latest registry from {BaseContractRegistry.PUBLICATION_ENDPOINT}?"
+        prompt = f"Fetch and download latest registry from {BaseContractRegistry.get_publication_endpoint()}?"
         click.confirm(prompt, abort=True)
     registry = InMemoryContractRegistry.from_latest_publication()
     output_filepath = registry.commit(filepath=registry_outfile, overwrite=force)
@@ -100,12 +104,11 @@ def inspect(provider_uri, config_root, registry_infile, deployer_address, poa):
     _ensure_config_root(config_root)
     _initialize_blockchain(poa, provider_uri)
 
-    if registry_infile:
-        registry = LocalContractRegistry(filepath=registry_infile)
-    else:
-        registry = InMemoryContractRegistry.from_latest_publication()
-    administrator = ContractAdministrator(registry=registry, deployer_address=deployer_address)
-    paint_deployer_contract_inspection(emitter=emitter, administrator=administrator)
+    local_registry = establish_deployer_registry(emitter=emitter,
+                                                 registry_infile=registry_infile)
+    paint_deployer_contract_inspection(emitter=emitter,
+                                       registry=local_registry,
+                                       deployer_address=deployer_address)
 
 
 @deploy.command()
@@ -357,9 +360,10 @@ def allocations(# Admin Actor Options
 
     if not allocation_infile:
         allocation_infile = click.prompt("Enter allocation data filepath")
-    click.confirm("Continue deploying and allocating?", abort=True)
     ADMINISTRATOR.deploy_beneficiaries_from_file(allocation_data_filepath=allocation_infile,
-                                                 allocation_outfile=allocation_outfile)
+                                                 allocation_outfile=allocation_outfile,
+                                                 emitter=emitter,
+                                                 interactive=not force)
 
 
 @deploy.command(name='transfer-tokens')
@@ -374,7 +378,7 @@ def transfer_tokens(# Admin Actor Options
                     # Other
                     target_address, value):
     """
-    Transfer tokens from a contract to another address using the owner's address.
+    Transfer tokens from contract's owner address to another address
     """
     # Init
     emitter = StdoutEmitter()
@@ -526,6 +530,8 @@ def _initialize_blockchain(poa, provider_uri):
                                                       show_sync_progress=False)
     else:
         deployer_interface = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
+
+    deployer_interface.connect()
     return deployer_interface
 
 

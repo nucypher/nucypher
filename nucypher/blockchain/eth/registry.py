@@ -22,14 +22,14 @@ import tempfile
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
 from os.path import dirname, abspath
-from typing import Union, Iterator
+from typing import Union, Iterator, List, Dict
 
 import requests
 from constant_sorrow.constants import REGISTRY_COMMITTED
 from twisted.logger import Logger
-from web3.contract import Contract
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 
 
 class BaseContractRegistry(ABC):
@@ -50,10 +50,9 @@ class BaseContractRegistry(ABC):
     REGISTRY_NAME = 'contract_registry.json'  # TODO: Save registry with ID-time-based filename
     DEVELOPMENT_REGISTRY_NAME = 'dev_contract_registry.json'
 
-    __PUBLICATION_USER = "nucypher"
-    __PUBLICATION_REPO = f"{__PUBLICATION_USER}/ethereum-contract-registry"
-    __PUBLICATION_BRANCH = 'goerli'          # TODO: Allow other branches to be used
-    PUBLICATION_ENDPOINT = f'https://raw.githubusercontent.com/{__PUBLICATION_REPO}/{__PUBLICATION_BRANCH}/{REGISTRY_NAME}'
+    _PUBLICATION_USER = "nucypher"
+    _PUBLICATION_REPO = f"{_PUBLICATION_USER}/ethereum-contract-registry"
+    _PUBLICATION_BRANCH = 'goerli'          # TODO: Allow other branches to be used
 
     class RegistryError(Exception):
         pass
@@ -70,7 +69,7 @@ class BaseContractRegistry(ABC):
     class UnknownContract(RegistryError):
         pass
 
-    class IllegalRegistry(RegistryError):
+    class InvalidRegistry(RegistryError):
         """Raised when invalid data is encountered in the registry"""
 
     def __init__(self, *args, **kwargs):
@@ -106,18 +105,20 @@ class BaseContractRegistry(ABC):
         raise NotImplementedError
 
     @classmethod
-    def fetch_latest_publication(cls) -> bytes:
-        """
-        Get the latest published contract registry from github and save it on the local file system.
-        """
+    def get_publication_endpoint(cls) -> str:
+        url = f'https://raw.githubusercontent.com/{cls._PUBLICATION_REPO}/{cls._PUBLICATION_BRANCH}/{cls.REGISTRY_NAME}'
+        return url
 
+    @classmethod
+    def fetch_latest_publication(cls) -> bytes:
         # Setup
-        cls.logger.debug(f"Downloading contract registry from {cls.PUBLICATION_ENDPOINT}")
-        response = requests.get(cls.PUBLICATION_ENDPOINT)
+        publication_endpoint = cls.get_publication_endpoint()
+        cls.logger.debug(f"Downloading contract registry from {publication_endpoint}")
+        response = requests.get(publication_endpoint)
 
         # Fetch
         if response.status_code != 200:
-            error = f"Failed to fetch registry from {cls.PUBLICATION_ENDPOINT} with status code {response.status_code}"
+            error = f"Failed to fetch registry from {publication_endpoint} with status code {response.status_code}"
             raise cls.RegistrySourceUnavailable(error)
 
         registry_data = response.content
@@ -125,6 +126,9 @@ class BaseContractRegistry(ABC):
 
     @classmethod
     def from_latest_publication(cls, *args, **kwargs) -> 'BaseContractRegistry':
+        """
+        Get the latest published contract registry from github and save it on the local file system.
+        """
         registry_data_bytes = cls.fetch_latest_publication()
         instance = cls(*args, **kwargs)
         instance.write(registry_data=json.loads(registry_data_bytes))
@@ -177,15 +181,15 @@ class BaseContractRegistry(ABC):
         except ValueError:
             message = "Missing or corrupted registry data"
             self.log.critical(message)
-            raise self.IllegalRegistry(message)
+            raise self.InvalidRegistry(message)
 
         if not contracts:
             raise self.UnknownContract(contract_name)
 
         if contract_address and len(contracts) > 1:
-            m = "Multiple records returned for address {}"
+            m = f"Multiple records returned for address {contract_address}"
             self.log.critical(m)
-            raise self.IllegalRegistry(m.format(contract_address))
+            raise self.InvalidRegistry(m)
 
         result = tuple(contracts) if contract_name else contracts[0]
         return result
@@ -193,10 +197,12 @@ class BaseContractRegistry(ABC):
 
 class LocalContractRegistry(BaseContractRegistry):
 
+    REGISTRY_TYPE = 'contract'
+
     def __init__(self, filepath: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__filepath = filepath
-        self.log.info("Using contract registry {}".format(self.__filepath))
+        self.log.info(f"Using {self.REGISTRY_TYPE} registry {filepath}")
 
     def __repr__(self):
         r = f"{self.__class__.__name__}(filepath={self.filepath})"
@@ -239,7 +245,7 @@ class LocalContractRegistry(BaseContractRegistry):
 
         return registry_data
 
-    def write(self, registry_data: list) -> None:
+    def write(self, registry_data: Union[List, Dict]) -> None:
         """
         Writes the registry data list as JSON to the registry file. If no
         file exists, it will create it and write the data. If a file does exist
@@ -259,8 +265,8 @@ class LocalContractRegistry(BaseContractRegistry):
     @classmethod
     def from_dict(cls, payload: dict, **overrides) -> 'LocalContractRegistry':
         payload.update({k: v for k, v in overrides.items() if v is not None})
-        blockchain = cls(filepath=payload['filepath'])
-        return blockchain
+        registry = cls(filepath=payload['filepath'])
+        return registry
 
     def to_dict(self) -> dict:
         payload = dict(filepath=self.__filepath)
@@ -341,9 +347,12 @@ class InMemoryContractRegistry(BaseContractRegistry):
 class AllocationRegistry(LocalContractRegistry):
 
     _multi_contract = False
-    _contract_name = 'UserEscrow'
+    _contract_name = PREALLOCATION_ESCROW_CONTRACT_NAME
 
-    _default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'allocation_registry.json')
+    REGISTRY_TYPE = 'allocation'
+    REGISTRY_NAME = 'allocation_registry.json'
+
+    _default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, REGISTRY_NAME)
 
     class NoAllocationRegistry(BaseContractRegistry.NoRegistry):
         pass
@@ -359,7 +368,8 @@ class AllocationRegistry(LocalContractRegistry):
 
     def search(self, beneficiary_address: str = None, contract_address: str = None):
         if not (bool(beneficiary_address) ^ bool(contract_address)):
-            raise ValueError("Pass contract_owner or contract_address, not both.")
+            raise ValueError(f"Pass either beneficiary_address or contract_address, not both. "
+                             f"Got {beneficiary_address} and {contract_address}.")
 
         try:
             allocation_data = self.read()
@@ -369,30 +379,42 @@ class AllocationRegistry(LocalContractRegistry):
         if beneficiary_address:
             try:
                 contract_data = allocation_data[beneficiary_address]
+                result = contract_data
             except KeyError:
                 raise self.UnknownBeneficiary
 
         elif contract_address:
             records = list()
             for beneficiary_address, contract_data in allocation_data.items():
-                contract_address, contract_abi = contract_data['address'], contract_data['abi']
-                records.append(dict(address=contract_address, abi=contract_abi))
+                if contract_address == contract_data[0]:
+                    contract_abi = contract_data[1]
+                    records.append([beneficiary_address, contract_abi])
             if len(records) > 1:
-                raise self.RegistryError("Multiple {} deployments for beneficiary {}".format(self._contract_name, beneficiary_address))
+                raise self.RegistryError(f"Multiple {self._contract_name} deployments found ({len(records)}) "
+                                         f"for contract address {contract_address}")
+            elif not records:
+                raise self.UnknownContract(f"No {self._contract_name} deployments found "
+                                           f"for contract address {contract_address}")
             else:
-                contract_data = records[0]
+                result = records[0]
 
-        else:
-            raise ValueError("Beneficiary address or contract address must be supplied.")
+        return result
 
-        return contract_data
+    def is_beneficiary_enrolled(self, beneficiary_address: str) -> bool:
+        try:
+            _ = self.search(beneficiary_address=beneficiary_address)
+            return True
+        except self.UnknownBeneficiary:
+            return False
+        # TODO: Tests!
 
     def enroll(self, beneficiary_address, contract_address, contract_abi) -> None:
         contract_data = [contract_address, contract_abi]
         try:
             allocation_data = self.read()
-        except self.RegistryError:
-            self.log.info("Blank allocation registry encountered: enrolling {}:{}".format(beneficiary_address, contract_address))
+        except self.RegistryError as e:
+            self.log.info(f"Failure while reading allocation registry when "
+                          f"enrolling {beneficiary_address} ({contract_address}): {e}")
             allocation_data = list() if self._multi_contract else dict()  # empty registry
 
         if beneficiary_address in allocation_data:
@@ -415,10 +437,10 @@ class InMemoryAllocationRegistry(AllocationRegistry):
     def _swap_registry(self, filepath: str) -> bool:
         raise NotImplementedError
 
-    def write(self, registry_data: list) -> None:
+    def write(self, registry_data: dict) -> None:
         self.__registry_data = json.dumps(registry_data)
 
-    def read(self) -> list:
+    def read(self) -> dict:
         try:
             registry_data = json.loads(self.__registry_data)
         except TypeError:
@@ -427,3 +449,38 @@ class InMemoryAllocationRegistry(AllocationRegistry):
             else:
                 raise
         return registry_data
+
+
+class IndividualAllocationRegistry(InMemoryAllocationRegistry):
+
+    REGISTRY_NAME = "individual_allocation_ABI.json"
+
+    def __init__(self, beneficiary_address: str, contract_address: str, contract_abi=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.beneficiary_address = beneficiary_address
+        self.contract_address = contract_address
+
+        if not contract_abi:
+            # Download individual allocation template to extract contract_abi
+            individual_allocation_template = json.loads(self.fetch_latest_publication())
+            if len(individual_allocation_template) != 1:
+                raise self.InvalidRegistry("Individual allocation template must contain a single entry")
+            try:
+                contract_data = individual_allocation_template["BENEFICIARY_ADDRESS"]
+            except KeyError:
+                raise self.InvalidRegistry("Bad format of individual allocation template. "
+                                           "Expected a 'BENEFICIARY_ADDRESS' key.")
+            contract_abi = contract_data[1]
+
+        # Fill template with beneficiary and contract addresses
+        individual_allocation = {beneficiary_address: [contract_address, contract_abi]}
+        self.write(registry_data=individual_allocation)
+
+    @classmethod
+    def from_allocation_file(cls, filepath: str, **kwargs) -> 'IndividualAllocationRegistry':
+        with open(filepath) as file:
+            individual_allocation_file_data = json.load(file)
+
+        registry = cls(**individual_allocation_file_data, **kwargs)
+        return registry

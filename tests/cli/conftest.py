@@ -24,9 +24,11 @@ import shutil
 import pytest
 from click.testing import CliRunner
 
+from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.registry import AllocationRegistry, InMemoryContractRegistry
-from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.characters import UrsulaConfiguration, StakeHolderConfiguration
 from nucypher.utilities.sandbox.constants import (
+    MOCK_ALLOCATION_REGISTRY_FILEPATH,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     INSECURE_DEVELOPMENT_PASSWORD,
@@ -62,16 +64,31 @@ def nominal_federated_configuration_fields():
 def mock_allocation_infile(testerchain, token_economics):
     accounts = testerchain.unassigned_accounts
     allocation_data = [{'beneficiary_address': addr,
-                        'amount': token_economics.minimum_allowed_locked,
+                        'amount': 2 * token_economics.minimum_allowed_locked,
                         'duration_seconds': ONE_YEAR_IN_SECONDS}
                        for addr in accounts]
 
     with open(MOCK_ALLOCATION_INFILE, 'w') as file:
         file.write(json.dumps(allocation_data))
 
-    registry = AllocationRegistry(filepath=MOCK_ALLOCATION_INFILE)
-    yield registry
-    os.remove(MOCK_ALLOCATION_INFILE)
+    yield MOCK_ALLOCATION_INFILE
+    if os.path.isfile(MOCK_ALLOCATION_INFILE):
+        os.remove(MOCK_ALLOCATION_INFILE)
+
+
+@pytest.fixture(scope='module')
+def mock_allocation_registry(testerchain, test_registry, mock_allocation_infile):
+    admin = ContractAdministrator(registry=test_registry,
+                                  client_password=INSECURE_DEVELOPMENT_PASSWORD,
+                                  deployer_address=testerchain.etherbase_account)
+
+    admin.deploy_beneficiaries_from_file(allocation_data_filepath=mock_allocation_infile,
+                                         allocation_outfile=MOCK_ALLOCATION_REGISTRY_FILEPATH)
+
+    allocation_registry = AllocationRegistry(filepath=MOCK_ALLOCATION_REGISTRY_FILEPATH)
+    yield allocation_registry
+    if os.path.isfile(MOCK_ALLOCATION_REGISTRY_FILEPATH):
+        os.remove(MOCK_ALLOCATION_REGISTRY_FILEPATH)
 
 
 @pytest.fixture(scope='module', autouse=True)
@@ -109,3 +126,17 @@ def custom_filepath_2():
     finally:
         with contextlib.suppress(FileNotFoundError):
             shutil.rmtree(_custom_filepath, ignore_errors=True)
+
+
+@pytest.fixture(scope='module')
+def worker_configuration_file_location(custom_filepath):
+    _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH,
+                                                UrsulaConfiguration.generate_filename())
+    return _configuration_file_location
+
+
+@pytest.fixture(scope='module')
+def stakeholder_configuration_file_location(custom_filepath):
+    _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH,
+                                                StakeHolderConfiguration.generate_filename())
+    return _configuration_file_location

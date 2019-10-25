@@ -10,7 +10,7 @@
 * `WorkLock` Manages token distribution
 * `Upgradeable` Base contract for [upgrading](/architecture/upgradeable_proxy_contracts)
 * `Dispatcher` Proxy to other contracts and provides upgrading of the `StakingEscrow`, `PolicyManager` and `Adjudicator` contracts
-* `UserEscrow` Locks tokens for predetermined time. Tokens will be unlocked after specified time and all tokens can be used as stake in the `StakingEscrow` contract
+* `PreallocationEscrow` Locks tokens for some predetermined time. Tokens will be unlocked after the specified time and all tokens can be used as stake in the `StakingEscrow` contract
 
 ## Deployment Procedure
 
@@ -28,11 +28,11 @@ For a guide of how to deploy these contracts automatically, see the [Deployment 
 9. Set the address of the `Adjudicator` contract  in the `StakingEscrow` by using the `setAdjudicator(address)`
 10. Set the address of the `WorkLock` contract  in the `StakingEscrow` by using the `setWorkLock(address)`
 11. Transfer tokens for distribution to the `WorkLock` contract
-12. Deploy `UserEscrowProxy` with `UserEscrowLibraryLinker` targeting it
-13. Pre-deposit tokens to the `UserEscrow`:
-	* Create new instance of the `UserEscrow` contract 
-	* Transfer ownership of the instance of the `UserEscrow` contract to the user
-	* Approve the transfer of tokens for the `UserEscrow`
+12. Deploy `StakingInterface` with `StakingInterfaceRouter` targeting it
+13. Pre-deposit tokens to the `PreallocationEscrow`:
+	* Create new instance of the `PreallocationEscrow` contract 
+	* Transfer ownership of the instance of the `PreallocationEscrow` contract to the user
+	* Approve the transfer of tokens for the `PreallocationEscrow`
 	* Deposit tokens by the `initialDeposit(uint256, uint256)` method
 
 ## Alice's Contract Interaction
@@ -117,8 +117,8 @@ The staker can set a minimum reward rate for a policy. For that, the staker shou
 
 ### NuCypher Partner Ursula Staking
 Some users will have locked but not staked tokens.
-In that case, an instance of the `UserEscrow` contract will hold their tokens (method `UserEscrow.initialDeposit(uint256, uint256)`).
-All tokens will be unlocked after a specified time and the user can retrieve them using the `UserEscrow.withdraw(uint256)` method.
-When the user wants to become a staker - they use the `UserEscrow` contract as a proxy for the `StakingEscrow` and `PolicyManager` contracts.
+In that case, an instance of the `PreallocationEscrow` contract will hold their tokens (method `PreallocationEscrow.initialDeposit(uint256, uint256)`).
+All tokens will be unlocked after a specified time and the user can retrieve them using the `PreallocationEscrow.withdraw(uint256)` method.
+When the user wants to become a staker - they use the `PreallocationEscrow` contract as a proxy for the `StakingEscrow` and `PolicyManager` contracts.
 
 

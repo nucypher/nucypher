@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import shutil
-from typing import List
+from typing import List, Tuple
 
 import click
 import requests
@@ -36,7 +36,12 @@ from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry, LocalContractRegistry
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    InMemoryContractRegistry,
+    LocalContractRegistry,
+    IndividualAllocationRegistry
+)
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.token import Stake
 from nucypher.cli import painting
@@ -288,8 +293,9 @@ def make_cli_character(character_config,
         CHARACTER = character_config(known_nodes=teacher_nodes,
                                      network_middleware=character_config.network_middleware,
                                      **config_args)
-    except CryptoError as e:
-        raise character_config.keyring.AuthenticationFailed(str(e))
+    except CryptoError:
+        raise character_config.keyring.AuthenticationFailed("Failed to unlock keyring. "
+                                                            "Are you sure you provided the correct password?")
     #
     # Post-Init
     #
@@ -306,8 +312,10 @@ def make_cli_character(character_config,
 
 def select_stake(stakeholder, emitter) -> Stake:
     stakes = stakeholder.all_stakes
-    enumerated_stakes = dict(enumerate(stakes))
-    painting.paint_stakes(stakes=stakes, emitter=emitter)
+    active_stakes = sorted((stake for stake in stakes if stake.is_active),
+                           key=lambda some_stake: some_stake.address_index_ordering_key)
+    enumerated_stakes = dict(enumerate(active_stakes))
+    painting.paint_stakes(stakes=active_stakes, emitter=emitter)
     choice = click.prompt("Select Stake", type=click.IntRange(min=0, max=len(enumerated_stakes)-1))
     chosen_stake = enumerated_stakes[choice]
     return chosen_stake
@@ -360,6 +368,42 @@ def select_client_account(emitter,
     return chosen_account
 
 
+def handle_client_account_for_staking(emitter,
+                                      stakeholder,
+                                      staking_address: str,
+                                      individual_allocation: IndividualAllocationRegistry,
+                                      force: bool,
+                                      ) -> Tuple[str, str]:
+    """
+    Manages client account selection for stake-related operations.
+    It always returns a tuple of addresses: the first is the local client account and the second is the staking address.
+
+    When this is not a preallocation staker (which is the normal use case), both addresses are the same.
+    Otherwise, when the staker is a contract managed by a beneficiary account,
+    then the local client account is the beneficiary, and the staking address is the address of the staking contract.
+    """
+
+    if individual_allocation:
+        client_account = individual_allocation.beneficiary_address
+        staking_address = individual_allocation.contract_address
+
+        message = f"Beneficiary {client_account} will use preallocation contract {staking_address} to stake."
+        emitter.echo(message, color='yellow', verbosity=1)
+        if not force:
+            click.confirm("Is this correct?", abort=True)
+    else:
+        if staking_address:
+            client_account = staking_address
+        else:
+            client_account = select_client_account(prompt="Select staking account",
+                                                   emitter=emitter,
+                                                   registry=stakeholder.registry,
+                                                   provider_uri=stakeholder.wallet.blockchain.provider_uri)
+            staking_address = client_account
+
+    return client_account, staking_address
+
+
 def confirm_deployment(emitter, deployer_interface) -> bool:
     if deployer_interface.client.chain_name == UNKNOWN_DEVELOPMENT_CHAIN_ID or deployer_interface.client.is_local:
         expected_chain_name = 'DEPLOY'
@@ -376,7 +420,7 @@ def confirm_deployment(emitter, deployer_interface) -> bool:
 def confirm_enable_restaking_lock(emitter, staking_address: str, release_period: int) -> bool:
     restaking_lock_agreement = f"""
 By enabling the re-staking lock for {staking_address}, you are committing to automatically 
-re-stake all rewards until period a future period.  You will not be able to disable re-staking until {release_period}.
+re-stake all rewards until a future period.  You will not be able to disable re-staking until {release_period}.
     """
     emitter.message(restaking_lock_agreement)
     click.confirm(f"Confirm enable re-staking lock for staker {staking_address} until {release_period}?", abort=True)
@@ -384,16 +428,16 @@ re-stake all rewards until period a future period.  You will not be able to disa
 
 
 def confirm_enable_restaking(emitter, staking_address: str) -> bool:
-    restaking_lock_agreement = f"By enabling the re-staking for {staking_address}, " \
-                               f"All staking rewards will be automatically added to your existing stake."
-    emitter.message(restaking_lock_agreement)
+    restaking_agreement = f"By enabling the re-staking for {staking_address}, " \
+                          f"all staking rewards will be automatically added to your existing stake."
+    emitter.message(restaking_agreement)
     click.confirm(f"Confirm enable automatic re-staking for staker {staking_address}?", abort=True)
     return True
 
 
 def establish_deployer_registry(emitter,
                                 registry_infile: str = None,
-                                registry_outfile:str = None,
+                                registry_outfile: str = None,
                                 use_existing_registry: bool = False,
                                 dev: bool = False
                                 ) -> LocalContractRegistry:

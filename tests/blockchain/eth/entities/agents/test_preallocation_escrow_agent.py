@@ -18,12 +18,12 @@ import os
 
 import maya
 import pytest
+from eth_tester.exceptions import TransactionFailed
 from eth_utils import is_checksum_address, to_wei
 
-from eth_tester.exceptions import TransactionFailed
-from nucypher.blockchain.eth.agents import UserEscrowAgent
+from nucypher.blockchain.eth.agents import PreallocationEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProxyDeployer, DispatcherDeployer
+from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer, StakingInterfaceDeployer, DispatcherDeployer
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
@@ -39,7 +39,7 @@ def allocation_value(token_economics):
 
 
 @pytest.fixture(scope='function')
-def agent(testerchain, test_registry, allocation_value, agency) -> UserEscrowAgent:
+def agent(testerchain, test_registry, allocation_value, agency) -> PreallocationEscrowAgent:
     deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
 
     # Mock Powerup consumption (Deployer)
@@ -48,48 +48,48 @@ def agent(testerchain, test_registry, allocation_value, agency) -> UserEscrowAge
     testerchain.transacting_power.activate()
 
     # Escrow
-    escrow_deployer = UserEscrowDeployer(deployer_address=deployer_address,
-                                         registry=test_registry,
-                                         allocation_registry=TEST_ALLOCATION_REGISTRY)
+    escrow_deployer = PreallocationEscrowDeployer(deployer_address=deployer_address,
+                                                  registry=test_registry,
+                                                  allocation_registry=TEST_ALLOCATION_REGISTRY)
 
-    _txhash = escrow_deployer.deploy()
+    _receipt = escrow_deployer.deploy()
 
     escrow_deployer.initial_deposit(value=allocation_value, duration_seconds=TEST_DURATION)
     assert escrow_deployer.contract.functions.getLockedTokens().call() == allocation_value
-    escrow_deployer.assign_beneficiary(beneficiary_address=beneficiary_address)
+    escrow_deployer.assign_beneficiary(checksum_address=beneficiary_address)
     escrow_deployer.enroll_principal_contract()
     assert escrow_deployer.contract.functions.getLockedTokens().call() == allocation_value
-    _agent = escrow_deployer.make_agent()
+    agent = escrow_deployer.make_agent()
 
-    _direct_agent = UserEscrowAgent(registry=test_registry,
-                                    allocation_registry=TEST_ALLOCATION_REGISTRY,
-                                    beneficiary=beneficiary_address)
+    direct_agent = PreallocationEscrowAgent(registry=test_registry,
+                                            allocation_registry=TEST_ALLOCATION_REGISTRY,
+                                            beneficiary=beneficiary_address)
 
-    assert _direct_agent == _agent
-    assert _direct_agent.contract.abi == _agent.contract.abi
-    assert _direct_agent.contract.address == _agent.contract.address
-    assert _agent.principal_contract.address == escrow_deployer.contract.address
-    assert _agent.principal_contract.abi == escrow_deployer.contract.abi
-    assert _direct_agent.contract.abi == escrow_deployer.contract.abi
-    assert _direct_agent.contract.address == escrow_deployer.contract.address
+    assert direct_agent == agent
+    assert direct_agent.contract.abi == agent.contract.abi
+    assert direct_agent.contract.address == agent.contract.address
+    assert agent.principal_contract.address == escrow_deployer.contract.address
+    assert agent.principal_contract.abi == escrow_deployer.contract.abi
+    assert direct_agent.contract.abi == escrow_deployer.contract.abi
+    assert direct_agent.contract.address == escrow_deployer.contract.address
 
-    yield _agent
+    yield agent
     TEST_ALLOCATION_REGISTRY.clear()
 
 
-def test_user_escrow_agent_represents_beneficiary(agent, agency):
+def test_preallocation_escrow_agent_represents_beneficiary(agent, agency):
     token_agent, staking_agent, policy_agent = agency
 
     # Name
-    assert agent.registry_contract_name == UserEscrowAgent.registry_contract_name
+    assert agent.registry_contract_name == PreallocationEscrowAgent.registry_contract_name
 
     # Not Equal to StakingEscrow
-    assert agent != staking_agent, "UserEscrow Agent is connected to the StakingEscrow's contract"
-    assert agent.contract_address != staking_agent.contract_address, "UserEscrow and StakingEscrow agents represent the same contract"
+    assert agent != staking_agent, "PreallocationEscrow Agent is connected to the StakingEscrow's contract"
+    assert agent.contract_address != staking_agent.contract_address, "PreallocationEscrow and StakingEscrow agents represent the same contract"
 
-    # Proxy Target Accuracy
-    assert agent.principal_contract.address == agent.proxy_contract.address
-    assert agent.principal_contract.abi != agent.proxy_contract.abi
+    # Interface Target Accuracy
+    assert agent.principal_contract.address == agent.interface_contract.address
+    assert agent.principal_contract.abi != agent.interface_contract.abi
 
     assert agent.principal_contract.address == agent.contract.address
     assert agent.principal_contract.abi == agent.contract.abi
@@ -97,9 +97,9 @@ def test_user_escrow_agent_represents_beneficiary(agent, agency):
 
 def test_read_beneficiary(testerchain, agent):
     deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
-    benficiary = agent.beneficiary
-    assert benficiary == beneficiary_address
-    assert is_checksum_address(benficiary)
+    beneficiary = agent.beneficiary
+    assert beneficiary == beneficiary_address
+    assert is_checksum_address(beneficiary)
 
 
 def test_read_allocation(agent, agency, allocation_value):
@@ -135,10 +135,10 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     testerchain.transacting_power.activate()
 
     # Move the tokens to the StakingEscrow
-    receipt = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
+    receipt = agent.deposit_as_staker(amount=token_economics.minimum_allowed_locked, lock_periods=token_economics.minimum_locked_periods)
     assert receipt  # TODO
 
-    # User sets a worker in StakingEscrow via UserEscrow
+    # Owner sets a worker in StakingEscrow via PreallocationEscrow
     worker = testerchain.ursula_account(0)
     _receipt = agent.set_worker(worker_address=worker)
 
@@ -168,15 +168,15 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
 
     assert staking_agent.get_locked_tokens(staker_address=agent.contract_address) == 0
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value - token_economics.minimum_allowed_locked
-    txhash = agent.withdraw_as_staker(value=token_economics.minimum_allowed_locked)
-    assert txhash  # TODO
+    receipt = agent.withdraw_as_staker(value=token_economics.minimum_allowed_locked)
+    assert receipt['status'] == 1, "Transaction Rejected"
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value
 
     # Release worker
-    _txhash = agent.set_worker(worker_address=BlockchainInterface.NULL_ADDRESS)
+    _receipt = agent.release_worker()
 
-    txhash = agent.withdraw_as_staker(value=staking_agent.owned_tokens(staker_address=agent.contract_address))
-    assert txhash
+    receipt = agent.withdraw_as_staker(value=staking_agent.owned_tokens(staker_address=agent.contract_address))
+    assert receipt['status'] == 1, "Transaction Rejected"
     assert token_agent.get_balance(address=agent.contract_address) > allocation_value
 
 
@@ -189,9 +189,10 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
                                                      account=agent.beneficiary)
     testerchain.transacting_power.activate()
 
-    _txhash = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
+    _receipt = agent.deposit_as_staker(amount=token_economics.minimum_allowed_locked,
+                                       lock_periods=token_economics.minimum_locked_periods)
 
-    # User sets a worker in StakingEscrow via UserEscrow
+    # Owner sets a worker in StakingEscrow via PreallocationEscrow
     worker = testerchain.ursula_account(0)
     _receipt = agent.set_worker(worker_address=worker)
 
@@ -202,21 +203,21 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
                                                      account=author)
     testerchain.transacting_power.activate()
 
-    _txhash = policy_agent.create_policy(policy_id=os.urandom(16),
-                                         author_address=author,
-                                         value=to_wei(1, 'ether'),
-                                         periods=2,
-                                         first_period_reward=0,
-                                         node_addresses=[agent.contract_address])
+    _receipt = policy_agent.create_policy(policy_id=os.urandom(16),
+                                          author_address=author,
+                                          value=to_wei(1, 'ether'),
+                                          periods=2,
+                                          first_period_reward=0,
+                                          node_addresses=[agent.contract_address])
 
     # Mock Powerup consumption (Beneficiary-Worker)
     testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=worker)
     testerchain.transacting_power.activate()
 
-    _txhash = staking_agent.confirm_activity(worker_address=worker)
+    _receipt = staking_agent.confirm_activity(worker_address=worker)
     testerchain.time_travel(periods=2)
-    _txhash = staking_agent.confirm_activity(worker_address=worker)
+    _receipt = staking_agent.confirm_activity(worker_address=worker)
 
     old_balance = testerchain.client.get_balance(account=agent.beneficiary)
 
@@ -225,8 +226,8 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
                                                      account=agent.beneficiary)
     testerchain.transacting_power.activate()
 
-    txhash = agent.collect_policy_reward()
-    assert txhash  # TODO
+    receipt = agent.collect_policy_reward(collector_address=agent.beneficiary)
+    assert receipt['status'] == 1, "Transaction Rejected"
     assert testerchain.client.get_balance(account=agent.beneficiary) > old_balance
 
 
@@ -244,7 +245,7 @@ def test_withdraw_tokens(testerchain, agent, agency, allocation_value):
         agent.withdraw_tokens(value=allocation_value)
     testerchain.time_travel(seconds=TEST_DURATION)
 
-    txhash = agent.withdraw_tokens(value=allocation_value)
-    assert txhash  # TODO
+    receipt = agent.withdraw_tokens(value=allocation_value)
+    assert receipt['status'] == 1, "Transaction Rejected"
     assert token_agent.get_balance(address=agent.contract_address) == 0
     assert token_agent.get_balance(address=beneficiary_address) == allocation_value

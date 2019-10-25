@@ -9,7 +9,7 @@ from eth_utils import to_checksum_address
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
-    UserEscrowAgent,
+    PreallocationEscrowAgent,
     PolicyManagerAgent,
     AdjudicatorAgent,
     ContractAgency,
@@ -48,7 +48,6 @@ def registry_filepath():
 
 
 def test_nucypher_deploy_contracts(click_runner,
-                                   mock_allocation_infile,
                                    token_economics,
                                    registry_filepath):
 
@@ -68,8 +67,8 @@ def test_nucypher_deploy_contracts(click_runner,
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    # Ensure there is a report on each contract
-    contract_names = tuple(a.registry_contract_name for a in EthereumContractAgent.__subclasses__())
+    # Ensure there is a report on each contract except PreallocationEscrow
+    contract_names = tuple(a.registry_contract_name for a in EthereumContractAgent.__subclasses__() if a != PreallocationEscrowAgent)
     for registry_name in contract_names:
         assert registry_name in result.output
 
@@ -112,7 +111,6 @@ def test_nucypher_deploy_contracts(click_runner,
     assert PolicyManagerAgent(registry=registry)
 
     # This agent wasn't instantiated before, so we have to supply the blockchain
-    blockchain = staking_agent.blockchain
     assert AdjudicatorAgent(registry=registry)
 
 
@@ -185,16 +183,16 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
     contracts_to_upgrade = ('StakingEscrow',      # v1 -> v2
                             'PolicyManager',      # v1 -> v2
                             'Adjudicator',        # v1 -> v2
-                            'UserEscrowProxy',    # v1 -> v2
+                            'StakingInterface',    # v1 -> v2
 
                             'StakingEscrow',      # v2 -> v3
                             'StakingEscrow',      # v3 -> v4
 
                             'Adjudicator',        # v2 -> v3
                             'PolicyManager',      # v2 -> v3
-                            'UserEscrowProxy',    # v2 -> v3
+                            'StakingInterface',    # v2 -> v3
 
-                            'UserEscrowProxy',    # v3 -> v4
+                            'StakingInterface',    # v3 -> v4
                             'PolicyManager',      # v3 -> v4
                             'Adjudicator',        # v3 -> v4
 
@@ -209,9 +207,9 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
 
     for contract_name in contracts_to_upgrade:
 
-        # Select proxy (Dispatcher vs Linker)
-        if contract_name == "UserEscrowProxy":
-            proxy_name = "UserEscrowLibraryLinker"
+        # Select proxy (Dispatcher vs Router)
+        if contract_name == "StakingInterface":
+            proxy_name = "StakingInterfaceRouter"
         else:
             proxy_name = 'Dispatcher'
 
@@ -353,7 +351,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
 
     deploy_command = ('allocations',
                       '--registry-infile', registry_filepath,
-                      '--allocation-infile', mock_allocation_infile.filepath,
+                      '--allocation-infile', mock_allocation_infile,
                       '--allocation-outfile', MOCK_ALLOCATION_REGISTRY_FILEPATH,
                       '--provider', TEST_PROVIDER_URI,
                       '--poa')
@@ -367,12 +365,14 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
                                  input=user_input,
                                  catch_exceptions=False)
     assert result.exit_code == 0
+    for allocation_address in testerchain.unassigned_accounts:
+        assert allocation_address in result.output
 
     # ensure that a pre-allocation recipient has the allocated token quantity.
     beneficiary = testerchain.client.accounts[-1]
     allocation_registry = AllocationRegistry(filepath=MOCK_ALLOCATION_REGISTRY_FILEPATH)
     registry = LocalContractRegistry(filepath=registry_filepath)
-    user_escrow_agent = UserEscrowAgent(registry=registry,
-                                        beneficiary=beneficiary,
-                                        allocation_registry=allocation_registry)
-    assert user_escrow_agent.unvested_tokens == token_economics.minimum_allowed_locked
+    preallocation_escrow_agent = PreallocationEscrowAgent(registry=registry,
+                                                          beneficiary=beneficiary,
+                                                          allocation_registry=allocation_registry)
+    assert preallocation_escrow_agent.unvested_tokens == 2 * token_economics.minimum_allowed_locked

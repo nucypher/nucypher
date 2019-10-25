@@ -21,6 +21,7 @@ import click
 from web3 import Web3
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.lawful import StakeHolder
@@ -29,7 +30,7 @@ from nucypher.cli.actions import (
     confirm_staged_stake,
     get_client_password,
     select_stake,
-    select_client_account,
+    handle_client_account_for_staking,
     confirm_enable_restaking_lock,
     confirm_enable_restaking
 )
@@ -58,23 +59,29 @@ def _api_options(func):
     @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
     @click.option('--provider', 'provider_uri', help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'",
                   type=click.STRING)
-    @click.option('--staking-address', help="Address to stake NU ERC20 tokens", type=EIP55_CHECKSUM_ADDRESS)
+    @click.option('--staking-address', help="Address to stake NU tokens", type=EIP55_CHECKSUM_ADDRESS)
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
     return wrapper
 
-# Args (poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet)
+
+# Args (poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
+#       beneficiary_address, allocation_filepath)
 def _stake_options(func):
     @_api_options
     @click.option('--hw-wallet/--no-hw-wallet', default=False)  # TODO: Make True or deprecate.
+    @click.option('--beneficiary-address', help="Address of a pre-allocation beneficiary", type=EIP55_CHECKSUM_ADDRESS)
+    @click.option('--allocation-filepath', help="Path to individual allocation file", type=EXISTING_READABLE_FILE)
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
 
     return wrapper
 
-# Args (poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet, worker_address)
+
+# Args (poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
+#       beneficiary_address, allocation_filepath, worker_address)
 def _worker_options(func):
     @_stake_options
     @click.option('--worker-address', help="Address to assign as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
@@ -127,11 +134,16 @@ def init_stakeholder(click_config,
 
 @stake.command()
 @_api_options
+@click.option('--all', help="List all stakes, including inactive", is_flag=True)
 @nucypher_click_config
 def list(click_config,
 
          # API Options
-         poa, registry_filepath, config_file, provider_uri, staking_address):
+         poa, registry_filepath, config_file, provider_uri, staking_address,
+
+         # Other options
+         all
+         ):
     """
     List active stakes for current stakeholder.
     """
@@ -139,15 +151,11 @@ def list(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address)
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
+                                                  beneficiary_address=None, allocation_filepath=None)
     #############
 
-    stakes = STAKEHOLDER.all_stakes
-    if not stakes:
-        emitter.echo(f"There are no active stakes")
-    else:
-        painting.paint_stakes(emitter=emitter, stakes=stakes)
-    return  # Exit
+    painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER.all_stakes, paint_inactive=all)
 
 
 @stake.command()
@@ -164,20 +172,26 @@ def accounts(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address)
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
+                                                  beneficiary_address=None, allocation_filepath=None)
     #############
 
-    for address, balances in STAKEHOLDER.wallet.balances.items():
-        emitter.echo(f"{address} | {Web3.fromWei(balances['ETH'], 'ether')} ETH | {NU.from_nunits(balances['NU'])}")
+    painting.paint_accounts(emitter=emitter, balances=STAKEHOLDER.wallet.balances)
 
 
 @stake.command('set-worker')
 @_worker_options
+@click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @nucypher_click_config
 def set_worker(click_config,
 
                # Worker Options
-               poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet, worker_address):
+               poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
+               beneficiary_address, allocation_filepath,
+               worker_address, 
+               
+               # Other options
+               force):
     """
     Bond a worker to a staker.
     """
@@ -185,13 +199,18 @@ def set_worker(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address)
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
+                                                  beneficiary_address=beneficiary_address,
+                                                  allocation_filepath=allocation_filepath)
     #############
 
     economics = STAKEHOLDER.economics
 
-    if not staking_address:
-        staking_address = select_stake(stakeholder=STAKEHOLDER, emitter=emitter).staker_address
+    client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
+                                                                        stakeholder=STAKEHOLDER,
+                                                                        staking_address=staking_address,
+                                                                        individual_allocation=STAKEHOLDER.individual_allocation,
+                                                                        force=force)
 
     if not worker_address:
         worker_address = click.prompt("Enter worker address", type=EIP55_CHECKSUM_ADDRESS)
@@ -200,9 +219,9 @@ def set_worker(click_config,
 
     password = None
     if not hw_wallet and not blockchain.client.is_local:
-        password = get_client_password(checksum_address=staking_address)
+        password = get_client_password(checksum_address=client_account)
 
-    STAKEHOLDER.assimilate(checksum_address=staking_address, password=password)
+    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
     receipt = STAKEHOLDER.set_worker(worker_address=worker_address)
 
     # TODO: Double-check dates
@@ -210,7 +229,9 @@ def set_worker(click_config,
     bonded_date = datetime_at_period(period=current_period, seconds_per_period=economics.seconds_per_period)
     min_worker_periods = STAKEHOLDER.staking_agent.staking_parameters()[7]
     release_period = current_period + min_worker_periods
-    release_date = datetime_at_period(period=release_period, seconds_per_period=economics.seconds_per_period)
+    release_date = datetime_at_period(period=release_period,
+                                      seconds_per_period=economics.seconds_per_period,
+                                      start_of_period=True)
 
     emitter.echo(f"\nWorker {worker_address} successfully bonded to staker {staking_address}", color='green')
     paint_receipt_summary(emitter=emitter,
@@ -224,11 +245,17 @@ def set_worker(click_config,
 
 @stake.command('detach-worker')
 @_worker_options
+@click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @nucypher_click_config
 def detach_worker(click_config,
 
                   # Worker Options
-                  poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet, worker_address):
+                  poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
+                  beneficiary_address, allocation_filepath,
+                  worker_address, 
+                  
+                  # Other options
+                  force):
     """
     Detach worker currently bonded to a staker.
     """
@@ -236,13 +263,18 @@ def detach_worker(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address)
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
+                                                  beneficiary_address=beneficiary_address,
+                                                  allocation_filepath=allocation_filepath)
     #############
 
     economics = STAKEHOLDER.economics
 
-    if not staking_address:
-        staking_address = select_stake(stakeholder=STAKEHOLDER, emitter=emitter).staker_address
+    client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
+                                                                        stakeholder=STAKEHOLDER,
+                                                                        staking_address=staking_address,
+                                                                        individual_allocation=STAKEHOLDER.individual_allocation,
+                                                                        force=force)
 
     if worker_address:
         raise click.BadOptionUsage(message="detach-worker cannot be used together with --worker-address",
@@ -254,11 +286,10 @@ def detach_worker(click_config,
 
     password = None
     if not hw_wallet and not blockchain.client.is_local:
-        password = get_client_password(checksum_address=staking_address)
+        password = get_client_password(checksum_address=client_account)
 
-    # TODO: Create Stakeholder.detach_worker() and use it here
-    STAKEHOLDER.assimilate(checksum_address=staking_address, password=password)
-    receipt = STAKEHOLDER.set_worker(worker_address=BlockchainInterface.NULL_ADDRESS)
+    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+    receipt = STAKEHOLDER.detach_worker()
 
     # TODO: Double-check dates
     current_period = STAKEHOLDER.staking_agent.get_current_period()
@@ -282,6 +313,7 @@ def create(click_config,
 
            # Stake Options
            poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
+           beneficiary_address, allocation_filepath,
 
            # Other
            force, value, lock_periods):
@@ -292,30 +324,27 @@ def create(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address)
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
+                                                  beneficiary_address=beneficiary_address,
+                                                  allocation_filepath=allocation_filepath)
     #############
 
     economics = STAKEHOLDER.economics
+
+    client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
+                                                                        stakeholder=STAKEHOLDER,
+                                                                        staking_address=staking_address,
+                                                                        individual_allocation=STAKEHOLDER.individual_allocation,
+                                                                        force=force)
 
     # Dynamic click types (Economics)
     min_locked = economics.minimum_allowed_locked
     stake_value_range = click.FloatRange(min=NU.from_nunits(min_locked).to_tokens(), clamp=False)
     stake_duration_range = click.IntRange(min=economics.minimum_locked_periods, clamp=False)
 
-    #
-    # Get Staking Account
-    #
-
     password = None
-    if not staking_address:
-        staking_address = select_client_account(prompt="Select staking account",
-                                                emitter=emitter,
-                                                provider_uri=STAKEHOLDER.wallet.blockchain.provider_uri)
-
     if not hw_wallet and not blockchain.client.is_local:
-        password = click.prompt(f"Enter password to unlock {staking_address}",
-                                hide_input=True,
-                                confirmation_prompt=False)
+        password = get_client_password(checksum_address=client_account)
     #
     # Stage Stake
     #
@@ -330,8 +359,8 @@ def create(click_config,
         prompt = f"Enter stake duration ({STAKEHOLDER.economics.minimum_locked_periods} periods minimum)"
         lock_periods = click.prompt(prompt, type=stake_duration_range)
 
-    start_period = STAKEHOLDER.staking_agent.get_current_period()
-    end_period = start_period + lock_periods
+    start_period = STAKEHOLDER.staking_agent.get_current_period() + 1
+    unlock_period = start_period + lock_periods
 
     #
     # Review
@@ -344,7 +373,7 @@ def create(click_config,
                                     stake_value=value,
                                     lock_periods=lock_periods,
                                     start_period=start_period,
-                                    end_period=end_period)
+                                    unlock_period=unlock_period)
 
         confirm_staged_stake(staker_address=staking_address, value=value, lock_periods=lock_periods)
 
@@ -352,7 +381,7 @@ def create(click_config,
     click.confirm("Publish staged stake to the blockchain?", abort=True)
 
     # Execute
-    STAKEHOLDER.assimilate(checksum_address=staking_address, password=password)
+    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
     new_stake = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods)
 
     painting.paint_staking_confirmation(emitter=emitter,
@@ -370,6 +399,7 @@ def restake(click_config,
 
             # Stake Options
             poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
+            beneficiary_address, allocation_filepath,
 
             # Other
             enable, lock_until, force):
@@ -380,16 +410,22 @@ def restake(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address)
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
+                                                  beneficiary_address=beneficiary_address,
+                                                  allocation_filepath=allocation_filepath)
     #############
 
+    client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
+                                                                        stakeholder=STAKEHOLDER,
+                                                                        staking_address=staking_address,
+                                                                        individual_allocation=STAKEHOLDER.individual_allocation,
+                                                                        force=force)
+
     # Authenticate
-    if not staking_address:
-        staking_address = select_stake(stakeholder=STAKEHOLDER, emitter=emitter).staker_address
     password = None
     if not hw_wallet and not blockchain.client.is_local:
-        password = get_client_password(checksum_address=staking_address)
-    STAKEHOLDER.assimilate(checksum_address=staking_address, password=password)
+        password = get_client_password(checksum_address=client_account)
+    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
 
     # Inner Exclusive Switch
     if lock_until:
@@ -423,6 +459,7 @@ def divide(click_config,
 
            # Stake Options
            poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
+           beneficiary_address, allocation_filepath,
 
            # Other
            force, value, lock_periods, index):
@@ -433,8 +470,16 @@ def divide(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address)
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
+                                                  beneficiary_address=beneficiary_address,
+                                                  allocation_filepath=allocation_filepath)
     #############
+
+    client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
+                                                                        stakeholder=STAKEHOLDER,
+                                                                        staking_address=staking_address,
+                                                                        individual_allocation=STAKEHOLDER.individual_allocation,
+                                                                        force=force)
 
     economics = STAKEHOLDER.economics
 
@@ -495,14 +540,16 @@ def divide(click_config,
 @click.option('--staking-reward/--no-staking-reward', is_flag=True, default=False)
 @click.option('--policy-reward/--no-policy-reward', is_flag=True, default=False)
 @click.option('--withdraw-address', help="Send reward collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @nucypher_click_config
 def collect_reward(click_config,
 
                    # Stake Options
                    poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
+                   beneficiary_address, allocation_filepath,
 
                    # Other
-                   staking_reward, policy_reward, withdraw_address):
+                   staking_reward, policy_reward, withdraw_address, force):
     """
     Withdraw staking reward.
     """
@@ -510,25 +557,37 @@ def collect_reward(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address)
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
+                                                  beneficiary_address=beneficiary_address,
+                                                  allocation_filepath=allocation_filepath)
     #############
+
+    client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
+                                                                        stakeholder=STAKEHOLDER,
+                                                                        staking_address=staking_address,
+                                                                        individual_allocation=STAKEHOLDER.individual_allocation,
+                                                                        force=force)
 
     password = None
     if not hw_wallet and not blockchain.client.is_local:
-        password = get_client_password(checksum_address=staking_address)
+        password = get_client_password(checksum_address=client_account)
 
     if not staking_reward and not policy_reward:
         raise click.BadArgumentUsage(f"Either --staking-reward or --policy-reward must be True to collect rewards.")
 
-    STAKEHOLDER.assimilate(checksum_address=staking_address, password=password)
+    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
     if staking_reward:
         # Note: Sending staking / inflation rewards to another account is not allowed.
+        reward_amount = NU.from_nunits(STAKEHOLDER.calculate_staking_reward())
+        emitter.echo(message=f'Collecting {reward_amount} from staking rewards...')
         staking_receipt = STAKEHOLDER.collect_staking_reward()
         paint_receipt_summary(receipt=staking_receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
                               emitter=emitter)
 
     if policy_reward:
+        reward_amount = Web3.fromWei(STAKEHOLDER.calculate_policy_reward(), 'ether')
+        emitter.echo(message=f'Collecting {reward_amount} ETH from policy rewards...')
         policy_receipt = STAKEHOLDER.collect_policy_reward(collector_address=withdraw_address)
         paint_receipt_summary(receipt=policy_receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
@@ -558,9 +617,38 @@ def _get_stakeholder_config(config_file, provider_uri, poa, registry_filepath):
                                                          config_file=config_file)
 
 
-def _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address):
+def _create_stakeholder(config_file, provider_uri, poa, registry_filepath,
+                        staking_address, beneficiary_address, allocation_filepath):
     stakeholder_config = _get_stakeholder_config(config_file, provider_uri, poa, registry_filepath)
-    stakeholder = stakeholder_config.produce(initial_address=staking_address)
+
+    # Now let's check whether we're dealing here with a regular staker or a preallocation staker
+    is_preallocation_staker = (beneficiary_address and staking_address) or allocation_filepath
+
+    if is_preallocation_staker:
+        if allocation_filepath:
+            if beneficiary_address or staking_address:
+                message = "--allocation-filepath is incompatible with --beneficiary-address and --staking-address."
+                raise click.BadOptionUsage(option_name="--allocation-filepath", message=message)
+
+            # This assumes the user has an individual allocation file in disk
+            individual_allocation = IndividualAllocationRegistry.from_allocation_file(allocation_filepath)
+            initial_address = individual_allocation.beneficiary_address
+        elif beneficiary_address and staking_address:
+            individual_allocation = IndividualAllocationRegistry(beneficiary_address=beneficiary_address,
+                                                                 contract_address=staking_address)
+            initial_address = beneficiary_address
+        else:
+            option = "--beneficiary_address" if beneficiary_address else "--staking-address"
+            raise click.BadOptionUsage(option_name=option,
+                                       message=f"You must specify both --beneficiary-address and --staking-address. "
+                                               f"Only {option} was provided. As an alternative, you can simply "
+                                               f"provide an individual allocation with --allocation-file <PATH>")
+    else:
+        individual_allocation = None
+        initial_address = staking_address
+
+    stakeholder = stakeholder_config.produce(initial_address=initial_address,
+                                             individual_allocation=individual_allocation)
     blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)  # Eager connection
 
     return stakeholder, blockchain

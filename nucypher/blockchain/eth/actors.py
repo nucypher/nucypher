@@ -21,13 +21,14 @@ import os
 from datetime import datetime
 from decimal import Decimal
 from json import JSONDecodeError
-from typing import Tuple, List, Dict, Union
+from pathlib import Path
+from typing import Tuple, List, Dict, Union, Optional
 
 import click
 import maya
 from constant_sorrow.constants import (
     WORKER_NOT_RUNNING,
-    NO_WORKER_ASSIGNED
+    NO_WORKER_ASSIGNED,
 )
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak, is_checksum_address
@@ -39,23 +40,36 @@ from nucypher.blockchain.eth.agents import (
     StakingEscrowAgent,
     PolicyManagerAgent,
     AdjudicatorAgent,
-    ContractAgency)
+    ContractAgency,
+    PreallocationEscrowAgent,
+)
+from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
     PolicyManagerDeployer,
-    UserEscrowProxyDeployer,
-    UserEscrowDeployer,
+    StakingInterfaceDeployer,
+    PreallocationEscrowDeployer,
     AdjudicatorDeployer,
     BaseContractDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
+from nucypher.blockchain.eth.registry import (
+    AllocationRegistry,
+    BaseContractRegistry,
+    InMemoryAllocationRegistry,
+    IndividualAllocationRegistry
+)
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration, datetime_at_period
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.painting import paint_contract_deployment
+from nucypher.cli.painting import (
+    paint_contract_deployment,
+    paint_input_allocation_file,
+    paint_deployed_allocations,
+    write_deployed_allocations_to_csv
+)
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
 
@@ -86,6 +100,7 @@ class NucypherTokenActor:
     class ActorError(Exception):
         pass
 
+    @validate_checksum_address
     def __init__(self, registry: BaseContractRegistry, checksum_address: str = None):
 
         # TODO: Consider this pattern - None for address?.
@@ -150,7 +165,7 @@ class ContractAdministrator(NucypherTokenActor):
 
     upgradeable_deployer_classes = (
         *dispatched_upgradeable_deployer_classes,
-        UserEscrowProxyDeployer,
+        StakingInterfaceDeployer,
     )
 
     ownable_deployer_classes = (*dispatched_upgradeable_deployer_classes, )
@@ -177,7 +192,7 @@ class ContractAdministrator(NucypherTokenActor):
         self.economics = economics or StandardTokenEconomics()
 
         self.registry = registry
-        self.user_escrow_deployers = dict()
+        self.preallocation_escrow_deployers = dict()
         self.deployers = {d.contract_name: d for d in self.deployer_classes}
 
         self.transacting_power = TransactingPower(password=client_password, account=deployer_address)
@@ -262,14 +277,14 @@ class ContractAdministrator(NucypherTokenActor):
                                      new_secret_hash=new_secret_hash)
         return receipts
 
-    def deploy_user_escrow(self, allocation_registry: AllocationRegistry) -> UserEscrowDeployer:
-        user_escrow_deployer = UserEscrowDeployer(registry=self.registry,
-                                                  deployer_address=self.deployer_address,
-                                                  allocation_registry=allocation_registry)
-        user_escrow_deployer.deploy()
-        principal_address = user_escrow_deployer.contract.address
-        self.user_escrow_deployers[principal_address] = user_escrow_deployer
-        return user_escrow_deployer
+    def deploy_preallocation_escrow(self, allocation_registry: AllocationRegistry, progress=None) -> PreallocationEscrowDeployer:
+        preallocation_escrow_deployer = PreallocationEscrowDeployer(registry=self.registry,
+                                                                    deployer_address=self.deployer_address,
+                                                                    allocation_registry=allocation_registry)
+        preallocation_escrow_deployer.deploy(progress=progress)
+        principal_address = preallocation_escrow_deployer.contract.address
+        self.preallocation_escrow_deployers[principal_address] = preallocation_escrow_deployer
+        return preallocation_escrow_deployer
 
     def deploy_network_contracts(self,
                                  secrets: dict,
@@ -364,43 +379,141 @@ class ContractAdministrator(NucypherTokenActor):
                                      allocation_outfile: str = None,
                                      allocation_registry: AllocationRegistry = None,
                                      crash_on_failure: bool = True,
+                                     interactive: bool = True,
+                                     emitter: StdoutEmitter = None,
                                      ) -> Dict[str, dict]:
         """
+        The allocation file is a JSON file containing a list of allocations. Each allocation has a:
+          * 'beneficiary_address': Checksum address of the beneficiary
+          * 'name': User-friendly name of the beneficiary (Optional)
+          * 'amount': Amount of tokens locked, in NuNits
+          * 'duration_seconds': Lock duration expressed in seconds
 
-        Example allocation dataset (one year is 31536000 seconds):
+        Example allocation file:
 
-        data = [{'beneficiary_address': '0xdeadbeef', 'amount': 100, 'duration_seconds': 31536000},
-                {'beneficiary_address': '0xabced120', 'amount': 133432, 'duration_seconds': 31536000*2},
-                {'beneficiary_address': '0xf7aefec2', 'amount': 999, 'duration_seconds': 31536000*3}]
+        [ {'beneficiary_address': '0xdeadbeef', 'name': 'H. E. Pennypacker', 'amount': 100, 'duration_seconds': 31536000},
+          {'beneficiary_address': '0xabced120', 'amount': 133432, 'duration_seconds': 31536000},
+          {'beneficiary_address': '0xf7aefec2', 'amount': 999, 'duration_seconds': 31536000}]
+
         """
+
+        if interactive and not emitter:
+            raise ValueError("'emitter' is a required keyword argument when interactive is True.")
+
         if allocation_registry and allocation_outfile:
             raise self.ActorError("Pass either allocation registry or allocation_outfile, not both.")
         if allocation_registry is None:
             allocation_registry = AllocationRegistry(filepath=allocation_outfile)
 
-        allocation_txhashes, failed = dict(), list()
-        for allocation in allocations:
-            deployer = self.deploy_user_escrow(allocation_registry=allocation_registry)
+        if emitter:
+            paint_input_allocation_file(emitter, allocations)
 
-            try:
-                txhashes = deployer.deliver(value=allocation['amount'],
-                                            duration=allocation['duration_seconds'],
-                                            beneficiary_address=allocation['beneficiary_address'])
-            except TransactionFailed:
-                if crash_on_failure:
-                    raise
-                self.log.debug(f"Failed allocation transaction for {allocation['amount']} to {allocation['beneficiary_address']}")
-                failed.append(allocation)
-                continue
+        if interactive:
+            click.confirm("Continue with the allocation process?", abort=True)
 
-            else:
-                allocation_txhashes[allocation['beneficiary_address']] = txhashes
+        total_to_allocate = NU.from_nunits(sum(allocation['amount'] for allocation in allocations))
+        balance = ContractAgency.get_agent(NucypherTokenAgent, self.registry).get_balance(self.deployer_address)
+        if balance < total_to_allocate:
+            raise ValueError(f"Not enough tokens to allocate. We need at least {total_to_allocate}.")
 
-        if failed:
-            # TODO: More with these failures: send to isolated logfile, and reattempt
-            self.log.critical(f"FAILED TOKEN ALLOCATION - {len(failed)} Allocations failed.")
+        allocation_receipts, failed, allocated = dict(), list(), list()
+        total_deployment_transactions = len(allocations) * 4
 
-        return allocation_txhashes
+        # Create an allocation template file, containing the allocation contract ABI and placeholder values
+        # for the beneficiary and contract addresses. This file will be shared with all allocation users.
+        empty_allocation_escrow_deployer = PreallocationEscrowDeployer(registry=self.registry)
+        allocation_contract_abi = empty_allocation_escrow_deployer.get_contract_abi()
+        allocation_template = {
+            "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", allocation_contract_abi]
+        }
+
+        parent_path = Path(allocation_registry.filepath).parent  # Use same folder as allocation registry
+        template_filename = IndividualAllocationRegistry.REGISTRY_NAME
+        template_filepath = os.path.join(parent_path, template_filename)
+        AllocationRegistry(filepath=template_filepath).write(registry_data=allocation_template)
+        if emitter:
+            emitter.echo(f"Saved allocation template file to {template_filepath}", color='blue', bold=True)
+
+        # Deploy each allocation contract
+        with click.progressbar(length=total_deployment_transactions,
+                               label="Allocation progress",
+                               show_eta=False) as bar:
+            bar.short_limit = 0
+            for allocation in allocations:
+
+                # TODO: Check if allocation already exists in allocation registry
+
+                beneficiary = allocation['beneficiary_address']
+                name = allocation.get('name', 'No name provided')
+
+                if interactive:
+                    click.pause(info=f"\nPress any key to continue with allocation for "
+                                     f"beneficiary {beneficiary} ({name})")
+
+                if emitter:
+                    emitter.echo(f"\nDeploying PreallocationEscrow contract for beneficiary {beneficiary} ({name})...")
+                    bar._last_line = None
+                    bar.render_progress()
+
+                deployer = self.deploy_preallocation_escrow(allocation_registry=allocation_registry,
+                                                            progress=bar)
+
+                amount = allocation['amount']
+                duration = allocation['duration_seconds']
+                try:
+                    receipts = deployer.deliver(value=amount,
+                                                duration=duration,
+                                                beneficiary_address=beneficiary,
+                                                progress=bar)
+                except TransactionFailed as e:
+                    if crash_on_failure:
+                        raise
+                    self.log.debug(f"Failed allocation transaction for {NU.from_nunits(amount)} to {beneficiary}: {e}")
+                    failed.append(allocation)
+                    continue
+
+                else:
+                    allocation_receipts[beneficiary] = receipts
+                    allocation_contract_address = deployer.contract_address
+                    self.log.info(f"Created {deployer.contract_name} contract at {allocation_contract_address} "
+                                  f"for beneficiary {beneficiary}.")
+                    allocated.append((allocation, allocation_contract_address))
+
+                    # Create individual allocation file
+                    individual_allocation_filename = f'allocation-{beneficiary}.json'
+                    individual_allocation_filepath = os.path.join(parent_path, individual_allocation_filename)
+                    individual_allocation_file_data = {
+                        'beneficiary_address': beneficiary,
+                        'contract_address': allocation_contract_address
+                    }
+                    with open(individual_allocation_filepath, 'w') as outfile:
+                        json.dump(individual_allocation_file_data, outfile)
+
+                    if emitter:
+                        blockchain = BlockchainInterfaceFactory.get_interface()
+                        paint_contract_deployment(contract_name=deployer.contract_name,
+                                                  receipts=receipts,
+                                                  contract_address=deployer.contract_address,
+                                                  emitter=emitter,
+                                                  chain_name=blockchain.client.chain_name,
+                                                  open_in_browser=False)
+                        emitter.echo(f"Saved individual allocation file to {individual_allocation_filepath}",
+                                     color='blue', bold=True)
+
+            if emitter:
+                paint_deployed_allocations(emitter, allocated, failed)
+
+            csv_filename = f'allocations-{self.deployer_address[:6]}-{maya.now().epoch}.csv'
+            csv_filepath = os.path.join(parent_path, csv_filename)
+            write_deployed_allocations_to_csv(csv_filepath, allocated, failed)
+            if emitter:
+                emitter.echo(f"Saved allocation summary CSV to {csv_filepath}", color='blue', bold=True)
+
+            if failed:
+                # TODO: More with these failures: send to isolated logfile, and reattempt
+                self.log.critical(f"FAILED TOKEN ALLOCATION - {len(failed)} allocations failed.")
+
+        return allocation_receipts
 
     @staticmethod
     def __read_allocation_data(filepath: str) -> list:
@@ -414,14 +527,23 @@ class ContractAdministrator(NucypherTokenActor):
 
     def deploy_beneficiaries_from_file(self,
                                        allocation_data_filepath: str,
-                                       allocation_outfile: str = None) -> dict:
+                                       allocation_outfile: str = None,
+                                       emitter=None,
+                                       interactive=None) -> dict:
 
         allocations = self.__read_allocation_data(filepath=allocation_data_filepath)
-        txhashes = self.deploy_beneficiary_contracts(allocations=allocations, allocation_outfile=allocation_outfile)
-        return txhashes
+        receipts = self.deploy_beneficiary_contracts(allocations=allocations,
+                                                     allocation_outfile=allocation_outfile,
+                                                     emitter=emitter,
+                                                     interactive=interactive)
+        # Save transaction metadata
+        receipts_filepath = self.save_deployment_receipts(receipts=receipts, filename_prefix='allocation')
+        if emitter:
+            emitter.echo(f"Saved allocation receipts to {receipts_filepath}", color='blue', bold=True)
+        return receipts
 
-    def save_deployment_receipts(self, receipts: dict) -> str:
-        filename = f'deployment-receipts-{self.deployer_address[:6]}-{maya.now().epoch}.json'
+    def save_deployment_receipts(self, receipts: dict, filename_prefix: str = 'deployment') -> str:
+        filename = f'{filename_prefix}-receipts-{self.deployer_address[:6]}-{maya.now().epoch}.json'
         filepath = os.path.join(DEFAULT_CONFIG_ROOT, filename)
         # TODO: Do not assume default config root
         os.makedirs(DEFAULT_CONFIG_ROOT, exist_ok=True)
@@ -450,7 +572,10 @@ class Staker(NucypherTokenActor):
     class InsufficientTokens(StakerError):
         pass
 
-    def __init__(self, is_me: bool, *args, **kwargs) -> None:
+    def __init__(self,
+                 is_me: bool,
+                 individual_allocation: IndividualAllocationRegistry = None,
+                 *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.log = Logger("staker")
@@ -459,10 +584,28 @@ class Staker(NucypherTokenActor):
         self.__worker_address = None
 
         # Blockchain
-        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
-        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)  # type: PolicyManagerAgent
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)  # type: StakingEscrowAgent
         self.economics = TokenEconomicsFactory.get_economics(registry=self.registry)
+
+        # Staking via contract
+        self.individual_allocation = individual_allocation
+        if self.individual_allocation:
+            self.beneficiary_address = individual_allocation.beneficiary_address
+            self.checksum_address = individual_allocation.contract_address
+            self.preallocation_escrow_agent = PreallocationEscrowAgent(registry=self.registry,
+                                                                       allocation_registry=self.individual_allocation,
+                                                                       beneficiary=self.beneficiary_address)
+        else:
+            self.beneficiary_address = None
+            self.preallocation_escrow_agent = None
+
+        # Check stakes
         self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
+
+    @property
+    def is_contract(self) -> bool:
+        return self.preallocation_escrow_agent is not None
 
     def to_dict(self) -> dict:
         stake_info = [stake.to_stake_info() for stake in self.stakes]
@@ -474,6 +617,7 @@ class Staker(NucypherTokenActor):
                           'stakes': stake_info}
         return staker_payload
 
+    # TODO: This is unused. Why? Should we remove it?
     @classmethod
     def from_dict(cls, staker_payload: dict) -> 'Staker':
         staker = Staker(is_me=True, checksum_address=staker_payload['checksum_address'])
@@ -495,11 +639,9 @@ class Staker(NucypherTokenActor):
     @property
     def current_stake(self) -> NU:
         """
-        The total number of staked tokens, either locked or unlocked in the current period.
+        The total number of staked tokens, i.e., tokens locked in the current period.
         """
-        stake = self.staking_agent.owned_tokens(staker_address=self.checksum_address)
-        nu_stake = NU.from_nunits(stake)
-        return nu_stake
+        return self.locked_tokens(periods=0)
 
     @only_me
     def divide_stake(self,
@@ -582,6 +724,23 @@ class Staker(NucypherTokenActor):
 
         return new_stake
 
+    def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
+        """Public facing method for token locking."""
+        if self.is_contract:
+            approve_receipt = self.token_agent.approve_transfer(amount=amount,
+                                                                target_address=self.staking_agent.contract_address,
+                                                                sender_address=self.beneficiary_address)
+            deposit_receipt = self.preallocation_escrow_agent.deposit_as_staker(amount=amount, lock_periods=lock_periods)
+        else:
+            approve_receipt = self.token_agent.approve_transfer(amount=amount,
+                                                                target_address=self.staking_agent.contract_address,
+                                                                sender_address=self.checksum_address)
+            deposit_receipt = self.staking_agent.deposit_tokens(amount=amount,
+                                                                lock_periods=lock_periods,
+                                                                sender_address=self.checksum_address)
+
+        return approve_receipt, deposit_receipt
+
     @property
     def is_restaking(self) -> bool:
         restaking = self.staking_agent.is_restaking(staker_address=self.checksum_address)
@@ -589,8 +748,15 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
+    def _set_restaking_value(self, value: bool) -> dict:
+        if self.is_contract:
+            receipt = self.preallocation_escrow_agent.set_restaking(value=value)
+        else:
+            receipt = self.staking_agent.set_restaking(staker_address=self.checksum_address, value=value)
+        return receipt
+
     def enable_restaking(self) -> dict:
-        receipt = self.staking_agent.set_restaking(staker_address=self.checksum_address, value=True)
+        receipt = self._set_restaking_value(value=True)
         return receipt
 
     @only_me
@@ -598,10 +764,13 @@ class Staker(NucypherTokenActor):
     def enable_restaking_lock(self, release_period: int):
         current_period = self.staking_agent.get_current_period()
         if release_period < current_period:
-            raise ValueError(f"Terminal restaking period must be in the future.  "
+            raise ValueError(f"Release period for re-staking lock must be in the future.  "
                              f"Current period is {current_period}, got '{release_period}'.")
-        receipt = self.staking_agent.lock_restaking(staker_address=self.checksum_address,
-                                                    release_period=release_period)
+        if self.is_contract:
+            receipt = self.preallocation_escrow_agent.lock_restaking(release_period=release_period)
+        else:
+            receipt = self.staking_agent.lock_restaking(staker_address=self.checksum_address,
+                                                        release_period=release_period)
         return receipt
 
     @property
@@ -610,23 +779,29 @@ class Staker(NucypherTokenActor):
         return status
 
     def disable_restaking(self) -> dict:
-        receipt = self.staking_agent.set_restaking(staker_address=self.checksum_address, value=False)
+        receipt = self._set_restaking_value(value=False)
         return receipt
+
     #
-    # Reward and Collection
+    # Bonding with Worker
     #
 
     @only_me
     @save_receipt
+    @validate_checksum_address
     def set_worker(self, worker_address: str) -> str:
-        # TODO: Set a Worker for this staker, not just in StakingEscrow
-        receipt = self.staking_agent.set_worker(staker_address=self.checksum_address, worker_address=worker_address)
+        if self.is_contract:
+            receipt = self.preallocation_escrow_agent.set_worker(worker_address=worker_address)
+        else:
+            receipt = self.staking_agent.set_worker(staker_address=self.checksum_address,
+                                                    worker_address=worker_address)
         self.__worker_address = worker_address
         return receipt
 
     @property
     def worker_address(self) -> str:
         if self.__worker_address:
+            # TODO: This is broken for StakeHolder with different stakers - See #1358
             return self.__worker_address
         else:
             worker_address = self.staking_agent.get_worker_from_staker(staker_address=self.checksum_address)
@@ -638,37 +813,70 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def mint(self) -> Tuple[str, str]:
-        """Computes and transfers tokens to the staker's account"""
-        receipt = self.staking_agent.mint(staker_address=self.checksum_address)
+    def detach_worker(self) -> str:
+        if self.is_contract:
+            receipt = self.preallocation_escrow_agent.release_worker()
+        else:
+            receipt = self.staking_agent.release_worker(staker_address=self.checksum_address)
+        self.__worker_address = BlockchainInterface.NULL_ADDRESS
         return receipt
 
-    def calculate_reward(self) -> int:
-        staking_reward = self.staking_agent.calculate_staking_reward(staker_address=self.checksum_address)
-        return staking_reward
+    #
+    # Reward and Collection
+    #
 
     @only_me
     @save_receipt
+    def mint(self) -> Tuple[str, str]:
+        """Computes and transfers tokens to the staker's account"""
+        if self.is_contract:
+            receipt = self.preallocation_escrow_agent.mint()
+        else:
+            receipt = self.staking_agent.mint(staker_address=self.checksum_address)
+        return receipt
+
+    def calculate_staking_reward(self) -> int:
+        staking_reward = self.staking_agent.calculate_staking_reward(staker_address=self.checksum_address)
+        return staking_reward
+
+    def calculate_policy_reward(self) -> int:
+        policy_reward = self.policy_agent.get_reward_amount(staker_address=self.checksum_address)
+        return policy_reward
+
+    @only_me
+    @save_receipt
+    @validate_checksum_address
     def collect_policy_reward(self, collector_address=None) -> dict:
         """Collect rewarded ETH."""
         withdraw_address = collector_address or self.checksum_address
-        receipt = self.policy_agent.collect_policy_reward(collector_address=withdraw_address,
-                                                          staker_address=self.checksum_address)
+        if self.is_contract:
+            receipt = self.preallocation_escrow_agent.collect_policy_reward(collector_address=withdraw_address)
+        else:
+            receipt = self.policy_agent.collect_policy_reward(collector_address=withdraw_address,
+                                                              staker_address=self.checksum_address)
         return receipt
 
     @only_me
     @save_receipt
     def collect_staking_reward(self) -> str:
         """Withdraw tokens rewarded for staking."""
-        receipt = self.staking_agent.collect_staking_reward(staker_address=self.checksum_address)
+        if self.is_contract:
+            reward_amount = self.calculate_staking_reward()
+            self.log.debug(f"Withdrawing staking reward ({NU.from_nunits(reward_amount)}) to {self.checksum_address}")
+            receipt = self.preallocation_escrow_agent.withdraw_as_staker(value=reward_amount)
+        else:
+            receipt = self.staking_agent.collect_staking_reward(staker_address=self.checksum_address)
         return receipt
 
     @only_me
     @save_receipt
     def withdraw(self, amount: NU) -> str:
         """Withdraw tokens (assuming they're unlocked)"""
-        receipt = self.staking_agent.withdraw(staker_address=self.checksum_address,
-                                              amount=int(amount))
+        if self.is_contract:
+            receipt = self.preallocation_escrow_agent.withdraw_as_staker(value=int(amount))
+        else:
+            receipt = self.staking_agent.withdraw(staker_address=self.checksum_address,
+                                                  amount=int(amount))
         return receipt
 
 
@@ -688,7 +896,6 @@ class Worker(NucypherTokenActor):
                  work_tracker: WorkTracker = None,
                  worker_address: str = None,
                  start_working_now: bool = True,
-                 confirm_now: bool = True,
                  check_active_worker: bool = True,
                  *args, **kwargs):
 
@@ -718,7 +925,7 @@ class Worker(NucypherTokenActor):
 
     @property
     def last_active_period(self) -> int:
-        period = self.staking_agent.get_last_active_period(address=self.checksum_address)
+        period = self.staking_agent.get_last_active_period(staker_address=self.checksum_address)
         return period
 
     @only_me

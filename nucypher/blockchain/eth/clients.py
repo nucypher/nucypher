@@ -322,8 +322,17 @@ class GethClient(Web3Client):
             # Geth --dev accounts are unlocked by default.
             return True
         debug_message = f"Unlocking account {address}"
+
+        if duration is None:
+            debug_message += f" for 5 minutes"
+        elif duration == 0:
+            debug_message += f" indefinitely"
+        elif duration > 0:
+            debug_message += f" for {duration} seconds"
+
         if password is None:
             debug_message += " with no password."
+
         self.log.debug(debug_message)
         return self.w3.geth.personal.unlockAccount(address, password, duration)
 
@@ -342,6 +351,10 @@ class GethClient(Web3Client):
         # Return RLP bytes
         rlp_encoded_transaction = result.raw
         return rlp_encoded_transaction
+
+    @property
+    def wallets(self):
+        return self.w3.manager.request_blocking("personal_listWallets", [])
 
 
 class ParityClient(Web3Client):

@@ -95,7 +95,7 @@ class NU:
         return cls(value, denomination='NU')
 
     def to_tokens(self) -> Decimal:
-        """Returns an decimal value of NU"""
+        """Returns a decimal value of NU"""
         return currency.from_wei(self.__value, unit='ether')
 
     def to_nunits(self) -> int:
@@ -164,6 +164,7 @@ class Stake:
     class StakingError(Exception):
         """Raised when a staking operation cannot be executed due to failure."""
 
+    @validate_checksum_address
     def __init__(self,
                  staking_agent: StakingEscrowAgent,
                  checksum_address: str,
@@ -204,9 +205,11 @@ class Stake:
 
         # Time
         self.start_datetime = datetime_at_period(period=first_locked_period,
-                                                 seconds_per_period=self.economics.seconds_per_period)
+                                                 seconds_per_period=self.economics.seconds_per_period,
+                                                 start_of_period=True)
         self.unlock_datetime = datetime_at_period(period=final_locked_period + 1,
-                                                  seconds_per_period=self.economics.seconds_per_period)
+                                                  seconds_per_period=self.economics.seconds_per_period,
+                                                  start_of_period=True)
 
         if validate_now:
             self.validate_duration()
@@ -219,7 +222,13 @@ class Stake:
         return r
 
     def __eq__(self, other) -> bool:
+        # TODO: Is this right? Two stakes from different accounts, durations, etc, but of the same value, are equal?
         return bool(self.value == other.value)
+
+    @property
+    def address_index_ordering_key(self):
+        """To be used as a lexicographical order key for Stakes based on the tuple (staker_address, index)."""
+        return self.staker_address, self.index
 
     #
     # Metadata
@@ -357,20 +366,6 @@ class Stake:
         self.value = NU.from_nunits(locked_value)
         self.worker_address = self.staking_agent.get_worker_from_staker(staker_address=self.staker_address)
 
-    @classmethod
-    def __deposit(cls, staker, amount: int, lock_periods: int) -> Tuple[str, str]:
-        """Public facing method for token locking."""
-
-        approve_receipt = staker.token_agent.approve_transfer(amount=amount,
-                                                              target_address=staker.staking_agent.contract_address,
-                                                              sender_address=staker.checksum_address)
-
-        deposit_receipt = staker.staking_agent.deposit_tokens(amount=amount,
-                                                              lock_periods=lock_periods,
-                                                              sender_address=staker.checksum_address)
-
-        return approve_receipt, deposit_receipt
-
     def divide(self, target_value: NU, additional_periods: int = None) -> Tuple['Stake', 'Stake']:
         """
         Modifies the unlocking schedule and value of already locked tokens.
@@ -426,6 +421,7 @@ class Stake:
         # Transmit
         #
 
+        # TODO: Entrypoint for PreallocationEscrowAgent here
         # Transmit the stake division transaction
         receipt = self.staking_agent.divide_stake(staker_address=self.staker_address,
                                                   stake_index=self.index,
@@ -458,9 +454,7 @@ class Stake:
         stake.validate_duration()
 
         # Transmit
-        approve_receipt, initial_deposit_receipt = stake.__deposit(amount=int(amount),
-                                                                   lock_periods=lock_periods,
-                                                                   staker=staker)
+        approve_receipt, initial_deposit_receipt = staker.deposit(amount=int(amount), lock_periods=lock_periods)
 
         # Store the staking transactions on the instance
         staking_transactions = dict(approve=approve_receipt, deposit=initial_deposit_receipt)
@@ -468,9 +462,7 @@ class Stake:
 
         # Log and return Stake instance
         log = Logger(f'stake-{staker.checksum_address}-creation')
-        log.info("{} Initialized new stake: {} tokens for {} periods".format(staker.checksum_address,
-                                                                             amount,
-                                                                             lock_periods))
+        log.info(f"{staker.checksum_address} Initialized new stake: {amount} tokens for {lock_periods} periods")
         return stake
 
 
@@ -568,6 +560,7 @@ class WorkTracker:
 
 class StakeList(UserList):
 
+    @validate_checksum_address
     def __init__(self,
                  registry: BaseContractRegistry,
                  checksum_address: str = None,
@@ -593,13 +586,11 @@ class StakeList(UserList):
     def updated(self) -> maya.MayaDT:
         return self.__updated
 
-    @validate_checksum_address
-    def refresh(self, checksum_addresses: List[str] = None) -> None:
+    def refresh(self) -> None:
         """Public staking cache invalidation method"""
         return self.__read_stakes()
 
-    @validate_checksum_address
-    def __read_stakes(self,) -> None:
+    def __read_stakes(self) -> None:
         """Rewrite the local staking cache by reading on-chain stakes"""
 
         existing_records = len(self)

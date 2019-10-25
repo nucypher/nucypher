@@ -54,7 +54,7 @@ def test_worker_auto_confirmations(testerchain,
 
     def verify(_):
         # Verify that periods were confirmed on-chain automatically
-        last_active_period = staker.staking_agent.get_last_active_period(address=staker.checksum_address)
+        last_active_period = staker.staking_agent.get_last_active_period(staker_address=staker.checksum_address)
         current_period = staker.staking_agent.get_current_period()
         assert (last_active_period - current_period) == 1
 

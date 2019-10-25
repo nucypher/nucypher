@@ -14,10 +14,33 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+import json
+import os
 import pytest
 
+from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BaseContractRegistry
-from nucypher.blockchain.eth.registry import LocalContractRegistry
+from nucypher.blockchain.eth.registry import LocalContractRegistry, IndividualAllocationRegistry
+
+
+@pytest.fixture(autouse=True, scope='module')
+def patch_individual_allocation_registry_fetch_latest_publication(agency, test_registry):
+    empty_allocation_escrow_deployer = PreallocationEscrowDeployer(registry=test_registry)
+    allocation_contract_abi = empty_allocation_escrow_deployer.get_contract_abi()
+    allocation_template = {
+        "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", allocation_contract_abi]
+    }
+    new_fetch_result = json.dumps(allocation_template).encode()
+
+    original_fetch = IndividualAllocationRegistry.fetch_latest_publication
+
+    def new_fetch(*args, **kwargs):
+        return new_fetch_result
+
+    IndividualAllocationRegistry.fetch_latest_publication = new_fetch
+    yield
+    IndividualAllocationRegistry.fetch_latest_publication = original_fetch
 
 
 def test_contract_registry(tempfile_path):
@@ -72,5 +95,40 @@ def test_contract_registry(tempfile_path):
     test_registry.write(current_dataset)
 
     # Check that searching for an unknown contract raises
-    with pytest.raises(BaseContractRegistry.IllegalRegistry):
+    with pytest.raises(BaseContractRegistry.InvalidRegistry):
         test_registry.search(contract_address=test_addr)
+
+
+def test_individual_allocation_registry(get_random_checksum_address, test_registry, tempfile_path):
+    empty_allocation_escrow_deployer = PreallocationEscrowDeployer(registry=test_registry)
+    allocation_contract_abi = empty_allocation_escrow_deployer.get_contract_abi()
+
+    beneficiary = get_random_checksum_address()
+    contract_address = get_random_checksum_address()
+    allocation_registry = IndividualAllocationRegistry(beneficiary_address=beneficiary,
+                                                       contract_address=contract_address)
+
+    registry_data = allocation_registry.read()
+    assert len(registry_data) == 1
+
+    assert allocation_registry.search(beneficiary_address=beneficiary) == [contract_address, allocation_contract_abi]
+    assert allocation_registry.search(contract_address=contract_address) == [beneficiary, allocation_contract_abi]
+
+    # Check that searching for an unknown beneficiary or unknown contract raises
+    with pytest.raises(IndividualAllocationRegistry.UnknownBeneficiary):
+        allocation_registry.search(beneficiary_address=get_random_checksum_address())
+
+    with pytest.raises(IndividualAllocationRegistry.UnknownContract):
+        allocation_registry.search(contract_address=get_random_checksum_address())
+
+    # Check that it gets the same data if using a file to create the allocation registry
+    individual_allocation_file_data = {
+        'beneficiary_address': beneficiary,
+        'contract_address': contract_address
+    }
+    with open(tempfile_path, 'w') as outfile:
+        json.dump(individual_allocation_file_data, outfile)
+
+    allocation_registry = IndividualAllocationRegistry.from_allocation_file(filepath=tempfile_path)
+    assert registry_data == allocation_registry.read()
+

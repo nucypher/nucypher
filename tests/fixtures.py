@@ -23,9 +23,8 @@ import tempfile
 
 import maya
 import pytest
-from eth_tester import PyEVMBackend
 
-from constant_sorrow.constants import NON_PAYMENT
+from eth_utils import to_checksum_address
 from sqlalchemy.engine import create_engine
 from twisted.logger import Logger
 from umbral import pre
@@ -41,7 +40,7 @@ from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                StakingEscrowDeployer,
                                                PolicyManagerDeployer,
-                                               AdjudicatorDeployer, UserEscrowProxyDeployer)
+                                               AdjudicatorDeployer, StakingInterfaceDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
@@ -459,8 +458,8 @@ def _make_agency(testerchain, test_registry):
     adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry)
     adjudicator_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    user_escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=origin, registry=test_registry)
-    user_escrow_proxy_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
+    staking_interface_deployer = StakingInterfaceDeployer(deployer_address=origin, registry=test_registry)
+    staking_interface_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
     token_agent = token_deployer.make_agent()                           # 1 Token
     staking_agent = staking_escrow_deployer.make_agent()                # 2 Staking Escrow
@@ -809,3 +808,12 @@ def mock_registry_filepath(testerchain, agency, test_registry):
 
     if os.path.isfile(MOCK_REGISTRY_FILEPATH):
         os.remove(MOCK_REGISTRY_FILEPATH)
+
+
+@pytest.fixture(scope='module')
+def get_random_checksum_address():
+    def _get_random_checksum_address():
+        canonical_address = os.urandom(20)
+        checksum_address = to_checksum_address(canonical_address)
+        return checksum_address
+    return _get_random_checksum_address
