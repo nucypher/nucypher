@@ -5,6 +5,10 @@ workflows:
   version: 2
   test_build_deploy:
     jobs:
+      - install_geth:
+          filters:
+            tags:
+              only: /.*/
       - pip_install_37:
           filters:
             tags:
@@ -174,6 +178,10 @@ workflows:
               only:
                 - master
     jobs:
+      - install_geth:
+          filters:
+            tags:
+              only: /.*/
       - pipenv_install_36:
           filters:
             tags:
@@ -818,3 +826,24 @@ jobs:
           when: always
       - store_artifacts:
           path: ~/test-logs/
+
+  install_geth:
+    <<: *python_37_base
+    parallelism: 1
+    steps:
+    - restore_cache:
+        key: geth-cache-v1
+    - run:
+        name: Download geth, if it's not installed
+        command: |
+          GETH_BUILD_NAME='geth-alltools-linux-amd64-1.9.13-cbc4ac26'
+          GETH_URL="https://gethstore.blob.core.windows.net/builds/$GETH_BUILD_NAME.tar.gz"
+          cd ~
+          [ -d "geth" ] || curl -o g.tar.gz $GETH_URL && tar -xzf g.tar.gz && mv $GETH_BUILD_NAME geth
+          geth/geth version
+          geth/clef --version
+        when: always
+    - save_cache:
+        key: geth-cache-v1
+        paths:
+          - "/home/circleci/geth"
