@@ -230,7 +230,8 @@ class StakingEscrowAgent(EthereumContractAgent):
         if not periods > 0:
             raise ValueError("Period must be > 0")
 
-        return self.contract.functions.getAllLockedTokens(periods).call()
+        all_locked_tokens, _stakers = self.contract.functions.getAllActiveStakers(periods).call()
+        return all_locked_tokens
 
     #
     # StakingEscrow Contract API
@@ -444,7 +445,7 @@ class StakingEscrowAgent(EthereumContractAgent):
             staker_address = self.contract.functions.stakers(index).call()
             yield staker_address
 
-    def sample(self, quantity: int, duration: int, additional_ursulas: float = 1.7, attempts: int = 5) -> List[str]:
+    def sample(self, quantity: int, duration: int, additional_ursulas: float = 1.5, attempts: int = 5) -> List[str]:
         """
         Select n random Stakers, according to their stake distribution.
 
@@ -452,27 +453,53 @@ class StakingEscrowAgent(EthereumContractAgent):
         throw away those which do not respond.
 
         See full diagram here: https://github.com/nucypher/kms-whitepaper/blob/master/pdf/miners-ruler.pdf
+
+        This method implements the Probability Proportional to Size (PPS) sampling algorithm.
+        In few words, the algorithm places in a line all active stakes that have locked tokens for
+        at least `duration` periods; a staker is selected if an input point is within its stake.
+        For example:
+
+        Stakes: |----- S0 ----|--------- S1 ---------|-- S2 --|---- S3 ---|-S4-|----- S5 -----|
+        Points: ....R0.......................R1..................R2...............R3...........
+
+        In this case, Stakers 0, 1, 3 and 5 will be selected.
+
+        Only stakers which confirmed the current period (in the previous period) are used.
         """
 
-        stakers_population = self.get_staker_population()
-        n_select = math.ceil(quantity * additional_ursulas)  # Select more Ursulas
-        if n_select > stakers_population:
-            raise self.NotEnoughStakers(
-                f'There are {stakers_population} active stakers - '
-                f'for {quantity} stakers we need a sample size of at least {n_select}.')
-
         system_random = random.SystemRandom()
-        n_tokens = self.contract.functions.getAllLockedTokens(duration).call()
+        n_tokens, stakers = self.contract.functions.getAllActiveStakers(duration).call()
         if n_tokens == 0:
             raise self.NotEnoughStakers('There are no locked tokens for duration {}.'.format(duration))
 
+        sample_size = quantity
         for _ in range(attempts):
-            points = sorted(system_random.randrange(n_tokens) for _ in range(n_select))
-            self.log.debug(f"Sampling {n_select} stakers with random points: {points}")
+            sample_size = math.ceil(sample_size * additional_ursulas)
+            points = sorted(system_random.randrange(n_tokens) for _ in range(sample_size))
+            self.log.debug(f"Sampling {sample_size} stakers with random points: {points}")
 
-            addresses = set(self.contract.functions.sample(points, duration).call())
-            addresses.discard(str(BlockchainInterface.NULL_ADDRESS))
+            addresses = set()
 
+            point_index = 0
+            sum_of_locked_tokens = 0
+            staker_index = 0
+            stakers_len = len(stakers)
+            while staker_index < stakers_len and point_index < sample_size:
+                current_staker = stakers[staker_index][0]
+                staker_tokens = stakers[staker_index][1]
+                if staker_tokens == 0:  # No active stakers left
+                    break
+                next_sum_value = sum_of_locked_tokens + staker_tokens
+
+                point = points[point_index]
+                if sum_of_locked_tokens <= point < next_sum_value:
+                    addresses.add(to_checksum_address(current_staker))
+                    point_index += 1
+                else:
+                    staker_index += 1
+                    sum_of_locked_tokens = next_sum_value
+
+            self.log.debug(f"Sampled {len(addresses)} stakers: {list(addresses)}")
             if len(addresses) >= quantity:
                 return system_random.sample(addresses, quantity)
 

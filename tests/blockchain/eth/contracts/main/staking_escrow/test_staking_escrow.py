@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
-
+from eth_utils import to_checksum_address
 
 MAX_SUB_STAKES = 30
 
@@ -164,6 +164,11 @@ def test_staking(testerchain, token, escrow_contract):
     assert current_period + 1 == escrow.functions.getLastActivePeriod(ursula1).call()
     assert current_period + 1 == escrow.functions.getLastActivePeriod(ursula2).call()
 
+    # No active stakers before next period
+    all_locked, stakers = escrow.functions.getAllActiveStakers(1).call()
+    assert 0 == all_locked
+    assert 0 == stakers[0][1]
+
     events = activity_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[0]['args']
@@ -181,6 +186,20 @@ def test_staking(testerchain, token, escrow_contract):
     current_period = escrow.functions.getCurrentPeriod().call()
     assert 1000 == escrow.functions.getLockedTokens(ursula1).call()
     assert 500 == escrow.functions.getLockedTokens(ursula2).call()
+
+    # Both stakers are active and have locked tokens in next period
+    all_locked, stakers = escrow.functions.getAllActiveStakers(1).call()
+    assert 1500 == all_locked
+    assert 2 == len(stakers)
+    assert ursula1 == to_checksum_address(stakers[0][0])
+    assert 1000 == stakers[0][1]
+    assert ursula2 == to_checksum_address(stakers[1][0])
+    assert 500 == stakers[1][1]
+
+    # But in two periods their sub stakes will be unlocked
+    all_locked, stakers = escrow.functions.getAllActiveStakers(2).call()
+    assert 0 == all_locked
+    assert 0 == stakers[0][1]
 
     # Ursula's withdrawal attempt won't succeed because everything is locked
     with pytest.raises((TransactionFailed, ValueError)):
@@ -230,9 +249,25 @@ def test_staking(testerchain, token, escrow_contract):
             .transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
+    # Both stakers are active and only the first one locked tokens for two more periods
+    all_locked, stakers = escrow.functions.getAllActiveStakers(2).call()
+    assert 500 == all_locked
+    assert 2 == len(stakers)
+    assert ursula1 == to_checksum_address(stakers[0][0])
+    assert 500 == stakers[0][1]
+    assert 0 == stakers[1][1]
+
     # Wait 1 period and checks locking
     testerchain.time_travel(hours=1)
     assert 1500 == escrow.functions.getLockedTokens(ursula1).call()
+
+    # Only one staker is active
+    all_locked, stakers = escrow.functions.getAllActiveStakers(1).call()
+    assert 500 == all_locked
+    assert 2 == len(stakers)
+    assert ursula1 == to_checksum_address(stakers[0][0])
+    assert 500 == stakers[0][1]
+    assert 0 == stakers[1][1]
 
     # Confirm activity and wait 1 period, locking will be decreased because of end of one stake
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})

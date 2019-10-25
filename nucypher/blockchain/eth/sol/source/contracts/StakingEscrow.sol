@@ -327,22 +327,36 @@ contract StakingEscrow is Issuer {
 
     /**
     * @notice Get the value of locked tokens for active stakers in (getCurrentPeriod() + _periods) period
+    * as well as stakers and their locked tokens
     * @param _periods Amount of periods for locked tokens calculation
+    * @return allLockedTokens Sum of locked tokens for active stakers
+    * @return activeStakers Array of stakers and their locked tokens. Stakers addresses stored as uint256
     **/
-    function getAllLockedTokens(uint16 _periods)
-        external view returns (uint256 lockedTokens)
+    function getAllActiveStakers(uint16 _periods)
+        external view returns (uint256 allLockedTokens, uint256[2][] memory activeStakers)
     {
         require(_periods > 0);
+
+        uint256 stakersLength = stakers.length;
+        activeStakers = new uint256[2][](stakersLength);
+        uint256 resultIndex = 0;
+
         uint16 currentPeriod = getCurrentPeriod();
         uint16 nextPeriod = currentPeriod.add16(_periods);
-        for (uint256 i = 0; i < stakers.length; i++) {
+
+        for (uint256 i = 0; i < stakersLength; i++) {
             address staker = stakers[i];
             StakerInfo storage info = stakerInfo[staker];
             if (info.confirmedPeriod1 != currentPeriod &&
                 info.confirmedPeriod2 != currentPeriod) {
                 continue;
             }
-            lockedTokens = lockedTokens.add(getLockedTokens(info, currentPeriod, nextPeriod));
+            uint256 lockedTokens = getLockedTokens(info, currentPeriod, nextPeriod);
+            if (lockedTokens != 0) {
+                activeStakers[resultIndex][0] = uint256(staker);
+                activeStakers[resultIndex++][1] = lockedTokens;
+                allLockedTokens = allLockedTokens.add(lockedTokens);
+            }
         }
     }
 
@@ -834,63 +848,6 @@ contract StakingEscrow is Issuer {
         } else if (_confirmedPeriodNumber == 2 &&
             _info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD) {
             lockedPerPeriod[_info.confirmedPeriod1] = lockedPerPeriod[_info.confirmedPeriod1].add(reward);
-        }
-    }
-
-    /**
-    * @notice Get active stakers based on input points
-    * @param _points Array of absolute values. Must be sorted in ascending order.
-    * @param _periods Amount of periods for locked tokens calculation
-    *
-    * @dev This method implements the Probability Proportional to Size (PPS) sampling algorithm,
-    * but with the random input data provided in the _points array.
-    * In few words, the algorithm places in a line all active stakes that have locked tokens for
-    * at least _periods periods; a staker is selected if an input point is within its stake.
-    * For example:
-    *
-    * Stakes: |----- S0 ----|--------- S1 ---------|-- S2 --|---- S3 ---|-S4-|----- S5 -----|
-    * Points: ....R0.......................R1..................R2...............R3...........
-    *
-    * In this case, Stakers 0, 1, 3 and 5 will be selected.
-    *
-    * Only stakers which confirmed the current period (in the previous period) are used.
-    * If the number of points is more than the number of active stakers with suitable stakes,
-    * the last values in the resulting array will be zeros addresses.
-    * The length of this array is always equal to the number of points.
-    **/
-    function sample(uint256[] calldata _points, uint16 _periods)
-        external view returns (address[] memory result)
-    {
-        require(_periods > 0 && _points.length > 0);
-        uint16 currentPeriod = getCurrentPeriod();
-        uint16 nextPeriod = currentPeriod.add16(_periods);
-        result = new address[](_points.length);
-
-        uint256 previousPoint = 0;
-        uint256 pointIndex = 0;
-        uint256 sumOfLockedTokens = 0;
-        uint256 stakerIndex = 0;
-        while (stakerIndex < stakers.length && pointIndex < _points.length) {
-            address currentStaker = stakers[stakerIndex];
-            StakerInfo storage info = stakerInfo[currentStaker];
-            if (info.confirmedPeriod1 != currentPeriod &&
-                info.confirmedPeriod2 != currentPeriod) {
-                stakerIndex += 1;
-                continue;
-            }
-            uint256 stakerTokens = getLockedTokens(info, currentPeriod, nextPeriod);
-            uint256 nextSumValue = sumOfLockedTokens.add(stakerTokens);
-
-            uint256 point = _points[pointIndex];
-            require(point >= previousPoint);  // _points must be a sorted array
-            if (sumOfLockedTokens <= point && point < nextSumValue) {
-                result[pointIndex] = currentStaker;
-                pointIndex += 1;
-                previousPoint = point;
-            } else {
-                stakerIndex += 1;
-                sumOfLockedTokens = nextSumValue;
-            }
         }
     }
 

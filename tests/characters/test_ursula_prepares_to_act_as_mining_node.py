@@ -24,8 +24,9 @@ from nucypher.characters.lawful import Enrico
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.powers import SigningPower
+from nucypher.policy.policies import Policy
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware, NodeIsDownMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
 
 
@@ -165,10 +166,7 @@ def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, bloc
     label = b'bbo'
 
     # TODO: Make sample selection buffer configurable - #1061
-    # Currently, it only supports N<=6, since for N=7, it tries to sample 11 ursulas due to wiggle room,
-    # and blockchain_ursulas only contains 10.
-    # For N >= 7 : NotEnoughBlockchainUrsulas: Cannot create policy with 7 arrangements: There are 10 active stakers, need at least 11.
-    m = n = 6
+    m = n = 10
     expiration = maya.now() + datetime.timedelta(days=5)
 
     _policy = blockchain_alice.grant(bob=blockchain_bob,
@@ -188,3 +186,15 @@ def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, bloc
 
     plaintext = blockchain_bob.retrieve(message_kit, enrico, blockchain_alice.stamp, label)
     assert plaintext[0] == message
+
+    # Let's consider also that a node may be down when granting
+    blockchain_alice.network_middleware = NodeIsDownMiddleware()
+    blockchain_alice.network_middleware.node_is_down(blockchain_ursulas[0])
+
+    with pytest.raises(Policy.Rejected):
+        _policy = blockchain_alice.grant(bob=blockchain_bob,
+                                         label=b'another-label',
+                                         m=m,
+                                         n=n,
+                                         expiration=expiration,
+                                         value=policy_value)
