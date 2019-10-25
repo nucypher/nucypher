@@ -5,6 +5,10 @@ workflows:
   version: 2
   test_build_deploy:
     jobs:
+      - sync_geth_node:
+          filters:
+            tags:
+              only: /.*/
       - pipenv_install_36:
           filters:
             tags:
@@ -202,6 +206,10 @@ workflows:
               only:
                 - master
     jobs:
+      - sync_geth_node:
+          filters:
+            tags:
+              only: /.*/
       - pipenv_install_36:
           filters:
             tags:
@@ -743,3 +751,27 @@ jobs:
           when: always
       - store_artifacts:
           path: ~/test-logs/
+
+  sync_geth_node:
+    <<: *python_37_base
+    parallelism: 1
+    steps:
+    - restore_cache:
+        key: geth-goerli-light
+    - run:
+        name: Download geth and run it to sync goerli chain in light mode
+        command: |
+          GETH_URL='https://gethstore.blob.core.windows.net/builds/geth-linux-amd64-1.9.6-bd059680.tar.gz'
+          cd ~
+          [ -d "geth" ] || curl -o g.tar.gz $GETH_URL && tar -xzf g.tar.gz && mv geth-linux-amd64-1.9.6-bd059680 geth
+          geth/geth --goerli --syncmode light --exitwhensynced 2>&1 | tee /tmp/geth-sync.log
+          echo -e "\nSize of synced chaindata:\n"
+          du -h -s ~/.ethereum/goerli/geth/lightchaindata
+        when: always
+    - save_cache:
+        key: geth-goerli-light
+        paths:
+          - "/home/circleci/geth"
+          - "/home/circleci/.ethereum/goerli/geth/lightchaindata"
+    - store_artifacts:
+        path: /tmp/geth-sync.log
