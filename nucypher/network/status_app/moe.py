@@ -169,7 +169,7 @@ class MoeStatusApp(NetworkStatusPage):
                             layout=go.Layout(
                                 title=f'Staked NU over the previous {prior_periods} days.',
                                 xaxis={'title': 'Date', 'nticks': len(locked_tokens_dict) + 1},
-                                yaxis={'title': 'NU Tokens', 'zeroline': False},
+                                yaxis={'title': 'NU Tokens', 'zeroline': False, 'rangemode': 'tozero'},
                                 showlegend=False,
                                 paper_bgcolor='rgba(0,0,0,0)',
                                 plot_bgcolor='rgba(0,0,0,0)'
@@ -196,7 +196,7 @@ class MoeStatusApp(NetworkStatusPage):
                             layout=go.Layout(
                                 title=f'Num Stakers over the previous {prior_periods} days.',
                                 xaxis={'title': 'Date', 'nticks': len(num_stakers_dict) + 1, 'showgrid': False},
-                                yaxis={'title': 'Stakers', 'zeroline': False, 'showgrid': False},
+                                yaxis={'title': 'Stakers', 'zeroline': False, 'showgrid': False, 'rangemode': 'tozero'},
                                 showlegend=False,
                                 paper_bgcolor='rgba(0,0,0,0)',
                                 plot_bgcolor='rgba(0,0,0,0)'
@@ -224,7 +224,7 @@ class MoeStatusApp(NetworkStatusPage):
                             layout=go.Layout(
                                 title=f'Staked NU over the next {periods} days.',
                                 xaxis={'title': 'Days'},
-                                yaxis={'title': 'NU Tokens'},
+                                yaxis={'title': 'NU Tokens', 'rangemode': 'tozero'},
                                 showlegend=False,
                                 legend=go.layout.Legend(x=0, y=1.0),
                                 paper_bgcolor='rgba(0,0,0,0)',
