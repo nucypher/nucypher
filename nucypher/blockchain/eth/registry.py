@@ -238,6 +238,7 @@ class BaseContractRegistry(ABC):
     def id(self) -> str:
         """Returns a hexstr of the registry contents."""
         blake = hashlib.blake2b()
+        blake.update(self.__class__.__name__.encode())
         blake.update(json.dumps(self.read()).encode())
         digest = blake.digest().hex()
         return digest
