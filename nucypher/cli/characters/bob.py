@@ -34,21 +34,95 @@ from nucypher.crypto.powers import DecryptingPower
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 
-group_admin = group_options(
-    'admin',
+class BobConfigOptions:
+
+    __option_name__ = 'config_options'
+
+    def __init__(
+            self, provider_uri, network, registry_filepath, checksum_address, discovery_port, dev):
+
+        self.provider_uri = provider_uri
+        self.domains = {network} if network else None
+        self.registry_filepath = registry_filepath
+        self.checksum_address = checksum_address
+        self.discovery_port = discovery_port
+        self.dev = dev
+
+    def create_config(self, middleware, config_file):
+        if self.dev:
+            return BobConfiguration(
+                dev_mode=True,
+                domains={TEMPORARY_DOMAIN},
+                provider_uri=self.provider_uri,
+                federated_only=True,
+                checksum_address=self.checksum_address,
+                network_middleware=middleware)
+        else:
+            try:
+                return BobConfiguration.from_configuration_file(
+                    filepath=config_file,
+                    domains=self.domains,
+                    checksum_address=self.checksum_address,
+                    rest_port=self.discovery_port,
+                    provider_uri=self.provider_uri,
+                    registry_filepath=self.registry_filepath,
+                    network_middleware=middleware)
+            except FileNotFoundError:
+                return actions.handle_missing_configuration_file(
+                    character_config_class=BobConfiguration,
+                    config_file=config_file)
+
+    def generate_config(self, emitter, config_root, federated_only):
+
+        checksum_address = self.checksum_address
+        if not checksum_address and not federated_only:
+            checksum_address = select_client_account(
+                emitter=emitter,
+                provider_uri=self.provider_uri)
+
+        return BobConfiguration.generate(
+            password=get_nucypher_password(confirm=True),
+            config_root=config_root,
+            checksum_address=checksum_address,
+            domains=self.domains,
+            federated_only=federated_only,
+            registry_filepath=self.registry_filepath,
+            provider_uri=self.provider_uri)
+
+
+group_config_options = group_options(
+    BobConfigOptions,
     provider_uri=option_provider_uri(),
     network=option_network,
     registry_filepath=option_registry_filepath,
     checksum_address=option_checksum_address,
+    discovery_port=option_discovery_port(),
+    dev=option_dev,
     )
 
 
-group_api = group_options(
-    'api',
-    admin=group_admin,
-    dev=option_dev,
-    config_file=option_config_file,
-    discovery_port=option_discovery_port(),
+class BobCharacterOptions:
+
+    __option_name__ = 'character_options'
+
+    def __init__(self, config_options, teacher_uri, min_stake):
+        self.config_options = config_options
+        self.teacher_uri = teacher_uri
+        self.min_stake = min_stake
+
+    def create_character(self, emitter, middleware, config_file):
+        config = self.config_options.create_config(middleware, config_file)
+
+        return actions.make_cli_character(character_config=config,
+                                          emitter=emitter,
+                                          unlock_keyring=not self.config_options.dev,
+                                          teacher_uri=self.teacher_uri,
+                                          min_stake=self.min_stake)
+
+
+group_character_options = group_options(
+    BobCharacterOptions,
+    config_options=group_config_options,
     teacher_uri=option_teacher_uri,
     min_stake=option_min_stake,
     )
@@ -63,18 +137,11 @@ def bob():
 
 
 @bob.command()
-@group_admin
+@group_config_options
 @option_federated_only
 @option_config_root
 @group_general_config
-def init(general_config,
-
-         # Admin Options
-         admin,
-
-         # Other
-         federated_only, config_root):
-
+def init(general_config, config_options, federated_only, config_root):
     """
     Create a brand new persistent Bob.
     """
@@ -83,51 +150,24 @@ def init(general_config,
     if not config_root:  # Flag
         config_root = general_config.config_file  # Envvar
 
-    checksum_address = admin.checksum_address
-    if not checksum_address and not federated_only:
-        checksum_address = select_client_account(emitter=emitter, provider_uri=admin.provider_uri)
+    new_bob_config = config_options.generate_config(emitter, config_root, federated_only)
 
-    new_bob_config = BobConfiguration.generate(password=get_nucypher_password(confirm=True),
-                                               config_root=config_root or DEFAULT_CONFIG_ROOT,
-                                               checksum_address=checksum_address,
-                                               domains={admin.network} if admin.network else None,
-                                               federated_only=federated_only,
-                                               registry_filepath=admin.registry_filepath,
-                                               provider_uri=admin.provider_uri)
     return painting.paint_new_installation_help(emitter, new_configuration=new_bob_config)
 
 
 @bob.command()
-@group_api
+@group_character_options
+@option_config_file
 @option_controller_port(default=BobConfiguration.DEFAULT_CONTROLLER_PORT)
 @option_dry_run
 @group_general_config
-def run(general_config,
-
-        # API Options
-        api,
-
-        # Other
-        controller_port, dry_run):
+def run(general_config, character_options, config_file, controller_port, dry_run):
     """
     Start Bob's controller.
     """
-
-    ### Setup ###
     emitter = _setup_emitter(general_config)
 
-    admin = api.admin
-
-    bob_config = _get_bob_config(
-        general_config, api.dev, admin.provider_uri, admin.network, admin.registry_filepath, admin.checksum_address,
-        api.config_file, api.discovery_port)
-    #############
-
-    BOB = actions.make_cli_character(character_config=bob_config,
-                                     emitter=emitter,
-                                     unlock_keyring=not api.dev,
-                                     teacher_uri=api.teacher_uri,
-                                     min_stake=api.min_stake)
+    BOB = character_options.create_character(emitter, general_config.middleware, config_file)
 
     # RPC
     if general_config.json_ipc:
@@ -147,139 +187,73 @@ def run(general_config,
 
 
 @bob.command()
-@group_api
+@option_config_file
+@group_config_options
 @group_general_config
-def view(general_config,
-
-         # API Options
-         api
-         ):
+def view(general_config, config_options, config_file):
     """
     View existing Bob's configuration.
     """
-
-    ### Setup ###
     emitter = _setup_emitter(general_config)
-
-    admin = api.admin
-
-    bob_config = _get_bob_config(
-        general_config, api.dev, admin.provider_uri, admin.network, admin.registry_filepath, admin.checksum_address,
-        api.config_file, api.discovery_port)
-
-    #############
-
-    filepath = api.config_file or bob_config.config_file_location
+    bob_config = config_options.create_config(emitter, general_config.middleware, config_file)
+    filepath = config_file or bob_config.config_file_location
     emitter.echo(f"Bob Configuration {filepath} \n {'='*55}")
     response = BobConfiguration._read_configuration_file(filepath=filepath)
     return emitter.echo(json.dumps(response, indent=4))
 
 
 @bob.command()
-@group_admin
-@option_dev
+@group_config_options
 @option_config_file
-@option_discovery_port()
 @option_force
 @group_general_config
-def destroy(general_config,
-
-            # Admin Options
-            admin,
-
-            # Other
-            dev, config_file, discovery_port, force
-            ):
+def destroy(general_config, config_options, config_file, force):
     """
     Delete existing Bob's configuration.
     """
-    ### Setup ###
     emitter = _setup_emitter(general_config)
 
-    bob_config = _get_bob_config(
-        general_config, dev, admin.provider_uri, admin.network, admin.registry_filepath, admin.checksum_address,
-        config_file, discovery_port)
-
-    #############
-
     # Validate
-    if dev:
+    if config_options.dev:
         message = "'nucypher bob destroy' cannot be used in --dev mode"
         raise click.BadOptionUsage(option_name='--dev', message=message)
+
+    bob_config = config_options.create_config(general_config.middleware, config_file)
 
     # Request
     return actions.destroy_configuration(emitter, character_config=bob_config, force=force)
 
 
 @bob.command(name='public-keys')
-@group_api
+@group_character_options
+@option_config_file
 @group_general_config
-def public_keys(general_config,
-
-                # API Options
-                api
-                ):
+def public_keys(general_config, character_options, config_file):
     """
     Obtain Bob's public verification and encryption keys.
     """
-
-    ### Setup ###
     emitter = _setup_emitter(general_config)
-
-    admin = api.admin
-
-    bob_config = _get_bob_config(
-        general_config, api.dev, admin.provider_uri, admin.network, admin.registry_filepath, admin.checksum_address,
-        api.config_file, api.discovery_port)
-
-    #############
-
-    BOB = actions.make_cli_character(character_config=bob_config,
-                                     emitter=emitter,
-                                     unlock_keyring=not api.dev,
-                                     teacher_uri=api.teacher_uri,
-                                     min_stake=api.min_stake,
-                                     load_preferred_teachers=False,
-                                     start_learning_now=False)
-
+    BOB = character_options.create_character(emitter, general_config.middleware, config_file)
     response = BOB.controller.public_keys()
     return response
 
 
 @bob.command()
-@group_api
+@group_character_options
+@option_config_file
 @option_label()
 @option_policy_encrypting_key()
 @click.option('--alice-verifying-key', help="Alice's verifying key as a hexadecimal string", type=click.STRING)
 @option_message_kit()
 @group_general_config
-def retrieve(general_config,
-
-             # API Options
-             api,
-
-             # Other
+def retrieve(general_config, character_options, config_file,
              label, policy_encrypting_key, alice_verifying_key, message_kit):
     """
     Obtain plaintext from encrypted data, if access was granted.
     """
-
-    ### Setup ###
     emitter = _setup_emitter(general_config)
 
-    admin = api.admin
-
-    bob_config = _get_bob_config(
-        general_config, api.dev, admin.provider_uri, admin.network, admin.registry_filepath, admin.checksum_address,
-        api.config_file, api.discovery_port)
-
-    #############
-
-    BOB = actions.make_cli_character(character_config=bob_config,
-                                     emitter=emitter,
-                                     unlock_keyring=not api.dev,
-                                     teacher_uri=api.teacher_uri,
-                                     min_stake=api.min_stake)
+    BOB = character_options.create_character(emitter, general_config.middleware, config_file)
 
     # Validate
     if not all((label, policy_encrypting_key, alice_verifying_key, message_kit)):
@@ -297,33 +271,6 @@ def retrieve(general_config,
 
     response = BOB.controller.retrieve(request=bob_request_data)
     return response
-
-
-def _get_bob_config(general_config, dev, provider_uri, network, registry_filepath, checksum_address, config_file,
-                    discovery_port):
-    if dev:
-        bob_config = BobConfiguration(dev_mode=True,
-                                      domains={TEMPORARY_DOMAIN},
-                                      provider_uri=provider_uri,
-                                      federated_only=True,
-                                      checksum_address=checksum_address,
-                                      network_middleware=general_config.middleware)
-    else:
-
-        try:
-            bob_config = BobConfiguration.from_configuration_file(
-                filepath=config_file,
-                domains={network} if network else None,
-                checksum_address=checksum_address,
-                rest_port=discovery_port,
-                provider_uri=provider_uri,
-                registry_filepath=registry_filepath,
-                network_middleware=general_config.middleware)
-        except FileNotFoundError:
-            return actions.handle_missing_configuration_file(character_config_class=BobConfiguration,
-                                                             config_file=config_file)
-
-    return bob_config
 
 
 def _setup_emitter(general_config):
