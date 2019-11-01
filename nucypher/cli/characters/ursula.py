@@ -518,7 +518,7 @@ def _create_ursula(ursula_config, general_config, dev, emitter, lonely, teacher_
 
     try:
         URSULA = actions.make_cli_character(character_config=ursula_config,
-                                            general_config=general_config,
+                                            emitter=general_config.emitter,
                                             min_stake=min_stake,
                                             teacher_uri=teacher_uri,
                                             unlock_keyring=not dev,

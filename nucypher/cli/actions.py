@@ -308,14 +308,12 @@ def get_provider_process(start_now: bool = False):
 
 
 def make_cli_character(character_config,
-                       general_config,
+                       emitter,
                        unlock_keyring: bool = True,
                        teacher_uri: str = None,
                        min_stake: int = 0,
                        load_preferred_teachers: bool = True,
                        **config_args):
-
-    emitter = general_config.emitter
 
     #
     # Pre-Init

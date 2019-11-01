@@ -477,7 +477,7 @@ def _create_alice(alice_config, general_config, dev, emitter, hw_wallet, teacher
             client_password = get_client_password(checksum_address=alice_config.checksum_address)
     try:
         ALICE = actions.make_cli_character(character_config=alice_config,
-                                           general_config=general_config,
+                                           emitter=general_config.emitter,
                                            unlock_keyring=not dev,
                                            teacher_uri=teacher_uri,
                                            min_stake=min_stake,
