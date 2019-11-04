@@ -39,8 +39,51 @@ from nucypher.cli.painting import paint_contract_status, paint_stakers, paint_lo
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 
 
-group_common = group_options(
-    'common',
+class RegistryOptions:
+
+    __option_name__ = 'registry_options'
+
+    def __init__(self, provider_uri, geth, poa, registry_filepath, light):
+        self.provider_uri = provider_uri
+        self.geth = geth
+        self.poa = poa
+        self.registry_filepath = registry_filepath
+        self.light = light
+
+    def get_registry(self, emitter, debug):
+        try:
+            eth_node = None
+            if self.geth:
+                eth_node = get_provider_process()
+
+            # Note: For test compatibility.
+            if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri):
+                BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
+                                                                provider_process=eth_node,
+                                                                poa=self.poa,
+                                                                light=self.light,
+                                                                sync=False,
+                                                                show_sync_progress=False)
+
+            blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=self.provider_uri)
+
+            emitter.echo(message="Reading Latest Chaindata...")
+            blockchain.connect()
+        except Exception as e:
+            if debug:
+                raise
+            click.secho(str(e), bold=True, fg='red')
+            raise click.Abort
+        if self.registry_filepath:
+            registry = LocalContractRegistry(filepath=self.registry_filepath)
+        else:
+            registry = InMemoryContractRegistry.from_latest_publication()
+
+        return registry
+
+
+group_registry_options = group_options(
+    RegistryOptions,
     provider_uri=option_provider_uri(default="auto://"),
     geth=option_geth,
     poa=option_poa,
@@ -58,43 +101,27 @@ def status():
 
 
 @status.command()
-@group_common
+@group_registry_options
 @group_general_config
-def network(general_config,
-
-            # Common Options
-            common
-            ):
+def network(general_config, registry_options):
     """
     Overall information of the NuCypher Network.
     """
-    # Init
     emitter = _setup_emitter(general_config)
-    registry = _get_registry(
-        general_config, emitter, common.geth, common.poa,
-        common.light, common.provider_uri, common.registry_filepath)
+    registry = registry_options.get_registry(emitter, general_config.debug)
     paint_contract_status(registry, emitter=emitter)
 
 
 @status.command()
-@group_common
+@group_registry_options
 @option_staking_address
 @group_general_config
-def stakers(general_config,
-
-            # Common Options
-            common,
-
-            # Other
-            staking_address):
+def stakers(general_config, registry_options, staking_address):
     """
     Show relevant information about stakers.
     """
-    # Init
     emitter = _setup_emitter(general_config)
-    registry = _get_registry(
-        general_config, emitter, common.geth, common.poa,
-        common.light, common.provider_uri, common.registry_filepath)
+    registry = registry_options.get_registry(emitter, general_config.debug)
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
@@ -104,24 +131,15 @@ def stakers(general_config,
 
 
 @status.command(name='locked-tokens')
-@group_common
+@group_registry_options
 @click.option('--periods', help="Number of periods", type=click.INT, default=90)
 @group_general_config
-def locked_tokens(general_config,
-
-                  # Common Options
-                  common,
-
-                  # Other
-                  periods):
+def locked_tokens(general_config, registry_options, periods):
     """
     Display a graph of the number of locked tokens over time.
     """
-    # Init
     emitter = _setup_emitter(general_config)
-    registry = _get_registry(
-        general_config, emitter, common.geth, common.poa,
-        common.light, common.provider_uri, common.registry_filepath)
+    registry = registry_options.get_registry(emitter, general_config.debug)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
     paint_locked_tokens_status(emitter=emitter, agent=staking_agent, periods=periods)
 
@@ -132,35 +150,3 @@ def _setup_emitter(general_config):
     emitter.banner(NU_BANNER)
 
     return emitter
-
-
-def _get_registry(general_config, emitter, geth, poa, light, provider_uri, registry_filepath):
-    try:
-        ETH_NODE = None
-        if geth:
-            ETH_NODE = get_provider_process()
-
-        # Note: For test compatibility.
-        if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-            BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri,
-                                                            provider_process=ETH_NODE,
-                                                            poa=poa,
-                                                            light=light,
-                                                            sync=False,
-                                                            show_sync_progress=False)
-
-        blockchain = BlockchainInterfaceFactory.get_interface()
-
-        emitter.echo(message="Reading Latest Chaindata...")
-        blockchain.connect()
-    except Exception as e:
-        if general_config.debug:
-            raise
-        click.secho(str(e), bold=True, fg='red')
-        raise click.Abort
-    if registry_filepath:
-        registry = LocalContractRegistry(filepath=registry_filepath)
-    else:
-        registry = InMemoryContractRegistry.from_latest_publication()
-
-    return registry
