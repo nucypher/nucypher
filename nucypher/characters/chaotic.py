@@ -35,7 +35,7 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
-from nucypher.config.constants import TEMPLATES_DIR, DEFAULT_CONFIG_ROOT
+from nucypher.config.constants import TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower, TransactingPower
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
@@ -53,12 +53,16 @@ class Moe(Character):
 
     def __init__(self,
                  host: str,
-                 port: int,
+                 http_port: int,
+                 websocket_port: int,
                  tls_certificate_filepath: str = None,
                  tls_private_key_filepath: str = None,
                  *args, **kwargs):
+
+        self.rest_app = None
         self.host = host
-        self.port = port
+        self.http_port = http_port
+        self.websocket_port = websocket_port
 
         # Pre-Signed
         if tls_certificate_filepath and tls_private_key_filepath:
@@ -107,7 +111,7 @@ class Moe(Character):
         hey_joe.send(None, topic="nodes")
         return new_nodes
 
-    def start(self, ws_port: int, dry_run: bool = False):
+    def start(self, dry_run: bool = False):
 
         #
         # Websocket Service
@@ -121,30 +125,28 @@ class Moe(Character):
             message = ["nodes", None]
             subscriber.sendMessage(json.dumps(message).encode())
 
-        websocket_service = hey_joe.WebSocketService("127.0.0.1", ws_port)
+        websocket_service = hey_joe.WebSocketService(self.host, self.websocket_port)
         websocket_service.register_followup("states", send_states)
         websocket_service.register_followup("nodes", send_nodes)
 
         #
         # WSGI Service
         #
+
         self.rest_app = Flask("fleet-monitor")
         rest_app = self.rest_app
-        # attach status app to rest_app
         MoeStatusApp(moe=self,
                      title='Moe Monitoring Application',
                      flask_server=self.rest_app,
-                     route_url='/',
-                     ws_port=ws_port)
+                     route_url='/')
 
         #
         # Server
         #
 
-        deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=rest_app, port=self.port)
-        wss_service = hey_joe.WSSWebSocketService(host_address=self.host,
-                                                  port=ws_port,
-                                                  allowedOrigins=[f"https://{self.host}:{self.port}"])
+        deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=rest_app, port=self.http_port)
+        origins = [f"https://{self.host}:{self.http_port}"]
+        wss_service = hey_joe.WSSWebSocketService(host_address=self.host, port=self.websocket_port, allowedOrigins=origins)
         deployer.add_tls_websocket_service(wss_service)
 
         if not dry_run:
