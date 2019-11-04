@@ -27,9 +27,8 @@ class MoeStatusApp(NetworkStatusPage):
                     'fillFrame': False,
                     'displayModeBar': False}
 
-    def __init__(self, moe, ws_port: int, *args, **kwargs):
+    def __init__(self, moe, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.ws_port = ws_port
         self.moe = moe
 
         from nucypher.network.status_app.crawler import MoeBlockchainCrawler
@@ -43,7 +42,8 @@ class MoeStatusApp(NetworkStatusPage):
         template_path = os.path.join(self.TEMPLATE_DIR, 'moe.html')
         with open(template_path, 'r') as file:
             moe_template = file.read()
-            self.dash_app.index_string = Template(moe_template).substitute(ws_port=ws_port, ws_host='0.0.0.0')  # TODO
+            self.dash_app.index_string = Template(moe_template).substitute(ws_port=moe.websocket_port,
+                                                                           ws_host=self.moe.host)
 
         self.dash_app.layout = html.Div([
             dcc.Location(id='url', refresh=False),
