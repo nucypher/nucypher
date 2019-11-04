@@ -130,7 +130,7 @@ workflows:
               only: /.*/
           requires:
             - pip_install_37
-            - tests_ok
+            - sync_geth_node
       - estimate_gas:
           filters:
             tags:
@@ -549,18 +549,60 @@ jobs:
       - store_artifacts:
           path: /tmp/ursulas-logs
 
-  cli_demo:
+  cli_retrieve_demo:
     <<: *python_37_base
     steps:
     - prepare_environment
     - run:
-        name: Run a CLI demo in NuCypher testnet
+        name: Run a CLI retrieve command in NuCypher testnet
         command: |
           cd ~/nucypher
           pip3 install --user -e .
           ./examples/cli_demo/bob-retrieve.sh
     - store_artifacts:
         path: /tmp/cli-demo
+
+  cli_demo:
+    <<: *python_37_base
+    steps:
+      - prepare_environment
+      - restore_cache:
+          keys:
+          - geth-goerli-light-v2-
+      - run:
+          name: Add geth static nodes
+          command: |
+            mkdir --parents ~/.ethereum/goerli
+            echo -e "[" >> ~/.ethereum/goerli/static-nodes.json
+            echo -e "  $ENODE_1," >> ~/.ethereum/goerli/static-nodes.json
+            echo -e "  $ENODE_2 " >> ~/.ethereum/goerli/static-nodes.json
+            echo -e "]" >> ~/.ethereum/goerli/static-nodes.json
+      - run:
+          name: Run geth --goerli in light mode in background. Wait for 10 seconds.
+          command: |
+            nohup ~/geth/geth --goerli --syncmode light &> /tmp/geth-sync.log &
+            sleep 10
+            cat /tmp/geth-sync.log
+      - run:
+          name: Run a full CLI demo in NuCypher testnet -> Alice grants, Enrico encrypts, Bob retrieves.
+          command: |
+            cd ~/nucypher
+            pip3 install --user -e .
+            RANDOM=$$
+            LABEL=$CIRCLE_WORKFLOW_JOB_ID-$RANDOM
+            echo -e "\nLabel: $LABEL\n"
+            ./examples/cli_demo/alice-grant.sh $LABEL
+            ./examples/cli_demo/bob-retrieve.sh $LABEL
+      - run:
+          name: Save artifacts for later inspection
+          command: |
+            cp .cache/nucypher/log/nucypher.log /tmp/cli-demo
+            cp /tmp/grant.json /tmp/cli-demo
+            cp /tmp/enrico.json /tmp/cli-demo
+            cp /tmp/retrieve.json /tmp/cli-demo
+      - store_artifacts:
+          path: /tmp/cli-demo
+
 
   validate_reqs_files:
     working_directory: ~/nucypher
@@ -766,13 +808,6 @@ jobs:
           cd ~
           [ -d "geth" ] || curl -o g.tar.gz $GETH_URL && tar -xzf g.tar.gz && mv geth-linux-amd64-1.9.6-bd059680 geth
           geth/geth version
-    - run:
-        name: Add static nodes
-        command: |
-          echo -e "[" >> ~/.ethereum/goerli/static-nodes.json
-          echo -e "  $ENODE_1," >> ~/.ethereum/goerli/static-nodes.json
-          echo -e "  $ENODE_2 " >> ~/.ethereum/goerli/static-nodes.json
-          echo -e "]" >> ~/.ethereum/goerli/static-nodes.json
     - run:
         name: Run geth to sync goerli chain in light mode. Exit when synced.
         command: |
