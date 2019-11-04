@@ -580,7 +580,9 @@ jobs:
       - run:
           name: Run geth --goerli in light mode in background. Wait for 10 seconds.
           command: |
-            nohup ~/geth/geth --goerli --syncmode light &> /tmp/geth-sync.log &
+            sed -i -e "s|StaticNodes = \[\]|StaticNodes = \[$ENODE_1, $ENODE_2\]|" ~/nucypher/.circleci/goerli.toml
+            sed -i -e "s|TrustedNodes = \[\]|TrustedNodes = \[$ENODE_1, $ENODE_2\]|" ~/nucypher/.circleci/goerli.toml
+            nohup ~/geth/geth --config ~/nucypher/.circleci/goerli.toml &> /tmp/geth-sync.log &
             sleep 10
             cat /tmp/geth-sync.log
       - run:
