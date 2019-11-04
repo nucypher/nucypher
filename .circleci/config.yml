@@ -758,7 +758,7 @@ jobs:
     steps:
     - restore_cache:
         keys:
-          - geth-goerli-light-v1-
+          - geth-goerli-light-v2-
     - run:
         name: Download geth, in case it wasn't cached
         command: |
@@ -780,7 +780,7 @@ jobs:
           echo -e "\nSize of synced chaindata:\n"
           du -h -s ~/.ethereum/goerli/geth/lightchaindata
     - save_cache:
-        key: geth-goerli-light-v1-{{ epoch }}
+        key: geth-goerli-light-v2-{{ epoch }}
         paths:
           - "/home/circleci/geth"
           - "/home/circleci/.ethereum/goerli/geth/lightchaindata"
