@@ -8,6 +8,8 @@ from nucypher.cli.types import (
     EXISTING_READABLE_FILE,
     NETWORK_PORT,
     )
+from nucypher.network.middleware import RestMiddleware
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
 option_checksum_address = click.option(
@@ -146,3 +148,47 @@ def group_options(option_class, **options):
         return wrapper
 
     return _decorator
+
+
+def wrap_option(handler, **options):
+
+    assert len(options) == 1
+    name = list(options)[0]
+    dec = options[name]
+
+    def _decorator(func):
+
+        @functools.wraps(func)
+        def wrapper(**kwargs):
+            if name not in kwargs:
+                raise ValueError(
+                        f"When trying to wrap a CLI option with {handler}, "
+                        f"{name} was not found among arguments")
+            option_val = kwargs[name]
+            option_name, new_val = handler(option_val)
+            del kwargs[name]
+            kwargs[option_name] = new_val
+            return func(**kwargs)
+
+        wrapper = dec(wrapper)
+
+        return wrapper
+
+    return _decorator
+
+
+def process_middleware(mock_networking):
+    if mock_networking:
+        # FIXME: is there a way to get an emitter here?
+        #self.emitter.message("WARNING: Mock networking is enabled")
+        middleware = MockRestMiddleware()
+    else:
+        middleware = RestMiddleware()
+
+    return 'middleware', middleware
+
+
+option_middleware = wrap_option(
+    process_middleware,
+    mock_networking=click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True),
+    )

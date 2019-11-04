@@ -449,7 +449,6 @@ def test_collect_rewards_integration(click_runner,
 
     # Collect Policy Reward
     collection_args = ('stake', 'collect-reward',
-                       '--mock-networking',
                        '--config-file', stakeholder_configuration_file_location,
                        '--policy-reward',
                        '--no-staking-reward',
@@ -481,7 +480,6 @@ def test_collect_rewards_integration(click_runner,
     balance_before_collecting = staker.token_agent.get_balance(address=staker_address)
 
     collection_args = ('stake', 'collect-reward',
-                       '--mock-networking',
                        '--config-file', stakeholder_configuration_file_location,
                        '--no-policy-reward',
                        '--staking-reward',

@@ -18,6 +18,7 @@ from nucypher.cli.common_options import (
     option_dry_run,
     option_force,
     option_geth,
+    option_middleware,
     option_min_stake,
     option_network,
     option_poa,
@@ -114,12 +115,13 @@ class FelixCharacterOptions:
 
     __option_name__ = 'character_options'
 
-    def __init__(self, config_options, teacher_uri, min_stake):
+    def __init__(self, config_options, teacher_uri, min_stake, middleware):
         self.config_options = config_options
         self.teacher_uris = [teacher_uri] if teacher_uri else None
         self.min_stake = min_stake
+        self.middleware = middleware
 
-    def create_character(self, emitter, config_file, middleware, debug):
+    def create_character(self, emitter, config_file, debug):
 
         felix_config = self.config_options.create_config(emitter, config_file)
 
@@ -135,7 +137,7 @@ class FelixCharacterOptions:
                                                    min_stake=self.min_stake,
                                                    federated_only=felix_config.federated_only,
                                                    network_domains=felix_config.domains,
-                                                   network_middleware=middleware)
+                                                   network_middleware=self.middleware)
 
             # Produce Felix
             FELIX = felix_config.produce(domains=self.config_options.domains, known_nodes=teacher_nodes)
@@ -155,6 +157,7 @@ group_character_options = group_options(
     config_options=group_config_options,
     teacher_uri=option_teacher_uri,
     min_stake=option_min_stake,
+    middleware=option_middleware,
     )
 
 
@@ -218,8 +221,7 @@ def createdb(general_config, character_options, config_file, force):
     """
     emitter = _setup_emitter(general_config, character_options.config_options.checksum_address)
 
-    FELIX = character_options.create_character(
-        emitter, config_file, general_config.middleware, general_config.debug)
+    FELIX = character_options.create_character(emitter, config_file, general_config.debug)
 
     if os.path.isfile(FELIX.db_filepath):
         if not force:
@@ -241,8 +243,7 @@ def view(general_config, character_options, config_file):
     """
     emitter = _setup_emitter(general_config, character_options.config_options.checksum_address)
 
-    FELIX = character_options.create_character(
-        emitter, config_file, general_config.middleware, general_config.debug)
+    FELIX = character_options.create_character(emitter, config_file, general_config.debug)
 
     token_balance = FELIX.token_balance
     eth_balance = FELIX.eth_balance
@@ -263,8 +264,7 @@ def accounts(general_config, character_options, config_file):
     """
     emitter = _setup_emitter(general_config, character_options.config_options.checksum_address)
 
-    FELIX = character_options.create_character(
-        emitter, config_file, general_config.middleware, general_config.debug)
+    FELIX = character_options.create_character(emitter, config_file, general_config.debug)
 
     accounts = FELIX.blockchain.client.accounts
     for account in accounts:
@@ -282,8 +282,7 @@ def run(general_config, character_options, config_file, dry_run):
     """
     emitter = _setup_emitter(general_config, character_options.config_options.checksum_address)
 
-    FELIX = character_options.create_character(
-        emitter, config_file, general_config.middleware, general_config.debug)
+    FELIX = character_options.create_character(emitter, config_file, general_config.debug)
 
     host = character_options.config_options.host
     port = character_options.config_options.port

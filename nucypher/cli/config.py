@@ -27,9 +27,7 @@ from twisted.logger import Logger
 from nucypher.characters.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
 from nucypher.cli.common_options import option_etherscan, group_options
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
-from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import GlobalLoggerSettings
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
 def get_env_bool(var_name: str, default: bool) -> bool:
@@ -57,8 +55,6 @@ class GroupGeneralConfig:
     log_to_file = get_env_bool("NUCYPHER_FILE_LOGS", True)
 
     def __init__(self,
-                    mock_networking,
-                    etherscan,
                     json_ipc,
                     verbose,
                     quiet,
@@ -133,19 +129,8 @@ class GroupGeneralConfig:
         if json_ipc:
             GlobalLoggerSettings.stop_console_logging()  # JSON-RPC Protection
 
-        # CLI Session Configuration
-        self.mock_networking = mock_networking
         self.debug = debug
         self.json_ipc = json_ipc
-        self.etherscan = etherscan
-
-        # Only used for testing outputs;
-        # Redirects outputs to in-memory python containers.
-        if mock_networking:
-            self.emitter.message("WARNING: Mock networking is enabled")
-            self.middleware = MockRestMiddleware()
-        else:
-            self.middleware = RestMiddleware()
 
     @classmethod
     def attach_emitter(cls, emitter) -> None:
@@ -158,8 +143,6 @@ class GroupGeneralConfig:
 
 group_general_config = group_options(
     GroupGeneralConfig,
-    mock_networking=click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True),
-    etherscan=option_etherscan,
     json_ipc=click.option('-J', '--json-ipc', help="Send all IPC output to stdout as JSON, and turn off the rest", is_flag=True),
     verbose=click.option('-v', '--verbose', help="Verbose console messages", is_flag=True),
     quiet=click.option('-Q', '--quiet', help="Disable console messages", is_flag=True),

@@ -23,6 +23,7 @@ from nucypher.cli.common_options import (
     option_light,
     option_m,
     option_message_kit,
+    option_middleware,
     option_min_stake,
     option_n,
     option_network,
@@ -51,7 +52,7 @@ class AliceConfigOptions:
 
     def __init__(
             self, dev, network, provider_uri, geth, federated_only, discovery_port,
-            pay_with, registry_filepath):
+            pay_with, registry_filepath, middleware):
 
         if federated_only and geth:
             raise click.BadOptionUsage(
@@ -73,8 +74,9 @@ class AliceConfigOptions:
         self.pay_with = pay_with
         self.discovery_port = discovery_port
         self.registry_filepath = registry_filepath
+        self.middleware = middleware
 
-    def create_config(self, middleware, config_file):
+    def create_config(self, config_file):
 
         if self.dev:
 
@@ -86,7 +88,7 @@ class AliceConfigOptions:
 
             return AliceConfiguration(
                 dev_mode=True,
-                network_middleware=middleware,
+                network_middleware=self.middleware,
                 domains={TEMPORARY_DOMAIN},
                 provider_process=self.eth_node,
                 provider_uri=self.provider_uri,
@@ -96,7 +98,7 @@ class AliceConfigOptions:
             try:
                 return AliceConfiguration.from_configuration_file(
                     dev_mode=False,
-                    network_middleware=middleware,
+                    network_middleware=self.middleware,
                     domains=self.domains,
                     provider_process=self.eth_node,
                     provider_uri=self.provider_uri,
@@ -152,6 +154,7 @@ group_config_options = group_options(
     discovery_port=option_discovery_port(),
     pay_with=option_pay_with,
     registry_filepath=option_registry_filepath,
+    middleware=option_middleware,
     )
 
 
@@ -165,9 +168,9 @@ class AliceCharacterOptions:
         self.teacher_uri = teacher_uri
         self.min_stake = min_stake
 
-    def create_character(self, emitter, config_file, middleware, json_ipc, load_seednodes=True):
+    def create_character(self, emitter, config_file, json_ipc, load_seednodes=True):
 
-        config = self.config_options.create_config(middleware, config_file)
+        config = self.config_options.create_config(config_file)
 
         client_password = None
         if not config.federated_only:
@@ -257,7 +260,7 @@ def destroy(general_config, config_options, config_file, force):
     Delete existing Alice's configuration.
     """
     emitter = _setup_emitter(general_config)
-    alice_config = config_options.create_config(general_config.middleware, config_file)
+    alice_config = config_options.create_config(config_file)
     return actions.destroy_configuration(emitter, character_config=alice_config, force=force)
 
 
@@ -273,7 +276,7 @@ def run(general_config, character_options, config_file, controller_port, dry_run
     """
     emitter = _setup_emitter(general_config)
     ALICE = character_options.create_character(
-        emitter, config_file, general_config.middleware, general_config.json_ipc)
+        emitter, config_file, general_config.json_ipc)
 
     try:
         # RPC
@@ -308,8 +311,7 @@ def public_keys(general_config, character_options, config_file):
     Obtain Alice's public verification and encryption keys.
     """
     emitter = _setup_emitter(general_config)
-    ALICE = character_options.create_character(
-        emitter, config_file, general_config.middleware, general_config.json_ipc, load_seednodes=False)
+    ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
     response = ALICE.controller.public_keys()
     return response
 
@@ -325,8 +327,7 @@ def derive_policy_pubkey(general_config, label, character_options, config_file):
     """
     ### Setup ###
     emitter = _setup_emitter(general_config)
-    ALICE = character_options.create_character(
-        emitter, config_file, general_config.middleware, general_config.json_ipc, load_seednodes=False)
+    ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
     return ALICE.controller.derive_policy_encrypting_key(label=label)
 
 
@@ -358,8 +359,7 @@ def grant(general_config,
     ### Setup ###
     emitter = _setup_emitter(general_config)
 
-    ALICE = character_options.create_character(
-        emitter, config_file, general_config.middleware, general_config.json_ipc)
+    ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
 
     # Request
     grant_request = {
@@ -396,8 +396,7 @@ def revoke(general_config,
     ### Setup ###
     emitter = _setup_emitter(general_config)
 
-    ALICE = character_options.create_character(
-        emitter, config_file, general_config.middleware, general_config.json_ipc)
+    ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
 
     # Request
     revoke_request = {'label': label, 'bob_verifying_key': bob_verifying_key}
@@ -424,8 +423,7 @@ def decrypt(general_config,
     ### Setup ###
     emitter = _setup_emitter(general_config)
 
-    ALICE = character_options.create_character(
-        emitter, config_file, general_config.middleware, general_config.json_ipc, load_seednodes=False)
+    ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
 
     # Request
     request_data = {'label': label, 'message_kit': message_kit}

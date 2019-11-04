@@ -19,6 +19,7 @@ from nucypher.cli.common_options import (
     option_force,
     option_label,
     option_message_kit,
+    option_middleware,
     option_min_stake,
     option_network,
     option_policy_encrypting_key,
@@ -39,7 +40,8 @@ class BobConfigOptions:
     __option_name__ = 'config_options'
 
     def __init__(
-            self, provider_uri, network, registry_filepath, checksum_address, discovery_port, dev):
+            self, provider_uri, network, registry_filepath,
+            checksum_address, discovery_port, dev, middleware):
 
         self.provider_uri = provider_uri
         self.domains = {network} if network else None
@@ -47,8 +49,9 @@ class BobConfigOptions:
         self.checksum_address = checksum_address
         self.discovery_port = discovery_port
         self.dev = dev
+        self.middleware = middleware
 
-    def create_config(self, middleware, config_file):
+    def create_config(self, config_file):
         if self.dev:
             return BobConfiguration(
                 dev_mode=True,
@@ -56,7 +59,7 @@ class BobConfigOptions:
                 provider_uri=self.provider_uri,
                 federated_only=True,
                 checksum_address=self.checksum_address,
-                network_middleware=middleware)
+                network_middleware=self.middleware)
         else:
             try:
                 return BobConfiguration.from_configuration_file(
@@ -66,7 +69,7 @@ class BobConfigOptions:
                     rest_port=self.discovery_port,
                     provider_uri=self.provider_uri,
                     registry_filepath=self.registry_filepath,
-                    network_middleware=middleware)
+                    network_middleware=self.middleware)
             except FileNotFoundError:
                 return actions.handle_missing_configuration_file(
                     character_config_class=BobConfiguration,
@@ -98,6 +101,7 @@ group_config_options = group_options(
     checksum_address=option_checksum_address,
     discovery_port=option_discovery_port(),
     dev=option_dev,
+    middleware=option_middleware,
     )
 
 
@@ -110,8 +114,8 @@ class BobCharacterOptions:
         self.teacher_uri = teacher_uri
         self.min_stake = min_stake
 
-    def create_character(self, emitter, middleware, config_file):
-        config = self.config_options.create_config(middleware, config_file)
+    def create_character(self, emitter, config_file):
+        config = self.config_options.create_config(config_file)
 
         return actions.make_cli_character(character_config=config,
                                           emitter=emitter,
@@ -167,7 +171,7 @@ def run(general_config, character_options, config_file, controller_port, dry_run
     """
     emitter = _setup_emitter(general_config)
 
-    BOB = character_options.create_character(emitter, general_config.middleware, config_file)
+    BOB = character_options.create_character(emitter, config_file)
 
     # RPC
     if general_config.json_ipc:
@@ -195,7 +199,7 @@ def view(general_config, config_options, config_file):
     View existing Bob's configuration.
     """
     emitter = _setup_emitter(general_config)
-    bob_config = config_options.create_config(emitter, general_config.middleware, config_file)
+    bob_config = config_options.create_config(emitter, config_file)
     filepath = config_file or bob_config.config_file_location
     emitter.echo(f"Bob Configuration {filepath} \n {'='*55}")
     response = BobConfiguration._read_configuration_file(filepath=filepath)
@@ -218,7 +222,7 @@ def destroy(general_config, config_options, config_file, force):
         message = "'nucypher bob destroy' cannot be used in --dev mode"
         raise click.BadOptionUsage(option_name='--dev', message=message)
 
-    bob_config = config_options.create_config(general_config.middleware, config_file)
+    bob_config = config_options.create_config(config_file)
 
     # Request
     return actions.destroy_configuration(emitter, character_config=bob_config, force=force)
@@ -233,7 +237,7 @@ def public_keys(general_config, character_options, config_file):
     Obtain Bob's public verification and encryption keys.
     """
     emitter = _setup_emitter(general_config)
-    BOB = character_options.create_character(emitter, general_config.middleware, config_file)
+    BOB = character_options.create_character(emitter, config_file)
     response = BOB.controller.public_keys()
     return response
 
@@ -253,7 +257,7 @@ def retrieve(general_config, character_options, config_file,
     """
     emitter = _setup_emitter(general_config)
 
-    BOB = character_options.create_character(emitter, general_config.middleware, config_file)
+    BOB = character_options.create_character(emitter, config_file)
 
     # Validate
     if not all((label, policy_encrypting_key, alice_verifying_key, message_kit)):
