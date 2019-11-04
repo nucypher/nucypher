@@ -72,12 +72,13 @@ def moe(click_config,
               registry=registry,
               federated_only=federated_only,
               host=host,
-              port=http_port,
+              http_port=http_port,
+              websocket_port=ws_port,
               tls_certificate_filepath=certificate_filepath,
               tls_private_key_filepath=tls_key_filepath)
 
     # Run
 
     MOE.start_learning_loop(now=learn_on_launch)
-    emitter.message(f"Running Moe on {MOE.host}:{MOE.port}")
-    MOE.start(ws_port=ws_port, dry_run=dry_run)
+    emitter.message(f"Running Moe - https://{MOE.host}:{MOE.http_port}")
+    MOE.start(dry_run=dry_run)
