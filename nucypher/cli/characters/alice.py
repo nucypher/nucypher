@@ -17,9 +17,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import functools
+import os
 
 import click
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.cli import actions, painting, types
@@ -463,8 +464,13 @@ def _create_alice(alice_config, click_config, dev, emitter, hw_wallet, teacher_u
     # Produce Alice
     #
     client_password = None
-    if not alice_config.federated_only:
-        if (not hw_wallet or not dev) and not click_config.json_ipc:
+    if not alice_config.federated_only and (not hw_wallet or not dev):
+        if click_config.json_ipc:
+            client_password = os.environ.get("NUCYPHER_ALICE_ETH_PASSWORD", NO_PASSWORD)
+            if client_password is NO_PASSWORD:
+                click.BadOptionUsage(option_name='--json-ipc',
+                                     message="--json-ipc implies the NUCYPHER_ALICE_ETH_PASSWORD envvar must be set.")
+        else:
             client_password = get_client_password(checksum_address=alice_config.checksum_address)
     try:
         ALICE = actions.make_cli_character(character_config=alice_config,
