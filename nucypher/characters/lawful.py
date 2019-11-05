@@ -28,7 +28,7 @@ import maya
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE, NO_DECRYPTION_PERFORMED
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -344,7 +344,12 @@ class Alice(Character, BlockchainPolicyAuthor):
         dict as a key, and the revocation and Ursula's response is added as
         a value.
         """
-        revocation_kit = RevocationKit(policy.treasure_map, self.stamp)
+
+        # TODO
+        if policy.treasure_map is not NO_DECRYPTION_PERFORMED:
+            revocation_kit = RevocationKit.from_treasure_map(treasure_map=policy.treasure_map, signer=self.stamp)
+        else:
+            revocation_kit = RevocationKit.from_policy(policy=policy, signer=self.stamp)
 
         try:
             # Wait for a revocation threshold of nodes to be known ((n - m) + 1)

@@ -109,11 +109,8 @@ UmbralMessageKit = PolicyMessageKit  # Temporarily, until serialization w/ Enric
 
 class RevocationKit:
 
-    def __init__(self, treasure_map: 'TreasureMap', signer: 'SignatureStamp'):
-        from nucypher.policy.collections import Revocation
-        self.revocations = dict()
-        for node_id, arrangement_id in treasure_map:
-            self.revocations[node_id] = Revocation(arrangement_id, signer=signer)
+    def __init__(self, revocations: dict):
+        self.revocations = revocations
 
     def __iter__(self):
         return iter(self.revocations.values())
@@ -126,6 +123,24 @@ class RevocationKit:
 
     def __eq__(self, other):
         return self.revocations == other.revocations
+
+    @classmethod
+    def from_treasure_map(cls, treasure_map, signer) -> 'RevocationKit':
+        from nucypher.policy.collections import Revocation
+        revocations = dict()
+        for node_id, arrangement_id in treasure_map:
+            revocations[node_id] = Revocation(arrangement_id, signer=signer)
+        instance = cls(revocations=revocations)
+        return instance
+
+    @classmethod
+    def from_policy(cls, policy, signer):
+        from nucypher.policy.collections import Revocation
+        revocations = dict()
+        for arrangement in policy._published_arrangements:
+            revocations[arrangement.ursula.checksum_address] = Revocation(arrangement.id, signer=signer)
+        instance = cls(revocations=revocations)
+        return instance
 
     @property
     def revokable_addresses(self):

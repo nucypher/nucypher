@@ -251,7 +251,7 @@ def test_federated_revocation(federated_alice, federated_bob):
     policy = federated_alice.grant(federated_bob, label, m=m, n=n, expiration=policy_end_datetime)
 
     # Test that all arrangements are included in the RevocationKit
-    revocation_kit = RevocationKit(policy.treasure_map, federated_alice.stamp)
+    revocation_kit = RevocationKit.from_treasure_map(treasure_map=policy.treasure_map, signer=federated_alice.stamp)
     for node_id, arrangement_id in policy.treasure_map:
         assert revocation_kit[node_id].arrangement_id == arrangement_id
 
