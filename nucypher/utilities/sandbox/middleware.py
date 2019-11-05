@@ -125,13 +125,19 @@ class NodeIsDownMiddleware(MockRestMiddleware):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.client = _MiddlewareClientWithConnectionProblems()
-        self.ports_that_are_down = []
 
     def node_is_down(self, node):
         self.client.ports_that_are_down.add(node.rest_interface.port)
 
     def node_is_up(self, node):
         self.client.ports_that_are_down.remove(node.rest_interface.port)
+
+    def all_nodes_up(self):
+        self.client.ports_that_are_down = set()
+
+    def all_nodes_down(self):
+        self.client.ports_that_are_down = set(MOCK_KNOWN_URSULAS_CACHE)
+
 
 
 class EvilMiddleWare(MockRestMiddleware):

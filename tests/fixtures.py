@@ -161,7 +161,7 @@ def alice_federated_test_config(federated_ursulas):
                                 federated_only=True,
                                 abort_on_learning_error=True,
                                 save_metadata=False,
-                                reload_metadata=False)
+                                reload_metadata=False,)
     yield config
     config.cleanup()
 
@@ -189,7 +189,7 @@ def bob_federated_test_config():
                               abort_on_learning_error=True,
                               federated_only=True,
                               save_metadata=False,
-                              reload_metadata=False)
+                              reload_metadata=False,)
     yield config
     config.cleanup()
 
@@ -285,15 +285,19 @@ def capsule_side_channel(enacted_federated_policy):
             self.reset()
 
         def __call__(self):
-            enrico = Enrico(policy_encrypting_key=enacted_federated_policy.public_key)
             message = "Welcome to flippering number {}.".format(len(self.messages)).encode()
-            message_kit, _signature = enrico.encrypt_message(message)
-            self.messages.append((message_kit, enrico))
-            return message_kit, enrico
+            message_kit, _signature = self.enrico.encrypt_message(message)
+            self.messages.append((message_kit, self.enrico))
+            if self.plaintext_passthrough:
+                self.plaintexts.append(message)
+            return message_kit
 
-        def reset(self):
+        def reset(self, plaintext_passthrough=False):
+            self.enrico = Enrico(policy_encrypting_key=enacted_federated_policy.public_key)
             self.messages = []
-            self()
+            self.plaintexts = []
+            self.plaintext_passthrough = plaintext_passthrough
+            return self(), self.enrico
 
     return _CapsuleSideChannel()
 
@@ -654,7 +658,7 @@ def _mock_ursula_reencrypts(ursula, corrupt_cfrag: bool = False):
     cfrag_signature = bytes(ursula.stamp(bytes(cfrag)))
 
     bob = Bob.from_public_keys(verifying_key=pub_key_bob)
-    task = WorkOrder.Task(capsule, task_signature, cfrag, cfrag_signature)
+    task = WorkOrder.PRETask(capsule, task_signature, cfrag, cfrag_signature)
     work_order = WorkOrder(bob, None, alice_address, [task], None, ursula, blockhash)
 
     evidence = IndisputableEvidence(task, work_order)

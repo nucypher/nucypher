@@ -15,10 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import binascii
+from collections import OrderedDict
 
 import maya
 import msgpack
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from constant_sorrow.constants import UNKNOWN_KFRAG, NO_DECRYPTION_PERFORMED, NOT_SIGNED, CFRAG_NOT_RETAINED
 from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
@@ -158,6 +160,7 @@ class TreasureMap:
         Ursula will refuse to propagate this if it she can't prove the payload is signed by Alice's public key,
         which is included in it,
         """
+        # TODO: No reason to keccak this over and over again.  Turn into set-once property pattern.
         _id = keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
         return _id
 
@@ -211,7 +214,7 @@ class TreasureMap:
 
 class WorkOrder:
 
-    class Task:
+    class PRETask:
         def __init__(self, capsule, signature, cfrag=None, cfrag_signature=None):
             self.capsule = capsule
             self.signature = signature
@@ -267,9 +270,9 @@ class WorkOrder:
         self.completed = False
 
     def __repr__(self):
-        return "WorkOrder for hrac {hrac}: (capsules: {capsule_bytes}) for Ursula: {node}".format(
+        return "WorkOrder for hrac {hrac}: (capsules: {capsule_reprs}) for Ursula: {node}".format(
             hrac=self.arrangement_id.hex()[:6],
-            capsule_bytes=[binascii.hexlify(bytes(item.capsule))[:6] for item in self.tasks],
+            capsule_reprs=[t.capsule for t in self.tasks.values()],
             node=binascii.hexlify(bytes(self.ursula.stamp))[:6])
 
     def __eq__(self, other):
@@ -279,9 +282,8 @@ class WorkOrder:
         return len(self.tasks)
 
     @classmethod
-    def construct_by_bob(cls, arrangement_id, capsules, ursula, bob):
-        alice_verifying_key = capsules[0].get_correctness_keys()["verifying"]
-        alice_address = canonical_address_from_umbral_key(alice_verifying_key)
+    def construct_by_bob(cls, arrangement_id, alice_verifying, capsules, ursula, bob):
+        alice_address = canonical_address_from_umbral_key(alice_verifying)
 
         # TODO: Bob's input to prove freshness for this work order
         blockhash = b'\x00' * 32
@@ -290,19 +292,15 @@ class WorkOrder:
         if ursula._stamp_has_valid_signature_by_worker():
             ursula_identity_evidence = ursula.decentralized_identity_evidence
 
-        tasks, tasks_bytes = [], []
+        tasks = OrderedDict()
         for capsule in capsules:
-            if alice_verifying_key != capsule.get_correctness_keys()["verifying"]:
-                raise ValueError("Capsules in this work order are inconsistent.")
-
-            task = cls.Task(capsule, signature=None)
+            task = cls.PRETask(capsule, signature=None)
             specification = task.get_specification(ursula.stamp, alice_address, blockhash, ursula_identity_evidence)
             task.signature = bob.stamp(specification)
-            tasks.append(task)
-            tasks_bytes.append(bytes(task))
+            tasks[capsule] = task
 
         # TODO: What's the goal of the receipt? Should it include only the capsules?
-        receipt_bytes = b"wo:" + bytes(ursula.stamp) + msgpack.dumps(tasks_bytes)
+        receipt_bytes = b"wo:" + bytes(ursula.stamp) + keccak_digest(*[bytes(task.capsule) for task in tasks.values()])
         receipt_signature = bob.stamp(receipt_bytes)
 
         return cls(bob=bob, arrangement_id=arrangement_id, tasks=tasks,
@@ -320,18 +318,13 @@ class WorkOrder:
 
         # TODO: check freshness of blockhash?
 
-        # Check receipt
-        receipt_bytes = b"wo:" + bytes(ursula.stamp) + msgpack.dumps(tasks_bytes)
-        if not signature.verify(receipt_bytes, bob_verifying_key):
-            raise InvalidSignature()
-
         ursula_identity_evidence = b''
         if ursula._stamp_has_valid_signature_by_worker():
             ursula_identity_evidence = ursula.decentralized_identity_evidence
 
         tasks = []
         for task_bytes in tasks_bytes:
-            task = cls.Task.from_bytes(task_bytes)
+            task = cls.PRETask.from_bytes(task_bytes)
             tasks.append(task)
 
             # Each task signature has to match the original specification
@@ -343,6 +336,11 @@ class WorkOrder:
             if not task.signature.verify(specification, bob_verifying_key):
                 raise InvalidSignature()
 
+        # Check receipt
+        receipt_bytes = b"wo:" + bytes(ursula.stamp) + keccak_digest(*[bytes(task.capsule) for task in tasks])
+        if not signature.verify(receipt_bytes, bob_verifying_key):
+            raise InvalidSignature()
+
         bob = Bob.from_public_keys(verifying_key=bob_verifying_key)
         return cls(bob=bob,
                    ursula=ursula,
@@ -353,7 +351,7 @@ class WorkOrder:
                    receipt_signature=signature)
 
     def payload(self):
-        tasks_bytes = [bytes(item) for item in self.tasks]
+        tasks_bytes = [bytes(item) for item in self.tasks.values()]
         payload_elements = msgpack.dumps((tasks_bytes, self.blockhash))
         return bytes(self.receipt_signature) + self.bob.stamp + payload_elements
 
@@ -365,7 +363,7 @@ class WorkOrder:
 
         ursula_verifying_key = self.ursula.stamp.as_umbral_pubkey()
 
-        for task, (cfrag, cfrag_signature) in zip(self.tasks, cfrags_and_signatures):
+        for task, (cfrag, cfrag_signature) in zip(self.tasks.values(), cfrags_and_signatures):
             # Validate re-encryption metadata
             metadata_input = bytes(task.signature)
             metadata_as_signature = Signature.from_bytes(cfrag.proof.metadata)
@@ -380,23 +378,28 @@ class WorkOrder:
                 raise InvalidSignature(f"{cfrag} is not properly signed by Ursula.")
                 # TODO: Instead of raising, we should do something (#957)
 
-        for task, (cfrag, cfrag_signature) in zip(self.tasks, cfrags_and_signatures):
+        for task, (cfrag, cfrag_signature) in zip(self.tasks.values(), cfrags_and_signatures):
             task.attach_work_result(cfrag, cfrag_signature)
 
         self.completed = maya.now()
         return good_cfrags
+
+    def sanitize(self):
+        for task in self.tasks.values():
+            task.cfrag = CFRAG_NOT_RETAINED
 
 
 class WorkOrderHistory:
 
     def __init__(self) -> None:
         self.by_ursula = {}  # type: dict
+        self._latest_replete = {}
 
     def __contains__(self, item):
         assert False
 
     def __getitem__(self, item):
-        return self.by_ursula.setdefault(item, {})
+        return self.by_ursula[item]
 
     def __setitem__(self, key, value):
         assert False
@@ -407,6 +410,24 @@ class WorkOrderHistory:
     @property
     def ursulas(self):
         return self.by_ursula.keys()
+
+    def most_recent_replete(self, capsule):
+        """
+        Returns most recent WorkOrders for each Ursula which contain a complete task (with CFrag attached) for this Capsule.
+        """
+        return self._latest_replete[capsule]
+
+    def save_work_order(self, work_order, as_replete=False):
+        for task in work_order.tasks.values():
+            if as_replete:
+                work_orders_for_ursula = self._latest_replete.setdefault(task.capsule, {})
+                work_orders_for_ursula[work_order.ursula.checksum_address] = work_order
+
+            work_orders_for_ursula = self.by_ursula.setdefault(work_order.ursula.checksum_address, {})
+            work_orders_for_ursula[task.capsule] = work_order
+
+    def by_checksum_address(self, checksum_address):
+        return self.by_ursula.setdefault(checksum_address, {})
 
     def by_capsule(self, capsule: Capsule):
         ursulas_by_capsules = {}  # type: dict

@@ -15,20 +15,14 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import json
-import random
-import time
 from base64 import b64encode
 from collections import OrderedDict
 from functools import partial
 from json.decoder import JSONDecodeError
-from typing import Dict, Iterable, List, Set, Tuple, Union, Optional
+from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
-import requests
-from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE
+import time
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -42,8 +36,14 @@ from umbral.pre import UmbralCorrectnessError
 from umbral.signing import Signature
 
 import nucypher
-from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker, Staker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent, ContractAgency
+from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from constant_sorrow import constants
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE
+from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Staker
+from nucypher.blockchain.eth.actors import Worker
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
+from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -72,7 +72,6 @@ from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_
 
 
 class Alice(Character, BlockchainPolicyAuthor):
-
     banner = ALICE_BANNER
     _controller_class = AliceJSONController
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
@@ -434,7 +433,6 @@ class Alice(Character, BlockchainPolicyAuthor):
 
 
 class Bob(Character):
-
     banner = BOB_BANNER
     _controller_class = BobJSONController
 
@@ -444,6 +442,7 @@ class Bob(Character):
         """
         Raised when Bob detects incorrect CFrags returned by some Ursulas
         """
+
         def __init__(self, evidence: List):
             self.evidence = evidence
 
@@ -454,7 +453,7 @@ class Bob(Character):
             self.controller = self._controller_class(bob=self)
 
         from nucypher.policy.collections import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
-        self._saved_work_orders = WorkOrderHistory()
+        self._completed_work_orders = WorkOrderHistory()
 
         self.log = Logger(self.__class__.__name__)
         self.log.info(self.banner)
@@ -466,7 +465,7 @@ class Bob(Character):
             else:
                 raise ValueError("You need to pass either treasure_map or map_id.")
         elif map_id:
-                raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
+            raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
         return treasure_map
 
     def peek_at_treasure_map(self, treasure_map=None, map_id=None):
@@ -578,6 +577,9 @@ class Bob(Character):
                 response = network_middleware.get_treasure_map_from_node(node=node, map_id=map_id)
             except NodeSeemsToBeDown:
                 continue
+            except NotFound:
+                self.log.info(f"Node {node} claimed not to have TreasureMap {map_id}")
+                continue
 
             if response.status_code == 200 and response.content:
                 try:
@@ -595,7 +597,13 @@ class Bob(Character):
 
         return treasure_map
 
-    def generate_work_orders(self, map_id, *capsules, num_ursulas=None, cache=False):
+    def work_orders_for_capsules(self,
+                                 *capsules,
+                                 map_id: str,
+                                 alice_verifying_key: UmbralPublicKey,
+                                 num_ursulas: int = None,
+                                 ):
+
         from nucypher.policy.collections import WorkOrder  # Prevent circular import
 
         try:
@@ -604,7 +612,8 @@ class Bob(Character):
             raise KeyError(
                 "Bob doesn't have the TreasureMap {}; can't generate work orders.".format(map_id))
 
-        generated_work_orders = OrderedDict()
+        incomplete_work_orders = OrderedDict()
+        complete_work_orders = OrderedDict()
 
         if not treasure_map_to_use:
             raise ValueError(
@@ -612,33 +621,48 @@ class Bob(Character):
                     capsules))
 
         for node_id, arrangement_id in treasure_map_to_use:
-            # TODO: Bob crashes if he hasn't learned about this Ursula #999
-            ursula = self.known_nodes[node_id]
 
             capsules_to_include = []
             for capsule in capsules:
-                if not capsule in self._saved_work_orders[node_id]:
+                try:
+                    precedent_work_order = self._completed_work_orders.most_recent_replete(capsule)[node_id]
+                    self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
+                    complete_work_orders[node_id] = precedent_work_order
+                except KeyError:
+                    # Don't have a precedent completed WorkOrder for this Ursula for this Capsule.  We need to make a new one.
                     capsules_to_include.append(capsule)
 
-            if capsules_to_include:
-                work_order = WorkOrder.construct_by_bob(
-                    arrangement_id, capsules_to_include, ursula, self)
-                generated_work_orders[node_id] = work_order
-                # TODO: Fix this. It's always taking the last capsule
-                if cache:
-                    self._saved_work_orders[node_id][capsule] = work_order
+            # TODO: Bob crashes if he hasn't learned about this Ursula #999
+            ursula = self.known_nodes[node_id]
 
-            if num_ursulas == len(generated_work_orders):
+            if capsules_to_include:
+                work_order = WorkOrder.construct_by_bob(arrangement_id=arrangement_id,
+                                                        alice_verifying=alice_verifying_key,
+                                                        capsules=capsules_to_include,
+                                                        ursula=ursula,
+                                                        bob=self)
+                incomplete_work_orders[node_id] = work_order
+            else:
+                self.log.debug(f"All of these Capsules already have WorkOrders for this node: {node_id}")
+            if num_ursulas == len(incomplete_work_orders):
+                # TODO: Presently, the order here is haphazard .  Do we want to do the complete or incomplete specifically first?
                 break
 
-        return generated_work_orders
+        if incomplete_work_orders == OrderedDict():
+            self.log.warn(
+                "No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.
 
-    def get_reencrypted_cfrags(self, work_order):
-        cfrags = self.network_middleware.reencrypt(work_order)
-        for task in work_order.tasks:
-            # TODO: Maybe just update the work order here instead of setting it anew.
-            work_orders_by_ursula = self._saved_work_orders[work_order.ursula.checksum_address]
-            work_orders_by_ursula[task.capsule] = work_order
+        return incomplete_work_orders, complete_work_orders
+
+    def get_reencrypted_cfrags(self, work_order, retain_cfrags=False):
+        if work_order.completed:
+            raise TypeError(
+                "This WorkOrder is already complete; if you want Ursula to perform additional service, make a new WorkOrder.")
+
+        cfrags_and_signatures = self.network_middleware.reencrypt(work_order)
+        cfrags = work_order.complete(cfrags_and_signatures)
+        self._completed_work_orders.save_work_order(work_order, as_replete=retain_cfrags)
+
         return cfrags
 
     def join_policy(self, label, alice_verifying_key, node_list=None, block=False):
@@ -647,62 +671,131 @@ class Bob(Character):
         treasure_map = self.get_treasure_map(alice_verifying_key, label)
         self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
-    def retrieve(self, message_kit, data_source, alice_verifying_key, label, cache=False):
+    def retrieve(self,
+                 *message_kits: UmbralMessageKit,
+                 alice_verifying_key: UmbralPublicKey,
+                 label: bytes,
+                 enrico: "Enrico" = None,
+                 retain_cfrags: bool=False,
+                 use_attached_cfrags: bool=False,
+                 use_precedent_work_orders: bool=False,
+                 policy_encrypting_key: UmbralPublicKey=None):
         # Try our best to get an UmbralPublicKey from input
         alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
 
-        capsule = message_kit.capsule  # TODO: generalize for WorkOrders with more than one capsule
+        # Part I: Assembling the WorkOrders.
+        capsules_to_activate = set(mk.capsule for mk in message_kits)
 
-        hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
-        _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
+        for message in message_kits:
 
-        already_retrieved = len(message_kit.capsule._attached_cfrags) >= m
+            # Two sanity checks before we get into network activity.
+            # First sanity check: We have some representation of the sender, so that we can later check the signature.
 
-        if already_retrieved:
-            if cache:
-                must_do_new_retrieval = False
+            if message.sender:
+                if enrico and message.sender != enrico:
+                    raise ValueError
+            elif enrico:
+                message.sender = enrico
+            elif message.sender_verifying_key and policy_encrypting_key:
+                # Well, after all, this is all we *really* need.
+                message.sender = Enrico.from_public_keys(verifying_key=message.sender_verifying_key,
+                                                         policy_encrypting_key=policy_encrypting_key)
             else:
-                raise TypeError("Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  Not sure what to do.")
-        else:
-            must_do_new_retrieval = True
+                raise TypeError
 
-        capsule.set_correctness_keys(
-            delegating=data_source.policy_pubkey,
-            receiving=self.public_keys(DecryptingPower),
-            verifying=alice_verifying_key)
+            # Second sanity check: If we're not using attached cfrags, we don't want a Capsule which has them.
 
+            capsule = message.capsule
+
+            if len(capsule) > 0:
+                if not use_attached_cfrags:
+                    raise TypeError(
+                        "Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  In order to retrieve this message, you must set cache=True.  To use Bob in 'KMS mode', use cache=False the first time you retrieve a message.")
+
+            # OK, with the sanity checks behind us, we'll proceed to the WorkOrder assembly.
+            # We'll start by following the treasure map, setting the correctness keys, and attaching cfrags from
+            # WorkOrders that we have already completed in the past.
+
+            hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
+            _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
+
+            capsule.set_correctness_keys(receiving=self.public_keys(DecryptingPower))
+            capsule.set_correctness_keys(verifying=alice_verifying_key)
+
+            new_work_orders, complete_work_orders = self.work_orders_for_capsules(
+                map_id=map_id,
+                alice_verifying_key=alice_verifying_key,
+                *capsules_to_activate)
+
+            self.log.info(f"Found {len(complete_work_orders)} for this Capsule ({capsule}).")
+
+            if complete_work_orders:
+                if use_precedent_work_orders:
+                    for work_order in complete_work_orders.values():
+                        cfrag_in_question = work_order.tasks[capsule].cfrag
+                        capsule.attach_cfrag(cfrag_in_question)
+                else:
+                    self.log.warn("Found existing complete WorkOrders, but use_precedent_work_orders is set to False.  To use Bob in 'KMS mode', set retain_cfrags=False as well.")
+
+
+        # Part II: Getting the cleartexts.
         cleartexts = []
 
-        if must_do_new_retrieval:
-            # TODO: Consider blocking until map is done being followed. #1114 
-
-            work_orders = self.generate_work_orders(map_id, capsule, cache=cache)
+        try:
+            # TODO Optimization: Block here (or maybe even later) until map is done being followed (instead of blocking above). #1114
             the_airing_of_grievances = []
 
-            # TODO: Of course, it's possible that we have cached CFrags for one of these and thus need to retrieve for one WorkOrder and not another.
-            for work_order in work_orders.values():
+            for work_order in new_work_orders.values():
+                for capsule in work_order.tasks:
+                    work_order_is_useful = False
+                    if len(capsule) >= m:
+                        capsules_to_activate.discard(capsule)
+                    else:
+                        work_order_is_useful = True
+                        break
+
+                # If all the capsules are now activated, we can stop here.
+                if not capsules_to_activate:
+                    break
+
+                if not work_order_is_useful:
+                    # None of the Capsules for this particular WorkOrder need to be activated.  Move on to the next one.
+                    continue
+
+                # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
                 try:
-                    cfrags = self.get_reencrypted_cfrags(work_order)
-                except requests.exceptions.ConnectTimeout:
+                    self.get_reencrypted_cfrags(work_order, retain_cfrags=retain_cfrags)
+                except NodeSeemsToBeDown as e:
+                    # TODO: What to do here?  Ursula isn't supposed to be down.
+                    self.log.info(
+                        f"Ursula ({work_order.ursula}) seems to be down while trying to complete WorkOrder: {work_order}")
                     continue
                 except NotFound:
                     # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
                     # TODO: What's the thing to do here?  Do we want to track these Ursulas in some way in case they're lying?
+                    self.log.warn(
+                        f"Ursula ({work_order.ursula}) claims not to have the KFrag to complete WorkOrder: {work_order}.  Has accessed been revoked?")
                     continue
 
-                cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule/task
-                try:
-                    message_kit.capsule.attach_cfrag(cfrag)
-                    if len(message_kit.capsule._attached_cfrags) >= m:
-                        break
-                except UmbralCorrectnessError:
-                    task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
-                    from nucypher.policy.collections import IndisputableEvidence
-                    evidence = IndisputableEvidence(task=task, work_order=work_order)
-                    # I got a lot of problems with you people ...
-                    the_airing_of_grievances.append(evidence)
+                for capsule, pre_task in work_order.tasks.items():
+                    try:
+                        capsule.attach_cfrag(pre_task.cfrag)
+                    except UmbralCorrectnessError:
+                        task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
+                        from nucypher.policy.models import IndisputableEvidence
+                        evidence = IndisputableEvidence(task=task, work_order=work_order)
+                        # I got a lot of problems with you people ...
+                        the_airing_of_grievances.append(evidence)
+
+                    if len(capsule) >= m:
+                        capsules_to_activate.discard(capsule)
+
+                # If all the capsules are now activated, we can stop here.
+                if not capsules_to_activate:
+                    break
             else:
-                raise Ursula.NotEnoughUrsulas("Unable to snag m cfrags.")
+                raise Ursula.NotEnoughUrsulas(
+                    "Unable to reach m Ursulas.  See the logs for which Ursulas are down or noncompliant.")
 
             if the_airing_of_grievances:
                 # ... and now you're gonna hear about it!
@@ -711,8 +804,14 @@ class Bob(Character):
                 #  - There maybe enough cfrags to still open the capsule
                 #  - This line is unreachable when NotEnoughUrsulas
 
-        delivered_cleartext = self.verify_from(data_source, message_kit, decrypt=True)
-        cleartexts.append(delivered_cleartext)
+            for message in message_kits:
+                delivered_cleartext = self.verify_from(message.sender, message, decrypt=True)
+                cleartexts.append(delivered_cleartext)
+        finally:
+            if not retain_cfrags:
+                capsule.clear_cfrags()
+                for work_order in new_work_orders.values():
+                    work_order.sanitize()
 
         return cleartexts
 
@@ -761,7 +860,6 @@ class Bob(Character):
 
 
 class Ursula(Teacher, Character, Worker):
-
     banner = URSULA_BANNER
     _alice_class = Alice
 
@@ -849,7 +947,8 @@ class Ursula(Teacher, Character, Worker):
 
                 # Use this power to substantiate the stamp
                 self.substantiate_stamp()
-                self.log.debug(f"Created decentralized identity evidence: {self.decentralized_identity_evidence[:10].hex()}")
+                self.log.debug(
+                    f"Created decentralized identity evidence: {self.decentralized_identity_evidence[:10].hex()}")
                 decentralized_identity_evidence = self.decentralized_identity_evidence
 
                 Worker.__init__(self,
@@ -1040,7 +1139,8 @@ class Ursula(Teacher, Character, Worker):
 
             except NodeSeemsToBeDown:
                 log = Logger(cls.__name__)
-                log.warn("Can't connect to seed node (attempt {}).  Will retry in {} seconds.".format(attempt, interval))
+                log.warn(
+                    "Can't connect to seed node (attempt {}).  Will retry in {} seconds.".format(attempt, interval))
                 time.sleep(interval)
                 return __attempt(attempt=attempt + 1)
             else:
@@ -1095,7 +1195,8 @@ class Ursula(Teacher, Character, Worker):
             staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
             seednode_stake = staking_agent.get_locked_tokens(staker_address=checksum_address)
             if seednode_stake < minimum_stake:
-                raise Learner.NotATeacher(f"{checksum_address} is staking less then the specified minimum stake value ({minimum_stake}).")
+                raise Learner.NotATeacher(
+                    f"{checksum_address} is staking less then the specified minimum stake value ({minimum_stake}).")
 
         # Verify the node's TLS certificate
         try:
@@ -1209,7 +1310,6 @@ class Ursula(Teacher, Character, Worker):
         return node_storage.get(checksum_address=checksum_adress,
                                 federated_only=federated_only)
 
-
     #
     # Properties
     #
@@ -1266,8 +1366,8 @@ class Enrico(Character):
     _controller_class = EnricoJSONController
     _default_crypto_powerups = [SigningPower]
 
-    def __init__(self, policy_encrypting_key, controller: bool = True, *args, **kwargs):
-        self.policy_pubkey = policy_encrypting_key
+    def __init__(self, policy_encrypting_key=None, controller: bool = True, *args, **kwargs):
+        self._policy_pubkey = policy_encrypting_key
 
         # Encrico never uses the blockchain, hence federated_only)
         kwargs['federated_only'] = True
@@ -1276,7 +1376,7 @@ class Enrico(Character):
         if controller:
             self.controller = self._controller_class(enrico=self)
 
-        self.log = Logger(f'{self.__class__.__name__}-{bytes(policy_encrypting_key).hex()[:6]}')
+        self.log = Logger(f'{self.__class__.__name__}-{bytes(self.public_keys(SigningPower)).hex()[:6]}')
         self.log.info(self.banner.format(policy_encrypting_key))
 
     def encrypt_message(self,
@@ -1298,6 +1398,12 @@ class Enrico(Character):
         policy_pubkey_enc = alice.get_policy_encrypting_key_from_label(label)
         return cls(crypto_power_ups={SigningPower: alice.stamp.as_umbral_pubkey()},
                    policy_encrypting_key=policy_pubkey_enc)
+
+    @property
+    def policy_pubkey(self):
+        if not self._policy_pubkey:
+            raise TypeError("This Enrico doesn't know which policy encrypting key he used.  Oh well.")
+        return self._policy_pubkey
 
     def make_web_controller(drone_enrico, crash_on_error: bool = False):
 
@@ -1332,7 +1438,7 @@ class Enrico(Character):
 
             response_data = {
                 'result': {
-                    'message_kit': b64encode(message_kit.to_bytes()).decode(),   # FIXME
+                    'message_kit': b64encode(message_kit.to_bytes()).decode(),  # FIXME
                     'signature': b64encode(bytes(signature)).decode(),
                 },
                 'version': str(nucypher.__version__)
@@ -1344,7 +1450,6 @@ class Enrico(Character):
 
 
 class StakeHolder(Staker):
-
     banner = STAKEHOLDER_BANNER
 
     class StakingWallet:
