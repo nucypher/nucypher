@@ -381,7 +381,8 @@ class Alice(Character, BlockchainPolicyAuthor):
             policy.sync()
             return receipt, failed_revocations
         else:
-            return failed_revocations
+            receipt = dict()  # TODO: Federated revocation receipt
+            return receipt, failed_revocations
 
     def decrypt_message_kit(self,
                             message_kit: UmbralMessageKit,

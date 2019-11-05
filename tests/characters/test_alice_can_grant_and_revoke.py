@@ -163,11 +163,28 @@ def test_restore_policy_from_credential_storage(blockchain_alice):
 
 
 def test_decentralized_revoke(testerchain, blockchain_alice):
+
+    # Restore saved Policy Credential with Treasure Map
+    blockchain_alice._Alice__active_policies = dict()
+    blockchain_alice.restore_policies()
     policy = list(blockchain_alice.active_policies.values())[0]
+
+    # Contract reports active policy
+    assert not blockchain_alice.policy_agent.fetch_policy(policy.id)[-1]
+
     receipt, failed_revocations = blockchain_alice.revoke(policy)
+
+    # Successful requests to Ursulas for fragment deletion
     assert failed_revocations == {}  # No Failed Revocations  # TODO ... What if there *are* failed revocations?
+
+    # Positive Receipt
     assert receipt['status'] == 1
+
+    # Positive policy-local state update
     assert policy._is_revoked
+
+    # Contract reports inactive policy
+    assert blockchain_alice.policy_agent.fetch_policy(policy.id)[-1]
 
 
 @pytest.mark.usefixtures('federated_ursulas')
@@ -266,11 +283,11 @@ def test_federated_revocation(federated_alice, federated_bob):
     assert deserialized_revocation == revocation
 
     # Attempt to revoke the new policy
-    failed_revocations = federated_alice.revoke(policy)
+    receipt, failed_revocations = federated_alice.revoke(policy)
     assert len(failed_revocations) == 0
 
     # Try to revoke the already revoked policy
-    already_revoked = federated_alice.revoke(policy)
+    receipt, already_revoked = federated_alice.revoke(policy)
     assert len(already_revoked) == 3
 
 

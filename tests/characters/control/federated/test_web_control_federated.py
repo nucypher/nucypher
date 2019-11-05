@@ -101,9 +101,10 @@ def test_alice_character_control_revoke(alice_web_controller_test_client, federa
 
     policy_credential = PolicyCredential.from_json(response.json['result']['policy_credential'])
 
-    treasure_map_b64 = b64encode(policy_credential.treasure_map._TreasureMap__serialize())
+    treasure_map_b64 = b64encode(policy_credential.treasure_map._serialize_plaintext())
     revoke_request_data = {
-        'treasure_map': treasure_map_b64.decode(),
+        'label': 'test',
+        'bob_verifying_key': bytes(federated_bob.stamp).hex()
     }
 
     response = alice_web_controller_test_client.delete('/revoke', data=json.dumps(revoke_request_data))

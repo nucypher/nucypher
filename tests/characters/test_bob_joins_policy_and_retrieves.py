@@ -17,6 +17,7 @@ def test_federated_bob_full_retrieve_flow(federated_ursulas,
                                           federated_alice,
                                           capsule_side_channel,
                                           enacted_federated_policy):
+    
     # Assume for the moment that Bob has already received a TreasureMap.
     treasure_map = enacted_federated_policy.treasure_map
     federated_bob.treasure_maps[treasure_map.public_id()] = treasure_map
@@ -116,17 +117,16 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     assert delivered_cleartexts == cleartexts_delivered_a_second_time
 
     # Let's try retrieve again, but Alice revoked the policy.
-    failed_revocations = federated_alice.revoke(policy)
+    receipt, failed_revocations = federated_alice.revoke(policy)
     assert len(failed_revocations) == 0
 
     # One thing to note here is that Bob *can* still retrieve with the cached CFrags,
     # even though this Policy has been revoked.  #892
-    _cleartexts = bob.retrieve(message_kit=message_kit,
-                               data_source=enrico,
+    _cleartexts = bob.retrieve(treasure_map=policy.treasure_map,
                                alice_verifying_key=alices_verifying_key,
                                label=policy.label,
                                use_precedent_work_orders=True)
-    
+
     assert _cleartexts == delivered_cleartexts  # TODO: 892
 
     # OK, but we imagine that the message_kit is fresh here.
