@@ -586,7 +586,7 @@ class Bob(Character):
     def work_orders_for_capsules(self,
                                  *capsules,
                                  alice_verifying_key: UmbralPublicKey,
-                                 map_id: str = None,  # XXX or bytes?
+                                 map_id: str = None,
                                  treasure_map: 'TreasureMap' = None,
                                  num_ursulas: int = None,
                                  ):
