@@ -442,6 +442,12 @@ class ContractAdministrator(NucypherTokenActor):
         if emitter:
             emitter.echo(f"Saved allocation template file to {template_filepath}", color='blue', bold=True)
 
+        already_enrolled = [a['beneficiary_address'] for a in allocations
+                            if allocation_registry.is_beneficiary_enrolled(a['beneficiary_address'])]
+        if already_enrolled:
+            raise ValueError(f"The following beneficiaries are already enrolled in allocation registry "
+                             f"({allocation_registry.filepath}): {already_enrolled}")
+
         # Deploy each allocation contract
         with click.progressbar(length=total_deployment_transactions,
                                label="Allocation progress",
