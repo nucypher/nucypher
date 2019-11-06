@@ -585,19 +585,18 @@ class Bob(Character):
 
     def work_orders_for_capsules(self,
                                  *capsules,
-                                 map_or_id: Union['TreasureMap', str],  # XXX or bytes?
                                  alice_verifying_key: UmbralPublicKey,
+                                 map_id: str = None,  # XXX or bytes?
+                                 treasure_map: 'TreasureMap' = None,
                                  num_ursulas: int = None,
                                  ):
 
         from nucypher.policy.collections import WorkOrder  # Prevent circular import
-        from nucypher.policy.collections import TreasureMap
 
-        if isinstance(map_or_id, TreasureMap):
-            map_id = map_or_id.public_id()
-            treasure_map_to_use = map_or_id
+        if treasure_map:
+            map_id = treasure_map.public_id()
+            treasure_map_to_use = treasure_map
         else:
-            map_id = map_or_id
             try:
                 treasure_map_to_use = self.treasure_maps[map_id]
             except KeyError:
@@ -727,7 +726,8 @@ class Bob(Character):
             capsule.set_correctness_keys(verifying=alice_verifying_key)
 
             new_work_orders, complete_work_orders = self.work_orders_for_capsules(
-                map_or_id=treasure_map or map_id,
+                map_id=map_id,
+                treasure_map=treasure_map,
                 alice_verifying_key=alice_verifying_key,
                 *capsules_to_activate)
 
