@@ -10,7 +10,7 @@ python_version = "3"
 # NuCypher
 umbral = "==0.1.3a2"
 constant-sorrow = ">=0.1.0a8"
-bytestring-splitter = ">=1.2.0"
+bytestring-splitter = ">=1.0.0a4"
 hendrix = ">=3.2.5"
 # Third-Party
 pyopenssl = "*"
@@ -22,7 +22,7 @@ maya = "*"
 flask = "*"
 flask_sqlalchemy = "*"
 # Third-Party Ethereum
-py-evm = "==0.3.0a1"
+py-evm = "*"
 eth-tester = "*"
 coincurve = "*"
 web3 = "*"
