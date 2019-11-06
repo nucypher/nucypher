@@ -166,7 +166,8 @@ def test_treasure_map_serialization(enacted_federated_policy, federated_bob):
 def test_bob_retrieves_with_treasure_map(
         federated_bob, federated_ursulas,
         enacted_federated_policy, capsule_side_channel):
-    message_kit, data_source = capsule_side_channel()
+    enrico = capsule_side_channel.enrico
+    message_kit = capsule_side_channel()
     treasure_map = enacted_federated_policy.treasure_map
     alice_verifying_key = enacted_federated_policy.alice.stamp
 
@@ -176,13 +177,19 @@ def test_bob_retrieves_with_treasure_map(
 
     # Deserialized treasure map
     text1 = federated_bob.retrieve(
-        message_kit, data_source, alice_verifying_key,
-        enacted_federated_policy.label, treasure_map=treasure_map)
+        message_kit,
+        enrico=enrico,
+        alice_verifying_key=alice_verifying_key,
+        label=enacted_federated_policy.label,
+        treasure_map=treasure_map)
 
     message_kit.capsule.clear_cfrags()  # Return back to a non re-encrypted state
     # Serialized treasure map
     text2 = federated_bob.retrieve(
-        message_kit, data_source, alice_verifying_key,
-        enacted_federated_policy.label, treasure_map=bytes(treasure_map))
+        message_kit,
+        enrico=enrico,
+        alice_verifying_key=alice_verifying_key,
+        label=enacted_federated_policy.label,
+        treasure_map=bytes(treasure_map))
 
     assert text1[0] == text2[0] == b'Welcome to flippering number 2.'
