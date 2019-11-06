@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import csv
 import json
 import os
 from datetime import datetime
@@ -383,13 +384,20 @@ class ContractAdministrator(NucypherTokenActor):
                                      emitter: StdoutEmitter = None,
                                      ) -> Dict[str, dict]:
         """
-        The allocation file is a JSON file containing a list of allocations. Each allocation has a:
+        The allocation file is a CSV file containing a list of allocations. Each allocation has a:
           * 'beneficiary_address': Checksum address of the beneficiary
           * 'name': User-friendly name of the beneficiary (Optional)
           * 'amount': Amount of tokens locked, in NuNits
           * 'duration_seconds': Lock duration expressed in seconds
 
-        Example allocation file:
+        Example allocation file in CSV format:
+
+        "beneficiary_address","name","amount","duration_seconds"
+        "0xdeadbeef","H. E. Pennypacker",100,31536000
+        "0xabced120","",133432,31536000
+        "0xf7aefec2","",999,31536000
+
+        Example allocation file in JSON format:
 
         [ {'beneficiary_address': '0xdeadbeef', 'name': 'H. E. Pennypacker', 'amount': 100, 'duration_seconds': 31536000},
           {'beneficiary_address': '0xabced120', 'amount': 133432, 'duration_seconds': 31536000},
@@ -518,11 +526,18 @@ class ContractAdministrator(NucypherTokenActor):
     @staticmethod
     def __read_allocation_data(filepath: str) -> list:
         with open(filepath, 'r') as allocation_file:
-            data = allocation_file.read()
-            try:
-                allocation_data = json.loads(data)
-            except JSONDecodeError:
-                raise
+            if filepath.endswith(".csv"):
+                allocation_data = list()
+                reader = csv.DictReader(allocation_file)
+                for entry in reader:
+                    entry['amount'], entry['duration_seconds'] = int(entry['amount']), int(entry['duration_seconds'])
+                    allocation_data.append(entry)
+            else:
+                data = allocation_file.read()
+                try:
+                    allocation_data = json.loads(data)
+                except JSONDecodeError:
+                    raise
         return allocation_data
 
     def deploy_beneficiaries_from_file(self,
