@@ -4,6 +4,7 @@ import json
 from collections.abc import Mapping
 
 import maya
+from typing import Union
 
 from nucypher.characters.control.specifications import alice, bob, enrico
 from umbral.keys import UmbralPublicKey
@@ -189,7 +190,7 @@ class BobInterface(CharacterPublicInterface):
                  policy_encrypting_key: bytes,
                  alice_verifying_key: bytes,
                  message_kit: bytes,
-                 treasure_map: bytes = None):
+                 treasure_map: Union[bytes, 'TreasureMap'] = None):
         """
         Character control endpoint for re-encrypting and decrypting policy data.
         """
