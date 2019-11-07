@@ -544,6 +544,10 @@ class ContractAdministrator(NucypherTokenActor):
                     allocation_data = json.loads(data)
                 except JSONDecodeError:
                     raise
+
+        for entry in allocation_data:
+            entry['beneficiary_address'] = to_checksum_address(entry['beneficiary_address'])
+
         return allocation_data
 
     def deploy_beneficiaries_from_file(self,
