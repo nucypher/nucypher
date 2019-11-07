@@ -114,22 +114,6 @@ class Moe(Character):
     def start(self, dry_run: bool = False):
 
         #
-        # Websocket Service
-        #
-
-        def send_states(subscriber):
-            message = ["states", None]
-            subscriber.sendMessage(json.dumps(message).encode())
-
-        def send_nodes(subscriber):
-            message = ["nodes", None]
-            subscriber.sendMessage(json.dumps(message).encode())
-
-        websocket_service = hey_joe.WebSocketService(self.host, self.websocket_port)
-        websocket_service.register_followup("states", send_states)
-        websocket_service.register_followup("nodes", send_nodes)
-
-        #
         # WSGI Service
         #
 
@@ -141,12 +125,26 @@ class Moe(Character):
                      route_url='/')
 
         #
+        # Websocket Service
+        #
+        def send_states(subscriber):
+            message = ["states", None]
+            subscriber.sendMessage(json.dumps(message).encode())
+
+        def send_nodes(subscriber):
+            message = ["nodes", None]
+            subscriber.sendMessage(json.dumps(message).encode())
+
+        origins = [f"https://{self.host}:{self.http_port}"]
+        wss_service = hey_joe.WSSWebSocketService(host_address=self.host, port=self.websocket_port, allowedOrigins=origins)
+        wss_service.register_followup("states", send_states)
+        wss_service.register_followup("nodes", send_nodes)
+
+        #
         # Server
         #
 
         deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=rest_app, port=self.http_port)
-        origins = [f"https://{self.host}:{self.http_port}"]
-        wss_service = hey_joe.WSSWebSocketService(host_address=self.host, port=self.websocket_port, allowedOrigins=origins)
         deployer.add_tls_websocket_service(wss_service)
 
         if not dry_run:
