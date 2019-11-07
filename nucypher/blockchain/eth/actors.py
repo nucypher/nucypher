@@ -32,7 +32,7 @@ from constant_sorrow.constants import (
     NO_WORKER_ASSIGNED,
 )
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import keccak, is_checksum_address
+from eth_utils import keccak, is_checksum_address, to_checksum_address
 from twisted.logger import Logger
 
 from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics, TokenEconomicsFactory
@@ -469,16 +469,17 @@ class ContractAdministrator(NucypherTokenActor):
                     bar._last_line = None
                     bar.render_progress()
 
-                deployer = self.deploy_preallocation_escrow(allocation_registry=allocation_registry,
-                                                            progress=bar)
-
                 amount = allocation['amount']
                 duration = allocation['duration_seconds']
+
                 try:
-                    receipts = deployer.deliver(value=amount,
-                                                duration=duration,
-                                                beneficiary_address=beneficiary,
-                                                progress=bar)
+                    deployer = self.deploy_preallocation_escrow(allocation_registry=allocation_registry,
+                                                                progress=bar)
+
+                    deployer.deliver(value=amount,
+                                     duration=duration,
+                                     beneficiary_address=beneficiary,
+                                     progress=bar)
                 except TransactionFailed as e:
                     if crash_on_failure:
                         raise
@@ -487,7 +488,7 @@ class ContractAdministrator(NucypherTokenActor):
                     continue
 
                 else:
-                    allocation_receipts[beneficiary] = receipts
+                    allocation_receipts[beneficiary] = deployer.deployment_receipts
                     allocation_contract_address = deployer.contract_address
                     self.log.info(f"Created {deployer.contract_name} contract at {allocation_contract_address} "
                                   f"for beneficiary {beneficiary}.")
@@ -506,7 +507,7 @@ class ContractAdministrator(NucypherTokenActor):
                     if emitter:
                         blockchain = BlockchainInterfaceFactory.get_interface()
                         paint_contract_deployment(contract_name=deployer.contract_name,
-                                                  receipts=receipts,
+                                                  receipts=deployer.deployment_receipts,
                                                   contract_address=deployer.contract_address,
                                                   emitter=emitter,
                                                   chain_name=blockchain.client.chain_name,
