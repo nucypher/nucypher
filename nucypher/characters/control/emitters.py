@@ -1,3 +1,4 @@
+import io
 import json
 import sys
 from functools import partial
@@ -8,6 +9,10 @@ from flask import Response
 from twisted.logger import Logger
 
 import nucypher
+
+
+def null_stream():
+    return open(os.devnull, 'w')
 
 
 class StdoutEmitter:
@@ -63,6 +68,12 @@ class StdoutEmitter:
             e_str = str(e)
             click.echo(message=e_str)
             self.log.info(e_str)
+
+    def get_stream(self, verbosity: int = 0):
+        if verbosity <= self.verbosity:
+            return click.get_text_stream('stdout')
+        else:
+            return null_stream()
 
 
 class JSONRPCStdoutEmitter(StdoutEmitter):
@@ -179,6 +190,9 @@ class JSONRPCStdoutEmitter(StdoutEmitter):
         # self.log.info(f"Error {e.code} | {e.message}")  # TODO: Restore this log message
         return size
 
+    def get_stream(self, *args, **kwargs):
+        return null_stream()
+
 
 class WebEmitter:
 
@@ -227,3 +241,6 @@ class WebEmitter:
         # ---------- HTTP OUTPUT
         response = drone_character.sink(response=serialized_response, status=200, content_type="application/javascript")
         return response
+
+    def get_stream(self, *args, **kwargs):
+        return null_stream()

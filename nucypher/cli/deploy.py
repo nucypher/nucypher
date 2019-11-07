@@ -77,12 +77,12 @@ def _pre_launch_warnings(emitter, etherscan, hw_wallet):
                      color='yellow')
 
 
-def _initialize_blockchain(poa, provider_uri):
+def _initialize_blockchain(poa, provider_uri, emitter):
     if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
         # Note: For test compatibility.
         deployer_interface = BlockchainDeployerInterface(provider_uri=provider_uri, poa=poa)
         BlockchainInterfaceFactory.register_interface(interface=deployer_interface, sync=False,
-                                                      show_sync_progress=False)
+                                                      emitter=emitter)
     else:
         deployer_interface = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
 
@@ -120,7 +120,7 @@ class ActorOptions:
     def create_actor(self, emitter):
 
         _ensure_config_root(self.config_root)
-        deployer_interface = _initialize_blockchain(self.poa, self.provider_uri)
+        deployer_interface = _initialize_blockchain(self.poa, self.provider_uri, emitter)
 
         # Warnings
         _pre_launch_warnings(emitter, self.etherscan, self.hw_wallet)
@@ -235,7 +235,7 @@ def inspect(provider_uri, config_root, registry_infile, deployer_address, poa):
     # Init
     emitter = StdoutEmitter()
     _ensure_config_root(config_root)
-    _initialize_blockchain(poa, provider_uri)
+    _initialize_blockchain(poa, provider_uri, emitter)
 
     local_registry = establish_deployer_registry(emitter=emitter,
                                                  registry_infile=registry_infile,

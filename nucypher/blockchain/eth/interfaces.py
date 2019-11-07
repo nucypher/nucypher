@@ -25,6 +25,7 @@ from typing import Tuple
 from typing import Union
 from urllib.parse import urlparse
 
+import click
 import requests
 from constant_sorrow.constants import (
     NO_BLOCKCHAIN_CONNECTION,
@@ -237,30 +238,27 @@ class BlockchainInterface:
 
         return self.is_connected
 
-    def sync(self, show_progress: bool = False) -> None:
+    def sync(self, emitter=None) -> None:
 
         sync_state = self.client.sync()
-        if show_progress:
-            import click
-            # TODO: #1503 - It is possible that output has been redirected from a higher-level emitter.
-            # TODO: #1503 - Use console logging instead of StdOutEmitter here.
-            emitter = StdoutEmitter()
+        if emitter is not None:
 
-            emitter.echo(f"Syncing: {self.client.chain_name.capitalize()}. Waiting for sync to begin.")
+            emitter.echo(f"Syncing: {self.client.chain_name.capitalize()}. Waiting for sync to begin.", verbosity=1)
 
             while not len(self.client.peers):
-                emitter.echo("waiting for peers...")
+                emitter.echo("waiting for peers...", verbosity=1)
                 time.sleep(5)
 
             peer_count = len(self.client.peers)
             emitter.echo(
-                f"Found {'an' if peer_count == 1 else peer_count} Ethereum peer{('s' if peer_count > 1 else '')}.")
+                f"Found {'an' if peer_count == 1 else peer_count} Ethereum peer{('s' if peer_count > 1 else '')}.",
+                verbosity=1)
 
             try:
-                emitter.echo("Beginning sync...")
+                emitter.echo("Beginning sync...", verbosity=1)
                 initial_state = next(sync_state)
             except StopIteration:  # will occur if no syncing needs to happen
-                emitter.echo("Local blockchain data is already synced.")
+                emitter.echo("Local blockchain data is already synced.", verbosity=1)
                 return
 
             prior_state = initial_state
@@ -268,7 +266,8 @@ class BlockchainInterface:
                 initial_state.get('currentBlock', 0))
             with click.progressbar(
                     length=total_blocks_to_sync,
-                    label="sync progress"
+                    label="sync progress",
+                    file=emitter.get_stream(verbosity=1)
             ) as bar:
                 for syncdata in sync_state:
                     if syncdata:
@@ -741,7 +740,7 @@ class BlockchainInterfaceFactory:
 
     CachedInterface = collections.namedtuple('CachedInterface', ['interface',    # type: BlockchainInterface
                                                                  'sync',
-                                                                 'show_sync_progress'])
+                                                                 'emitter'])
 
     class FactoryError(Exception):
         pass
@@ -771,21 +770,21 @@ class BlockchainInterfaceFactory:
     def register_interface(cls,
                            interface: BlockchainInterface,
                            sync: bool = False,
-                           show_sync_progress: bool = False
+                           emitter=None,
                            ) -> None:
 
         provider_uri = interface.provider_uri
         if provider_uri in cls._interfaces:
             raise cls.InterfaceAlreadyInitialized(f"A connection already exists for {provider_uri}. "
                                                   "Use .get_interface instead.")
-        cached = cls.CachedInterface(interface=interface, sync=sync, show_sync_progress=show_sync_progress)
+        cached = cls.CachedInterface(interface=interface, sync=sync, emitter=emitter)
         cls._interfaces[provider_uri] = cached
 
     @classmethod
     def initialize_interface(cls,
                              provider_uri: str,
                              sync: bool = False,
-                             show_sync_progress: bool = False,
+                             emitter=None,
                              interface_class: Interfaces = None,
                              *interface_args,
                              **interface_kwargs
@@ -801,7 +800,7 @@ class BlockchainInterfaceFactory:
         interface = interface_class(provider_uri=provider_uri, *interface_args, **interface_kwargs)
         cls._interfaces[provider_uri] = cls.CachedInterface(interface=interface,
                                                             sync=sync,
-                                                            show_sync_progress=show_sync_progress)
+                                                            emitter=emitter)
 
     @classmethod
     def get_interface(cls, provider_uri: str = None) -> Interfaces:
@@ -822,11 +821,11 @@ class BlockchainInterfaceFactory:
                 raise cls.NoRegisteredInterfaces(f"There is no existing blockchain connection.")
 
         # Connect and Sync
-        interface, sync, show_sync_progress = cached_interface
+        interface, sync, emitter = cached_interface
         if not interface.is_connected:
             interface.connect()
             if sync:
-                interface.sync(show_progress=show_sync_progress)
+                interface.sync(emitter=emitter)
         return interface
 
     @classmethod

@@ -64,6 +64,7 @@ class FelixConfigOptions:
         # Load Felix from Configuration File with overrides
         try:
             return FelixConfiguration.from_configuration_file(
+                emitter=emitter,
                 filepath=config_file,
                 domains=self.domains,
                 registry_filepath=self.registry_filepath,

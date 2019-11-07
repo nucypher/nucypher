@@ -107,6 +107,7 @@ class UrsulaConfigOptions:
     def create_config(self, emitter, config_file):
         if self.dev:
             return UrsulaConfiguration(
+                emitter=emitter,
                 dev_mode=True,
                 domains={TEMPORARY_DOMAIN},
                 poa=self.poa,
@@ -123,6 +124,7 @@ class UrsulaConfigOptions:
         else:
             try:
                 return UrsulaConfiguration.from_configuration_file(
+                    emitter=emitter,
                     filepath=config_file,
                     domains=self.domains,
                     registry_filepath=self.registry_filepath,

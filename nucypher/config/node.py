@@ -98,6 +98,8 @@ class CharacterConfiguration(BaseConfiguration):
                  # Registry
                  registry: BaseContractRegistry = None,
                  registry_filepath: str = None,
+
+                 emitter=None,
                  ):
 
         self.log = Logger(self.__class__.__name__)
@@ -183,14 +185,12 @@ class CharacterConfiguration(BaseConfiguration):
         else:
             is_initialized = BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri)
             if not is_initialized and provider_uri:
-                from nucypher.cli.config import GroupGeneralConfig  # TODO: Need a better place for global verbosity, non-local to the CLI.
-
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
                                                                 poa=self.poa,
                                                                 light=self.is_light,
                                                                 provider_process=self.provider_process,
                                                                 sync=sync,
-                                                                show_sync_progress=GroupGeneralConfig.verbosity)
+                                                                emitter=emitter)
             else:
                 self.log.warn(f"Using existing blockchain interface connection ({self.provider_uri}).")
 

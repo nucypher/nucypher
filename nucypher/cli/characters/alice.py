@@ -76,7 +76,7 @@ class AliceConfigOptions:
         self.registry_filepath = registry_filepath
         self.middleware = middleware
 
-    def create_config(self, config_file):
+    def create_config(self, emitter, config_file):
 
         if self.dev:
 
@@ -87,6 +87,7 @@ class AliceConfigOptions:
                     message="--federated-only cannot be explicitly set to False when --dev is set")
 
             return AliceConfiguration(
+                emitter=emitter,
                 dev_mode=True,
                 network_middleware=self.middleware,
                 domains={TEMPORARY_DOMAIN},
@@ -97,6 +98,7 @@ class AliceConfigOptions:
         else:
             try:
                 return AliceConfiguration.from_configuration_file(
+                    emitter=emitter,
                     dev_mode=False,
                     network_middleware=self.middleware,
                     domains=self.domains,
@@ -170,7 +172,7 @@ class AliceCharacterOptions:
 
     def create_character(self, emitter, config_file, json_ipc, load_seednodes=True):
 
-        config = self.config_options.create_config(config_file)
+        config = self.config_options.create_config(emitter, config_file)
 
         client_password = None
         if not config.federated_only:
@@ -260,7 +262,7 @@ def destroy(general_config, config_options, config_file, force):
     Delete existing Alice's configuration.
     """
     emitter = _setup_emitter(general_config)
-    alice_config = config_options.create_config(config_file)
+    alice_config = config_options.create_config(emitter, config_file)
     return actions.destroy_configuration(emitter, character_config=alice_config, force=force)
 
 

@@ -51,9 +51,10 @@ class BobConfigOptions:
         self.dev = dev
         self.middleware = middleware
 
-    def create_config(self, config_file):
+    def create_config(self, emitter, config_file):
         if self.dev:
             return BobConfiguration(
+                emitter=emitter,
                 dev_mode=True,
                 domains={TEMPORARY_DOMAIN},
                 provider_uri=self.provider_uri,
@@ -63,6 +64,7 @@ class BobConfigOptions:
         else:
             try:
                 return BobConfiguration.from_configuration_file(
+                    emitter=emitter,
                     filepath=config_file,
                     domains=self.domains,
                     checksum_address=self.checksum_address,
@@ -115,7 +117,7 @@ class BobCharacterOptions:
         self.min_stake = min_stake
 
     def create_character(self, emitter, config_file):
-        config = self.config_options.create_config(config_file)
+        config = self.config_options.create_config(emitter, config_file)
 
         return actions.make_cli_character(character_config=config,
                                           emitter=emitter,
@@ -222,7 +224,7 @@ def destroy(general_config, config_options, config_file, force):
         message = "'nucypher bob destroy' cannot be used in --dev mode"
         raise click.BadOptionUsage(option_name='--dev', message=message)
 
-    bob_config = config_options.create_config(config_file)
+    bob_config = config_options.create_config(emitter, config_file)
 
     # Request
     return actions.destroy_configuration(emitter, character_config=bob_config, force=force)

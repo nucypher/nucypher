@@ -396,7 +396,7 @@ def select_client_account(emitter,
 
     # Lazy connect the blockchain interface
     if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-        BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
+        BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, emitter=emitter)
     blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
 
     # Lazy connect to contracts
