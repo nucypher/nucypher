@@ -518,7 +518,7 @@ class ContractAdministrator(NucypherTokenActor):
             if emitter:
                 paint_deployed_allocations(emitter, allocated, failed)
 
-            csv_filename = f'allocations-{self.deployer_address[:6]}-{maya.now().epoch}.csv'
+            csv_filename = f'allocation-summary-{self.deployer_address[:6]}-{maya.now().epoch}.csv'
             csv_filepath = os.path.join(parent_path, csv_filename)
             write_deployed_allocations_to_csv(csv_filepath, allocated, failed)
             if emitter:
@@ -575,12 +575,12 @@ class ContractAdministrator(NucypherTokenActor):
         os.makedirs(DEFAULT_CONFIG_ROOT, exist_ok=True)
         with open(filepath, 'w') as file:
             data = dict()
-            for contract_name, receipts in receipts.items():
+            for contract_name, contract_receipts in receipts.items():
                 contract_records = dict()
-                for tx_name, receipt in receipts.items():
+                for tx_name, receipt in contract_receipts.items():
                     # Formatting
-                    receipt = {item: str(result) for item, result in receipt.items()}
-                    contract_records.update({tx_name: receipt for tx_name in receipts})
+                    pretty_receipt = {item: str(result) for item, result in receipt.items()}
+                    contract_records[tx_name] = pretty_receipt
                 data[contract_name] = contract_records
             data = json.dumps(data, indent=4)
             file.write(data)
