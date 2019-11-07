@@ -24,15 +24,6 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
-#
-# Global Session Mock & Patch
-#
-
-
-# Disable click sentry and file logging
-GroupGeneralConfig.log_to_sentry = False
-GroupGeneralConfig.log_to_file = True
-
 # Crash on server error by default
 WebEmitter._crash_on_error_default = True
 
@@ -129,6 +120,7 @@ def pytest_collection_modifyitems(config, items):
 
     log_level_name = config.getoption("--log-level", "info", skip=True)
 
+    GlobalLoggerSettings.stop_sentry_logging()
     GlobalLoggerSettings.set_log_level(log_level_name)
     GlobalLoggerSettings.start_text_file_logging()
     GlobalLoggerSettings.start_json_file_logging()

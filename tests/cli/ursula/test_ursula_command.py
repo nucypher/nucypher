@@ -8,10 +8,6 @@ from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.config import GroupGeneralConfig
 from nucypher.cli.processes import UrsulaCommandProtocol
 
-# Override environment variables
-GroupGeneralConfig.log_to_sentry = False
-GroupGeneralConfig.log_to_file = False
-
 
 @contextmanager
 def capture_output():
