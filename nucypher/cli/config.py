@@ -45,9 +45,6 @@ class GroupGeneralConfig:
 
     verbosity = 0
 
-    # Output Sinks
-    __emitter = None
-
     # Environment Variables
     config_file = os.environ.get('NUCYPHER_CONFIG_FILE')
     sentry_endpoint = os.environ.get("NUCYPHER_SENTRY_DSN", NUCYPHER_SENTRY_ENDPOINT)
@@ -86,7 +83,7 @@ class GroupGeneralConfig:
         else:
             emitter = StdoutEmitter(verbosity=GroupGeneralConfig.verbosity)
 
-        self.attach_emitter(emitter)
+        self.emitter = emitter
 
         if verbose:
             self.emitter.message("Verbose mode is enabled", color='blue')
@@ -131,14 +128,6 @@ class GroupGeneralConfig:
 
         self.debug = debug
         self.json_ipc = json_ipc
-
-    @classmethod
-    def attach_emitter(cls, emitter) -> None:
-        cls.__emitter = emitter
-
-    @property
-    def emitter(cls):
-        return cls.__emitter
 
 
 group_general_config = group_options(
