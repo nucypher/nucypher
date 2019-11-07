@@ -42,7 +42,7 @@ class MoeStatusApp(NetworkStatusPage):
         template_path = os.path.join(self.TEMPLATE_DIR, 'moe.html')
         with open(template_path, 'r') as file:
             moe_template = file.read()
-            self.dash_app.index_string = Template(moe_template).substitute(ws_port=moe.websocket_port,
+            self.dash_app.index_string = Template(moe_template).substitute(ws_port=self.moe.websocket_port,
                                                                            ws_host=self.moe.host)
 
         self.dash_app.layout = html.Div([

@@ -15,7 +15,7 @@ from nucypher.network.middleware import RestMiddleware
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--network', help="Network Domain Name", type=click.STRING)
-@click.option('--host', help="The host to run Moe services on", type=click.STRING, default='0.0.0.0')
+@click.option('--host', help="The host to run Moe services on", type=click.STRING, default='127.0.0.1')
 @click.option('--http-port', help="The network port to run Moe services on", type=NETWORK_PORT, default=12500)
 @click.option('--ws-port', help="The host port to run websocket network services on", type=NETWORK_PORT, default=9000)
 @click.option('--certificate-filepath', help="Pre-signed TLS certificate filepath")
