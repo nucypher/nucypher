@@ -30,7 +30,8 @@ from constant_sorrow.constants import (
     SIGNATURE_TO_FOLLOW,
     SIGNATURE_IS_ON_CIPHERTEXT,
     STRANGER,
-    FEDERATED_ONLY
+    FEDERATED_ONLY,
+    NOT_SIGNED
 )
 from cryptography.exceptions import InvalidSignature
 from eth_keys import KeyAPI as EthKeyAPI
@@ -454,7 +455,7 @@ class Character(Learner):
             is_valid = signature_to_use.verify(message, sender_verifying_key)  # FIXME: Message is undefined here
             if not is_valid:
                 raise InvalidSignature("Signature for message isn't valid: {}".format(signature_to_use))
-        else:
+        elif not decrypt or sig_header != NOT_SIGNED:
             raise InvalidSignature("No signature provided -- signature presumed invalid.")
 
         return cleartext
