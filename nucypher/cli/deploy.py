@@ -30,7 +30,6 @@ from nucypher.blockchain.eth.registry import (
     GithubRegistrySource,
 )
 from nucypher.blockchain.eth.token import NU
-from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions import (
     get_client_password,
     select_client_account,
@@ -46,6 +45,7 @@ from nucypher.cli.common_options import (
     option_poa,
     option_provider_uri,
     )
+from nucypher.cli.config import group_general_config
 from nucypher.cli.painting import (
     paint_staged_deployment,
     paint_deployment_delay,
@@ -190,16 +190,17 @@ def deploy():
 
 
 @deploy.command(name='download-registry')
+@group_general_config
 @option_config_root
 @option_registry_outfile
 @option_network__eth
 @option_force
-def download_registry(config_root, registry_outfile, network, force):
+def download_registry(general_config, config_root, registry_outfile, network, force):
     """
     Download the latest registry.
     """
     # Init
-    emitter = StdoutEmitter()
+    emitter = general_config.emitter
     _ensure_config_root(config_root)
 
     github_source = GithubRegistrySource(network=network, registry_name=BaseContractRegistry.REGISTRY_NAME)
@@ -223,17 +224,18 @@ def download_registry(config_root, registry_outfile, network, force):
 
 
 @deploy.command()
+@group_general_config
 @option_provider_uri(required=True)
 @option_config_root
 @option_registry_infile
 @option_deployer_address
 @option_poa
-def inspect(provider_uri, config_root, registry_infile, deployer_address, poa):
+def inspect(general_config, provider_uri, config_root, registry_infile, deployer_address, poa):
     """
     Echo owner information and bare contract metadata.
     """
     # Init
-    emitter = StdoutEmitter()
+    emitter = general_config.emitter
     _ensure_config_root(config_root)
     _initialize_blockchain(poa, provider_uri, emitter)
 
@@ -246,16 +248,17 @@ def inspect(provider_uri, config_root, registry_infile, deployer_address, poa):
 
 
 @deploy.command()
+@group_general_config
 @group_actor_options
 @click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
 @option_target_address
 @click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
-def upgrade(actor_options, retarget, target_address, ignore_deployed):
+def upgrade(general_config, actor_options, retarget, target_address, ignore_deployed):
     """
     Upgrade NuCypher existing proxy contract deployments.
     """
     # Init
-    emitter = StdoutEmitter()
+    emitter = general_config.emitter
     ADMINISTRATOR, _, _, _ = actor_options.create_actor(emitter)
 
     contract_name = actor_options.contract_name
@@ -289,12 +292,13 @@ def upgrade(actor_options, retarget, target_address, ignore_deployed):
 
 
 @deploy.command()
+@group_general_config
 @group_actor_options
-def rollback(actor_options):
+def rollback(general_config, actor_options):
     """
     Rollback a proxy contract's target.
     """
-    emitter = StdoutEmitter()
+    emitter = general_config.emitter
     ADMINISTRATOR, _, _, _ = actor_options.create_actor(emitter)
 
     if not actor_options.contract_name:
@@ -307,17 +311,18 @@ def rollback(actor_options):
 
 
 @deploy.command()
+@group_general_config
 @group_actor_options
 @click.option('--bare', help="Deploy a contract *only* without any additional operations.", is_flag=True)
 @option_gas
 @click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
-def contracts(actor_options, bare, gas, ignore_deployed):
+def contracts(general_config, actor_options, bare, gas, ignore_deployed):
     """
     Compile and deploy contracts.
     """
     # Init
-    emitter = StdoutEmitter()
 
+    emitter = general_config.emitter
     ADMINISTRATOR, _, deployer_interface, local_registry = actor_options.create_actor(emitter)
 
     #
@@ -397,13 +402,14 @@ def contracts(actor_options, bare, gas, ignore_deployed):
 
 
 @deploy.command()
+@group_general_config
 @group_actor_options
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
 @click.option('--allocation-outfile', help="Output path for token allocation JSON file",
               type=click.Path(exists=False, file_okay=True))
 @click.option('--sidekick-account', help="A software-controlled account to assist the deployment",
               type=EIP55_CHECKSUM_ADDRESS)
-def allocations(actor_options, allocation_infile, allocation_outfile, sidekick_account):
+def allocations(general_config, actor_options, allocation_infile, allocation_outfile, sidekick_account):
     """
     Deploy pre-allocation contracts.
     """
@@ -435,14 +441,15 @@ def allocations(actor_options, allocation_infile, allocation_outfile, sidekick_a
 
 
 @deploy.command(name='transfer-tokens')
+@group_general_config
 @group_actor_options
 @option_target_address
 @click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
-def transfer_tokens(actor_options, target_address, value):
+def transfer_tokens(general_config, actor_options, target_address, value):
     """
     Transfer tokens from contract's owner address to another address
     """
-    emitter = StdoutEmitter()
+    emitter = general_config.emitter
     ADMINISTRATOR, deployer_address, _, local_registry = actor_options.create_actor(emitter)
 
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=local_registry)
@@ -460,14 +467,15 @@ def transfer_tokens(actor_options, target_address, value):
 
 
 @deploy.command("transfer-ownership")
+@group_general_config
 @group_actor_options
 @option_target_address
 @option_gas
-def transfer_ownership(actor_options, target_address, gas):
+def transfer_ownership(general_config, actor_options, target_address, gas):
     """
     Transfer ownership of contracts to another address.
     """
-    emitter = StdoutEmitter()
+    emitter = general_config.emitter
     ADMINISTRATOR, _, _, _ = actor_options.create_actor(emitter)
 
     if not target_address:
