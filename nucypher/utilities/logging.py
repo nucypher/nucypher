@@ -17,7 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pathlib
 from contextlib import contextmanager
-from functools import lru_cache
 
 from sentry_sdk import capture_exception, add_breadcrumb
 from sentry_sdk.integrations.logging import LoggingIntegration
@@ -165,7 +164,6 @@ def _ensure_dir_exists(path):
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
 
-@lru_cache()
 def get_json_file_observer(name="nucypher.json", path=USER_LOG_DIR):
     _ensure_dir_exists(path)
     logfile = LogFile(name=name, directory=path, rotateLength=MAXIMUM_LOG_SIZE, maxRotatedFiles=MAX_LOG_FILES)
@@ -173,7 +171,6 @@ def get_json_file_observer(name="nucypher.json", path=USER_LOG_DIR):
     return observer
 
 
-@lru_cache()
 def get_text_file_observer(name="nucypher.log", path=USER_LOG_DIR):
     _ensure_dir_exists(path)
     logfile = LogFile(name=name, directory=path, rotateLength=MAXIMUM_LOG_SIZE, maxRotatedFiles=MAX_LOG_FILES)
