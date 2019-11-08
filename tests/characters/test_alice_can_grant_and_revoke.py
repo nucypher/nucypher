@@ -30,6 +30,7 @@ from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.crypto.utils import construct_policy_id
+from nucypher.keystore.keystore import KeyStore, NotFound
 from nucypher.policy.collections import Revocation, PolicyCredential
 from nucypher.policy.policies import BlockchainPolicy, Policy
 from nucypher.storage.policy import LocalFilePolicyCredentialStorage
@@ -162,7 +163,7 @@ def test_restore_policy_from_credential_storage(blockchain_alice):
         blockchain_alice.credential_storage = original_credential_storage
 
 
-def test_decentralized_revoke(testerchain, blockchain_alice):
+def test_decentralized_revoke_with_treasure_map(testerchain, blockchain_alice):
 
     # Restore saved Policy Credential with Treasure Map
     blockchain_alice._Alice__active_policies = dict()
@@ -172,12 +173,17 @@ def test_decentralized_revoke(testerchain, blockchain_alice):
     # Contract reports active policy
     assert not blockchain_alice.policy_agent.fetch_policy(policy.id)[-1]
 
+    # Let's look at the published arrangements. Each ursula has an arrangement in it' datastore.
+    for ursula_address, arrangement_id in policy.treasure_map.destinations.items():
+        ursula = blockchain_alice.known_nodes[ursula_address]
+        assert ursula.datastore.get_policy_arrangement(arrangement_id.hex().encode())
+
     receipt, failed_revocations = blockchain_alice.revoke(policy)
 
     # Successful requests to Ursulas for fragment deletion
     assert failed_revocations == {}  # No Failed Revocations  # TODO ... What if there *are* failed revocations?
 
-    # Positive Receipt
+    # Positive revocation receipt
     assert receipt['status'] == 1
 
     # Positive policy-local state update
@@ -185,6 +191,12 @@ def test_decentralized_revoke(testerchain, blockchain_alice):
 
     # Contract reports inactive policy
     assert blockchain_alice.policy_agent.fetch_policy(policy.id)[-1]
+
+    # Let's look for the revoked arrangements.  The Ursulas no longer have the arrangement record.
+    for ursula_address, arrangement_id in policy.treasure_map.destinations.items():
+        ursula = blockchain_alice.known_nodes[ursula_address]
+        with pytest.raises(NotFound):
+            ursula.datastore.get_policy_arrangement(arrangement_id.hex().encode())
 
 
 @pytest.mark.usefixtures('federated_ursulas')
