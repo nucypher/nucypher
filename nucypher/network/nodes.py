@@ -433,6 +433,8 @@ class Learner:
         # In some cases (seed nodes or other temp stored certs),
         # this will update the filepath from the temp location to this one.
         node.certificate_filepath = certificate_filepath
+
+
         self.log.info(f"Saved TLS certificate for {node.nickname}: {certificate_filepath}")
 
         try:

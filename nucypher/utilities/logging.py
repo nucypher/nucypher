@@ -96,6 +96,16 @@ class GlobalLoggerSettings:
             globalLogPublisher.addObserver(console_observer)
 
     @classmethod
+    @contextmanager
+    def pause_all_logging_while(cls):
+        former_observers = tuple(globalLogPublisher._observers)
+        for observer in former_observers:
+            globalLogPublisher.removeObserver(observer)
+        yield
+        for observer in former_observers:
+            globalLogPublisher.addObserver(observer)
+
+    @classmethod
     def start_text_file_logging(cls):
         globalLogPublisher.addObserver(get_text_file_observer())
 
