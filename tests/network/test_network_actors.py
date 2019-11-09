@@ -14,21 +14,97 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from unittest.mock import patch
 
 import pytest
+import maya
+import datetime
 from binascii import unhexlify
 from hendrix.experience import crosstown_traffic
 from hendrix.utils.test_utils import crosstownTaskListDecoratorFactory
+from umbral.config import default_params
+from umbral.keys import UmbralPrivateKey
 
 from nucypher.characters.lawful import Ursula
 from nucypher.characters.unlawful import Vladimir
+from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import FleetStateTracker
+from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+
+
+def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_config, federated_bob,
+                                                        alice_federated_test_config):
+
+    # First, we need to do some optimizing of this test in order
+    # to be able to create a whole bunch of Ursulas without it freezing.
+    # BEGIN CRAZY MONKEY PATCHING BLOCK
+    def do_not_store_cert(*args, **kwargs):
+        return "Don't need to save certs for this test."
+
+    ForgetfulNodeStorage.store_node_certificate = do_not_store_cert
+
+    class NotAPublicKey:
+        def __bytes__(self):
+            return b"this is not a public key... but it is 64 bytes... which is good.."
+
+        def to_bytes(self, *args, **kwargs):
+            return bytes(self)
+
+    class NotAPrivateKey:
+        params = default_params()
+
+        def public_key(self):
+            return NotAPublicKey()
+
+        def get_pubkey(self, *args, **kwargs):
+            return self.public_key()
+
+        def to_cryptography_privkey(self, *args, **kwargs):
+            return self
+
+    class NotACert:
+        def public_bytes(self, does_not_matter):
+            return b"this is not a cert."
+
+    def do_not_creeate_cert(*args, **kwargs):
+        return NotACert(), NotAPrivateKey()
+
+    import nucypher.keystore.keypairs
+    import nucypher.characters.lawful
+
+    def simple_remember(ursula, node, *args, **kwargs):
+        address = node.checksum_address
+        ursula.known_nodes[address] = node
+
+    nucypher.characters.lawful.Ursula.remember_node = simple_remember
+    nucypher.characters.lawful.load_pem_x509_certificate = lambda *args, **kwargs: NotACert()
+    nucypher.characters.lawful.make_rest_app = lambda *args, **kwargs: ("this is not a REST app", "this is not a datastore")
+
+    nucypher.keystore.keypairs.generate_self_signed_certificate = do_not_creeate_cert
+    # nucypher.keystore.keypairs.Keypair._private_key_source = lambda *args, **kwargs: NotAPrivateKey()
+
+    with GlobalLoggerSettings.pause_all_logging_while():
+        with patch("nucypher.keystore.keypairs.Keypair._private_key_source", new=lambda *args, **kwargs: NotAPrivateKey()):
+            _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
+                                                  quantity=5000)
+    return True
+    # END CRAZY MONKEY PATCHING BLOCK
+    alice = alice_federated_test_config.produce(known_nodes=list(_ursulas)[:1])
+
+    # Setup the policy details
+    m, n = 2, 3
+    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    label = b"this_is_the_path_to_which_access_is_being_granted"
+
+    # Create the Policy, granting access to Bob
+    # TODO: timeit stuff
+    policy = alice.grant(federated_bob, label, m=m, n=n, expiration=policy_end_datetime)
 
 
 @pytest.mark.slow()
