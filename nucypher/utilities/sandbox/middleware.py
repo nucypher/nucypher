@@ -23,9 +23,10 @@ from nucypher.network.middleware import RestMiddleware, NucypherMiddlewareClient
 from nucypher.utilities.sandbox.constants import MOCK_KNOWN_URSULAS_CACHE
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
 
+from flask import Response
+
 
 class _TestMiddlewareClient(NucypherMiddlewareClient):
-
     timeout = None
 
     @staticmethod
@@ -93,6 +94,23 @@ class MockRestMiddleware(RestMiddleware):
         return ursula.certificate
 
 
+class MockRestMiddlewareForLargeFleetTests(MockRestMiddleware):
+    """
+    A MockRestMiddleware with workaround necessary to test the conditions that arise with thousands of nodes.
+    """
+
+    def get_nodes_via_rest(self,
+                           node,
+                           announce_nodes=None,
+                           nodes_i_need=None,
+                           fleet_checksum=None):
+        known_nodes_bytestring = node.bytestring_of_known_nodes()
+        signature = node.stamp(known_nodes_bytestring)
+        r = Response(bytes(signature) + known_nodes_bytestring)
+        r.content = r.data
+        return r
+
+
 class _MiddlewareClientWithConnectionProblems(_TestMiddlewareClient):
 
     def __init__(self, *args, **kwargs):
@@ -122,6 +140,7 @@ class NodeIsDownMiddleware(MockRestMiddleware):
     """
     Modified middleware to emulate one node being down amongst many.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.client = _MiddlewareClientWithConnectionProblems()
@@ -148,4 +167,3 @@ class EvilMiddleWare(MockRestMiddleware):
                                     data=bytes(VariableLengthBytestring(shitty_interface_id))
                                     )
         return response
-
