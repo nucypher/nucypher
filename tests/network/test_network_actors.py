@@ -27,34 +27,44 @@ from umbral.keys import UmbralPrivateKey
 
 from nucypher.characters.lawful import Ursula
 from nucypher.characters.unlawful import Vladimir
-from nucypher.config.storages import ForgetfulNodeStorage
+from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import FleetStateTracker
 from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
 
 
-def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_config, federated_bob,
-                                                        alice_federated_test_config):
-
+def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_config):
     # First, we need to do some optimizing of this test in order
     # to be able to create a whole bunch of Ursulas without it freezing.
     # BEGIN CRAZY MONKEY PATCHING BLOCK
-    def do_not_store_cert(*args, **kwargs):
-        return "Don't need to save certs for this test."
-
-    ForgetfulNodeStorage.store_node_certificate = do_not_store_cert
-
     class NotAPublicKey:
+        _serial = 10000
+
+        @classmethod
+        def tick(cls):
+            cls._serial += 1
+
+        def __init__(self, serial=None):
+            if serial is None:
+                self.tick()
+                self.serial = str(self._serial).encode()
+            else:
+                self.serial = serial
+
         def __bytes__(self):
-            return b"this is not a public key... but it is 64 bytes... which is good.."
+            return b"not a compressed public key:" + self.serial
+
+        @classmethod
+        def from_bytes(cls, some_bytes):
+            return cls(serial=some_bytes[-5:])
 
         def to_bytes(self, *args, **kwargs):
-            return bytes(self)
+            return b"this is not a public key... but it is 64 bytes.. so, ya know" + self.serial
 
     class NotAPrivateKey:
         params = default_params()
