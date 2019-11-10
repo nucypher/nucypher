@@ -132,33 +132,32 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_co
                                 save_metadata=False,
                                 reload_metadata=False)
 
-    def fake_verify(*args, **kwargs):
-        return
+    class VerificationTracker:
+        verifications_performed = 0
+
+        @classmethod
+        def fake_verify(cls, *args, **kwargs):
+            cls.verifications_performed += 1
 
     with patch("nucypher.config.storages.ForgetfulNodeStorage.store_node_certificate",
                new=lambda *args, **kwargs: "do not store cert."):
-        with patch("nucypher.characters.lawful.Ursula.verify_node", new=lambda *args, **kwargs: None):
+        with patch("nucypher.characters.lawful.Ursula.verify_node", new=VerificationTracker.fake_verify):
             with patch("nucypher.network.nodes.FleetStateTracker.record_fleet_state", new=lambda *args, **kwargs: None):
                 alice = config.produce(known_nodes=list(_ursulas)[:1],
                                                             )
+    # We started with one known_node and verified it.
+    # TODO: Consider changing this - #1449
+    assert VerificationTracker.verifications_performed == 1
 
     with patch("nucypher.config.storages.ForgetfulNodeStorage.store_node_certificate",
                new=lambda *args, **kwargs: "do not store cert."):
-        with patch("nucypher.characters.lawful.Ursula.verify_node", new=lambda *args, **kwargs: None):
-            with patch('nucypher.characters.lawful.Alice.verify_from', new=fake_verify):
+        with patch("nucypher.characters.lawful.Ursula.verify_node", new=VerificationTracker.fake_verify):
+            with patch('nucypher.characters.lawful.Alice.verify_from', new=lambda *args, **kwargs: None):
                 with patch('umbral.keys.UmbralPublicKey.from_bytes', NotAPublicKey.from_bytes):
                     with patch('nucypher.characters.lawful.load_pem_x509_certificate', new=lambda *args, **kwargs: NotACert()):
-                        alice.block_until_number_of_known_nodes_is(4800, learn_on_this_thread=True, timeout=5)
+                        alice.block_until_number_of_known_nodes_is(8, learn_on_this_thread=True, timeout=60)
 
-    # Setup the policy details
-    m, n = 2, 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
-    label = b"this_is_the_path_to_which_access_is_being_granted"
-
-    # Create the Policy, granting access to Bob
-    # TODO: timeit stuff
-    policy = alice.grant(federated_bob, label, m=m, n=n, expiration=policy_end_datetime)
-
+    assert VerificationTracker.verifications_performed < 4000  # Fail.  # 1450
 
 @pytest.mark.slow()
 def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas, agency):
