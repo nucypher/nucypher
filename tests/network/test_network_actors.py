@@ -78,34 +78,77 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_co
         def to_cryptography_privkey(self, *args, **kwargs):
             return self
 
+        def sign(self, *args, **kwargs):
+            return b'0D\x02 @\xbfS&\x97\xb3\x9e\x9e\xd3\\j\x9f\x0e\x8fY\x0c\xbeS\x08d\x0b%s\xf6\x17\xe2\xb6\xcd\x95u\xaap\x02 ON\xd9E\xb3\x10M\xe1\xf4u\x0bL\x99q\xd6\r\x8e_\xe5I\x1e\xe5\xa2\xcf\xe5\x8be_\x077Gz'
+
     class NotACert:
+        class Subject:
+            def get_attributes_for_oid(self, *args, **kwargs):
+                class Pseudonym:
+                    value = "0x51347fF6eb8F1D39B83B5e9c244Dc2E1E9EB14B4"
+                return Pseudonym(), "Or whatever?"
+        subject = Subject()
+
         def public_bytes(self, does_not_matter):
             return b"this is not a cert."
 
-    def do_not_creeate_cert(*args, **kwargs):
-        return NotACert(), NotAPrivateKey()
+        def public_key(self):
+            return NotAPublicKey()
 
-    import nucypher.keystore.keypairs
-    import nucypher.characters.lawful
+    def do_not_create_cert(*args, **kwargs):
+        return NotACert(), NotAPrivateKey()
 
     def simple_remember(ursula, node, *args, **kwargs):
         address = node.checksum_address
         ursula.known_nodes[address] = node
 
-    nucypher.characters.lawful.Ursula.remember_node = simple_remember
-    nucypher.characters.lawful.load_pem_x509_certificate = lambda *args, **kwargs: NotACert()
-    nucypher.characters.lawful.make_rest_app = lambda *args, **kwargs: ("this is not a REST app", "this is not a datastore")
+    class NotARestApp:
+        testing = True
 
-    nucypher.keystore.keypairs.generate_self_signed_certificate = do_not_creeate_cert
-    # nucypher.keystore.keypairs.Keypair._private_key_source = lambda *args, **kwargs: NotAPrivateKey()
 
     with GlobalLoggerSettings.pause_all_logging_while():
-        with patch("nucypher.keystore.keypairs.Keypair._private_key_source", new=lambda *args, **kwargs: NotAPrivateKey()):
-            _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
-                                                  quantity=5000)
-    return True
-    # END CRAZY MONKEY PATCHING BLOCK
-    alice = alice_federated_test_config.produce(known_nodes=list(_ursulas)[:1])
+        with patch("nucypher.config.storages.ForgetfulNodeStorage.store_node_certificate",
+                   new=lambda *args, **kwargs: "do not store cert."):
+            with patch("nucypher.characters.lawful.make_rest_app",
+                       new=lambda *args, **kwargs: (NotARestApp(), "this is not a datastore")):
+                with patch("nucypher.characters.lawful.load_pem_x509_certificate",
+                           new=lambda *args, **kwargs: NotACert()):
+                    with patch("nucypher.keystore.keypairs.generate_self_signed_certificate", new=do_not_create_cert):
+                        with patch("nucypher.keystore.keypairs.Keypair._private_key_source",
+                                   new=lambda *args, **kwargs: NotAPrivateKey()):
+                            with patch("nucypher.characters.lawful.Ursula.remember_node", new=simple_remember):
+                                _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
+                                                                  quantity=5000, know_each_other=False)
+    # END FIRST CRAZY MONKEY PATCHING BLOCK
+                                all_ursulas = {u.checksum_address: u for u in _ursulas}
+                                for ursula in _ursulas:
+                                    ursula.known_nodes._nodes = all_ursulas
+                                    ursula.known_nodes.checksum = b"This is a fleet state checksum..".hex()
+    config = AliceConfiguration(dev_mode=True,
+                                network_middleware=MockRestMiddlewareForLargeFleetTests(),
+                                known_nodes=_ursulas,
+                                federated_only=True,
+                                abort_on_learning_error=True,
+                                save_metadata=False,
+                                reload_metadata=False)
+
+    def fake_verify(*args, **kwargs):
+        return
+
+    with patch("nucypher.config.storages.ForgetfulNodeStorage.store_node_certificate",
+               new=lambda *args, **kwargs: "do not store cert."):
+        with patch("nucypher.characters.lawful.Ursula.verify_node", new=lambda *args, **kwargs: None):
+            with patch("nucypher.network.nodes.FleetStateTracker.record_fleet_state", new=lambda *args, **kwargs: None):
+                alice = config.produce(known_nodes=list(_ursulas)[:1],
+                                                            )
+
+    with patch("nucypher.config.storages.ForgetfulNodeStorage.store_node_certificate",
+               new=lambda *args, **kwargs: "do not store cert."):
+        with patch("nucypher.characters.lawful.Ursula.verify_node", new=lambda *args, **kwargs: None):
+            with patch('nucypher.characters.lawful.Alice.verify_from', new=fake_verify):
+                with patch('umbral.keys.UmbralPublicKey.from_bytes', NotAPublicKey.from_bytes):
+                    with patch('nucypher.characters.lawful.load_pem_x509_certificate', new=lambda *args, **kwargs: NotACert()):
+                        alice.block_until_number_of_known_nodes_is(4800, learn_on_this_thread=True, timeout=5)
 
     # Setup the policy details
     m, n = 2, 3
