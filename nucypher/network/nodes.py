@@ -1008,6 +1008,16 @@ class Teacher:
         nodes_to_consider = list(self.known_nodes.values()) + [self]
         return sorted(nodes_to_consider, key=lambda n: n.checksum_address)
 
+    def bytestring_of_known_nodes(self):
+        payload = self.known_nodes.snapshot()
+
+        ursulas_as_vbytes = (VariableLengthBytestring(n) for n in self.known_nodes)
+        ursulas_as_bytes = bytes().join(bytes(u) for u in ursulas_as_vbytes)
+        ursulas_as_bytes += VariableLengthBytestring(bytes(self))
+
+        payload += ursulas_as_bytes
+        return payload
+
     def update_snapshot(self, checksum, updated, number_of_known_nodes):
         """
         TODO: We update the simple snapshot here, but of course if we're dealing
