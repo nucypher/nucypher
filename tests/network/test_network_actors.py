@@ -133,31 +133,37 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_co
                                 reload_metadata=False)
 
     class VerificationTracker:
-        verifications_performed = 0
+        node_verifications = 0
+        metadata_verifications = 0
 
         @classmethod
-        def fake_verify(cls, *args, **kwargs):
-            cls.verifications_performed += 1
+        def fake_verify_node(cls, *args, **kwargs):
+            cls.node_verifications += 1
+
+        @classmethod
+        def fake_verify_metadata(cls, *args, **kwargs):
+            cls.metadata_verifications += 1
 
     with patch("nucypher.config.storages.ForgetfulNodeStorage.store_node_certificate",
                new=lambda *args, **kwargs: "do not store cert."):
-        with patch("nucypher.characters.lawful.Ursula.verify_node", new=VerificationTracker.fake_verify):
+        with patch("nucypher.characters.lawful.Ursula.verify_node", new=VerificationTracker.fake_verify_node):
             with patch("nucypher.network.nodes.FleetStateTracker.record_fleet_state", new=lambda *args, **kwargs: None):
                 alice = config.produce(known_nodes=list(_ursulas)[:1],
                                                             )
     # We started with one known_node and verified it.
     # TODO: Consider changing this - #1449
-    assert VerificationTracker.verifications_performed == 1
+    assert VerificationTracker.node_verifications == 1
 
     with patch("nucypher.config.storages.ForgetfulNodeStorage.store_node_certificate",
                new=lambda *args, **kwargs: "do not store cert."):
-        with patch("nucypher.characters.lawful.Ursula.verify_node", new=VerificationTracker.fake_verify):
-            with patch('nucypher.characters.lawful.Alice.verify_from', new=lambda *args, **kwargs: None):
-                with patch('umbral.keys.UmbralPublicKey.from_bytes', NotAPublicKey.from_bytes):
-                    with patch('nucypher.characters.lawful.load_pem_x509_certificate', new=lambda *args, **kwargs: NotACert()):
-                        alice.block_until_number_of_known_nodes_is(8, learn_on_this_thread=True, timeout=60)
+        with patch("nucypher.characters.lawful.Ursula.verify_node", new=VerificationTracker.fake_verify_node):
+            with patch("nucypher.network.nodes.Teacher.validate_metadata", new=VerificationTracker.fake_verify_metadata):
+                with patch('nucypher.characters.lawful.Alice.verify_from', new=lambda *args, **kwargs: None):
+                    with patch('umbral.keys.UmbralPublicKey.from_bytes', NotAPublicKey.from_bytes):
+                        with patch('nucypher.characters.lawful.load_pem_x509_certificate', new=lambda *args, **kwargs: NotACert()):
+                            alice.block_until_number_of_known_nodes_is(8, learn_on_this_thread=True, timeout=60)
 
-    assert VerificationTracker.verifications_performed < 4000  # Fail.  # 1450
+    assert VerificationTracker.node_verifications < 4000  # Fail.  # 1450
 
 @pytest.mark.slow()
 def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas, agency):
