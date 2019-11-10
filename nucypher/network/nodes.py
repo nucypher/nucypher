@@ -407,7 +407,7 @@ class Learner:
         for node in stored_nodes:
             self.remember_node(node)
 
-    def remember_node(self, node, force_verification_check=False, record_fleet_state=True):
+    def remember_node(self, node, force_verification_check=False, record_fleet_state=True, eager: bool = True):
 
         if node == self:  # No need to remember self.
             return False
@@ -434,26 +434,25 @@ class Learner:
         # this will update the filepath from the temp location to this one.
         node.certificate_filepath = certificate_filepath
 
-
         self.log.info(f"Saved TLS certificate for {node.nickname}: {certificate_filepath}")
+        if eager:
+            try:
+                node.verify_node(force=force_verification_check,
+                                 network_middleware=self.network_middleware,
+                                 registry=self.registry)  # composed on character subclass, determines operating mode
+            except SSLError:
+                # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
+                return False
 
-        try:
-            node.verify_node(force=force_verification_check,
-                             network_middleware=self.network_middleware,
-                             registry=self.registry)  # composed on character subclass, determines operating mode
-        except SSLError:
-            # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
-            return False
+            except NodeSeemsToBeDown:
+                self.log.info("No Response while trying to verify node {}|{}".format(node.rest_interface, node))
+                # TODO: Bucket this node as "ghost" or something: somebody else knows about it, but we can't get to it.
+                return False
 
-        except NodeSeemsToBeDown:
-            self.log.info("No Response while trying to verify node {}|{}".format(node.rest_interface, node))
-            # TODO: Bucket this node as "ghost" or something: somebody else knows about it, but we can't get to it.
-            return False
-
-        except node.NotStaking:
-            # TODO: Bucket this node as inactive, and potentially safe to forget.
-            self.log.info(f'Staker:Worker {node.checksum_address}:{node.worker_address} is not actively staking, skipping.')
-            return False
+            except node.NotStaking:
+                # TODO: Bucket this node as inactive, and potentially safe to forget.
+                self.log.info(f'Staker:Worker {node.checksum_address}:{node.worker_address} is not actively staking, skipping.')
+                return False
 
         listeners = self._learning_listeners.pop(node.checksum_address, tuple())
         address = node.checksum_address
@@ -463,7 +462,8 @@ class Learner:
         if self.save_metadata:
             self.node_storage.store_node_metadata(node=node)
 
-        self.log.info("Remembering {} ({}), popping {} listeners.".format(node.nickname, node.checksum_address, len(listeners)))
+        self.log.info(
+            "Remembering {} ({}), popping {} listeners.".format(node.nickname, node.checksum_address, len(listeners)))
         for listener in listeners:
             listener.add(address)
         self._node_ids_to_learn_about_immediately.discard(address)
@@ -595,7 +595,8 @@ class Learner:
     def block_until_number_of_known_nodes_is(self,
                                              number_of_nodes_to_know: int,
                                              timeout: int = 10,
-                                             learn_on_this_thread: bool = False):
+                                             learn_on_this_thread: bool = False,
+                                             eager: bool = False):
         start = maya.now()
         starting_round = self._learning_round
 
@@ -610,7 +611,7 @@ class Learner:
                 self.log.warn("Blocking to learn about nodes, but learning loop isn't running.")
             if learn_on_this_thread:
                 try:
-                    self.learn_from_teacher_node(eager=True)
+                    self.learn_from_teacher_node(eager=eager)
                 except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
                     # TODO: Even this "same thread" logic can be done off the main thread.
                     self.log.warn("Teacher was unreachable.  No good way to handle this on the main thread.")
@@ -815,7 +816,8 @@ class Learner:
         from nucypher.characters.lawful import Ursula
         if constant_or_bytes(node_payload) is FLEET_STATES_MATCH:
             current_teacher.update_snapshot(checksum=checksum,
-                                            updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
+                                            updated=maya.MayaDT(
+                                                int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
                                             number_of_known_nodes=len(self.known_nodes))
             return FLEET_STATES_MATCH
 
@@ -830,7 +832,8 @@ class Learner:
         new_nodes = []
         for node in node_list:
             if not set(self.learning_domains).intersection(set(node.serving_domains)):
-                self.log.debug(f"Teacher {node} is serving {node.serving_domains}, but we're only learning {self.learning_domains}.")
+                self.log.debug(
+                    f"Teacher {node} is serving {node.serving_domains}, but we're only learning {self.learning_domains}.")
                 continue  # This node is not serving any of our domains.
 
             # First, determine if this is an outdated representation of an already known node.
@@ -895,7 +898,7 @@ class Learner:
             #
 
             else:
-                new = self.remember_node(node, record_fleet_state=False)
+                new = self.remember_node(node, record_fleet_state=False, eager=eager)
                 if new:
                     new_nodes.append(node)
 
