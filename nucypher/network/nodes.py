@@ -739,95 +739,11 @@ class Learner:
         else:
             raise self.InvalidSignature("No signature provided -- signature presumed invalid.")
 
-    def learn_from_teacher_node(self, eager=True):
-        """
-        Sends a request to node_url to find out about known nodes.
-        """
-        self._learning_round += 1
-
-        try:
-            current_teacher = self.current_teacher_node()
-        except self.NotEnoughTeachers as e:
-            self.log.warn("Can't learn right now: {}".format(e.args[0]))
-            return
-
-        if Teacher in self.__class__.__bases__:
-            announce_nodes = [self]
-        else:
-            announce_nodes = None
-
-        unresponsive_nodes = set()
-
-        #
-        # Request
-        #
-
-        try:
-            response = self.network_middleware.get_nodes_via_rest(node=current_teacher,
-                                                                  nodes_i_need=self._node_ids_to_learn_about_immediately,
-                                                                  announce_nodes=announce_nodes,
-                                                                  fleet_checksum=self.known_nodes.checksum)
-        except NodeSeemsToBeDown as e:
-            unresponsive_nodes.add(current_teacher)
-            self.log.info("Bad Response from teacher: {}:{}.".format(current_teacher, e))
-            return
-
-        finally:
-            self.cycle_teacher_node()
-
-        # Before we parse the response, let's handle some edge cases.
-        if response.status_code == 204:
-            # In this case, this node knows about no other nodes.  Hopefully we've taught it something.
-            if response.content == b"":
-                return NO_KNOWN_NODES
-            # In the other case - where the status code is 204 but the repsonse isn't blank - we'll keep parsing.
-            # It's possible that our fleet states match, and we'll check for that later.
-
-        elif response.status_code != 200:
-            self.log.info("Bad response from teacher {}: {} - {}".format(current_teacher, response, response.content))
-            return
-
-        #
-        # Deserialize
-        #
-
-        try:
-            signature, node_payload = signature_splitter(response.content, return_remainder=True)
-        except BytestringSplittingError as e:
-            self.log.warn("No signature prepended to Teacher {} payload: {}".format(current_teacher, response.content))
-            return
-
-        try:
-            self.verify_from(current_teacher, node_payload, signature=signature)
-        except current_teacher.InvalidSignature:
-            # TODO: What to do if the teacher improperly signed the node payload?
-            raise
-
-        # End edge case handling.
-        fleet_state_checksum_bytes, fleet_state_updated_bytes, node_payload = FleetStateTracker.snapshot_splitter(
-            node_payload,
-            return_remainder=True)
-
-        current_teacher.last_seen = maya.now()
-        # TODO: This is weird - let's get a stranger FleetState going.
-        checksum = fleet_state_checksum_bytes.hex()
-
-        # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
+    def parse_and_maybe_validate_fleet_bytes(self, node_payload, verify_now=False):
         from nucypher.characters.lawful import Ursula
-        if constant_or_bytes(node_payload) is FLEET_STATES_MATCH:
-            current_teacher.update_snapshot(checksum=checksum,
-                                            updated=maya.MayaDT(
-                                                int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
-                                            number_of_known_nodes=len(self.known_nodes))
-            return FLEET_STATES_MATCH
-
         node_list = Ursula.batch_from_bytes(node_payload,
                                             registry=self.registry,
                                             federated_only=self.federated_only)  # TODO: 466
-
-        current_teacher.update_snapshot(checksum=checksum,
-                                        updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
-                                        number_of_known_nodes=len(node_list))
 
         new_nodes = []
         for node in node_list:
@@ -851,7 +767,7 @@ class Learner:
 
             certificate_filepath = self.node_storage.store_node_certificate(certificate=node.certificate)
             try:
-                if eager:
+                if verify_now:
                     node.verify_node(self.network_middleware,
                                      registry=self.registry,
                                      certificate_filepath=certificate_filepath)
@@ -898,15 +814,109 @@ class Learner:
             #
 
             else:
-                new = self.remember_node(node, record_fleet_state=False, eager=eager)
+                new = self.remember_node(node, record_fleet_state=False)
                 if new:
                     new_nodes.append(node)
-
-        #
-        # Continue
-        #
-
         self._adjust_learning(new_nodes)
+        return node_list, new_nodes
+
+    def learn_from_teacher_node(self, eager=True):
+        """
+        Sends a request to node_url to find out about known nodes.
+        """
+        self._learning_round += 1
+
+        try:
+            current_teacher = self.current_teacher_node()
+        except self.NotEnoughTeachers as e:
+            self.log.warn("Can't learn right now: {}".format(e.args[0]))
+            return
+
+        if Teacher in self.__class__.__bases__:
+            announce_nodes = [self]
+        else:
+            announce_nodes = None
+
+        unresponsive_nodes = set()
+
+        #
+        # Request
+        #
+
+        try:
+            response = self.network_middleware.get_nodes_via_rest(node=current_teacher,
+                                                                  nodes_i_need=self._node_ids_to_learn_about_immediately,
+                                                                  announce_nodes=announce_nodes,
+                                                                  fleet_checksum=self.known_nodes.checksum)
+        except NodeSeemsToBeDown as e:
+            unresponsive_nodes.add(current_teacher)
+            self.log.info("Bad Response from teacher: {}:{}.".format(current_teacher, e))
+            return
+
+        finally:
+            # Is cycling happening in the right order?
+            self.cycle_teacher_node()
+
+        # Before we parse the response, let's handle some edge cases.
+        if response.status_code == 204:
+            # In this case, this node knows about no other nodes.  Hopefully we've taught it something.
+            if response.content == b"":
+                return NO_KNOWN_NODES
+            # In the other case - where the status code is 204 but the repsonse isn't blank - we'll keep parsing.
+            # It's possible that our fleet states match, and we'll check for that later.
+
+        elif response.status_code != 200:
+            self.log.info("Bad response from teacher {}: {} - {}".format(current_teacher, response, response.content))
+            return
+
+        #
+        # Deserialize
+        #
+
+        try:
+            signature, node_payload = signature_splitter(response.content, return_remainder=True)
+        except BytestringSplittingError as e:
+            self.log.warn("No signature prepended to Teacher {} payload: {}".format(current_teacher, response.content))
+            return
+
+        try:
+            self.verify_from(current_teacher, node_payload, signature=signature)
+        except current_teacher.InvalidSignature:
+            # TODO: What to do if the teacher improperly signed the node payload?
+            raise
+
+        # End edge case handling.
+        fleet_state_checksum_bytes, fleet_state_updated_bytes, node_payload = FleetStateTracker.snapshot_splitter(
+            node_payload,
+            return_remainder=True)
+
+        current_teacher.last_seen = maya.now()
+        # TODO: This is weird - let's get a stranger FleetState going.
+        checksum = fleet_state_checksum_bytes.hex()
+
+        # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
+        if constant_or_bytes(node_payload) is FLEET_STATES_MATCH:
+            current_teacher.update_snapshot(checksum=checksum,
+                                            updated=maya.MayaDT(
+                                                int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
+                                            number_of_known_nodes=len(self.known_nodes))
+            return FLEET_STATES_MATCH
+
+        ##################
+        # OPTIMIZE!
+        ##################
+        node_list, new_nodes = self.parse_and_maybe_validate_fleet_bytes(node_payload=node_payload, verify_now=eager)
+
+        #############
+
+        # Is cycling happening in the right order?
+        current_teacher.update_snapshot(checksum=checksum,
+                                        updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
+                                        number_of_known_nodes=len(node_list))
+
+        ###################
+
+
         learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
         self.log.info(learning_round_log_message.format(self._learning_round,
                                                         current_teacher,
@@ -920,7 +930,6 @@ class Learner:
 
 
 class Teacher:
-
     TEACHER_VERSION = LEARNING_LOOP_VERSION
     _interface_info_splitter = (int, 4, {'byteorder': 'big'})
     log = Logger("teacher")
@@ -1097,7 +1106,7 @@ class Teacher:
         # Federated
         if self.federated_only:
             message = "This node cannot be verified in this manner, " \
-                      "but is OK to use in federated mode if you "    \
+                      "but is OK to use in federated mode if you " \
                       "have reason to believe it is trustworthy."
             raise self.WrongMode(message)
 
