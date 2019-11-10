@@ -346,7 +346,7 @@ class Learner:
         self.unresponsive_startup_nodes = list()  # TODO: Buckets - Attempt to use these again later
         for node in known_nodes:
             try:
-                self.remember_node(node)
+                self.remember_node(node, eager=True)
             except self.UnresponsiveTeacher:
                 self.unresponsive_startup_nodes.append(node)
 
@@ -407,7 +407,7 @@ class Learner:
         for node in stored_nodes:
             self.remember_node(node)
 
-    def remember_node(self, node, force_verification_check=False, record_fleet_state=True, eager: bool = True):
+    def remember_node(self, node, force_verification_check=False, record_fleet_state=True, eager: bool = False):
 
         if node == self:  # No need to remember self.
             return False
