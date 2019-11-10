@@ -127,15 +127,9 @@ def make_rest_app(
         if this_node.known_nodes.checksum is NO_KNOWN_NODES:
             return Response(b"", headers=headers, status=204)
 
-        payload = this_node.known_nodes.snapshot()
-
-        ursulas_as_vbytes = (VariableLengthBytestring(n) for n in this_node.known_nodes)
-        ursulas_as_bytes = bytes().join(bytes(u) for u in ursulas_as_vbytes)
-        ursulas_as_bytes += VariableLengthBytestring(bytes(this_node))
-
-        payload += ursulas_as_bytes
-        signature = this_node.stamp(payload)
-        return Response(bytes(signature) + payload, headers=headers)
+        known_nodes_bytestring = this_node.bytestring_of_known_nodes()
+        signature = this_node.stamp(known_nodes_bytestring)
+        return Response(bytes(signature) + known_nodes_bytestring, headers=headers)
 
     @rest_app.route('/node_metadata', methods=["POST"])
     def node_metadata_exchange():
