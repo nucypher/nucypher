@@ -549,8 +549,8 @@ def paint_deployment_delay(emitter, delay: int = 3) -> None:
         time.sleep(1)
 
 
-def paint_stakers(emitter, stakers: List[str], agent) -> None:
-    current_period = agent.get_current_period()
+def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> None:
+    current_period = staking_agent.get_current_period()
     emitter.echo(f"\nCurrent period: {current_period}")
     emitter.echo("\n| Stakers |\n")
     emitter.echo(f"{'Checksum address':42}  Staker information")
@@ -562,19 +562,19 @@ def paint_stakers(emitter, stakers: List[str], agent) -> None:
         emitter.echo(f"{staker}  {'Nickname:':10} {nickname} {symbols}")
         tab = " " * len(staker)
 
-        owned_tokens = agent.owned_tokens(staker)
-        last_confirmed_period = agent.get_last_active_period(staker)
-        worker = agent.get_worker_from_staker(staker)
-        is_restaking = agent.is_restaking(staker)
+        owned_tokens = staking_agent.owned_tokens(staker)
+        last_confirmed_period = staking_agent.get_last_active_period(staker)
+        worker = staking_agent.get_worker_from_staker(staker)
+        is_restaking = staking_agent.is_restaking(staker)
 
         missing_confirmations = current_period - last_confirmed_period
         owned_in_nu = round(NU.from_nunits(owned_tokens), 2)
-        locked_tokens = round(NU.from_nunits(agent.get_locked_tokens(staker)), 2)
+        locked_tokens = round(NU.from_nunits(staking_agent.get_locked_tokens(staker)), 2)
 
         emitter.echo(f"{tab}  {'Owned:':10} {owned_in_nu}  (Staked: {locked_tokens})")
         if is_restaking:
-            if agent.is_restaking_locked(staker):
-                unlock_period = agent.get_restake_unlock_period(staker)
+            if staking_agent.is_restaking_locked(staker):
+                unlock_period = staking_agent.get_restake_unlock_period(staker)
                 emitter.echo(f"{tab}  {'Re-staking:':10} Yes  (Locked until period: {unlock_period})")
             else:
                 emitter.echo(f"{tab}  {'Re-staking:':10} Yes  (Unlocked)")
@@ -594,9 +594,12 @@ def paint_stakers(emitter, stakers: List[str], agent) -> None:
 
         emitter.echo(f"{tab}  {'Worker:':10} ", nl=False)
         if worker == BlockchainInterface.NULL_ADDRESS:
-            emitter.echo(f"Worker not set\n", color='red')
+            emitter.echo(f"Worker not set", color='red')
         else:
-            emitter.echo(f"{worker}\n")
+            emitter.echo(f"{worker}")
+
+        fees = policy_agent.get_reward_amount(staker)
+        emitter.echo(f"{tab}  Unclaimed fees: {Web3.fromWei(fees, 'gwei')} Gwei")
 
 
 def paint_locked_tokens_status(emitter, agent, periods) -> None:
