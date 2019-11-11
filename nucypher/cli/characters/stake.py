@@ -35,7 +35,7 @@ from nucypher.cli.actions import (
     confirm_enable_restaking
 )
 from nucypher.cli.config import nucypher_click_config
-from nucypher.cli.painting import paint_receipt_summary
+from nucypher.cli.painting import paint_receipt_summary, paint_preallocation_status
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE
@@ -638,6 +638,37 @@ def collect_reward(click_config,
         paint_receipt_summary(receipt=policy_receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
                               emitter=emitter)
+
+
+@stake.command('preallocation')
+@_stake_options
+@click.option('--status', help="View balance and lock information of preallocation contract", is_flag=True)
+@nucypher_click_config
+def preallocation(click_config,
+
+                  # Stake Options
+                  poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
+                  beneficiary_address, allocation_filepath,
+
+                  # Preallocation options
+                  status):
+    """
+    Claim rewards and fees collected by a preallocation contract.
+    """
+
+    ### Setup ###
+    emitter = _setup_emitter(click_config)
+
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
+                                                  beneficiary_address=beneficiary_address,
+                                                  allocation_filepath=allocation_filepath)
+    #############
+    # Unauthenticated actions: status
+
+    if status:
+        paint_preallocation_status(emitter=emitter,
+                                   token_agent=STAKEHOLDER.token_agent,
+                                   preallocation_agent=STAKEHOLDER.preallocation_escrow_agent)
 
 
 def _setup_emitter(click_config):

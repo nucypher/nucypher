@@ -19,7 +19,6 @@ import csv
 import time
 import webbrowser
 from collections import Counter
-from decimal import Decimal
 from typing import List
 
 import click
@@ -600,6 +599,33 @@ def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> N
 
         fees = policy_agent.get_reward_amount(staker)
         emitter.echo(f"{tab}  Unclaimed fees: {Web3.fromWei(fees, 'gwei')} Gwei")
+
+
+def paint_preallocation_status(emitter, preallocation_agent, token_agent) -> None:
+    blockchain = token_agent.blockchain
+
+    staking_address = preallocation_agent.principal_contract.address
+
+    token_balance = NU.from_nunits(token_agent.get_balance(staking_address))
+    eth_balance = Web3.fromWei(blockchain.client.get_balance(staking_address), 'ether')
+    locked_tokens = NU.from_nunits(preallocation_agent.unvested_tokens)
+    end_timestamp = preallocation_agent.end_timestamp
+
+    unlocked_tokens = token_balance - locked_tokens
+
+    width = 64
+    output = f"""
+{" Addresses ".center(width, "-")}
+Staking contract: ... {staking_address}
+Beneficiary: ........ {preallocation_agent.beneficiary}
+
+{" NU and ETH Balance ".center(width, "-")}
+NU balance: ..... {token_balance}
+    Unlocked: ... {unlocked_tokens} 
+    Locked: ..... {locked_tokens}  (Locked until {maya.MayaDT(epoch=end_timestamp)})
+ETH balance: .... {eth_balance} ETH
+    """
+    emitter.echo(output)
 
 
 def paint_locked_tokens_status(emitter, agent, periods) -> None:
