@@ -114,9 +114,13 @@ class BaseContractRegistry(ABC):
         # Setup
         publication_endpoint = cls.get_publication_endpoint()
         cls.logger.debug(f"Downloading contract registry from {publication_endpoint}")
-        response = requests.get(publication_endpoint)
+        try:
+            # Fetch
+            response = requests.get(publication_endpoint)
+        except requests.exceptions.ConnectionError as e:
+            error = f"Failed to fetch registry from {publication_endpoint}: {str(e)}"
+            raise cls.RegistrySourceUnavailable(error)
 
-        # Fetch
         if response.status_code != 200:
             error = f"Failed to fetch registry from {publication_endpoint} with status code {response.status_code}"
             raise cls.RegistrySourceUnavailable(error)
