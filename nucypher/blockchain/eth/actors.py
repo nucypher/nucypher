@@ -483,7 +483,10 @@ class ContractAdministrator(NucypherTokenActor):
                 except TransactionFailed as e:
                     if crash_on_failure:
                         raise
-                    self.log.debug(f"Failed allocation transaction for {NU.from_nunits(amount)} to {beneficiary}: {e}")
+                    message = f"Failed allocation transaction for {NU.from_nunits(amount)} to {beneficiary}: {e}"
+                    self.log.debug(message)
+                    if emitter:
+                        emitter.echo(message=message, color='red', bold=True)
                     failed.append(allocation)
                     continue
 
@@ -525,7 +528,6 @@ class ContractAdministrator(NucypherTokenActor):
                 emitter.echo(f"Saved allocation summary CSV to {csv_filepath}", color='blue', bold=True)
 
             if failed:
-                # TODO: More with these failures: send to isolated logfile, and reattempt
                 self.log.critical(f"FAILED TOKEN ALLOCATION - {len(failed)} allocations failed.")
 
         return allocation_receipts
@@ -537,8 +539,7 @@ class ContractAdministrator(NucypherTokenActor):
                 reader = csv.DictReader(allocation_file)
                 allocation_data = list(reader)
             else:  # Assume it's JSON by default
-                data = allocation_file.read()
-                allocation_data = json.loads(data)
+                allocation_data = json.load(allocation_file)
 
         # Pre-process allocation data
         for entry in allocation_data:
@@ -558,7 +559,8 @@ class ContractAdministrator(NucypherTokenActor):
         receipts = self.deploy_beneficiary_contracts(allocations=allocations,
                                                      allocation_outfile=allocation_outfile,
                                                      emitter=emitter,
-                                                     interactive=interactive)
+                                                     interactive=interactive,
+                                                     crash_on_failure=False)
         # Save transaction metadata
         receipts_filepath = self.save_deployment_receipts(receipts=receipts, filename_prefix='allocation')
         if emitter:
