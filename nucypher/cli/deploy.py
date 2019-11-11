@@ -105,7 +105,8 @@ def inspect(provider_uri, config_root, registry_infile, deployer_address, poa):
     _initialize_blockchain(poa, provider_uri)
 
     local_registry = establish_deployer_registry(emitter=emitter,
-                                                 registry_infile=registry_infile)
+                                                 registry_infile=registry_infile,
+                                                 download_registry=not bool(registry_infile))
     paint_deployer_contract_inspection(emitter=emitter,
                                        registry=local_registry,
                                        deployer_address=deployer_address)

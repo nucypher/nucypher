@@ -446,8 +446,14 @@ def establish_deployer_registry(emitter,
                                 registry_infile: str = None,
                                 registry_outfile: str = None,
                                 use_existing_registry: bool = False,
+                                download_registry: bool = False,
                                 dev: bool = False
-                                ) -> LocalContractRegistry:
+                                ) -> BaseContractRegistry:
+
+    if download_registry:
+        registry = InMemoryContractRegistry.from_latest_publication()
+        emitter.message(f"Using latest published registry from {InMemoryContractRegistry.get_publication_endpoint()}")
+        return registry
 
     # Establish a contract registry from disk if specified
     filepath = registry_infile
@@ -460,9 +466,11 @@ def establish_deployer_registry(emitter,
             except shutil.SameFileError:
                 raise click.BadArgumentUsage(f"--registry-infile and --registry-outfile must not be the same path '{registry_infile}'.")
         filepath = registry_outfile
+
     if dev:
         # TODO: Need a way to detect a geth --dev registry filepath here. (then deprecate the --dev flag)
         filepath = os.path.join(DEFAULT_CONFIG_ROOT, BaseContractRegistry.DEVELOPMENT_REGISTRY_NAME)
+
     registry_filepath = filepath or default_registry_filepath
 
     # All Done.
