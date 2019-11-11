@@ -384,13 +384,13 @@ class ContractAdministrator(NucypherTokenActor):
                                      emitter: StdoutEmitter = None,
                                      ) -> Dict[str, dict]:
         """
-        The allocation file is a CSV file containing a list of allocations. Each allocation has a:
+        The allocation file contains a list of allocations, each of them composed of:
           * 'beneficiary_address': Checksum address of the beneficiary
           * 'name': User-friendly name of the beneficiary (Optional)
           * 'amount': Amount of tokens locked, in NuNits
           * 'duration_seconds': Lock duration expressed in seconds
 
-        Example allocation file in CSV format:
+        It accepts both CSV and JSON formats. Example allocation file in CSV format:
 
         "beneficiary_address","name","amount","duration_seconds"
         "0xdeadbeef","H. E. Pennypacker",100,31536000
@@ -534,20 +534,17 @@ class ContractAdministrator(NucypherTokenActor):
     def __read_allocation_data(filepath: str) -> list:
         with open(filepath, 'r') as allocation_file:
             if filepath.endswith(".csv"):
-                allocation_data = list()
                 reader = csv.DictReader(allocation_file)
-                for entry in reader:
-                    entry['amount'], entry['duration_seconds'] = int(entry['amount']), int(entry['duration_seconds'])
-                    allocation_data.append(entry)
-            else:
+                allocation_data = list(reader)
+            else:  # Assume it's JSON by default
                 data = allocation_file.read()
-                try:
-                    allocation_data = json.loads(data)
-                except JSONDecodeError:
-                    raise
+                allocation_data = json.loads(data)
 
+        # Pre-process allocation data
         for entry in allocation_data:
             entry['beneficiary_address'] = to_checksum_address(entry['beneficiary_address'])
+            entry['amount'] = int(entry['amount'])
+            entry['duration_seconds'] = int(entry['duration_seconds'])
 
         return allocation_data
 
