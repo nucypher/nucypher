@@ -1138,7 +1138,7 @@ class StakeHolder(Staker):
         def balances(self) -> Dict[str, int]:
             balances = dict()
             for account in self.accounts:
-                funds = {'ETH': self.blockchain.client.get_balance(account),  # TODO: EthAgent or something?  #1509
+                funds = {'ETH': self.blockchain.client.get_balance(account),
                          'NU': self.token_agent.get_balance(account)}
                 balances.update({account: funds})
             return balances
@@ -1165,7 +1165,9 @@ class StakeHolder(Staker):
             # If an initial address was passed,
             # it is safe to understand that it has already been used at a higher level.
             if initial_address not in self.wallet:
-                raise self.StakingWallet.UnknownAccount
+                message = f"Account {initial_address} is not known by this Ethereum client. Is it a HW account? " \
+                          f"If so, make sure that your device is plugged in and you use the --hw-wallet flag."
+                raise self.StakingWallet.UnknownAccount(message)
             self.assimilate(checksum_address=initial_address, password=password)
 
     @validate_checksum_address
