@@ -425,7 +425,18 @@ class Learner:
         for node in stored_nodes:
             self.remember_node(node)
 
-    def remember_node(self, node, force_verification_check=False, record_fleet_state=True, eager: bool = False):
+    def remember_node(self,
+                      node,
+                      force_verification_recheck=False,
+                      record_fleet_state=True,
+                      eager: bool = False,
+                      grow_node_sprout_into_node=False):
+
+        # UNPARSED
+        # PARSED
+        # METADATA_CHECKED
+        # VERIFIED_CERT
+        # VERIFIED_STAKE
 
         if node == self:  # No need to remember self.
             return False
@@ -439,11 +450,23 @@ class Learner:
                 # This node is already known.  We can safely return.
                 return False
 
+        self.known_nodes[node.checksum_address] = node
+
+        if self.save_metadata:
+            self.node_storage.store_node_metadata(node=node)
+
         try:
             stranger_certificate = node.certificate
         except AttributeError:
-            # Whoops, we got an Alice, Bob, or someone...
-            raise self.NotATeacher(f"{node.__class__.__name__} does not have a certificate and cannot be remembered.")
+            # Probably a sprout.
+            try:
+                if grow_node_sprout_into_node:
+                    node = self.node_class(**node)
+                else:
+                    return node
+            except Exception as e:
+                # Whoops, we got an Alice, Bob, or something totally wrong...
+                raise self.NotATeacher(f"{node.__class__.__name__} does not have a certificate and cannot be remembered.")
 
         # Store node's certificate - It has been seen.
         certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate)
@@ -455,7 +478,7 @@ class Learner:
         self.log.info(f"Saved TLS certificate for {node.nickname}: {certificate_filepath}")
         if eager:
             try:
-                node.verify_node(force=force_verification_check,
+                node.verify_node(force=force_verification_recheck,
                                  network_middleware=self.network_middleware,
                                  registry=self.registry)  # composed on character subclass, determines operating mode
             except SSLError:
@@ -473,18 +496,12 @@ class Learner:
                 return False
 
         listeners = self._learning_listeners.pop(node.checksum_address, tuple())
-        address = node.checksum_address
-
-        self.known_nodes[address] = node
-
-        if self.save_metadata:
-            self.node_storage.store_node_metadata(node=node)
 
         self.log.info(
             "Remembering {} ({}), popping {} listeners.".format(node.nickname, node.checksum_address, len(listeners)))
         for listener in listeners:
             listener.add(address)
-        self._node_ids_to_learn_about_immediately.discard(address)
+        self._node_ids_to_learn_about_immediately.discard(node.checksum_address)
 
         if record_fleet_state:
             self.known_nodes.record_fleet_state()
@@ -923,28 +940,83 @@ class Learner:
         ##################
         # OPTIMIZE!
         ##################
-        node_list, new_nodes = self.parse_and_maybe_validate_fleet_bytes(node_payload=node_payload, verify_now=eager)
+
+        ####################################################
+        # TODO: Repeated from Ursula.batch_from_bytes()
+        node_splitter = BytestringSplitter(VariableLengthBytestring)
+        nodes_vbytes = node_splitter.repeat(node_payload)
+        version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
+        versions_and_node_bytes = [version_splitter(n, return_remainder=True) for n in nodes_vbytes]
+
+        ursulas = {}
+
+        for version, node_bytes in versions_and_node_bytes:
+
+            #################################################
+            # TODO: This is repeated from Ursula.from_bytes
+            # Check version and raise IsFromTheFuture if this node is... you guessed it...
+            if version > 1:  # TODO: Unhardcode this; pass version from Learner to here somehow.
+
+                # Try to handle failure, even during failure, graceful degradation
+                # TODO: #154 - Some auto-updater logic?
+
+                try:
+                    nickname, _ = nickname_from_seed(checksum_address)
+                    display_name = cls._display_name_template.format(cls.__name__, nickname, checksum_address)
+                    message = cls.unknown_version_message.format(display_name, version, cls.LEARNER_VERSION)
+                except BytestringSplittingError:
+                    message = cls.really_unknown_version_message.format(version, cls.LEARNER_VERSION)
+                raise cls.IsFromTheFuture(message)
+            # End repeated block from Ursula.from_bytes
+            ############################################
+
+            try:
+                node_sprout = self.node_class.internal_splitter(node_bytes)
+
+                ###########################################
+                # TODO: This is repeated from remember_node
+                with suppress(KeyError):
+                    already_known_node = self.known_nodes[node_sprout.checksum_address]
+                    # if not node.timestamp > already_known_node.timestamp:
+                    #     self.log.debug("Skipping already known node {}".format(already_known_node))
+                    #     # This node is already known.  We can safely return.
+                    #     return False
+
+
+            except Exception as e:
+                if fail_fast:
+                    raise
+                else:
+                    cls.log.warn(e.args[0])
+            else:
+                self.remember_node(node_sprout, record_fleet_state=False)
+
+        # End outer repeated block from Ursula.batch_from_bytes
+        ############################################
+
+
+        # node_list, new_nodes = self.parse_and_maybe_validate_fleet_bytes(node_payload=node_payload, verify_now=eager)
 
         #############
 
         # Is cycling happening in the right order?
         current_teacher.update_snapshot(checksum=checksum,
                                         updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
-                                        number_of_known_nodes=len(node_list))
+                                        number_of_known_nodes=len(ursulas))
 
         ###################
 
-
-        learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
-        self.log.info(learning_round_log_message.format(self._learning_round,
-                                                        current_teacher,
-                                                        len(node_list),
-                                                        len(new_nodes)))
-        if new_nodes:
-            self.known_nodes.record_fleet_state()
-            for node in new_nodes:
-                self.node_storage.store_node_certificate(certificate=node.certificate)
-        return new_nodes
+        #
+        # learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
+        # self.log.info(learning_round_log_message.format(self._learning_round,
+        #                                                 current_teacher,
+        #                                                 len(node_list),
+        #                                                 len(new_nodes)))
+        # if new_nodes:
+        #     self.known_nodes.record_fleet_state()
+        #     for node in new_nodes:
+        #         self.node_storage.store_node_certificate(certificate=node.certificate)
+        return ursulas
 
 
 class Teacher:
