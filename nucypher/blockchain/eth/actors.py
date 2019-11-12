@@ -894,12 +894,34 @@ class Staker(NucypherTokenActor):
     @only_me
     @save_receipt
     def withdraw(self, amount: NU) -> dict:
-        """Withdraw tokens (assuming they're unlocked)"""
+        """Withdraw tokens from StakingEscrow (assuming they're unlocked)"""
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.withdraw_as_staker(value=int(amount))
         else:
             receipt = self.staking_agent.withdraw(staker_address=self.checksum_address,
                                                   amount=int(amount))
+        return receipt
+
+    @only_me
+    @save_receipt
+    def withdraw_preallocation_tokens(self, amount: NU) -> dict:
+        """Withdraw tokens from PreallocationEscrow (assuming they're unlocked)"""
+        if amount <= 0:
+            raise ValueError(f"Don't try to withdraw {amount}.")
+        if self.is_contract:
+            receipt = self.preallocation_escrow_agent.withdraw_tokens(value=int(amount))
+        else:
+            raise TypeError("This method can only be used when staking via a contract")
+        return receipt
+
+    @only_me
+    @save_receipt
+    def withdraw_preallocation_eth(self) -> dict:
+        """Withdraw ETH from PreallocationEscrow"""
+        if self.is_contract:
+            receipt = self.preallocation_escrow_agent.withdraw_eth()
+        else:
+            raise TypeError("This method can only be used when staking via a contract")
         return receipt
 
 
