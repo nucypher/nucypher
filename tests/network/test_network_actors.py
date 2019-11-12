@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import time
+import timeit
 from unittest.mock import patch
 
 import pytest
@@ -24,6 +26,7 @@ from hendrix.experience import crosstown_traffic
 from hendrix.utils.test_utils import crosstownTaskListDecoratorFactory
 from umbral.config import default_params
 from umbral.keys import UmbralPrivateKey
+from umbral.signing import Signature
 
 from nucypher.characters.lawful import Ursula
 from nucypher.characters.unlawful import Vladimir
@@ -69,6 +72,10 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_co
     class NotAPrivateKey:
         params = default_params()
 
+        fake_signature = Signature.from_bytes(
+                b'@\xbfS&\x97\xb3\x9e\x9e\xd3\\j\x9f\x0e\x8fY\x0c\xbeS\x08d\x0b%s\xf6\x17\xe2\xb6\xcd\x95u\xaapON\xd9E\xb3\x10M\xe1\xf4u\x0bL\x99q\xd6\r\x8e_\xe5I\x1e\xe5\xa2\xcf\xe5\x8be_\x077Gz'
+                )
+
         def public_key(self):
             return NotAPublicKey()
 
@@ -80,6 +87,14 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_co
 
         def sign(self, *args, **kwargs):
             return b'0D\x02 @\xbfS&\x97\xb3\x9e\x9e\xd3\\j\x9f\x0e\x8fY\x0c\xbeS\x08d\x0b%s\xf6\x17\xe2\xb6\xcd\x95u\xaap\x02 ON\xd9E\xb3\x10M\xe1\xf4u\x0bL\x99q\xd6\r\x8e_\xe5I\x1e\xe5\xa2\xcf\xe5\x8be_\x077Gz'
+
+        @classmethod
+        def stamp(cls, *args, **kwargs):
+            return cls.fake_signature
+
+        @classmethod
+        def signature_bytes(cls, *args, **kwargs):
+            return b'@\xbfS&\x97\xb3\x9e\x9e\xd3\\j\x9f\x0e\x8fY\x0c\xbeS\x08d\x0b%s\xf6\x17\xe2\xb6\xcd\x95u\xaapON\xd9E\xb3\x10M\xe1\xf4u\x0bL\x99q\xd6\r\x8e_\xe5I\x1e\xe5\xa2\xcf\xe5\x8be_\x077Gz'
 
     class NotACert:
         class Subject:
@@ -161,9 +176,16 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_co
                 with patch('nucypher.characters.lawful.Alice.verify_from', new=lambda *args, **kwargs: None):
                     with patch('umbral.keys.UmbralPublicKey.from_bytes', NotAPublicKey.from_bytes):
                         with patch('nucypher.characters.lawful.load_pem_x509_certificate', new=lambda *args, **kwargs: NotACert()):
-                            alice.block_until_number_of_known_nodes_is(8, learn_on_this_thread=True, timeout=60)
+                            with patch('nucypher.crypto.signing.SignatureStamp.__call__', new=NotAPrivateKey.stamp):
+                                with patch('umbral.signing.Signature.__bytes__', new=NotAPrivateKey.signature_bytes):
+                                    started = time.time()
+                                    alice.block_until_number_of_known_nodes_is(8, learn_on_this_thread=True, timeout=60)
+                                    ended = time.time()
 
-    assert VerificationTracker.node_verifications < 4000  # Fail.  # 1450
+    assert VerificationTracker.node_verifications == 1 # We have only verified the first Ursula.
+    assert sum(isinstance(u, Ursula) for u in alice.known_nodes) < 20  # We haven't instantiated many Ursulas.
+    assert ended - started < 8  # 8 seconds is still a little long to discover 8 out of 5000 nodes, but before starting the optimization that went with this test, this operation took about 18 minutes on jMyles' laptop.
+
 
 @pytest.mark.slow()
 def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas, agency):
