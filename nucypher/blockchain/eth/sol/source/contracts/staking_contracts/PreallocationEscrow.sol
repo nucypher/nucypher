@@ -73,6 +73,7 @@ contract PreallocationEscrow is AbstractStakingContract, Ownable {
     function withdrawETH() public onlyOwner {
         uint256 balance = address(this).balance;
         require(balance != 0);
+        // Transfer ETH to owner
         (bool success, ) = msg.sender.call.value(balance)("");
         require(success);
         emit ETHWithdrawn(msg.sender, balance);

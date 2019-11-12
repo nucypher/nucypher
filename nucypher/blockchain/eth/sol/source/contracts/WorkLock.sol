@@ -128,6 +128,7 @@ contract WorkLock {
         completedWork = refundETH.mul(refundRate);
         info.completedWork = info.completedWork.add(completedWork);
         emit Refund(msg.sender, refundETH, completedWork);
+        // Transfer refund to sender
         (bool success, ) = msg.sender.call.value(refundETH)("");
         require(success);
     }
