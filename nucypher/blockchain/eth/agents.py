@@ -228,12 +228,29 @@ class StakingEscrowAgent(EthereumContractAgent):
 
         return active_stakers, pending_stakers, missing_stakers
 
-    def get_all_locked_tokens(self, periods: int) -> int:
-        """Returns the current period"""
+    def get_all_active_stakers(self, periods: int, pagination_size: int = 0) -> Tuple[int, list]:
+        """Only stakers which confirmed the current period (in the previous period) are used."""
         if not periods > 0:
             raise ValueError("Period must be > 0")
 
-        all_locked_tokens, _stakers = self.contract.functions.getAllActiveStakers(periods).call()
+        if pagination_size != 0:
+            stakers_length = self.contract.functions.getStakersLength().call()
+            start_index = 0
+            n_tokens = 0
+            stakers = list()
+            while start_index < stakers_length:
+                temp_locked_tokens, temp_stakers = \
+                    self.contract.functions.getAllActiveStakers(periods, start_index, pagination_size).call()
+                n_tokens += temp_locked_tokens
+                stakers += temp_stakers
+                start_index += pagination_size
+        else:
+            n_tokens, stakers = self.contract.functions.getAllActiveStakers(periods, 0, 0).call()
+
+        return n_tokens, stakers
+
+    def get_all_locked_tokens(self, periods: int, pagination_size: int = 0) -> int:
+        all_locked_tokens, _stakers = self.get_all_active_stakers(periods=periods, pagination_size=pagination_size)
         return all_locked_tokens
 
     #
@@ -464,7 +481,13 @@ class StakingEscrowAgent(EthereumContractAgent):
             staker_address = self.contract.functions.stakers(index).call()
             yield staker_address
 
-    def sample(self, quantity: int, duration: int, additional_ursulas: float = 1.5, attempts: int = 5) -> List[str]:
+    def sample(self,
+               quantity: int,
+               duration: int,
+               additional_ursulas:float = 1.5,
+               attempts: int = 5,
+               pagination_size: int = 0
+               ) -> List[str]:
         """
         Select n random Stakers, according to their stake distribution.
 
@@ -487,7 +510,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         """
 
         system_random = random.SystemRandom()
-        n_tokens, stakers = self.contract.functions.getAllActiveStakers(duration).call()
+        n_tokens, stakers = self.get_all_active_stakers(periods=duration, pagination_size=pagination_size)
         if n_tokens == 0:
             raise self.NotEnoughStakers('There are no locked tokens for duration {}.'.format(duration))
 
@@ -506,8 +529,6 @@ class StakingEscrowAgent(EthereumContractAgent):
             while staker_index < stakers_len and point_index < sample_size:
                 current_staker = stakers[staker_index][0]
                 staker_tokens = stakers[staker_index][1]
-                if staker_tokens == 0:  # No active stakers left
-                    break
                 next_sum_value = sum_of_locked_tokens + staker_tokens
 
                 point = points[point_index]
