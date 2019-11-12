@@ -812,7 +812,7 @@ class Staker(NucypherTokenActor):
     @only_me
     @save_receipt
     @validate_checksum_address
-    def set_worker(self, worker_address: str) -> str:
+    def set_worker(self, worker_address: str) -> dict:
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.set_worker(worker_address=worker_address)
         else:
@@ -836,7 +836,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def detach_worker(self) -> str:
+    def detach_worker(self) -> dict:
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.release_worker()
         else:
@@ -881,7 +881,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def collect_staking_reward(self) -> str:
+    def collect_staking_reward(self) -> dict:
         """Withdraw tokens rewarded for staking."""
         if self.is_contract:
             reward_amount = self.calculate_staking_reward()
@@ -893,7 +893,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def withdraw(self, amount: NU) -> str:
+    def withdraw(self, amount: NU) -> dict:
         """Withdraw tokens (assuming they're unlocked)"""
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.withdraw_as_staker(value=int(amount))
