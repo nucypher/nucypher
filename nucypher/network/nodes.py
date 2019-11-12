@@ -307,6 +307,7 @@ class Learner:
 
     def __init__(self,
                  domains: set,
+                 node_class: object = None,
                  network_middleware: RestMiddleware = __DEFAULT_MIDDLEWARE_CLASS(),
                  start_learning_now: bool = False,
                  learn_on_same_thread: bool = False,
@@ -320,6 +321,7 @@ class Learner:
 
         self.log = Logger("learning-loop")  # type: Logger
 
+        self.node_class = node_class or Teacher
         self.learning_domains = domains
         self.network_middleware = network_middleware
         self.save_metadata = save_metadata

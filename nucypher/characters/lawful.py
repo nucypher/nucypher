@@ -119,6 +119,7 @@ class Alice(Character, BlockchainPolicyAuthor):
             self.n = STRANGER_ALICE
 
         Character.__init__(self,
+                           node_class=Ursula,
                            is_me=is_me,
                            federated_only=federated_only,
                            checksum_address=checksum_address,
@@ -831,6 +832,7 @@ class Ursula(Teacher, Character, Worker):
                            abort_on_learning_error=abort_on_learning_error,
                            known_nodes=known_nodes,
                            domains=domains,
+                           node_class=Ursula,
                            **character_kwargs)
 
         #
