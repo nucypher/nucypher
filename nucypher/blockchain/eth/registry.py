@@ -404,7 +404,7 @@ class AllocationRegistry(LocalContractRegistry):
         try:
             _ = self.search(beneficiary_address=beneficiary_address)
             return True
-        except self.UnknownBeneficiary:
+        except (self.UnknownBeneficiary, self.NoAllocationRegistry):
             return False
         # TODO: Tests!
 

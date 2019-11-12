@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+from collections import OrderedDict
 from typing import Tuple, Dict
 
 from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGURED, NO_BENEFICIARY
@@ -73,7 +74,7 @@ class BaseContractDeployer:
         # Defaults
         #
         self.registry = registry
-        self.deployment_receipts = dict()
+        self.deployment_receipts = OrderedDict()
         self._contract = CONTRACT_NOT_DEPLOYED
         self.__proxy_contract = NotImplemented
         self.__deployer_address = deployer_address
@@ -794,7 +795,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
 
     agency = PreallocationEscrowAgent
     contract_name = agency.registry_contract_name
-    deployment_steps = ('contract_deployment', )
+    deployment_steps = ('contract_deployment', 'approve_transfer', 'initial_deposit', 'transfer_ownership')
     _router_deployer = StakingInterfaceRouterDeployer
     __allocation_registry = AllocationRegistry
 
@@ -828,16 +829,18 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
                                                                   sender_address=self.deployer_address,
                                                                   payload=payload)
         self.__beneficiary_address = checksum_address
+        self.deployment_receipts.update({self.deployment_steps[3]: transfer_owner_receipt})
         return transfer_owner_receipt
 
-    def initial_deposit(self, value: int, duration_seconds: int, progress=None) -> dict:
+    def initial_deposit(self, value: int, duration_seconds: int, progress=None):
         """Allocate an amount of tokens with lock time in seconds, and transfer ownership to the beneficiary"""
         # Approve
-        allocation_receipts = dict()
-        approve_function  = self.token_contract.functions.approve(self.contract.address, value)
+        approve_function = self.token_contract.functions.approve(self.contract.address, value)
         approve_receipt = self.blockchain.send_transaction(contract_function=approve_function,
                                                            sender_address=self.deployer_address)  # TODO: Gas
-        allocation_receipts['approve'] = approve_receipt
+
+        self.deployment_receipts.update({self.deployment_steps[1]: approve_receipt})
+
         if progress:
             progress.update(1)
         # Deposit
@@ -848,12 +851,9 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
                                                            sender_address=self.deployer_address,
                                                            payload=args)
 
-        # TODO: Do something with allocation_receipts. Perhaps it should be returned instead of only the last receipt.
-        allocation_receipts['initial_deposit'] = deposit_receipt
+        self.deployment_receipts.update({self.deployment_steps[2]: deposit_receipt})
         if progress:
             progress.update(1)
-
-        return deposit_receipt
 
     def enroll_principal_contract(self):
         if self.__beneficiary_address is NO_BENEFICIARY:
@@ -863,7 +863,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
                                           contract_abi=self.contract.abi)
 
     @validate_checksum_address
-    def deliver(self, value: int, duration: int, beneficiary_address: str, progress=None) -> dict:
+    def deliver(self, value: int, duration: int, beneficiary_address: str, progress=None):
         """
         Transfer allocated tokens and hand-off the contract to the beneficiary.
 
@@ -874,12 +874,11 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
 
         """
 
-        deposit_receipt = self.initial_deposit(value=value, duration_seconds=duration, progress=progress)
-        assign_receipt = self.assign_beneficiary(checksum_address=beneficiary_address)
+        self.initial_deposit(value=value, duration_seconds=duration, progress=progress)
+        self.assign_beneficiary(checksum_address=beneficiary_address)
         if progress:
             progress.update(1)
         self.enroll_principal_contract()
-        return dict(deposit_receipt=deposit_receipt, assign_receipt=assign_receipt)
 
     def deploy(self, initial_deployment: bool = True, gas_limit: int = None, progress=None) -> dict:
         """Deploy a new instance of PreallocationEscrow to the blockchain."""
@@ -892,12 +891,14 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
                 router_contract.address,
                 self.token_contract.address)
 
-        preallocation_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(*args, gas_limit=gas_limit, enroll=False)
+        preallocation_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(*args,
+                                                                                        gas_limit=gas_limit,
+                                                                                        enroll=False)
         if progress:
             progress.update(1)
 
         self._contract = preallocation_escrow_contract
-        self.deployment_receipts.update({'deployment': deploy_receipt})
+        self.deployment_receipts.update({self.deployment_steps[0]: deploy_receipt})
         return deploy_receipt
 
     def get_contract_abi(self):

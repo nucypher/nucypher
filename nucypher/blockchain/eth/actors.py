@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import csv
 import json
 import os
 from datetime import datetime
@@ -31,7 +32,7 @@ from constant_sorrow.constants import (
     NO_WORKER_ASSIGNED,
 )
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import keccak, is_checksum_address
+from eth_utils import keccak, is_checksum_address, to_checksum_address
 from twisted.logger import Logger
 
 from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics, TokenEconomicsFactory
@@ -383,13 +384,20 @@ class ContractAdministrator(NucypherTokenActor):
                                      emitter: StdoutEmitter = None,
                                      ) -> Dict[str, dict]:
         """
-        The allocation file is a JSON file containing a list of allocations. Each allocation has a:
+        The allocation file contains a list of allocations, each of them composed of:
           * 'beneficiary_address': Checksum address of the beneficiary
           * 'name': User-friendly name of the beneficiary (Optional)
           * 'amount': Amount of tokens locked, in NuNits
           * 'duration_seconds': Lock duration expressed in seconds
 
-        Example allocation file:
+        It accepts both CSV and JSON formats. Example allocation file in CSV format:
+
+        "beneficiary_address","name","amount","duration_seconds"
+        "0xdeadbeef","H. E. Pennypacker",100,31536000
+        "0xabced120","",133432,31536000
+        "0xf7aefec2","",999,31536000
+
+        Example allocation file in JSON format:
 
         [ {'beneficiary_address': '0xdeadbeef', 'name': 'H. E. Pennypacker', 'amount': 100, 'duration_seconds': 31536000},
           {'beneficiary_address': '0xabced120', 'amount': 133432, 'duration_seconds': 31536000},
@@ -434,6 +442,12 @@ class ContractAdministrator(NucypherTokenActor):
         if emitter:
             emitter.echo(f"Saved allocation template file to {template_filepath}", color='blue', bold=True)
 
+        already_enrolled = [a['beneficiary_address'] for a in allocations
+                            if allocation_registry.is_beneficiary_enrolled(a['beneficiary_address'])]
+        if already_enrolled:
+            raise ValueError(f"The following beneficiaries are already enrolled in allocation registry "
+                             f"({allocation_registry.filepath}): {already_enrolled}")
+
         # Deploy each allocation contract
         with click.progressbar(length=total_deployment_transactions,
                                label="Allocation progress",
@@ -455,25 +469,29 @@ class ContractAdministrator(NucypherTokenActor):
                     bar._last_line = None
                     bar.render_progress()
 
-                deployer = self.deploy_preallocation_escrow(allocation_registry=allocation_registry,
-                                                            progress=bar)
-
                 amount = allocation['amount']
                 duration = allocation['duration_seconds']
+
                 try:
-                    receipts = deployer.deliver(value=amount,
-                                                duration=duration,
-                                                beneficiary_address=beneficiary,
-                                                progress=bar)
+                    deployer = self.deploy_preallocation_escrow(allocation_registry=allocation_registry,
+                                                                progress=bar)
+
+                    deployer.deliver(value=amount,
+                                     duration=duration,
+                                     beneficiary_address=beneficiary,
+                                     progress=bar)
                 except TransactionFailed as e:
                     if crash_on_failure:
                         raise
-                    self.log.debug(f"Failed allocation transaction for {NU.from_nunits(amount)} to {beneficiary}: {e}")
+                    message = f"Failed allocation transaction for {NU.from_nunits(amount)} to {beneficiary}: {e}"
+                    self.log.debug(message)
+                    if emitter:
+                        emitter.echo(message=message, color='red', bold=True)
                     failed.append(allocation)
                     continue
 
                 else:
-                    allocation_receipts[beneficiary] = receipts
+                    allocation_receipts[beneficiary] = deployer.deployment_receipts
                     allocation_contract_address = deployer.contract_address
                     self.log.info(f"Created {deployer.contract_name} contract at {allocation_contract_address} "
                                   f"for beneficiary {beneficiary}.")
@@ -492,7 +510,7 @@ class ContractAdministrator(NucypherTokenActor):
                     if emitter:
                         blockchain = BlockchainInterfaceFactory.get_interface()
                         paint_contract_deployment(contract_name=deployer.contract_name,
-                                                  receipts=receipts,
+                                                  receipts=deployer.deployment_receipts,
                                                   contract_address=deployer.contract_address,
                                                   emitter=emitter,
                                                   chain_name=blockchain.client.chain_name,
@@ -503,14 +521,13 @@ class ContractAdministrator(NucypherTokenActor):
             if emitter:
                 paint_deployed_allocations(emitter, allocated, failed)
 
-            csv_filename = f'allocations-{self.deployer_address[:6]}-{maya.now().epoch}.csv'
+            csv_filename = f'allocation-summary-{self.deployer_address[:6]}-{maya.now().epoch}.csv'
             csv_filepath = os.path.join(parent_path, csv_filename)
             write_deployed_allocations_to_csv(csv_filepath, allocated, failed)
             if emitter:
                 emitter.echo(f"Saved allocation summary CSV to {csv_filepath}", color='blue', bold=True)
 
             if failed:
-                # TODO: More with these failures: send to isolated logfile, and reattempt
                 self.log.critical(f"FAILED TOKEN ALLOCATION - {len(failed)} allocations failed.")
 
         return allocation_receipts
@@ -518,11 +535,18 @@ class ContractAdministrator(NucypherTokenActor):
     @staticmethod
     def __read_allocation_data(filepath: str) -> list:
         with open(filepath, 'r') as allocation_file:
-            data = allocation_file.read()
-            try:
-                allocation_data = json.loads(data)
-            except JSONDecodeError:
-                raise
+            if filepath.endswith(".csv"):
+                reader = csv.DictReader(allocation_file)
+                allocation_data = list(reader)
+            else:  # Assume it's JSON by default
+                allocation_data = json.load(allocation_file)
+
+        # Pre-process allocation data
+        for entry in allocation_data:
+            entry['beneficiary_address'] = to_checksum_address(entry['beneficiary_address'])
+            entry['amount'] = int(entry['amount'])
+            entry['duration_seconds'] = int(entry['duration_seconds'])
+
         return allocation_data
 
     def deploy_beneficiaries_from_file(self,
@@ -535,7 +559,8 @@ class ContractAdministrator(NucypherTokenActor):
         receipts = self.deploy_beneficiary_contracts(allocations=allocations,
                                                      allocation_outfile=allocation_outfile,
                                                      emitter=emitter,
-                                                     interactive=interactive)
+                                                     interactive=interactive,
+                                                     crash_on_failure=False)
         # Save transaction metadata
         receipts_filepath = self.save_deployment_receipts(receipts=receipts, filename_prefix='allocation')
         if emitter:
@@ -549,12 +574,12 @@ class ContractAdministrator(NucypherTokenActor):
         os.makedirs(DEFAULT_CONFIG_ROOT, exist_ok=True)
         with open(filepath, 'w') as file:
             data = dict()
-            for contract_name, receipts in receipts.items():
+            for contract_name, contract_receipts in receipts.items():
                 contract_records = dict()
-                for tx_name, receipt in receipts.items():
+                for tx_name, receipt in contract_receipts.items():
                     # Formatting
-                    receipt = {item: str(result) for item, result in receipt.items()}
-                    contract_records.update({tx_name: receipt for tx_name in receipts})
+                    pretty_receipt = {item: str(result) for item, result in receipt.items()}
+                    contract_records[tx_name] = pretty_receipt
                 data[contract_name] = contract_records
             data = json.dumps(data, indent=4)
             file.write(data)

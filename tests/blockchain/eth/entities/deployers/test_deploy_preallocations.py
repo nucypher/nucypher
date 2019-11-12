@@ -55,14 +55,12 @@ def test_deploy_and_allocate(agency, token_economics, test_registry):
     assert token_agent.get_balance(address=origin) > 1
 
     # Start allocating tokens
-    deposit_receipts, approve_hashes = list(), dict()
     for address, deployer in deployments.items():
         assert deployer.deployer_address == origin
 
-        deposit_receipt = deployer.initial_deposit(value=allocation, duration_seconds=token_economics.maximum_rewarded_periods)
-        deposit_receipts.append(deposit_receipt)
+        deployer.initial_deposit(value=allocation, duration_seconds=token_economics.maximum_rewarded_periods)
 
         beneficiary = random.choice(testerchain.unassigned_accounts)
         _assign_receipt = deployer.assign_beneficiary(beneficiary)
 
-    assert len(deposit_receipts) == number_of_deployments == len(deployments)
+    assert number_of_deployments == len(deployments)
