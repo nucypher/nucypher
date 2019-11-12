@@ -68,7 +68,7 @@ from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, UnexpectedResponse, NotFound
 from nucypher.network.nicknames import nickname_from_seed
-from nucypher.network.nodes import Teacher
+from nucypher.network.nodes import Teacher, NodeSprout
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 
@@ -1125,7 +1125,7 @@ class Ursula(Teacher, Character, Worker):
     @classmethod
     def internal_splitter(cls, splittable):
         result = BytestringKwargifier(
-            dict,
+            NodeSprout,  # Just a dict really.
             public_address=PUBLIC_ADDRESS_LENGTH,
             domains=VariableLengthBytestring,
             timestamp=(int, 4, {'byteorder': 'big'}),

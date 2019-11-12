@@ -27,6 +27,8 @@ from typing import Set, Tuple, Union
 
 import maya
 import requests
+from eth_utils import to_checksum_address
+
 from bytestring_splitter import BytestringSplitter
 from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
 from constant_sorrow import constant_or_bytes
@@ -54,6 +56,7 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, verify_eip_191, recover_address_eip_191
+from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import TransactingPower, SigningPower, DecryptingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter
@@ -258,6 +261,19 @@ class FleetStateTracker:
                 "last_seen": last_seen,
                 "fleet_state_icon": fleet_icon,
                 }
+
+
+class NodeSprout(dict):
+    """
+    An abridged node class designed for optimization of instantiation of > 100 nodes simultaneously.
+    """
+    def __init__(self, **node_metadata):
+        self.checksum_address = to_checksum_address(node_metadata['public_address'])
+        super().__init__(**node_metadata)
+
+    @property
+    def timestamp(self):
+        return maya.MayaDT(self['timestamp'])
 
 
 class Learner:

@@ -19,6 +19,7 @@ from typing import Dict, ClassVar, Set
 from typing import Optional
 from typing import Union, List
 
+from bytestring_splitter import BytestringSplitter
 from constant_sorrow import default_constant_splitter
 from constant_sorrow.constants import (
     DO_NOT_SIGN,
