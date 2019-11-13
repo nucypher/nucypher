@@ -637,7 +637,7 @@ class Learner:
 
         while True:
             rounds_undertaken = self._learning_round - starting_round
-            if len(self.__known_nodes) >= number_of_nodes_to_know:
+            if len(self.known_nodes) >= number_of_nodes_to_know:
                 if rounds_undertaken:
                     self.log.info("Learned about enough nodes after {} rounds.".format(rounds_undertaken))
                 return True
@@ -977,11 +977,10 @@ class Learner:
                 # TODO: This is repeated from remember_node
                 with suppress(KeyError):
                     already_known_node = self.known_nodes[node_sprout.checksum_address]
-                    # if not node.timestamp > already_known_node.timestamp:
-                    #     self.log.debug("Skipping already known node {}".format(already_known_node))
-                    #     # This node is already known.  We can safely return.
-                    #     return False
-
+                    if not node_sprout.timestamp > already_known_node.timestamp:
+                        self.log.debug("Skipping already known node {}".format(already_known_node))
+                        # This node is already known.  We can continue.
+                        continue
 
             except Exception as e:
                 if fail_fast:

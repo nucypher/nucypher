@@ -451,7 +451,7 @@ class Bob(Character):
             self.evidence = evidence
 
     def __init__(self, controller: bool = True, *args, **kwargs) -> None:
-        Character.__init__(self, *args, **kwargs)
+        Character.__init__(self, node_class=Ursula, *args, **kwargs)
 
         if controller:
             self.controller = self._controller_class(bob=self)
