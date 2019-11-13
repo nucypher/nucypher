@@ -196,7 +196,7 @@ class ContractAdministrator(NucypherTokenActor):
         self.preallocation_escrow_deployers = dict()
         self.deployers = {d.contract_name: d for d in self.deployer_classes}
 
-        self.transacting_power = TransactingPower(password=client_password, account=deployer_address)
+        self.transacting_power = TransactingPower(password=client_password, account=deployer_address, cache=True)
         self.transacting_power.activate()
 
     def __repr__(self):
@@ -238,6 +238,7 @@ class ContractAdministrator(NucypherTokenActor):
                             economics=self.economics,
                             *args, **kwargs)
 
+        self.transacting_power.activate()  # Activate the TransactingPower in case too much time has passed
         if Deployer._upgradeable:
             is_initial_deployment = not bare
             if is_initial_deployment and not plaintext_secret:
@@ -473,6 +474,8 @@ class ContractAdministrator(NucypherTokenActor):
                 duration = allocation['duration_seconds']
 
                 try:
+                    self.transacting_power.activate()  # Activate the TransactingPower in case too much time has passed
+
                     deployer = self.deploy_preallocation_escrow(allocation_registry=allocation_registry,
                                                                 progress=bar)
 
