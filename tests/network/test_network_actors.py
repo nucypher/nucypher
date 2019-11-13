@@ -181,10 +181,11 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_co
                                     started = time.time()
                                     alice.block_until_number_of_known_nodes_is(8, learn_on_this_thread=True, timeout=60)
                                     ended = time.time()
+                                    elapsed = ended - started
 
     assert VerificationTracker.node_verifications == 1 # We have only verified the first Ursula.
     assert sum(isinstance(u, Ursula) for u in alice.known_nodes) < 20  # We haven't instantiated many Ursulas.
-    assert ended - started < 8  # 8 seconds is still a little long to discover 8 out of 5000 nodes, but before starting the optimization that went with this test, this operation took about 18 minutes on jMyles' laptop.
+    assert elapsed < 8  # 8 seconds is still a little long to discover 8 out of 5000 nodes, but before starting the optimization that went with this test, this operation took about 18 minutes on jMyles' laptop.
 
 
 @pytest.mark.slow()
