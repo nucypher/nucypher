@@ -125,24 +125,26 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_co
     class NotARestApp:
         testing = True
 
+    mock_cert_storage = patch("nucypher.config.storages.ForgetfulNodeStorage.store_node_certificate",
+                              new=lambda *args, **kwargs: "do not store cert.")
+    mock_cert_loading = patch("nucypher.characters.lawful.load_pem_x509_certificate",
+                              new=lambda *args, **kwargs: NotACert())
+    mock_cert_generation = patch("nucypher.keystore.keypairs.generate_self_signed_certificate", new=do_not_create_cert)
+    mock_rest_app_creation = patch("nucypher.characters.lawful.make_rest_app",
+                                   new=lambda *args, **kwargs: (NotARestApp(), "this is not a datastore"))
+    mock_secret_source = patch("nucypher.keystore.keypairs.Keypair._private_key_source",
+                               new=lambda *args, **kwargs: NotAPrivateKey())
+    mock_remember_node = patch("nucypher.characters.lawful.Ursula.remember_node", new=simple_remember)
+
     with GlobalLoggerSettings.pause_all_logging_while():
-        with patch("nucypher.config.storages.ForgetfulNodeStorage.store_node_certificate",
-                   new=lambda *args, **kwargs: "do not store cert."):
-            with patch("nucypher.characters.lawful.make_rest_app",
-                       new=lambda *args, **kwargs: (NotARestApp(), "this is not a datastore")):
-                with patch("nucypher.characters.lawful.load_pem_x509_certificate",
-                           new=lambda *args, **kwargs: NotACert()):
-                    with patch("nucypher.keystore.keypairs.generate_self_signed_certificate", new=do_not_create_cert):
-                        with patch("nucypher.keystore.keypairs.Keypair._private_key_source",
-                                   new=lambda *args, **kwargs: NotAPrivateKey()):
-                            with patch("nucypher.characters.lawful.Ursula.remember_node", new=simple_remember):
-                                _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
-                                                                  quantity=5000, know_each_other=False)
-                                # END FIRST CRAZY MONKEY PATCHING BLOCK
-                                all_ursulas = {u.checksum_address: u for u in _ursulas}
-                                for ursula in _ursulas:
-                                    ursula.known_nodes._nodes = all_ursulas
-                                    ursula.known_nodes.checksum = b"This is a fleet state checksum..".hex()
+        with mock_cert_storage, mock_cert_loading, mock_rest_app_creation, mock_cert_generation, mock_secret_source, mock_remember_node:
+            _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
+                                              quantity=5000, know_each_other=False)
+            # END FIRST CRAZY MONKEY PATCHING BLOCK
+            all_ursulas = {u.checksum_address: u for u in _ursulas}
+            for ursula in _ursulas:
+                ursula.known_nodes._nodes = all_ursulas
+                ursula.known_nodes.checksum = b"This is a fleet state checksum..".hex()
     config = AliceConfiguration(dev_mode=True,
                                 network_middleware=MockRestMiddlewareForLargeFleetTests(),
                                 known_nodes=_ursulas,
@@ -163,8 +165,7 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_co
         def fake_verify_metadata(cls, *args, **kwargs):
             cls.metadata_verifications += 1
 
-    with patch("nucypher.config.storages.ForgetfulNodeStorage.store_node_certificate",
-               new=lambda *args, **kwargs: "do not store cert."):
+    with mock_cert_storage:
         with patch("nucypher.characters.lawful.Ursula.verify_node", new=VerificationTracker.fake_verify_node):
             with patch("nucypher.network.nodes.FleetStateTracker.record_fleet_state", new=lambda *args, **kwargs: None):
                 alice = config.produce(known_nodes=list(_ursulas)[:1],
