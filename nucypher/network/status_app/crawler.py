@@ -10,7 +10,7 @@ from nucypher.characters.chaotic import Moe
 from influxdb import InfluxDBClient
 from maya import MayaDT
 
-from nucypher.network.status_app.db import InfluxCrawlerClient
+from nucypher.network.status_app.db import BlockchainCrawlerClient
 import sqlite3
 import os
 
@@ -235,8 +235,9 @@ class NetworkCrawler:
                 and self._locked_tokens_learning_task.running
                 and self._moe_known_nodes_learning_task.running)
 
-    def get_blockchain_crawler_client(self):
-        return InfluxCrawlerClient(host='localhost', port=8086, database=self.BLOCKCHAIN_DB_NAME)
+    @staticmethod
+    def get_blockchain_crawler_client():
+        return BlockchainCrawlerClient(host='localhost', port=8086, database=NetworkCrawler.BLOCKCHAIN_DB_NAME)
 
     def get_node_db_row_information(self, node_info, teacher_address, current_period):
         # Staker address

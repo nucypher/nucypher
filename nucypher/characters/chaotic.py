@@ -39,7 +39,7 @@ from nucypher.crypto.powers import SigningPower, TransactingPower
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.server import TLSHostingPower
-from nucypher.network.status_app.moe import MoeStatusApp
+
 
 
 class Moe(Character):
