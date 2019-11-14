@@ -1,7 +1,4 @@
-import os
 from datetime import datetime, timedelta
-from os.path import dirname, abspath
-from string import Template
 
 import dash_core_components as dcc
 import dash_html_components as html
@@ -18,8 +15,8 @@ class MoeStatusApp(NetworkStatusPage):
     Status application for 'Moe' monitoring node.
     """
 
-    TEMPLATE_DIR = os.path.join(abspath(dirname(__file__)), 'templates')
-    REFRESH_RATE = 60 * 1000
+    MINUTE_REFRESH_RATE = 60 * 1000
+    DAILY_REFRESH_RATE = MINUTE_REFRESH_RATE * 60 * 24
 
     GRAPH_CONFIG = {'displaylogo': False,
                     'autosizable': True,
@@ -31,19 +28,11 @@ class MoeStatusApp(NetworkStatusPage):
         super().__init__(*args, **kwargs)
         self.moe = moe
 
-        from nucypher.network.status_app.crawler import MoeBlockchainCrawler
-        self.moe_crawler = MoeBlockchainCrawler(moe=moe)
+        from nucypher.network.status_app.crawler import NetworkCrawler
+        self.moe_crawler = NetworkCrawler(moe=moe)
         self.moe_crawler.start()
 
-        self.moe_db_client = self.moe_crawler.get_db_client()
-
-        # updates can be directly provided included in javascript snippet
-        # TODO: Configurable template path
-        template_path = os.path.join(self.TEMPLATE_DIR, 'moe.html')
-        with open(template_path, 'r') as file:
-            moe_template = file.read()
-            self.dash_app.index_string = Template(moe_template).substitute(ws_port=self.moe.websocket_port,
-                                                                           ws_host=self.moe.host)
+        self.moe_db_client = self.moe_crawler.get_blockchain_crawler_client()
 
         self.dash_app.layout = html.Div([
             dcc.Location(id='url', refresh=False),
@@ -52,8 +41,8 @@ class MoeStatusApp(NetworkStatusPage):
             html.Div([
                 html.Img(src='/assets/nucypher_logo.png', className='banner'),
                 html.Div(id='header'),
-                html.Button("Refresh States", id='hidden-state-button', type='submit'),
-                html.Button("Refresh Known Nodes", id='hidden-node-button', type='submit'),
+                html.Button("Refresh States", id='state-update-button', type='submit'),
+                html.Button("Refresh Known Nodes", id='node-update-button', type='submit'),
             ], id="controls"),
 
             ###############################################################
@@ -68,6 +57,7 @@ class MoeStatusApp(NetworkStatusPage):
                         html.Div(id='time-remaining'),
                         html.Div(id='domains'),
                         html.Div(id='active-stakers'),
+                        html.Div(id='stakers-breakdown'),
                         html.Div(id='staked-tokens'),
                     ], id='stats'),
 
@@ -89,8 +79,14 @@ class MoeStatusApp(NetworkStatusPage):
             ], id='main'),
 
             dcc.Interval(
-                id='interval-component',
-                interval=self.REFRESH_RATE,
+                id='minute-interval',
+                interval=self.MINUTE_REFRESH_RATE,
+                n_intervals=0
+            ),
+
+            dcc.Interval(
+                id='daily-interval',
+                interval=self.DAILY_REFRESH_RATE,
                 n_intervals=0
             )
         ])
@@ -101,30 +97,59 @@ class MoeStatusApp(NetworkStatusPage):
             return self.header()
 
         @self.dash_app.callback(Output('prev-states', 'children'),
-                                [Input('url', 'pathname')])
-        def state(pathname):
+                                [Input('state-update-button', 'n_clicks'),
+                                 Input('minute-interval', 'n_intervals')])
+        def state(n_clicks, n_intervals):
             return self.previous_states(moe)
 
         @self.dash_app.callback(Output('known-nodes', 'children'),
-                                [Input('hidden-node-button', 'n_clicks')])
-        def known_nodes(n):
+                                [Input('node-update-button', 'n_clicks'),
+                                 Input('minute-interval', 'n_intervals')])
+        def known_nodes(n_clicks, n_intervals):
             return self.known_nodes(moe)
 
         @self.dash_app.callback(Output('active-stakers', 'children'),
-                                [Input('interval-component', 'n_intervals')])
+                                [Input('minute-interval', 'n_intervals')])
         def active_stakers(n):
-            staker_addresses = moe.staking_agent.get_stakers()
+            confirmed, pending, inactive = moe.staking_agent.partition_stakers_by_activity()
+            total_stakers = len(confirmed) + len(pending) + len(inactive)
             return html.Div([html.H4("Active Ursulas"),
-                             html.H5(f"{len(moe.known_nodes)}/{len(staker_addresses)}")])
+                             html.H5(f"{len(confirmed)}/{total_stakers}")])
+
+        @self.dash_app.callback(Output('stakers-breakdown', 'children'),
+                                [Input('minute-interval', 'n_intervals')])
+        def stakers_breakdown(n):
+            confirmed, pending, inactive = moe.staking_agent.partition_stakers_by_activity()
+            stakers = dict()
+            stakers['Active'] = len(confirmed)
+            stakers['Pending'] = len(pending)
+            stakers['Inactive'] = len(inactive)
+            staker_type_numbers = list(stakers.values())
+            fig = go.Figure(
+                data=[
+                    go.Pie(
+                        labels=list(stakers.keys()),
+                        values=staker_type_numbers,
+                        name='Stakers',
+                        marker=go.bar.Marker(color=staker_type_numbers, colorscale='Viridis')
+                    )
+                ],
+                layout=go.Layout(
+                    title=f'Breakdown of Network Stakers',
+                    showlegend=True,
+                ))
+
+            fig['layout'].update(autosize=True, width=None, height=None)
+            return dcc.Graph(figure=fig, id='staker-type-graph', config=self.GRAPH_CONFIG)
 
         @self.dash_app.callback(Output('current-period', 'children'),
-                                [Input('interval-component', 'n_intervals')])
+                                [Input('minute-interval', 'n_intervals')])
         def current_period(pathname):
             return html.Div([html.H4("Current Period"),
                              html.H5(moe.staking_agent.get_current_period())])
 
         @self.dash_app.callback(Output('time-remaining', 'children'),
-                                [Input('interval-component', 'n_intervals')])
+                                [Input('minute-interval', 'n_intervals')])
         def time_remaining(n):
             tomorrow = datetime.utcnow() + timedelta(days=1)
             midnight = datetime(year=tomorrow.year, month=tomorrow.month,
@@ -143,8 +168,8 @@ class MoeStatusApp(NetworkStatusPage):
             ])
 
         @self.dash_app.callback(Output('staked-tokens', 'children'),
-                                [Input('interval-component', 'n_intervals')])
-        def staked_tokens(pathname):
+                                [Input('minute-interval', 'n_intervals')])
+        def staked_tokens(n):
             nu = NU.from_nunits(moe.staking_agent.get_global_locked_tokens())
             return html.Div([
                 html.H4('Staked Tokens'),
@@ -152,8 +177,8 @@ class MoeStatusApp(NetworkStatusPage):
             ])
 
         @self.dash_app.callback(Output('prev-locked-stake-graph', 'children'),
-                                [Input('url', 'pathname')])  # on page-load
-        def prev_locked_tokens(pathname):
+                                [Input('daily-interval', 'n_intervals')])
+        def prev_locked_tokens(n):
             prior_periods = 30
             locked_tokens_dict = self.moe_db_client.get_historical_locked_tokens_over_range(prior_periods)
             token_values = list(locked_tokens_dict.values())
@@ -179,8 +204,8 @@ class MoeStatusApp(NetworkStatusPage):
             return dcc.Graph(figure=fig, id='prev-locked-graph', config=self.GRAPH_CONFIG)
 
         @self.dash_app.callback(Output('prev-num-stakers-graph', 'children'),
-                                [Input('url', 'pathname')])  # on page-load
-        def historical_known_nodes(pathname):
+                                [Input('daily-interval', 'n_intervals')])
+        def historical_known_nodes(n):
             prior_periods = 30
             num_stakers_dict = self.moe_db_client.get_historical_num_stakers_over_range(prior_periods)
             marker_color = 'rgb(0, 163, 239)'
@@ -206,8 +231,8 @@ class MoeStatusApp(NetworkStatusPage):
             return dcc.Graph(figure=fig, id='prev-stakers-graph', config=self.GRAPH_CONFIG)
 
         @self.dash_app.callback(Output('locked-stake-graph', 'children'),
-                                [Input('url', 'pathname')])
-        def future_locked_tokens(pathname):
+                                [Input('daily-interval', 'n_intervals')])
+        def future_locked_tokens(n):
             token_counter = self.moe_crawler.snapshot['future_locked_tokens']
             periods = len(token_counter)
             period_range = list(range(1, periods + 1))

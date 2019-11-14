@@ -19,9 +19,7 @@ def test_run_moe(click_runner, federated_ursulas):
 
     _ursula_output = yield threads.deferToThread(start_pytest_ursula_services, ursula=ursula)
 
-    test_ws_port = select_test_port()
     args = ('moe',
-            '--ws-port', test_ws_port,
             '--network', ':fake-domain:',
             '--teacher', teacher_uri,
             '--http-port', MOCK_URSULA_STARTING_PORT,
@@ -34,7 +32,6 @@ def test_run_moe(click_runner, federated_ursulas):
 
     assert result.exit_code == 0
     assert f"Running Moe on 127.0.0.1:{MOCK_URSULA_STARTING_PORT}"
-    assert f"WebSocketService starting on {test_ws_port}"
 
     reserved_ports = (CharacterConfiguration.DEFAULT_REST_PORT, CharacterConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
     assert MOCK_URSULA_STARTING_PORT not in reserved_ports
