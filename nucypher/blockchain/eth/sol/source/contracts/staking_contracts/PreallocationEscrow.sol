@@ -4,6 +4,7 @@ pragma solidity ^0.5.3;
 import "zeppelin/ownership/Ownable.sol";
 import "zeppelin/token/ERC20/SafeERC20.sol";
 import "zeppelin/math/SafeMath.sol";
+import "zeppelin/utils/Address.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/staking_contracts/AbstractStakingContract.sol";
 
@@ -15,6 +16,7 @@ import "contracts/staking_contracts/AbstractStakingContract.sol";
 contract PreallocationEscrow is AbstractStakingContract, Ownable {
     using SafeERC20 for NuCypherToken;
     using SafeMath for uint256;
+    using Address for address payable;
 
     event TokensDeposited(address indexed sender, uint256 value, uint256 duration);
     event TokensWithdrawn(address indexed owner, uint256 value);
@@ -73,9 +75,7 @@ contract PreallocationEscrow is AbstractStakingContract, Ownable {
     function withdrawETH() public onlyOwner {
         uint256 balance = address(this).balance;
         require(balance != 0);
-        // Transfer ETH to owner
-        (bool success, ) = msg.sender.call.value(balance)("");
-        require(success);
+        msg.sender.sendValue(balance);
         emit ETHWithdrawn(msg.sender, balance);
     }
 

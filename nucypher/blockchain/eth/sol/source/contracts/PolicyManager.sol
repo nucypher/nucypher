@@ -4,6 +4,7 @@ pragma solidity ^0.5.3;
 import "zeppelin/token/ERC20/SafeERC20.sol";
 import "zeppelin/math/SafeMath.sol";
 import "zeppelin/math/Math.sol";
+import "zeppelin/utils/Address.sol";
 import "contracts/lib/AdditionalMath.sol";
 import "contracts/StakingEscrow.sol";
 import "contracts/NuCypherToken.sol";
@@ -19,6 +20,7 @@ contract PolicyManager is Upgradeable {
     using AdditionalMath for uint256;
     using AdditionalMath for int256;
     using AdditionalMath for uint16;
+    using Address for address payable;
 
     event PolicyCreated(
         bytes16 indexed policyId,
@@ -216,9 +218,7 @@ contract PolicyManager is Upgradeable {
         uint256 reward = node.reward;
         require(reward != 0);
         node.reward = 0;
-        // Transfer reward to _recipient
-        (bool success, ) = _recipient.call.value(reward)("");
-        require(success);
+        _recipient.sendValue(reward);
         emit Withdrawn(msg.sender, _recipient, reward);
         return reward;
     }
@@ -340,9 +340,7 @@ contract PolicyManager is Upgradeable {
             require(i < policy.arrangements.length);
         }
         if (refundValue > 0) {
-            // Transfer refund to creator
-            (bool success, ) = msg.sender.call.value(refundValue)("");
-            require(success);
+            msg.sender.sendValue(refundValue);
         }
     }
 
