@@ -208,8 +208,8 @@ def test_bob_web_character_control_retrieve(
             b'Wrong!')
     wrong_tmap = b64encode(bytes(wrong_tmap)).decode()
     params['treasure_map'] = wrong_tmap
-    with pytest.raises(Learner.NotEnoughTeachers):
-        response = bob_web_controller_test_client.post(endpoint, data=json.dumps(params))
+    with pytest.raises(TreasureMap.Malformed):
+        bob_web_controller_test_client.post(endpoint, data=json.dumps(params))
 
 
 def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test_client, encrypt_control_request):

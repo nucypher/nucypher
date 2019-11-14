@@ -22,7 +22,7 @@ from typing import List, Optional, Tuple, Callable
 
 import maya
 import msgpack
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring, BytestringSplittingError
 from constant_sorrow.constants import CFRAG_NOT_RETAINED
 from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
 from cryptography.hazmat.backends.openssl import backend
@@ -56,6 +56,9 @@ class TreasureMap:
         """
         Called when no known nodes have it.
         """
+
+    class Malformed(ValueError):
+        pass
 
     node_id_splitter = BytestringSplitter((to_checksum_address, int(PUBLIC_ADDRESS_LENGTH)), ID_LENGTH)
 
@@ -216,7 +219,10 @@ class TreasureMap:
 
     def _set_heading(self, plaintext_map: bytes):
         self._m = plaintext_map[0]
-        self._destinations = dict(self.node_id_splitter.repeat(plaintext_map[1:]))
+        try:
+            self._destinations = dict(self.node_id_splitter.repeat(plaintext_map[1:]))
+        except BytestringSplittingError as e:
+            raise self.Malformed(e)
 
     def orient(self, compass: Callable):
         """

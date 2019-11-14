@@ -122,7 +122,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
 
     # One thing to note here is that Bob *can* still retrieve with the cached CFrags,
     # even though this Policy has been revoked.  #892
-    _cleartexts = bob.retrieve(treasure_map=policy.treasure_map,
+    _cleartexts = bob.retrieve(message_kit,
                                alice_verifying_key=alices_verifying_key,
                                label=policy.label,
                                use_precedent_work_orders=True)
