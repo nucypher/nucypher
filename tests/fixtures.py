@@ -23,7 +23,6 @@ import tempfile
 
 import maya
 import pytest
-
 from eth_utils import to_checksum_address
 from sqlalchemy.engine import create_engine
 from twisted.logger import Logger
@@ -48,9 +47,9 @@ from nucypher.blockchain.eth.registry import InMemoryContractRegistry, GithubReg
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob
+from nucypher.config.characters import AliceConfiguration
 from nucypher.config.characters import (
     UrsulaConfiguration,
-    AliceConfiguration,
     BobConfiguration,
     StakeHolderConfiguration
 )
@@ -60,6 +59,7 @@ from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.policy.collections import IndisputableEvidence, WorkOrder
+from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
@@ -78,11 +78,15 @@ from nucypher.utilities.sandbox.constants import (
 )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
-from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas, make_federated_ursulas
+from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
+from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+from tests.performance_mocks import mock_cert_storage, mock_cert_loading, mock_rest_app_creation, mock_cert_generation, \
+    mock_secret_source, mock_remember_node
 
 CharacterConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
 
 test_logger = Logger("test-logger")
+
 
 #
 # Temporary
@@ -133,7 +137,7 @@ def ursula_federated_test_config():
                                         federated_only=True,
                                         network_middleware=MockRestMiddleware(),
                                         save_metadata=False,
-                                        reload_metadata=False,)
+                                        reload_metadata=False, )
     yield ursula_config
     ursula_config.cleanup()
 
@@ -257,7 +261,7 @@ def idle_blockchain_policy(blockchain_alice, blockchain_bob, token_economics):
     policy = blockchain_alice.create_policy(blockchain_bob,
                                             label=random_label,
                                             m=2, n=3,
-                                            value=3*days*100,
+                                            value=3 * days * 100,
                                             expiration=expiration)
     return policy
 
@@ -273,7 +277,7 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
     network_middleware = MockRestMiddleware()
 
     idle_blockchain_policy.make_arrangements(
-            network_middleware, handpicked_ursulas=list(blockchain_ursulas))
+        network_middleware, handpicked_ursulas=list(blockchain_ursulas))
 
     idle_blockchain_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
     return idle_blockchain_policy
@@ -446,12 +450,12 @@ def _make_agency(testerchain, test_registry):
     Launch the big three contracts on provided chain,
     make agents for each and return them.
     """
-    
+
     # Mock TransactingPower Consumption (Deployer)
     testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=testerchain.etherbase_account)
     testerchain.transacting_power.activate()
-    
+
     origin = testerchain.etherbase_account
 
     token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)
@@ -469,10 +473,10 @@ def _make_agency(testerchain, test_registry):
     staking_interface_deployer = StakingInterfaceDeployer(deployer_address=origin, registry=test_registry)
     staking_interface_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    token_agent = token_deployer.make_agent()                           # 1 Token
-    staking_agent = staking_escrow_deployer.make_agent()                # 2 Staking Escrow
-    policy_agent = policy_manager_deployer.make_agent()                 # 3 Policy Agent
-    _adjudicator_agent = adjudicator_deployer.make_agent()              # 4 Adjudicator
+    token_agent = token_deployer.make_agent()  # 1 Token
+    staking_agent = staking_escrow_deployer.make_agent()  # 2 Staking Escrow
+    policy_agent = policy_manager_deployer.make_agent()  # 3 Policy Agent
+    _adjudicator_agent = adjudicator_deployer.make_agent()  # 4 Adjudicator
 
     # TODO: Get rid of returning these agents here.
     # What's important is deploying and creating the first agent for each contract,
@@ -542,7 +546,6 @@ def stakers(testerchain, agency, token_economics, test_registry):
 
 @pytest.fixture(scope="module")
 def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
-
     _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                           stakers_addresses=testerchain.stakers_accounts,
                                           workers_addresses=testerchain.ursulas_accounts,
@@ -599,7 +602,6 @@ def policy_value(token_economics, policy_rate):
 
 @pytest.fixture(scope='module')
 def funded_blockchain(testerchain, agency, token_economics, test_registry):
-
     # Who are ya'?
     deployer_address, *everyone_else, staking_participant = testerchain.client.accounts
 
@@ -610,7 +612,7 @@ def funded_blockchain(testerchain, agency, token_economics, test_registry):
     token_airdrop(token_agent=NucypherTokenAgent(registry=test_registry),
                   origin=deployer_address,
                   addresses=everyone_else,
-                  amount=token_economics.minimum_allowed_locked*5)
+                  amount=token_economics.minimum_allowed_locked * 5)
 
     # HERE YOU GO
     yield testerchain, deployer_address
@@ -807,7 +809,6 @@ def deploy_contract(testerchain, test_registry):
 
 @pytest.fixture(scope='module')
 def mock_registry_filepath(testerchain, agency, test_registry):
-
     # Fake the source contract registry
     with open(MOCK_REGISTRY_FILEPATH, 'w') as file:
         file.write(json.dumps(test_registry.read()))
@@ -824,6 +825,7 @@ def get_random_checksum_address():
         canonical_address = os.urandom(20)
         checksum_address = to_checksum_address(canonical_address)
         return checksum_address
+
     return _get_random_checksum_address
 
 
@@ -849,4 +851,18 @@ def mock_transacting_power_activation(testerchain):
     def _mock_transacting_power_activation(password, account):
         testerchain.transacting_power = TransactingPower(password=password, account=account)
         testerchain.transacting_power.activate()
+
     return _mock_transacting_power_activation
+
+
+@pytest.fixture(scope="module")
+def large_fleet_of_highperf_mocked_ursulas(ursula_federated_test_config):
+    with GlobalLoggerSettings.pause_all_logging_while():
+        with mock_cert_storage, mock_cert_loading, mock_rest_app_creation, mock_cert_generation, mock_secret_source, mock_remember_node:
+            _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
+                                              quantity=5000, know_each_other=False)
+            all_ursulas = {u.checksum_address: u for u in _ursulas}
+            for ursula in _ursulas:
+                ursula.known_nodes._nodes = all_ursulas
+                ursula.known_nodes.checksum = b"This is a fleet state checksum..".hex()
+    return _ursulas

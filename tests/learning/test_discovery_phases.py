@@ -19,11 +19,9 @@ import time
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import AliceConfiguration
-from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.sandbox.middleware import MockRestMiddlewareForLargeFleetTests
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas
-from tests.performance_mocks import mock_cert_storage, mock_cert_loading, mock_rest_app_creation, mock_cert_generation, \
-    mock_secret_source, mock_remember_node, mock_record_fleet_state, mock_verify_node, mock_message_verification, \
+from tests.performance_mocks import mock_cert_storage, mock_cert_loading, mock_record_fleet_state, mock_verify_node, \
+    mock_message_verification, \
     mock_metadata_validation, mock_signature_bytes, mock_stamp_call, mock_pubkey_from_bytes, VerificationTracker
 
 """
@@ -43,16 +41,8 @@ performance bottlenecks.
 """
 
 
-def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_config):
-
-    with GlobalLoggerSettings.pause_all_logging_while():
-        with mock_cert_storage, mock_cert_loading, mock_rest_app_creation, mock_cert_generation, mock_secret_source, mock_remember_node:
-            _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
-                                              quantity=5000, know_each_other=False)
-            all_ursulas = {u.checksum_address: u for u in _ursulas}
-            for ursula in _ursulas:
-                ursula.known_nodes._nodes = all_ursulas
-                ursula.known_nodes.checksum = b"This is a fleet state checksum..".hex()
+def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_config, large_fleet_of_highperf_mocked_ursulas):
+    _ursulas = large_fleet_of_highperf_mocked_ursulas
     config = AliceConfiguration(dev_mode=True,
                                 network_middleware=MockRestMiddlewareForLargeFleetTests(),
                                 known_nodes=_ursulas,
