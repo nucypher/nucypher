@@ -18,9 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import time
 
 from nucypher.characters.lawful import Ursula
-from nucypher.config.characters import AliceConfiguration
-from nucypher.utilities.sandbox.middleware import MockRestMiddlewareForLargeFleetTests
-from tests.performance_mocks import mock_cert_storage, mock_cert_loading, mock_record_fleet_state, mock_verify_node, \
+from tests.performance_mocks import mock_cert_storage, mock_cert_loading, mock_verify_node, \
     mock_message_verification, \
     mock_metadata_validation, mock_signature_bytes, mock_stamp_call, mock_pubkey_from_bytes, VerificationTracker
 
@@ -41,30 +39,20 @@ performance bottlenecks.
 """
 
 
-def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_config, large_fleet_of_highperf_mocked_ursulas):
-    _ursulas = large_fleet_of_highperf_mocked_ursulas
-    config = AliceConfiguration(dev_mode=True,
-                                network_middleware=MockRestMiddlewareForLargeFleetTests(),
-                                known_nodes=_ursulas,
-                                federated_only=True,
-                                abort_on_learning_error=True,
-                                save_metadata=False,
-                                reload_metadata=False)
+def test_alice_can_learn_about_a_whole_bunch_of_ursulas(large_fleet_of_highperf_mocked_ursulas,
+                                                        highperf_mocked_alice):
 
-    with mock_cert_storage, mock_verify_node, mock_record_fleet_state:
-        alice = config.produce(known_nodes=list(_ursulas)[:1])
-
-    # We started with one known_node and verified it.
+    # During the fixture execution, Alice verified one node.
     # TODO: Consider changing this - #1449
     assert VerificationTracker.node_verifications == 1
 
     with mock_cert_storage, mock_cert_loading, mock_verify_node, mock_message_verification, mock_metadata_validation:
         with mock_pubkey_from_bytes, mock_stamp_call, mock_signature_bytes:
             started = time.time()
-            alice.block_until_number_of_known_nodes_is(8, learn_on_this_thread=True, timeout=60)
+            highperf_mocked_alice.block_until_number_of_known_nodes_is(8, learn_on_this_thread=True, timeout=60)
             ended = time.time()
             elapsed = ended - started
 
     assert VerificationTracker.node_verifications == 1  # We have only verified the first Ursula.
-    assert sum(isinstance(u, Ursula) for u in alice.known_nodes) < 20  # We haven't instantiated many Ursulas.
+    assert sum(isinstance(u, Ursula) for u in highperf_mocked_alice.known_nodes) < 20  # We haven't instantiated many Ursulas.
     assert elapsed < 8  # 8 seconds is still a little long to discover 8 out of 5000 nodes, but before starting the optimization that went with this test, this operation took about 18 minutes on jMyles' laptop.

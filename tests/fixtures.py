@@ -77,11 +77,12 @@ from nucypher.utilities.sandbox.constants import (
     INSECURE_DEPLOYMENT_SECRET_HASH,
 )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from nucypher.utilities.sandbox.middleware import MockRestMiddlewareForLargeFleetTests
 from nucypher.utilities.sandbox.policy import generate_random_label
 from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
 from tests.performance_mocks import mock_cert_storage, mock_cert_loading, mock_rest_app_creation, mock_cert_generation, \
-    mock_secret_source, mock_remember_node
+    mock_secret_source, mock_remember_node, mock_verify_node, mock_record_fleet_state
 
 CharacterConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
 
@@ -866,3 +867,17 @@ def large_fleet_of_highperf_mocked_ursulas(ursula_federated_test_config):
                 ursula.known_nodes._nodes = all_ursulas
                 ursula.known_nodes.checksum = b"This is a fleet state checksum..".hex()
     return _ursulas
+
+
+@pytest.fixture(scope="module")
+def highperf_mocked_alice(large_fleet_of_highperf_mocked_ursulas):
+    config = AliceConfiguration(dev_mode=True,
+                                network_middleware=MockRestMiddlewareForLargeFleetTests(),
+                                federated_only=True,
+                                abort_on_learning_error=True,
+                                save_metadata=False,
+                                reload_metadata=False)
+
+    with mock_cert_storage, mock_verify_node, mock_record_fleet_state:
+        alice = config.produce(known_nodes=list(large_fleet_of_highperf_mocked_ursulas)[:1])
+    return alice
