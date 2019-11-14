@@ -1,9 +1,8 @@
-from datetime import datetime, timedelta
-
 import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
 from dash.dependencies import Output, Input
+from datetime import datetime, timedelta
 from maya import MayaDT
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
@@ -126,21 +125,27 @@ class MoeDashboardApp(NetworkStatusPage):
             stakers['Pending'] = len(pending)
             stakers['Inactive'] = len(inactive)
             staker_breakdown = list(stakers.values())
+            colors = ['#FAE755', '#74C371', '#3E0751']  # colors from Viridis colorscale
             fig = go.Figure(
                 data=[
                     go.Pie(
                         labels=list(stakers.keys()),
                         values=staker_breakdown,
-                        name='Stakers'
+                        textinfo='value',
+                        name='Stakers',
+                        marker=dict(colors=colors,
+                                    line=dict(width=2))
                     )
                 ],
                 layout=go.Layout(
                     title=f'Breakdown of Network Stakers',
                     showlegend=True,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)'
                 ))
 
             fig['layout'].update(autosize=True, width=None, height=None)
-            return dcc.Graph(figure=fig, id='staker-type-graph', config=self.GRAPH_CONFIG)
+            return dcc.Graph(figure=fig, id='staker-breakdown-graph', config=self.GRAPH_CONFIG)
 
         @self.dash_app.callback(Output('current-period', 'children'),
                                 [Input('minute-interval', 'n_intervals')])

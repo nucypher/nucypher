@@ -207,7 +207,9 @@ label, legend {
     width: 100%;
 }
 
-
+#staker-breakdown-graph {
+    width: 100%;
+}
 
 #state-table {
     display: flex;
