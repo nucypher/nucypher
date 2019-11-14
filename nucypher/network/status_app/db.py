@@ -5,7 +5,7 @@ from influxdb import InfluxDBClient
 from maya import MayaDT
 
 
-class InfluxCrawlerClient:
+class BlockchainCrawlerClient:
     """
     Performs operations on data in the MoeBlockchainCrawler DB.
 
