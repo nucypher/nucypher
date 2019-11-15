@@ -16,13 +16,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import binascii
+import contextlib
 import random
 import time
 from collections import defaultdict, OrderedDict
 from collections import deque
 from collections import namedtuple
 from contextlib import suppress
-from typing import Set, Tuple
+from typing import Set, Tuple, Union
 
 import maya
 import requests
@@ -44,6 +45,7 @@ from twisted.internet import reactor, defer
 from twisted.internet import task
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
+from umbral.signing import Signature
 
 from nucypher.blockchain.economics import TokenEconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
@@ -52,6 +54,7 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, verify_eip_191, recover_address_eip_191
+from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import TransactingPower, SigningPower, DecryptingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter
 from nucypher.network import LEARNING_LOOP_VERSION
@@ -298,6 +301,9 @@ class Learner:
         Raised when a character cannot be properly utilized because
         it does not have the proper attributes for learning or verification.
         """
+
+    class InvalidSignature(Exception):
+        pass
 
     def __init__(self,
                  domains: set,
@@ -692,6 +698,36 @@ class Learner:
 
     def write_node_metadata(self, node, serializer=bytes) -> str:
         return self.node_storage.store_node_metadata(node=node)
+
+    def verify_from(self,
+                    stranger: 'Teacher',
+                    message_kit: Union[UmbralMessageKit, bytes],
+                    signature: Signature):
+        #
+        # Optional Sanity Check
+        #
+
+        # In the spirit of duck-typing, we want to accept a message kit object, or bytes
+        # If the higher-order object MessageKit is passed, we can perform an additional
+        # eager sanity check before performing decryption.
+
+        with contextlib.suppress(AttributeError):
+            sender_verifying_key = stranger.stamp.as_umbral_pubkey()
+            if message_kit.sender_verifying_key:
+                if not message_kit.sender_verifying_key == sender_verifying_key:
+                    raise ValueError("This MessageKit doesn't appear to have come from {}".format(stranger))
+        message = bytes(message_kit)
+
+        #
+        # Verify Signature
+        #
+
+        if signature:
+            is_valid = signature.verify(message, sender_verifying_key)
+            if not is_valid:
+                raise self.InvalidSignature("Signature for message isn't valid: {}".format(signature))
+        else:
+            raise self.InvalidSignature("No signature provided -- signature presumed invalid.")
 
     def learn_from_teacher_node(self, eager=True):
         """

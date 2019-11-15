@@ -1,20 +1,17 @@
 import click
+from cryptography.hazmat.primitives.asymmetric import ec
 from flask import Flask
+from twisted.internet import reactor
 from umbral.keys import UmbralPrivateKey
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.characters.banners import MOE_BANNER
-from nucypher.characters.chaotic import Moe
 from nucypher.cli import actions
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware
-from cryptography.hazmat.primitives.asymmetric import ec
-
-from twisted.internet import reactor
-
 from nucypher.network.server import TLSHostingPower
 from nucypher.network.status_app.crawler import NetworkCrawler
 from nucypher.network.status_app.moe import MoeDashboardApp
@@ -70,25 +67,15 @@ def network_crawler(click_config,
                                            network_domains={network} if network else None,
                                            network_middleware=click_config.middleware)
 
-    # Make Moe
-    MOE = Moe(domains={network} if network else None,
-              network_middleware=RestMiddleware(),
-              known_nodes=teacher_nodes,
-              registry=registry,
-              federated_only=False,
-              host=host,
-              tls_certificate_filepath=certificate_filepath,
-              tls_private_key_filepath=tls_key_filepath,
-              start_learning_now=True,
-              learn_on_same_thread=learn_on_launch)
+    crawler = NetworkCrawler(domains={network} if network else None,
+                             network_middleware=RestMiddleware(),
+                             known_nodes=teacher_nodes,
+                             registry=registry,
+                             federated_only=False,
+                             start_learning_now=True,
+                             learn_on_same_thread=learn_on_launch)
 
-    # Learn about nodes
-    MOE.start_learning_loop(now=learn_on_launch)
-
-    # Start Network Crawler that learns about the network
-    crawler = NetworkCrawler(moe=MOE)
     crawler.start()
-
     reactor.run()
 
 
