@@ -10,6 +10,7 @@ from nucypher.characters.banners import MOE_BANNER
 from nucypher.cli import actions
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
+from nucypher.config.storages import SQLiteForgetfulNodeStorage
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.server import TLSHostingPower
@@ -30,22 +31,23 @@ def moe():
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--network', help="Network Domain Name", type=click.STRING, default='goerli')
-@click.option('--host', help="The host to run Moe services on", type=click.STRING, default='127.0.0.1')
-@click.option('--certificate-filepath', help="Pre-signed TLS certificate filepath")
-@click.option('--tls-key-filepath', help="TLS private key filepath")
 @click.option('--learn-on-launch', help="Conduct first learning loop on main thread at launch.", is_flag=True)
 @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--node-storage-dirpath', 'node_storage_dir', help="Directory path for storing known nodes information",
+              type=click.STRING)
+@click.option('--node-metadata-dbfilename', 'node_metadata_dbfile', help="DB file to store known nodes metadata",
+              type=click.STRING)
 @nucypher_click_config
 def network_crawler(click_config,
                     teacher_uri,
                     registry_filepath,
                     min_stake,
                     network,
-                    host,
-                    certificate_filepath,
-                    tls_key_filepath,
                     learn_on_launch,
-                    provider_uri):
+                    provider_uri,
+                    node_storage_dir,
+                    node_metadata_dbfile,
+                    ):
     """
     Gather NuCypher network information.
     """
@@ -67,13 +69,21 @@ def network_crawler(click_config,
                                            network_domains={network} if network else None,
                                            network_middleware=click_config.middleware)
 
+    # Configure Storage
+    node_storage = SQLiteForgetfulNodeStorage(federated_only=False,
+                                              parent_dir=node_storage_dir,
+                                              db_filename=node_metadata_dbfile)
+
     crawler = NetworkCrawler(domains={network} if network else None,
                              network_middleware=RestMiddleware(),
                              known_nodes=teacher_nodes,
                              registry=registry,
                              federated_only=False,
                              start_learning_now=True,
-                             learn_on_same_thread=learn_on_launch)
+                             learn_on_same_thread=learn_on_launch,
+                             node_storage=node_storage,
+                             save_metadata=True
+                             )
 
     crawler.start()
     reactor.run()
@@ -87,6 +97,8 @@ def network_crawler(click_config,
 @click.option('--tls-key-filepath', help="TLS private key filepath")
 @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--network', help="Network Domain Name", type=click.STRING, default='goerli')
+@click.option('--node-metadata-filepath', 'node_metadata_dbfilepath', help="Path to DB file with known nodes metadata",
+              type=click.STRING)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 @nucypher_click_config
 def dashboard(click_config,
@@ -97,6 +109,7 @@ def dashboard(click_config,
               tls_key_filepath,
               provider_uri,
               network,
+              node_metadata_dbfilepath,
               dry_run,
               ):
     """
@@ -119,7 +132,8 @@ def dashboard(click_config,
                     flask_server=rest_app,
                     route_url='/',
                     registry=registry,
-                    network=network)
+                    network=network,
+                    node_metadata_dbfilepath=node_metadata_dbfilepath)
 
     #
     # Server

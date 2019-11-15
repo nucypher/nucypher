@@ -60,4 +60,10 @@ class UrsulaStatusApp(NetworkStatusPage):
         @self.dash_app.callback(Output('known-nodes', 'children'), [Input('status-update', 'n_intervals')])
         def known_nodes(n):
             """Simply update periodically"""
-            return self.known_nodes(ursula)
+            teacher = ursula.current_teacher_node()
+            teacher_checksum = None
+            if teacher:
+                teacher_checksum = teacher.checksum_address
+            return self.known_nodes(nodes_dict=ursula.known_nodes.abridged_nodes_dict(),
+                                    registry=ursula.registry,
+                                    teacher_checksum=teacher_checksum)

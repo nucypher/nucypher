@@ -9,6 +9,7 @@ from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.token import NU
 from nucypher.network.status_app.base import NetworkStatusPage
 from nucypher.network.status_app.crawler import NetworkCrawler
+from nucypher.network.status_app.db import NodeMetadataClient
 
 
 class MoeDashboardApp(NetworkStatusPage):
@@ -25,13 +26,13 @@ class MoeDashboardApp(NetworkStatusPage):
                     'fillFrame': False,
                     'displayModeBar': False}
 
-    def __init__(self, registry, network, *args, **kwargs):
+    def __init__(self, registry, network, node_metadata_dbfilepath, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.blockchain_db_client = NetworkCrawler.get_blockchain_crawler_client()
+        self.node_metadata_db_client = NodeMetadataClient(node_metadata_filepath=node_metadata_dbfilepath)
         self.registry = registry
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
-
         self.network = network
 
         self.dash_app.layout = html.Div([
@@ -69,11 +70,11 @@ class MoeDashboardApp(NetworkStatusPage):
                     ], id='widgets'),
 
                     # States and Known Nodes Table
-                    # html.Div([
+                    html.Div([
                     #     html.Div(id='prev-states'),
                     #     html.Br(),
-                    #     html.Div(id='known-nodes'),
-                    # ])
+                         html.Div(id='known-nodes'),
+                     ])
                 ]),
 
             ], id='main'),
@@ -82,6 +83,12 @@ class MoeDashboardApp(NetworkStatusPage):
                 id='minute-interval',
                 interval=self.MINUTE_REFRESH_RATE,
                 n_intervals=0
+            ),
+
+            dcc.Interval(
+                id='half-minute-interval',
+                interval=(self.MINUTE_REFRESH_RATE/2),
+                n_intervals=0,
             ),
 
             dcc.Interval(
@@ -102,11 +109,12 @@ class MoeDashboardApp(NetworkStatusPage):
         # def state(n_clicks, n_intervals):
         #     return self.previous_states(moe)
 
-        # @self.dash_app.callback(Output('known-nodes', 'children'),
-        #                         [Input('node-update-button', 'n_clicks'),
-        #                          Input('minute-interval', 'n_intervals')])
-        # def known_nodes(n_clicks, n_intervals):
-        #     return self.known_nodes(moe)
+        @self.dash_app.callback(Output('known-nodes', 'children'),
+                                [Input('node-update-button', 'n_clicks'),
+                                 Input('half-minute-interval', 'n_intervals')])
+        def known_nodes(n_clicks, n_intervals):
+            known_nodes_dict = self.node_metadata_db_client.get_known_nodes_metadata()
+            return self.known_nodes(nodes_dict=known_nodes_dict, registry=self.registry)
 
         @self.dash_app.callback(Output('active-stakers', 'children'),
                                 [Input('minute-interval', 'n_intervals')])
