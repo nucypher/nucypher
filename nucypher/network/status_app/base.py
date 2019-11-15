@@ -66,16 +66,15 @@ class NetworkStatusPage:
             html.Span(state_detail_dict['updated'], className='small'),
         ], className='state', style={'background-color': state_detail_dict['color_hex']})
 
-    def known_nodes(self, character: Character) -> html.Div:
+    def known_nodes(self, nodes_dict: dict, registry, teacher_checksum: str = None) -> html.Div:
         nodes = list()
-        nodes_dict = character.known_nodes.abridged_nodes_dict()
-        teacher_node = character.current_teacher_node()
         teacher_index = None
         for checksum in nodes_dict:
             node_data = nodes_dict[checksum]
-            if checksum == teacher_node.checksum_address:
-                teacher_index = len(nodes)
-            nodes.append(node_data)
+            if node_data:
+                if checksum == teacher_checksum:
+                    teacher_index = len(nodes)
+                nodes.append(node_data)
 
         return html.Div([
             html.H4('Network Nodes'),
@@ -84,7 +83,7 @@ class NetworkStatusPage:
                          style={'backgroundColor': '#1E65F3', 'color': 'white'},
                          className='two columns'),
             ]),
-            html.Div([self.nodes_table(nodes, teacher_index, character.registry)])
+            html.Div([self.nodes_table(nodes, teacher_index, registry)])
         ])
 
     def nodes_table(self, nodes, teacher_index, registry) -> html.Table:
@@ -121,14 +120,6 @@ class NetworkStatusPage:
         and what you want those links to be.
         """
         identity = html.Td(children=html.Div([
-            html.Div([
-                html.Span(f'{node_info["icon_details"]["first_symbol"]}',
-                          className='single-symbol',
-                          style={'color': node_info["icon_details"]['first_color']}),
-                html.Span(f'{node_info["icon_details"]["second_symbol"]}',
-                          className='single-symbol',
-                          style={'color': node_info["icon_details"]['second_color']}),
-            ], className='symbols'),
             html.A(node_info['nickname'],
                    href=f'https://{node_info["rest_url"]}/status',
                    target='_blank')

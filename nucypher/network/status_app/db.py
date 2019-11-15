@@ -1,3 +1,5 @@
+import sqlite3
+
 from collections import OrderedDict
 from datetime import datetime, timedelta
 
@@ -71,3 +73,28 @@ class BlockchainCrawlerClient:
 
     def close(self):
         self._client.close()
+
+
+class NodeMetadataClient:
+    def __init__(self, node_metadata_filepath: str = None):
+        self._metadata_filepath = node_metadata_filepath
+
+    def get_known_nodes_metadata(self) -> dict:
+        # dash threading means that connection needs to be established in same thread as use
+        db_conn = sqlite3.connect(self._metadata_filepath)
+        try:
+            result = db_conn.execute(f"SELECT * FROM node_info")
+
+            # TODO use `pandas` package instead to automatically get dict?
+            known_nodes = dict()
+            column_names = [description[0] for description in result.description]
+            for row in result:
+                node_info = dict()
+                staker_address = row[0]
+                for idx, value in enumerate(row):
+                    node_info[column_names[idx]] = row[idx]
+                known_nodes[staker_address] = node_info
+
+            return known_nodes
+        finally:
+            db_conn.close()
