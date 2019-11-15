@@ -1,24 +1,34 @@
+import os
+import sqlite3
+
+from influxdb import InfluxDBClient
+from maya import MayaDT
 from pendulum.parsing import ParserError
 from twisted.internet import task
+from twisted.internet.defer import DeferredList
 from twisted.logger import Logger
 
 from nucypher.blockchain.economics import TokenEconomicsFactory
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, NucypherTokenAgent, PolicyManagerAgent, \
+    AdjudicatorAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU, StakeList
 from nucypher.blockchain.eth.utils import datetime_at_period
-from nucypher.characters.chaotic import Moe
-from influxdb import InfluxDBClient
-from maya import MayaDT
-
+from nucypher.config.storages import ForgetfulNodeStorage
+from nucypher.network.nodes import Learner
 from nucypher.network.status_app.db import BlockchainCrawlerClient
-import sqlite3
-import os
 
 
-class NetworkCrawler:
+class NetworkCrawler(Learner):
     """
     Obtain Blockchain information for Moe and output to a DB.
     """
+
+    _SHORT_LEARNING_DELAY = .5
+    _LONG_LEARNING_DELAY = 30
+    LEARNING_TIMEOUT = 10
+    _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 25
+
     DEFAULT_REFRESH_RATE = 60  # seconds
 
     # InfluxDB Line Protocol Format (note the spaces, commas):
@@ -44,30 +54,44 @@ class NetworkCrawler:
     # SQLlite3 constants
     NODES_DB_NAME = 'nodes'
     FUTURE_TOKENS_DB_NAME = 'future_locked_tokens'
-    MOE_DB_FILE = '/tmp/moe_data.db'
+    DB_FILEPATH = '/tmp/moe_data.db'
 
     def __init__(self,
-                 moe: Moe,
+                 registry,
+                 federated_only: bool = False,
                  refresh_rate=DEFAULT_REFRESH_RATE,
-                 restart_on_error=True):
+                 restart_on_error=True,
+                 *args, **kwargs):
 
-        self._moe = moe
+        self.registry = registry
+        self.federated_only = federated_only
+        node_storage = ForgetfulNodeStorage(federated_only=self.federated_only)
+        super().__init__(node_storage=node_storage, *args, **kwargs)
+        self.log = Logger('moe-crawler')
+
         self._refresh_rate = refresh_rate
+        self._restart_on_error = restart_on_error
+
+        # Agency
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
+        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
+        self.adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=self.registry)
+
+        # Crawler Tasks
         self._nodes_contract_info_learning_task = task.LoopingCall(self._learn_about_nodes_contract_info)
         self._locked_tokens_learning_task = task.LoopingCall(self._learn_about_locked_tokens)
-        self._moe_known_nodes_learning_task = task.LoopingCall(self._learn_about_moe_known_nodes)
-        self._restart_on_error = restart_on_error
-        self.log = Logger('moe-crawler')
+        self._node_details_learning_task = task.LoopingCall(self._learn_details_about_known_nodes)
 
         # initialize InfluxDB for Blockchain information
         self._blockchain_db_client = InfluxDBClient(host='localhost', port=8086, database=self.BLOCKCHAIN_DB_NAME)
         self._ensure_blockchain_db_exists()
 
         # initialize SQLite3 for Node information
-        if os.path.exists(self.MOE_DB_FILE):
+        if os.path.exists(self.DB_FILEPATH):
             # ensure empty db to start
-            os.remove(self.MOE_DB_FILE)
-        self._nodes_db_client = sqlite3.connect(self.MOE_DB_FILE)
+            os.remove(self.DB_FILEPATH)
+        self._nodes_db_client = sqlite3.connect(self.DB_FILEPATH)
         self._create_nodes_db_table()
 
     def _ensure_blockchain_db_exists(self):
@@ -98,7 +122,7 @@ class NetworkCrawler:
 
     def _learn_about_locked_tokens(self):
         period_range = range(1, 365+1)
-        token_counter = [(day,  int(NU.from_nunits(self._moe.staking_agent.get_all_locked_tokens(day)).to_tokens()))
+        token_counter = [(day,  int(NU.from_nunits(self.staking_agent.get_all_locked_tokens(day)).to_tokens()))
                          for day in period_range]
 
         with self._nodes_db_client:
@@ -106,12 +130,12 @@ class NetworkCrawler:
                                               token_counter)
 
     def _learn_about_nodes_contract_info(self):
-        agent = self._moe.staking_agent
+        agent = self.staking_agent
 
         block_time = agent.blockchain.client.w3.eth.getBlock('latest').timestamp  # precision in seconds
         current_period = agent.get_current_period()
 
-        nodes_dict = self._moe.known_nodes.abridged_nodes_dict()
+        nodes_dict = self.known_nodes.abridged_nodes_dict()
         self.log.info(f'Processing {len(nodes_dict)} nodes at '
                       f'{MayaDT(epoch=block_time)} | Period {current_period}')
         data = []
@@ -123,8 +147,8 @@ class NetworkCrawler:
             locked_nu_tokens = float(NU.from_nunits(agent.get_locked_tokens(
                 staker_address=staker_address)).to_tokens())
 
-            economics = TokenEconomicsFactory.get_economics(registry=self._moe.registry)
-            stakes = StakeList(checksum_address=staker_address, registry=self._moe.registry)
+            economics = TokenEconomicsFactory.get_economics(registry=self.registry)
+            stakes = StakeList(checksum_address=staker_address, registry=self.registry)
             stakes.refresh()
 
             # store dates as floats for comparison purposes
@@ -159,10 +183,10 @@ class NetworkCrawler:
             self.log.warn(f'Unable to write to database {self.BLOCKCHAIN_DB_NAME} at '
                           f'{MayaDT(epoch=block_time)} | Period {current_period}')
 
-    def _learn_about_moe_known_nodes(self):
-        nodes_dict = self._moe.known_nodes.abridged_nodes_dict()
-        teacher_node_checksum = self._moe.current_teacher_node().checksum_address
-        current_period = self._moe.staking_agent.get_current_period()
+    def _learn_details_about_known_nodes(self):
+        nodes_dict = self.known_nodes.abridged_nodes_dict()
+        teacher_node_checksum = self.current_teacher_node().checksum_address
+        current_period = self.staking_agent.get_current_period()
 
         db_rows = []
         checksum_addresses = list(nodes_dict.keys())
@@ -195,17 +219,19 @@ class NetworkCrawler:
                                                             database=self.BLOCKCHAIN_DB_NAME)
 
             if self._nodes_db_client is None:
-                self._nodes_db_client = sqlite3.connect(self.MOE_DB_FILE)
+                self._nodes_db_client = sqlite3.connect(self.DB_FILEPATH)
 
             # start tasks
-            node_learner_deferred = self._nodes_contract_info_learning_task.start(interval=self._refresh_rate, now=True)
-            contract_learner_deferred = self._locked_tokens_learning_task.start(interval=self._refresh_rate, now=True)
-            moe_nodes_deferred = self._moe_known_nodes_learning_task.start(interval=self._refresh_rate, now=True)
+            tasks = (self._nodes_contract_info_learning_task.start(interval=self._refresh_rate, now=False),
+                     self._locked_tokens_learning_task.start(interval=self._refresh_rate, now=False),
+                     self._node_details_learning_task.start(interval=self._refresh_rate, now=False),
+                     )
 
-            # hookup error callbacks
-            node_learner_deferred.addErrback(self._handle_errors)
-            contract_learner_deferred.addErrback(self._handle_errors)
-            moe_nodes_deferred.addErrback(self._handle_errors)
+            for deferred in tasks:
+                # hookup error callbacks
+                deferred.addErrback(self._handle_errors)
+
+            self.start_learning_loop(now=False),
 
     def stop(self):
         """
@@ -217,7 +243,7 @@ class NetworkCrawler:
             # stop tasks
             self._nodes_contract_info_learning_task.stop()
             self._locked_tokens_learning_task.stop()
-            self._moe_known_nodes_learning_task.stop()
+            self._node_details_learning_task.stop()
 
             # close connections
             self._blockchain_db_client.close()
@@ -233,7 +259,7 @@ class NetworkCrawler:
         """
         return (self._nodes_contract_info_learning_task.running
                 and self._locked_tokens_learning_task.running
-                and self._moe_known_nodes_learning_task.running)
+                and self._node_details_learning_task.running)
 
     @staticmethod
     def get_blockchain_crawler_client():
@@ -249,7 +275,7 @@ class NetworkCrawler:
             is_teacher = True
 
         # Status info
-        last_confirmed_period = self._moe.staking_agent.get_last_active_period(staker_address)
+        last_confirmed_period = self.staking_agent.get_last_active_period(staker_address)
         status_message = self.get_node_status_message(staker_address, last_confirmed_period, current_period)
 
         # Nickname
@@ -270,7 +296,7 @@ class NetworkCrawler:
 
     def get_node_status_message(self, staker_address, last_confirmed_period, current_period):
         missing_confirmations = current_period - last_confirmed_period
-        worker = self._moe.staking_agent.get_worker_from_staker(staker_address)
+        worker = self.staking_agent.get_worker_from_staker(staker_address)
         if worker == BlockchainInterface.NULL_ADDRESS:
             missing_confirmations = BlockchainInterface.NULL_ADDRESS
 
