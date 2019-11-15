@@ -22,6 +22,7 @@ from abc import abstractmethod, ABC
 
 import OpenSSL
 import shutil
+import sqlite3
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -30,10 +31,11 @@ from eth_utils import is_checksum_address
 from twisted.logger import Logger
 from typing import Callable, Tuple, Union, Set, Any
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+
+from constant_sorrow.constants import UNKNOWN_FLEET_STATE
 
 
 class NodeStorage(ABC):
@@ -178,14 +180,14 @@ class ForgetfulNodeStorage(NodeStorage):
     _name = ':memory:'
     __base_prefix = "nucypher-tmp-certs-"
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, parent_dir: str = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.__metadata = dict()
 
         # Certificates
         self.__certificates = dict()
         self.__temporary_certificates = list()
-        self.__temp_certificates_dir = tempfile.mkdtemp(prefix='nucypher-temp-certs-')
+        self.__temp_certificates_dir = tempfile.mkdtemp(prefix='nucypher-temp-certs-', dir=parent_dir)
 
     def __del__(self):
         shutil.rmtree(self.__temp_certificates_dir, ignore_errors=True)
@@ -276,6 +278,96 @@ class ForgetfulNodeStorage(NodeStorage):
         self.__metadata = dict()
         self.__certificates = dict()
         return not bool(self.__metadata or self.__certificates)
+
+
+class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
+    """
+    SQLite forgetful storage of node metadata
+    """
+    _name = 'sqlite-memory'
+    DB_NAME = 'node_info'
+    PARENT_DIR_PREFIX = 'nucypher-sql-storage-tmp'
+    METADATA_CACHE_PREFIX = 'sql-cache'
+
+    def __init__(self, *args, **kwargs) -> None:
+        self.__parent_dir = tempfile.mkdtemp(prefix=self.PARENT_DIR_PREFIX)
+        _, metadata_cache = tempfile.mkstemp(prefix=self.METADATA_CACHE_PREFIX, dir=self.__parent_dir)
+        self.__db_conn = sqlite3.connect(metadata_cache)
+        self.__create_db_table()
+
+        super().__init__(parent_dir=self.__parent_dir, *args, **kwargs)
+
+    def __del__(self):
+        self.__db_conn.close()
+        shutil.rmtree(self.__parent_dir, ignore_errors=True)
+
+    def store_node_metadata(self, node, filepath: str = None):
+        self.__write_metadata(node)
+        return super().store_node_metadata(node=node, filepath=filepath)
+
+    @validate_checksum_address
+    def remove(self,
+               checksum_address: str,
+               metadata: bool = True,
+               certificate: bool = True
+               ) -> Tuple[bool, str]:
+
+        if metadata is True:
+            with self.__db_conn:
+                self.__db_conn.execute(f"DELETE FROM {self.DB_NAME} WHERE staker_address='{checksum_address}'")
+
+        return super().remove(checksum_address=checksum_address, metadata=metadata, certificate=certificate)
+
+    def clear(self, metadata: bool = True, certificates: bool = True) -> None:
+        if metadata is True:
+            with self.__db_conn:
+                self.__db_conn.execute(f"DELETE FROM {self.DB_NAME}")
+
+        super().clear(metadata=metadata, certificates=certificates)
+
+    def initialize(self) -> bool:
+        # TODO revisit this
+        self.__parent_dir = tempfile.mkdtemp(prefix=self.PARENT_DIR_PREFIX)
+        _, metadata_cache = tempfile.mkstemp(prefix=self.METADATA_CACHE_PREFIX, dir=self.__parent_dir)
+        self.__db_conn = sqlite3.connect(metadata_cache)
+        self.__create_db_table()
+
+        return super().initialize()
+
+    def __create_db_table(self):
+        with self.__db_conn:
+            self.__db_conn.execute("CREATE TABLE node_info (staker_address text primary key, rest_url text, "
+                                 "nickname text, timestamp text, last_seen text, fleet_icon text)")
+
+    def __write_metadata(self, node):
+        # Staker address
+        staker_address = node.checksum_address
+
+        # REST URL
+        rest_url = node.rest_url()
+
+        # Nickname
+        nickname = node.nickname
+
+        # Timestamp
+        timestamp = node.timestamp.iso8601()
+
+        # Last Seen
+        try:
+            last_seen = node.last_seen.iso8601()
+        except AttributeError:  # TODO: This logic belongs somewhere - anywhere - else.
+            last_seen = str(node.last_seen)  # In case it's the constant NEVER_SEEN
+
+        # Fleet state icon
+        fleet_icon = node.fleet_state_nickname_metadata
+        if fleet_icon is UNKNOWN_FLEET_STATE:
+            fleet_icon = "?"  # TODO
+        else:
+            fleet_icon = fleet_icon[0][1]
+
+        db_row = (staker_address, rest_url, nickname, timestamp, last_seen, fleet_icon)
+        with self.__db_conn:
+            self.__db_conn.execute(f'REPLACE INTO {self.DB_NAME} VALUES(?,?,?,?,?,?)', db_row)
 
 
 class LocalFileBasedNodeStorage(NodeStorage):
