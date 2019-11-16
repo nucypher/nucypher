@@ -8,14 +8,14 @@ from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, N
     AdjudicatorAgent
 from nucypher.blockchain.eth.token import NU, StakeList
 from nucypher.blockchain.eth.utils import datetime_at_period
-from nucypher.config.storages import ForgetfulNodeStorage
+from nucypher.config.storages import SQLiteForgetfulNodeStorage
 from nucypher.network.nodes import Learner
 from nucypher.network.status_app.db import BlockchainCrawlerClient
 
 
 class NetworkCrawler(Learner):
     """
-    Obtain Blockchain information for Moe and output to a DB.
+    Obtain Blockchain information for Monitor and output to a DB.
     """
 
     _SHORT_LEARNING_DELAY = .5
@@ -29,7 +29,7 @@ class NetworkCrawler(Learner):
     # +-----------+--------+-+---------+-+---------+
     # |measurement|,tag_set| |field_set| |timestamp|
     # +-----------+--------+-+---------+-+---------+
-    BLOCKCHAIN_DB_MEASUREMENT = 'moe_network_info'
+    BLOCKCHAIN_DB_MEASUREMENT = 'moe_network_info'   # TODO: should change name but then our historical data is gone
     BLOCKCHAIN_DB_LINE_PROTOCOL = '{measurement},staker_address={staker_address} ' \
                                       'worker_address="{worker_address}",' \
                                       'start_date={start_date},' \
@@ -47,6 +47,8 @@ class NetworkCrawler(Learner):
 
     def __init__(self,
                  registry,
+                 storage_dir,
+                 db_filename,
                  federated_only: bool = False,
                  refresh_rate=DEFAULT_REFRESH_RATE,
                  restart_on_error=True,
@@ -54,7 +56,10 @@ class NetworkCrawler(Learner):
 
         self.registry = registry
         self.federated_only = federated_only
-        super().__init__(*args, **kwargs)
+        node_storage = SQLiteForgetfulNodeStorage(federated_only=False,
+                                                  parent_dir=storage_dir,
+                                                  db_filename=db_filename)
+        super().__init__(save_metadata=True, node_storage=node_storage, *args, **kwargs)
         self.log = Logger('network-crawler')
 
         self._refresh_rate = refresh_rate

@@ -12,9 +12,9 @@ from nucypher.network.status_app.crawler import NetworkCrawler
 from nucypher.network.status_app.db import NodeMetadataClient
 
 
-class MoeDashboardApp(NetworkStatusPage):
+class MonitorDashboardApp(NetworkStatusPage):
     """
-    Status application for 'Moe' monitoring node.
+    Status application for monitoring.
     """
 
     MINUTE_REFRESH_RATE = 60 * 1000

@@ -58,16 +58,6 @@ the Encryptor.
 """
 
 
-MOE_BANNER = r"""
- _______               
-|   |   |.-----..-----.
-|       ||  _  ||  -__|
-|__|_|__||_____||_____|
-
-the Monitor.
-"""
-
-
 URSULA_BANNER = r'''
 
 
