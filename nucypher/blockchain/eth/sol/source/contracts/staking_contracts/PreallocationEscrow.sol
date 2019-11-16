@@ -8,6 +8,13 @@ import "zeppelin/utils/Address.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/staking_contracts/AbstractStakingContract.sol";
 
+/**
+* @notice StakingEscrow interface
+**/
+contract StakingEscrowInterface {
+    function getLockedTokens(address _staker, uint16 _periods) public view returns (uint256);
+    function secondsPerPeriod() public view returns (uint32);
+}
 
 /**
 * @notice Contract holds tokens for vesting.
@@ -25,15 +32,19 @@ contract PreallocationEscrow is AbstractStakingContract, Ownable {
     NuCypherToken public token;
     uint256 public lockedValue;
     uint256 public endLockTimestamp;
+    StakingEscrowInterface public stakingEscrow;
 
     /**
     * @param _router Interface router contract address
     * @param _token Token contract
     **/
-    constructor(StakingInterfaceRouter _router, NuCypherToken _token) public AbstractStakingContract(_router) {
-        // check that the input address is contract
+    constructor(StakingInterfaceRouter _router, NuCypherToken _token, StakingEscrowInterface _stakingEscrow) public AbstractStakingContract(_router) {
+        // check that the input addresses are contract
         require(_token.totalSupply() > 0);
+        require(_stakingEscrow.secondsPerPeriod() > 0);
+
         token = _token;
+        stakingEscrow = _stakingEscrow;
     }
 
     /**
@@ -64,7 +75,18 @@ contract PreallocationEscrow is AbstractStakingContract, Ownable {
     * @param _value Amount of token to withdraw
     **/
     function withdrawTokens(uint256 _value) public onlyOwner {
-        require(token.balanceOf(address(this)).sub(getLockedTokens()) >= _value);
+        uint256 balance = token.balanceOf(address(this));
+        uint32 secondsPerPeriod = stakingEscrow.secondsPerPeriod();
+        uint16 currentPeriod = uint16(block.timestamp / secondsPerPeriod);
+        uint16 endLockPeriod = uint16(endLockTimestamp / secondsPerPeriod);
+        if (currentPeriod <= endLockPeriod) {
+            uint256 stakedTokens = stakingEscrow.getLockedTokens(address(this), endLockPeriod - currentPeriod);
+            uint256 lockedTokens = getLockedTokens();
+            if (lockedTokens > stakedTokens) {
+                balance = balance.sub(lockedTokens - stakedTokens);
+            }
+        }
+        require(balance >= _value);
         token.safeTransfer(msg.sender, _value);
         emit TokensWithdrawn(msg.sender, _value);
     }

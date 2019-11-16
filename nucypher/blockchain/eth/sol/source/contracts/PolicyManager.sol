@@ -94,7 +94,7 @@ contract PolicyManager is Upgradeable {
     * @param _escrow Escrow contract
     **/
     constructor(StakingEscrow _escrow) public {
-        // if the input address is not the StakingEscrow than calling `secondsPerPeriod` will throw error
+        // if the input address is not the StakingEscrow then calling `secondsPerPeriod` will throw error
         secondsPerPeriod = _escrow.secondsPerPeriod();
         require(secondsPerPeriod > 0);
         escrow = _escrow;
