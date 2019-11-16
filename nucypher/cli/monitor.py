@@ -6,27 +6,35 @@ from umbral.keys import UmbralPrivateKey
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
-from nucypher.characters.banners import MOE_BANNER
 from nucypher.cli import actions
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
-from nucypher.config.storages import SQLiteForgetfulNodeStorage
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.server import TLSHostingPower
 from nucypher.network.status_app.crawler import NetworkCrawler
-from nucypher.network.status_app.moe import MoeDashboardApp
+from nucypher.network.status_app.monitor import MonitorDashboardApp
+
+
+MONITOR_BANNER = r"""
+ _____         _ _           
+|     |___ ___|_| |_ ___ ___ 
+| | | | . |   | |  _| . |  _|
+|_|_|_|___|_|_|_|_| |___|_|  
+
+========= {} =========
+"""
 
 
 @click.group()
-def moe():
+def monitor():
     """
-    "Moe the Monitor" management commands.
+    Network monitor commands.
     """
     pass
 
 
-@moe.command(name='crawl')
+@monitor.command()
 @click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
@@ -38,16 +46,16 @@ def moe():
 @click.option('--node-metadata-dbfilename', 'node_metadata_dbfile', help="DB file to store known nodes metadata",
               type=click.STRING)
 @nucypher_click_config
-def network_crawler(click_config,
-                    teacher_uri,
-                    registry_filepath,
-                    min_stake,
-                    network,
-                    learn_on_launch,
-                    provider_uri,
-                    node_storage_dir,
-                    node_metadata_dbfile,
-                    ):
+def crawl(click_config,
+          teacher_uri,
+          registry_filepath,
+          min_stake,
+          network,
+          learn_on_launch,
+          provider_uri,
+          node_storage_dir,
+          node_metadata_dbfile,
+          ):
     """
     Gather NuCypher network information.
     """
@@ -55,8 +63,7 @@ def network_crawler(click_config,
     # Banner
     emitter = click_config.emitter
     emitter.clear()
-    emitter.banner(MOE_BANNER)
-    emitter.echo("> NETWORK CRAWLER")
+    emitter.banner(MONITOR_BANNER.format("Crawler"))
 
     registry = __get_registry(provider_uri, registry_filepath)
 
@@ -70,10 +77,6 @@ def network_crawler(click_config,
                                            network_middleware=click_config.middleware)
 
     # Configure Storage
-    node_storage = SQLiteForgetfulNodeStorage(federated_only=False,
-                                              parent_dir=node_storage_dir,
-                                              db_filename=node_metadata_dbfile)
-
     crawler = NetworkCrawler(domains={network} if network else None,
                              network_middleware=RestMiddleware(),
                              known_nodes=teacher_nodes,
@@ -81,23 +84,24 @@ def network_crawler(click_config,
                              federated_only=False,
                              start_learning_now=True,
                              learn_on_same_thread=learn_on_launch,
-                             node_storage=node_storage,
-                             save_metadata=True
+                             storage_dir=node_storage_dir,
+                             db_filename=node_metadata_dbfile
                              )
 
     crawler.start()
     reactor.run()
 
 
-@moe.command()
-@click.option('--host', help="The host to run Moe services on", type=click.STRING, default='127.0.0.1')
-@click.option('--http-port', help="The network port to run Moe services on", type=NETWORK_PORT, default=12500)
+@monitor.command()
+@click.option('--host', help="The host to run monitor dashboard on", type=click.STRING, default='127.0.0.1')
+@click.option('--http-port', help="The network port to run monitor dashboard on", type=NETWORK_PORT, default=12500)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--certificate-filepath', help="Pre-signed TLS certificate filepath")
 @click.option('--tls-key-filepath', help="TLS private key filepath")
 @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--network', help="Network Domain Name", type=click.STRING, default='goerli')
-@click.option('--node-metadata-filepath', 'node_metadata_dbfilepath', help="Path to DB file with known nodes metadata",
+@click.option('--node-metadata-filepath', 'node_metadata_dbfilepath',
+              help="Path to crawler DB file with known nodes metadata",
               type=click.STRING)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 @nucypher_click_config
@@ -119,21 +123,20 @@ def dashboard(click_config,
     # Banner
     emitter = click_config.emitter
     emitter.clear()
-    emitter.banner(MOE_BANNER)
-    emitter.echo("> UI DASHBOARD")
+    emitter.banner(MONITOR_BANNER.format("Dashboard"))
 
     registry = __get_registry(provider_uri, registry_filepath)
 
     #
     # WSGI Service
     #
-    rest_app = Flask("moe-dashboard")
-    MoeDashboardApp(title='Moe Dashboard Application',
-                    flask_server=rest_app,
-                    route_url='/',
-                    registry=registry,
-                    network=network,
-                    node_metadata_dbfilepath=node_metadata_dbfilepath)
+    rest_app = Flask("monitor-dashboard")
+    MonitorDashboardApp(title='Network Monitor Dashboard Application',
+                        flask_server=rest_app,
+                        route_url='/',
+                        registry=registry,
+                        network=network,
+                        node_metadata_dbfilepath=node_metadata_dbfilepath)
 
     #
     # Server
@@ -141,7 +144,7 @@ def dashboard(click_config,
     tls_hosting_power = __get_tls_hosting_power(host=host,
                                                 tls_certificate_filepath=certificate_filepath,
                                                 tls_private_key_filepath=tls_key_filepath)
-    emitter.message(f"Running Moe Dashboard - https://{host}:{http_port}")
+    emitter.message(f"Running Monitor Dashboard - https://{host}:{http_port}")
     deployer = tls_hosting_power.get_deployer(rest_app=rest_app, port=http_port)
     if not dry_run:
         deployer.run()
