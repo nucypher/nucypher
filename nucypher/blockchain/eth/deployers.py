@@ -800,9 +800,12 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
 
     def __init__(self, allocation_registry: AllocationRegistry = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        token_contract_name = NucypherTokenDeployer.contract_name
         self.token_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                   name=token_contract_name)
+                                                                   name=NucypherTokenDeployer.contract_name)
+        dispatcher_name = StakingEscrowDeployer._proxy_deployer.contract_name
+        self.staking_escrow_contract = self.blockchain.get_contract_by_name(registry=self.registry,
+                                                                            name=StakingEscrowDeployer.contract_name,
+                                                                            proxy_name=dispatcher_name)
         self.__beneficiary_address = NO_BENEFICIARY
         self.__allocation_registry = allocation_registry or self.__allocation_registry()
 
@@ -888,7 +891,8 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
                 self.registry,
                 self.contract_name,
                 router_contract.address,
-                self.token_contract.address)
+                self.token_contract.address,
+                self.staking_escrow_contract.address)
 
         preallocation_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(*args,
                                                                                         gas_limit=gas_limit,
