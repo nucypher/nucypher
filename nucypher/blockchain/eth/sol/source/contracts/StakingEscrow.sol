@@ -334,7 +334,7 @@ contract StakingEscrow is Issuer {
     * @return allLockedTokens Sum of locked tokens for active stakers
     * @return activeStakers Array of stakers and their locked tokens. Stakers addresses stored as uint256
     **/
-    function getAllActiveStakers(uint16 _periods, uint256 _startIndex, uint256 _maxStakers)
+    function getActiveStakers(uint16 _periods, uint256 _startIndex, uint256 _maxStakers)
         external view returns (uint256 allLockedTokens, uint256[2][] memory activeStakers)
     {
         require(_periods > 0);

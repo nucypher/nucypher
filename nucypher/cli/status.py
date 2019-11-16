@@ -34,6 +34,7 @@ def _common_options(func):
     @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING, default="auto://")
     @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
     @click.option('--poa', help="Inject POA middleware", is_flag=True, default=False)
+    @click.option('--light', help="Indicate that node is light", is_flag=True, default=False)
     @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -55,13 +56,13 @@ def status():
 def network(click_config,
 
             # Common Options
-            provider_uri, geth, poa, registry_filepath):
+            provider_uri, geth, poa, light, registry_filepath):
     """
     Overall information of the NuCypher Network.
     """
     # Init
     emitter = _setup_emitter(click_config)
-    staking_agent = _get_staking_agent(click_config, emitter, geth, poa, provider_uri, registry_filepath)
+    staking_agent = _get_staking_agent(click_config, emitter, geth, poa, light, provider_uri, registry_filepath)
 
     paint_contract_status(staking_agent.registry, emitter=emitter)
 
@@ -73,7 +74,7 @@ def network(click_config,
 def stakers(click_config,
 
             # Common Options
-            provider_uri, geth, poa, registry_filepath,
+            provider_uri, geth, poa, light, registry_filepath,
 
             # Other
             staking_address):
@@ -82,7 +83,7 @@ def stakers(click_config,
     """
     # Init
     emitter = _setup_emitter(click_config)
-    staking_agent = _get_staking_agent(click_config, emitter, geth, poa, provider_uri, registry_filepath)
+    staking_agent = _get_staking_agent(click_config, emitter, geth, poa, light, provider_uri, registry_filepath)
 
     stakers = [staking_address] if staking_address else staking_agent.get_stakers()
     paint_stakers(emitter=emitter, stakers=stakers, agent=staking_agent)
@@ -95,7 +96,7 @@ def stakers(click_config,
 def locked_tokens(click_config,
 
                   # Common Options
-                  provider_uri, geth, poa, registry_filepath,
+                  provider_uri, geth, poa, light, registry_filepath,
 
                   # Other
                   periods):
@@ -104,7 +105,7 @@ def locked_tokens(click_config,
     """
     # Init
     emitter = _setup_emitter(click_config)
-    staking_agent = _get_staking_agent(click_config, emitter, geth, poa, provider_uri, registry_filepath)
+    staking_agent = _get_staking_agent(click_config, emitter, geth, poa, light, provider_uri, registry_filepath)
 
     paint_locked_tokens_status(emitter=emitter, agent=staking_agent, periods=periods)
 
@@ -117,7 +118,7 @@ def _setup_emitter(click_config):
     return emitter
 
 
-def _get_staking_agent(click_config, emitter, geth, poa, provider_uri, registry_filepath):
+def _get_staking_agent(click_config, emitter, geth, poa, light, provider_uri, registry_filepath):
     try:
         ETH_NODE = None
         if geth:
@@ -128,6 +129,7 @@ def _get_staking_agent(click_config, emitter, geth, poa, provider_uri, registry_
             BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri,
                                                             provider_process=ETH_NODE,
                                                             poa=poa,
+                                                            light=light,
                                                             sync=False,
                                                             show_sync_progress=False)
 

@@ -185,6 +185,8 @@ class StakingEscrowAgent(EthereumContractAgent):
     registry_contract_name = STAKING_ESCROW_CONTRACT_NAME
     _proxy_name = DISPATCHER_CONTRACT_NAME
 
+    DEFAULT_PAGINATION_SIZE = 30    # TODO test on goerli
+
     class NotEnoughStakers(Exception):
         pass
 
@@ -228,28 +230,33 @@ class StakingEscrowAgent(EthereumContractAgent):
 
         return active_stakers, pending_stakers, missing_stakers
 
-    def get_all_active_stakers(self, periods: int, pagination_size: int = 0) -> Tuple[int, list]:
+    def get_all_active_stakers(self, periods: int, pagination_size: int = None) -> Tuple[int, list]:
         """Only stakers which confirmed the current period (in the previous period) are used."""
         if not periods > 0:
             raise ValueError("Period must be > 0")
 
-        if pagination_size != 0:
-            stakers_length = self.contract.functions.getStakersLength().call()
+        if pagination_size is None:
+            pagination_size = StakingEscrowAgent.DEFAULT_PAGINATION_SIZE if self.blockchain.is_light else 0
+        elif pagination_size < 0:
+            raise ValueError("Pagination size must be >= 0")
+
+        if pagination_size > 0:
+            num_stakers = self.get_staker_population()
             start_index = 0
             n_tokens = 0
             stakers = list()
-            while start_index < stakers_length:
+            while start_index < num_stakers:
                 temp_locked_tokens, temp_stakers = \
-                    self.contract.functions.getAllActiveStakers(periods, start_index, pagination_size).call()
+                    self.contract.functions.getActiveStakers(periods, start_index, pagination_size).call()
                 n_tokens += temp_locked_tokens
                 stakers += temp_stakers
                 start_index += pagination_size
         else:
-            n_tokens, stakers = self.contract.functions.getAllActiveStakers(periods, 0, 0).call()
+            n_tokens, stakers = self.contract.functions.getActiveStakers(periods, 0, 0).call()
 
         return n_tokens, stakers
 
-    def get_all_locked_tokens(self, periods: int, pagination_size: int = 0) -> int:
+    def get_all_locked_tokens(self, periods: int, pagination_size: int = None) -> int:
         all_locked_tokens, _stakers = self.get_all_active_stakers(periods=periods, pagination_size=pagination_size)
         return all_locked_tokens
 
@@ -486,7 +493,7 @@ class StakingEscrowAgent(EthereumContractAgent):
                duration: int,
                additional_ursulas:float = 1.5,
                attempts: int = 5,
-               pagination_size: int = 0
+               pagination_size: int = None
                ) -> List[str]:
         """
         Select n random Stakers, according to their stake distribution.

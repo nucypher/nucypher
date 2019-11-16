@@ -165,7 +165,7 @@ def test_staking(testerchain, token, escrow_contract):
     assert current_period + 1 == escrow.functions.getLastActivePeriod(ursula2).call()
 
     # No active stakers before next period
-    all_locked, stakers = escrow.functions.getAllActiveStakers(1, 0, 0).call()
+    all_locked, stakers = escrow.functions.getActiveStakers(1, 0, 0).call()
     assert 0 == all_locked
     assert 0 == len(stakers)
 
@@ -188,7 +188,7 @@ def test_staking(testerchain, token, escrow_contract):
     assert 500 == escrow.functions.getLockedTokens(ursula2).call()
 
     # Both stakers are active and have locked tokens in next period
-    all_locked, stakers = escrow.functions.getAllActiveStakers(1, 0, 0).call()
+    all_locked, stakers = escrow.functions.getActiveStakers(1, 0, 0).call()
     assert 1500 == all_locked
     assert 2 == len(stakers)
     assert ursula1 == to_checksum_address(stakers[0][0])
@@ -196,25 +196,25 @@ def test_staking(testerchain, token, escrow_contract):
     assert ursula2 == to_checksum_address(stakers[1][0])
     assert 500 == stakers[1][1]
 
-    # Test parameters of getAllActiveStakers method
-    sam_all_locked, same_stakers = escrow.functions.getAllActiveStakers(1, 0, 2).call()
+    # Test parameters of getActiveStakers method
+    sam_all_locked, same_stakers = escrow.functions.getActiveStakers(1, 0, 2).call()
     assert all_locked == sam_all_locked
     assert stakers == same_stakers
-    sam_all_locked, same_stakers = escrow.functions.getAllActiveStakers(1, 0, 10).call()
+    sam_all_locked, same_stakers = escrow.functions.getActiveStakers(1, 0, 10).call()
     assert all_locked == sam_all_locked
     assert stakers == same_stakers
-    all_locked_1, stakers_1 = escrow.functions.getAllActiveStakers(1, 0, 1).call()
-    all_locked_2, stakers_2 = escrow.functions.getAllActiveStakers(1, 1, 1).call()
+    all_locked_1, stakers_1 = escrow.functions.getActiveStakers(1, 0, 1).call()
+    all_locked_2, stakers_2 = escrow.functions.getActiveStakers(1, 1, 1).call()
     assert all_locked == all_locked_1 + all_locked_2
     assert stakers == stakers_1 + stakers_2
-    sam_all_locked, same_stakers = escrow.functions.getAllActiveStakers(1, 1, 0).call()
+    sam_all_locked, same_stakers = escrow.functions.getActiveStakers(1, 1, 0).call()
     assert all_locked_2 == sam_all_locked
     assert stakers_2 == same_stakers
     with pytest.raises((TransactionFailed, ValueError)):
-        escrow.functions.getAllActiveStakers(1, 2, 1).call()
+        escrow.functions.getActiveStakers(1, 2, 1).call()
 
     # But in two periods their sub stakes will be unlocked
-    all_locked, stakers = escrow.functions.getAllActiveStakers(2, 0, 0).call()
+    all_locked, stakers = escrow.functions.getActiveStakers(2, 0, 0).call()
     assert 0 == all_locked
     assert 0 == len(stakers)
 
@@ -267,17 +267,17 @@ def test_staking(testerchain, token, escrow_contract):
         testerchain.wait_for_receipt(tx)
 
     # Both stakers are active and only the first one locked tokens for two more periods
-    all_locked, stakers = escrow.functions.getAllActiveStakers(2, 0, 0).call()
+    all_locked, stakers = escrow.functions.getActiveStakers(2, 0, 0).call()
     assert 500 == all_locked
     assert 1 == len(stakers)
     assert ursula1 == to_checksum_address(stakers[0][0])
     assert 500 == stakers[0][1]
-    _, stakers = escrow.functions.getAllActiveStakers(2, 0, 2).call()
+    _, stakers = escrow.functions.getActiveStakers(2, 0, 2).call()
     assert 1 == len(stakers)
-    same_all_locked, same_stakers = escrow.functions.getAllActiveStakers(2, 0, 1).call()
+    same_all_locked, same_stakers = escrow.functions.getActiveStakers(2, 0, 1).call()
     assert all_locked == same_all_locked
     assert stakers == same_stakers
-    all_locked, stakers = escrow.functions.getAllActiveStakers(2, 1, 1).call()
+    all_locked, stakers = escrow.functions.getActiveStakers(2, 1, 1).call()
     assert 0 == all_locked
     assert 0 == len(stakers)
 
@@ -286,7 +286,7 @@ def test_staking(testerchain, token, escrow_contract):
     assert 1500 == escrow.functions.getLockedTokens(ursula1).call()
 
     # Only one staker is active
-    all_locked, stakers = escrow.functions.getAllActiveStakers(1, 0, 0).call()
+    all_locked, stakers = escrow.functions.getActiveStakers(1, 0, 0).call()
     assert 500 == all_locked
     assert 1 == len(stakers)
     assert ursula1 == to_checksum_address(stakers[0][0])

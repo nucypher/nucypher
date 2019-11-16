@@ -58,6 +58,7 @@ def _admin_options(func):
     @click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT)
     @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
     @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
+    @click.option('--light', help="Indicate that node is light", is_flag=True, default=False)
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -98,7 +99,7 @@ def init(click_config,
 
          # Admin Options
          geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
-         rest_port, db_filepath, poa,
+         rest_port, db_filepath, poa, light,
 
          # Other
          force, config_root):
@@ -143,7 +144,8 @@ def init(click_config,
                                                  registry_filepath=registry_filepath,
                                                  provider_process=ETH_NODE,
                                                  provider_uri=provider_uri,
-                                                 poa=poa)
+                                                 poa=poa,
+                                                 light=light)
     painting.paint_new_installation_help(emitter, new_configuration=ursula_config)
 
 
@@ -157,7 +159,7 @@ def destroy(click_config,
 
             # Admin Options
             geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
-            rest_port, db_filepath, poa,
+            rest_port, db_filepath, poa, light,
 
             # Other
             config_file, force, dev):
@@ -174,7 +176,7 @@ def destroy(click_config,
 
     ursula_config, provider_uri = _get_ursula_config(emitter, geth, provider_uri, network, registry_filepath, dev,
                                                      config_file, staker_address, worker_address, federated_only,
-                                                     rest_host, rest_port, db_filepath, poa)
+                                                     rest_host, rest_port, db_filepath, poa, light)
     #############
 
     actions.destroy_configuration(emitter, character_config=ursula_config, force=force)
@@ -189,7 +191,7 @@ def forget(click_config,
 
            # Admin Options
            geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
-           rest_port, db_filepath, poa,
+           rest_port, db_filepath, poa, light,
 
            # Other
            config_file,  dev):
@@ -205,7 +207,7 @@ def forget(click_config,
 
     ursula_config, provider_uri = _get_ursula_config(emitter, geth, provider_uri, network, registry_filepath, dev,
                                                      config_file, staker_address, worker_address, federated_only,
-                                                     rest_host, rest_port, db_filepath, poa)
+                                                     rest_host, rest_port, db_filepath, poa, light)
     #############
 
     actions.forget(emitter, configuration=ursula_config)
@@ -221,7 +223,7 @@ def run(click_config,
 
         # API Options
         geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
-        rest_port, db_filepath, poa, config_file, dev, lonely, teacher_uri, min_stake,
+        rest_port, db_filepath, poa, light, config_file, dev, lonely, teacher_uri, min_stake,
 
         # Other
         interactive, dry_run):
@@ -238,7 +240,7 @@ def run(click_config,
 
     ursula_config, provider_uri = _get_ursula_config(emitter, geth, provider_uri, network, registry_filepath, dev,
                                                      config_file, staker_address, worker_address, federated_only,
-                                                     rest_host, rest_port, db_filepath, poa)
+                                                     rest_host, rest_port, db_filepath, poa, light)
     #############
 
     URSULA = _create_ursula(ursula_config, click_config, dev, emitter, lonely, teacher_uri, min_stake)
@@ -297,7 +299,7 @@ def save_metadata(click_config,
 
                   # API Options
                   geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only,
-                  rest_host, rest_port, db_filepath, poa, config_file, dev, lonely, teacher_uri, min_stake):
+                  rest_host, rest_port, db_filepath, poa, light, config_file, dev, lonely, teacher_uri, min_stake):
     """
     Manually write node metadata to disk without running.
     """
@@ -310,7 +312,7 @@ def save_metadata(click_config,
 
     ursula_config, provider_uri = _get_ursula_config(emitter, geth, provider_uri, network, registry_filepath, dev,
                                                      config_file, staker_address, worker_address, federated_only,
-                                                     rest_host, rest_port, db_filepath, poa)
+                                                     rest_host, rest_port, db_filepath, poa, light)
     #############
 
     URSULA = _create_ursula(ursula_config, click_config, dev, emitter, lonely, teacher_uri, min_stake)
@@ -326,7 +328,7 @@ def view(click_config,
 
          # API Options
          geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only, rest_host,
-         rest_port, db_filepath, poa, config_file, dev, lonely, teacher_uri, min_stake):
+         rest_port, db_filepath, poa, light, config_file, dev, lonely, teacher_uri, min_stake):
     """
     View the Ursula node's configuration.
     """
@@ -340,7 +342,7 @@ def view(click_config,
 
     ursula_config, provider_uri = _get_ursula_config(emitter, geth, provider_uri, network, registry_filepath, dev,
                                                      config_file, staker_address, worker_address, federated_only,
-                                                     rest_host, rest_port, db_filepath, poa)
+                                                     rest_host, rest_port, db_filepath, poa, light)
     #############
 
     URSULA = _create_ursula(ursula_config, click_config, dev, emitter, lonely, teacher_uri, min_stake)
@@ -369,7 +371,7 @@ def confirm_activity(click_config,
 
                      # API Options
                      geth, provider_uri, network, registry_filepath, staker_address, worker_address, federated_only,
-                     rest_host, rest_port, db_filepath, poa, config_file, dev, lonely, teacher_uri, min_stake):
+                     rest_host, rest_port, db_filepath, poa, light, config_file, dev, lonely, teacher_uri, min_stake):
     """
     Manually confirm-activity for the current period.
     """
@@ -383,7 +385,7 @@ def confirm_activity(click_config,
 
     ursula_config, provider_uri = _get_ursula_config(emitter, geth, provider_uri, network, registry_filepath, dev,
                                                      config_file, staker_address, worker_address, federated_only,
-                                                     rest_host, rest_port, db_filepath, poa)
+                                                     rest_host, rest_port, db_filepath, poa, light)
     #############
 
     URSULA = _create_ursula(ursula_config, click_config, dev, emitter, lonely, teacher_uri, min_stake)
@@ -440,7 +442,7 @@ def _pre_launch_warnings(emitter, dev, force):
 
 
 def _get_ursula_config(emitter, geth, provider_uri, network, registry_filepath, dev, config_file,
-                       staker_address, worker_address, federated_only, rest_host, rest_port, db_filepath, poa):
+                       staker_address, worker_address, federated_only, rest_host, rest_port, db_filepath, poa, light):
 
     ETH_NODE = NO_BLOCKCHAIN_CONNECTION
     if geth:
@@ -451,6 +453,7 @@ def _get_ursula_config(emitter, geth, provider_uri, network, registry_filepath, 
         ursula_config = UrsulaConfiguration(dev_mode=True,
                                             domains={TEMPORARY_DOMAIN},
                                             poa=poa,
+                                            light=light,
                                             registry_filepath=registry_filepath,
                                             provider_process=ETH_NODE,
                                             provider_uri=provider_uri,
@@ -471,6 +474,7 @@ def _get_ursula_config(emitter, geth, provider_uri, network, registry_filepath, 
                                                                         rest_port=rest_port,
                                                                         db_filepath=db_filepath,
                                                                         poa=poa,
+                                                                        light=light,
                                                                         federated_only=federated_only)
         except FileNotFoundError:
             return actions.handle_missing_configuration_file(character_config_class=UrsulaConfiguration,

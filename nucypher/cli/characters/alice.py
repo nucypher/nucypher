@@ -55,6 +55,7 @@ def alice():
 @_admin_options
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
+@click.option('--light', help="Indicate that node is light", is_flag=True, default=False)
 @click.option('--m', help="M-Threshold KFrags", type=click.INT)
 @click.option('--n', help="N-Total KFrags", type=click.INT)
 @click.option('--rate', help="Policy rate per period in wei", type=click.FLOAT)
@@ -72,7 +73,7 @@ def init(click_config,
          registry_filepath,
 
          # Other
-         config_root, poa, m, n, rate, duration_periods):
+         config_root, poa, light, m, n, rate, duration_periods):
     """
     Create a brand new persistent Alice.
     """
@@ -115,6 +116,7 @@ def init(click_config,
                                                    registry_filepath=registry_filepath,
                                                    provider_process=ETH_NODE,
                                                    poa=poa,
+                                                   light=light,
                                                    provider_uri=provider_uri,
                                                    m=m,
                                                    n=n,

@@ -96,3 +96,28 @@ def test_nucypher_status_stakers(click_runner, testerchain, test_registry, agenc
     assert re.search(r"Staked: " + str(round(locked_tokens, 2)), result.output, re.MULTILINE)
 
 
+def test_nucypher_status_locked_tokens(click_runner, testerchain, test_registry, agency, stakers):
+
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    # All workers confirm activity
+    for ursula in testerchain.ursulas_accounts:
+        staking_agent.confirm_activity(worker_address=ursula)
+    testerchain.time_travel(periods=1)
+
+    periods = 2
+    status_command = ('locked-tokens',
+                      '--registry-filepath', MOCK_REGISTRY_FILEPATH,
+                      '--provider', TEST_PROVIDER_URI,
+                      '--poa',
+                      '--periods', periods)
+    initial_light_parameter = testerchain.is_light
+    light_parameter = [False, True]
+    for light in light_parameter:
+        testerchain.is_light = light
+        result = click_runner.invoke(status, status_command, catch_exceptions=False)
+        assert result.exit_code == 0
+
+        current_period = staking_agent.get_current_period()
+        all_locked = NU.from_nunits(staking_agent.get_global_locked_tokens(at_period=current_period))
+        assert re.search(f"Locked Tokens for next {periods} periods", result.output, re.MULTILINE)
+        assert re.search(f"Min: {all_locked} - Max: {all_locked}", result.output, re.MULTILINE)

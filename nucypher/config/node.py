@@ -88,6 +88,7 @@ class CharacterConfiguration(BaseConfiguration):
 
                  # Blockchain
                  poa: bool = False,
+                 light: bool = False,
                  sync: bool = False,
                  provider_uri: str = None,
                  provider_process=None,
@@ -127,6 +128,7 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Blockchain
         self.poa = poa
+        self.is_light = light
         self.provider_uri = provider_uri or NO_BLOCKCHAIN_CONNECTION
         self.provider_process = provider_process or NO_BLOCKCHAIN_CONNECTION
 
@@ -167,6 +169,7 @@ class CharacterConfiguration(BaseConfiguration):
                 # Clear decentralized attributes to ensure consistency with a
                 # federated configuration.
                 self.poa = False
+                self.is_light = False
                 self.provider_uri = None
                 self.provider_process = None
                 self.registry_filepath = None
@@ -182,6 +185,7 @@ class CharacterConfiguration(BaseConfiguration):
 
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
                                                                 poa=self.poa,
+                                                                light=self.is_light,
                                                                 provider_process=self.provider_process,
                                                                 sync=sync,
                                                                 show_sync_progress=NucypherClickConfig.verbosity)
@@ -265,7 +269,7 @@ class CharacterConfiguration(BaseConfiguration):
         Warning: This method allows mutation and may result in an inconsistent configuration.
         """
         merged_parameters = {**self.static_payload(), **self.dynamic_payload, **overrides}
-        non_init_params = ('config_root', 'poa', 'provider_uri', 'registry_filepath')
+        non_init_params = ('config_root', 'poa', 'light', 'provider_uri', 'registry_filepath')
         character_init_params = filter(lambda t: t[0] not in non_init_params, merged_parameters.items())
         return dict(character_init_params)
 
@@ -348,7 +352,7 @@ class CharacterConfiguration(BaseConfiguration):
         # Optional values (mode)
         if not self.federated_only:
             if self.provider_uri:
-                payload.update(dict(provider_uri=self.provider_uri, poa=self.poa))
+                payload.update(dict(provider_uri=self.provider_uri, poa=self.poa, light=self.is_light))
             if self.registry_filepath:
                 payload.update(dict(registry_filepath=self.registry_filepath))
 
