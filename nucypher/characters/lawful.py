@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
+import random
 from base64 import b64encode, b64decode
 from collections import OrderedDict
 from datetime import datetime
@@ -912,6 +913,7 @@ class Ursula(Teacher, Character, Worker):
                  is_me: bool = True,
                  interface_signature=None,
                  timestamp=None,
+                 availability_check: bool = True,
 
                  # Blockchain
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
@@ -1033,6 +1035,10 @@ class Ursula(Teacher, Character, Worker):
                                                    rest_app=rest_app, datastore=datastore,
                                                    hosting_power=tls_hosting_power)
 
+                # Self-Check
+                if availability_check:
+                    self._rest_availability_task = LoopingCall(self.check_rest_availability)
+
             #
             # Stranger-Ursula
             #
@@ -1112,6 +1118,46 @@ class Ursula(Teacher, Character, Worker):
         else:
             if result > 0:
                 self.log.debug(f"Pruned {result} policy arrangements.")
+
+    def run_worker(self,
+                   learning: bool = True,
+                   availability: bool = True,
+                   worker: bool = True):
+
+        # Schedule Async Loops
+        if learning:
+            if not self._learning_task.running:
+                self.start_learning_loop(now=True)
+
+        if availability:
+            if not self._rest_availability_task.running:
+                self.start_availability_loop(now=True)  # wait...
+
+        if not self.federated_only and worker:
+            self.work_tracker.start(act_now=True)
+
+        deployer = self.get_deployer()
+        deployer.addServices()
+        deployer.catalogServers(deployer.hendrix)
+        deployer.run()  # <--- Blocking Call (Reactor)
+
+    def start_availability_loop(self, now: bool = True):
+        d = self._rest_availability_task.start(interval=60*2, now=now)
+        return d
+
+    def check_rest_availability(self, threshold: int = 3):
+        if not self.known_nodes:
+            return
+        ursulas = random.sample(population=self.known_nodes, k=threshold)
+        success, fail = 0, 0
+        for ursula in ursulas:
+            response = self.network_middleware.check_rest_availability(ursula)
+            if response:
+                success += 1
+            else:
+                fail += 1
+        if not success:
+            raise RuntimeError(f"Worker is unreachable by {fail} ursulas.")
 
     def rest_information(self):
         hosting_power = self._crypto_power.power_ups(TLSHostingPower)

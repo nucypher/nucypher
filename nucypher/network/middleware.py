@@ -238,7 +238,7 @@ class RestMiddleware:
                                    certificate_filepath=certificate_filepath)
         return response.content
 
-    def ping(self, host, port, certificate_filepath=None):
+    def check_rest_availability(self, host, port, certificate_filepath=None):
         response = self.client.get(host=host, port=port,
                                    path="ping",
                                    timeout=2,
