@@ -17,8 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 
 import collections
+
 import pytest
-from eth_utils import is_checksum_address
+from eth_utils import is_checksum_address, to_wei
 
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
@@ -33,11 +34,12 @@ def policy_meta(testerchain, agency, token_economics, blockchain_ursulas):
 
     _policy_id = os.urandom(16)
     staker_addresses = list(staking_agent.sample(quantity=3, duration=1))
+    number_of_periods = 10
+    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     _txhash = agent.create_policy(policy_id=_policy_id,
                                   author_address=testerchain.alice_account,
-                                  value=token_economics.minimum_allowed_locked,
-                                  periods=10,
-                                  first_period_reward=20,
+                                  value=to_wei(1, 'gwei') * len(staker_addresses) * number_of_periods,
+                                  end_timestamp=now + (number_of_periods - 1) * token_economics.hours_per_period * 60 * 60,
                                   node_addresses=staker_addresses)
 
     return MockPolicyMetadata(_policy_id, testerchain.alice_account, staker_addresses)
@@ -53,11 +55,11 @@ def test_create_policy(testerchain, agency, token_economics, mock_transacting_po
 
     policy_id = os.urandom(16)
     node_addresses = list(staking_agent.sample(quantity=3, duration=1))
+    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     receipt = agent.create_policy(policy_id=policy_id,
                                   author_address=testerchain.alice_account,
                                   value=token_economics.minimum_allowed_locked,
-                                  periods=10,
-                                  first_period_reward=20,
+                                  end_timestamp=now + 10 * token_economics.hours_per_period * 60,
                                   node_addresses=node_addresses)
 
     assert receipt['status'] == 1, "Transaction Rejected"
