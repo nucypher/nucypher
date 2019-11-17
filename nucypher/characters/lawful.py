@@ -16,7 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import random
 from base64 import b64encode, b64decode
 from collections import OrderedDict
 from datetime import datetime
@@ -71,8 +70,9 @@ from nucypher.datastore.threading import ThreadedSession
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
-from nucypher.network.nodes import Teacher, NodeSprout
-from nucypher.network.protocols import InterfaceInfo, parse_node_uri
+from nucypher.network.nodes import NodeSprout
+from nucypher.network.nodes import Teacher
+from nucypher.network.protocols import InterfaceInfo, parse_node_uri, AvailabilitySensor
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 
 
@@ -1035,9 +1035,10 @@ class Ursula(Teacher, Character, Worker):
                                                    rest_app=rest_app, datastore=datastore,
                                                    hosting_power=tls_hosting_power)
 
-                # Self-Check
+                # Self-Health Checks
+                self._availability_sensor = None
                 if availability_check:
-                    self._rest_availability_task = LoopingCall(self.check_rest_availability)
+                    self._availability_sensor = AvailabilitySensor(ursula=self)
 
             #
             # Stranger-Ursula
@@ -1124,40 +1125,19 @@ class Ursula(Teacher, Character, Worker):
                    availability: bool = True,
                    worker: bool = True):
 
-        # Schedule Async Loops
+        """Schedule Async Loops"""
+
         if learning:
-            if not self._learning_task.running:
-                self.start_learning_loop(now=True)
-
+            self.start_learning_loop(now=True)
         if availability:
-            if not self._rest_availability_task.running:
-                self.start_availability_loop(now=True)  # wait...
-
-        if not self.federated_only and worker:
+            self._availability_sensor.start(now=False)  # wait...
+        if worker and not self.federated_only:
             self.work_tracker.start(act_now=True)
 
         deployer = self.get_deployer()
         deployer.addServices()
         deployer.catalogServers(deployer.hendrix)
         deployer.run()  # <--- Blocking Call (Reactor)
-
-    def start_availability_loop(self, now: bool = True):
-        d = self._rest_availability_task.start(interval=60*2, now=now)
-        return d
-
-    def check_rest_availability(self, threshold: int = 3):
-        if not self.known_nodes:
-            return
-        ursulas = random.sample(population=self.known_nodes, k=threshold)
-        success, fail = 0, 0
-        for ursula in ursulas:
-            response = self.network_middleware.check_rest_availability(ursula)
-            if response:
-                success += 1
-            else:
-                fail += 1
-        if not success:
-            raise RuntimeError(f"Worker is unreachable by {fail} ursulas.")
 
     def rest_information(self):
         hosting_power = self._crypto_power.power_ups(TLSHostingPower)
