@@ -22,6 +22,7 @@ import maya
 from eth_utils import is_checksum_address
 
 from bytestring_splitter import VariableLengthBytestring
+from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 
@@ -104,11 +105,12 @@ class InterfaceInfo:
 
 class AvailabilitySensor:
 
-    DEFAULT_INTERVAL = 60 * 2    # Seconds
-    DEFAULT_SAMPLE_SIZE = 3      # Ursulas
-    DEFAULT_SENSITIVITY = 2      # Failure indication threshold
-    DEFAULT_RETENTION = 10       # Records
-    MAXIMUM_ALONE_TIME = 60 * 2  # Seconds
+    DEFAULT_INTERVAL = 5             # Seconds
+    DEFAULT_SAMPLE_SIZE = 3               # Ursulas
+    DEFAULT_MEASUREMENT_SENSITIVITY = 2   # Failure indication threshold
+    DEFAULT_SENSOR_SENSITIVITY = 5        # Failed records
+    DEFAULT_RETENTION = 10                # Records
+    MAXIMUM_ALONE_TIME = 10               # Seconds
 
     class Unreachable(RuntimeError):
         pass
@@ -119,13 +121,15 @@ class AvailabilitySensor:
                  ursula,
                  interval: int = DEFAULT_INTERVAL,
                  sample_size: int = DEFAULT_SAMPLE_SIZE,
-                 sensitivity: int = DEFAULT_SENSITIVITY,
+                 sensitivity: int = DEFAULT_MEASUREMENT_SENSITIVITY,
+                 sensor_sensitivity: int = DEFAULT_SENSOR_SENSITIVITY,
                  retention: int = DEFAULT_RETENTION):
 
         self.log = Logger(self.__class__.__name__)
         self.interval = interval
         self.sample_size = sample_size
-        self.sensitivity = sensitivity
+        self.measurement_sensitivity = sensitivity
+        self.sensor_sensitivity = sensor_sensitivity
         self.retention = retention
         self.warnings = {
             1: self.mild_warning,
@@ -144,16 +148,28 @@ class AvailabilitySensor:
         self.log.info(f'{self._ursula.rest_url} is unreachable')
 
     def medium_warning(self) -> None:
-        self.log.warning(f'{self._ursula.rest_url} is unreachable')
+        self.log.warn(f'{self._ursula.rest_url} is unreachable')
 
     def severe_warning(self) -> None:
-        self.log.critial(f'{self._ursula.rest_url} is unreachable')
-        raise self.Unreachable(f'{self._ursula} is unreachable.')
+        self.log.warn(f'{self._ursula.rest_url} is unreachable')
+        try:
+            raise self.Unreachable(f'{self._ursula} is unreachable.')
+        finally:
+            if reactor.running:
+                reactor.stop()
 
     def handle_measurement_errors(self, *args, **kwargs) -> None:
         failure = args[0]
         cleaned_traceback = failure.getTraceback().replace('{', '').replace('}', '')  # FIXME: Amazing.
         self.log.warn("Unhandled error during availability check: {}".format(cleaned_traceback))
+        failure.raiseException()
+
+    @property
+    def status(self) -> bool:
+        """Returns current indication of availability"""
+        if not self._records:
+            return
+        return self.score > self.sensor_sensitivity
 
     @property
     def running(self) -> bool:
@@ -170,6 +186,7 @@ class AvailabilitySensor:
             self.__task.stop()
 
     def maintain(self) -> None:
+        self.log.debug(f"Starting new sensor maintenance round")
         if not self._ursula.known_nodes:
             # If there are no known nodes, skip this round...
             # ... but not for longer than the maximum allotted alone time
@@ -189,7 +206,7 @@ class AvailabilitySensor:
 
     @property
     def score(self) -> float:
-        failed_records = [record.result for record in self._records if record.result]
+        failed_records = list(record.result for record in self._records if not record.result)
         return len(failed_records) / self.retention
 
     def issue_warnings(self) -> None:
@@ -207,8 +224,8 @@ class AvailabilitySensor:
         self._records.append(measurement)
 
     def measure(self) -> bool:
-        if self.sensitivity > self.sample_size:
-            message = f"Threshold ({self.sensitivity}) cannot be greater then the sample size ({self.sample_size})."
+        if self.measurement_sensitivity > self.sample_size:
+            message = f"Threshold ({self.measurement_sensitivity}) cannot be greater then the sample size ({self.sample_size})."
             raise ValueError(message)
         ursulas = self.sample(quantity=self.sample_size)
         succeeded, failed = 0, 0
@@ -218,6 +235,6 @@ class AvailabilitySensor:
                 succeeded += 1
             else:
                 failed += 1
-        return failed >= self.sensitivity
+        return failed >= self.measurement_sensitivity
 
 

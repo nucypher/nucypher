@@ -122,6 +122,7 @@ def paint_node_status(emitter, ursula, start_time):
              '{}'.format(ursula),
              'Uptime .............. {}'.format(maya.now() - start_time),
              'Start Time .......... {}'.format(start_time.slang_time()),
+             'Availability ........ {}'.format('Available' if ursula._availability_sensor.status else "Possibly Unreachable"),
              'Fleet State.......... {}'.format(fleet_state),
              'Learning Status ..... {}'.format(learning_status),
              'Learning Round ...... Round #{}'.format(ursula._learning_round),
