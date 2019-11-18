@@ -1,11 +1,12 @@
+import os
 import sqlite3
-
 from collections import OrderedDict
 from datetime import datetime, timedelta
 
 from influxdb import InfluxDBClient
 from maya import MayaDT
 
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.storages import SQLiteForgetfulNodeStorage
 
 
@@ -78,8 +79,11 @@ class BlockchainCrawlerClient:
 
 
 class NodeMetadataClient:
-    def __init__(self, node_metadata_filepath: str = None):
-        self._metadata_filepath = node_metadata_filepath
+
+    DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, 'monitor.sqlite')
+
+    def __init__(self, db_filepath: str = DEFAULT_DB_FILEPATH):
+        self._metadata_filepath = db_filepath
 
     def get_known_nodes_metadata(self) -> dict:
         # dash threading means that connection needs to be established in same thread as use

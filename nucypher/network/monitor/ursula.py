@@ -3,7 +3,7 @@ import dash_html_components as html
 from dash.dependencies import Output, Input
 
 from nucypher.characters.base import Character
-from nucypher.network.status_app.base import NetworkStatusPage
+from nucypher.network.monitor.base import NetworkStatusPage
 
 
 class UrsulaStatusApp(NetworkStatusPage):

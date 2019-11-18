@@ -7,9 +7,9 @@ from maya import MayaDT
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.token import NU
-from nucypher.network.status_app.base import NetworkStatusPage
-from nucypher.network.status_app.crawler import NetworkCrawler
-from nucypher.network.status_app.db import NodeMetadataClient
+from nucypher.network.monitor.base import NetworkStatusPage
+from nucypher.network.monitor.crawler import NetworkCrawler
+from nucypher.network.monitor.db import NodeMetadataClient
 
 
 class MonitorDashboardApp(NetworkStatusPage):
@@ -30,7 +30,7 @@ class MonitorDashboardApp(NetworkStatusPage):
         super().__init__(*args, **kwargs)
 
         self.blockchain_db_client = NetworkCrawler.get_blockchain_crawler_client()
-        self.node_metadata_db_client = NodeMetadataClient(node_metadata_filepath=node_metadata_dbfilepath)
+        self.node_metadata_db_client = NodeMetadataClient(db_filepath=node_metadata_dbfilepath)
         self.registry = registry
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.network = network
