@@ -3,7 +3,6 @@ import os
 import dash_daq as daq
 import dash_html_components as html
 from constant_sorrow.constants import UNKNOWN_FLEET_STATE
-from cryptography.hazmat.primitives.asymmetric import ec
 from dash import Dash
 from flask import Flask
 from maya import MayaDT
@@ -13,10 +12,6 @@ from twisted.logger import Logger
 import nucypher
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.characters.base import Character
-from nucypher.keystore.keypairs import HostingKeypair
-from nucypher.network.nodes import Learner, FleetStateTracker
-from nucypher.network.server import TLSHostingPower
 
 
 class NetworkStatusPage:
@@ -40,31 +35,30 @@ class NetworkStatusPage:
     def header() -> html.Div:
         return html.Div([html.Div(f'v{nucypher.__version__}', id='version')], className="logo-widget")
 
-    def previous_states(self, learner: Learner) -> html.Div:
-        previous_states = list(reversed(learner.known_nodes.states.values()))[:5]  # only latest 5
+    def previous_states(self, states_dict_list) -> html.Div:
         return html.Div([
                 html.H4('Previous States'),
                 html.Div([
-                    self._states_table(previous_states)
+                    self._states_table(states_dict_list)
                 ]),
             ], className='row')
 
-    def _states_table(self, states) -> html.Table:
+    def _states_table(self, states_dict_list) -> html.Table:
         row = []
-        for state in states:
+        for state_dict in states_dict_list:
             # add previous states in order (already reversed)
-            row.append(html.Td(self.state_detail(FleetStateTracker.abridged_state_details(state))))
+            row.append(html.Td(self.state_detail(state_dict)))
         return html.Table([html.Tr(row, id='state-table')])
 
     @staticmethod
-    def state_detail(state_detail_dict) -> html.Div:
+    def state_detail(state_dict) -> html.Div:
         return html.Div([
             html.Div([
-                html.Div(state_detail_dict['symbol'], className='single-symbol'),
-            ], className='nucypher-nickname-icon', style={'border-color': state_detail_dict['color_hex']}),
-            html.Span(state_detail_dict['nickname']),
-            html.Span(state_detail_dict['updated'], className='small'),
-        ], className='state', style={'background-color': state_detail_dict['color_hex']})
+                html.Div(state_dict['symbol'], className='single-symbol'),
+            ], className='nucypher-nickname-icon', style={'border-color': state_dict['color_hex']}),
+            html.Span(state_dict['nickname']),
+            html.Span(state_dict['updated'], className='small'),
+        ], className='state', style={'background-color': state_dict['color_hex']})
 
     def known_nodes(self, nodes_dict: dict, registry, teacher_checksum: str = None) -> html.Div:
         nodes = list()

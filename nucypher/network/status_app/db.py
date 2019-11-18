@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from influxdb import InfluxDBClient
 from maya import MayaDT
 
+from nucypher.config.storages import SQLiteForgetfulNodeStorage
+
 
 class BlockchainCrawlerClient:
     """
@@ -83,7 +85,7 @@ class NodeMetadataClient:
         # dash threading means that connection needs to be established in same thread as use
         db_conn = sqlite3.connect(self._metadata_filepath)
         try:
-            result = db_conn.execute(f"SELECT * FROM node_info")
+            result = db_conn.execute(f"SELECT * FROM {SQLiteForgetfulNodeStorage.NODE_DB_NAME}")
 
             # TODO use `pandas` package instead to automatically get dict?
             known_nodes = dict()
@@ -96,5 +98,31 @@ class NodeMetadataClient:
                 known_nodes[staker_address] = node_info
 
             return known_nodes
+        finally:
+            db_conn.close()
+
+    def get_previous_states_metadata(self, limit: int = 5) -> dict:
+        # dash threading means that connection needs to be established in same thread as use
+        db_conn = sqlite3.connect(self._metadata_filepath)
+        states_dict_list = []
+        try:
+            result = db_conn.execute(f"SELECT * FROM {SQLiteForgetfulNodeStorage.STATE_DB_NAME} "
+                                     f"ORDER BY datetime(updated) DESC LIMIT {limit}")
+
+            # TODO use `pandas` package instead to automatically get dict?
+            column_names = [description[0] for description in result.description]
+            for row in result:
+                state_info = dict()
+                for idx, value in enumerate(row):
+                    column_name = column_names[idx]
+                    if column_name == 'updated':
+                        # convert column from rfc3339 (for sorting) back to rfc2822
+                        # TODO does this matter for displaying?
+                        state_info[column_name] = MayaDT.from_rfc3339(row[idx]).rfc2822()
+                    else:
+                        state_info[column_name] = row[idx]
+                states_dict_list.append(state_info)
+
+            return states_dict_list
         finally:
             db_conn.close()

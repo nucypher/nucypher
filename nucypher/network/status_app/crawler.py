@@ -9,7 +9,7 @@ from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, N
 from nucypher.blockchain.eth.token import NU, StakeList
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.config.storages import SQLiteForgetfulNodeStorage
-from nucypher.network.nodes import Learner
+from nucypher.network.nodes import Learner, FleetStateTracker
 from nucypher.network.status_app.db import BlockchainCrawlerClient
 
 
@@ -59,6 +59,16 @@ class NetworkCrawler(Learner):
         node_storage = SQLiteForgetfulNodeStorage(federated_only=False,
                                                   parent_dir=storage_dir,
                                                   db_filename=db_filename)
+
+        class MonitoringTracker(FleetStateTracker):
+            def record_fleet_state(self, *args, **kwargs):
+                new_state_or_none = super().record_fleet_state(*args, **kwargs)
+                if new_state_or_none:
+                    _, new_state = new_state_or_none
+                    node_storage.store_state_metadata(new_state)
+
+        self.tracker_class = MonitoringTracker
+
         super().__init__(save_metadata=True, node_storage=node_storage, *args, **kwargs)
         self.log = Logger('network-crawler')
 

@@ -55,7 +55,11 @@ class UrsulaStatusApp(NetworkStatusPage):
         @self.dash_app.callback(Output('prev-states', 'children'), [Input('status-update', 'n_intervals')])
         def state(n):
             """Simply update periodically"""
-            return self.previous_states(ursula)
+            previous_states = list(reversed(ursula.known_nodes.states.values()))[:5]  # only latest 5
+            states_dict_list = []
+            for previous_state in previous_states:
+                states_dict_list.append(ursula.known_nodes.abridged_state_details(previous_state))
+            return self.previous_states(states_dict_list)
 
         @self.dash_app.callback(Output('known-nodes', 'children'), [Input('status-update', 'n_intervals')])
         def known_nodes(n):

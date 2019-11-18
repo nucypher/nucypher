@@ -35,8 +35,6 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 
-from constant_sorrow.constants import UNKNOWN_FLEET_STATE
-
 
 class NodeStorage(ABC):
     _name = NotImplemented
@@ -285,7 +283,8 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
     SQLite forgetful storage of node metadata
     """
     _name = 'sqlite-memory'
-    DB_NAME = 'node_info'
+    NODE_DB_NAME = 'node_info'
+    STATE_DB_NAME = 'fleet_state'
     PARENT_DIR_PREFIX = 'nucypher-sql-storage-tmp'
     METADATA_CACHE_PREFIX = 'sql-cache'
 
@@ -307,7 +306,7 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
             _, self.__metadata_db = tempfile.mkstemp(prefix=self.METADATA_CACHE_PREFIX, dir=self.__parent_dir)
 
         self.__db_conn = sqlite3.connect(self.__metadata_db)
-        self.__create_db_table()
+        self.__create_db_tables()
 
         super().__init__(parent_dir=self.__parent_dir, *args, **kwargs)
 
@@ -320,8 +319,11 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
             os.remove(self.__metadata_db)
 
     def store_node_metadata(self, node, filepath: str = None):
-        self.__write_metadata(node)
+        self.__write_node_metadata(node)
         return super().store_node_metadata(node=node, filepath=filepath)
+
+    def store_state_metadata(self, state):
+        self.__write_state_metadata(state)
 
     @validate_checksum_address
     def remove(self,
@@ -332,14 +334,16 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
 
         if metadata is True:
             with self.__db_conn:
-                self.__db_conn.execute(f"DELETE FROM {self.DB_NAME} WHERE staker_address='{checksum_address}'")
+                self.__db_conn.execute(f"DELETE FROM {self.NODE_DB_NAME} WHERE staker_address='{checksum_address}'")
 
         return super().remove(checksum_address=checksum_address, metadata=metadata, certificate=certificate)
 
     def clear(self, metadata: bool = True, certificates: bool = True) -> None:
         if metadata is True:
             with self.__db_conn:
-                self.__db_conn.execute(f"DELETE FROM {self.DB_NAME}")
+                self.__db_conn.execute(f"DELETE FROM {self.NODE_DB_NAME}")
+                # TODO: do we need to clear the states table here?
+                self.__db_conn.execute(f"DELETE FORM {self.STATE_DB_NAME}")
 
         super().clear(metadata=metadata, certificates=certificates)
 
@@ -348,48 +352,42 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
         self.__parent_dir = tempfile.mkdtemp(prefix=self.PARENT_DIR_PREFIX)
         _, metadata_cache = tempfile.mkstemp(prefix=self.METADATA_CACHE_PREFIX, dir=self.__parent_dir)
         self.__db_conn = sqlite3.connect(metadata_cache)
-        self.__create_db_table()
+        self.__create_db_tables()
 
         return super().initialize()
 
-    def __create_db_table(self):
+    def __create_db_tables(self):
             with self.__db_conn:
-                # ensure table is empty
-                self.__db_conn.execute(f"DROP TABLE IF EXISTS {self.DB_NAME}")
+                # ensure tables are empty
+                for table in [self.NODE_DB_NAME, self.STATE_DB_NAME]:
+                    self.__db_conn.execute(f"DROP TABLE IF EXISTS {table}")
 
-                # create fresh new table (same columns names as FleetStateTracker.abridged_nodes_details)
-                self.__db_conn.execute(f"CREATE TABLE {self.DB_NAME} (staker_address text primary key, rest_url text, "
+                # create fresh new node table (same column names as FleetStateTracker.abridged_nodes_details)
+                self.__db_conn.execute(f"CREATE TABLE {self.NODE_DB_NAME} (staker_address text primary key, rest_url text, "
                                        f"nickname text, timestamp text, last_seen text, fleet_state_icon text)")
 
-    def __write_metadata(self, node):
-        # Staker address
-        staker_address = node.checksum_address
+                # create fresh new state table (same column names as FleetStateTracker.abridged_state_details)
+                self.__db_conn.execute(f"CREATE TABLE {self.STATE_DB_NAME} (nickname text primary key, symbol text, "
+                                       f"color_hex text, color_name text, updated text)")
 
-        # REST URL
-        rest_url = node.rest_url()
-
-        # Nickname
-        nickname = node.nickname
-
-        # Timestamp
-        timestamp = node.timestamp.iso8601()
-
-        # Last Seen
-        try:
-            last_seen = node.last_seen.iso8601()
-        except AttributeError:  # TODO: This logic belongs somewhere - anywhere - else.
-            last_seen = str(node.last_seen)  # In case it's the constant NEVER_SEEN
-
-        # Fleet state icon
-        fleet_icon = node.fleet_state_nickname_metadata
-        if fleet_icon is UNKNOWN_FLEET_STATE:
-            fleet_icon = "?"  # TODO
-        else:
-            fleet_icon = fleet_icon[0][1]
-
-        db_row = (staker_address, rest_url, nickname, timestamp, last_seen, fleet_icon)
+    def __write_node_metadata(self, node):
+        from nucypher.network.nodes import FleetStateTracker
+        node_dict = FleetStateTracker.abridged_node_details(node)
+        db_row = (node_dict['staker_address'], node_dict['rest_url'], node_dict['nickname'],
+                  node_dict['timestamp'], node_dict['last_seen'], node_dict['fleet_state_icon'])
         with self.__db_conn:
-            self.__db_conn.execute(f'REPLACE INTO {self.DB_NAME} VALUES(?,?,?,?,?,?)', db_row)
+            self.__db_conn.execute(f'REPLACE INTO {self.NODE_DB_NAME} VALUES(?,?,?,?,?,?)', db_row)
+
+    def __write_state_metadata(self, state):
+        from nucypher.network.nodes import FleetStateTracker
+        state_dict = FleetStateTracker.abridged_state_details(state)
+        # convert updated timestamp format for supported sqlite3 sorting
+        state_dict['updated'] = state.updated.rfc3339()
+        db_row = (state_dict['nickname'], state_dict['symbol'], state_dict['color_hex'],
+                  state_dict['color_name'], state_dict['updated'])
+        with self.__db_conn:
+            self.__db_conn.execute(f'REPLACE INTO {self.STATE_DB_NAME} VALUES(?,?,?,?,?)', db_row)
+            # TODO we should limit the size of this table - no reason to store really old state values
 
 
 class LocalFileBasedNodeStorage(NodeStorage):

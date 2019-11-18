@@ -71,8 +71,8 @@ class MonitorDashboardApp(NetworkStatusPage):
 
                     # States and Known Nodes Table
                     html.Div([
-                    #     html.Div(id='prev-states'),
-                    #     html.Br(),
+                         html.Div(id='prev-states'),
+                         html.Br(),
                          html.Div(id='known-nodes'),
                      ])
                 ]),
@@ -103,11 +103,12 @@ class MonitorDashboardApp(NetworkStatusPage):
         def header(pathname):
             return self.header()
 
-        # @self.dash_app.callback(Output('prev-states', 'children'),
-        #                         [Input('state-update-button', 'n_clicks'),
-        #                          Input('minute-interval', 'n_intervals')])
-        # def state(n_clicks, n_intervals):
-        #     return self.previous_states(moe)
+        @self.dash_app.callback(Output('prev-states', 'children'),
+                                [Input('state-update-button', 'n_clicks'),
+                                 Input('minute-interval', 'n_intervals')])
+        def state(n_clicks, n_intervals):
+            states_dict_list = self.node_metadata_db_client.get_previous_states_metadata()
+            return self.previous_states(states_dict_list=states_dict_list)
 
         @self.dash_app.callback(Output('known-nodes', 'children'),
                                 [Input('node-update-button', 'n_clicks'),
