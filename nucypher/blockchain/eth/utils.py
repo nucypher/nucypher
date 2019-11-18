@@ -60,10 +60,12 @@ def datetime_at_period(period: int, seconds_per_period: int, start_of_period: bo
         return target_datetime
 
 
-def calculate_period_duration(future_time: maya.MayaDT, seconds_per_period: int) -> int:
+def calculate_period_duration(future_time: maya.MayaDT, seconds_per_period: int, now: maya.MayaDT = None) -> int:
     """Takes a future MayaDT instance and calculates the duration from now, returning in periods"""
+    if now is None:
+        now = maya.now()
     future_period = datetime_to_period(datetime=future_time, seconds_per_period=seconds_per_period)
-    current_period = datetime_to_period(datetime=maya.now(), seconds_per_period=seconds_per_period)
+    current_period = datetime_to_period(datetime=now, seconds_per_period=seconds_per_period)
     periods = future_period - current_period
     return periods
 

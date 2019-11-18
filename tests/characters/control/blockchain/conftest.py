@@ -79,8 +79,7 @@ def create_policy_control_request(blockchain_bob):
         'm': 2,
         'n': 3,
         'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),
-        'value': 3 * 3 * 10 ** 16,
-        'first_period_reward': 4242
+        'value': 3 * 3 * 10 ** 16
     }
     return method_name, params
 
@@ -96,8 +95,7 @@ def grant_control_request(blockchain_bob):
         'm': 2,
         'n': 3,
         'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),
-        'value': 3 * 3 * 10 ** 16,
-        'first_period_reward': 4242
+        'value': 3 * 3 * 10 ** 16
     }
     return method_name, params
 

@@ -87,7 +87,7 @@ class AliceControlJSONSerializer(CharacterControlJSONSerializer, MessageHandlerM
                             m=request['m'],
                             n=request['n'],
                             expiration=maya.MayaDT.from_iso8601(iso8601_string=request['expiration']))
-        for field in ('value', 'rate', 'first_period_reward'):
+        for field in ('value', 'rate'):
             if field in request:
                 parsed_input[field] = request[field]
         return parsed_input

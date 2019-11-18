@@ -151,7 +151,6 @@ class AliceConfiguration(CharacterConfiguration):
                  m: int = None,
                  n: int = None,
                  rate: int = None,
-                 first_period_reward: float = None,
                  duration_periods: int = None,
                  *args, **kwargs):
 
@@ -161,12 +160,10 @@ class AliceConfiguration(CharacterConfiguration):
         if not self.federated_only:
             self.rate = rate
             self.duration_periods = duration_periods
-            self.first_period_reward = first_period_reward or self.DEFAULT_FIRST_PERIOD_REWARD
 
     def static_payload(self) -> dict:
         payload = dict(m=self.m, n=self.n)
         if not self.federated_only:
-            payload['first_period_reward'] = self.first_period_reward
             if self.rate:
                 payload['rate'] = self.rate
             if self.duration_periods:

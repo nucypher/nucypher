@@ -1048,7 +1048,6 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
                  checksum_address: str,
                  rate: int = None,
                  duration_periods: int = None,
-                 first_period_reward: int = None,
                  *args, **kwargs):
         """
         :param policy_agent: A policy agent with the blockchain attached;
@@ -1065,12 +1064,6 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         self.economics = TokenEconomicsFactory.get_economics(registry=self.registry)
         self.rate = rate
         self.duration_periods = duration_periods
-        self.first_period_reward = first_period_reward
-
-        policy_value_specified = self.rate and self.first_period_reward
-        if policy_value_specified and self.first_period_reward >= self.rate:
-            raise ValueError(f"Policy rate of ({self.rate}) per period must be greater "
-                             f"than the first period rate of ({self.first_period_reward})")
 
     def generate_policy_parameters(self,
                                    number_of_ursulas: int = None,
@@ -1078,7 +1071,6 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
                                    expiration: maya.MayaDT = None,
                                    value: int = None,
                                    rate: int = None,
-                                   first_period_reward: int = None,
                                    ) -> dict:
         """
         Construct policy creation from parameters or overrides.
@@ -1088,23 +1080,26 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
             raise ValueError("Policy end time must be specified as 'expiration' or 'duration_periods', got neither.")
 
         # Merge injected and default params.
-        first_period_reward = first_period_reward or self.first_period_reward
         rate = rate or self.rate
         duration_periods = duration_periods or self.duration_periods
 
         # Calculate duration in periods and expiration datetime
-        if expiration:
-            duration_periods = calculate_period_duration(future_time=expiration,
-                                                         seconds_per_period=self.economics.seconds_per_period)
-        else:
-            duration_periods = duration_periods or self.duration_periods
+        if duration_periods:
+            # Duration equals one period means that expiration date is the last second of the current period
             expiration = datetime_at_period(self.staking_agent.get_current_period() + duration_periods,
-                                            seconds_per_period=self.economics.seconds_per_period)
+                                            seconds_per_period=self.economics.seconds_per_period,
+                                            start_of_period=True)
+            expiration -= 1  # Get the last second of the target period
+        else:
+            now = self.staking_agent.blockchain.w3.eth.getBlock(block_identifier='latest').timestamp
+            duration_periods = calculate_period_duration(now=maya.MayaDT(now),
+                                                         future_time=expiration,
+                                                         seconds_per_period=self.economics.seconds_per_period)
+            duration_periods += 1  # Number of all included periods
 
         from nucypher.policy.policies import BlockchainPolicy
         blockchain_payload = BlockchainPolicy.generate_policy_parameters(n=number_of_ursulas,
                                                                          duration_periods=duration_periods,
-                                                                         first_period_reward=first_period_reward,
                                                                          value=value,
                                                                          rate=rate)
 
