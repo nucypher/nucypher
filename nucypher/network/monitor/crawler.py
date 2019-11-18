@@ -1,6 +1,5 @@
 from influxdb import InfluxDBClient
 from maya import MayaDT
-from nucypher.network.status_app.db import BlockchainCrawlerClient
 from twisted.internet import task
 from twisted.logger import Logger
 
@@ -49,8 +48,6 @@ class NetworkCrawler(Learner):
 
     def __init__(self,
                  registry,
-                 storage_dir,
-                 db_filename,
                  federated_only: bool = False,
                  refresh_rate=DEFAULT_REFRESH_RATE,
                  restart_on_error=True,
@@ -58,9 +55,7 @@ class NetworkCrawler(Learner):
 
         self.registry = registry
         self.federated_only = federated_only
-        node_storage = SQLiteForgetfulNodeStorage(federated_only=False,
-                                                  parent_dir=storage_dir,
-                                                  db_filename=db_filename)
+        node_storage = SQLiteForgetfulNodeStorage(federated_only=False)
 
         class MonitoringTracker(FleetStateTracker):
             def record_fleet_state(self, *args, **kwargs):

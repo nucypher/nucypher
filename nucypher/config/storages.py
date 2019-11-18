@@ -283,12 +283,15 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
     SQLite forgetful storage of node metadata
     """
     _name = 'sqlite'
-    DB_NAME = 'node_metadata.sqlite'
-    DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, DB_NAME)
+    DB_FILE_NAME = 'sql-storage-metadata.sqlite'
+    NODE_DB_NAME = 'node_info'
+    STATE_DB_NAME = 'fleet_state'
+    DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, DB_FILE_NAME)
 
     def __init__(self, db_filepath: str = DEFAULT_DB_FILEPATH, *args, **kwargs):
         self.__db_filepath = db_filepath
         self.__db_conn = sqlite3.connect(self.__db_filepath)
+        self.__create_db_tables()
         super().__init__(*args, **kwargs)
 
     def __del__(self):

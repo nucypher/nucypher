@@ -26,11 +26,11 @@ class MonitorDashboardApp(NetworkStatusPage):
                     'fillFrame': False,
                     'displayModeBar': False}
 
-    def __init__(self, registry, network, node_metadata_dbfilepath, *args, **kwargs):
+    def __init__(self, registry, network, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.blockchain_db_client = NetworkCrawler.get_blockchain_crawler_client()
-        self.node_metadata_db_client = NodeMetadataClient(db_filepath=node_metadata_dbfilepath)
+        self.node_metadata_db_client = NodeMetadataClient()
         self.registry = registry
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.network = network
