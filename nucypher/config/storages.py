@@ -282,41 +282,22 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
     """
     SQLite forgetful storage of node metadata
     """
-    _name = 'sqlite-memory'
-    NODE_DB_NAME = 'node_info'
-    STATE_DB_NAME = 'fleet_state'
-    PARENT_DIR_PREFIX = 'nucypher-sql-storage-tmp'
-    METADATA_CACHE_PREFIX = 'sql-cache'
+    _name = 'sqlite'
+    DB_NAME = 'node_metadata.sqlite'
+    DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, DB_NAME)
 
-    def __init__(self, parent_dir: str = None, db_filename: str = None, *args, **kwargs) -> None:
-        self.is_temp = False
-        # set parent directory for all information
-        if parent_dir:
-            if not os.path.exists(parent_dir):
-                os.mkdir(parent_dir)
-            self.__parent_dir = parent_dir
-        else:
-            self.__parent_dir = tempfile.mkdtemp(prefix=self.PARENT_DIR_PREFIX)
-            self.is_temp = False
-
-        # set db file
-        if db_filename:
-            self.__metadata_db = os.path.join(self.__parent_dir, db_filename)
-        else:
-            _, self.__metadata_db = tempfile.mkstemp(prefix=self.METADATA_CACHE_PREFIX, dir=self.__parent_dir)
-
-        self.__db_conn = sqlite3.connect(self.__metadata_db)
-        self.__create_db_tables()
-
-        super().__init__(parent_dir=self.__parent_dir, *args, **kwargs)
+    def __init__(self, db_filepath: str = DEFAULT_DB_FILEPATH, *args, **kwargs):
+        self.__db_filepath = db_filepath
+        self.__db_conn = sqlite3.connect(self.__db_filepath)
+        super().__init__(*args, **kwargs)
 
     def __del__(self):
-        self.__db_conn.close()
         super().__del__()
-        if self.is_temp:
-            shutil.rmtree(self.__parent_dir, ignore_errors=True)
-        else:
-            os.remove(self.__metadata_db)
+        try:
+            self.__db_conn.close()
+        finally:
+            if os.path.exists(self.__db_filepath):
+                os.remove(self.__db_filepath)
 
     def store_node_metadata(self, node, filepath: str = None):
         self.__write_node_metadata(node)
@@ -348,12 +329,10 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
         super().clear(metadata=metadata, certificates=certificates)
 
     def initialize(self) -> bool:
-        # TODO revisit this
-        self.__parent_dir = tempfile.mkdtemp(prefix=self.PARENT_DIR_PREFIX)
-        _, metadata_cache = tempfile.mkstemp(prefix=self.METADATA_CACHE_PREFIX, dir=self.__parent_dir)
-        self.__db_conn = sqlite3.connect(metadata_cache)
+        if os.path.exists(self.__db_filepath):
+            os.remove(self.__db_filepath)
+        self.__db_conn = sqlite3.connect(self.__db_filepath)
         self.__create_db_tables()
-
         return super().initialize()
 
     def __create_db_tables(self):

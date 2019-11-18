@@ -12,8 +12,8 @@ from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.server import TLSHostingPower
-from nucypher.network.status_app.crawler import NetworkCrawler
-from nucypher.network.status_app.monitor import MonitorDashboardApp
+from nucypher.network.monitor.crawler import NetworkCrawler
+from nucypher.network.monitor.app import MonitorDashboardApp
 
 
 MONITOR_BANNER = r"""
