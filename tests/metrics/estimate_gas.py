@@ -312,11 +312,14 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
     number_of_periods = 10
     value = 10000
+    one_period = 60 * 60
+    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     transact_and_log("Creating policy (1 node, 10 periods), 1st",
-                     policy_functions.createPolicy(policy_id_1, number_of_periods, 0, [ursula1]),
+                     policy_functions.createPolicy(policy_id_1, end_timestamp, [ursula1]),
                      {'from': alice1, 'value': value})
     transact_and_log("Creating policy (1 node, 10 periods), 2nd",
-                     policy_functions.createPolicy(policy_id_2, number_of_periods, 0, [ursula1]),
+                     policy_functions.createPolicy(policy_id_2, end_timestamp, [ursula1]),
                      {'from': alice1, 'value': value})
 
     #
@@ -332,17 +335,18 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
     policy_id_3 = os.urandom(int(Policy.POLICY_ID_LENGTH))
     number_of_periods = 100
-    value = 10050
-    first_reward = 50
-    transact_and_log("Creating policy (1 node, 100 periods, first reward), 1st",
-                     policy_functions.createPolicy(policy_id_1, number_of_periods, first_reward, [ursula2]),
+    value = number_of_periods * 100
+    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
+    transact_and_log("Creating policy (1 node, 100 periods), 1st",
+                     policy_functions.createPolicy(policy_id_1, end_timestamp, [ursula2]),
                      {'from': alice1, 'value': value})
     testerchain.time_travel(periods=1)
-    transact_and_log("Creating policy (1 node, 100 periods, first reward), 2nd",
-                     policy_functions.createPolicy(policy_id_2, number_of_periods, first_reward, [ursula2]),
+    transact_and_log("Creating policy (1 node, 100 periods), 2nd",
+                     policy_functions.createPolicy(policy_id_2, end_timestamp, [ursula2]),
                      {'from': alice1, 'value': value})
-    transact_and_log("Creating policy (1 node, 100 periods, first reward), 3rd",
-                     policy_functions.createPolicy(policy_id_3, number_of_periods, first_reward, [ursula1]),
+    transact_and_log("Creating policy (1 node, 100 periods), 3rd",
+                     policy_functions.createPolicy(policy_id_3, end_timestamp, [ursula1]),
                      {'from': alice1, 'value': value})
 
     #
@@ -372,17 +376,18 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
     policy_id_3 = os.urandom(int(Policy.POLICY_ID_LENGTH))
     number_of_periods = 100
-    value = 30150
-    first_reward = 50
-    transact_and_log("Creating policy (3 nodes, 100 periods, first reward), 1st",
-                     policy_functions.createPolicy(policy_id_1, number_of_periods, first_reward, [ursula1, ursula2, ursula3]),
+    value = 3 * number_of_periods * 100
+    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
+    transact_and_log("Creating policy (3 nodes, 100 periods), 1st",
+                     policy_functions.createPolicy(policy_id_1, end_timestamp, [ursula1, ursula2, ursula3]),
                      {'from': alice1, 'value': value})
-    transact_and_log("Creating policy (3 nodes, 100 periods, first reward), 2nd",
-                     policy_functions.createPolicy(policy_id_2, number_of_periods, first_reward, [ursula1, ursula2, ursula3]),
+    transact_and_log("Creating policy (3 nodes, 100 periods), 2nd",
+                     policy_functions.createPolicy(policy_id_2, end_timestamp, [ursula1, ursula2, ursula3]),
                      {'from': alice1, 'value': value})
-    value = 20100
-    transact_and_log("Creating policy (2 nodes, 100 periods, first reward), 3rd",
-                     policy_functions.createPolicy(policy_id_3, number_of_periods, first_reward, [ursula1, ursula2]),
+    value = 2 * number_of_periods * 100
+    transact_and_log("Creating policy (2 nodes, 100 periods), 3rd",
+                     policy_functions.createPolicy(policy_id_3, end_timestamp, [ursula1, ursula2]),
                      {'from': alice1, 'value': value})
 
     for index in range(5):
