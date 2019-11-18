@@ -624,6 +624,8 @@ def _create_stakeholder(config_file, provider_uri, poa, registry_filepath,
     # Now let's check whether we're dealing here with a regular staker or a preallocation staker
     is_preallocation_staker = (beneficiary_address and staking_address) or allocation_filepath
 
+    # Configure the individual allocation registry, if needed
+    individual_allocation = None
     if is_preallocation_staker:
         if allocation_filepath:
             if beneficiary_address or staking_address:
@@ -632,22 +634,19 @@ def _create_stakeholder(config_file, provider_uri, poa, registry_filepath,
 
             # This assumes the user has an individual allocation file in disk
             individual_allocation = IndividualAllocationRegistry.from_allocation_file(allocation_filepath)
-            initial_address = individual_allocation.beneficiary_address
         elif beneficiary_address and staking_address:
             individual_allocation = IndividualAllocationRegistry(beneficiary_address=beneficiary_address,
                                                                  contract_address=staking_address)
-            initial_address = beneficiary_address
+
         else:
             option = "--beneficiary_address" if beneficiary_address else "--staking-address"
             raise click.BadOptionUsage(option_name=option,
                                        message=f"You must specify both --beneficiary-address and --staking-address. "
                                                f"Only {option} was provided. As an alternative, you can simply "
                                                f"provide an individual allocation with --allocation-file <PATH>")
-    else:
-        individual_allocation = None
-        initial_address = staking_address
 
-    stakeholder = stakeholder_config.produce(initial_address=initial_address,
+    # Lazy initialization of StakeHolder
+    stakeholder = stakeholder_config.produce(initial_address=None,
                                              individual_allocation=individual_allocation)
     blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)  # Eager connection
 
