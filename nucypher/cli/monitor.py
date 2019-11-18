@@ -41,10 +41,6 @@ def monitor():
 @click.option('--network', help="Network Domain Name", type=click.STRING, default='goerli')
 @click.option('--learn-on-launch', help="Conduct first learning loop on main thread at launch.", is_flag=True)
 @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
-@click.option('--node-storage-dirpath', 'node_storage_dir', help="Directory path for storing known nodes information",
-              type=click.STRING)
-@click.option('--node-metadata-dbfilename', 'node_metadata_dbfile', help="DB file to store known nodes metadata",
-              type=click.STRING)
 @nucypher_click_config
 def crawl(click_config,
           teacher_uri,
@@ -53,8 +49,6 @@ def crawl(click_config,
           network,
           learn_on_launch,
           provider_uri,
-          node_storage_dir,
-          node_metadata_dbfile,
           ):
     """
     Gather NuCypher network information.
@@ -84,8 +78,6 @@ def crawl(click_config,
                              federated_only=False,
                              start_learning_now=True,
                              learn_on_same_thread=learn_on_launch,
-                             storage_dir=node_storage_dir,
-                             db_filename=node_metadata_dbfile
                              )
 
     crawler.start()
@@ -100,9 +92,6 @@ def crawl(click_config,
 @click.option('--tls-key-filepath', help="TLS private key filepath")
 @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--network', help="Network Domain Name", type=click.STRING, default='goerli')
-@click.option('--node-metadata-filepath', 'node_metadata_dbfilepath',
-              help="Path to crawler DB file with known nodes metadata",
-              type=click.STRING)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 @nucypher_click_config
 def dashboard(click_config,
@@ -113,7 +102,6 @@ def dashboard(click_config,
               tls_key_filepath,
               provider_uri,
               network,
-              node_metadata_dbfilepath,
               dry_run,
               ):
     """
@@ -135,8 +123,7 @@ def dashboard(click_config,
                         flask_server=rest_app,
                         route_url='/',
                         registry=registry,
-                        network=network,
-                        node_metadata_dbfilepath=node_metadata_dbfilepath)
+                        network=network)
 
     #
     # Server

@@ -1,4 +1,3 @@
-import os
 import sqlite3
 from collections import OrderedDict
 from datetime import datetime, timedelta
@@ -6,8 +5,8 @@ from datetime import datetime, timedelta
 from influxdb import InfluxDBClient
 from maya import MayaDT
 
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.storages import SQLiteForgetfulNodeStorage
+from typing import List, Dict
 
 
 class BlockchainCrawlerClient:
@@ -80,14 +79,12 @@ class BlockchainCrawlerClient:
 
 class NodeMetadataClient:
 
-    DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, 'monitor.sqlite')
+    def __init__(self, db_filepath: str = SQLiteForgetfulNodeStorage.DEFAULT_DB_FILEPATH):
+        self._db_filepath = db_filepath
 
-    def __init__(self, db_filepath: str = DEFAULT_DB_FILEPATH):
-        self._metadata_filepath = db_filepath
-
-    def get_known_nodes_metadata(self) -> dict:
+    def get_known_nodes_metadata(self) -> Dict:
         # dash threading means that connection needs to be established in same thread as use
-        db_conn = sqlite3.connect(self._metadata_filepath)
+        db_conn = sqlite3.connect(self._db_filepath)
         try:
             result = db_conn.execute(f"SELECT * FROM {SQLiteForgetfulNodeStorage.NODE_DB_NAME}")
 
@@ -105,9 +102,9 @@ class NodeMetadataClient:
         finally:
             db_conn.close()
 
-    def get_previous_states_metadata(self, limit: int = 5) -> dict:
+    def get_previous_states_metadata(self, limit: int = 5) -> List[Dict]:
         # dash threading means that connection needs to be established in same thread as use
-        db_conn = sqlite3.connect(self._metadata_filepath)
+        db_conn = sqlite3.connect(self._db_filepath)
         states_dict_list = []
         try:
             result = db_conn.execute(f"SELECT * FROM {SQLiteForgetfulNodeStorage.STATE_DB_NAME} "
