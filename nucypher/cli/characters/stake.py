@@ -20,9 +20,9 @@ import functools
 import click
 from web3 import Web3
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
-from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.token import NU, StakeList
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.lawful import StakeHolder
 from nucypher.cli import painting, actions
@@ -489,6 +489,8 @@ def divide(click_config,
     stake_extension_range = click.IntRange(min=1, max=economics.maximum_allowed_locked, clamp=False)
 
     if staking_address and index is not None:  # 0 is valid.
+        STAKEHOLDER.stakes = StakeList(registry=STAKEHOLDER.registry, checksum_address=staking_address)
+        STAKEHOLDER.stakes.refresh()
         current_stake = STAKEHOLDER.stakes[index]
     else:
         current_stake = select_stake(stakeholder=STAKEHOLDER, emitter=emitter)
