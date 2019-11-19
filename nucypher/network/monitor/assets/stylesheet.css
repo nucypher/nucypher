@@ -93,9 +93,10 @@ label, legend {
 }
 
 #widgets>div {
-    width: 33%;
+    width: 20%;
     min-height: 25em;
 }
+
 
 .banner {
     height: 3em;
@@ -199,9 +200,9 @@ label, legend {
     width: 98%;
 }
 
-/*#locked-stake-graph {*/
-/*    flex-basis: 100%;*/
-/*}*/
+#locked-stake-graph {
+    flex-basis: 100%;
+}
 
 #prev-stakers-graph {
     width: 100%;
@@ -216,13 +217,14 @@ label, legend {
     display: flex;
     flex-direction: row;
     justify-content: start;
-    height: 8em;
     align-items: center;
 }
 
 #state-table > td {
-    border-radius: 6px;
-    height: 100%;
+    padding: 0;
+    border-bottom: 1px solid white;
+    margin-right: 2px;
+    margin-bottom: 2em;
 }
 
 
@@ -231,7 +233,14 @@ label, legend {
     text-align: center;
     display: flex;
     flex-direction: column;
-    width: 22em;
+    width: 10em;
+    color: black;
+    font-weight: 900;
+}
+
+.state > span {
+    font-size: 1em;
+    font-weight: 100;
 }
 
 #prev-states {
