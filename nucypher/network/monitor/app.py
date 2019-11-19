@@ -9,7 +9,7 @@ from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.token import NU
 from nucypher.network.monitor.base import NetworkStatusPage
 from nucypher.network.monitor.crawler import NetworkCrawler
-from nucypher.network.monitor.db import NodeMetadataClient
+from nucypher.network.monitor.db import NodeMetadataDBClient
 
 
 class MonitorDashboardApp(NetworkStatusPage):
@@ -29,8 +29,8 @@ class MonitorDashboardApp(NetworkStatusPage):
     def __init__(self, registry, network, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.blockchain_db_client = NetworkCrawler.get_blockchain_crawler_client()
-        self.node_metadata_db_client = NodeMetadataClient()
+        self.network_crawler_db_client = NetworkCrawler.get_network_crawler_db_client()
+        self.node_metadata_db_client = NodeMetadataDBClient()
         self.registry = registry
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.network = network
@@ -193,7 +193,7 @@ class MonitorDashboardApp(NetworkStatusPage):
                                 [Input('daily-interval', 'n_intervals')])
         def prev_locked_tokens(n):
             prior_periods = 30
-            locked_tokens_dict = self.blockchain_db_client.get_historical_locked_tokens_over_range(prior_periods)
+            locked_tokens_dict = self.network_crawler_db_client.get_historical_locked_tokens_over_range(prior_periods)
             token_values = list(locked_tokens_dict.values())
             fig = go.Figure(data=[
                                 go.Bar(
@@ -220,7 +220,7 @@ class MonitorDashboardApp(NetworkStatusPage):
                                 [Input('daily-interval', 'n_intervals')])
         def historical_known_nodes(n):
             prior_periods = 30
-            num_stakers_dict = self.blockchain_db_client.get_historical_num_stakers_over_range(prior_periods)
+            num_stakers_dict = self.network_crawler_db_client.get_historical_num_stakers_over_range(prior_periods)
             marker_color = 'rgb(0, 163, 239)'
             fig = go.Figure(data=[
                                 go.Scatter(

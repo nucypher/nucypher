@@ -9,9 +9,9 @@ from nucypher.config.storages import SQLiteForgetfulNodeStorage
 from typing import List, Dict
 
 
-class BlockchainCrawlerClient:
+class NetworkCrawlerDBClient:
     """
-    Performs operations on data in the MoeBlockchainCrawler DB.
+    Performs operations on data in the NetworkCrawler DB.
 
     Helpful for data intensive long-running graphing calculations on historical data.
     """
@@ -77,7 +77,7 @@ class BlockchainCrawlerClient:
         self._client.close()
 
 
-class NodeMetadataClient:
+class NodeMetadataDBClient:
 
     def __init__(self, db_filepath: str = SQLiteForgetfulNodeStorage.DEFAULT_DB_FILEPATH):
         self._db_filepath = db_filepath
