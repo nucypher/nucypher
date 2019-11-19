@@ -197,18 +197,18 @@ def test_staking(testerchain, token, escrow_contract):
     assert 500 == stakers[1][1]
 
     # Test parameters of getActiveStakers method
-    sam_all_locked, same_stakers = escrow.functions.getActiveStakers(1, 0, 2).call()
-    assert all_locked == sam_all_locked
+    same_all_locked, same_stakers = escrow.functions.getActiveStakers(1, 0, 2).call()
+    assert all_locked == same_all_locked
     assert stakers == same_stakers
-    sam_all_locked, same_stakers = escrow.functions.getActiveStakers(1, 0, 10).call()
-    assert all_locked == sam_all_locked
+    same_all_locked, same_stakers = escrow.functions.getActiveStakers(1, 0, 10).call()
+    assert all_locked == same_all_locked
     assert stakers == same_stakers
     all_locked_1, stakers_1 = escrow.functions.getActiveStakers(1, 0, 1).call()
     all_locked_2, stakers_2 = escrow.functions.getActiveStakers(1, 1, 1).call()
     assert all_locked == all_locked_1 + all_locked_2
     assert stakers == stakers_1 + stakers_2
-    sam_all_locked, same_stakers = escrow.functions.getActiveStakers(1, 1, 0).call()
-    assert all_locked_2 == sam_all_locked
+    same_all_locked, same_stakers = escrow.functions.getActiveStakers(1, 1, 0).call()
+    assert all_locked_2 == same_all_locked
     assert stakers_2 == same_stakers
     with pytest.raises((TransactionFailed, ValueError)):
         escrow.functions.getActiveStakers(1, 2, 1).call()

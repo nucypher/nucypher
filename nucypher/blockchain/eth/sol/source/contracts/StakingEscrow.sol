@@ -339,18 +339,18 @@ contract StakingEscrow is Issuer {
     {
         require(_periods > 0);
 
-        uint256 stakersLength = stakers.length;
-        require(_startIndex < stakersLength);
-        activeStakers = new uint256[2][](stakersLength);
-        if (_maxStakers != 0 && _startIndex + _maxStakers < stakersLength) {
-            stakersLength = _startIndex + _maxStakers;
+        uint256 endIndex = stakers.length;
+        require(_startIndex < endIndex);
+        if (_maxStakers != 0 && _startIndex + _maxStakers < endIndex) {
+            endIndex = _startIndex + _maxStakers;
         }
+        activeStakers = new uint256[2][](endIndex - _startIndex);
 
         uint256 resultIndex = 0;
         uint16 currentPeriod = getCurrentPeriod();
         uint16 nextPeriod = currentPeriod.add16(_periods);
 
-        for (uint256 i = _startIndex; i < stakersLength; i++) {
+        for (uint256 i = _startIndex; i < endIndex; i++) {
             address staker = stakers[i];
             StakerInfo storage info = stakerInfo[staker];
             if (info.confirmedPeriod1 != currentPeriod &&
