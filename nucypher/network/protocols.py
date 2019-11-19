@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import random
 from collections import deque, namedtuple
+from typing import Union
 from urllib.parse import urlparse
 
 import maya
@@ -115,6 +116,12 @@ class AvailabilitySensor:
     class Unreachable(RuntimeError):
         pass
 
+    class Solitary(Unreachable):
+        message = "Cannot connect to any teacher nodes."
+
+    class Lonely(Unreachable):
+        message = "Cannot connect to enough teacher nodes."
+
     Record = namedtuple('Record', ('time', 'result'))
 
     def __init__(self,
@@ -150,13 +157,18 @@ class AvailabilitySensor:
     def medium_warning(self) -> None:
         self.log.warn(f'{self._ursula.rest_url} is unreachable')
 
-    def severe_warning(self) -> None:
+    def severe_warning(self, reason=None) -> None:
         self.log.warn(f'{self._ursula.rest_url} is unreachable')
         try:
+            if reason:
+                raise reason(reason.message)
             raise self.Unreachable(f'{self._ursula} is unreachable.')
         finally:
-            if reactor.running:
-                reactor.stop()
+            self.shutdown_everything()
+
+    def shutdown_everything(self):
+        if reactor.running:
+            reactor.stop()
 
     def handle_measurement_errors(self, *args, **kwargs) -> None:
         failure = args[0]
@@ -165,10 +177,10 @@ class AvailabilitySensor:
         failure.raiseException()
 
     @property
-    def status(self) -> bool:
+    def status(self) -> Union[bool, None]:
         """Returns current indication of availability"""
         if not self._records:
-            return
+            return None
         return self.score > self.sensor_sensitivity
 
     @property
@@ -187,18 +199,16 @@ class AvailabilitySensor:
 
     def maintain(self) -> None:
         self.log.debug(f"Starting new sensor maintenance round")
-        if not self._ursula.known_nodes:
-            # If there are no known nodes, skip this round...
+        known_nodes_is_smaller_than_sample_size = len(self._ursula.known_nodes) < self.sample_size
+        if not self._ursula.known_nodes or known_nodes_is_smaller_than_sample_size:
+            # If there are no known nodes or too few known nodes, skip this round...
             # ... but not for longer than the maximum allotted alone time
             if not self._ursula.lonely:
                 now = maya.now().epoch
                 delta = now - self.__start_time
                 if delta >= self.MAXIMUM_ALONE_TIME:
-                    self.severe_warning()
-            return
-        if len(self._ursula.known_nodes) < self.sample_size:
-            # If there are fewer known nodes then the sample size, skip this round
-            # TODO: How long can this be allowed for?
+                    reason = self.Solitary if not self._ursula.known_nodes else self.Lonely
+                    self.severe_warning(reason=reason)
             return
         result = self.measure()
         self.record(result)

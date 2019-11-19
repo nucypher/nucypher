@@ -1132,7 +1132,7 @@ class Ursula(Teacher, Character, Worker):
         if availability:
             self._availability_sensor.start(now=False)  # wait...
         if worker and not self.federated_only:
-            self.work_tracker.start(act_now=True)
+            self.work_tracker.start(act_now=True, requirement_func=self._availability_sensor.status)
 
         deployer = self.get_deployer()
         deployer.addServices()
