@@ -177,6 +177,7 @@ def generate_self_signed_certificate(host: str,
                                      private_key: _EllipticCurvePrivateKey = None,
                                      days_valid: int = 365
                                      ) -> Tuple[Certificate, _EllipticCurvePrivateKey]:
+
     if not private_key:
         private_key = ec.generate_private_key(curve, default_backend())
 
@@ -185,10 +186,8 @@ def generate_self_signed_certificate(host: str,
     now = datetime.datetime.utcnow()
     subject = issuer = x509.Name([
         x509.NameAttribute(NameOID.COMMON_NAME, host),
-    ])
-
-    if checksum_address:
         x509.NameAttribute(NameOID.PSEUDONYM, checksum_address)
+    ])
 
     cert = x509.CertificateBuilder().subject_name(subject)
     cert = cert.issuer_name(issuer)
