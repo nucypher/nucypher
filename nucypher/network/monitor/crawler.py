@@ -9,7 +9,7 @@ from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, N
 from nucypher.blockchain.eth.token import NU, StakeList
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.config.storages import SQLiteForgetfulNodeStorage
-from nucypher.network.monitor.db import BlockchainCrawlerClient
+from nucypher.network.monitor.db import NetworkCrawlerDBClient
 from nucypher.network.nodes import FleetStateTracker
 from nucypher.network.nodes import Learner
 
@@ -207,5 +207,5 @@ class NetworkCrawler(Learner):
         return self._nodes_contract_info_learning_task.running
 
     @staticmethod
-    def get_blockchain_crawler_client():
-        return BlockchainCrawlerClient(host='localhost', port=8086, database=NetworkCrawler.BLOCKCHAIN_DB_NAME)
+    def get_network_crawler_db_client():
+        return NetworkCrawlerDBClient(host='localhost', port=8086, database=NetworkCrawler.BLOCKCHAIN_DB_NAME)
