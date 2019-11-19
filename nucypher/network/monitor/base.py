@@ -56,8 +56,7 @@ class NetworkStatusPage:
             html.Div([
                 html.Div(state_dict['symbol'], className='single-symbol'),
             ], className='nucypher-nickname-icon', style={'border-color': state_dict['color_hex']}),
-            html.Span(state_dict['nickname']),
-            html.Span(state_dict['updated'], className='small'),
+            html.Span(state_dict['nickname'], title=state_dict['updated']),
         ], className='state', style={'background-color': state_dict['color_hex']})
 
     def known_nodes(self, nodes_dict: dict, registry, teacher_checksum: str = None) -> html.Div:
