@@ -20,9 +20,9 @@ import functools
 import click
 from web3 import Web3
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
-from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.token import NU, StakeList
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.lawful import StakeHolder
 from nucypher.cli import painting, actions
@@ -489,6 +489,8 @@ def divide(click_config,
     stake_extension_range = click.IntRange(min=1, max=economics.maximum_allowed_locked, clamp=False)
 
     if staking_address and index is not None:  # 0 is valid.
+        STAKEHOLDER.stakes = StakeList(registry=STAKEHOLDER.registry, checksum_address=staking_address)
+        STAKEHOLDER.stakes.refresh()
         current_stake = STAKEHOLDER.stakes[index]
     else:
         current_stake = select_stake(stakeholder=STAKEHOLDER, emitter=emitter)
@@ -624,6 +626,8 @@ def _create_stakeholder(config_file, provider_uri, poa, registry_filepath,
     # Now let's check whether we're dealing here with a regular staker or a preallocation staker
     is_preallocation_staker = (beneficiary_address and staking_address) or allocation_filepath
 
+    # Configure the individual allocation registry, if needed
+    individual_allocation = None
     if is_preallocation_staker:
         if allocation_filepath:
             if beneficiary_address or staking_address:
@@ -632,22 +636,19 @@ def _create_stakeholder(config_file, provider_uri, poa, registry_filepath,
 
             # This assumes the user has an individual allocation file in disk
             individual_allocation = IndividualAllocationRegistry.from_allocation_file(allocation_filepath)
-            initial_address = individual_allocation.beneficiary_address
         elif beneficiary_address and staking_address:
             individual_allocation = IndividualAllocationRegistry(beneficiary_address=beneficiary_address,
                                                                  contract_address=staking_address)
-            initial_address = beneficiary_address
+
         else:
             option = "--beneficiary_address" if beneficiary_address else "--staking-address"
             raise click.BadOptionUsage(option_name=option,
                                        message=f"You must specify both --beneficiary-address and --staking-address. "
                                                f"Only {option} was provided. As an alternative, you can simply "
                                                f"provide an individual allocation with --allocation-file <PATH>")
-    else:
-        individual_allocation = None
-        initial_address = staking_address
 
-    stakeholder = stakeholder_config.produce(initial_address=initial_address,
+    # Lazy initialization of StakeHolder
+    stakeholder = stakeholder_config.produce(initial_address=None,
                                              individual_allocation=individual_allocation)
     blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)  # Eager connection
 
