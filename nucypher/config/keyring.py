@@ -43,7 +43,7 @@ from twisted.logger import Logger
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial, derive_key_from_password
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.api import generate_self_signed_certificate
+from nucypher.crypto.api import generate_teacher_certificate
 from nucypher.crypto.constants import BLAKE2B
 from nucypher.crypto.powers import (
     SigningPower,
@@ -252,7 +252,7 @@ def _generate_wallet(password: str) -> Tuple[str, dict]:
 
 
 def _generate_tls_keys(host: str, checksum_address: str, curve: EllipticCurve) -> Tuple[_EllipticCurvePrivateKey, Certificate]:
-    cert, private_key = generate_self_signed_certificate(host=host, curve=curve, checksum_address=checksum_address)
+    cert, private_key = generate_teacher_certificate(host=host, curve=curve, checksum_address=checksum_address)
     return private_key, cert
 
 

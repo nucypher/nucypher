@@ -34,6 +34,7 @@ from typing import Callable, Tuple, Union, Set, Any
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.crypto.api import read_certificate_pseudonym
 
 
 class NodeStorage(ABC):
@@ -221,10 +222,7 @@ class ForgetfulNodeStorage(NodeStorage):
         return len(self.__temporary_certificates) == 0
 
     def store_node_certificate(self, certificate: Certificate):
-        pseudonym = certificate.subject.get_attributes_for_oid(NameOID.PSEUDONYM)[0]
-        checksum_address = pseudonym.value
-        if not is_checksum_address(checksum_address):
-            raise RuntimeError("Invalid certificate checksum_address encountered")  # TODO: More
+        checksum_address = read_certificate_pseudonym(certificate=certificate)
         self.__certificates[checksum_address] = certificate
         self._write_tls_certificate(certificate=certificate)
         filepath = self.generate_certificate_filepath(checksum_address=checksum_address)
