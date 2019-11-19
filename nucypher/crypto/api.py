@@ -33,7 +33,7 @@ from cryptography.x509 import Certificate
 from cryptography.x509.oid import NameOID
 from eth_account import Account
 from eth_account.messages import encode_defunct
-from eth_utils import to_checksum_address
+from eth_utils import to_checksum_address, is_checksum_address
 from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature
@@ -171,12 +171,12 @@ def verify_ecdsa(message: bytes,
     return True
 
 
-def generate_self_signed_certificate(host: str,
-                                     checksum_address: str,
-                                     curve: EllipticCurve,
-                                     private_key: _EllipticCurvePrivateKey = None,
-                                     days_valid: int = 365
-                                     ) -> Tuple[Certificate, _EllipticCurvePrivateKey]:
+def __generate_self_signed_certificate(host: str,
+                                       curve: EllipticCurve,
+                                       private_key: _EllipticCurvePrivateKey = None,
+                                       days_valid: int = 365,
+                                       checksum_address: str = None
+                                       ) -> Tuple[Certificate, _EllipticCurvePrivateKey]:
 
     if not private_key:
         private_key = ec.generate_private_key(curve, default_backend())
@@ -184,11 +184,16 @@ def generate_self_signed_certificate(host: str,
     public_key = private_key.public_key()
 
     now = datetime.datetime.utcnow()
-    subject = issuer = x509.Name([
-        x509.NameAttribute(NameOID.COMMON_NAME, host),
-        x509.NameAttribute(NameOID.PSEUDONYM, checksum_address)
-    ])
 
+    fields = [
+        x509.NameAttribute(NameOID.COMMON_NAME, host),
+    ]
+    if checksum_address:
+        # Teacher Certificate
+        pseudonym = x509.NameAttribute(NameOID.PSEUDONYM, checksum_address)
+        fields.append(pseudonym)
+
+    subject = issuer = x509.Name(fields)
     cert = x509.CertificateBuilder().subject_name(subject)
     cert = cert.issuer_name(issuer)
     cert = cert.public_key(public_key)
@@ -199,6 +204,29 @@ def generate_self_signed_certificate(host: str,
     cert = cert.sign(private_key, hashes.SHA512(), default_backend())
 
     return cert, private_key
+
+
+def generate_teacher_certificate(checksum_address: str, *args, **kwargs):
+    cert = __generate_self_signed_certificate(checksum_address=checksum_address, *args, **kwargs)
+    return cert
+
+
+def generate_self_signed_certificate(*args, **kwargs):
+    if 'checksum_address' in kwargs:
+        raise ValueError("checksum address cannot be used to generate standard self-signed certificates.")
+    cert = __generate_self_signed_certificate(checksum_address=None, *args, **kwargs)
+    return cert
+
+
+def read_certificate_pseudonym(certificate: Certificate):
+    try:
+        pseudonym = certificate.subject.get_attributes_for_oid(NameOID.PSEUDONYM)[0]
+    except IndexError:
+        raise RuntimeError("Invalid teacher certificate encountered: No checksum address present as pseudonym.")
+    checksum_address = pseudonym.value
+    if not is_checksum_address(checksum_address):
+        raise RuntimeError("Invalid certificate checksum_address encountered")
+    return checksum_address
 
 
 def encrypt_and_sign(recipient_pubkey_enc: UmbralPublicKey,
