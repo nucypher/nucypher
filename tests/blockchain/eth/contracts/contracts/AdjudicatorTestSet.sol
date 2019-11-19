@@ -9,7 +9,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 /**
 * @notice Contract for testing the Adjudicator contract
-**/
+*/
 contract StakingEscrowForAdjudicatorMock {
 
     uint32 public secondsPerPeriod = 1;
@@ -50,7 +50,7 @@ contract StakingEscrowForAdjudicatorMock {
 
 /**
 * @notice Upgrade to this contract must lead to fail
-**/
+*/
 contract AdjudicatorBad is Upgradeable {
 
     StakingEscrow public escrow;
@@ -67,7 +67,7 @@ contract AdjudicatorBad is Upgradeable {
 
 /**
 * @notice Contract for testing upgrading the Adjudicator contract
-**/
+*/
 contract AdjudicatorV2Mock is Adjudicator {
 
     uint256 public valueToCheck;

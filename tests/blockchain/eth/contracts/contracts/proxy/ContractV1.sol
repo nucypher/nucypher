@@ -6,7 +6,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 /**
 * @dev Base contract for testing upgrading using dispatcher
-**/
+*/
 contract ContractV1 is Upgradeable {
 
     event EventV1(uint256 value);

@@ -7,7 +7,7 @@ import "contracts/StakingEscrow.sol";
 
 /**
 * @notice Upgrade to this contract must lead to fail
-**/
+*/
 contract PolicyManagerBad is PolicyManager {
 
     constructor(StakingEscrow _escrow) public PolicyManager(_escrow) {
@@ -22,7 +22,7 @@ contract PolicyManagerBad is PolicyManager {
 
 /**
 * @notice Contract for testing upgrading the PolicyManager contract
-**/
+*/
 contract PolicyManagerV2Mock is PolicyManager {
 
     uint256 public valueToCheck;
@@ -43,7 +43,7 @@ contract PolicyManagerV2Mock is PolicyManager {
 
 /**
 * @notice Contract for using in PolicyManager tests
-**/
+*/
 contract StakingEscrowForPolicyMock {
 
     struct Downtime {
@@ -58,28 +58,28 @@ contract StakingEscrowForPolicyMock {
 
     /**
     * @param _hoursPerPeriod Size of period in hours
-    **/
+    */
     constructor(uint16 _hoursPerPeriod) public {
         secondsPerPeriod = uint32(_hoursPerPeriod * 1 hours);
     }
 
     /**
     * @return Number of current period
-    **/
+    */
     function getCurrentPeriod() public view returns (uint16) {
         return uint16(block.timestamp / secondsPerPeriod);
     }
 
     /**
     * @notice Set last active period
-    **/
+    */
     function setLastActivePeriod(uint16 _lastActivePeriod) external {
         lastActivePeriod = _lastActivePeriod;
     }
 
     /**
     * @notice Add downtime period
-    **/
+    */
     function pushDowntimePeriod(uint16 _startPeriod, uint16 _endPeriod) external {
         downtime.push(Downtime(_startPeriod, _endPeriod));
     }
@@ -89,7 +89,7 @@ contract StakingEscrowForPolicyMock {
     * @param _staker Staker on behalf of whom minting will be
     * @param _startPeriod Start period for minting
     * @param _numberOfPeriods Number periods for minting
-    **/
+    */
     function mint(address _staker, uint16 _startPeriod, uint16 _numberOfPeriods) public {
         for (uint16 i = 0; i < _numberOfPeriods; i++) {
             policyManager.updateReward(_staker, i + _startPeriod);
@@ -100,14 +100,14 @@ contract StakingEscrowForPolicyMock {
     * @notice Emulate mint method
     * @param _startPeriod Start period for minting
     * @param _numberOfPeriods Number periods for minting
-    **/
+    */
     function mint(uint16 _startPeriod, uint16 _numberOfPeriods) external {
         mint(msg.sender, _startPeriod, _numberOfPeriods);
     }
 
     /**
     * @notice Set policy manager address
-    **/
+    */
     function setPolicyManager(PolicyManager _policyManager) external {
         policyManager = _policyManager;
     }

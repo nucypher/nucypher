@@ -6,7 +6,7 @@ import "contracts/NuCypherToken.sol";
 
 /**
 * @notice Contract for using in WorkLock tests
-**/
+*/
 contract StakingEscrowForWorkLockMock {
 
     struct StakerInfo {

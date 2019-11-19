@@ -6,7 +6,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 /**
 * @dev Contract that could be destroyed by selfdestruct
-**/
+*/
 contract Destroyable is Upgradeable {
 
     uint256 public constructorValue;

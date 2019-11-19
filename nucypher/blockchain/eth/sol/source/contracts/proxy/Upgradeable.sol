@@ -9,7 +9,7 @@ import "zeppelin/ownership/Ownable.sol";
 * @dev Inherited contract should implement verifyState(address) method by checking storage variables
 * (see verifyState(address) in Dispatcher). Also contract should implement finishUpgrade(address)
 * if it is using constructor parameters by coping this parameters to the dispatcher storage
-**/
+*/
 contract Upgradeable is Ownable {
 
     event StateVerified(address indexed testTarget, address sender);
@@ -19,22 +19,22 @@ contract Upgradeable is Ownable {
     * @dev Contracts at the target must reserve the same location in storage for this address as in Dispatcher
     * Stored data actually lives in the Dispatcher
     * However the storage layout is specified here in the implementing contracts
-    **/
+    */
     address public target;
 
     /**
     * @dev Previous contract address (if available). Used for rollback
-    **/
+    */
     address public previousTarget;
 
     /**
     * @dev Secret hash to proof that user owns previous version of a contract
-    **/
+    */
     bytes32 public secretHash;
 
     /**
     * @dev Upgrade status. Explicit `uint8` type is used instead of `bool` to save gas by excluding 0 value
-    **/
+    */
     uint8 public isUpgrade;
 
     /** Constants for `isUpgrade` field **/
@@ -44,7 +44,7 @@ contract Upgradeable is Ownable {
     /**
     * @dev Checks that function executed while upgrading
     * Recommended to add to `verifyState` and `finishUpgrade` methods
-    **/
+    */
     modifier onlyWhileUpgrading()
     {
         require(isUpgrade == UPGRADE_TRUE);
@@ -54,7 +54,7 @@ contract Upgradeable is Ownable {
     /**
     * @dev Method for verifying storage state.
     * Should check that new target contract returns right storage value
-    **/
+    */
     function verifyState(address _testTarget) public onlyWhileUpgrading {
         emit StateVerified(_testTarget, msg.sender);
     }
@@ -62,7 +62,7 @@ contract Upgradeable is Ownable {
     /**
     * @dev Copy values from the new target to the current storage
     * @param _target New target contract address
-    **/
+    */
     function finishUpgrade(address _target) public onlyWhileUpgrading {
         emit UpgradeFinished(_target, msg.sender);
     }
@@ -75,7 +75,7 @@ contract Upgradeable is Ownable {
     * @param _argument1 First method argument
     * @param _argument2 Second method argument
     * @return Address in memory where the data is located
-    **/
+    */
     function delegateGetData(
         address _target,
         string memory _signature,
@@ -108,7 +108,7 @@ contract Upgradeable is Ownable {
     /**
     * @dev Call "getter" without parameters.
     * Result should not exceed 32 bytes
-    **/
+    */
     function delegateGet(address _target, string memory _signature)
         internal returns (uint256 result)
     {
@@ -121,7 +121,7 @@ contract Upgradeable is Ownable {
     /**
     * @dev Call "getter" with one parameter.
     * Result should not exceed 32 bytes
-    **/
+    */
     function delegateGet(address _target, string memory _signature, bytes32 _argument)
         internal returns (uint256 result)
     {
@@ -134,7 +134,7 @@ contract Upgradeable is Ownable {
     /**
     * @dev Call "getter" with two parameters.
     * Result should not exceed 32 bytes
-    **/
+    */
     function delegateGet(
         address _target,
         string memory _signature,

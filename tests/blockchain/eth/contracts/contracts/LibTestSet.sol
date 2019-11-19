@@ -7,7 +7,7 @@ import "contracts/lib/ReEncryptionValidator.sol";
 
 /**
 * @notice Contract for using SignatureVerifier library
-**/
+*/
 contract SignatureVerifierMock {
 
     function recover(bytes32 _hash, bytes memory _signature)
@@ -72,7 +72,7 @@ contract SignatureVerifierMock {
 
 /**
 * @dev Contract for testing UmbralDeserializer library
-**/
+*/
 contract UmbralDeserializerMock {
     using UmbralDeserializer for bytes;
 
@@ -178,7 +178,7 @@ contract UmbralDeserializerMock {
 
 /**
 * @notice Contract for using ReEncryptionValidator library
-**/
+*/
 contract ReEncryptionValidatorMock {
 
     using UmbralDeserializer for bytes;

@@ -6,7 +6,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 /**
 * @dev Extension of the contract using valid storage variables
-**/
+*/
 contract ContractV2 is Upgradeable {
 
     event EventV2(uint8 value);
@@ -176,7 +176,7 @@ contract ContractV2 is Upgradeable {
 
     /**
     * @dev Get array by one parameter.
-    **/
+    */
     function delegateGetArray(
         address _target,
         string memory _signature,

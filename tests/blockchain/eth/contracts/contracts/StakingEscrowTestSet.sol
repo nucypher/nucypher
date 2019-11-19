@@ -7,7 +7,7 @@ import "contracts/NuCypherToken.sol";
 
 /**
 * @notice Upgrade to this contract must lead to fail
-**/
+*/
 contract StakingEscrowBad is StakingEscrow {
 
     constructor(
@@ -45,7 +45,7 @@ contract StakingEscrowBad is StakingEscrow {
 
 /**
 * @notice Contract for testing upgrading the StakingEscrow contract
-**/
+*/
 contract StakingEscrowV2Mock is StakingEscrow {
 
     uint256 public valueToCheck;
@@ -97,7 +97,7 @@ contract StakingEscrowV2Mock is StakingEscrow {
 
 /**
 * @notice Contract for testing staking escrow contract
-**/
+*/
 contract PolicyManagerForStakingEscrowMock {
 
     StakingEscrow public escrow;
@@ -113,21 +113,21 @@ contract PolicyManagerForStakingEscrowMock {
 
     /**
     * @notice Update node info
-    **/
+    */
     function updateReward(address _node, uint16 _period) external {
         nodes[_node].push(_period);
     }
 
     /**
     * @notice Get length of array
-    **/
+    */
     function getPeriodsLength(address _node) public view returns (uint256) {
         return nodes[_node].length;
     }
 
     /**
     * @notice Get period info
-    **/
+    */
     function getPeriod(address _node, uint256 _index) public view returns (uint16) {
         return nodes[_node][_index];
     }
@@ -137,7 +137,7 @@ contract PolicyManagerForStakingEscrowMock {
 
 /**
 * @notice Contract for testing staking escrow contract
-**/
+*/
 contract AdjudicatorForStakingEscrowMock {
 
     StakingEscrow public escrow;
@@ -160,7 +160,7 @@ contract AdjudicatorForStakingEscrowMock {
 
 /**
 * @notice Intermediary contract for testing worker
-**/
+*/
 contract Intermediary {
 
     NuCypherToken token;
@@ -189,7 +189,7 @@ contract Intermediary {
 
 /**
 * @notice Contract for testing staking escrow contract
-**/
+*/
 contract WorkLockForStakingEscrowMock {
 
     StakingEscrow public escrow;

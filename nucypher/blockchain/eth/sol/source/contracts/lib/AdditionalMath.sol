@@ -6,7 +6,7 @@ import "zeppelin/math/SafeMath.sol";
 
 /**
 * @notice Additional math operations
-**/
+*/
 library AdditionalMath {
     using SafeMath for uint256;
 
@@ -20,7 +20,7 @@ library AdditionalMath {
 
     /**
     * @notice Division and ceil
-    **/
+    */
     function divCeil(uint256 a, uint256 b) internal pure returns (uint256) {
         return (a.add(b) - 1) / b;
     }

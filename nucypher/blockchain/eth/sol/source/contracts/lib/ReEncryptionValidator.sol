@@ -5,7 +5,7 @@ import "contracts/lib/SignatureVerifier.sol";
 
 /**
 * @notice Validates re-encryption correctness.
-**/
+*/
 library ReEncryptionValidator {
 
     using UmbralDeserializer for bytes;
@@ -43,7 +43,7 @@ library ReEncryptionValidator {
     * @param _capsuleBytes Capsule
     * @param _cFragBytes Capsule frag
     * @param _precomputedBytes Additional precomputed data
-    **/
+    */
     function validateCFrag(
         bytes memory _capsuleBytes,
         bytes memory _cFragBytes,

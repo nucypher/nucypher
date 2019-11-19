@@ -10,7 +10,7 @@ import "contracts/lib/AdditionalMath.sol";
 
 /**
 * @notice Contract for calculate issued tokens
-**/
+*/
 contract Issuer is Upgradeable {
     using SafeMath for uint256;
     using AdditionalMath for uint32;
@@ -32,7 +32,7 @@ contract Issuer is Upgradeable {
     * supply for previous period (used in formula) and supply for current period which accumulates value
     * before end of period. There is no order between them because of storage savings.
     * So each time should check values of both variables.
-    **/
+    */
     uint256 public currentSupply1;
     uint256 public currentSupply2;
 
@@ -46,7 +46,7 @@ contract Issuer is Upgradeable {
     * @param _miningCoefficient Mining coefficient (k2)
     * @param _lockedPeriodsCoefficient Locked periods coefficient (k1)
     * @param _rewardedPeriods Max periods that will be additionally rewarded
-    **/
+    */
     constructor(
         NuCypherToken _token,
         uint32 _hoursPerPeriod,
@@ -79,7 +79,7 @@ contract Issuer is Upgradeable {
 
     /**
     * @dev Checks contract initialization
-    **/
+    */
     modifier isInitialized()
     {
         require(currentSupply1 != 0);
@@ -88,14 +88,14 @@ contract Issuer is Upgradeable {
 
     /**
     * @return Number of current period
-    **/
+    */
     function getCurrentPeriod() public view returns (uint16) {
         return uint16(block.timestamp / secondsPerPeriod);
     }
 
     /**
     * @notice Initialize reserved tokens for reward
-    **/
+    */
     function initialize() public onlyOwner {
         require(currentSupply1 == 0);
         currentMintingPeriod = getCurrentPeriod();
@@ -162,7 +162,7 @@ contract Issuer is Upgradeable {
     /**
     * @notice Return tokens for future minting
     * @param _amount Amount of tokens
-    **/
+    */
     function unMint(uint256 _amount) internal {
         currentSupply1 = currentSupply1 - _amount;
         currentSupply2 = currentSupply2 - _amount;
@@ -170,7 +170,7 @@ contract Issuer is Upgradeable {
 
     /**
     * @notice Returns the number of tokens that can be mined
-    **/
+    */
     function getReservedReward() public view returns (uint256) {
         return totalSupply - Math.max(currentSupply1, currentSupply2);
     }

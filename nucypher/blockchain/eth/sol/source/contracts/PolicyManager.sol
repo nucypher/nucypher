@@ -13,7 +13,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 /**
 * @notice Contract holds policy data and locks fees
-**/
+*/
 contract PolicyManager is Upgradeable {
     using SafeERC20 for NuCypherToken;
     using SafeMath for uint256;
@@ -92,7 +92,7 @@ contract PolicyManager is Upgradeable {
     /**
     * @notice Constructor sets address of the escrow contract
     * @param _escrow Escrow contract
-    **/
+    */
     constructor(StakingEscrow _escrow) public {
         // if the input address is not the StakingEscrow then calling `secondsPerPeriod` will throw error
         secondsPerPeriod = _escrow.secondsPerPeriod();
@@ -102,7 +102,7 @@ contract PolicyManager is Upgradeable {
 
     /**
     * @dev Checks that sender is the StakingEscrow contract
-    **/
+    */
     modifier onlyEscrowContract()
     {
         require(msg.sender == address(escrow));
@@ -111,7 +111,7 @@ contract PolicyManager is Upgradeable {
 
     /**
     * @return Number of current period
-    **/
+    */
     function getCurrentPeriod() public view returns (uint16) {
         return uint16(block.timestamp / secondsPerPeriod);
     }
@@ -120,7 +120,7 @@ contract PolicyManager is Upgradeable {
     * @notice Register a node
     * @param _node Node address
     * @param _period Initial period
-    **/
+    */
     function register(address _node, uint16 _period) external onlyEscrowContract {
         NodeInfo storage nodeInfo = nodes[_node];
         require(nodeInfo.lastMinedPeriod == 0);
@@ -129,7 +129,7 @@ contract PolicyManager is Upgradeable {
 
     /**
     * @notice Set the minimum reward that the node will take
-    **/
+    */
     function setMinRewardRate(uint256 _minRewardRate) public {
         NodeInfo storage node = nodes[msg.sender];
         node.minRewardRate = _minRewardRate;
@@ -143,7 +143,7 @@ contract PolicyManager is Upgradeable {
     * @param _numberOfPeriods Duration of the policy in periods except first period
     * @param _firstPartialReward Partial reward for first/current period
     * @param _nodes Nodes that will handle policy
-    **/
+    */
     function createPolicy(
         bytes16 _policyId,
         uint16 _numberOfPeriods,
@@ -189,7 +189,7 @@ contract PolicyManager is Upgradeable {
     * @notice Update node reward
     * @param _node Node address
     * @param _period Processed period
-    **/
+    */
     function updateReward(address _node, uint16 _period) external onlyEscrowContract {
         NodeInfo storage node = nodes[_node];
         if (node.lastMinedPeriod == 0 || _period <= node.lastMinedPeriod) {
@@ -204,7 +204,7 @@ contract PolicyManager is Upgradeable {
 
     /**
     * @notice Withdraw reward by node
-    **/
+    */
     function withdraw() public returns (uint256) {
         return withdraw(msg.sender);
     }
@@ -212,7 +212,7 @@ contract PolicyManager is Upgradeable {
     /**
     * @notice Withdraw reward by node
     * @param _recipient Recipient of the reward
-    **/
+    */
     function withdraw(address payable _recipient) public returns (uint256) {
         NodeInfo storage node = nodes[msg.sender];
         uint256 reward = node.reward;
@@ -227,7 +227,7 @@ contract PolicyManager is Upgradeable {
     * @notice Calculate amount of refund
     * @param _policy Policy
     * @param _arrangement Arrangement
-    **/
+    */
     function calculateRefundValue(Policy storage _policy, ArrangementInfo storage _arrangement)
         internal view returns (uint256 refundValue, uint256 indexOfDowntimePeriods, uint16 lastRefundedPeriod)
     {
@@ -288,7 +288,7 @@ contract PolicyManager is Upgradeable {
     * @param _policyId Policy id
     * @param _node Node that will be excluded or RESERVED_NODE if full policy should be used
     ( @param _forceRevoke Force revoke arrangement/policy
-    **/
+    */
     function refundInternal(bytes16 _policyId, address _node, bool _forceRevoke)
         internal returns (uint256 refundValue)
     {
@@ -348,7 +348,7 @@ contract PolicyManager is Upgradeable {
     * @notice Calculate amount of refund
     * @param _policyId Policy id
     * @param _node Node or RESERVED_NODE if all nodes should be used
-    **/
+    */
     function calculateRefundValueInternal(bytes16 _policyId, address _node)
         internal view returns (uint256 refundValue)
     {
@@ -375,7 +375,7 @@ contract PolicyManager is Upgradeable {
     /**
     * @notice Revoke policy by client
     * @param _policyId Policy id
-    **/
+    */
     function revokePolicy(bytes16 _policyId) public {
         refundInternal(_policyId, RESERVED_NODE, true);
     }
@@ -384,7 +384,7 @@ contract PolicyManager is Upgradeable {
     * @notice Revoke arrangement by client
     * @param _policyId Policy id
     * @param _node Node that will be excluded
-    **/
+    */
     function revokeArrangement(bytes16 _policyId, address _node)
         public returns (uint256 refundValue)
     {
@@ -395,7 +395,7 @@ contract PolicyManager is Upgradeable {
     /**
     * @notice Refund part of fee by client
     * @param _policyId Policy id
-    **/
+    */
     function refund(bytes16 _policyId) public {
         refundInternal(_policyId, RESERVED_NODE, false);
     }
@@ -404,7 +404,7 @@ contract PolicyManager is Upgradeable {
     * @notice Refund part of one node's fee by client
     * @param _policyId Policy id
     * @param _node Node address
-    **/
+    */
     function refund(bytes16 _policyId, address _node)
         public returns (uint256 refundValue)
     {
@@ -415,7 +415,7 @@ contract PolicyManager is Upgradeable {
     /**
     * @notice Calculate amount of refund
     * @param _policyId Policy id
-    **/
+    */
     function calculateRefundValue(bytes16 _policyId)
         external view returns (uint256 refundValue)
     {
@@ -426,7 +426,7 @@ contract PolicyManager is Upgradeable {
     * @notice Calculate amount of refund
     * @param _policyId Policy id
     * @param _node Node
-    **/
+    */
     function calculateRefundValue(bytes16 _policyId, address _node)
         external view returns (uint256 refundValue)
     {
@@ -437,7 +437,7 @@ contract PolicyManager is Upgradeable {
     /**
     * @notice Get number of arrangements in the policy
     * @param _policyId Policy id
-    **/
+    */
     function getArrangementsLength(bytes16 _policyId)
         public view returns (uint256)
     {
@@ -448,7 +448,7 @@ contract PolicyManager is Upgradeable {
     * @notice Get information about node reward
     * @param _node Address of node
     * @param _period Period to get reward delta
-    **/
+    */
     function getNodeRewardDelta(address _node, uint16 _period)
         public view returns (int256)
     {
@@ -457,7 +457,7 @@ contract PolicyManager is Upgradeable {
 
     /**
     * @notice Return the information about arrangement
-    **/
+    */
     function getArrangementInfo(bytes16 _policyId, uint256 _index)
     // TODO change to structure when ABIEncoderV2 is released (#1501)
 //        public view returns (ArrangementInfo)
@@ -472,7 +472,7 @@ contract PolicyManager is Upgradeable {
 
     /**
     * @dev Get Policy structure by delegatecall
-    **/
+    */
     function delegateGetPolicy(address _target, bytes16 _policyId)
         internal returns (Policy memory result)
     {
@@ -484,7 +484,7 @@ contract PolicyManager is Upgradeable {
 
     /**
     * @dev Get ArrangementInfo structure by delegatecall
-    **/
+    */
     function delegateGetArrangementInfo(address _target, bytes16 _policyId, uint256 _index)
         internal returns (ArrangementInfo memory result)
     {
@@ -497,7 +497,7 @@ contract PolicyManager is Upgradeable {
 
     /**
     * @dev Get NodeInfo structure by delegatecall
-    **/
+    */
     function delegateGetNodeInfo(address _target, address _node)
         internal returns (NodeInfo memory result)
     {

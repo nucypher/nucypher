@@ -9,7 +9,7 @@ import "contracts/StakingEscrow.sol";
 
 /**
 * @notice The WorkLock distribution contract
-**/
+*/
 contract WorkLock {
     using SafeMath for uint256;
     using Address for address payable;
@@ -46,7 +46,7 @@ contract WorkLock {
     * @param _depositRate ETH -> NU rate
     * @param _refundRate Work -> ETH rate
     * @param _lockedPeriods Number of periods during which claimed tokens will be locked
-    **/
+    */
     constructor(
         NuCypherToken _token,
         StakingEscrow _escrow,
@@ -78,7 +78,7 @@ contract WorkLock {
 
     /**
     * @notice Bid for tokens by transferring ETH
-    **/
+    */
     function bid() public payable returns (uint256 newClaimedTokens) {
         require(block.timestamp >= startBidDate && block.timestamp <= endBidDate,
             "Bid is open during a certain period");
@@ -96,7 +96,7 @@ contract WorkLock {
 
     /**
     * @notice Claimed tokens will be deposited and locked as stake in the StakingEscrow contract.
-    **/
+    */
     function claim() public returns (uint256 claimedTokens) {
         require(block.timestamp >= endBidDate, "Claiming tokens allowed after bidding is over");
         WorkInfo storage info = workInfo[msg.sender];
@@ -111,7 +111,7 @@ contract WorkLock {
 
     /**
     * @notice Refund ETH for the completed work
-    **/
+    */
     function refund() public returns (uint256 refundETH) {
         WorkInfo storage info = workInfo[msg.sender];
         require(info.claimed, "Tokens are not claimed");
@@ -135,7 +135,7 @@ contract WorkLock {
 
     /**
     * @notice Get remaining work to full refund
-    **/
+    */
     function getRemainingWork(address _staker) public view returns (uint256) {
         WorkInfo storage info = workInfo[_staker];
         uint256 completedWork = escrow.getCompletedWork(_staker).sub(info.completedWork);

@@ -6,7 +6,7 @@ import "contracts/NuCypherToken.sol";
 
 /**
 * @notice Contract for using in staking contracts tests
-**/
+*/
 contract StakingEscrowForStakingContractMock {
 
     NuCypherToken token;
@@ -83,7 +83,7 @@ contract StakingEscrowForStakingContractMock {
 
 /**
 * @notice Contract for staking contract tests
-**/
+*/
 contract PolicyManagerForStakingContractMock {
 
     uint32 public secondsPerPeriod = 1;
@@ -110,7 +110,7 @@ contract PolicyManagerForStakingContractMock {
 
 /**
 * @notice Contract for staking contract tests
-**/
+*/
 contract StakingInterfaceMockV1 {
 
     function firstMethod() public pure {}
@@ -124,7 +124,7 @@ contract StakingInterfaceMockV1 {
 
 /**
 * @notice Contract for staking contract tests
-**/
+*/
 contract StakingInterfaceMockV2 {
 
     function () external payable {
@@ -145,7 +145,7 @@ contract StakingInterfaceMockV2 {
 
 /**
 * @dev Interface that could be destroyed by selfdestruct
-**/
+*/
 contract DestroyableStakingInterface {
 
     function method() public pure returns (uint256) {
