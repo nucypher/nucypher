@@ -58,15 +58,15 @@ class MonitorDashboardApp(NetworkStatusPage):
                         html.Div(id='time-remaining'),
                         html.Div(id='domains'),
                         html.Div(id='active-stakers'),
-                        html.Div(id='staker-breakdown'),
                         html.Div(id='staked-tokens'),
                     ], id='stats'),
 
                     # Charts
                     html.Div([
+                        html.Div(id='staker-breakdown'),
                         html.Div(id='prev-num-stakers-graph'),
                         html.Div(id='prev-locked-stake-graph'),
-                        #html.Div(id='locked-stake-graph'),
+                        html.Div(id='locked-stake-graph'),
                     ], id='widgets'),
 
                     # States and Known Nodes Table
@@ -243,31 +243,39 @@ class MonitorDashboardApp(NetworkStatusPage):
             fig['layout'].update(autosize=True, width=None, height=None)
             return dcc.Graph(figure=fig, id='prev-stakers-graph', config=self.GRAPH_CONFIG)
 
-        # @self.dash_app.callback(Output('locked-stake-graph', 'children'),
-        #                         [Input('daily-interval', 'n_intervals')])
-        # def future_locked_tokens(n):
-        #     token_counter = self.moe_crawler.snapshot['future_locked_tokens']
-        #     periods = len(token_counter)
-        #     period_range = list(range(1, periods + 1))
-        #     token_counter_values = list(token_counter.values())
-        #     fig = go.Figure(data=[
-        #                         go.Bar(
-        #                             textposition='auto',
-        #                             x=period_range,
-        #                             y=token_counter_values,
-        #                             name='Stake',
-        #                             marker=go.bar.Marker(color=token_counter_values, colorscale='Viridis')
-        #                         )
-        #                     ],
-        #                     layout=go.Layout(
-        #                         title=f'Staked NU over the next {periods} days.',
-        #                         xaxis={'title': 'Days'},
-        #                         yaxis={'title': 'NU Tokens', 'rangemode': 'tozero'},
-        #                         showlegend=False,
-        #                         legend=go.layout.Legend(x=0, y=1.0),
-        #                         paper_bgcolor='rgba(0,0,0,0)',
-        #                         plot_bgcolor='rgba(0,0,0,0)'
-        #                     ))
-        #
-        #     fig['layout'].update(autosize=True, width=None, height=None)
-        #     return dcc.Graph(figure=fig, id='locked-graph', config=self.GRAPH_CONFIG)
+        @self.dash_app.callback(Output('locked-stake-graph', 'children'),
+                                [Input('daily-interval', 'n_intervals')])
+        def future_locked_tokens(n):
+
+            def _snapshot_future_locked_tokens():
+                # TODO: Consider adopting this method here, or moving it to the crawler with database storage
+                period_range = range(1, 365 + 1)
+                token_counter = {day: NU.from_nunits(self.staking_agent.get_all_locked_tokens(day)).to_tokens()
+                                 for day in period_range}
+                return token_counter
+
+            token_counter = _snapshot_future_locked_tokens()
+            periods = len(token_counter)
+            period_range = list(range(1, periods + 1))
+            token_counter_values = list(token_counter.values())
+            fig = go.Figure(data=[
+                                go.Bar(
+                                    textposition='auto',
+                                    x=period_range,
+                                    y=token_counter_values,
+                                    name='Stake',
+                                    marker=go.bar.Marker(color=token_counter_values, colorscale='Viridis')
+                                )
+                            ],
+                            layout=go.Layout(
+                                title=f'Staked NU over the next {periods} days.',
+                                xaxis={'title': 'Days'},
+                                yaxis={'title': 'NU Tokens', 'rangemode': 'tozero'},
+                                showlegend=False,
+                                legend=go.layout.Legend(x=0, y=1.0),
+                                paper_bgcolor='rgba(0,0,0,0)',
+                                plot_bgcolor='rgba(0,0,0,0)'
+                            ))
+
+            fig['layout'].update(autosize=True, width=None, height=None)
+            return dcc.Graph(figure=fig, id='locked-graph', config=self.GRAPH_CONFIG)
