@@ -9,8 +9,6 @@ import maya
 import time
 from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE
 from flask import Flask, render_template, Response
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from hendrix.deploy.base import HendrixDeploy
 from nacl.hash import sha256
 from sqlalchemy import create_engine, or_
