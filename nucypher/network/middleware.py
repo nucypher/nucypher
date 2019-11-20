@@ -148,7 +148,7 @@ class RestMiddleware:
 
     def consider_arrangement(self, arrangement):
         node = arrangement.ursula
-        response = self.client.post(node=node,
+        response = self.client.post(node_or_sprout=node,
                                     path="consider_arrangement",
                                     data=bytes(arrangement),
                                     timeout=2,
@@ -156,7 +156,7 @@ class RestMiddleware:
         return response
 
     def enact_policy(self, ursula, kfrag_id, payload):
-        response = self.client.post(node=ursula,
+        response = self.client.post(node_or_sprout=ursula,
                                     path=f'kFrag/{kfrag_id.hex()}',
                                     data=payload,
                                     timeout=2)
@@ -182,13 +182,13 @@ class RestMiddleware:
         return NotImplemented
 
     def get_treasure_map_from_node(self, node, map_id):
-        response = self.client.get(node=node,
+        response = self.client.get(node_or_sprout=node,
                                    path=f"treasure_map/{map_id}",
                                    timeout=2)
         return response
 
     def put_treasure_map_on_node(self, node, map_id, map_payload):
-        response = self.client.post(node=node,
+        response = self.client.post(node_or_sprout=node,
                                     path=f"treasure_map/{map_id}",
                                     data=map_payload,
                                     timeout=2)
@@ -198,7 +198,7 @@ class RestMiddleware:
         payload = work_order.payload()
         id_as_hex = work_order.arrangement_id.hex()
         return self.client.post(
-            node=work_order.ursula,
+            node_or_sprout=work_order.ursula,
             path=f"kFrag/{id_as_hex}/reencrypt",
             data=payload, timeout=2)
 
@@ -227,13 +227,13 @@ class RestMiddleware:
 
         if announce_nodes:
             payload = bytes().join(bytes(VariableLengthBytestring(n)) for n in announce_nodes)
-            response = self.client.post(node=node,
+            response = self.client.post(node_or_sprout=node,
                                         path="node_metadata",
                                         params=params,
                                         data=payload,
                                         )
         else:
-            response = self.client.get(node=node,
+            response = self.client.get(node_or_sprout=node,
                                        path="node_metadata",
                                        params=params)
 
