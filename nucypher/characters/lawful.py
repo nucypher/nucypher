@@ -1125,9 +1125,11 @@ class Ursula(Teacher, Character, Worker):
         return potential_seed_node
 
     @classmethod
-    def internal_splitter(cls, splittable):
-        result = BytestringKwargifier(
-            NodeSprout,  # Just a dict really.
+    def internal_splitter(cls, splittable, partial=False):
+        splitter = BytestringKwargifier(
+            _receiver=cls.from_public_keys,
+            _partial_receiver=NodeSprout,
+            # _additional_kwargs={'node_class': Ursula},
             public_address=PUBLIC_ADDRESS_LENGTH,
             domains=VariableLengthBytestring,
             timestamp=(int, 4, {'byteorder': 'big'}),
@@ -1138,7 +1140,8 @@ class Ursula(Teacher, Character, Worker):
             certificate=(load_pem_x509_certificate, VariableLengthBytestring, {"backend": default_backend()}),
             rest_interface=InterfaceInfo,
         )
-        return result(splittable)
+        result = splitter(splittable, partial=partial)
+        return result
 
     @classmethod
     def from_bytes(cls,
