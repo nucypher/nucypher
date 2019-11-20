@@ -115,7 +115,10 @@ class MonitorDashboardApp(NetworkStatusPage):
                                  Input('half-minute-interval', 'n_intervals')])
         def known_nodes(n_clicks, n_intervals):
             known_nodes_dict = self.node_metadata_db_client.get_known_nodes_metadata()
-            return self.known_nodes(nodes_dict=known_nodes_dict, registry=self.registry)
+            teacher_checksum = self.node_metadata_db_client.get_current_teacher_checksum()
+            return self.known_nodes(nodes_dict=known_nodes_dict,
+                                    registry=self.registry,
+                                    teacher_checksum=teacher_checksum)
 
         @self.dash_app.callback(Output('active-stakers', 'children'),
                                 [Input('minute-interval', 'n_intervals')])
