@@ -46,13 +46,6 @@ workflows:
               only: /.*/
           requires:
             - pip_install_37
-      - network_status:
-          context: "NuCypher Tests"
-          filters:
-            tags:
-              only: /.*/
-          requires:
-            - pipenv_install_37
       - character:
           context: "NuCypher Tests"
           filters:
@@ -95,7 +88,6 @@ workflows:
           requires:
             - basics
             - network
-            - network_status
             - character
             - cli
             - deployers
@@ -469,7 +461,6 @@ jobs:
             pytest $(circleci tests glob "tests/config/**/test_*.py" "tests/crypto/**/test_*.py" "tests/keystore/**/test_*.py" "tests/blockchain/eth/interfaces/**/test_*.py" "tests/blockchain/eth/clients/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
-# Test network but don't test 'network/status' - it has a separate job called 'network_status'
   network:
     <<: *python_37_base
     steps:
@@ -477,17 +468,6 @@ jobs:
       - run:
           name: Network Tests
           command: pytest $(circleci tests glob "tests/network/test_*.py" | circleci tests split --split-by=timings)
-      - capture_test_results
-
-  network_status:
-    <<: *python_36_base_browser
-    steps:
-      - checkout
-      - pipenv_install
-      - run:
-          name: Network Status Page Tests
-          command: |
-            pipenv run pytest $(circleci tests glob "tests/network/status/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   character:
