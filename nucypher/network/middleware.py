@@ -78,11 +78,13 @@ class NucypherMiddlewareClient:
                 f"This client is for HTTP only - you need to use a real HTTP verb, not '{method_name}'.")
 
         def method_wrapper(path,
-                           node=None,
+                           node_or_sprout=None,
                            host=None,
                            port=None,
                            certificate_filepath=None,
                            *args, **kwargs):
+            node_or_sprout.mature()  # Morph into a node.
+            node = node_or_sprout  # Definitely a node.
             host, node_certificate_filepath, http_client = self.parse_node_or_host_and_port(node, host, port)
 
             if certificate_filepath:
