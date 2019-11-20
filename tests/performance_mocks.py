@@ -96,6 +96,44 @@ def simple_remember(ursula, node, *args, **kwargs):
 
 class NotARestApp:
     testing = True
+    _actual_rest_apps = []
+    _replaced_routes = {}
+
+    def __init__(self, this_node, *args, **kwargs):
+        self._actual_rest_app = None
+        self.this_node = this_node
+
+    @classmethod
+    @contextmanager
+    def replace_route(cls, route_name, new_route):
+        cls._replaced_routes[route_name] = new_route
+        yield
+        del cls._replaced_routes[route_name]
+
+    class _ViewFunctions:
+        def __init__(self, _old_view_functions=None):
+            self._view_functions_registry = _old_view_functions or {}
+
+        def __getitem__(self, route_name):
+            try:
+                return NotARestApp._replaced_routes[route_name]
+            except KeyError:
+                return self._view_functions_registry[route_name]
+
+
+    def actual_rest_app(self):
+        if self._actual_rest_app is None:
+            self._actual_rest_app, _keystore = make_rest_app(db_filepath="no datastore",
+                          this_node=self.this_node,
+                          serving_domains=(None,))
+            _new_view_functions = self._ViewFunctions(self._actual_rest_app.view_functions)
+            self._actual_rest_app.view_functions = _new_view_functions
+            self._actual_rest_apps.append(self._actual_rest_app)  # Remember now, we're appending to the class-bound list.
+        return self._actual_rest_app
+
+    def test_client(self):
+        rest_app = self.actual_rest_app()
+        return rest_app.test_client()
 
 
 class VerificationTracker:
