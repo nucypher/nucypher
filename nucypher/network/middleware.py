@@ -96,6 +96,8 @@ class NucypherMiddlewareClient:
             else:
                 certificate_filepath = node_certificate_filepath
 
+            # TODO: Check node validity here?  or...."
+
             method = getattr(http_client, method_name)
 
             url = f"https://{host}/{path}"

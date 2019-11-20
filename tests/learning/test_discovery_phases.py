@@ -54,5 +54,29 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(large_fleet_of_highperf_
             elapsed = ended - started
 
     assert VerificationTracker.node_verifications == 1  # We have only verified the first Ursula.
-    assert sum(isinstance(u, Ursula) for u in highperf_mocked_alice.known_nodes) < 20  # We haven't instantiated many Ursulas.
+    assert sum(
+        isinstance(u, Ursula) for u in highperf_mocked_alice.known_nodes) < 20  # We haven't instantiated many Ursulas.
     assert elapsed < 8  # 8 seconds is still a little long to discover 8 out of 5000 nodes, but before starting the optimization that went with this test, this operation took about 18 minutes on jMyles' laptop.
+    VerificationTracker.node_verifications = 0  # Cleanup
+
+def test_alice_verifies_ursula_just_in_time(large_fleet_of_highperf_mocked_ursulas, highperf_mocked_alice,
+                                            highperf_mocked_bob):
+    def actual_random_key_instead(*args, **kwargs):
+        _private_key = UmbralPrivateKey.gen_key()
+        public_key = _private_key.get_pubkey()
+        return public_key
+
+    def mock_set_policy(id_as_hex):
+        return ""
+
+    def mock_receive_treasure_map(treasure_map_id):
+        return Response(bytes(), status=202)
+
+    with NotARestApp.replace_route("receive_treasure_map", mock_receive_treasure_map):
+        with NotARestApp.replace_route("set_policy", mock_set_policy):
+            with patch('umbral.keys.UmbralPublicKey.__eq__', lambda *args, **kwargs: True):
+                with patch('umbral.keys.UmbralPublicKey.from_bytes',
+                           new=actual_random_key_instead), mock_message_verification:
+                    highperf_mocked_alice.grant(highperf_mocked_bob, b"any label", m=20, n=30,
+                                                expiration=maya.when('next week'))
+    assert VerificationTracker.node_verifications == 30
