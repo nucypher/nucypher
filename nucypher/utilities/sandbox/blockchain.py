@@ -88,6 +88,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
     def __init__(self,
                  test_accounts=None,
                  poa=True,
+                 light=False,
                  eth_airdrop=False,
                  free_transactions=False,
                  compiler: SolidityCompiler = None,
@@ -103,6 +104,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         super().__init__(provider_uri=self._PROVIDER_URI,
                          provider_process=None,
                          poa=poa,
+                         light=light,
                          compiler=self._compiler,
                          *args, **kwargs)
 

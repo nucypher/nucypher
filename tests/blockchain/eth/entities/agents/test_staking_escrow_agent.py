@@ -163,6 +163,17 @@ def test_sample_stakers(agency):
     assert len(stakers) == 3       # Three...
     assert len(set(stakers)) == 3  # ...unique addresses
 
+    # Same but with pagination
+    stakers = staking_agent.sample(quantity=3, duration=5, pagination_size=1)
+    assert len(stakers) == 3
+    assert len(set(stakers)) == 3
+    light = staking_agent.blockchain.is_light
+    staking_agent.blockchain.is_light = not light
+    stakers = staking_agent.sample(quantity=3, duration=5)
+    assert len(stakers) == 3
+    assert len(set(stakers)) == 3
+    staking_agent.blockchain.is_light = light
+
 
 def test_get_current_period(agency, testerchain):
     _token_agent, staking_agent,_policy_agent = agency

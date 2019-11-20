@@ -95,6 +95,7 @@ class BlockchainInterface:
 
     def __init__(self,
                  poa: bool = True,
+                 light: bool = False,
                  provider_process: NuCypherGethProcess = NO_PROVIDER_PROCESS,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
                  provider: Web3Providers = NO_BLOCKCHAIN_CONNECTION):
@@ -173,6 +174,7 @@ class BlockchainInterface:
         self.w3 = NO_BLOCKCHAIN_CONNECTION
         self.client = NO_BLOCKCHAIN_CONNECTION
         self.transacting_power = READ_ONLY_INTERFACE
+        self.is_light = light
 
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
@@ -185,7 +187,7 @@ class BlockchainInterface:
         return blockchain
 
     def to_dict(self) -> dict:
-        payload = dict(provider_uri=self.provider_uri, poa=self.poa)
+        payload = dict(provider_uri=self.provider_uri, poa=self.poa, light=self.is_light)
         return payload
 
     @property

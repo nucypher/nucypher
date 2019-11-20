@@ -46,6 +46,7 @@ from nucypher.config.characters import StakeHolderConfiguration
 # Args (poa, registry_filepath)
 def _admin_options(func):
     @click.option('--poa', help="Inject POA middleware", is_flag=True)
+    @click.option('--light', help="Indicate that node is light", is_flag=True, default=False)
     @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -116,7 +117,7 @@ def init_stakeholder(click_config,
                      config_root, force,
 
                      # Admin Options
-                     poa, registry_filepath):
+                     poa, light, registry_filepath):
     """
     Create a new stakeholder configuration.
     """
@@ -125,6 +126,7 @@ def init_stakeholder(click_config,
     new_stakeholder = StakeHolderConfiguration.generate(config_root=config_root,
                                                         provider_uri=provider_uri,
                                                         poa=poa,
+                                                        light=light,
                                                         sync=False,
                                                         registry_filepath=registry_filepath)
 
@@ -139,7 +141,7 @@ def init_stakeholder(click_config,
 def list(click_config,
 
          # API Options
-         poa, registry_filepath, config_file, provider_uri, staking_address,
+         poa, light, registry_filepath, config_file, provider_uri, staking_address,
 
          # Other options
          all
@@ -151,8 +153,14 @@ def list(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
-                                                  beneficiary_address=None, allocation_filepath=None)
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file,
+                                                  provider_uri,
+                                                  poa,
+                                                  light,
+                                                  registry_filepath,
+                                                  staking_address,
+                                                  beneficiary_address=None,
+                                                  allocation_filepath=None)
     #############
 
     painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER.all_stakes, paint_inactive=all)
@@ -164,7 +172,7 @@ def list(click_config,
 def accounts(click_config,
 
              # API Options
-             poa, registry_filepath, config_file, provider_uri, staking_address):
+             poa, light, registry_filepath, config_file, provider_uri, staking_address):
     """
     Show ETH and NU balances for stakeholder's accounts.
     """
@@ -172,8 +180,14 @@ def accounts(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
-                                                  beneficiary_address=None, allocation_filepath=None)
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file,
+                                                  provider_uri,
+                                                  poa,
+                                                  light,
+                                                  registry_filepath,
+                                                  staking_address,
+                                                  beneficiary_address=None,
+                                                  allocation_filepath=None)
     #############
 
     painting.paint_accounts(emitter=emitter, balances=STAKEHOLDER.wallet.balances)
@@ -186,7 +200,7 @@ def accounts(click_config,
 def set_worker(click_config,
 
                # Worker Options
-               poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
+               poa, light, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
                beneficiary_address, allocation_filepath,
                worker_address, 
                
@@ -199,7 +213,12 @@ def set_worker(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file,
+                                                  provider_uri,
+                                                  poa,
+                                                  light,
+                                                  registry_filepath,
+                                                  staking_address,
                                                   beneficiary_address=beneficiary_address,
                                                   allocation_filepath=allocation_filepath)
     #############
@@ -250,7 +269,7 @@ def set_worker(click_config,
 def detach_worker(click_config,
 
                   # Worker Options
-                  poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
+                  poa, light, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
                   beneficiary_address, allocation_filepath,
                   worker_address, 
                   
@@ -263,7 +282,12 @@ def detach_worker(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file,
+                                                  provider_uri,
+                                                  poa,
+                                                  light,
+                                                  registry_filepath,
+                                                  staking_address,
                                                   beneficiary_address=beneficiary_address,
                                                   allocation_filepath=allocation_filepath)
     #############
@@ -312,7 +336,7 @@ def detach_worker(click_config,
 def create(click_config,
 
            # Stake Options
-           poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
+           poa, light, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
            beneficiary_address, allocation_filepath,
 
            # Other
@@ -324,7 +348,12 @@ def create(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file,
+                                                  provider_uri,
+                                                  poa,
+                                                  light,
+                                                  registry_filepath,
+                                                  staking_address,
                                                   beneficiary_address=beneficiary_address,
                                                   allocation_filepath=allocation_filepath)
     #############
@@ -398,7 +427,7 @@ def create(click_config,
 def restake(click_config,
 
             # Stake Options
-            poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
+            poa, light, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
             beneficiary_address, allocation_filepath,
 
             # Other
@@ -410,7 +439,12 @@ def restake(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file,
+                                                  provider_uri,
+                                                  poa,
+                                                  light,
+                                                  registry_filepath,
+                                                  staking_address,
                                                   beneficiary_address=beneficiary_address,
                                                   allocation_filepath=allocation_filepath)
     #############
@@ -458,7 +492,7 @@ def restake(click_config,
 def divide(click_config,
 
            # Stake Options
-           poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
+           poa, light, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
            beneficiary_address, allocation_filepath,
 
            # Other
@@ -470,7 +504,12 @@ def divide(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file,
+                                                  provider_uri,
+                                                  poa,
+                                                  light,
+                                                  registry_filepath,
+                                                  staking_address,
                                                   beneficiary_address=beneficiary_address,
                                                   allocation_filepath=allocation_filepath)
     #############
@@ -547,7 +586,7 @@ def divide(click_config,
 def collect_reward(click_config,
 
                    # Stake Options
-                   poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
+                   poa, light, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
                    beneficiary_address, allocation_filepath,
 
                    # Other
@@ -559,7 +598,12 @@ def collect_reward(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file,
+                                                  provider_uri,
+                                                  poa,
+                                                  light,
+                                                  registry_filepath,
+                                                  staking_address,
                                                   beneficiary_address=beneficiary_address,
                                                   allocation_filepath=allocation_filepath)
     #############
@@ -605,11 +649,12 @@ def _setup_emitter(click_config):
     return emitter
 
 
-def _get_stakeholder_config(config_file, provider_uri, poa, registry_filepath):
+def _get_stakeholder_config(config_file, provider_uri, poa, light, registry_filepath):
     try:
         stakeholder_config = StakeHolderConfiguration.from_configuration_file(filepath=config_file,
                                                                               provider_uri=provider_uri,
                                                                               poa=poa,
+                                                                              light=light,
                                                                               sync=False,
                                                                               registry_filepath=registry_filepath)
 
@@ -619,9 +664,9 @@ def _get_stakeholder_config(config_file, provider_uri, poa, registry_filepath):
                                                          config_file=config_file)
 
 
-def _create_stakeholder(config_file, provider_uri, poa, registry_filepath,
+def _create_stakeholder(config_file, provider_uri, poa, light, registry_filepath,
                         staking_address, beneficiary_address, allocation_filepath):
-    stakeholder_config = _get_stakeholder_config(config_file, provider_uri, poa, registry_filepath)
+    stakeholder_config = _get_stakeholder_config(config_file, provider_uri, poa, light, registry_filepath)
 
     # Now let's check whether we're dealing here with a regular staker or a preallocation staker
     is_preallocation_staker = (beneficiary_address and staking_address) or allocation_filepath

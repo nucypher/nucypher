@@ -329,22 +329,28 @@ contract StakingEscrow is Issuer {
     * @notice Get the value of locked tokens for active stakers in (getCurrentPeriod() + _periods) period
     * as well as stakers and their locked tokens
     * @param _periods Amount of periods for locked tokens calculation
+    * @param _startIndex Start index for looking in stakers array
+    * @param _maxStakers Max stakers for looking, if set 0 then all will be used
     * @return allLockedTokens Sum of locked tokens for active stakers
     * @return activeStakers Array of stakers and their locked tokens. Stakers addresses stored as uint256
     **/
-    function getAllActiveStakers(uint16 _periods)
+    function getActiveStakers(uint16 _periods, uint256 _startIndex, uint256 _maxStakers)
         external view returns (uint256 allLockedTokens, uint256[2][] memory activeStakers)
     {
         require(_periods > 0);
 
-        uint256 stakersLength = stakers.length;
-        activeStakers = new uint256[2][](stakersLength);
-        uint256 resultIndex = 0;
+        uint256 endIndex = stakers.length;
+        require(_startIndex < endIndex);
+        if (_maxStakers != 0 && _startIndex + _maxStakers < endIndex) {
+            endIndex = _startIndex + _maxStakers;
+        }
+        activeStakers = new uint256[2][](endIndex - _startIndex);
 
+        uint256 resultIndex = 0;
         uint16 currentPeriod = getCurrentPeriod();
         uint16 nextPeriod = currentPeriod.add16(_periods);
 
-        for (uint256 i = 0; i < stakersLength; i++) {
+        for (uint256 i = _startIndex; i < endIndex; i++) {
             address staker = stakers[i];
             StakerInfo storage info = stakerInfo[staker];
             if (info.confirmedPeriod1 != currentPeriod &&
@@ -357,6 +363,9 @@ contract StakingEscrow is Issuer {
                 activeStakers[resultIndex++][1] = lockedTokens;
                 allLockedTokens = allLockedTokens.add(lockedTokens);
             }
+        }
+        assembly {
+            mstore(activeStakers, resultIndex)
         }
     }
 

@@ -256,7 +256,7 @@ class StakeHolderConfiguration(CharacterConfiguration):
         """Values to read/write from stakeholder JSON configuration files"""
         payload = dict(provider_uri=self.provider_uri,
                        poa=self.poa,
-
+                       light=self.is_light,
                        # TODO: Move empty collection casting to base
                        checksum_addresses=self.checksum_addresses or list())
 
