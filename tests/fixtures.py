@@ -882,3 +882,17 @@ def highperf_mocked_alice(large_fleet_of_highperf_mocked_ursulas):
     with mock_cert_storage, mock_verify_node, mock_record_fleet_state, mock_message_verification, mock_keep_learning:
         alice = config.produce(known_nodes=list(large_fleet_of_highperf_mocked_ursulas)[:1])
     return alice
+
+
+@pytest.fixture(scope="module")
+def highperf_mocked_bob(large_fleet_of_highperf_mocked_ursulas):
+    config = BobConfiguration(dev_mode=True,
+                                network_middleware=MockRestMiddlewareForLargeFleetTests(),
+                                federated_only=True,
+                                abort_on_learning_error=True,
+                                save_metadata=False,
+                                reload_metadata=False)
+
+    with mock_cert_storage, mock_verify_node, mock_record_fleet_state:
+        bob = config.produce(known_nodes=list(large_fleet_of_highperf_mocked_ursulas)[:1])
+    return bob
