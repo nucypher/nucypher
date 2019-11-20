@@ -16,7 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
-from selenium.webdriver.chrome.options import Options
 
 from nucypher.characters.control.emitters import WebEmitter
 from nucypher.cli.config import NucypherClickConfig
@@ -126,11 +125,3 @@ def pytest_collection_modifyitems(config, items):
     GlobalLoggerSettings.start_text_file_logging()
     GlobalLoggerSettings.start_json_file_logging()
 
-
-# dash[testing] hook
-def pytest_setup_options():
-    options = Options()
-    options.add_argument('--window-size=1920,1080')  # required to make elements visible to selenium
-    options.add_argument('--start-maximized')
-    options.add_argument('--headless')
-    return options
