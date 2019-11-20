@@ -82,7 +82,8 @@ from nucypher.utilities.sandbox.policy import generate_random_label
 from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
 from tests.performance_mocks import mock_cert_storage, mock_cert_loading, mock_rest_app_creation, mock_cert_generation, \
-    mock_secret_source, mock_remember_node, mock_verify_node, mock_record_fleet_state
+    mock_secret_source, mock_remember_node, mock_verify_node, mock_record_fleet_state, mock_message_verification, \
+    mock_keep_learning
 
 CharacterConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
 
@@ -859,7 +860,7 @@ def mock_transacting_power_activation(testerchain):
 @pytest.fixture(scope="module")
 def large_fleet_of_highperf_mocked_ursulas(ursula_federated_test_config):
     with GlobalLoggerSettings.pause_all_logging_while():
-        with mock_cert_storage, mock_cert_loading, mock_rest_app_creation, mock_cert_generation, mock_secret_source, mock_remember_node:
+        with mock_cert_storage, mock_cert_loading, mock_rest_app_creation, mock_cert_generation, mock_secret_source, mock_remember_node, mock_message_verification:
             _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
                                               quantity=5000, know_each_other=False)
             all_ursulas = {u.checksum_address: u for u in _ursulas}
@@ -878,6 +879,6 @@ def highperf_mocked_alice(large_fleet_of_highperf_mocked_ursulas):
                                 save_metadata=False,
                                 reload_metadata=False)
 
-    with mock_cert_storage, mock_verify_node, mock_record_fleet_state:
+    with mock_cert_storage, mock_verify_node, mock_record_fleet_state, mock_message_verification, mock_keep_learning:
         alice = config.produce(known_nodes=list(large_fleet_of_highperf_mocked_ursulas)[:1])
     return alice
