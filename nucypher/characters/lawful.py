@@ -243,6 +243,8 @@ class Alice(Character, BlockchainPolicyAuthor):
                                                          expiration=expiration,
                                                          *args, **kwargs)
             base_payload.update(payload)
+        elif not expiration:
+            raise TypeError("For a federated policy, you must specify expiration (duration_periods don't count).")
         return base_payload
 
     def grant(self,
