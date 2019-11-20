@@ -5,21 +5,15 @@ from twisted.internet import threads
 
 @pt.inlineCallbacks
 def test_availability_sensor(blockchain_ursulas):
+
+    # Start up self-services
     ursula = blockchain_ursulas.pop()
+    start_pytest_ursula_services(ursula=ursula)
 
-    def start_local_services():
-        start_pytest_ursula_services(ursula=ursula)
-
-    def measure(result):
+    def measure():
         ursula._availability_sensor.measure()
         assert True
 
-    def more(result):
-        assert True
-
     # Run the Callbacks
-    d = threads.deferToThread(start_local_services)
-    d.addCallback(measure)
-    d.addCallback(more)
-
+    d = threads.deferToThread(measure)
     yield d

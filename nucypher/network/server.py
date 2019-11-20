@@ -145,22 +145,25 @@ def make_rest_app(
         if request_address != requesting_ursula_address:
             return Response(status=400)
 
-        # Make a sandwich
+        # Fetch and store teacher certificate
+        certificate = this_node.network_middleware.get_certificate(host=requesting_ursula_address,
+                                                                   port=requesting_ursula_port)
+        certificate_filepath = this_node.node_storage.store_node_certificate(certificate=certificate)
+
+        # Make a Sandwich
         try:
-            result = requests.get(f"https://{requesting_ursula.rest_interface}/public_information")
+            result = requests.get(f"https://{requesting_ursula.rest_interface}/public_information", verify=certificate_filepath)
         except requests.exceptions.ConnectionError:
             return Response(status=400)
 
         if result.status_code != 200:
             return Response(status=400)
-        return Response(status=200)
 
-        # TODO
-        # # Compare the results of the outer POST with the inner GET... yum
-        # if result.content == request.data:
-        #     return Response(status=200)
-        # else:
-        #     return Response(status=400)
+        # Compare the results of the outer POST with the inner GET... yum
+        if result.content == request.data:
+            return Response(status=200)
+        else:
+            return Response(status=400)
 
     @rest_app.route('/node_metadata', methods=["GET"])
     def all_known_nodes():

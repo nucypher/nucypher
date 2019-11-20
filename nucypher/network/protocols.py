@@ -244,12 +244,10 @@ class AvailabilitySensor:
         ursulas = self.sample(quantity=self.sample_size)
         succeeded, failed = 0, 0
         for ursula in ursulas:
-            response = self._ursula.network_middleware.check_rest_availability(requesting_ursula=self._ursula,
-                                                                               responding_ursula=ursula)
-            if response.status_code == 200:
+            available = self._ursula.network_middleware.check_rest_availability(requesting_ursula=self._ursula,
+                                                                                responding_ursula=ursula)
+            if available:
                 succeeded += 1
             else:
                 failed += 1
         return failed >= self.measurement_sensitivity
-
-
