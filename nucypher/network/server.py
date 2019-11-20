@@ -123,25 +123,44 @@ def make_rest_app(
 
         return response
 
-    @rest_app.route("/ping")
+    @rest_app.route("/ping", methods=['POST'])
     def ping():
         """
-        Returns network information about the accessor's connection to
-        the node.
-        TODO: Parameterize the port.
-        TODO: Fix certificate verification check so we don't pass verify=False
-        TODO: Figure out how to test this.
+        Returns network information about the accessor's connection to the node.
+        TODO: Figure out how to test this without blocking the requesting REST server.
         """
-        node_ip = request.environ['REMOTE_ADDR']
 
+        # Verify the POST request contains valid Ursula bytes
         try:
-            result = requests.get(f"https://{node_ip}:9151/public_information", verify=False)
+            requesting_ursula = Ursula.from_bytes(request.data,
+                                                  federated_only=this_node.federated_only,
+                                                  registry=this_node.registry)
+        except Exception:
+            return Response(status=400)
+        else:
+            requesting_ursula_address, requesting_ursula_port = tuple(requesting_ursula.rest_interface)
+
+        # Compare requester and posted Ursula information
+        request_address = request.environ['REMOTE_ADDR']
+        if request_address != requesting_ursula_address:
+            return Response(status=400)
+
+        # Make a sandwich
+        try:
+            result = requests.get(f"https://{requesting_ursula.rest_interface}/public_information")
         except requests.exceptions.ConnectionError:
             return Response(status=400)
 
         if result.status_code != 200:
             return Response(status=400)
         return Response(status=200)
+
+        # TODO
+        # # Compare the results of the outer POST with the inner GET... yum
+        # if result.content == request.data:
+        #     return Response(status=200)
+        # else:
+        #     return Response(status=400)
 
     @rest_app.route('/node_metadata', methods=["GET"])
     def all_known_nodes():

@@ -76,6 +76,10 @@ class InterfaceInfo:
         self.host = loopback if host == localhost else host
         self.port = int(port)
 
+    def __iter__(self):
+        yield self.host
+        yield self.port
+
     @classmethod
     def from_bytes(cls, url_string):
         host_bytes, port_bytes = url_string.split(b':', 1)
@@ -225,7 +229,7 @@ class AvailabilitySensor:
                 action()
 
     def sample(self, quantity: int) -> list:
-        ursulas = random.sample(population=self._ursula.known_nodes, k=quantity)
+        ursulas = random.sample(population=tuple(self._ursula.known_nodes._nodes.values()), k=quantity)
         return ursulas
 
     def record(self, result: bool) -> None:
@@ -240,7 +244,8 @@ class AvailabilitySensor:
         ursulas = self.sample(quantity=self.sample_size)
         succeeded, failed = 0, 0
         for ursula in ursulas:
-            response = self._ursula.network_middleware.measure(ursula)
+            response = self._ursula.network_middleware.check_rest_availability(requesting_ursula=self._ursula,
+                                                                               responding_ursula=ursula)
             if response.status_code == 200:
                 succeeded += 1
             else:

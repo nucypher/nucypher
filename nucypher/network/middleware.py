@@ -238,11 +238,13 @@ class RestMiddleware:
                                    certificate_filepath=certificate_filepath)
         return response.content
 
-    def check_rest_availability(self, host, port, certificate_filepath=None):
-        response = self.client.get(host=host, port=port,
-                                   path="ping",
-                                   timeout=2,
-                                   certificate_filepath=certificate_filepath)
+    def check_rest_availability(self, requesting_ursula, responding_ursula, certificate_filepath=None):
+        response = self.client.post(host=responding_ursula.rest_interface.host,
+                                    port=responding_ursula.rest_interface.port,
+                                    data=bytes(requesting_ursula),
+                                    path="ping",
+                                    timeout=2,
+                                    certificate_filepath=certificate_filepath)
         if response.status_code != 200:
             raise RuntimeError("Your node could not successfully be pinged from the remote node.")
         return True
