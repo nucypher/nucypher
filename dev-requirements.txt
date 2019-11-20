@@ -1,18 +1,18 @@
 -i https://pypi.python.org/simple
 aafigure==0.6
 alabaster==0.7.12
-ansible==2.9.0b1
+ansible==2.9.0rc1
 apipkg==1.5
 asn1crypto==0.24.0
 atomicwrites==1.3.0
-attrs==19.1.0
+attrs==19.2.0
 babel==2.7.0
 bumpversion==0.5.3
 certifi==2019.9.11
 cffi==1.12.3
 chardet==3.0.4
 commonmark==0.9.0
-coverage==5.0a6
+coverage==5.0a7
 cryptography==2.7
 decorator==4.4.0
 docutils==0.15.2
@@ -22,13 +22,13 @@ git+https://github.com/nucypher/py-solc.git@391b8da1a6bac5816877197bda25527c6b0b
 greenlet==0.4.15
 idna==2.8
 imagesize==1.1.0
-importlib-metadata==0.22 ; python_version < '3.8'
+importlib-metadata==0.23 ; python_version < '3.8'
 jinja2==2.10.1
 markupsafe==1.1.1
 more-itertools==7.2.0
 mypy-extensions==0.4.1
-mypy==0.720
-packaging==19.1
+mypy==0.730
+packaging==19.2
 pluggy==0.13.0
 py==1.8.0
 pycparser==2.19
@@ -36,15 +36,15 @@ pygments==2.4.2
 pyparsing==2.4.2
 pytest-cov==2.7.1
 pytest-forked==1.0.2
-pytest-mock==1.10.4
-pytest-mypy==0.4.0
-pytest-twisted==1.11
-pytest-xdist==1.29.0
-pytest==5.1.2
+pytest-mock==1.11.0
+pytest-mypy==0.4.1
+pytest-twisted==1.12
+pytest-xdist==1.30.0
+pytest==5.2.0
 pytz==2019.2
 pyyaml==5.1.2
 recommonmark==0.6.0
-requests[security]==2.22.0
+requests==2.22.0
 six==1.12.0
 snowballstemmer==1.9.1
 sphinx-rtd-theme==0.4.3
@@ -57,6 +57,6 @@ sphinxcontrib-qthelp==1.0.2
 sphinxcontrib-serializinghtml==1.1.3
 typed-ast==1.4.0
 typing-extensions==3.7.4
-urllib3==1.25.3
+urllib3==1.25.6
 wcwidth==0.1.7
 zipp==0.6.0
