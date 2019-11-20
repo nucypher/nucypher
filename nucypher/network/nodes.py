@@ -999,6 +999,7 @@ class Learner:
                         # This node is already known.  We can continue.
                         continue
 
+
             except Exception as e:
                 if fail_fast:
                     raise
@@ -1103,6 +1104,16 @@ class Teacher:
 
     class IsFromTheFuture(TypeError):
         """Raised when deserializing a Character from a future version."""
+
+    def mature(self, *args, **kwargs):
+        """
+        This is the most mature form, so we do nothing.
+        """
+
+
+    @classmethod
+    def set_federated_mode(cls, federated_only: bool):
+        cls._federated_only_instances = federated_only
 
     @classmethod
     def from_tls_hosting_power(cls, tls_hosting_power: TLSHostingPower, *args, **kwargs) -> 'Teacher':
