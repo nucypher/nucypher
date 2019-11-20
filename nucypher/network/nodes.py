@@ -29,7 +29,7 @@ import maya
 import requests
 from eth_utils import to_checksum_address
 
-from bytestring_splitter import BytestringSplitter
+from bytestring_splitter import BytestringSplitter, PartiallyKwargifiedBytes
 from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
 from constant_sorrow import constant_or_bytes
 from constant_sorrow.constants import (
@@ -263,17 +263,32 @@ class FleetStateTracker:
                 }
 
 
-class NodeSprout(dict):
+class NodeSprout(PartiallyKwargifiedBytes):
     """
     An abridged node class designed for optimization of instantiation of > 100 nodes simultaneously.
     """
-    def __init__(self, **node_metadata):
-        self.checksum_address = to_checksum_address(node_metadata['public_address'])
-        super().__init__(**node_metadata)
+    def __init__(self, node_metadata):
+        super().__init__(node_metadata)
+        self.checksum_address = to_checksum_address(node_metadata['public_address'][0])
+        self.timestamp = maya.MayaDT(int.from_bytes(node_metadata['timestamp'][0], byteorder="big"))
+        self._hash = int.from_bytes(bytes(node_metadata['verifying_key'][0]), byteorder="big")
 
-    @property
-    def timestamp(self):
-        return maya.MayaDT(self['timestamp'])
+    def __hash__(self):
+        return self._hash
+
+    def mature(self):
+        #### This is kind of a ridiculous workaround.
+        interface_info, info_class, _kwargs = self.processed_objects.pop("rest_interface")
+        interface_info = info_class.from_bytes(interface_info)
+        self._additional_kwargs['rest_host'] = interface_info.host
+        self._additional_kwargs['rest_port'] = interface_info.port
+        ####
+
+        # self._additional_kwargs['federated_only'] =
+
+        mature_node = self.finish()
+        self.__class__ = mature_node.__class__
+        self.__dict__ = mature_node.__dict__
 
 
 class Learner:
