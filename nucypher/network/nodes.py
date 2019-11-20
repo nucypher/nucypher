@@ -986,8 +986,9 @@ class Learner:
             # End repeated block from Ursula.from_bytes
             ############################################
 
+            fail_fast = True  # TODO
             try:
-                node_sprout = self.node_class.internal_splitter(node_bytes)
+                node_sprout = self.node_class.internal_splitter(node_bytes, partial=not eager)
 
                 ###########################################
                 # TODO: This is repeated from remember_node
