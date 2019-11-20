@@ -143,9 +143,9 @@ class AvailabilitySensor:
         self.sensor_sensitivity = sensor_sensitivity
         self.retention = retention
         self.warnings = {
-            1: self.mild_warning,
-            retention//2: self.medium_warning,
-            retention: self.severe_warning
+            0.1: self.mild_warning,
+            0.5: self.medium_warning,
+            0.9: self.severe_warning
         }
 
         self._ursula = ursula
@@ -250,4 +250,4 @@ class AvailabilitySensor:
                 succeeded += 1
             else:
                 failed += 1
-        return failed >= self.measurement_sensitivity
+        return self.measurement_sensitivity >= failed
