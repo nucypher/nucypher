@@ -16,7 +16,7 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 
 class NetworkStatusPage:
-    NODE_TABLE_COLUMNS = ['Status', 'Checksum', 'Nickname', 'Timestamp', 'Last Seen', 'Fleet State']
+    NODE_TABLE_COLUMNS = ['Status', 'Checksum', 'Nickname', 'Launched', 'Last Seen', 'Fleet State']
 
     def __init__(self, title: str, flask_server: Flask, route_url: str):
         self.log = Logger(self.__class__.__name__)
@@ -76,7 +76,9 @@ class NetworkStatusPage:
                 html.Div('* Current Teacher',
                          style={'backgroundColor': '#1E65F3', 'color': 'white'},
                          className='two columns'),
-            ]),
+            ], className='row'),
+            html.Br(),
+            html.H6(f'Known Nodes: {len(nodes_dict)}'),
             html.Div([self.nodes_table(nodes, teacher_index, registry)])
         ])
 
@@ -166,7 +168,7 @@ class NetworkStatusPage:
             'Status': status,
             'Checksum': checksum,
             'Nickname': identity,
-            'Timestamp': html.Td(node_info['timestamp']),
+            'Launched': html.Td(node_info['timestamp']),
             'Last Seen': last_seen,
             'Fleet State': fleet_state
         }
