@@ -353,6 +353,7 @@ class Learner:
         self.log = Logger("learning-loop")  # type: Logger
 
         self.node_class = node_class or Teacher
+        self.node_class.set_federated_mode(self.federated_only)  # Kinda slams the door on #466 / #410
         self.learning_domains = domains
         self.network_middleware = network_middleware
         self.save_metadata = save_metadata
