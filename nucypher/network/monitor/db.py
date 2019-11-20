@@ -5,11 +5,12 @@ from datetime import datetime, timedelta
 from influxdb import InfluxDBClient
 from maya import MayaDT
 
-from nucypher.config.storages import SQLiteForgetfulNodeStorage
 from typing import List, Dict
 
+from nucypher.network.monitor.crawler import NetworkCrawlerNodeStorage
 
-class NetworkCrawlerDBClient:
+
+class NetworkCrawlerBlockchainDBClient:
     """
     Performs operations on data in the NetworkCrawler DB.
 
@@ -77,19 +78,20 @@ class NetworkCrawlerDBClient:
         self._client.close()
 
 
-class NodeMetadataDBClient:
+class NetworkCrawlerNodeMetadataDBClient:
+    from nucypher.network.monitor.crawler import NetworkCrawlerNodeStorage
 
-    def __init__(self, db_filepath: str = SQLiteForgetfulNodeStorage.DEFAULT_DB_FILEPATH):
+    def __init__(self, db_filepath: str = NetworkCrawlerNodeStorage.DEFAULT_DB_FILEPATH):
         self._db_filepath = db_filepath
 
     def get_known_nodes_metadata(self) -> Dict:
         # dash threading means that connection needs to be established in same thread as use
         db_conn = sqlite3.connect(self._db_filepath)
         try:
-            result = db_conn.execute(f"SELECT * FROM {SQLiteForgetfulNodeStorage.NODE_DB_NAME}")
+            result = db_conn.execute(f"SELECT * FROM {NetworkCrawlerNodeStorage.NODE_DB_NAME} ORDER BY staker_address")
 
             # TODO use `pandas` package instead to automatically get dict?
-            known_nodes = dict()
+            known_nodes = OrderedDict()
             column_names = [description[0] for description in result.description]
             for row in result:
                 node_info = dict()
@@ -107,7 +109,7 @@ class NodeMetadataDBClient:
         db_conn = sqlite3.connect(self._db_filepath)
         states_dict_list = []
         try:
-            result = db_conn.execute(f"SELECT * FROM {SQLiteForgetfulNodeStorage.STATE_DB_NAME} "
+            result = db_conn.execute(f"SELECT * FROM {NetworkCrawlerNodeStorage.STATE_DB_NAME} "
                                      f"ORDER BY datetime(updated) DESC LIMIT {limit}")
 
             # TODO use `pandas` package instead to automatically get dict?

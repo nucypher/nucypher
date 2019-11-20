@@ -9,7 +9,7 @@ from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.token import NU
 from nucypher.network.monitor.base import NetworkStatusPage
 from nucypher.network.monitor.crawler import NetworkCrawler
-from nucypher.network.monitor.db import NodeMetadataDBClient
+from nucypher.network.monitor.db import NetworkCrawlerNodeMetadataDBClient
 
 
 class MonitorDashboardApp(NetworkStatusPage):
@@ -29,8 +29,8 @@ class MonitorDashboardApp(NetworkStatusPage):
     def __init__(self, registry, network, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.network_crawler_db_client = NetworkCrawler.get_network_crawler_db_client()
-        self.node_metadata_db_client = NodeMetadataDBClient()
+        self.network_crawler_db_client = NetworkCrawler.get_network_crawler_blockchain_db_client()
+        self.node_metadata_db_client = NetworkCrawlerNodeMetadataDBClient()
         self.registry = registry
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.network = network
