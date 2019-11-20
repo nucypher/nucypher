@@ -1196,7 +1196,7 @@ class Teacher:
 
     @property
     def worker_address(self):
-        if not self.__worker_address:
+        if not self.__worker_address and not self.federated_only:
             if self.decentralized_identity_evidence is NOT_SIGNED:
                 raise self.StampNotSigned  # TODO: Find a better exception
             self.__worker_address = recover_address_eip_191(message=bytes(self.stamp),

@@ -49,7 +49,6 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
                 '--teacher', TEACHER_URI,
                 '--federated-only',
                 '--dev',
-                '--config-root', 'demo-ursula-{}'.format(port)
                 ]
 
         env = {'PATH': os.environ['PATH'],

@@ -12,6 +12,7 @@ from twisted.logger import Logger
 import nucypher
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 
 class NetworkStatusPage:
@@ -112,6 +113,7 @@ class NetworkStatusPage:
         Update this depending on which columns you want to show links for
         and what you want those links to be.
         """
+        # Nickname
         identity = html.Td(children=html.Div([
             html.A(node_info['nickname'],
                    href=f'https://{node_info["rest_url"]}/status',
@@ -126,28 +128,46 @@ class NetworkStatusPage:
             fleet_state_div = icon_list
         fleet_state = html.Td(children=html.Div(fleet_state_div))
 
-        staker_address = node_info['staker_address']
-
-        # Blockchainy (TODO)
-        agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
-        current_period = agent.get_current_period()
-        last_confirmed_period = agent.get_last_active_period(staker_address)
-        status = NetworkStatusPage.get_node_status(agent, staker_address, current_period, last_confirmed_period)
-
-        etherscan_url = f'https://goerli.etherscan.io/address/{node_info["staker_address"]}'
+        # Last seen
         try:
             slang_last_seen = MayaDT.from_rfc3339(node_info['last_seen']).slang_time()
         except ParserError:
             slang_last_seen = node_info['last_seen']
 
+        staker_address = node_info['staker_address']
+        if registry is NO_BLOCKCHAIN_CONNECTION:
+            # Status - default to 'FEDERATED' status
+            status = html.Td('FEDERATED')
+
+            # Last seen
+            last_seen = html.Td(slang_last_seen)
+
+            # Checksum
+            checksum = html.Td(f'{staker_address[:10]}...')
+        else:
+            # Blockchain-specific
+            agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
+            current_period = agent.get_current_period()
+            last_confirmed_period = agent.get_last_active_period(staker_address)
+
+            # Status
+            status = NetworkStatusPage.get_node_status(agent, staker_address, current_period, last_confirmed_period)
+
+            # Last seen
+            last_seen = html.Td([slang_last_seen, f" | Period {last_confirmed_period}"])
+
+            # Checksum
+            etherscan_url = f'https://goerli.etherscan.io/address/{staker_address}'
+            checksum = html.Td(html.A(f'{node_info["staker_address"][:10]}...',
+                                      href=etherscan_url,
+                                      target='_blank'))
+
         components = {
             'Status': status,
-            'Checksum': html.Td(html.A(f'{node_info["staker_address"][:10]}...',
-                                       href=etherscan_url,
-                                       target='_blank')),
+            'Checksum': checksum,
             'Nickname': identity,
             'Timestamp': html.Td(node_info['timestamp']),
-            'Last Seen': html.Td([slang_last_seen, f" | Period {last_confirmed_period}"]),
+            'Last Seen': last_seen,
             'Fleet State': fleet_state
         }
 

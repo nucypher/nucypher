@@ -38,7 +38,7 @@ class MonitorDashboardApp(NetworkStatusPage):
         self.dash_app.layout = html.Div([
             dcc.Location(id='url', refresh=False),
 
-            # Update buttons also used for hendrix WS topic notifications
+            # Header and Update buttons
             html.Div([
                 html.Img(src='/assets/nucypher_logo.png', className='banner'),
                 html.Div(id='header'),
@@ -74,7 +74,7 @@ class MonitorDashboardApp(NetworkStatusPage):
                          html.Div(id='prev-states'),
                          html.Br(),
                          html.Div(id='known-nodes'),
-                     ])
+                    ])
                 ]),
 
             ], id='main'),
