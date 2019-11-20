@@ -110,10 +110,10 @@ class InterfaceInfo:
 
 class AvailabilitySensor:
 
-    DEFAULT_INTERVAL = 5             # Seconds
+    DEFAULT_INTERVAL = 5                  # Seconds
     DEFAULT_SAMPLE_SIZE = 3               # Ursulas
     DEFAULT_MEASUREMENT_SENSITIVITY = 2   # Failure indication threshold
-    DEFAULT_SENSOR_SENSITIVITY = 5        # Failed records
+    DEFAULT_SENSOR_SENSITIVITY = 0.5      # Successful records
     DEFAULT_RETENTION = 10                # Records
     MAXIMUM_ALONE_TIME = 10               # Seconds
 
@@ -142,10 +142,13 @@ class AvailabilitySensor:
         self.measurement_sensitivity = sensitivity
         self.sensor_sensitivity = sensor_sensitivity
         self.retention = retention
+
+        # 1.0 == Fully available
         self.warnings = {
-            0.1: self.mild_warning,
-            0.5: self.medium_warning,
-            0.9: self.severe_warning
+            0.95: self.mild_warning,
+            0.7: self.medium_warning,
+            0.2: self.severe_warning,
+            0: self.shutdown_everything
         }
 
         self._ursula = ursula
@@ -156,23 +159,25 @@ class AvailabilitySensor:
         self.__task = LoopingCall(self.maintain)
 
     def mild_warning(self) -> None:
-        self.log.info(f'{self._ursula.rest_url} is unreachable')
+        self.log.info(f'[UNREACHABLE NOTICE] {self._ursula.rest_url} was recently reported as unreachable.')
 
     def medium_warning(self) -> None:
-        self.log.warn(f'{self._ursula.rest_url} is unreachable')
+        self.log.warn(f'[UNREACHABLE CAUTION] {self._ursula.rest_url} is reporting as unreachable.'
+                      f'Please check your network and firewall configuration.')
 
-    def severe_warning(self, reason=None) -> None:
-        self.log.warn(f'{self._ursula.rest_url} is unreachable')
+    def severe_warning(self) -> None:
+        self.log.warn(f'[UNREACHABLE WARNING] '
+                      f'Please check your network and firewall configuration.'
+                      f'Auto-shutdown will commence soon if the services do not become available.')
+
+    def shutdown_everything(self, reason = None):
         try:
             if reason:
                 raise reason(reason.message)
             raise self.Unreachable(f'{self._ursula} is unreachable.')
         finally:
-            self.shutdown_everything()
-
-    def shutdown_everything(self):
-        if reactor.running:
-            reactor.stop()
+            if reactor.running:
+                reactor.stop()
 
     def handle_measurement_errors(self, *args, **kwargs) -> None:
         failure = args[0]
@@ -181,10 +186,8 @@ class AvailabilitySensor:
         failure.raiseException()
 
     @property
-    def status(self) -> Union[bool, None]:
+    def status(self) -> bool:
         """Returns current indication of availability"""
-        if not self._records:
-            return None
         return self.score > self.sensor_sensitivity
 
     @property
@@ -204,29 +207,41 @@ class AvailabilitySensor:
     def maintain(self) -> None:
         self.log.debug(f"Starting new sensor maintenance round")
         known_nodes_is_smaller_than_sample_size = len(self._ursula.known_nodes) < self.sample_size
-        if not self._ursula.known_nodes or known_nodes_is_smaller_than_sample_size:
+        if known_nodes_is_smaller_than_sample_size:
             # If there are no known nodes or too few known nodes, skip this round...
             # ... but not for longer than the maximum allotted alone time
             if not self._ursula.lonely:
                 now = maya.now().epoch
                 delta = now - self.__start_time
                 if delta >= self.MAXIMUM_ALONE_TIME:
+                    self.severe_warning()
                     reason = self.Solitary if not self._ursula.known_nodes else self.Lonely
-                    self.severe_warning(reason=reason)
+                    self.shutdown_everything(reason=reason)
             return
         result = self.measure()
         self.record(result)
+
+        if self._records:
+            first, last = self._records[0], self._records[-1]
+            delta = (last.time - first.time) // 60
+            self.log.info(f"Current availability score is {self.score} measured over the last {delta} min.")
         self.issue_warnings()
 
     @property
+    def successful_records(self):
+        return (record.result for record in self._records if record.result)
+
+    @property
     def score(self) -> float:
-        failed_records = list(record.result for record in self._records if not record.result)
-        return len(failed_records) / self.retention
+        if len(self._records) == 0:
+            return 1.0  # Assume availability by default
+        return len(tuple(self.successful_records)) / len(self._records)
 
     def issue_warnings(self) -> None:
         for threshold, action in self.warnings.items():
-            if self.score >= threshold:
+            if self.score <= threshold:
                 action()
+                break
 
     def sample(self, quantity: int) -> list:
         ursulas = random.sample(population=tuple(self._ursula.known_nodes._nodes.values()), k=quantity)

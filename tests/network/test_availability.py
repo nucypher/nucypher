@@ -30,7 +30,7 @@ def test_availability_sensor_success(blockchain_ursulas):
 
         assert sensor.retention == 10
         assert len(sensor._records) == 8
-        assert sensor.score == 0.7
+        assert sensor.score == 0.125  # 1/8
 
         original_issuer = AvailabilitySensor.issue_warnings
         warnings = dict()
