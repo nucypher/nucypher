@@ -281,11 +281,13 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
     SQLite forgetful storage of node metadata
     """
     _name = 'sqlite'
+    DB_FILE_NAME = 'sql-storage-metadata.sqlite'
     NODE_DB_NAME = 'node_info'
+    DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, DB_FILE_NAME)
 
-    def __init__(self, db_filepath: str = None, *args, **kwargs):
-        self.__db_filepath = db_filepath
-        self.db_conn = sqlite3.connect(self.__db_filepath)
+    def __init__(self, db_filepath: str = DEFAULT_DB_FILEPATH, *args, **kwargs):
+        self.db_filepath = db_filepath
+        self.db_conn = sqlite3.connect(self.db_filepath)
         self.init_db_tables()
         super().__init__(*args, **kwargs)
 
@@ -294,8 +296,8 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
         try:
             self.db_conn.close()
         finally:
-            if os.path.exists(self.__db_filepath):
-                os.remove(self.__db_filepath)
+            if os.path.exists(self.db_filepath):
+                os.remove(self.db_filepath)
 
     def store_node_metadata(self, node, filepath: str = None):
         self.__write_node_metadata(node)
@@ -322,20 +324,21 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
         super().clear(metadata=metadata, certificates=certificates)
 
     def initialize(self) -> bool:
-        if os.path.exists(self.__db_filepath):
-            os.remove(self.__db_filepath)
-        self.db_conn = sqlite3.connect(self.__db_filepath)
+        if os.path.exists(self.db_filepath):
+            os.remove(self.db_filepath)
+        self.db_conn = sqlite3.connect(self.db_filepath)
         self.init_db_tables()
         return super().initialize()
 
     def init_db_tables(self):
         with self.db_conn:
-            # ensure table is empty
+            # ensure tables are empty
             self.db_conn.execute(f"DROP TABLE IF EXISTS {self.NODE_DB_NAME}")
 
             # create fresh new node table (same column names as FleetStateTracker.abridged_nodes_details)
-            self.db_conn.execute(f"CREATE TABLE {self.NODE_DB_NAME} (staker_address text primary key, rest_url text, "
-                                   f"nickname text, timestamp text, last_seen text, fleet_state_icon text)")
+            self.db_conn.execute(f"CREATE TABLE {self.NODE_DB_NAME} (staker_address text primary key, "
+                                 f"rest_url text, nickname text, timestamp text, last_seen text, "
+                                 f"fleet_state_icon text)")
 
     def __write_node_metadata(self, node):
         from nucypher.network.nodes import FleetStateTracker
