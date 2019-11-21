@@ -235,27 +235,55 @@ class StakingEscrowAgent(EthereumContractAgent):
         if not periods > 0:
             raise ValueError("Period must be > 0")
 
-        if pagination_size is None:
-            pagination_size = StakingEscrowAgent.DEFAULT_PAGINATION_SIZE if self.blockchain.is_light else 0
-        elif pagination_size < 0:
-            raise ValueError("Pagination size must be >= 0")
-        self.log.debug(f"Retrieving all active stakers for {periods} periods. "
-                       f"Using pagination size = {pagination_size}.")
+        self.log.debug(f"Retrieving all active stakers for {periods} periods.")
 
-        if pagination_size > 0:
+        if not self.blockchain.is_light:
+            n_tokens, stakers = self.contract.functions.getActiveStakers(periods, 0, 0).call()
+        else:
+            if pagination_size is None:
+                pagination_size = StakingEscrowAgent.DEFAULT_PAGINATION_SIZE
+            elif pagination_size < 0:
+                raise ValueError("Pagination size must be >= 0")
+
             num_stakers = self.get_staker_population()
             start_index = 0
             n_tokens = 0
             stakers = list()
+            grow_fast = True
+            size_1_retries = 0
+            ceiling = float('inf')
             while start_index < num_stakers:
-                temp_locked_tokens, temp_stakers = \
-                    self.contract.functions.getActiveStakers(periods, start_index, pagination_size).call()
-                self.log.debug(f"{len(temp_stakers)} active stakers were found starting from index {start_index}")
-                n_tokens += temp_locked_tokens
-                stakers += temp_stakers
-                start_index += pagination_size
-        else:
-            n_tokens, stakers = self.contract.functions.getActiveStakers(periods, 0, 0).call()
+                try:
+                    temp_result = self.contract.functions.getActiveStakers(periods, start_index, pagination_size).call()
+                except ValueError as e:
+                    if 'timeout = 5s' in str(e):
+                        if pagination_size == 1:
+                            if size_1_retries <= 3:
+                                size_1_retries += 1
+                                self.log.debug(f"Failed using pagination size = 1. Trying again.")
+                            else:
+                                raise e  # TODO: specfic exception
+                        else:
+                            self.log.debug(f"Failed using pagination size = {pagination_size}. "
+                                           f"Trying with size 1 and fast growth.")
+                            ceiling = pagination_size // 2
+                            grow_fast = True
+                            pagination_size = 1
+                    else:
+                        raise e
+                else:
+                    size_1_retries = 0
+                    temp_locked_tokens, temp_stakers = temp_result
+                    self.log.debug(f"{len(temp_stakers)} active stakers were found starting from index {start_index}")
+                    n_tokens += temp_locked_tokens
+                    stakers += temp_stakers
+                    start_index += pagination_size
+                    if grow_fast and pagination_size <= ceiling:
+                        pagination_size *= 2
+                    else:
+                        grow_fast = False
+                        pagination_size += 1
+                    self.log.debug(f"Changed pagination size to {pagination_size} and grow_fast = {grow_fast}")
 
         self.log.debug(f"Retrieved {len(stakers)} active stakers and {n_tokens} locked tokens.")
         return n_tokens, stakers
