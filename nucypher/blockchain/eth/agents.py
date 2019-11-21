@@ -239,6 +239,8 @@ class StakingEscrowAgent(EthereumContractAgent):
             pagination_size = StakingEscrowAgent.DEFAULT_PAGINATION_SIZE if self.blockchain.is_light else 0
         elif pagination_size < 0:
             raise ValueError("Pagination size must be >= 0")
+        self.log.debug(f"Retrieving all active stakers for {periods} periods. "
+                       f"Using pagination size = {pagination_size}.")
 
         if pagination_size > 0:
             num_stakers = self.get_staker_population()
@@ -248,12 +250,14 @@ class StakingEscrowAgent(EthereumContractAgent):
             while start_index < num_stakers:
                 temp_locked_tokens, temp_stakers = \
                     self.contract.functions.getActiveStakers(periods, start_index, pagination_size).call()
+                self.log.debug(f"{len(temp_stakers)} active stakers were found starting from index {start_index}")
                 n_tokens += temp_locked_tokens
                 stakers += temp_stakers
                 start_index += pagination_size
         else:
             n_tokens, stakers = self.contract.functions.getActiveStakers(periods, 0, 0).call()
 
+        self.log.debug(f"Retrieved {len(stakers)} active stakers and {n_tokens} locked tokens.")
         return n_tokens, stakers
 
     def get_all_locked_tokens(self, periods: int, pagination_size: int = None) -> int:
