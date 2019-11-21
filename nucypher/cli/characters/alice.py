@@ -35,6 +35,7 @@ from nucypher.config.keyring import NucypherKeyring
 def _admin_options(func):
     @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
     @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
+    @click.option('--light/--no-light', help="Indicate that node is light", is_flag=True, default=False)
     @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
     @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
     @click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
@@ -74,7 +75,6 @@ def alice():
 @_admin_options
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
-@click.option('--light', help="Indicate that node is light", is_flag=True, default=False)
 @click.option('--m', help="M-Threshold KFrags", type=click.INT)
 @click.option('--n', help="N-Total KFrags", type=click.INT)
 @click.option('--rate', help="Policy rate per period in wei", type=types.WEI)
@@ -85,6 +85,7 @@ def init(click_config,
          # Admin Options
          geth,
          provider_uri,
+         light,
          federated_only,
          dev,
          pay_with,
@@ -92,7 +93,7 @@ def init(click_config,
          registry_filepath,
 
          # Other
-         config_root, poa, light, m, n, rate, duration_periods):
+         config_root, poa, m, n, rate, duration_periods):
     """
     Create a brand new persistent Alice.
     """
@@ -168,7 +169,7 @@ def view(click_config, config_file):
 def destroy(click_config,
 
             # Admin Options
-            geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath,
+            geth, provider_uri, light, federated_only, dev, pay_with, network, registry_filepath,
 
             # Other
             config_file, discovery_port, force):
@@ -197,7 +198,7 @@ def destroy(click_config,
 def run(click_config,
 
         # API Options
-        geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath,
+        geth, provider_uri, light, federated_only, dev, pay_with, network, registry_filepath,
         config_file, discovery_port, hw_wallet, teacher_uri, min_stake,
 
         # Other
@@ -245,7 +246,7 @@ def run(click_config,
 def public_keys(click_config,
 
                 # API Options
-                geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath,
+                geth, provider_uri, light, federated_only, dev, pay_with, network, registry_filepath,
                 config_file, discovery_port, hw_wallet, teacher_uri, min_stake):
     """
     Obtain Alice's public verification and encryption keys.
@@ -273,7 +274,7 @@ def derive_policy_pubkey(click_config,
                          label,
 
                          # API Options
-                         geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath,
+                         geth, provider_uri, light, federated_only, dev, pay_with, network, registry_filepath,
                          config_file, discovery_port, hw_wallet, teacher_uri, min_stake):
     """
     Get a policy public key from a policy label.
@@ -312,7 +313,7 @@ def grant(click_config,
           m, n, expiration, value, rate,
 
           # API Options
-          geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath,
+          geth, provider_uri, light, federated_only, dev, pay_with, network, registry_filepath,
           config_file, discovery_port, hw_wallet, teacher_uri, min_stake):
     """
     Create and enact an access policy for some Bob.
@@ -321,7 +322,7 @@ def grant(click_config,
     emitter = _setup_emitter(click_config)
 
     alice_config, provider_uri = _get_alice_config(click_config, config_file, dev, discovery_port, federated_only,
-                                                   geth, network, pay_with, provider_uri, registry_filepath)
+                                                   geth, network, pay_with, provider_uri, light, registry_filepath)
     #############
 
     ALICE = _create_alice(alice_config, click_config, dev, emitter, hw_wallet, teacher_uri, min_stake)
@@ -353,7 +354,7 @@ def revoke(click_config,
            bob_verifying_key, label,
 
            # API Options
-           geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath,
+           geth, provider_uri, light, federated_only, dev, pay_with, network, registry_filepath,
            config_file, discovery_port, hw_wallet, teacher_uri, min_stake):
     """
     Revoke a policy.
@@ -384,7 +385,7 @@ def decrypt(click_config,
             label, message_kit,
 
             # API Options
-            geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath,
+            geth, provider_uri, light, federated_only, dev, pay_with, network, registry_filepath,
             config_file, discovery_port, hw_wallet, teacher_uri, min_stake):
     """
     Decrypt data encrypted under an Alice's policy public key.
@@ -414,7 +415,7 @@ def _setup_emitter(click_config):
 
 
 def _get_alice_config(click_config, config_file, dev, discovery_port, federated_only, geth, network, pay_with,
-                      provider_uri, registry_filepath):
+                      provider_uri, light, registry_filepath):
     if federated_only and geth:
         raise click.BadOptionUsage(option_name="--geth", message="Federated only cannot be used with the --geth flag")
     #
@@ -426,12 +427,12 @@ def _get_alice_config(click_config, config_file, dev, discovery_port, federated_
         provider_uri = ETH_NODE.provider_uri(scheme='file')
 
     # Get config
-    alice_config = _get_or_create_alice_config(click_config, dev, network, ETH_NODE, provider_uri,
+    alice_config = _get_or_create_alice_config(click_config, dev, network, ETH_NODE, provider_uri, light,
                                                config_file, discovery_port, pay_with, registry_filepath)
     return alice_config, provider_uri
 
 
-def _get_or_create_alice_config(click_config, dev, network, eth_node, provider_uri, config_file,
+def _get_or_create_alice_config(click_config, dev, network, eth_node, provider_uri, light, config_file,
                                 discovery_port, pay_with, registry_filepath):
     if dev:
         alice_config = AliceConfiguration(dev_mode=True,
@@ -439,6 +440,7 @@ def _get_or_create_alice_config(click_config, dev, network, eth_node, provider_u
                                           domains={network},
                                           provider_process=eth_node,
                                           provider_uri=provider_uri,
+                                          light=light,
                                           federated_only=True)
 
     else:
@@ -452,6 +454,7 @@ def _get_or_create_alice_config(click_config, dev, network, eth_node, provider_u
                 checksum_address=pay_with,
                 provider_process=eth_node,
                 provider_uri=provider_uri,
+                light=light,
                 registry_filepath=registry_filepath)
         except FileNotFoundError:
             return actions.handle_missing_configuration_file(character_config_class=AliceConfiguration,
