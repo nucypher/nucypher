@@ -564,6 +564,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                         *constructor_args,
                         enroll: bool = True,
                         gas_limit: int = None,
+                        version: str = 'latest',
                         **constructor_kwargs
                         ) -> Tuple[Contract, dict]:
         """
@@ -588,7 +589,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                       f"deployer address {deployer_address} "
                       f"and parameters {pprint_args}")
 
-        contract_factory = self.get_contract_factory(contract_name=contract_name)
+        contract_factory = self.get_contract_factory(contract_name=contract_name, version=version)
         transaction_function = contract_factory.constructor(*constructor_args, **constructor_kwargs)
 
         #
@@ -620,10 +621,39 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
         return contract, receipt  # receipt
 
-    def get_contract_factory(self, contract_name: str) -> Contract:
+    @staticmethod
+    def _get_contract_data(contract_data: dict, requested_version: str) -> dict:
+        try:
+            return contract_data[requested_version]
+        except KeyError:
+            if requested_version != 'latest' and requested_version != 'oldest':
+                return None
+
+        # if len(contract_data.keys()) == 1:
+        #     return contract_data[0]
+
+        # Get latest and oldest versions
+        current_version = (-1, -1, -1)
+        current_data = None
+        for version, data in contract_data.items():
+            major, minor, patch = [int(v) for v in version[1:].split(".", 3)]
+            if current_version[0] == -1 or \
+                requested_version == 'latest' and \
+                (current_version[0] == -1 or
+                    major > current_version[0] or
+                    major == current_version[0] and minor > current_version[1] or
+                    major == current_version[0] and minor == current_version[1] and patch > current_version[2]) or \
+                (major < current_version[0] or
+                    major == current_version[0] and minor < current_version[1] or
+                    major == current_version[0] and minor == current_version[1] and patch < current_version[2]):
+                current_version = (major, minor, patch)
+                current_data = data
+        return current_data
+
+    def get_contract_factory(self, contract_name: str, version: str = 'latest') -> Contract:
         """Retrieve compiled interface data from the cache and return web3 contract"""
         try:
-            interface = self.__raw_contract_cache[contract_name]
+            contract_data = self.__raw_contract_cache[contract_name]
         except KeyError:
             raise self.UnknownContract('{} is not a locally compiled contract.'.format(contract_name))
         except TypeError:
@@ -632,6 +662,11 @@ class BlockchainDeployerInterface(BlockchainInterface):
                 raise self.InterfaceError(message)
             raise
         else:
+            interface = self._get_contract_data(contract_data, version)
+            if interface is None:
+                raise self.UnknownContract('Version {} of contract {} is not a locally compiled. '
+                                           'Available versions: {}'
+                                           .format(version, contract_name, contract_data.keys()))
             contract = self.client.w3.eth.contract(abi=interface['abi'],
                                                    bytecode=interface['bin'],
                                                    ContractFactoryClass=Contract)

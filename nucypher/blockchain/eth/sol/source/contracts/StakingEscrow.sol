@@ -34,6 +34,7 @@ contract WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
+* @dev |v1.4.1|
 */
 contract StakingEscrow is Issuer {
     using SafeERC20 for NuCypherToken;

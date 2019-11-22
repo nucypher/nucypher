@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import collections
 import os
+import re
 from typing import List, Set, Tuple
 
 import sys
@@ -40,7 +41,8 @@ SourceDirs.__new__.__defaults__ = (None,)
 
 class SolidityCompiler:
 
-    __default_version = 'v0.5.9'
+    __default_compiler_version = 'v0.5.9'
+    __default_contract_version = 'v0.0.0'
     __default_configuration_path = os.path.join(dirname(abspath(__file__)), './compiler.json')
 
     __default_sol_binary_path = shutil.which('solc')
@@ -87,7 +89,7 @@ class SolidityCompiler:
         Installs the specified solidity compiler version.
         https://github.com/ethereum/py-solc#installing-the-solc-binary
         """
-        version = version if version is not None else self.__default_version
+        version = version if version is not None else self.__default_compiler_version
         return install_solc(version, platform=None)  # TODO: #1478 - Implement or remove this
 
     def compile(self) -> dict:
@@ -96,7 +98,12 @@ class SolidityCompiler:
             if root_source_dir is None:
                 self.log.warn("One of the root directories is None")
             else:
-                interfaces.update(self._compile(root_source_dir, other_source_dirs))
+                raw_interfaces = self._compile(root_source_dir, other_source_dirs)
+                for name, data in raw_interfaces.items():
+                    # Extract contract version from docs
+                    version_search = re.search(r'\"details\":\".*?\|(v\d+\.\d+\.\d+)\|.*?\"', data['devdoc'])
+                    version = version_search.group(1) if version_search else self.__default_contract_version
+                    interfaces.update({name: {version: data}})
         return interfaces
 
     def _compile(self, root_source_dir: str, other_source_dirs: [str]) -> dict:

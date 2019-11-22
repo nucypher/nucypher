@@ -9,8 +9,9 @@ import "contracts/PolicyManager.sol";
 
 /**
 * @notice Interface for accessing main contracts from a staking contract
-* @dev All methods must be stateless because this code will execute by delegatecall call
-* If state is needed - use getStateContract() method to access state of this contract
+* @dev All methods must be stateless because this code will be executed by delegatecall call.
+* If state is needed - use getStateContract() method to access state of this contract.
+* @dev |v1.2.1|
 */
 contract StakingInterface {
 

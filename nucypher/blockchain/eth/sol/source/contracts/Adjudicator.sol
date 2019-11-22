@@ -10,6 +10,7 @@ import "zeppelin/math/Math.sol";
 
 /**
 * @notice Supervises stakers' behavior and punishes when something's wrong.
+* @dev |v1.1.1|
 */
 contract Adjudicator is Upgradeable {
 

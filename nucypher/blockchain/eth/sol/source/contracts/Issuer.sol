@@ -10,6 +10,7 @@ import "contracts/lib/AdditionalMath.sol";
 
 /**
 * @notice Contract for calculate issued tokens
+* @dev |v1.1.2|
 */
 contract Issuer is Upgradeable {
     using SafeMath for uint256;

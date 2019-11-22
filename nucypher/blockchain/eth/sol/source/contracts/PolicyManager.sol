@@ -13,6 +13,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 /**
 * @notice Contract holds policy data and locks fees
+* @dev |v1.1.2|
 */
 contract PolicyManager is Upgradeable {
     using SafeERC20 for NuCypherToken;
