@@ -823,7 +823,7 @@ class Ursula(Teacher, Character, Worker):
         Character.__init__(self,
                            is_me=is_me,
                            checksum_address=checksum_address,
-                           start_learning_now=start_learning_now,
+                           start_learning_now=False,  # Handled later in this function to avoid race condition
                            federated_only=federated_only,
                            crypto_power=crypto_power,
                            abort_on_learning_error=abort_on_learning_error,
@@ -930,6 +930,9 @@ class Ursula(Teacher, Character, Worker):
                          timestamp=timestamp,
                          decentralized_identity_evidence=decentralized_identity_evidence,
                          )
+
+        if start_learning_now:
+            self.start_learning_loop(now=True)
 
         #
         # Logging / Updating
