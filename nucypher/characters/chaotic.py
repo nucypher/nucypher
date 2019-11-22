@@ -1,154 +1,37 @@
 import json
-import math
 import os
-import time
 from datetime import datetime, timedelta
 from decimal import Decimal
 
 import eth_utils
+import math
 import maya
+import time
 from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE
-from cryptography.hazmat.primitives.asymmetric import ec
 from flask import Flask, render_template, Response
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from hendrix.deploy.base import HendrixDeploy
-from hendrix.experience import hey_joe
 from nacl.hash import sha256
 from sqlalchemy import create_engine, or_
 from twisted.internet import threads, reactor
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
-from umbral.keys import UmbralPrivateKey
 
 from nucypher.blockchain.economics import TokenEconomicsFactory
 from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
-    ContractAgency,
-    StakingEscrowAgent,
-    PolicyManagerAgent,
-    AdjudicatorAgent
+    ContractAgency
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
-from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
+from nucypher.characters.banners import FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
 from nucypher.config.constants import TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower, TransactingPower
-from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
-from nucypher.network.nodes import FleetStateTracker
-from nucypher.network.server import TLSHostingPower
-from nucypher.network.status_app.moe import MoeStatusApp
-
-
-class Moe(Character):
-    """
-    A monitor (lizard?)
-    # TODO: Inherit directly from Learner
-    """
-    banner = MOE_BANNER
-
-    def __init__(self,
-                 host: str,
-                 http_port: int,
-                 websocket_port: int,
-                 tls_certificate_filepath: str = None,
-                 tls_private_key_filepath: str = None,
-                 *args, **kwargs):
-
-        self.rest_app = None
-        self.host = host
-        self.http_port = http_port
-        self.websocket_port = websocket_port
-
-        # Pre-Signed
-        if tls_certificate_filepath and tls_private_key_filepath:
-            with open(tls_private_key_filepath, 'rb') as file:
-                tls_private_key = UmbralPrivateKey.from_bytes(file.read())
-            tls_hosting_keypair = HostingKeypair(curve=ec.SECP384R1,
-                                                 host=self.host,
-                                                 certificate_filepath=tls_certificate_filepath,
-                                                 private_key=tls_private_key)
-
-        # Self-Sign
-        else:
-            tls_hosting_keypair = HostingKeypair(curve=ec.SECP384R1, host=self.host)
-
-        tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=self.host)
-        super().__init__(*args, crypto_power_ups=[tls_hosting_power], **kwargs)
-
-        self._crypto_power.consume_power_up(tls_hosting_power)  # Consume!
-        self.log.info(self.banner)
-        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
-        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
-        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
-        self.adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=self.registry)
-
-    class MonitoringTracker(FleetStateTracker):
-        def record_fleet_state(self, *args, **kwargs):
-            new_state_or_none = super().record_fleet_state(*args, **kwargs)
-            if new_state_or_none:
-                hey_joe.send(None, "states")
-            return new_state_or_none
-
-    tracker_class = MonitoringTracker
-    _SHORT_LEARNING_DELAY = .5
-    _LONG_LEARNING_DELAY = 30
-    LEARNING_TIMEOUT = 10
-    _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 25
-
-    def remember_node(self, *args, **kwargs):
-        new_node_or_none = super().remember_node(*args, **kwargs)
-        if new_node_or_none:
-            hey_joe.send(None, topic="nodes")
-        return new_node_or_none
-
-    def learn_from_teacher_node(self, *args, **kwargs):
-        new_nodes = super().learn_from_teacher_node(*args, **kwargs)
-        hey_joe.send(None, topic="nodes")
-        return new_nodes
-
-    def start(self, dry_run: bool = False):
-
-        #
-        # WSGI Service
-        #
-
-        self.rest_app = Flask("fleet-monitor")
-        rest_app = self.rest_app
-        MoeStatusApp(moe=self,
-                     title='Moe Monitoring Application',
-                     flask_server=self.rest_app,
-                     route_url='/')
-
-        #
-        # Websocket Service
-        #
-        def send_states(subscriber):
-            message = ["states", None]
-            subscriber.sendMessage(json.dumps(message).encode())
-
-        def send_nodes(subscriber):
-            message = ["nodes", None]
-            subscriber.sendMessage(json.dumps(message).encode())
-
-        origins = [f"https://{self.host}:{self.http_port}"]
-        wss_service = hey_joe.WSSWebSocketService(host_address=self.host, port=self.websocket_port, allowedOrigins=origins)
-        wss_service.register_followup("states", send_states)
-        wss_service.register_followup("nodes", send_nodes)
-
-        #
-        # Server
-        #
-
-        deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=rest_app, port=self.http_port)
-        deployer.add_tls_websocket_service(wss_service)
-
-        if not dry_run:
-            deployer.run()
 
 
 class Felix(Character, NucypherTokenActor):

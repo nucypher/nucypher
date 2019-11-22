@@ -12,12 +12,11 @@ from twisted.logger import Logger
 import nucypher
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.characters.base import Character
-from nucypher.network.nodes import Learner, FleetStateTracker
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 
 class NetworkStatusPage:
-    NODE_TABLE_COLUMNS = ['Status', 'Checksum', 'Nickname', 'Timestamp', 'Last Seen', 'Fleet State']
+    NODE_TABLE_COLUMNS = ['Status', 'Checksum', 'Nickname', 'Launched', 'Last Seen', 'Fleet State']
 
     def __init__(self, title: str, flask_server: Flask, route_url: str):
         self.log = Logger(self.__class__.__name__)
@@ -37,42 +36,39 @@ class NetworkStatusPage:
     def header() -> html.Div:
         return html.Div([html.Div(f'v{nucypher.__version__}', id='version')], className="logo-widget")
 
-    def previous_states(self, learner: Learner) -> html.Div:
-        previous_states = list(reversed(learner.known_nodes.states.values()))[:5]  # only latest 5
+    def previous_states(self, states_dict_list) -> html.Div:
         return html.Div([
                 html.H4('Previous States'),
                 html.Div([
-                    self._states_table(previous_states)
+                    self._states_table(states_dict_list)
                 ]),
             ], className='row')
 
-    def _states_table(self, states) -> html.Table:
+    def _states_table(self, states_dict_list) -> html.Table:
         row = []
-        for state in states:
+        for state_dict in states_dict_list:
             # add previous states in order (already reversed)
-            row.append(html.Td(self.state_detail(FleetStateTracker.abridged_state_details(state))))
+            row.append(html.Td(self.state_detail(state_dict)))
         return html.Table([html.Tr(row, id='state-table')])
 
     @staticmethod
-    def state_detail(state_detail_dict) -> html.Div:
+    def state_detail(state_dict) -> html.Div:
         return html.Div([
             html.Div([
-                html.Div(state_detail_dict['symbol'], className='single-symbol'),
-            ], className='nucypher-nickname-icon', style={'border-color': state_detail_dict['color_hex']}),
-            html.Span(state_detail_dict['nickname']),
-            html.Span(state_detail_dict['updated'], className='small'),
-        ], className='state', style={'background-color': state_detail_dict['color_hex']})
+                html.Div(state_dict['symbol'], className='single-symbol'),
+            ], className='nucypher-nickname-icon', style={'border-color': state_dict['color_hex']}),
+            html.Span(state_dict['nickname'], title=state_dict['updated']),
+        ], className='state', style={'background-color': state_dict['color_hex']})
 
-    def known_nodes(self, character: Character) -> html.Div:
+    def known_nodes(self, nodes_dict: dict, registry, teacher_checksum: str = None) -> html.Div:
         nodes = list()
-        nodes_dict = character.known_nodes.abridged_nodes_dict()
-        teacher_node = character.current_teacher_node()
         teacher_index = None
         for checksum in nodes_dict:
             node_data = nodes_dict[checksum]
-            if checksum == teacher_node.checksum_address:
-                teacher_index = len(nodes)
-            nodes.append(node_data)
+            if node_data:
+                if checksum == teacher_checksum:
+                    teacher_index = len(nodes)
+                nodes.append(node_data)
 
         return html.Div([
             html.H4('Network Nodes'),
@@ -80,8 +76,10 @@ class NetworkStatusPage:
                 html.Div('* Current Teacher',
                          style={'backgroundColor': '#1E65F3', 'color': 'white'},
                          className='two columns'),
-            ]),
-            html.Div([self.nodes_table(nodes, teacher_index, character.registry)])
+            ], className='row'),
+            html.Br(),
+            html.H6(f'Known Nodes: {len(nodes_dict)}'),
+            html.Div([self.nodes_table(nodes, teacher_index, registry)])
         ])
 
     def nodes_table(self, nodes, teacher_index, registry) -> html.Table:
@@ -117,15 +115,8 @@ class NetworkStatusPage:
         Update this depending on which columns you want to show links for
         and what you want those links to be.
         """
+        # Nickname
         identity = html.Td(children=html.Div([
-            html.Div([
-                html.Span(f'{node_info["icon_details"]["first_symbol"]}',
-                          className='single-symbol',
-                          style={'color': node_info["icon_details"]['first_color']}),
-                html.Span(f'{node_info["icon_details"]["second_symbol"]}',
-                          className='single-symbol',
-                          style={'color': node_info["icon_details"]['second_color']}),
-            ], className='symbols'),
             html.A(node_info['nickname'],
                    href=f'https://{node_info["rest_url"]}/status',
                    target='_blank')
@@ -139,28 +130,46 @@ class NetworkStatusPage:
             fleet_state_div = icon_list
         fleet_state = html.Td(children=html.Div(fleet_state_div))
 
-        staker_address = node_info['staker_address']
-
-        # Blockchainy (TODO)
-        agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
-        current_period = agent.get_current_period()
-        last_confirmed_period = agent.get_last_active_period(staker_address)
-        status = NetworkStatusPage.get_node_status(agent, staker_address, current_period, last_confirmed_period)
-
-        etherscan_url = f'https://goerli.etherscan.io/address/{node_info["staker_address"]}'
+        # Last seen
         try:
             slang_last_seen = MayaDT.from_rfc3339(node_info['last_seen']).slang_time()
         except ParserError:
             slang_last_seen = node_info['last_seen']
 
+        staker_address = node_info['staker_address']
+        if registry is NO_BLOCKCHAIN_CONNECTION:
+            # Status - default to 'FEDERATED' status
+            status = html.Td('FEDERATED')
+
+            # Last seen
+            last_seen = html.Td(slang_last_seen)
+
+            # Checksum
+            checksum = html.Td(f'{staker_address[:10]}...')
+        else:
+            # Blockchain-specific
+            agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
+            current_period = agent.get_current_period()
+            last_confirmed_period = agent.get_last_active_period(staker_address)
+
+            # Status
+            status = NetworkStatusPage.get_node_status(agent, staker_address, current_period, last_confirmed_period)
+
+            # Last seen
+            last_seen = html.Td([slang_last_seen, f" | Period {last_confirmed_period}"])
+
+            # Checksum
+            etherscan_url = f'https://goerli.etherscan.io/address/{staker_address}'
+            checksum = html.Td(html.A(f'{node_info["staker_address"][:10]}...',
+                                      href=etherscan_url,
+                                      target='_blank'))
+
         components = {
             'Status': status,
-            'Checksum': html.Td(html.A(f'{node_info["staker_address"][:10]}...',
-                                       href=etherscan_url,
-                                       target='_blank')),
+            'Checksum': checksum,
             'Nickname': identity,
-            'Timestamp': html.Td(node_info['timestamp']),
-            'Last Seen': html.Td([slang_last_seen, f" | Period {last_confirmed_period}"]),
+            'Launched': html.Td(node_info['timestamp']),
+            'Last Seen': last_seen,
             'Fleet State': fleet_state
         }
 

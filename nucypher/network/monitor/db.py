@@ -1,13 +1,18 @@
+import sqlite3
 from collections import OrderedDict
 from datetime import datetime, timedelta
 
 from influxdb import InfluxDBClient
 from maya import MayaDT
 
+from typing import List, Dict
 
-class InfluxCrawlerClient:
+from nucypher.network.monitor.crawler import NetworkCrawlerNodeStorage
+
+
+class NetworkCrawlerBlockchainDBClient:
     """
-    Performs operations on data in the MoeBlockchainCrawler DB.
+    Performs operations on data in the NetworkCrawler DB.
 
     Helpful for data intensive long-running graphing calculations on historical data.
     """
@@ -71,3 +76,67 @@ class InfluxCrawlerClient:
 
     def close(self):
         self._client.close()
+
+
+class NetworkCrawlerNodeMetadataDBClient:
+    from nucypher.network.monitor.crawler import NetworkCrawlerNodeStorage
+
+    def __init__(self, db_filepath: str = NetworkCrawlerNodeStorage.DEFAULT_DB_FILEPATH):
+        self._db_filepath = db_filepath
+
+    def get_known_nodes_metadata(self) -> Dict:
+        # dash threading means that connection needs to be established in same thread as use
+        db_conn = sqlite3.connect(self._db_filepath)
+        try:
+            result = db_conn.execute(f"SELECT * FROM {NetworkCrawlerNodeStorage.NODE_DB_NAME} ORDER BY staker_address")
+
+            # TODO use `pandas` package instead to automatically get dict?
+            known_nodes = OrderedDict()
+            column_names = [description[0] for description in result.description]
+            for row in result:
+                node_info = dict()
+                staker_address = row[0]
+                for idx, value in enumerate(row):
+                    node_info[column_names[idx]] = row[idx]
+                known_nodes[staker_address] = node_info
+
+            return known_nodes
+        finally:
+            db_conn.close()
+
+    def get_previous_states_metadata(self, limit: int = 5) -> List[Dict]:
+        # dash threading means that connection needs to be established in same thread as use
+        db_conn = sqlite3.connect(self._db_filepath)
+        states_dict_list = []
+        try:
+            result = db_conn.execute(f"SELECT * FROM {NetworkCrawlerNodeStorage.STATE_DB_NAME} "
+                                     f"ORDER BY datetime(updated) DESC LIMIT {limit}")
+
+            # TODO use `pandas` package instead to automatically get dict?
+            column_names = [description[0] for description in result.description]
+            for row in result:
+                state_info = dict()
+                for idx, value in enumerate(row):
+                    column_name = column_names[idx]
+                    if column_name == 'updated':
+                        # convert column from rfc3339 (for sorting) back to rfc2822
+                        # TODO does this matter for displaying?
+                        state_info[column_name] = MayaDT.from_rfc3339(row[idx]).rfc2822()
+                    else:
+                        state_info[column_name] = row[idx]
+                states_dict_list.append(state_info)
+
+            return states_dict_list
+        finally:
+            db_conn.close()
+
+    def get_current_teacher_checksum(self):
+        db_conn = sqlite3.connect(self._db_filepath)
+        try:
+            result = db_conn.execute(f"SELECT checksum_address from {NetworkCrawlerNodeStorage.TEACHER_DB_NAME} LIMIT 1")
+            for row in result:
+                return row[0]
+
+            return None
+        finally:
+            db_conn.close()
