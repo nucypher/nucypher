@@ -15,10 +15,10 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
-import time
 
 import pytest
 import pytest_twisted as pt
+import time
 from twisted.internet import threads
 
 from nucypher.characters.base import Learner
@@ -26,7 +26,6 @@ from nucypher.cli import actions
 from nucypher.cli.actions import UnknownIPAddress
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.node import CharacterConfiguration
 from nucypher.network.nodes import Teacher
 from nucypher.utilities.sandbox.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,

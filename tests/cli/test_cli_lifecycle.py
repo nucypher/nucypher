@@ -2,10 +2,13 @@ import datetime
 import json
 import os
 import shutil
+import sys
 from base64 import b64decode
 from collections import namedtuple
+from json import JSONDecodeError
 
 import maya
+import pytest
 import pytest_twisted as pt
 from twisted.internet import threads
 from web3 import Web3
@@ -13,6 +16,7 @@ from web3 import Web3
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration
 from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, TEMPORARY_DOMAIN, TEST_PROVIDER_URI, \
     MOCK_REGISTRY_FILEPATH
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
@@ -148,6 +152,9 @@ def _cli_lifecycle(click_runner,
     alice_init_response = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
     assert alice_init_response.exit_code == 0
 
+    # Prevent previous global logger settings set by aboce command from writing non-IPC messages to stdout
+    GlobalLoggerSettings.stop_console_logging()
+
     # Alice uses her configuration file to run the character "view" command
     alice_configuration_file_location = os.path.join(alice_config_root, AliceConfiguration.generate_filename())
     alice_view_args = ('alice', 'public-keys',
@@ -161,7 +168,11 @@ def _cli_lifecycle(click_runner,
                                             env=envvars)
 
     assert alice_view_result.exit_code == 0
-    alice_view_response = json.loads(alice_view_result.output)
+
+    try:
+        alice_view_response = json.loads(alice_view_result.output)
+    except JSONDecodeError:
+        pytest.fail("Invalid JSON response from JSON-RPC Character process.")
 
     # Alice expresses her desire to participate in data sharing with nucypher
     # by saving her public key somewhere Bob and Enrico can find it.

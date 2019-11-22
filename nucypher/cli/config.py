@@ -119,6 +119,8 @@ class NucypherClickConfig:
             console_logs = False
             file_logs = False
             sentry_logs = False
+        if json_ipc:
+            console_logs = False
 
         GlobalLoggerSettings.set_log_level(log_level_name=log_level)
 
@@ -129,6 +131,8 @@ class NucypherClickConfig:
             GlobalLoggerSettings.start_json_file_logging()
         if sentry_logs:
             GlobalLoggerSettings.start_sentry_logging(self.sentry_endpoint)
+        if json_ipc:
+            GlobalLoggerSettings.stop_console_logging()  # JSON-RPC Protection
 
         # CLI Session Configuration
         self.mock_networking = mock_networking

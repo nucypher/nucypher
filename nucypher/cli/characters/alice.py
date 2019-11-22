@@ -231,9 +231,9 @@ def public_keys(click_config,
     """
     Obtain Alice's public verification and encryption keys.
     """
+
     ### Setup ###
     emitter = _setup_emitter(click_config)
-
     alice_config, provider_uri = _get_alice_config(click_config, config_file, dev, discovery_port, federated_only,
                                                    geth, network, pay_with, provider_uri, registry_filepath)
     #############
@@ -253,7 +253,6 @@ def derive_policy_pubkey(click_config,
                          # Other (required)
                          label,
 
-                         # API Options
                          # API Options
                          geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath,
                          config_file, discovery_port, hw_wallet, teacher_uri, min_stake):

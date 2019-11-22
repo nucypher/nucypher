@@ -1,5 +1,6 @@
 import json
 import sys
+from functools import partial
 from typing import Callable, Union
 
 import click
@@ -15,7 +16,7 @@ class StdoutEmitter:
     default_color = 'white'
 
     # sys.stdout.write() TODO: doesn't work well with click_runner's output capture
-    default_sink_callable = print
+    default_sink_callable = partial(print, flush=True)
 
     def __init__(self,
                  sink: Callable = None,
@@ -142,7 +143,7 @@ class JSONRPCStdoutEmitter(StdoutEmitter):
         pass
 
     def message(self, message: str, **kwds):
-        self.log.debug(message)
+        pass
 
     def echo(self, *args, **kwds):
         pass
