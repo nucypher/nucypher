@@ -33,7 +33,7 @@ from nucypher.utilities.sandbox.constants import (
 
 @pytest.fixture()
 def another_testerchain(solidity_compiler):
-    testerchain = _TesterBlockchain(eth_airdrop=True, free_transactions=True, light=True)
+    testerchain = _TesterBlockchain(eth_airdrop=True, free_transactions=True, light=True, compiler=solidity_compiler)
     testerchain.deployer_address = testerchain.etherbase_account
     assert testerchain.is_light
     yield testerchain

@@ -59,7 +59,6 @@ from nucypher.blockchain.eth.providers import (
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.utilities.logging import console_observer, GlobalLoggerSettings
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
