@@ -282,8 +282,11 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
     """
     _name = 'sqlite'
     DB_FILE_NAME = 'sql-storage-metadata.sqlite'
-    NODE_DB_NAME = 'node_info'
     DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, DB_FILE_NAME)
+
+    NODE_DB_NAME = 'node_info'
+    NODE_DB_SCHEMA = [('staker_address', 'text primary key'), ('rest_url', 'text'), ('nickname', 'text'),
+                      ('timestamp', 'text'), ('last_seen', 'text'), ('fleet_state_icon', 'text')]
 
     def __init__(self, db_filepath: str = DEFAULT_DB_FILEPATH, *args, **kwargs):
         self.db_filepath = db_filepath
@@ -336,9 +339,8 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
             self.db_conn.execute(f"DROP TABLE IF EXISTS {self.NODE_DB_NAME}")
 
             # create fresh new node table (same column names as FleetStateTracker.abridged_nodes_details)
-            self.db_conn.execute(f"CREATE TABLE {self.NODE_DB_NAME} (staker_address text primary key, "
-                                 f"rest_url text, nickname text, timestamp text, last_seen text, "
-                                 f"fleet_state_icon text)")
+            node_db_schema = ", ".join(f"{schema[0]} {schema[1]}" for schema in self.NODE_DB_SCHEMA)
+            self.db_conn.execute(f"CREATE TABLE {self.NODE_DB_NAME} ({node_db_schema})")
 
     def __write_node_metadata(self, node):
         from nucypher.network.nodes import FleetStateTracker
