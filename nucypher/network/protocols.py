@@ -259,8 +259,14 @@ class AvailabilitySensor:
         ursulas = self.sample(quantity=self.sample_size)
         succeeded, failed = 0, 0
         for ursula in ursulas:
+            # Fetch and store teacher certificate
+            responding_ursula_address, responding_ursula_port = tuple(ursula.rest_interface)
+            certificate = self._ursula.network_middleware.get_certificate(host=responding_ursula_address,
+                                                                          port=responding_ursula_port)
+            certificate_filepath = self._ursula.node_storage.store_node_certificate(certificate=certificate)
             available = self._ursula.network_middleware.check_rest_availability(requesting_ursula=self._ursula,
-                                                                                responding_ursula=ursula)
+                                                                                responding_ursula=ursula,
+                                                                                certificate_filepath=certificate_filepath)
             if available:
                 succeeded += 1
             else:
