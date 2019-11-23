@@ -82,7 +82,6 @@ TESTS_REQUIRE = [
     'mypy',
     'codecov',
     'coverage',
-    'moto'
 ]
 
 DEPLOY_REQUIRES = [
@@ -107,6 +106,17 @@ EXTRAS_REQUIRE = {'development': TESTS_REQUIRE,
                   'docs': DOCS_REQUIRE,
                   'benchmark': BENCHMARKS_REQUIRE}
 
+PACKAGE_DATA = ['cli/templates',
+                'network/templates/basic_status.j2',
+                'network/nicknames/web_colors.json',
+                'blockchain/eth/sol/source/contracts/*',
+                'blockchain/eth/sol/source/contracts/lib/*',
+                'blockchain/eth/sol/source/contracts/proxy/*',
+                'blockchain/eth/sol/source/zeppelin/math/*',
+                'blockchain/eth/sol/source/zeppelin/utils/*',
+                'blockchain/eth/sol/source/zeppelin/ownership/*',
+                'blockchain/eth/sol/source/zeppelin/token/ERC20/*']
+
 setup(name=ABOUT['__title__'],
       url=ABOUT['__url__'],
       version=ABOUT['__version__'],
@@ -117,32 +127,26 @@ setup(name=ABOUT['__title__'],
       long_description=long_description,
       long_description_content_type="text/markdown",
 
+      # Setup
+      python_requires='>=3',
       setup_requires=['pytest-runner'],  # required for `setup.py test`
       tests_require=TESTS_REQUIRE,
       install_requires=INSTALL_REQUIRES,
       extras_require=EXTRAS_REQUIRE,
 
+      # Package Data
       packages=find_packages(exclude=["tests"]),
-      package_data={PACKAGE_NAME: [
-          'cli/templates',
-          'network/templates/basic_status.j2',
-          'network/nicknames/web_colors.json',
-          'blockchain/eth/sol/source/contracts/*',
-          'blockchain/eth/sol/source/contracts/lib/*',
-          'blockchain/eth/sol/source/contracts/proxy/*',
-          'blockchain/eth/sol/source/zeppelin/math/*',
-          'blockchain/eth/sol/source/zeppelin/utils/*',
-          'blockchain/eth/sol/source/zeppelin/ownership/*',
-          'blockchain/eth/sol/source/zeppelin/token/ERC20/*']},
+      package_data={PACKAGE_NAME: PACKAGE_DATA},
       include_package_data=True,
 
       # Entry Points
       entry_points={'console_scripts': [
-          '{0} = {0}.cli.main:nucypher_cli'.format(PACKAGE_NAME),
-          '{0}-deploy = {0}.cli.deploy:deploy'.format(PACKAGE_NAME),
+          f'{PACKAGE_NAME} = {PACKAGE_NAME}.cli.main:nucypher_cli',
+          f'{PACKAGE_NAME}-deploy = {PACKAGE_NAME}.cli.deploy:deploy',
       ]},
       cmdclass={'verify': VerifyVersionCommand},
 
+      # Metadata
       classifiers=[
           "Development Status :: 3 - Alpha",
           "Intended Audience :: Developers",
@@ -155,6 +159,4 @@ setup(name=ABOUT['__title__'],
           "Programming Language :: Python :: 3.7",
           "Programming Language :: Python :: 3.8",
           "Topic :: Security"
-      ],
-      python_requires='>=3'
-      )
+      ])
