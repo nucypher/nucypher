@@ -22,7 +22,7 @@ maya = "*"
 flask = "*"
 flask_sqlalchemy = "*"
 # Third-Party Ethereum
-py-evm = "==0.3.0a1"
+py-evm = "*"
 eth-tester = "*"
 coincurve = "*"
 web3 = "*"
