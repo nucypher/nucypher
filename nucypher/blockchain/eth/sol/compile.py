@@ -58,6 +58,9 @@ class SolidityCompiler:
 
     optimization_runs = 200
 
+    class CompilerError(Exception):
+        pass
+
     @classmethod
     def default_contract_dir(cls):
         return cls.__default_contract_dir
@@ -97,13 +100,22 @@ class SolidityCompiler:
         for root_source_dir, other_source_dirs in self.source_dirs:
             if root_source_dir is None:
                 self.log.warn("One of the root directories is None")
-            else:
-                raw_interfaces = self._compile(root_source_dir, other_source_dirs)
-                for name, data in raw_interfaces.items():
-                    # Extract contract version from docs
-                    version_search = re.search(r'\"details\":\".*?\|(v\d+\.\d+\.\d+)\|.*?\"', data['devdoc'])
-                    version = version_search.group(1) if version_search else self.__default_contract_version
-                    interfaces.update({name: {version: data}})
+                continue
+
+            raw_interfaces = self._compile(root_source_dir, other_source_dirs)
+            for name, data in raw_interfaces.items():
+                # Extract contract version from docs
+                version_search = re.search(r'\"details\":\".*?\|(v\d+\.\d+\.\d+)\|.*?\"', data['devdoc'])
+                version = version_search.group(1) if version_search else self.__default_contract_version
+                try:
+                    existence_data = interfaces[name]
+                except KeyError:
+                    existence_data = dict()
+                    interfaces.update({name: existence_data})
+                if version in existence_data and existence_data[version] != data:
+                    raise self.CompilerError(
+                        "Contract set contains two copies of {}:{} but with different data".format(name, version))
+                existence_data.update({version: data})
         return interfaces
 
     def _compile(self, root_source_dir: str, other_source_dirs: [str]) -> dict:

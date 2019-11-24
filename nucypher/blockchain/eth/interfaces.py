@@ -629,10 +629,10 @@ class BlockchainDeployerInterface(BlockchainInterface):
             if requested_version != 'latest' and requested_version != 'oldest':
                 return None
 
-        # if len(contract_data.keys()) == 1:
-        #     return contract_data[0]
+        if len(contract_data.keys()) == 1:
+            return next(iter(contract_data.values()))
 
-        # Get latest and oldest versions
+        # Get the latest or the oldest versions
         current_version = (-1, -1, -1)
         current_data = None
         for version, data in contract_data.items():
