@@ -154,6 +154,7 @@ def test_staker_collects_staking_reward(testerchain,
     # ...wait out the lock period...
     for _ in range(token_economics.minimum_locked_periods):
         testerchain.time_travel(periods=1)
+        ursula.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
         ursula.confirm_activity()
 
     # ...wait more...

@@ -87,6 +87,7 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
                                        rest_port=port + 100,
                                        **ursula_overrides)
         if confirm_activity:
+            ursula.transacting_power.activate()
             ursula.confirm_activity()
 
         ursulas.append(ursula)
