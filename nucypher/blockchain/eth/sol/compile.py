@@ -112,10 +112,8 @@ class SolidityCompiler:
                 except KeyError:
                     existence_data = dict()
                     interfaces.update({name: existence_data})
-                if version in existence_data and existence_data[version] != data:
-                    raise self.CompilerError(
-                        "Contract set contains two copies of {}:{} but with different data".format(name, version))
-                existence_data.update({version: data})
+                if version not in existence_data:
+                    existence_data.update({version: data})
         return interfaces
 
     def _compile(self, root_source_dir: str, other_source_dirs: [str]) -> dict:
