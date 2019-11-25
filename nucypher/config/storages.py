@@ -186,10 +186,10 @@ class ForgetfulNodeStorage(NodeStorage):
         # Certificates
         self.__certificates = dict()
         self.__temporary_certificates = list()
-        self.__temp_certificates_dir = tempfile.mkdtemp(prefix='nucypher-temp-certs-', dir=parent_dir)
+        self._temp_certificates_dir = tempfile.mkdtemp(prefix='nucypher-temp-certs-', dir=parent_dir)
 
     def __del__(self):
-        shutil.rmtree(self.__temp_certificates_dir, ignore_errors=True)
+        shutil.rmtree(self._temp_certificates_dir, ignore_errors=True)
 
     def all(self, federated_only: bool, certificates_only: bool = False) -> set:
         return set(self.__metadata.values() if not certificates_only else self.__certificates.values())
@@ -235,7 +235,7 @@ class ForgetfulNodeStorage(NodeStorage):
     @validate_checksum_address
     def generate_certificate_filepath(self, checksum_address: str) -> str:
         filename = '{}.pem'.format(checksum_address)
-        filepath = os.path.join(self.__temp_certificates_dir, filename)
+        filepath = os.path.join(self._temp_certificates_dir, filename)
         return filepath
 
     @validate_checksum_address
@@ -289,10 +289,10 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
                       ('timestamp', 'text'), ('last_seen', 'text'), ('fleet_state_icon', 'text')]
 
     def __init__(self, db_filepath: str = DEFAULT_DB_FILEPATH, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.db_filepath = db_filepath
         self.db_conn = sqlite3.connect(self.db_filepath)
         self.init_db_tables()
-        super().__init__(*args, **kwargs)
 
     def __del__(self):
         super().__del__()
