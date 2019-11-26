@@ -44,6 +44,7 @@ workflows:
               only: /.*/
           requires:
             - pip_install_37
+            - cli_demo
       - basics:
           context: "NuCypher Tests"
           filters:
@@ -51,6 +52,7 @@ workflows:
               only: /.*/
           requires:
             - pip_install_37
+            - cli_demo
       - network:
           context: "NuCypher Tests"
           filters:
@@ -72,6 +74,7 @@ workflows:
               only: /.*/
           requires:
             - pip_install_37
+            - cli_demo
       - actors:
           context: "NuCypher Tests"
           filters:
@@ -93,6 +96,7 @@ workflows:
               only: /.*/
           requires:
             - pip_install_37
+            - cli_demo
       - tests_ok:
           filters:
             tags:
