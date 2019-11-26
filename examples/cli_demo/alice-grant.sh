@@ -36,7 +36,7 @@ nucypher alice grant \
     --json-ipc \
     | tee /tmp/grant.json
 
-cp ~/.cache/nucypher/log/nucypher.log /tmp/cli-demo
+mv ~/.cache/nucypher/log/nucypher.log /tmp/cli-demo/alice.log
 cp /tmp/grant.json /tmp/cli-demo
 
 # Print the policy key to test correct format of grant output

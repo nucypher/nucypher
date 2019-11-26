@@ -598,7 +598,7 @@ jobs:
       - run:
           name: Save artifacts for later inspection
           command: |
-            cp .cache/nucypher/log/nucypher.log /tmp/cli-demo
+            cp ~/.cache/nucypher/log/nucypher.log /tmp/cli-demo
             cp /tmp/grant.json /tmp/cli-demo
             cp /tmp/enrico.json /tmp/cli-demo
             cp /tmp/retrieve.json /tmp/cli-demo

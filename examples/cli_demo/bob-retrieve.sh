@@ -29,7 +29,7 @@ fi
 nucypher enrico encrypt --policy-encrypting-key $POLICY_KEY --message $MESSAGE --json-ipc | tee /tmp/enrico.json
 
 cp /tmp/enrico.json /tmp/cli-demo
-cp ~/.cache/nucypher/log/nucypher.log /tmp/cli-demo
+mv ~/.cache/nucypher/log/nucypher.log /tmp/cli-demo/enrico.log
 
 MESSAGE_KIT=$(cat /tmp/enrico.json | python3 -c "import sys, json; print(json.load(sys.stdin)['result']['message_kit'])")
 
@@ -46,7 +46,7 @@ nucypher bob retrieve \
     | tee /tmp/retrieve.json
 
 cp /tmp/retrieve.json /tmp/cli-demo
-cp ~/.cache/nucypher/log/nucypher.log /tmp/cli-demo
+mv ~/.cache/nucypher/log/nucypher.log /tmp/cli-demo/bob.log
 
 # Test that the retrieved cleartext is correct
 cat /tmp/retrieve.json \
