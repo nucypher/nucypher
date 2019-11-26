@@ -172,7 +172,6 @@ class Felix(Character, NucypherTokenActor):
 
         # Flask decorators
         rest_app = self.rest_app
-        limiter = Limiter(self.rest_app, key_func=get_remote_address, headers_enabled=True)
 
         #
         # REST Routes
