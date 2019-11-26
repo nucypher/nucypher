@@ -108,6 +108,7 @@ class TestInMemoryNodeStorage(BaseTestNodeStorageBackends):
 
 
 class TestInMemorySQLiteNodeStorage(BaseTestNodeStorageBackends):
+    SQLiteForgetfulNodeStorage.DEFAULT_DB_FILEPATH = ':memory'
     storage_backend = SQLiteForgetfulNodeStorage(character_class=BaseTestNodeStorageBackends.character_class,
                                                  federated_only=BaseTestNodeStorageBackends.federated_only)
     storage_backend.initialize()

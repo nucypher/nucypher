@@ -281,7 +281,7 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
     SQLite forgetful storage of node metadata
     """
     _name = 'sqlite'
-    DB_FILE_NAME = 'sql-storage-metadata.sqlite'
+    DB_FILE_NAME = 'nodes.sqlite'
     DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, DB_FILE_NAME)
 
     NODE_DB_NAME = 'node_info'
