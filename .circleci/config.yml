@@ -220,12 +220,6 @@ python_36_base: &python_36_base
   docker:
     - image: circleci/python:3.6
 
-python_36_base_browser: &python_36_base_browser
-  parallelism: 1
-  working_directory: ~/nucypher
-  docker:
-    - image: circleci/python:3.6-browsers
-
 python_37_base: &python_37_base
   parallelism: 1
   working_directory: ~/nucypher
@@ -376,20 +370,6 @@ jobs:
       - pipenv_install:
           python_version: "3.6"
 
-  # Python 3.6 with browsers
-  pip_install_36_browser:
-    <<: *python_36_base_browser
-    steps:
-    - pip_install
-  pipenv_install_36_browser:
-    <<: *python_36_base_browser
-    steps:
-    - pipenv_install
-    - persist_to_workspace:
-        root: ~/.local/share/virtualenvs/
-        paths:
-          - nucypher-*
-
   # Python 3.7
   # Note: Use the chown command to grant CircleCI access to dependency locations.
   pip_install_37:
@@ -467,7 +447,8 @@ jobs:
       - prepare_environment
       - run:
           name: Network Tests
-          command: pytest $(circleci tests glob "tests/network/test_*.py" | circleci tests split --split-by=timings)
+          command: |
+            pytest $(circleci tests glob "tests/network/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   character:
