@@ -444,6 +444,12 @@ def _make_agency(testerchain, test_registry):
     Launch the big three contracts on provided chain,
     make agents for each and return them.
     """
+    
+    # Mock TransactingPower Consumption (Deployer)
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                     account=testerchain.etherbase_account)
+    testerchain.transacting_power.activate()
+    
     origin = testerchain.etherbase_account
 
     token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)
