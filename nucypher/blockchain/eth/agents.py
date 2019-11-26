@@ -250,29 +250,20 @@ class StakingEscrowAgent(EthereumContractAgent):
             n_tokens = 0
             stakers = list()
             grow_fast = True
-            size_1_retries = 0
             ceiling = float('inf')
             while start_index < num_stakers:
                 try:
                     temp_result = self.contract.functions.getActiveStakers(periods, start_index, pagination_size).call()
-                except ValueError as e:
-                    if 'timeout = 5s' in str(e):
-                        if pagination_size == 1:
-                            if size_1_retries <= 3:
-                                size_1_retries += 1
-                                self.log.debug(f"Failed using pagination size = 1. Trying again.")
-                            else:
-                                raise e  # TODO: specfic exception
-                        else:
-                            self.log.debug(f"Failed using pagination size = {pagination_size}. "
-                                           f"Trying with size 1 and fast growth.")
-                            ceiling = pagination_size // 2
-                            grow_fast = True
-                            pagination_size = 1
-                    else:
+                except Exception as e:
+                    if pagination_size == 1:
                         raise e
+                    else:
+                        self.log.debug(f"Failed stakers sampling using pagination size = {pagination_size}. "
+                                       f"Trying with size 1 and fast growth.")
+                        ceiling = pagination_size // 2
+                        grow_fast = True
+                        pagination_size = 1
                 else:
-                    size_1_retries = 0
                     temp_locked_tokens, temp_stakers = temp_result
                     self.log.debug(f"{len(temp_stakers)} active stakers were found starting from index {start_index}")
                     n_tokens += temp_locked_tokens
