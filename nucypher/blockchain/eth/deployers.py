@@ -154,7 +154,7 @@ class BaseContractDeployer:
             raise self.ContractDeploymentError(message)
         return True
 
-    def deploy(self, gas_limit: int, progress) -> dict:
+    def deploy(self, gas_limit: int, progress, **overrides) -> dict:
         """
         Provides for the setup, deployment, and initialization of ethereum smart contracts.
         Emits the configured blockchain network transactions for single contract instance publication.
@@ -361,7 +361,7 @@ class NucypherTokenDeployer(BaseContractDeployer):
     _upgradeable = False
     _ownable = False
 
-    def deploy(self, gas_limit: int = None, progress=None) -> dict:
+    def deploy(self, gas_limit: int = None, progress=None, **overrides) -> dict:
         """
         Deploy and publish the NuCypher Token contract
         to the blockchain network specified in self.blockchain.network.
@@ -371,11 +371,13 @@ class NucypherTokenDeployer(BaseContractDeployer):
         self.check_deployment_readiness()
 
         # Order-sensitive!
+        constructor_kwargs = {"_totalSupply": self.economics.erc20_total_supply}
+        constructor_kwargs.update({k: v for k, v in overrides.items() if v is not None})
         contract, deployment_receipt = self.blockchain.deploy_contract(self.deployer_address,
                                                                        self.registry,
                                                                        self.contract_name,
                                                                        gas_limit=gas_limit,
-                                                                       _totalSupply=self.economics.erc20_total_supply)
+                                                                       **constructor_kwargs)
         if progress:
             progress.update(1)
         self._contract = contract
@@ -465,14 +467,27 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         if result == self.blockchain.NULL_ADDRESS:
             raise RuntimeError("PolicyManager contract is not initialized.")
 
-    def _deploy_essential(self, gas_limit: int = None):
-        escrow_constructor_args = (self.token_contract.address, *self.economics.staking_deployment_parameters)
+    def _deploy_essential(self, gas_limit: int = None, **overrides):
+        args = self.economics.staking_deployment_parameters
+        constructor_kwargs = {
+            "_hoursPerPeriod": args[0],
+            "_miningCoefficient": args[1],
+            "_lockedPeriodsCoefficient": args[2],
+            "_rewardedPeriods": args[3],
+            "_minLockedPeriods": args[4],
+            "_minAllowableLockedTokens": args[5],
+            "_maxAllowableLockedTokens": args[6],
+            "_minWorkerPeriods": args[7]
+        }
+        constructor_kwargs.update({k: v for k, v in overrides.items() if v is not None})
+        # Force use of the token address from the registry
+        constructor_kwargs.update({"_token": self.token_contract.address})
         the_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(
             self.deployer_address,
             self.registry,
             self.contract_name,
             gas_limit=gas_limit,
-            *escrow_constructor_args,
+            **constructor_kwargs
         )
 
         return the_escrow_contract, deploy_receipt
@@ -481,7 +496,8 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                initial_deployment: bool = True,
                secret_hash: bytes = None,
                gas_limit: int = None,
-               progress=None
+               progress=None,
+               **overrides
                ) -> dict:
         """
         Deploy and publish the StakingEscrow contract
@@ -511,7 +527,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             origin_args.update({'gas': gas_limit})
 
         # 1 - Deploy #
-        the_escrow_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit)
+        the_escrow_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit, **overrides)
 
         # This is the end of bare deployment.
         if not initial_deployment:
@@ -583,7 +599,6 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
     deployment_steps = ('deployment', 'dispatcher_deployment', 'set_policy_manager')
     _proxy_deployer = DispatcherDeployer
 
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         proxy_name = StakingEscrowDeployer._proxy_deployer.contract_name
@@ -593,11 +608,12 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                                                                      proxy_name=proxy_name)
 
     def _deploy_essential(self, gas_limit: int = None) -> tuple:
+        constructor_kwargs = {"_escrow": self.staking_contract.address}
         policy_manager_contract, deploy_receipt = self.blockchain.deploy_contract(self.deployer_address,
                                                                                   self.registry,
                                                                                   self.contract_name,
-                                                                                  self.staking_contract.address,
-                                                                                  gas_limit=gas_limit)
+                                                                                  gas_limit=gas_limit,
+                                                                                  **constructor_kwargs)
         return policy_manager_contract, deploy_receipt
 
     def deploy(self,
@@ -926,21 +942,31 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
                                                                      name=staking_contract_name,
                                                                      proxy_name=proxy_name)
 
-    def _deploy_essential(self, gas_limit: int = None):
-        constructor_args = (self.staking_contract.address,
-                            *self.economics.slashing_deployment_parameters)
+    def _deploy_essential(self, gas_limit: int = None, **overrides):
+        args = self.economics.slashing_deployment_parameters
+        constructor_kwargs = {
+            "_hashAlgorithm": args[0],
+            "_basePenalty": args[1],
+            "_penaltyHistoryCoefficient": args[2],
+            "_percentagePenaltyCoefficient": args[3],
+            "_rewardCoefficient": args[4]
+        }
+        constructor_kwargs.update({k: v for k, v in overrides.items() if v is not None})
+        # Force use of the escrow address from the registry
+        constructor_kwargs.update({"_escrow": self.staking_contract.address})
         adjudicator_contract, deploy_receipt = self.blockchain.deploy_contract(self.deployer_address,
                                                                                self.registry,
                                                                                self.contract_name,
-                                                                               *constructor_args,
-                                                                               gas_limit=gas_limit)
+                                                                               gas_limit=gas_limit,
+                                                                               **constructor_kwargs)
         return adjudicator_contract, deploy_receipt
 
     def deploy(self,
                initial_deployment: bool = True,
                secret_hash: bytes = None,
                gas_limit: int = None,
-               progress=None) -> Dict[str, str]:
+               progress=None,
+               **overrides) -> Dict[str, str]:
 
         if initial_deployment and not secret_hash:
             raise ValueError(f"An upgrade secret hash is required to perform an initial"
@@ -948,7 +974,7 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
 
         self.check_deployment_readiness()
 
-        adjudicator_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit)
+        adjudicator_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit, **overrides)
 
         # This is the end of bare deployment.
         if not initial_deployment:
