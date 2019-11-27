@@ -22,7 +22,7 @@ import tempfile
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
 from os.path import dirname, abspath
-from typing import Union, Iterator, List, Dict
+from typing import Union, Iterator, List, Dict, Type
 
 import requests
 from constant_sorrow.constants import REGISTRY_COMMITTED, NO_REGISTRY_SOURCE
@@ -123,22 +123,49 @@ class InPackageRegistrySource(CanonicalRegistrySource):
 
 
 class RegistrySourceManager:
+    logger = Logger('RegistrySource')
 
     __REMOTE_SOURCES = (
         GithubRegistrySource,
         # TODO: Mirror/fallback for contract registry: moar remote sources - #1454
         # NucypherServersRegistrySource,
         # IPFSRegistrySource,
-    )  # type: List[CanonicalRegistrySource]
+    )  # type: List[Type[CanonicalRegistrySource]]
 
     __LOCAL_SOURCES = (
         InPackageRegistrySource,
-    )  # type: List[CanonicalRegistrySource]
+    )  # type: List[Type[CanonicalRegistrySource]]
 
     __FALLBACK_CHAIN = __REMOTE_SOURCES + __LOCAL_SOURCES
 
+    class NoSourcesAvailable(Exception):
+        pass
+
     def __getitem__(self, index):
         return self.__FALLBACK_CHAIN[index]
+
+    @classmethod
+    def fetch_latest_publication(cls, registry_class):
+        """
+        Get the latest contract registry data available from a registry source chain.
+        """
+
+        for registry_source_class in cls.__FALLBACK_CHAIN:
+            registry_source = registry_source_class(network='goerli', registry_name=registry_class.REGISTRY_NAME)
+            try:
+                if not registry_source.is_primary_source():
+                    message = f"Warning: Registry at {registry_source} is not a primary source."
+                    cls.logger.warn(message)
+                registry_data_bytes = registry_source.fetch_latest_publication()
+            except registry_source.RegistrySourceUnavailable:
+                message = f"Fetching registry from {registry_source} failed."
+                cls.logger.warn(message)
+                continue
+            else:
+                return registry_data_bytes, registry_source
+        else:
+            cls.logger.failure("All known registry sources failed.")
+            raise cls.NoSourcesAvailable
 
 
 class BaseContractRegistry(ABC):
@@ -213,25 +240,10 @@ class BaseContractRegistry(ABC):
         """
         Get the latest contract registry available from a registry source chain.
         """
-
-        for registry_source_class in cls.source_manager:
-            registry_source = registry_source_class(network='goerli', registry_name=cls.REGISTRY_NAME)
-            try:
-                if not registry_source.is_primary_source():
-                    message = f"Warning: Registry at {registry_source} is not a primary source."
-                    cls.logger.warn(message)
-                registry_data_bytes = registry_source.fetch_latest_publication()
-            except registry_source.RegistrySourceUnavailable:
-                message = f"Fetching registry from {registry_source} failed."
-                cls.logger.warn(message)
-                continue
-            else:
-                instance = cls(*args, source=registry_source, **kwargs)
-                instance.write(registry_data=json.loads(registry_data_bytes))
-                return instance
-        else:
-            cls.logger.failure("All known registry sources failed.")
-            raise cls.NoRegistry
+        registry_data, source = cls.source_manager.fetch_latest_publication(registry_class=cls)
+        registry_instance = cls(*args, source=source, **kwargs)
+        registry_instance.write(registry_data=json.loads(registry_data))
+        return registry_instance
 
     @property
     def source(self) -> 'CanonicalRegistrySource':
@@ -566,7 +578,8 @@ class IndividualAllocationRegistry(InMemoryAllocationRegistry):
 
         if not contract_abi:
             # Download individual allocation template to extract contract_abi
-            individual_allocation_template = self.from_latest_publication().read()
+            template_data, self.__source = self.source_manager.fetch_latest_publication(registry_class=self.__class__)
+            individual_allocation_template = json.loads(template_data)
             if len(individual_allocation_template) != 1:
                 raise self.InvalidRegistry("Individual allocation template must contain a single entry")
             try:
