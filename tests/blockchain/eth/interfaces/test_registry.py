@@ -16,7 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import os
 import pytest
 
 from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer
@@ -25,22 +24,8 @@ from nucypher.blockchain.eth.registry import LocalContractRegistry, IndividualAl
 
 
 @pytest.fixture(autouse=True, scope='module')
-def patch_individual_allocation_registry_fetch_latest_publication(agency, test_registry):
-    empty_allocation_escrow_deployer = PreallocationEscrowDeployer(registry=test_registry)
-    allocation_contract_abi = empty_allocation_escrow_deployer.get_contract_abi()
-    allocation_template = {
-        "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", allocation_contract_abi]
-    }
-    new_fetch_result = json.dumps(allocation_template).encode()
-
-    original_fetch = IndividualAllocationRegistry.fetch_latest_publication
-
-    def new_fetch(*args, **kwargs):
-        return new_fetch_result
-
-    IndividualAllocationRegistry.fetch_latest_publication = new_fetch
-    yield
-    IndividualAllocationRegistry.fetch_latest_publication = original_fetch
+def patch_individual_allocation_fetch_latest_publication(_patch_individual_allocation_fetch_latest_publication):
+    pass
 
 
 def test_contract_registry(tempfile_path):
