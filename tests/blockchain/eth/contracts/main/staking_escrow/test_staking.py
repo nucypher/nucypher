@@ -754,7 +754,7 @@ def test_slashing(testerchain, token, escrow_contract, token_economics, deploy_c
     assert investigator == event_args['investigator']
     assert 0 == event_args['reward']
 
-    # Next test: optimization does not brake the saving old sub stake
+    # Next test: optimization does not break saving old sub stake
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
