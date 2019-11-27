@@ -452,7 +452,7 @@ def establish_deployer_registry(emitter,
 
     if download_registry:
         registry = InMemoryContractRegistry.from_latest_publication()
-        emitter.message(f"Using latest published registry from {InMemoryContractRegistry.get_publication_endpoint()}")
+        emitter.message(f"Using latest published registry from {registry.source}")
         return registry
 
     # Establish a contract registry from disk if specified

@@ -25,11 +25,120 @@ from os.path import dirname, abspath
 from typing import Union, Iterator, List, Dict
 
 import requests
-from constant_sorrow.constants import REGISTRY_COMMITTED
+from constant_sorrow.constants import REGISTRY_COMMITTED, NO_REGISTRY_SOURCE
 from twisted.logger import Logger
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
+
+
+class CanonicalRegistrySource(ABC):
+
+    networks = ('goerli', )  # TODO: Allow other branches to be used - #1496
+
+    logger = Logger('RegistrySource')
+
+    def __init__(self, network: str, registry_name: str, *args, **kwargs):
+        if network not in self.networks:
+            raise ValueError(f"{self.__class__.__name__} not available for network '{network}'. "
+                             f"Only {self.networks} are allowed.")
+        self.network = network
+        self.registry_name = registry_name
+
+    class RegistrySourceError(Exception):
+        pass
+
+    class RegistrySourceUnavailable(RegistrySourceError):
+        pass
+
+    @abstractmethod
+    def get_publication_endpoint(self) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
+    def fetch_latest_publication(self) -> Union[str, bytes]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def is_primary_source(self) -> bool:
+        raise NotImplementedError
+
+    def __repr__(self):
+        return self.get_publication_endpoint()
+
+
+class GithubRegistrySource(CanonicalRegistrySource):
+    _PUBLICATION_REPO = "nucypher/ethereum-contract-registry"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def get_publication_endpoint(self) -> str:
+        url = f'https://raw.githubusercontent.com/{self._PUBLICATION_REPO}/{self.network}/{self.registry_name}'
+        return url
+
+    def fetch_latest_publication(self) -> Union[str, bytes]:
+        # Setup
+        publication_endpoint = self.get_publication_endpoint()
+        self.logger.debug(f"Downloading contract registry from {publication_endpoint}")
+        try:
+            # Fetch
+            response = requests.get(publication_endpoint)
+        except requests.exceptions.ConnectionError as e:
+            error = f"Failed to fetch registry from {publication_endpoint}: {str(e)}"
+            raise self.RegistrySourceUnavailable(error)
+
+        if response.status_code != 200:
+            error = f"Failed to fetch registry from {publication_endpoint} with status code {response.status_code}"
+            raise self.RegistrySourceUnavailable(error)
+
+        registry_data = response.content
+        return registry_data
+
+    def is_primary_source(self) -> bool:
+        return True
+
+
+class InPackageRegistrySource(CanonicalRegistrySource):
+    _HERE = os.path.abspath(os.path.dirname(__file__))
+    _BASE_DIR = os.path.join(_HERE, "contract_registry")
+
+    def get_publication_endpoint(self) -> str:
+        filepath = str(os.path.join(self._BASE_DIR, self.network, self.registry_name))
+        return filepath
+
+    def fetch_latest_publication(self) -> Union[str, bytes]:
+        filepath = self.get_publication_endpoint()
+        self.logger.debug(f"Reading registry at {filepath}")
+        try:
+            with open(filepath, "r") as f:
+                registry_data = f.read()
+            return registry_data
+        except IOError as e:
+            error = f"Failed to read registry at {filepath}: {str(e)}"
+            raise self.RegistrySourceError(error)
+
+    def is_primary_source(self) -> bool:
+        return False
+
+
+class RegistrySourceManager:
+
+    __REMOTE_SOURCES = (
+        GithubRegistrySource,
+        # TODO: Mirror/fallback for contract registry: moar remote sources - #1454
+        # NucypherServersRegistrySource,
+        # IPFSRegistrySource,
+    )  # type: List[CanonicalRegistrySource]
+
+    __LOCAL_SOURCES = (
+        InPackageRegistrySource,
+    )  # type: List[CanonicalRegistrySource]
+
+    __FALLBACK_CHAIN = __REMOTE_SOURCES + __LOCAL_SOURCES
+
+    def __getitem__(self, index):
+        return self.__FALLBACK_CHAIN[index]
 
 
 class BaseContractRegistry(ABC):
@@ -42,6 +151,7 @@ class BaseContractRegistry(ABC):
     """
 
     logger = Logger('ContractRegistry')
+    source_manager = RegistrySourceManager()
 
     _multi_contract = True
     _contract_name = NotImplemented
@@ -50,14 +160,7 @@ class BaseContractRegistry(ABC):
     REGISTRY_NAME = 'contract_registry.json'  # TODO: #1511 Save registry with ID-time-based filename
     DEVELOPMENT_REGISTRY_NAME = 'dev_contract_registry.json'
 
-    _PUBLICATION_USER = "nucypher"
-    _PUBLICATION_REPO = f"{_PUBLICATION_USER}/ethereum-contract-registry"
-    _PUBLICATION_BRANCH = 'goerli'          # TODO: Allow other branches to be used - #1496
-
     class RegistryError(Exception):
-        pass
-
-    class RegistrySourceUnavailable(RegistryError):
         pass
 
     class EmptyRegistry(RegistryError):
@@ -72,7 +175,8 @@ class BaseContractRegistry(ABC):
     class InvalidRegistry(RegistryError):
         """Raised when invalid data is encountered in the registry"""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, source=NO_REGISTRY_SOURCE, *args, **kwargs):
+        self.__source = source
         self.log = Logger("registry")
 
     def __eq__(self, other) -> bool:
@@ -105,38 +209,33 @@ class BaseContractRegistry(ABC):
         raise NotImplementedError
 
     @classmethod
-    def get_publication_endpoint(cls) -> str:
-        url = f'https://raw.githubusercontent.com/{cls._PUBLICATION_REPO}/{cls._PUBLICATION_BRANCH}/{cls.REGISTRY_NAME}'
-        return url
-
-    @classmethod
-    def fetch_latest_publication(cls) -> bytes:
-        # Setup
-        publication_endpoint = cls.get_publication_endpoint()
-        cls.logger.debug(f"Downloading contract registry from {publication_endpoint}")
-        try:
-            # Fetch
-            response = requests.get(publication_endpoint)
-        except requests.exceptions.ConnectionError as e:
-            error = f"Failed to fetch registry from {publication_endpoint}: {str(e)}"
-            raise cls.RegistrySourceUnavailable(error)
-
-        if response.status_code != 200:
-            error = f"Failed to fetch registry from {publication_endpoint} with status code {response.status_code}"
-            raise cls.RegistrySourceUnavailable(error)
-
-        registry_data = response.content
-        return registry_data
-
-    @classmethod
     def from_latest_publication(cls, *args, **kwargs) -> 'BaseContractRegistry':
         """
-        Get the latest published contract registry from github and save it on the local file system.
+        Get the latest contract registry available from a registry source chain.
         """
-        registry_data_bytes = cls.fetch_latest_publication()
-        instance = cls(*args, **kwargs)
-        instance.write(registry_data=json.loads(registry_data_bytes))
-        return instance
+
+        for registry_source_class in cls.source_manager:
+            registry_source = registry_source_class(network='goerli', registry_name=cls.REGISTRY_NAME)
+            try:
+                if not registry_source.is_primary_source():
+                    message = f"Warning: Registry at {registry_source} is not a primary source."
+                    cls.logger.warn(message)
+                registry_data_bytes = registry_source.fetch_latest_publication()
+            except registry_source.RegistrySourceUnavailable:
+                message = f"Fetching registry from {registry_source} failed."
+                cls.logger.warn(message)
+                continue
+            else:
+                instance = cls(*args, source=registry_source, **kwargs)
+                instance.write(registry_data=json.loads(registry_data_bytes))
+                return instance
+        else:
+            cls.logger.failure("All known registry sources failed.")
+            raise cls.NoRegistry
+
+    @property
+    def source(self) -> 'CanonicalRegistrySource':
+        return self.__source
 
     @property
     def enrolled_names(self) -> Iterator:
@@ -467,7 +566,7 @@ class IndividualAllocationRegistry(InMemoryAllocationRegistry):
 
         if not contract_abi:
             # Download individual allocation template to extract contract_abi
-            individual_allocation_template = json.loads(self.fetch_latest_publication())
+            individual_allocation_template = self.from_latest_publication().read()
             if len(individual_allocation_template) != 1:
                 raise self.InvalidRegistry("Individual allocation template must contain a single entry")
             try:

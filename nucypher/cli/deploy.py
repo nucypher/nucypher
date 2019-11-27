@@ -82,7 +82,7 @@ def download_registry(config_root, registry_outfile, force):
     _ensure_config_root(config_root)
 
     if not force:
-        prompt = f"Fetch and download latest registry from {BaseContractRegistry.get_publication_endpoint()}?"
+        prompt = f"Fetch and download latest registry from {BaseContractRegistry.source_manager[0]}?"
         click.confirm(prompt, abort=True)
     registry = InMemoryContractRegistry.from_latest_publication()
     output_filepath = registry.commit(filepath=registry_outfile, overwrite=force)
