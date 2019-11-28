@@ -650,7 +650,7 @@ def collect_reward(click_config,
 def preallocation(click_config,
 
                   # Stake Options
-                  poa, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
+                  poa, light, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
                   beneficiary_address, allocation_filepath,
 
                   # Preallocation options
@@ -669,7 +669,12 @@ def preallocation(click_config,
     ### Setup ###
     emitter = _setup_emitter(click_config)
 
-    STAKEHOLDER, blockchain = _create_stakeholder(config_file, provider_uri, poa, registry_filepath, staking_address,
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file,
+                                                  provider_uri,
+                                                  poa,
+                                                  light,
+                                                  registry_filepath,
+                                                  staking_address,
                                                   beneficiary_address=beneficiary_address,
                                                   allocation_filepath=allocation_filepath)
     #############

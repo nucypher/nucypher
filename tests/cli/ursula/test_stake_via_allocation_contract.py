@@ -577,5 +577,6 @@ def test_collect_rewards_integration(click_runner,
     # The beneficiary has withdrawn her staking rewards, which are now in the staking contract
     assert token_agent.get_balance(address=staker_address) >= balance_before_collecting
 
+# TODO: Test preallocation commands
 
 

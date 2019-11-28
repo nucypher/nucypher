@@ -791,6 +791,7 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
 
 
 class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):
+    # TODO: Why does PreallocationEscrowDeployer has an UpgradeableContractMixin?
 
     agency = PreallocationEscrowAgent
     contract_name = agency.registry_contract_name
@@ -809,7 +810,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
         self.__beneficiary_address = NO_BENEFICIARY
         self.__allocation_registry = allocation_registry or self.__allocation_registry()
 
-    def make_agent(self) -> EthereumContractAgent:
+    def make_agent(self) -> 'PreallocationEscrowDeployer':
         if self.__beneficiary_address is NO_BENEFICIARY:
             raise self.ContractDeploymentError("No beneficiary assigned to {}".format(self.contract.address))
         agent = self.agency(registry=self.registry,
