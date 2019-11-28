@@ -16,12 +16,10 @@ def test_worker_auto_confirmations(testerchain,
                                    staker,
                                    agency,
                                    token_economics,
+                                   mock_transacting_power_activation,
                                    ursula_decentralized_test_config):
 
-    # Mock Powerup consumption (Ursula-Worker)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=staker.checksum_address)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=staker.checksum_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),
                             lock_periods=int(token_economics.minimum_locked_periods))

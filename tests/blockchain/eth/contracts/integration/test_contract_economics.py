@@ -26,7 +26,7 @@ MAX_PERIODS = 100
 
 
 @pytest.mark.slow
-def test_reward(testerchain, agency, token_economics):
+def test_reward(testerchain, agency, token_economics, mock_transacting_power_activation):
     testerchain.time_travel(hours=1)
     token_agent, staking_agent, _policy_agent = agency
     origin = testerchain.etherbase_account
@@ -36,9 +36,7 @@ def test_reward(testerchain, agency, token_economics):
     _txhash = token_agent.transfer(amount=token_economics.minimum_allowed_locked,
                                    target_address=ursula,
                                    sender_address=origin)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=ursula)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=ursula, password=INSECURE_DEVELOPMENT_PASSWORD)
     _txhash = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
                                            target_address=staking_agent.contract_address,
                                            sender_address=ursula)

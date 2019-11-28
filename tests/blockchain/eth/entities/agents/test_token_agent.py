@@ -63,14 +63,11 @@ def test_get_balance(agent, token_economics):
     assert balance == token_economics.erc20_total_supply
 
 
-def test_approve_transfer(agent, token_economics):
+def test_approve_transfer(agent, token_economics, mock_transacting_power_activation):
     testerchain = agent.blockchain
     deployer, someone, *everybody_else = testerchain.client.accounts
 
-    # Mock Powerup consumption
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=someone)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=someone, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Approve
     receipt = agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
@@ -81,14 +78,11 @@ def test_approve_transfer(agent, token_economics):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
-def test_transfer(agent, token_economics):
+def test_transfer(agent, token_economics, mock_transacting_power_activation):
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.client.accounts
 
-    # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=origin)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=origin, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     old_balance = agent.get_balance(someone)
     receipt = agent.transfer(amount=token_economics.minimum_allowed_locked,

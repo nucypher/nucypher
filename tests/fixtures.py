@@ -842,3 +842,11 @@ def _patch_individual_allocation_fetch_latest_publication(agency, test_registry)
     GithubRegistrySource.fetch_latest_publication = new_fetch
     yield
     GithubRegistrySource.fetch_latest_publication = original_fetch
+
+
+@pytest.fixture(scope='module')
+def mock_transacting_power_activation(testerchain):
+    def _mock_transacting_power_activation(password, account):
+        testerchain.transacting_power = TransactingPower(password=password, account=account)
+        testerchain.transacting_power.activate()
+    return _mock_transacting_power_activation

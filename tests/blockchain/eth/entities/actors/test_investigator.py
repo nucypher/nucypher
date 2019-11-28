@@ -25,6 +25,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.signing import SignatureStamp
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 def mock_ursula(testerchain, account, mocker):
@@ -45,6 +46,7 @@ def test_investigator_requests_slashing(testerchain,
                                         agency,
                                         mock_ursula_reencrypts,
                                         token_economics,
+                                        mock_transacting_power_activation,
                                         mocker):
 
     testerchain = testerchain
@@ -58,18 +60,14 @@ def test_investigator_requests_slashing(testerchain,
 
     locked_tokens = token_economics.minimum_allowed_locked * 5
 
-    # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = TransactingPower(account=testerchain.etherbase_account)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=testerchain.etherbase_account, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # The staker receives an initial amount of tokens
     _txhash = token_agent.transfer(amount=locked_tokens,
                                    target_address=staker_account,
                                    sender_address=testerchain.etherbase_account)
 
-    # Mock Powerup consumption (Staker)
-    testerchain.transacting_power = TransactingPower(account=staker_account)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=staker_account, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Deposit: The staker deposits tokens in the StakingEscrow contract.
     staker = Staker(checksum_address=staker_account, is_me=True, registry=test_registry)
@@ -99,9 +97,7 @@ def test_investigator_requests_slashing(testerchain,
     assert not investigator.was_this_evidence_evaluated(evidence)
     bobby_old_balance = investigator.token_balance
 
-    # Mock Powerup consumption (Bob)
-    testerchain.transacting_power = TransactingPower(account=bob_account)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=bob_account, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     investigator.request_evaluation(evidence=evidence)
 

@@ -45,14 +45,11 @@ def policy_meta(testerchain, agency, token_economics, blockchain_ursulas):
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_create_policy(testerchain, agency, token_economics):
+def test_create_policy(testerchain, agency, token_economics, mock_transacting_power_activation):
     token_agent, staking_agent, policy_agent = agency
     agent = policy_agent
 
-    # Mock Powerup consumption
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=testerchain.alice_account)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=testerchain.alice_account, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     policy_id = os.urandom(16)
     node_addresses = list(staking_agent.sample(quantity=3, duration=1))
@@ -105,25 +102,19 @@ def test_revoke_policy(agency, policy_meta):
 
 
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_calculate_refund(testerchain, agency, policy_meta):
+def test_calculate_refund(testerchain, agency, policy_meta, mock_transacting_power_activation):
     token_agent, staking_agent, policy_agent = agency
     agent = policy_agent
 
     staker = policy_meta.addresses[-1]
     worker = staking_agent.get_worker_from_staker(staker)
 
-    # Mock Powerup consumption (Ursula-Worker)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=worker)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=worker, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     testerchain.time_travel(hours=9)
     _receipt = staking_agent.confirm_activity(worker_address=worker)
 
-    # Mock Powerup consumption (Alice)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=testerchain.alice_account)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=testerchain.alice_account, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     receipt = agent.calculate_refund(policy_id=policy_meta.policy_id, author_address=policy_meta.author)
     assert receipt['status'] == 1, "Transaction Rejected"
@@ -142,17 +133,14 @@ def test_collect_refund(testerchain, agency, policy_meta):
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_collect_policy_reward(testerchain, agency, policy_meta, token_economics):
+def test_collect_policy_reward(testerchain, agency, policy_meta, token_economics, mock_transacting_power_activation):
     token_agent, staking_agent, policy_agent = agency
     agent = policy_agent
 
     staker = policy_meta.addresses[-1]
     worker = staking_agent.get_worker_from_staker(staker)
 
-    # Mock Powerup consumption (Ursula-Worker)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=worker)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=worker, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     old_eth_balance = token_agent.blockchain.client.get_balance(staker)
 
@@ -160,11 +148,7 @@ def test_collect_policy_reward(testerchain, agency, policy_meta, token_economics
         _receipt = staking_agent.confirm_activity(worker_address=worker)
         testerchain.time_travel(periods=1)
 
-    # Mock Powerup consumption (Ursula-Staker)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=staker)
-    testerchain.transacting_power.activate()
-
+    mock_transacting_power_activation(account=staker, password=INSECURE_DEVELOPMENT_PASSWORD)
     receipt = agent.collect_policy_reward(collector_address=staker, staker_address=staker)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address

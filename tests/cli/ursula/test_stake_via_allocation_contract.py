@@ -417,6 +417,7 @@ def test_collect_rewards_integration(click_runner,
                                      mock_allocation_registry,
                                      manual_worker,
                                      token_economics,
+                                     mock_transacting_power_activation,
                                      stake_value,
                                      policy_value,
                                      policy_rate):
@@ -450,9 +451,7 @@ def test_collect_rewards_integration(click_runner,
     assert ursula.worker_address == worker_address
     assert ursula.checksum_address == staker_address
 
-    # Mock TransactingPower consumption (Worker-Ursula)
-    testerchain.transacting_power = TransactingPower(account=worker_address, password=INSECURE_DEVELOPMENT_PASSWORD)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=worker_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Confirm for half the first stake duration
     for _ in range(half_stake_time):
@@ -532,9 +531,7 @@ def test_collect_rewards_integration(click_runner,
     logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
 
     # Since we are mocking the blockchain connection, manually consume the transacting power of the Beneficiary.
-    testerchain.transacting_power = TransactingPower(account=beneficiary,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=beneficiary, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Collect Policy Reward
     collection_args = ('stake', 'collect-reward',

@@ -29,13 +29,10 @@ from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
 
 
 @pytest.mark.slow()
-def test_staker_locking_tokens(testerchain, agency, staker, token_economics):
+def test_staker_locking_tokens(testerchain, agency, staker, token_economics, mock_transacting_power_activation):
     token_agent, staking_agent, policy_agent = agency
 
-    # Mock Powerup consumption (Ursula-Staker)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=staker.checksum_address)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=staker.checksum_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     assert NU(token_economics.minimum_allowed_locked, 'NuNit') < staker.token_balance, "Insufficient staker balance"
 
@@ -125,6 +122,7 @@ def test_staker_collects_staking_reward(testerchain,
                                         blockchain_ursulas,
                                         agency,
                                         token_economics,
+                                        mock_transacting_power_activation,
                                         ursula_decentralized_test_config):
     token_agent, staking_agent, policy_agent = agency
 
@@ -132,10 +130,7 @@ def test_staker_collects_staking_reward(testerchain,
     initial_balance = staker.token_balance
     assert token_agent.get_balance(staker.checksum_address) == initial_balance
 
-    # Mock Powerup consumption (Ursula-Worker)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=staker.checksum_address)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=staker.checksum_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),  # Lock the minimum amount of tokens
                             lock_periods=int(token_economics.minimum_locked_periods))    # ... for the fewest number of periods
@@ -160,10 +155,7 @@ def test_staker_collects_staking_reward(testerchain,
     # ...wait more...
     testerchain.time_travel(periods=2)
 
-    # Mock Powerup consumption (Ursula-Worker)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=staker.checksum_address)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=staker.checksum_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Profit!
     staker.collect_staking_reward()
