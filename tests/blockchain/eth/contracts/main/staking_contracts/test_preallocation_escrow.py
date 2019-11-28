@@ -56,27 +56,27 @@ def test_escrow(testerchain, token, preallocation_escrow):
         testerchain.wait_for_receipt(tx)
 
     # Transfer more tokens without locking
-    tx = token.functions.transfer(preallocation_escrow.address, 1000).transact({'from': creator})
+    tx = token.functions.transfer(preallocation_escrow.address, 300).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    assert 2000 == token.functions.balanceOf(preallocation_escrow.address).call()
+    assert 1300 == token.functions.balanceOf(preallocation_escrow.address).call()
     assert 1000 == preallocation_escrow.functions.getLockedTokens().call()
 
     withdraws = preallocation_escrow.events.TokensWithdrawn.createFilter(fromBlock='latest')
 
     # Only owner can withdraw available tokens
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = preallocation_escrow.functions.withdrawTokens(100).transact({'from': creator})
+        tx = preallocation_escrow.functions.withdrawTokens(1).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
-    tx = preallocation_escrow.functions.withdrawTokens(1000).transact({'from': owner})
+    tx = preallocation_escrow.functions.withdrawTokens(300).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
-    assert 1000 == token.functions.balanceOf(owner).call()
+    assert 300 == token.functions.balanceOf(owner).call()
     assert 1000 == token.functions.balanceOf(preallocation_escrow.address).call()
 
     events = withdraws.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
     assert owner == event_args['owner']
-    assert 1000 == event_args['value']
+    assert 300 == event_args['value']
 
     # Wait some time
     testerchain.time_travel(seconds=500)
@@ -87,7 +87,7 @@ def test_escrow(testerchain, token, preallocation_escrow):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = preallocation_escrow.functions.withdrawTokens(100).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
-    assert 1000 == token.functions.balanceOf(owner).call()
+    assert 300 == token.functions.balanceOf(owner).call()
 
     # Wait more time and withdraw all after unlocking
     testerchain.time_travel(seconds=500)
@@ -95,7 +95,7 @@ def test_escrow(testerchain, token, preallocation_escrow):
     tx = preallocation_escrow.functions.withdrawTokens(1000).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
     assert 0 == token.functions.balanceOf(preallocation_escrow.address).call()
-    assert 2000 == token.functions.balanceOf(owner).call()
+    assert 1300 == token.functions.balanceOf(owner).call()
 
     events = withdraws.get_all_entries()
     assert 2 == len(events)
@@ -385,7 +385,7 @@ def test_reentrancy(testerchain, deploy_contract, token, escrow, policy_manager)
     # Prepare contracts
     reentrancy_contract, _ = deploy_contract('ReentrancyTest')
     contract_address = reentrancy_contract.address
-    preallocation_escrow, _ = deploy_contract('PreallocationEscrow', router.address, token.address)
+    preallocation_escrow, _ = deploy_contract('PreallocationEscrow', router.address, token.address, escrow.address)
     tx = preallocation_escrow.functions.transferOwnership(contract_address).transact()
     testerchain.wait_for_receipt(tx)
 
