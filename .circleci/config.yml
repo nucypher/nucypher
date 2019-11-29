@@ -389,6 +389,9 @@ jobs:
     steps:
       - checkout
       - restore_dependency_cache  # Depends on above checkout
+      - run:
+          name:
+          command: rm -f /home/circleci/.local/lib/python3.7/site-packages/nucypher.egg-link
       - pip_install
       - save_dependency_cache
 
