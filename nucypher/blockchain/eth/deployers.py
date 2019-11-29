@@ -34,7 +34,8 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_secret, validate_checksum_address
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory, \
+    VersionedContract
 from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
 
 
@@ -165,12 +166,12 @@ class BaseContractDeployer:
         agent = self.agency(registry=self.registry, contract=self._contract)
         return agent
 
-    def get_latest_enrollment(self, registry: BaseContractRegistry) -> Contract:
+    def get_latest_enrollment(self, registry: BaseContractRegistry) -> VersionedContract:
         """Get the latest enrolled version of the contract from the registry."""
         contract = self.blockchain.get_contract_by_name(name=self.contract_name,
                                                         registry=registry,
                                                         use_proxy_address=False,
-                                                        version='latest')
+                                                        enrollment_version='latest')
         return contract
 
 
@@ -238,7 +239,7 @@ class UpgradeableContractMixin:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
         raise NotImplementedError
 
-    def get_principal_contract(self, registry: BaseContractRegistry, provider_uri: str = None) -> Contract:
+    def get_principal_contract(self, registry: BaseContractRegistry, provider_uri: str = None) -> VersionedContract:
         """
         Get the on-chain targeted version of the principal contract directly
         without assembling it with its proxy.
@@ -252,7 +253,7 @@ class UpgradeableContractMixin:
                                                              use_proxy_address=False)
         return principal_contract
 
-    def get_proxy_contract(self, registry: BaseContractRegistry, provider_uri: str = None) -> Contract:
+    def get_proxy_contract(self, registry: BaseContractRegistry, provider_uri: str = None) -> VersionedContract:
         if not self._upgradeable:
             raise cls.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
         blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
@@ -384,7 +385,8 @@ class NucypherTokenDeployer(BaseContractDeployer):
 
         # Order-sensitive!
         constructor_kwargs = {"_totalSupply": self.economics.erc20_total_supply}
-        constructor_kwargs.update({k: v for k, v in overrides.items() if v is not None})
+        constructor_kwargs.update(overrides)
+        constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
         contract, deployment_receipt = self.blockchain.deploy_contract(self.deployer_address,
                                                                        self.registry,
                                                                        self.contract_name,
@@ -491,7 +493,8 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             "_maxAllowableLockedTokens": args[6],
             "_minWorkerPeriods": args[7]
         }
-        constructor_kwargs.update({k: v for k, v in overrides.items() if v is not None})
+        constructor_kwargs.update(overrides)
+        constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
         # Force use of the token address from the registry
         constructor_kwargs.update({"_token": self.token_contract.address})
         the_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(
@@ -969,7 +972,8 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
             "_percentagePenaltyCoefficient": args[3],
             "_rewardCoefficient": args[4]
         }
-        constructor_kwargs.update({k: v for k, v in overrides.items() if v is not None})
+        constructor_kwargs.update(overrides)
+        constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
         # Force use of the escrow address from the registry
         constructor_kwargs.update({"_escrow": self.staking_contract.address})
         adjudicator_contract, deploy_receipt = self.blockchain.deploy_contract(self.deployer_address,

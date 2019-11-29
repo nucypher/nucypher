@@ -90,7 +90,7 @@ def test_nucypher_deploy_contracts(click_runner,
 
         # Read several records
         token_record, escrow_record, dispatcher_record, *other_records = registry_data
-        registered_name, registered_address, registered_abi = token_record
+        registered_name, registered_version, registered_address, registered_abi = token_record
 
     #
     # Agency
@@ -101,6 +101,7 @@ def test_nucypher_deploy_contracts(click_runner,
     assert token_agent.contract_name == registered_name
     assert token_agent.registry_contract_name == registered_name
     assert token_agent.contract_address == registered_address
+    assert token_agent.contract.version == registered_version
 
     # Now show that we can use contract Agency and read from the blockchain
     assert token_agent.get_balance() == 0
@@ -268,8 +269,8 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
         assert len(records) == contract_enrollments, error
 
         old, new = records[-2:]            # Get the last two entries
-        old_name, old_address, *abi = old  # Previous version
-        new_name, new_address, *abi = new  # New version
+        old_name, _old_version, old_address, *abi = old  # Previous version
+        new_name, _new_version, new_address, *abi = new  # New version
 
         assert old_address == real_old_contract.address
         assert old_name == new_name        # TODO: Inspect ABI / Move to different test.
@@ -319,8 +320,8 @@ def test_rollback(click_runner, testerchain, registry_filepath):
         *old_records, v3, v4 = records
         current_target, rollback_target = v4, v3
 
-        _name, current_target_address, *abi = current_target
-        _name, rollback_target_address, *abi = rollback_target
+        _name, _version, current_target_address, *abi = current_target
+        _name, _version, rollback_target_address, *abi = rollback_target
         assert current_target_address != rollback_target_address
 
         # Ensure the proxy targets the rollback target (previous version)
