@@ -107,14 +107,24 @@ class BaseContractDeployer:
         return self.__proxy_contract
 
     @property
-    def is_deployed(self) -> bool:
-        return bool(self._contract is not CONTRACT_NOT_DEPLOYED)
-
-    @property
     def ready_to_deploy(self) -> bool:
         return bool(self.__ready_to_deploy is True)
 
-    def check_deployment_readiness(self, fail=True) -> Tuple[bool, list]:
+    def is_deployed(self, contract_version: str = None) -> bool:
+        try:
+            self.registry.search(contract_name=self.contract_name, contract_version=contract_version)
+        except BaseContractRegistry.UnknownContract:
+            return False
+        except BaseContractRegistry.NoRegistry:
+            return False
+        else:
+            return True
+
+    def check_deployment_readiness(self,
+                                   contract_version: str = None,
+                                   ignore_deployed=False,
+                                   fail=True
+                                   ) -> Tuple[bool, list]:
         """
         Iterates through a set of rules required for an ethereum
         contract deployer to be eligible for deployment returning a
@@ -129,8 +139,12 @@ class BaseContractDeployer:
         if self.__ready_to_deploy is True:
             return True, list()
 
+        if not ignore_deployed and contract_version is not None:
+            contract_version, _data = self.blockchain.find_raw_contract_data(contract_name=self.contract_name,
+                                                                             requested_version=contract_version)
+
         rules = [
-            (self.is_deployed is not True, 'Contract already deployed'),
+            (ignore_deployed or self.is_deployed(contract_version) is not True, 'Contract already deployed'),
             (self.deployer_address is not None, 'No deployer address set.'),
             (self.deployer_address is not NO_DEPLOYER_CONFIGURED, 'No deployer address set.'),
         ]
@@ -168,7 +182,7 @@ class BaseContractDeployer:
 
     def get_latest_enrollment(self, registry: BaseContractRegistry) -> VersionedContract:
         """Get the latest enrolled version of the contract from the registry."""
-        contract = self.blockchain.get_contract_by_name(name=self.contract_name,
+        contract = self.blockchain.get_contract_by_name(contract_name=self.contract_name,
                                                         registry=registry,
                                                         use_proxy_address=False,
                                                         enrollment_version='latest')
@@ -229,7 +243,8 @@ class UpgradeableContractMixin:
                initial_deployment: bool = True,
                gas_limit: int = None,
                progress=None,
-               version: str = "latest"
+               contract_version: str = "latest",
+               ignore_deployed: bool = False
                ) -> dict:
         """
         Provides for the setup, deployment, and initialization of ethereum smart contracts.
@@ -247,7 +262,7 @@ class UpgradeableContractMixin:
         if not self._upgradeable:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
         blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
-        principal_contract = blockchain.get_contract_by_name(name=self.contract_name,
+        principal_contract = blockchain.get_contract_by_name(contract_name=self.contract_name,
                                                              registry=registry,
                                                              proxy_name=self._proxy_deployer.contract_name,
                                                              use_proxy_address=False)
@@ -303,7 +318,8 @@ class UpgradeableContractMixin:
                 existing_secret_plaintext: bytes,
                 new_secret_hash: bytes,
                 gas_limit: int = None,
-                version: str = "latest",
+                contract_version: str = "latest",
+                ignore_deployed: bool = False,
                 **overrides):
         """
         Deploy a new version of a contract, then engage the proxy contract's upgrade interfaces.
@@ -312,14 +328,16 @@ class UpgradeableContractMixin:
         # 1 - Raise if not all-systems-go #
         if not self._upgradeable:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
-        self.check_deployment_readiness()
+        self.check_deployment_readiness(contract_version=contract_version, ignore_deployed=ignore_deployed)
 
         # 2 - Get Bare Contracts
         existing_bare_contract = self.get_principal_contract(registry=self.registry, provider_uri=self.blockchain.provider_uri)
         proxy_deployer = self.get_proxy_deployer(registry=self.registry, provider_uri=self.blockchain.provider_uri)
 
         # 3 - Deploy new version
-        new_contract, deploy_receipt = self._deploy_essential(version=version, gas_limit=gas_limit, **overrides)
+        new_contract, deploy_receipt = self._deploy_essential(contract_version=contract_version,
+                                                              gas_limit=gas_limit,
+                                                              **overrides)
 
         # 4 - Wrap the escrow contract
         wrapped_contract = self.blockchain._wrap_contract(wrapper_contract=proxy_deployer.contract,
@@ -346,7 +364,7 @@ class UpgradeableContractMixin:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
 
         existing_bare_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                      name=self.contract_name,
+                                                                      contract_name=self.contract_name,
                                                                       proxy_name=self._proxy_deployer.contract_name,
                                                                       use_proxy_address=False)
         proxy_deployer = self.get_proxy_deployer(registry=self.registry, provider_uri=self.blockchain.provider_uri)
@@ -474,14 +492,14 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
         token_contract_name = NucypherTokenDeployer.contract_name
         self.token_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                   name=token_contract_name)
+                                                                   contract_name=token_contract_name)
 
     def __check_policy_manager(self):
         result = self.contract.functions.policyManager().call()
         if result == self.blockchain.NULL_ADDRESS:
             raise RuntimeError("PolicyManager contract is not initialized.")
 
-    def _deploy_essential(self, version: str, gas_limit: int = None, **overrides):
+    def _deploy_essential(self, contract_version: str, gas_limit: int = None, **overrides):
         args = self.economics.staking_deployment_parameters
         constructor_kwargs = {
             "_hoursPerPeriod": args[0],
@@ -502,7 +520,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             self.registry,
             self.contract_name,
             gas_limit=gas_limit,
-            version=version,
+            contract_version=contract_version,
             **constructor_kwargs
         )
 
@@ -513,7 +531,8 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                secret_hash: bytes = None,
                gas_limit: int = None,
                progress=None,
-               version: str = "latest",
+               contract_version: str = "latest",
+               ignore_deployed: bool = False,
                **overrides
                ) -> dict:
         """
@@ -536,7 +555,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                              f" deployment series for {self.contract_name}.")
 
         # Raise if not all-systems-go
-        self.check_deployment_readiness()
+        self.check_deployment_readiness(contract_version=contract_version, ignore_deployed=ignore_deployed)
 
         # Build deployment arguments
         origin_args = {}
@@ -544,7 +563,9 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             origin_args.update({'gas': gas_limit})
 
         # 1 - Deploy #
-        the_escrow_contract, deploy_receipt = self._deploy_essential(version=version, gas_limit=gas_limit, **overrides)
+        the_escrow_contract, deploy_receipt = self._deploy_essential(contract_version=contract_version,
+                                                                     gas_limit=gas_limit,
+                                                                     **overrides)
 
         # This is the end of bare deployment.
         if not initial_deployment:
@@ -621,16 +642,16 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         proxy_name = StakingEscrowDeployer._proxy_deployer.contract_name
         staking_contract_name = StakingEscrowDeployer.contract_name
         self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                     name=staking_contract_name,
+                                                                     contract_name=staking_contract_name,
                                                                      proxy_name=proxy_name)
 
-    def _deploy_essential(self, version: str, gas_limit: int = None) -> tuple:
+    def _deploy_essential(self, contract_version: str, gas_limit: int = None) -> tuple:
         constructor_kwargs = {"_escrow": self.staking_contract.address}
         policy_manager_contract, deploy_receipt = self.blockchain.deploy_contract(self.deployer_address,
                                                                                   self.registry,
                                                                                   self.contract_name,
                                                                                   gas_limit=gas_limit,
-                                                                                  version=version,
+                                                                                  contract_version=contract_version,
                                                                                   **constructor_kwargs)
         return policy_manager_contract, deploy_receipt
 
@@ -639,17 +660,19 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                secret_hash: bytes = None,
                gas_limit: int = None,
                progress=None,
-               version: str = "latest"
+               contract_version: str = "latest",
+               ignore_deployed: bool = False
                ) -> Dict[str, dict]:
 
         if initial_deployment and not secret_hash:
             raise ValueError(f"An upgrade secret hash is required to perform an initial"
                              f" deployment series for {self.contract_name}.")
 
-        self.check_deployment_readiness()
+        self.check_deployment_readiness(contract_version=contract_version, ignore_deployed=ignore_deployed)
 
         # Creator deploys the policy manager
-        policy_manager_contract, deploy_receipt = self._deploy_essential(version=version, gas_limit=gas_limit)
+        policy_manager_contract, deploy_receipt = self._deploy_essential(contract_version=contract_version,
+                                                                         gas_limit=gas_limit)
 
         # This is the end of bare deployment.
         if not initial_deployment:
@@ -753,21 +776,21 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
 
         token_contract_name = NucypherTokenDeployer.contract_name
         self.token_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                   name=token_contract_name)
+                                                                   contract_name=token_contract_name)
 
         staking_contract_name = StakingEscrowDeployer.contract_name
         staking_proxy_name = StakingEscrowDeployer._proxy_deployer.contract_name
         self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                     name=staking_contract_name,
+                                                                     contract_name=staking_contract_name,
                                                                      proxy_name=staking_proxy_name)
 
         policy_contract_name = PolicyManagerDeployer.contract_name
         policy_proxy_name = PolicyManagerDeployer._proxy_deployer.contract_name
         self.policy_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                    name=policy_contract_name,
+                                                                    contract_name=policy_contract_name,
                                                                     proxy_name=policy_proxy_name)
 
-    def _deploy_essential(self, version: str, gas_limit: int = None):
+    def _deploy_essential(self, contract_version: str, gas_limit: int = None):
         """Note: These parameters are order-sensitive"""
         constructor_args = (self.token_contract.address,
                             self.staking_contract.address,
@@ -778,7 +801,7 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
                                                                        self.contract_name,
                                                                        *constructor_args,
                                                                        gas_limit=gas_limit,
-                                                                       version=version)
+                                                                       contract_version=contract_version)
         return contract, deployment_receipt
 
     def deploy(self,
@@ -786,7 +809,8 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
                secret_hash: bytes = None,
                gas_limit: int = None,
                progress=None,
-               version: str = "latest"
+               contract_version: str = "latest",
+               ignore_deployed: bool = False
                ) -> dict:
         """
         Deploys a new StakingInterface contract, and a new StakingInterfaceRouter, targeting the former.
@@ -796,9 +820,11 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
         if initial_deployment and not secret_hash:
             raise ValueError(f"An upgrade secret hash is required to perform an initial"
                              f" deployment series for {self.contract_name}.")
+        self.check_deployment_readiness(contract_version=contract_version, ignore_deployed=ignore_deployed)
 
         # 1 - StakingInterface
-        staking_interface_contract, deployment_receipt = self._deploy_essential(version=version, gas_limit=gas_limit)
+        staking_interface_contract, deployment_receipt = self._deploy_essential(contract_version=contract_version,
+                                                                                gas_limit=gas_limit)
 
         # This is the end of bare deployment.
         if not initial_deployment:
@@ -839,10 +865,10 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
     def __init__(self, allocation_registry: AllocationRegistry = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.token_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                   name=NucypherTokenDeployer.contract_name)
+                                                                   contract_name=NucypherTokenDeployer.contract_name)
         dispatcher_name = StakingEscrowDeployer._proxy_deployer.contract_name
         self.staking_escrow_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                            name=StakingEscrowDeployer.contract_name,
+                                                                            contract_name=StakingEscrowDeployer.contract_name,
                                                                             proxy_name=dispatcher_name)
         self.__beneficiary_address = NO_BENEFICIARY
         self.__allocation_registry = allocation_registry or self.__allocation_registry()
@@ -924,7 +950,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
         """Deploy a new instance of PreallocationEscrow to the blockchain."""
         self.check_deployment_readiness()
         router_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                               name=self._router_deployer.contract_name)
+                                                               contract_name=self._router_deployer.contract_name)
         args = (self.deployer_address,
                 self.registry,
                 self.contract_name,
@@ -960,10 +986,10 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
         staking_contract_name = StakingEscrowDeployer.contract_name
         proxy_name = StakingEscrowDeployer._proxy_deployer.contract_name
         self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                     name=staking_contract_name,
+                                                                     contract_name=staking_contract_name,
                                                                      proxy_name=proxy_name)
 
-    def _deploy_essential(self, version: str, gas_limit: int = None, **overrides):
+    def _deploy_essential(self, contract_version: str, gas_limit: int = None, **overrides):
         args = self.economics.slashing_deployment_parameters
         constructor_kwargs = {
             "_hashAlgorithm": args[0],
@@ -980,7 +1006,7 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
                                                                                self.registry,
                                                                                self.contract_name,
                                                                                gas_limit=gas_limit,
-                                                                               version=version,
+                                                                               contract_version=contract_version,
                                                                                **constructor_kwargs)
         return adjudicator_contract, deploy_receipt
 
@@ -989,16 +1015,19 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
                secret_hash: bytes = None,
                gas_limit: int = None,
                progress=None,
-               version: str = "latest",
+               contract_version: str = "latest",
+               ignore_deployed: bool = False,
                **overrides) -> Dict[str, str]:
 
         if initial_deployment and not secret_hash:
             raise ValueError(f"An upgrade secret hash is required to perform an initial"
                              f" deployment series for {self.contract_name}.")
 
-        self.check_deployment_readiness()
+        self.check_deployment_readiness(contract_version=contract_version, ignore_deployed=ignore_deployed)
 
-        adjudicator_contract, deploy_receipt = self._deploy_essential(version=version, gas_limit=gas_limit, **overrides)
+        adjudicator_contract, deploy_receipt = self._deploy_essential(contract_version=contract_version,
+                                                                      gas_limit=gas_limit,
+                                                                      **overrides)
 
         # This is the end of bare deployment.
         if not initial_deployment:

@@ -32,19 +32,13 @@ def generate_insecure_secret() -> str:
     return formatted_secret
 
 
-# TODO: Use temp module
-DEPLOYMENT_REGISTRY_FILEPATH = os.path.join('/', 'tmp', 'nucypher-test-autodeploy.json')
 PLANNED_UPGRADES = 4
 INSECURE_SECRETS = {v: generate_insecure_secret() for v in range(1, PLANNED_UPGRADES+1)}
 
 
 @pytest.fixture(scope="module")
-def registry_filepath():
-    if os.path.exists(DEPLOYMENT_REGISTRY_FILEPATH):
-        os.remove(DEPLOYMENT_REGISTRY_FILEPATH)
-    yield DEPLOYMENT_REGISTRY_FILEPATH
-    if os.path.exists(DEPLOYMENT_REGISTRY_FILEPATH):
-        os.remove(DEPLOYMENT_REGISTRY_FILEPATH)
+def registry_filepath(temp_dir_path):
+    return os.path.join(temp_dir_path, 'nucypher-test-autodeploy.json')
 
 
 def test_nucypher_deploy_contracts(click_runner,
@@ -215,7 +209,7 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
             proxy_name = 'Dispatcher'
 
         registry = LocalContractRegistry(filepath=registry_filepath)
-        real_old_contract = testerchain.get_contract_by_name(name=contract_name,
+        real_old_contract = testerchain.get_contract_by_name(contract_name=contract_name,
                                                              registry=registry,
                                                              proxy_name=proxy_name,
                                                              use_proxy_address=False)
@@ -228,7 +222,7 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
         assert targeted_address == real_old_contract.address
 
         # Assemble CLI command
-        command = (cli_action, '--contract-name', contract_name, *base_command)
+        command = (cli_action, '--contract-name', contract_name, '--ignore-deployed', *base_command)
 
         # Select upgrade interactive input scenario
         current_version = version_tracker[contract_name]

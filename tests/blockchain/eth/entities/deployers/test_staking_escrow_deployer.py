@@ -66,7 +66,7 @@ def test_staking_escrow_has_dispatcher(staking_escrow_deployer, testerchain, tes
 
     # Let's get the "bare" StakingEscrow contract (i.e., unwrapped, no dispatcher)
     existing_bare_contract = testerchain.get_contract_by_name(registry=test_registry,
-                                                              name=staking_escrow_deployer.contract_name,
+                                                              contract_name=staking_escrow_deployer.contract_name,
                                                               proxy_name=DispatcherDeployer.contract_name,
                                                               use_proxy_address=False)
 
@@ -92,7 +92,9 @@ def test_upgrade(testerchain, test_registry, token_economics):
     with pytest.raises(deployer.ContractDeploymentError):
         deployer.upgrade(existing_secret_plaintext=wrong_secret, new_secret_hash=new_secret_hash)
 
-    receipts = deployer.upgrade(existing_secret_plaintext=old_secret, new_secret_hash=new_secret_hash)
+    receipts = deployer.upgrade(existing_secret_plaintext=old_secret,
+                                new_secret_hash=new_secret_hash,
+                                ignore_deployed=True)
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
 
@@ -108,7 +110,9 @@ def test_rollback(testerchain, test_registry):
     current_target = staking_agent.contract.functions.target().call()
 
     # Let's do one more upgrade
-    receipts = deployer.upgrade(existing_secret_plaintext=old_secret, new_secret_hash=new_secret_hash)
+    receipts = deployer.upgrade(existing_secret_plaintext=old_secret,
+                                new_secret_hash=new_secret_hash,
+                                ignore_deployed=True)
 
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
@@ -145,7 +149,7 @@ def test_deploy_bare_upgradeable_contract_deployment(testerchain, test_registry,
     old_number_of_enrollments = enrolled_names.count(StakingEscrowDeployer.contract_name)
     old_number_of_proxy_enrollments = enrolled_names.count(StakingEscrowDeployer._proxy_deployer.contract_name)
 
-    receipts = deployer.deploy(initial_deployment=False)
+    receipts = deployer.deploy(initial_deployment=False, ignore_deployed=True)
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
 

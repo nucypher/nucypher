@@ -302,13 +302,15 @@ class BaseContractRegistry(ABC):
         self.write(registry_data)
         self.log.info("Enrolled {}:{}:{} into registry.".format(contract_name, contract_version, contract_address))
 
-    def search(self, contract_name: str = None, contract_address: str = None) -> tuple:
+    def search(self, contract_name: str = None, contract_version: str = None, contract_address: str = None) -> tuple:
         """
         Searches the registry for a contract with the provided name or address
         and returns the contracts component data.
         """
         if not (bool(contract_name) ^ bool(contract_address)):
             raise ValueError("Pass contract_name or contract_address, not both.")
+        if bool(contract_version) and not bool(contract_name):
+            raise ValueError("Pass contract_version together with contract_name.")
 
         contracts = list()
         registry_data = self.read()
@@ -320,7 +322,9 @@ class BaseContractRegistry(ABC):
                     version = None
                 else:
                     name, version, address, abi = contract
-                if contract_name == name or contract_address == address:
+                if contract_name == name and \
+                        (contract_version is None or version == contract_version) or \
+                        contract_address == address:
                     contracts.append((name, version, address, abi))
         except ValueError:
             message = "Missing or corrupted registry data"

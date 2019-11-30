@@ -45,10 +45,10 @@ def test_deploy_ethereum_contracts(testerchain,
 
     with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert token_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
-    assert not token_deployer.is_deployed
+    assert not token_deployer.is_deployed()
 
     token_deployer.deploy(progress=deployment_progress)
-    assert token_deployer.is_deployed
+    assert token_deployer.is_deployed()
     assert len(token_deployer.contract_address) == 42
 
     token_agent = NucypherTokenAgent(registry=test_registry)
@@ -70,10 +70,10 @@ def test_deploy_ethereum_contracts(testerchain,
 
     with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert staking_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
-    assert not staking_escrow_deployer.is_deployed
+    assert not staking_escrow_deployer.is_deployed()
 
     staking_escrow_deployer.deploy(secret_hash=keccak(stakers_escrow_secret), progress=deployment_progress)
-    assert staking_escrow_deployer.is_deployed
+    assert staking_escrow_deployer.is_deployed()
     assert len(staking_escrow_deployer.contract_address) == 42
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
@@ -97,10 +97,10 @@ def test_deploy_ethereum_contracts(testerchain,
 
     with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert policy_manager_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
-    assert not policy_manager_deployer.is_deployed
+    assert not policy_manager_deployer.is_deployed()
 
     policy_manager_deployer.deploy(secret_hash=keccak(policy_manager_secret), progress=deployment_progress)
-    assert policy_manager_deployer.is_deployed
+    assert policy_manager_deployer.is_deployed()
     assert len(policy_manager_deployer.contract_address) == 42
 
     policy_agent = policy_manager_deployer.make_agent()
@@ -124,10 +124,10 @@ def test_deploy_ethereum_contracts(testerchain,
 
     with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert adjudicator_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
-    assert not adjudicator_deployer.is_deployed
+    assert not adjudicator_deployer.is_deployed()
 
     adjudicator_deployer.deploy(secret_hash=keccak(adjudicator_secret), progress=deployment_progress)
-    assert adjudicator_deployer.is_deployed
+    assert adjudicator_deployer.is_deployed()
     assert len(adjudicator_deployer.contract_address) == 42
 
     adjudicator_agent = adjudicator_deployer.make_agent()

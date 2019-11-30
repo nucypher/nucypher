@@ -433,7 +433,8 @@ class BlockchainInterface:
 
     def get_contract_by_name(self,
                              registry: BaseContractRegistry,
-                             name: str,
+                             contract_name: str,
+                             contract_version: str = None,
                              enrollment_version: Union[int, str] = None,
                              proxy_name: str = None,
                              use_proxy_address: bool = True
@@ -443,10 +444,10 @@ class BlockchainInterface:
         and assimilate it with its proxy if it is upgradeable,
         or return all registered records if use_proxy_address is False.
         """
-        target_contract_records = registry.search(contract_name=name)
+        target_contract_records = registry.search(contract_name=contract_name, contract_version=contract_version)
 
         if not target_contract_records:
-            raise self.UnknownContract(f"No such contract records with name {name}.")
+            raise self.UnknownContract(f"No such contract records with name {contract_name}:{contract_version}.")
 
         if proxy_name:
 
@@ -477,22 +478,25 @@ class BlockchainInterface:
             if len(results) > 1:
                 address, _version, _abi = results[0]
                 message = "Multiple {} deployments are targeting {}".format(proxy_name, address)
-                raise self.InterfaceError(message.format(name))
+                raise self.InterfaceError(message.format(contract_name))
 
             else:
                 try:
                     selected_address, selected_version, selected_abi = results[0]
                 except IndexError:
-                    raise self.UnknownContract(f"There are no Dispatcher records targeting '{name}'")
+                    raise self.UnknownContract(
+                        f"There are no Dispatcher records targeting '{contract_name}':{contract_version}")
 
         else:
             # NOTE: 0 must be allowed as a valid version number
             if len(target_contract_records) != 1:
                 if enrollment_version is None:
-                    m = f"{len(target_contract_records)} records enrolled for contract {name} " \
+                    m = f"{len(target_contract_records)} records enrolled " \
+                        f"for contract {contract_name}:{contract_version} " \
                         f"and no version index was supplied."
                     raise self.InterfaceError(m)
-                enrollment_version = self.__get_enrollment_version_index(name=name,
+                enrollment_version = self.__get_enrollment_version_index(name=contract_name,
+                                                                         contract_version=contract_version,
                                                                          version_index=enrollment_version,
                                                                          enrollments=len(target_contract_records))
 
@@ -510,7 +514,10 @@ class BlockchainInterface:
         return unified_contract
 
     @staticmethod
-    def __get_enrollment_version_index(version_index: Union[int, str], enrollments: int, name: str):
+    def __get_enrollment_version_index(version_index: Union[int, str],
+                                       enrollments: int,
+                                       name: str,
+                                       contract_version: str):
         version_names = {'latest': -1, 'earliest': 0}
         try:
             version = version_names[version_index]
@@ -522,7 +529,8 @@ class BlockchainInterface:
                 raise ValueError(f"'{what_is_this}' is not a valid enrollment version number")
             else:
                 if version > enrollments - 1:
-                    message = f"Version index '{version}' is larger than the number of enrollments for {name}."
+                    message = f"Version index '{version}' is larger than the number of enrollments " \
+                              f"for {name}:{contract_version}."
                     raise ValueError(message)
         return version
 
@@ -564,7 +572,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                         *constructor_args,
                         enroll: bool = True,
                         gas_limit: int = None,
-                        version: str = 'latest',
+                        contract_version: str = 'latest',
                         **constructor_kwargs
                         ) -> Tuple[VersionedContract, dict]:
         """
@@ -586,7 +594,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         pprint_args = str(tuple(constructor_args))
         pprint_args = pprint_args.replace("{", "{{").replace("}", "}}")  # See #724
 
-        contract_factory = self.get_contract_factory(contract_name=contract_name, version=version)
+        contract_factory = self.get_contract_factory(contract_name=contract_name, version=contract_version)
         self.log.info(f"Deploying contract {contract_name}:{contract_factory.version} with "
                       f"deployer address {deployer_address} "
                       f"and parameters {pprint_args}")
@@ -626,7 +634,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
         return contract, receipt  # receipt
 
-    def _find_contract_data(self, contract_name: str, requested_version: str = 'latest') -> Tuple[str, dict]:
+    def find_raw_contract_data(self, contract_name: str, requested_version: str = 'latest') -> Tuple[str, dict]:
         try:
             contract_data = self._raw_contract_cache[contract_name]
         except KeyError:
@@ -670,7 +678,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
     def get_contract_factory(self, contract_name: str, version: str = 'latest') -> VersionedContract:
         """Retrieve compiled interface data from the cache and return web3 contract"""
-        version, interface = self._find_contract_data(contract_name, version)
+        version, interface = self.find_raw_contract_data(contract_name, version)
         contract = self.client.w3.eth.contract(abi=interface['abi'],
                                                bytecode=interface['bin'],
                                                version=version,

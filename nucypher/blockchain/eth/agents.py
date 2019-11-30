@@ -97,7 +97,7 @@ class EthereumContractAgent:
 
         if contract is None:  # Fetch the contract
             contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                            name=self.registry_contract_name,
+                                                            contract_name=self.registry_contract_name,
                                                             proxy_name=self._proxy_name,
                                                             use_proxy_address=self._forward_address)
         self.__contract = contract
