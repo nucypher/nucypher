@@ -27,8 +27,8 @@ def test_nucypher_contract_compiled(testerchain, test_registry):
     origin, *everybody_else = testerchain.client.accounts
 
     token_contract_identifier = NucypherTokenDeployer(registry=test_registry, deployer_address=origin).contract_name
-    assert token_contract_identifier in testerchain._BlockchainDeployerInterface__raw_contract_cache
-    token_data = testerchain._BlockchainDeployerInterface__raw_contract_cache[token_contract_identifier]
+    assert token_contract_identifier in testerchain._raw_contract_cache
+    token_data = testerchain._raw_contract_cache[token_contract_identifier]
     assert len(token_data) == 1
     assert "v0.0.0" in token_data
 
@@ -39,7 +39,7 @@ def test_multi_source_compilation(testerchain):
         (SolidityCompiler.default_contract_dir(), {TesterBlockchain.TEST_CONTRACTS_DIR})
     ])
     interfaces = solidity_compiler.compile()
-    assert interfaces == testerchain._BlockchainDeployerInterface__raw_contract_cache
+    assert interfaces == testerchain._raw_contract_cache
 
 
 def test_multi_versions():
@@ -54,5 +54,5 @@ def test_multi_versions():
     contract_data = interfaces["VersionTest"]
     assert len(contract_data) == 2
     assert "v1.2.3" in contract_data
-    assert "v2.3.4" in contract_data
-    assert contract_data["v1.2.3"]["devdoc"] != contract_data["v2.3.4"]["devdoc"]
+    assert "v1.1.4" in contract_data
+    assert contract_data["v1.2.3"]["devdoc"] != contract_data["v1.1.4"]["devdoc"]

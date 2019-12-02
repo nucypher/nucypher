@@ -3,6 +3,8 @@ pragma solidity ^0.5.3;
 
 /**
 * @notice Test extracting version number from dev docs
-* @dev |v2.3.4|
+* @dev |v1.2.3|
 */
-contract VersionTest {}
+contract VersionTest {
+    uint16 public constant VERSION = 2;
+}
