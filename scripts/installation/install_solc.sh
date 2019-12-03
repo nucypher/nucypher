@@ -8,7 +8,7 @@ if [[ "$OSTYPE" != "linux-gnu" ]]; then
 fi
 
 SOLC_VER="0.5.9"
-SOL_BIN_PATH=~/.local/bin/solc
+SOL_BIN_PATH=$(dirname $(which python))/solc
 
 # Get solc binary for linux
 echo "Downloading solidity compiler binary to: ${SOL_BIN_PATH}"
