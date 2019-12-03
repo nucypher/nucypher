@@ -107,7 +107,6 @@ def test_upgradability(temp_dir_path, token_economics):
     BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)
     blockchain_interface.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=origin)
     blockchain_interface.transacting_power.activate()
-    blockchain_interface.connect()
 
     # Check contracts with multiple versions
     raw_contracts = blockchain_interface._raw_contract_cache

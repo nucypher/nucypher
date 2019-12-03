@@ -39,7 +39,16 @@ def test_multi_source_compilation(testerchain):
         (SolidityCompiler.default_contract_dir(), {TesterBlockchain.TEST_CONTRACTS_DIR})
     ])
     interfaces = solidity_compiler.compile()
-    assert interfaces == testerchain._raw_contract_cache
+
+    # Remove AST because id in tree node depends on compilation scope
+    for contract_name, contract_data in interfaces.items():
+        for version, data in contract_data.items():
+            data.pop("ast")
+    raw_cache = testerchain._raw_contract_cache.copy()
+    for contract_name, contract_data in raw_cache.items():
+        for version, data in contract_data.items():
+            data.pop("ast")
+    assert interfaces == raw_cache
 
 
 def test_multi_versions():

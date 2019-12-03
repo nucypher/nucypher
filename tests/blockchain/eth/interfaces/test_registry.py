@@ -47,28 +47,32 @@ def test_contract_registry(tempfile_path):
     test_name = 'TestContract'
     test_addr = '0xDEADBEEF'
     test_abi = ['fake', 'data']
+    test_version = "some_version"
 
     test_registry.enroll(contract_name=test_name,
                          contract_address=test_addr,
-                         contract_abi=test_abi)
+                         contract_abi=test_abi,
+                         contract_version=test_version)
 
     # Search by name...
     contract_records = test_registry.search(contract_name=test_name)
     assert len(contract_records) == 1, 'More than one record for {}'.format(test_name)
-    assert len(contract_records[0]) == 3, 'Registry record is the wrong length'
-    name, address, abi = contract_records[0]
+    assert len(contract_records[0]) == 4, 'Registry record is the wrong length'
+    name, version, address, abi = contract_records[0]
 
     assert name == test_name
     assert address == test_addr
     assert abi == test_abi
+    assert version == test_version
 
     # ...or by address
     contract_record = test_registry.search(contract_address=test_addr)
-    name, address, abi = contract_record
+    name, version, address, abi = contract_record
 
     assert name == test_name
     assert address == test_addr
     assert abi == test_abi
+    assert version == test_version
 
     # Check that searching for an unknown contract raises
     with pytest.raises(BaseContractRegistry.UnknownContract):
