@@ -644,7 +644,6 @@ def collect_reward(click_config,
 @_stake_options
 @click.option('--status', help="View balance and lock information of preallocation contract", is_flag=True)
 @click.option('--withdraw-tokens', help="Withdraw tokens to beneficiary address", is_flag=True)
-@click.option('--withdraw-eth', help="Withdraw ETH to beneficiary address", is_flag=True)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @nucypher_click_config
 def preallocation(click_config,
@@ -654,17 +653,17 @@ def preallocation(click_config,
                   beneficiary_address, allocation_filepath,
 
                   # Preallocation options
-                  status, withdraw_tokens, withdraw_eth,
+                  status, withdraw_tokens,
 
                   # Other
                   force):
     """
-    Claim rewards and fees collected by a preallocation contract.
+    Claim token rewards collected by a preallocation contract.
     """
 
-    flags = (status, withdraw_tokens, withdraw_eth)
-    if sum(flags) != 1:  # i.e., only one flag must be active
-        raise click.BadArgumentUsage(f"Either --status, --withdraw-tokens, or --withdraw-eth must be selected.")
+    action = (status, withdraw_tokens)
+    if sum(action) != 1:  # i.e., only one action flag must be active
+        raise click.BadArgumentUsage(f"Either --status or --withdraw-tokens must be selected.")
 
     ### Setup ###
     emitter = _setup_emitter(click_config)
@@ -686,7 +685,7 @@ def preallocation(click_config,
                                    preallocation_agent=STAKEHOLDER.preallocation_escrow_agent)
         return
 
-    # Authenticated actions: withdraw-tokens, withdraw-eth
+    # Authenticated actions: withdraw-tokens
 
     client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
                                                                         stakeholder=STAKEHOLDER,
@@ -706,14 +705,9 @@ def preallocation(click_config,
 
         emitter.echo(message=f'Collecting {unlocked_tokens} from PreallocationEscrow contract {staking_address}...')
         receipt = STAKEHOLDER.withdraw_preallocation_tokens(unlocked_tokens)
-    elif withdraw_eth:
-        eth_balance = Web3.fromWei(blockchain.client.get_balance(staking_address), 'ether')
-        emitter.echo(message=f'Collecting {eth_balance} ETH from PreallocationEscrow contract {staking_address}...')
-        receipt = STAKEHOLDER.withdraw_preallocation_eth()
-
-    paint_receipt_summary(receipt=receipt,
-                          chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
-                          emitter=emitter)
+        paint_receipt_summary(receipt=receipt,
+                              chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
+                              emitter=emitter)
 
 
 def _setup_emitter(click_config):

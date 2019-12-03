@@ -871,10 +871,11 @@ class Staker(NucypherTokenActor):
     @validate_checksum_address
     def collect_policy_reward(self, collector_address=None) -> dict:
         """Collect rewarded ETH."""
-        withdraw_address = collector_address or self.checksum_address
         if self.is_contract:
+            withdraw_address = collector_address or self.beneficiary_address
             receipt = self.preallocation_escrow_agent.collect_policy_reward(collector_address=withdraw_address)
         else:
+            withdraw_address = collector_address or self.checksum_address
             receipt = self.policy_agent.collect_policy_reward(collector_address=withdraw_address,
                                                               staker_address=self.checksum_address)
         return receipt
