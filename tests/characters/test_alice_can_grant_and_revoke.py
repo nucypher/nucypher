@@ -128,8 +128,8 @@ def test_manual_policy_credential_creation(blockchain_alice):
     assert credential.alice_stamp == deserialized_cred.alice_stamp
 
 
-def test_restore_policy_from_credential_storage(blockchain_alice):
-    test_credentials_dir = os.path.join('/', 'tmp', 'nucypher-test-credentials')
+def test_restore_policy_from_credential_storage(blockchain_alice, temp_dir_path):
+    test_credentials_dir = temp_dir_path
     if os.path.exists(test_credentials_dir):
         shutil.rmtree(test_credentials_dir, ignore_errors=True)
     file_storage = LocalFilePolicyCredentialStorage(credential_dir=test_credentials_dir)

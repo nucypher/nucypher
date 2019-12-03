@@ -345,11 +345,10 @@ class Alice(Character, BlockchainPolicyAuthor):
         a value.
         """
 
-        # TODO
-        if policy.treasure_map is not NO_DECRYPTION_PERFORMED:
-            revocation_kit = RevocationKit.from_treasure_map(treasure_map=policy.treasure_map, signer=self.stamp)
-        else:
+        if policy.treasure_map is NO_DECRYPTION_PERFORMED:
             revocation_kit = RevocationKit.from_policy(policy=policy, signer=self.stamp)
+        else:
+            revocation_kit = RevocationKit.from_treasure_map(treasure_map=policy.treasure_map, signer=self.stamp)
 
         try:
             # Wait for a revocation threshold of nodes to be known ((n - m) + 1)
@@ -359,7 +358,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                 allow_missing=(policy.n - revocation_threshold))
 
         except self.NotEnoughTeachers:
-            raise  # TODO
+            raise
 
         else:
             failed_revocations = dict()

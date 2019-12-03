@@ -354,7 +354,7 @@ class Policy(ABC):
                                                        arrangement.id,
                                                        policy_message_kit.to_bytes())
 
-            if not response:
+            if response.status_code != 200:
                 pass  # TODO: Parse response for confirmation.
 
             # Assuming response is what we hope for.
@@ -665,7 +665,7 @@ class BlockchainPolicy(Policy):
         self.receipt = receipt
         self.publish_transaction = receipt['transactionHash']
 
-        # Call super publish (currently encrypts fr Bob publishes TMap)
+        # Call super publish (currently encrypts for Bob and publishes TMap)
         super().publish(network_middleware=self.alice.network_middleware)
 
         self.sync()
