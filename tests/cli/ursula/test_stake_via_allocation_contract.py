@@ -577,6 +577,46 @@ def test_collect_rewards_integration(click_runner,
     # The beneficiary has withdrawn her staking rewards, which are now in the staking contract
     assert token_agent.get_balance(address=staker_address) >= balance_before_collecting
 
-# TODO: Test preallocation commands
 
+def test_withdraw_from_preallocation(click_runner,
+                                     testerchain,
+                                     test_registry,
+                                     stakeholder_configuration_file_location,
+                                     beneficiary,
+                                     preallocation_escrow_agent,
+                                     ):
 
+    staker_address = preallocation_escrow_agent.principal_contract.address
+    token_agent = ContractAgency.get_agent(agent_class=NucypherTokenAgent, registry=test_registry)
+    tokens_in_contract = NU.from_nunits(token_agent.get_balance(address=staker_address))
+    locked_preallocation = NU.from_nunits(preallocation_escrow_agent.unvested_tokens)
+
+    collection_args = ('stake', 'preallocation',
+                       '--status',
+                       '--config-file', stakeholder_configuration_file_location,
+                       '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,)
+
+    result = click_runner.invoke(nucypher_cli,
+                                 collection_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=True)
+    assert result.exit_code == 0
+    assert f'NU balance: ..... {tokens_in_contract}' in result.output
+
+    balance_before_collecting = token_agent.get_balance(address=beneficiary)
+
+    collection_args = ('stake', 'preallocation',
+                       '--withdraw-tokens',
+                       '--config-file', stakeholder_configuration_file_location,
+                       '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
+                       '--force')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 collection_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=True)
+    assert result.exit_code == 0
+    assert token_agent.get_balance(address=staker_address) == locked_preallocation
+    withdrawn_amount = tokens_in_contract - locked_preallocation
+    balance_after_collecting = token_agent.get_balance(address=beneficiary)
+    assert balance_after_collecting == balance_before_collecting + withdrawn_amount
