@@ -57,7 +57,7 @@ class TreasureMap:
         Called when no known nodes have it.
         """
 
-    class MalformedString(ValueError):
+    class Malformed(ValueError):
         pass
 
     node_id_splitter = BytestringSplitter((to_checksum_address, int(PUBLIC_ADDRESS_LENGTH)), ID_LENGTH)
