@@ -391,7 +391,8 @@ def make_rest_app(
                                              known_nodes=this_node.known_nodes,
                                              previous_states=previous_states,
                                              domains=serving_domains,
-                                             version=nucypher.__version__)
+                                             version=nucypher.__version__,
+                                             checksum_address=this_node.checksum_address)
         except Exception as e:
             log.debug("Template Rendering Exception: ".format(str(e)))
             raise TemplateError(str(e)) from e
