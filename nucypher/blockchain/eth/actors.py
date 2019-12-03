@@ -1078,6 +1078,9 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         return policies
 
     def read_policy(self, policy_id: bytes, *args, **kwargs):
+        policy = self.__policies.get(policy_id):
+        if policy:
+            return policy
         from nucypher.policy.policies import BlockchainPolicy
         policy = BlockchainPolicy.from_alice_and_policy_details(alice=self, policy_id=policy_id, *args, **kwargs)
         self.__policies[policy_id] = policy
