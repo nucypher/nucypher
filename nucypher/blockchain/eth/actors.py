@@ -64,6 +64,7 @@ from nucypher.blockchain.eth.registry import (
 )
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration, datetime_at_period
+from nucypher.characters.banners import STAKEHOLDER_BANNER
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.painting import (
     paint_contract_deployment,
@@ -1082,3 +1083,145 @@ class Investigator(NucypherTokenActor):
 
     def was_this_evidence_evaluated(self, evidence):
         return self.adjudicator_agent.was_this_evidence_evaluated(evidence=evidence)
+
+
+class StakeHolder(Staker):
+
+    banner = STAKEHOLDER_BANNER
+
+    class StakingWallet:
+
+        class UnknownAccount(KeyError):
+            pass
+
+        def __init__(self,
+                     registry: BaseContractRegistry,
+                     checksum_addresses: set = None):
+
+            # Wallet
+            self.__accounts = set()  # Note: Account index is meaningless here
+            self.__transacting_powers = dict()
+
+            # Blockchain
+            self.registry = registry
+            self.blockchain = BlockchainInterfaceFactory.get_interface()
+            self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
+
+            self.__get_accounts()
+            if checksum_addresses:
+                self.__accounts.update(checksum_addresses)
+
+        @validate_checksum_address
+        def __contains__(self, checksum_address: str) -> bool:
+            return bool(checksum_address in self.__accounts)
+
+        @property
+        def active_account(self) -> str:
+            return self.blockchain.transacting_power.account
+
+        def __get_accounts(self) -> None:
+            accounts = self.blockchain.client.accounts
+            self.__accounts.update(accounts)
+
+        @property
+        def accounts(self) -> set:
+            return self.__accounts
+
+        @validate_checksum_address
+        def activate_account(self, checksum_address: str, password: str = None) -> None:
+            if checksum_address not in self:
+                self.__get_accounts()
+                if checksum_address not in self:
+                    raise self.UnknownAccount
+            try:
+                transacting_power = self.__transacting_powers[checksum_address]
+            except KeyError:
+                transacting_power = TransactingPower(password=password, account=checksum_address)
+                self.__transacting_powers[checksum_address] = transacting_power
+            transacting_power.activate(password=password)
+
+        @property
+        def balances(self) -> Dict[str, int]:
+            balances = dict()
+            for account in self.accounts:
+                funds = {'ETH': self.blockchain.client.get_balance(account),  # TODO: EthAgent or something?
+                         'NU': self.token_agent.get_balance(account)}
+                balances.update({account: funds})
+            return balances
+
+    #
+    # StakeHolder
+    #
+
+    def __init__(self,
+                 is_me: bool = True,
+                 initial_address: str = None,
+                 checksum_addresses: set = None,
+                 password: str = None,
+                 *args, **kwargs):
+
+        self.staking_interface_agent = None
+
+        super().__init__(is_me=is_me, checksum_address=initial_address, *args, **kwargs)
+        self.log = Logger(f"stakeholder")
+
+        # Wallet
+        self.wallet = self.StakingWallet(registry=self.registry, checksum_addresses=checksum_addresses)
+        if initial_address:
+            # If an initial address was passed,
+            # it is safe to understand that it has already been used at a higher level.
+            if initial_address not in self.wallet:
+                raise self.StakingWallet.UnknownAccount
+            self.assimilate(checksum_address=initial_address, password=password)
+
+    @validate_checksum_address
+    def assimilate(self, checksum_address: str, password: str = None) -> None:
+        if self.is_contract:
+            original_form = f"{self.beneficiary_address[0:8]} (contract {self.checksum_address[0:8]})"
+        else:
+            original_form = self.checksum_address
+
+        # This handles both regular staking and staking via a contract
+        if self.individual_allocation:
+            if checksum_address != self.individual_allocation.beneficiary_address:
+                raise ValueError(f"Beneficiary {self.individual_allocation.beneficiary_address} in individual "
+                                 f"allocation doesn't match this checksum address ({checksum_address})")
+            staking_address = self.individual_allocation.contract_address
+            self.beneficiary_address = self.individual_allocation.beneficiary_address
+            self.preallocation_escrow_agent = PreallocationEscrowAgent(registry=self.registry,
+                                                                       allocation_registry=self.individual_allocation,
+                                                                       beneficiary=self.beneficiary_address)
+        else:
+            staking_address = checksum_address
+            self.beneficiary_address = None
+            self.preallocation_escrow_agent = None
+
+        self.wallet.activate_account(checksum_address=checksum_address, password=password)
+        self.checksum_address = staking_address
+        self.stakes = StakeList(registry=self.registry, checksum_address=staking_address)
+        self.stakes.refresh()
+
+        if self.is_contract:
+            new_form = f"{self.beneficiary_address[0:8]} (contract {self.checksum_address[0:8]})"
+        else:
+            new_form = self.checksum_address
+
+        self.log.info(f"Resistance is futile - Assimilating Staker {original_form} -> {new_form}.")
+
+    @property
+    def all_stakes(self) -> list:
+        stakes = list()
+        for account in self.wallet.accounts:
+            more_stakes = StakeList(registry=self.registry, checksum_address=account)
+            more_stakes.refresh()
+            stakes.extend(more_stakes)
+        return stakes
+
+    @property
+    def total_stake(self) -> NU:
+        """
+        The total number of staked tokens, either locked or unlocked in the current period.
+        """
+        stake = sum(self.staking_agent.owned_tokens(staker_address=account) for account in self.wallet.accounts)
+        nu_stake = NU.from_nunits(stake)
+        return nu_stake

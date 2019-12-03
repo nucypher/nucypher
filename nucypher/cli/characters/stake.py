@@ -24,7 +24,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
 from nucypher.blockchain.eth.token import NU, StakeList
 from nucypher.blockchain.eth.utils import datetime_at_period
-from nucypher.characters.lawful import StakeHolder
+from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.cli import painting, actions
 from nucypher.cli.actions import (
     confirm_staged_stake,
