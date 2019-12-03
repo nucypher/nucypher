@@ -110,12 +110,14 @@ class InterfaceInfo:
 
 class AvailabilitySensor:
 
-    DEFAULT_INTERVAL = 5                  # Seconds
-    DEFAULT_SAMPLE_SIZE = 3               # Ursulas
-    DEFAULT_MEASUREMENT_SENSITIVITY = 2   # Failure indication threshold
-    DEFAULT_SENSOR_SENSITIVITY = 0.5      # Successful records
-    DEFAULT_RETENTION = 10                # Records
-    MAXIMUM_ALONE_TIME = 10               # Seconds
+    FAST_INTERVAL = 5          # Seconds
+    SLOW_INTERVAL = 60 * 5
+    SEEDING_DURATION = 60 * 2
+    MAXIMUM_ALONE_TIME = 10
+
+    SAMPLE_SIZE = 1            # Ursulas
+    SENSOR_SENSITIVITY = 0.5   # Threshold
+    CHARGE_RATE = 0.9          # Measurement Multiplier
 
     class Unreachable(RuntimeError):
         pass
@@ -126,34 +128,20 @@ class AvailabilitySensor:
     class Lonely(Unreachable):
         message = "Cannot connect to enough teacher nodes."
 
-    Record = namedtuple('Record', ('time', 'result'))
-
-    def __init__(self,
-                 ursula,
-                 interval: int = DEFAULT_INTERVAL,
-                 sample_size: int = DEFAULT_SAMPLE_SIZE,
-                 sensitivity: int = DEFAULT_MEASUREMENT_SENSITIVITY,
-                 sensor_sensitivity: int = DEFAULT_SENSOR_SENSITIVITY,
-                 retention: int = DEFAULT_RETENTION):
+    def __init__(self, ursula, enforce_loneliness: bool = True):
 
         self.log = Logger(self.__class__.__name__)
-        self.interval = interval
-        self.sample_size = sample_size
-        self.measurement_sensitivity = sensitivity
-        self.sensor_sensitivity = sensor_sensitivity
-        self.retention = retention
+        self._ursula = ursula
+        self.enforce_loneliness = enforce_loneliness
 
-        # 1.0 == Fully available
+        self.__score = 10
+        # 10 == Fully available
         self.warnings = {
-            0.95: self.mild_warning,
-            0.7: self.medium_warning,
-            0.2: self.severe_warning,
+            9: self.mild_warning,
+            7: self.medium_warning,
+            2: self.severe_warning,
             0: self.shutdown_everything
         }
-
-        self._ursula = ursula
-        self._sample_size = sample_size
-        self._records = deque(maxlen=retention)
 
         self.__start_time = None
         self.__task = LoopingCall(self.maintain)
@@ -188,7 +176,7 @@ class AvailabilitySensor:
     @property
     def status(self) -> bool:
         """Returns current indication of availability"""
-        return self.score > self.sensor_sensitivity
+        return self.score > self.SENSOR_SENSITIVITY
 
     @property
     def running(self) -> bool:
@@ -196,8 +184,8 @@ class AvailabilitySensor:
 
     def start(self, now: bool = False):
         if not self.running:
-            self.__start_time = maya.now().epoch
-            d = self.__task.start(interval=self.interval, now=now)
+            self.__start_time = maya.now()
+            d = self.__task.start(interval=self.FAST_INTERVAL, now=now)
             d.addErrback(self.handle_measurement_errors)
 
     def stop(self) -> None:
@@ -206,69 +194,75 @@ class AvailabilitySensor:
 
     def maintain(self) -> None:
         self.log.debug(f"Starting new sensor maintenance round")
-        known_nodes_is_smaller_than_sample_size = len(self._ursula.known_nodes) < self.sample_size
+        known_nodes_is_smaller_than_sample_size = len(self._ursula.known_nodes) < self.SAMPLE_SIZE
+
+        # If there are no known nodes or too few known nodes, skip this round...
+        # ... but not for longer than the maximum allotted alone time
         if known_nodes_is_smaller_than_sample_size:
-            # If there are no known nodes or too few known nodes, skip this round...
-            # ... but not for longer than the maximum allotted alone time
-            if not self._ursula.lonely:
+            if not self._ursula.lonely and self.enforce_loneliness:
                 now = maya.now().epoch
-                delta = now - self.__start_time
+                delta = now - self.__start_time.epoch
                 if delta >= self.MAXIMUM_ALONE_TIME:
                     self.severe_warning()
                     reason = self.Solitary if not self._ursula.known_nodes else self.Lonely
                     self.shutdown_everything(reason=reason)
             return
-        result = self.measure()
-        self.record(result)
 
-        if self._records:
-            first, last = self._records[0], self._records[-1]
-            delta = (last.time - first.time) // 60
-            self.log.info(f"Current availability score is {self.score} measured over the last {delta} min.")
+        if self.__task.interval == self.FAST_INTERVAL:
+            now = maya.now().epoch
+            delta = now - self.__start_time.epoch
+            if delta >= self.SEEDING_DURATION:
+                # Slow down
+                self.__task.interval = self.SLOW_INTERVAL
+                return
+
+        # All systems go
+        self.measure()
+        delta = (maya.now() - self.__start_time).slang_time()
+        self.log.info(f"Current availability score is {self.score} measured since {delta}")
         self.issue_warnings()
-
-    @property
-    def successful_records(self):
-        return (record.result for record in self._records if record.result)
-
-    @property
-    def score(self) -> float:
-        if len(self._records) == 0:
-            return 1.0  # Assume availability by default
-        return len(tuple(self.successful_records)) / len(self._records)
 
     def issue_warnings(self) -> None:
         for threshold, action in self.warnings.items():
             if self.score <= threshold:
                 action()
-                break
 
     def sample(self, quantity: int) -> list:
-        ursulas = random.sample(population=tuple(self._ursula.known_nodes._nodes.values()), k=quantity)
+        population = tuple(self._ursula.known_nodes._nodes.values())
+        ursulas = random.sample(population=population, k=quantity)
         return ursulas
 
-    def record(self, result: bool) -> None:
-        now = maya.now().epoch
-        measurement = self.Record(time=now, result=result)
-        self._records.append(measurement)
+    @property
+    def score(self) -> float:
+        return self.__score
 
-    def measure(self) -> bool:
-        if self.measurement_sensitivity > self.sample_size:
-            message = f"Threshold ({self.measurement_sensitivity}) cannot be greater then the sample size ({self.sample_size})."
-            raise ValueError(message)
-        ursulas = self.sample(quantity=self.sample_size)
-        succeeded, failed = 0, 0
+    def record(self, result: bool = None) -> None:
+        """Score the result and cache it."""
+        if result is None:
+            return
+        self.__score = self.__score + self.CHARGE_RATE * int(result)
+
+    def measure(self) -> None:
+
+        ursulas = self.sample(quantity=self.SAMPLE_SIZE)
         for ursula in ursulas:
+
             # Fetch and store teacher certificate
             responding_ursula_address, responding_ursula_port = tuple(ursula.rest_interface)
             certificate = self._ursula.network_middleware.get_certificate(host=responding_ursula_address,
                                                                           port=responding_ursula_port)
             certificate_filepath = self._ursula.node_storage.store_node_certificate(certificate=certificate)
-            available = self._ursula.network_middleware.check_rest_availability(requesting_ursula=self._ursula,
-                                                                                responding_ursula=ursula,
-                                                                                certificate_filepath=certificate_filepath)
-            if available:
-                succeeded += 1
+
+            # Request status check
+            response = self._ursula.network_middleware.check_rest_availability(requesting_ursula=self._ursula,
+                                                                               responding_ursula=ursula,
+                                                                               certificate_filepath=certificate_filepath)
+            # Record response
+            if response.status_code == 200:
+                self.record(True)
+            elif response.status_code == 400:
+                self.record(False)
             else:
-                failed += 1
-        return self.measurement_sensitivity >= failed
+                # Ignore this measurement and move on.
+                self.record(None)
+            return
