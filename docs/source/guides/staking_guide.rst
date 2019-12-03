@@ -422,15 +422,15 @@ can directly specify their beneficiary and staking contract addresses with the
 Inline Method
 --------------
 
-+----------------+----------------+--------------+
-| Option         | Flag           | Description  |
-+================+================+==============+
-| stake value    | ``--value``    | in NU        |
-+----------------+----------------+--------------+
-| stake duration | ``--duration`` | in periods   |
-+----------------+----------------+--------------+
-| stake index    | ``--index``    | to divide    |
-+----------------+----------------+--------------+
++--------------------+----------------+--------------+
+| Option             | Flag           | Description  |
++====================+================+==============+
+| ``stake value``    | ``--value``    | in NU        |
++--------------------+----------------+--------------+
+| ``stake duration`` | ``--duration`` | in periods   |
++--------------------+----------------+--------------+
+| ``stake index``    | ``--index``    | to divide    |
++--------------------+----------------+--------------+
 
 
 Stake 30000 NU for 90 Periods
@@ -454,3 +454,7 @@ Worker configuration
 ------------------------
 
 See :ref:`ursula-config-guide`.
+
+.. note:: If you're a preallocation user, recall that you're using a contract to stake.
+  Replace ``<YOUR STAKER ADDRESS>`` with the contract address when configuring your node.
+  If you don't know this address, you'll find it in the preallocation file.

@@ -136,6 +136,10 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
 ``<YOUR STAKER ADDRESS>`` is the address you've staked from when following the
  :ref:`staking-guide`.
 
+.. note:: If you're a preallocation user, recall that you're using a contract to stake.
+  Replace ``<YOUR STAKER ADDRESS>`` with the contract address.
+  If you don't know this address, you'll find it in the preallocation file.
+
 
 3. Create a password when prompted
 -----------------------------------------
