@@ -294,6 +294,8 @@ commands:
   save_dependency_cache:
     description: "Cache python installation files"
     steps:
+      - run: sudo chown -R circleci:circleci /usr/local/bin
+      - run: sudo chown -R circleci:circleci /usr/local/lib/python3.7/site-packages
       - save_cache:
           key: pip-v2-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
           paths:
@@ -304,6 +306,8 @@ commands:
   restore_dependency_cache:
     description: "Own and restore cached python installation files"
     steps:
+      - run: sudo chown -R circleci:circleci /usr/local/bin
+      - run: sudo chown -R circleci:circleci /usr/local/lib/python3.7/site-packages
       - restore_cache:  # ensure this step occurs *before* installing dependencies
           key: pip-v2-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
 
