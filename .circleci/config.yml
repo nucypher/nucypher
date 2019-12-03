@@ -288,7 +288,7 @@ commands:
           command: pip3 install -r dev-requirements.txt --user -e .
       - run:
           name: Install Solidity Compiler
-          command: ./scripts/installation/install_solc.sh
+          command: sudo ./scripts/installation/install_solc.sh
       - check_nucypher_entrypoints
 
   save_dependency_cache:
