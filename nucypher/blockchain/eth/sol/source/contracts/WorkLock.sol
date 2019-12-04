@@ -2,6 +2,7 @@ pragma solidity ^0.5.3;
 
 
 import "zeppelin/math/SafeMath.sol";
+import "zeppelin/utils/Address.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/StakingEscrow.sol";
 
@@ -11,6 +12,7 @@ import "contracts/StakingEscrow.sol";
 **/
 contract WorkLock {
     using SafeMath for uint256;
+    using Address for address payable;
 
     event Bid(address indexed staker, uint256 depositedETH, uint256 claimedTokens);
     event Claimed(address indexed staker, uint256 claimedTokens);
@@ -128,7 +130,7 @@ contract WorkLock {
         completedWork = refundETH.mul(refundRate);
         info.completedWork = info.completedWork.add(completedWork);
         emit Refund(msg.sender, refundETH, completedWork);
-        msg.sender.transfer(refundETH);
+        msg.sender.sendValue(refundETH);
     }
 
     /**

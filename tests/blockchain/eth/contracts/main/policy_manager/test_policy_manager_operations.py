@@ -136,7 +136,7 @@ def test_reward(testerchain, escrow, policy_manager):
         period += 1
     assert 210 == policy_manager.functions.nodes(node2).call()[REWARD_FIELD]
 
-    # Withdraw ETH for first node
+    # Withdraw the second node reward to the first node
     node_balance = testerchain.client.get_balance(node1)
     node_2_balance = testerchain.client.get_balance(node2)
     tx = policy_manager.functions.withdraw(node1).transact({'from': node2, 'gas_price': 0})
@@ -521,3 +521,64 @@ def test_refund(testerchain, escrow, policy_manager):
 
     events = policy_created_log.get_all_entries()
     assert 4 == len(events)
+
+
+@pytest.mark.slow
+def test_reentrancy(testerchain, escrow, policy_manager, deploy_contract):
+    withdraw_log = policy_manager.events.Withdrawn.createFilter(fromBlock='latest')
+    arrangement_revoked_log = policy_manager.events.ArrangementRevoked.createFilter(fromBlock='latest')
+    policy_revoked_log = policy_manager.events.PolicyRevoked.createFilter(fromBlock='latest')
+    arrangement_refund_log = policy_manager.events.RefundForArrangement.createFilter(fromBlock='latest')
+    policy_refund_log = policy_manager.events.RefundForPolicy.createFilter(fromBlock='latest')
+
+    reentrancy_contract, _ = deploy_contract('ReentrancyTest')
+    contract_address = reentrancy_contract.address
+    tx = escrow.functions.register(contract_address).transact()
+    testerchain.wait_for_receipt(tx)
+
+    # Create policy and mint one period
+    policy_value = int(2 * rate)
+    transaction = policy_manager.functions.createPolicy(policy_id, 2, 0, [contract_address]) \
+        .buildTransaction({'gas': 0})
+    tx = reentrancy_contract.functions.setData(1, transaction['to'], policy_value, transaction['data']).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = testerchain.client.send_transaction(
+        {'from': testerchain.client.coinbase, 'to': contract_address, 'value': 10000})
+    testerchain.wait_for_receipt(tx)
+    assert policy_value == testerchain.client.get_balance(policy_manager.address)
+
+    testerchain.time_travel(hours=1)
+    period = escrow.functions.getCurrentPeriod().call()
+    tx = escrow.functions.mint(contract_address, period, 1).transact({'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert rate == policy_manager.functions.nodes(contract_address).call()[REWARD_FIELD]
+
+    # Check protection from reentrancy in withdrawal method
+    balance = testerchain.client.get_balance(contract_address)
+    transaction = policy_manager.functions.withdraw(contract_address).buildTransaction({'gas': 0})
+    # Depth for reentrancy is 2: first initial call and then attempt to call again
+    tx = reentrancy_contract.functions.setData(2, transaction['to'], 0, transaction['data']).transact()
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = testerchain.client.send_transaction({'to': contract_address})
+        testerchain.wait_for_receipt(tx)
+    assert balance == testerchain.client.get_balance(contract_address)
+    assert rate == policy_manager.functions.nodes(contract_address).call()[REWARD_FIELD]
+    assert 0 == len(withdraw_log.get_all_entries())
+
+    # Prepare for refund and check reentrancy protection
+    tx = escrow.functions.setLastActivePeriod(period).transact()
+    testerchain.wait_for_receipt(tx)
+    transaction = policy_manager.functions.revokePolicy(policy_id).buildTransaction({'gas': 0})
+    tx = reentrancy_contract.functions.setData(2, transaction['to'], 0, transaction['data']).transact()
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = testerchain.client.send_transaction({'to': contract_address})
+        testerchain.wait_for_receipt(tx)
+    assert balance == testerchain.client.get_balance(contract_address)
+    assert not policy_manager.functions.policies(policy_id).call()[DISABLED_FIELD]
+    assert rate == policy_manager.functions.nodes(contract_address).call()[REWARD_FIELD]
+    assert 0 == len(arrangement_revoked_log.get_all_entries())
+    assert 0 == len(policy_revoked_log.get_all_entries())
+    assert 0 == len(arrangement_refund_log.get_all_entries())
+    assert 0 == len(policy_refund_log.get_all_entries())
