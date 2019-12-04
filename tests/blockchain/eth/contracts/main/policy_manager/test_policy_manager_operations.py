@@ -171,11 +171,12 @@ def test_refund(testerchain, escrow, policy_manager):
     tx = policy_manager.functions.createPolicy(policy_id, number_of_periods, int(0.5 * rate), [node1]) \
         .transact({'from': client, 'value': int(value + 0.5 * rate), 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setLastActivePeriod(escrow.functions.getCurrentPeriod().call() - 1).transact({'from': creator})
+    period = escrow.functions.getCurrentPeriod().call()
+    tx = escrow.functions.setLastActivePeriod(period - 1).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     testerchain.time_travel(hours=9)
-    # Check that methods only calculates value
+    # Check that methods only calculate value
     tx = policy_manager.functions.calculateRefundValue(policy_id).transact({'from': client, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     tx = policy_manager.functions.calculateRefundValue(policy_id, node1).transact({'from': client, 'gas_price': 0})
@@ -464,5 +465,59 @@ def test_refund(testerchain, escrow, policy_manager):
         testerchain.wait_for_receipt(tx)
     assert 150 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
 
-    events = policy_created_log.get_all_entries()
+
+
+    # Create policy again to test double call of `refund` with specific conditions
+    policy_id_4 = os.urandom(POLICY_ID_LENGTH)
+    number_of_periods_4 = 3
+    tx = policy_manager.functions.createPolicy(policy_id_4, number_of_periods_4, 0, [node1]) \
+        .transact({'from': client, 'value': number_of_periods_4 * rate, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+
+    testerchain.time_travel(hours=number_of_periods_4 - 1)
+    period = escrow.functions.getCurrentPeriod().call()
+    client_balance = testerchain.client.get_balance(client)
+    tx = escrow.functions.pushDowntimePeriod(0, period).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setLastActivePeriod(period + 1).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    refund_value = (number_of_periods_4 - 1) * rate
+    assert refund_value == policy_manager.functions.calculateRefundValue(policy_id_4).call({'from': client})
+
+    # Call refund, the result must be almost all ETH without payment for one period
+    tx = policy_manager.functions.refund(policy_id_4).transact({'from': client, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert client_balance + refund_value == testerchain.client.get_balance(client)
+
+    events = arrangement_refund_log.get_all_entries()
+    assert 6 == len(events)
+    event_args = events[5]['args']
+    assert policy_id_4 == event_args['policyId']
+    assert client == event_args['client']
+    assert node1 == event_args['node']
+    assert refund_value == event_args['value']
+
+    events = policy_refund_log.get_all_entries()
     assert 3 == len(events)
+    event_args = events[2]['args']
+    assert policy_id_4 == event_args['policyId']
+    assert client == event_args['client']
+    assert refund_value == event_args['value']
+
+    # Call refund again, the client must not get anything from the second call
+    client_balance = testerchain.client.get_balance(client)
+    assert 0 == policy_manager.functions.calculateRefundValue(policy_id_4).call({'from': client})
+    tx = policy_manager.functions.refund(policy_id_4).transact({'from': client, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert client_balance == testerchain.client.get_balance(client)
+
+    events = arrangement_refund_log.get_all_entries()
+    assert 7 == len(events)
+    event_args = events[6]['args']
+    assert policy_id_4 == event_args['policyId']
+    assert client == event_args['client']
+    assert node1 == event_args['node']
+    assert 0 == event_args['value']
+
+    events = policy_created_log.get_all_entries()
+    assert 4 == len(events)

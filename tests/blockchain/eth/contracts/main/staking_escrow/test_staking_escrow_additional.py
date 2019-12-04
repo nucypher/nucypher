@@ -79,6 +79,13 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     policy_manager, _ = deploy_contract(
         'PolicyManagerForStakingEscrowMock', token.address, contract.address
     )
+    # Can't set wrong address
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract.functions.setPolicyManager(BlockchainInterface.NULL_ADDRESS).transact()
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract.functions.setPolicyManager(contract_library_v1.address).transact()
+        testerchain.wait_for_receipt(tx)
     tx = contract.functions.setPolicyManager(policy_manager.address).transact()
     testerchain.wait_for_receipt(tx)
     worklock, _ = deploy_contract(
@@ -259,7 +266,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     testerchain.time_travel(hours=1)
     period = escrow.functions.getCurrentPeriod().call()
     assert sub_stake == escrow.functions.getAllTokens(ursula).call()
-    assert sub_stake == escrow.functions.getLockedTokens(ursula).call()
+    assert sub_stake == escrow.functions.getLockedTokens(ursula, 0).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period).call()
     assert 0 == escrow.functions.lockedPerPeriod(period + 1).call()
 
@@ -269,14 +276,14 @@ def test_re_stake(testerchain, token, escrow_contract):
     testerchain.time_travel(hours=1)
     period = escrow.functions.getCurrentPeriod().call()
     assert sub_stake == escrow.functions.getAllTokens(ursula).call()
-    assert sub_stake == escrow.functions.getLockedTokens(ursula).call()
+    assert sub_stake == escrow.functions.getLockedTokens(ursula, 0).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period).call()
     tx = escrow.functions.mint().transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     # Reward is not locked and stake is not changed
     assert sub_stake < escrow.functions.getAllTokens(ursula).call()
-    assert sub_stake == escrow.functions.getLockedTokens(ursula).call()
+    assert sub_stake == escrow.functions.getLockedTokens(ursula, 0).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period).call()
 
@@ -314,14 +321,14 @@ def test_re_stake(testerchain, token, escrow_contract):
     testerchain.time_travel(hours=1)
     period = escrow.functions.getCurrentPeriod().call()
     assert sub_stake == escrow.functions.getAllTokens(ursula).call()
-    assert sub_stake == escrow.functions.getLockedTokens(ursula).call()
+    assert sub_stake == escrow.functions.getLockedTokens(ursula, 0).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period).call()
     tx = escrow.functions.mint().transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     # Entire reward is locked
     balance = escrow.functions.getAllTokens(ursula).call()
-    new_sub_stake = escrow.functions.getLockedTokens(ursula).call()
+    new_sub_stake = escrow.functions.getLockedTokens(ursula, 0).call()
     assert sub_stake < balance
     assert balance == new_sub_stake
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
@@ -332,14 +339,14 @@ def test_re_stake(testerchain, token, escrow_contract):
     period = escrow.functions.getCurrentPeriod().call()
     sub_stake = new_sub_stake
     assert sub_stake == escrow.functions.getAllTokens(ursula).call()
-    assert sub_stake == escrow.functions.getLockedTokens(ursula).call()
+    assert sub_stake == escrow.functions.getLockedTokens(ursula, 0).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
     assert 0 == escrow.functions.lockedPerPeriod(period).call()
     tx = escrow.functions.mint().transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     # Entire reward is locked
     balance = escrow.functions.getAllTokens(ursula).call()
-    new_sub_stake = escrow.functions.getLockedTokens(ursula).call()
+    new_sub_stake = escrow.functions.getLockedTokens(ursula, 0).call()
     assert sub_stake < balance
     assert balance == new_sub_stake
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
@@ -375,8 +382,8 @@ def test_re_stake(testerchain, token, escrow_contract):
     period = escrow.functions.getCurrentPeriod().call()
     assert stake == escrow.functions.getAllTokens(ursula).call()
     assert stake == escrow.functions.getAllTokens(ursula2).call()
-    assert stake == escrow.functions.getLockedTokens(ursula).call()
-    assert stake == escrow.functions.getLockedTokens(ursula2).call()
+    assert stake == escrow.functions.getLockedTokens(ursula, 0).call()
+    assert stake == escrow.functions.getLockedTokens(ursula2, 0).call()
     assert sub_stake_1 == escrow.functions.getSubStakeInfo(ursula, 0).call()[3]
     assert sub_stake_2 == escrow.functions.getSubStakeInfo(ursula, 1).call()[3]
     assert 2 * stake == escrow.functions.lockedPerPeriod(period - 2).call()
@@ -395,14 +402,14 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert 0 < ursula2_reward
     assert ursula_reward > ursula2_reward
     # Ursula2's stake has not changed
-    assert stake == escrow.functions.getLockedTokens(ursula2).call()
+    assert stake == escrow.functions.getLockedTokens(ursula2, 0).call()
 
     # To calculate amount of re-stake we can split Ursula1's reward according sub stakes ratio:
     # first sub stake is 2/3 of entire stake and second sub stake is 1/3
     re_stake_for_second_sub_stake = ursula_reward // 3
     re_stake_for_first_sub_stake = ursula_reward - re_stake_for_second_sub_stake
     # Check re-stake for Ursula1's sub stakes
-    assert stake + ursula_reward == escrow.functions.getLockedTokens(ursula).call()
+    assert stake + ursula_reward == escrow.functions.getLockedTokens(ursula, 0).call()
     assert sub_stake_1 + re_stake_for_first_sub_stake == escrow.functions.getSubStakeInfo(ursula, 0).call()[3]
     assert sub_stake_2 + re_stake_for_second_sub_stake == escrow.functions.getSubStakeInfo(ursula, 1).call()[3]
 
@@ -440,7 +447,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     testerchain.time_travel(hours=1)
     period = escrow.functions.getCurrentPeriod().call()
     sub_stake = escrow.functions.getLockedTokensInPast(ursula, 1).call()
-    assert sub_stake == escrow.functions.getLockedTokens(ursula).call()
+    assert sub_stake == escrow.functions.getLockedTokens(ursula, 0).call()
     assert sub_stake == escrow.functions.getAllTokens(ursula).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
     tx = escrow.functions.mint().transact({'from': ursula})
@@ -449,7 +456,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     # Reward is not locked and stake is not changed
     assert sub_stake < escrow.functions.getAllTokens(ursula).call()
     assert sub_stake == escrow.functions.getLockedTokensInPast(ursula, 1).call()
-    assert sub_stake == escrow.functions.getLockedTokens(ursula).call()
+    assert sub_stake == escrow.functions.getLockedTokens(ursula, 0).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
 
 

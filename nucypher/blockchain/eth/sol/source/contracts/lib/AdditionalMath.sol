@@ -26,24 +26,6 @@ library AdditionalMath {
     }
 
     /**
-    * @dev Adds unsigned value to signed value, throws on overflow.
-    */
-    function add(int256 a, uint256 b) internal pure returns (int256) {
-        int256 c = a + int256(b);
-        assert(c >= a);
-        return c;
-    }
-
-    /**
-    * @dev Subtracts two numbers, throws on overflow.
-    */
-    function sub(int256 a, uint256 b) internal pure returns (int256) {
-        int256 c = a - int256(b);
-        assert(c <= a);
-        return c;
-    }
-
-    /**
     * @dev Adds signed value to unsigned value, throws on overflow.
     */
     function addSigned(uint256 a, int256 b) internal pure returns (uint256) {

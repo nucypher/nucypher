@@ -102,16 +102,10 @@ contract StakingEscrowForPolicyMock {
         policyManager = _policyManager;
     }
 
-    /**
-    * @notice Emulate getDowntimeLength
-    **/
     function getPastDowntimeLength(address) public view returns (uint256) {
         return downtime.length;
     }
 
-    /**
-    * @notice Emulate getDowntime
-    **/
     function getPastDowntime(address, uint256 _index)
         public view returns (uint16 startPeriod, uint16 endPeriod)
     {
@@ -120,17 +114,20 @@ contract StakingEscrowForPolicyMock {
         endPeriod = data.endPeriod;
     }
 
-    /**
-    * @notice Emulate getLastActivePeriod
-    **/
     function getLastActivePeriod(address) public view returns (uint256) {
         return lastActivePeriod;
     }
 
-    /**
-    * @notice Emulate node registration
-    **/
     function register(address _node) external {
         policyManager.register(_node, getCurrentPeriod() - 1);
     }
+
+    function findIndexOfPastDowntime(address, uint16 _period) external view returns (uint256 index) {
+        for (index = 0; index < downtime.length; index++) {
+            if (_period <= downtime[index].endPeriod) {
+                return index;
+            }
+        }
+    }
+
 }

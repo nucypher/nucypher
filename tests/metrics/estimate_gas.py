@@ -18,18 +18,17 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import io
 import json
 import os
-import re
 import sys
+
+import io
+import re
 import time
 from os.path import abspath, dirname
 from unittest.mock import Mock
 
 from twisted.logger import globalLogPublisher, Logger, jsonFileLogObserver, ILogObserver
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
 from zope.interface import provider
 
 from nucypher.blockchain.economics import StandardTokenEconomics
@@ -37,6 +36,8 @@ from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgen
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.policy.policies import Policy
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
+from umbral.keys import UmbralPrivateKey
+from umbral.signing import Signer
 
 # FIXME: Needed to use a fixture here, but now estimate_gas.py only runs if executed from main directory
 sys.path.insert(0, abspath('tests'))
@@ -67,6 +68,8 @@ class AnalyzeGas:
                           (.+)       # Any character sequence longer than 1; Captured
                           \s=\s      # Space-Equal-Space
                           (\d+)      # A sequence of digits; Captured
+                          \|
+                          (\d+)      # A sequence of digits; Captured
                           $          # Anchor at the end of the string
                           ''', re.VERBOSE)
 
@@ -89,13 +92,14 @@ class AnalyzeGas:
                 self.log.debug("No match for {} with pattern {}".format(message, self._PATTERN))
                 return
 
-            label, gas = matches.groups()
-            self.paint_line(label, gas)
-            self.gas_estimations[label] = int(gas)
+            label, estimates, gas_used = matches.groups()
+            self.paint_line(label, estimates, gas_used)
+            self.gas_estimations[label] = int(gas_used)
 
     @staticmethod
-    def paint_line(label: str, gas: str) -> None:
-        print('{label} {gas:,}'.format(label=label.ljust(70, '.'), gas=int(gas)))
+    def paint_line(label: str, estimates: str, gas_used: str) -> None:
+        print('{label} {estimates:7,}|{gas:7,}'.format(
+            label=label.ljust(70, '.'), estimates=int(estimates), gas=int(gas_used)))
 
     def to_json_file(self) -> None:
         print('Saving JSON Output...')
@@ -151,6 +155,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
         analyzer = AnalyzeGas()
 
     log = Logger(AnalyzeGas.LOG_NAME)
+    os.environ['GAS_ESTIMATOR_BACKEND_FUNC'] = 'eth.estimators.gas.binary_gas_search_exact'
 
     # Blockchain
     economics = StandardTokenEconomics(
@@ -182,216 +187,121 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     analyzer.start_collection()
     print("********* Estimating Gas *********")
 
-    #
+    def transact_and_log(label, function, transaction):
+        estimates = function.estimateGas(transaction)
+        transaction.update(gas=estimates)
+        tx = function.transact(transaction)
+        receipt = testerchain.wait_for_receipt(tx)
+        log.info(f"{label} = {estimates}|{receipt['gasUsed']}")
+
+    def transact(function, transaction):
+        transaction.update(gas=1000000)
+        tx = function.transact(transaction)
+        testerchain.wait_for_receipt(tx)
+
+        #
     # Give Ursula and Alice some coins
     #
-    log.info("Transfer tokens = " + str(
-        token_functions.transfer(ursula1, MIN_ALLOWED_LOCKED * 10).estimateGas({'from': origin})))
-    tx = token_functions.transfer(ursula1, MIN_ALLOWED_LOCKED * 10).transact({'from': origin})
-    testerchain.wait_for_receipt(tx)
-    tx = token_functions.transfer(ursula2, MIN_ALLOWED_LOCKED * 10).transact({'from': origin})
-    testerchain.wait_for_receipt(tx)
-    tx = token_functions.transfer(ursula3, MIN_ALLOWED_LOCKED * 10).transact({'from': origin})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Transfer tokens", token_functions.transfer(ursula1, MIN_ALLOWED_LOCKED * 10), {'from': origin})
+    transact(token_functions.transfer(ursula2, MIN_ALLOWED_LOCKED * 10), {'from': origin})
+    transact(token_functions.transfer(ursula3, MIN_ALLOWED_LOCKED * 10), {'from': origin})
 
     #
     # Ursula and Alice give Escrow rights to transfer
     #
-    log.info("Approving transfer = "
-             + str(
-        token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6).estimateGas({'from': ursula1})))
-    tx = token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    tx = token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    tx = token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6).transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Approving transfer",
+                     token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6),
+                     {'from': ursula1})
+    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6), {'from': ursula2})
+    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6), {'from': ursula3})
 
     #
     # Ursula and Alice transfer some tokens to the escrow and lock them
     #
-    log.info("First initial deposit tokens = " + str(staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
-    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second initial deposit tokens = " +
-             str(staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
-    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    log.info("Third initial deposit tokens = " +
-             str(staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
-    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Initial deposit tokens, 1st",
+                     staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS),
+                     {'from': ursula1})
+    transact_and_log("Initial deposit tokens, 2nd",
+                     staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS),
+                     {'from': ursula2})
+    transact(staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS), {'from': ursula3})
 
-    tx = staker_functions.setWorker(ursula1).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    tx = staker_functions.setWorker(ursula2).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    tx = staker_functions.setWorker(ursula3).transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
-
-    tx = staker_functions.confirmActivity().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    tx = staker_functions.confirmActivity().transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    tx = staker_functions.confirmActivity().transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    transact(staker_functions.setWorker(ursula1), {'from': ursula1})
+    transact(staker_functions.setWorker(ursula2), {'from': ursula2})
+    transact(staker_functions.confirmActivity(), {'from': ursula1})
+    transact(staker_functions.confirmActivity(), {'from': ursula2})
 
     #
     # Wait 1 period and confirm activity
     #
     testerchain.time_travel(periods=1)
-    log.info("First confirm activity = " +
-             str(staker_functions.confirmActivity().estimateGas({'from': ursula1})))
-    tx = staker_functions.confirmActivity().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second confirm activity = " +
-             str(staker_functions.confirmActivity().estimateGas({'from': ursula2})))
-    tx = staker_functions.confirmActivity().transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    log.info("Third confirm activity = " +
-             str(staker_functions.confirmActivity().estimateGas({'from': ursula3})))
-    tx = staker_functions.confirmActivity().transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Confirm activity, 1st", staker_functions.confirmActivity(), {'from': ursula1})
+    transact_and_log("Confirm activity, 2nd", staker_functions.confirmActivity(), {'from': ursula2})
 
     #
     # Wait 1 period and mint tokens
     #
     testerchain.time_travel(periods=1)
-    log.info("First mining (1 stake) = " + str(staker_functions.mint().estimateGas({'from': ursula1})))
-    tx = staker_functions.mint().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second mining (1 stake) = " + str(staker_functions.mint().estimateGas({'from': ursula2})))
-    tx = staker_functions.mint().transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    log.info("Third/last mining (1 stake) = " + str(staker_functions.mint().estimateGas({'from': ursula3})))
-    tx = staker_functions.mint().transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
-
-    log.info("First confirm activity again = " +
-             str(staker_functions.confirmActivity().estimateGas({'from': ursula1})))
-    tx = staker_functions.confirmActivity().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second confirm activity again = " +
-             str(staker_functions.confirmActivity().estimateGas({'from': ursula2})))
-    tx = staker_functions.confirmActivity().transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    log.info("Third confirm activity again = " +
-             str(staker_functions.confirmActivity().estimateGas({'from': ursula3})))
-    tx = staker_functions.confirmActivity().transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Mining (1 stake), 1st", staker_functions.mint(), {'from': ursula1})
+    transact_and_log("Mining (1 stake), 2nd", staker_functions.mint(), {'from': ursula2})
+    transact_and_log("Confirm activity again, 1st", staker_functions.confirmActivity(), {'from': ursula1})
+    transact_and_log("Confirm activity again, 2nd", staker_functions.confirmActivity(), {'from': ursula2})
 
     #
     # Confirm again
     #
     testerchain.time_travel(periods=1)
-    log.info("First confirm activity + mint = " +
-             str(staker_functions.confirmActivity().estimateGas({'from': ursula1})))
-    tx = staker_functions.confirmActivity().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second confirm activity + mint = " +
-             str(staker_functions.confirmActivity().estimateGas({'from': ursula2})))
-    tx = staker_functions.confirmActivity().transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    log.info("Third confirm activity + mint = " +
-             str(staker_functions.confirmActivity().estimateGas({'from': ursula3})))
-    tx = staker_functions.confirmActivity().transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Confirm activity + mint, 1st", staker_functions.confirmActivity(), {'from': ursula1})
+    transact_and_log("Confirm activity + mint, 2nd", staker_functions.confirmActivity(), {'from': ursula2})
 
     #
     # Get locked tokens
     #
-    log.info("Getting locked tokens = " + str(staker_functions.getLockedTokens(ursula1).estimateGas()))
+    transact_and_log("Getting locked tokens", staker_functions.getLockedTokens(ursula1, 0), {})
 
     #
     # Wait 1 period and withdraw tokens
     #
     testerchain.time_travel(periods=1)
-    log.info("First withdraw = " + str(staker_functions.withdraw(1).estimateGas({'from': ursula1})))
-    tx = staker_functions.withdraw(1).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second withdraw = " + str(staker_functions.withdraw(1).estimateGas({'from': ursula2})))
-    tx = staker_functions.withdraw(1).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    log.info("Third withdraw = " + str(staker_functions.withdraw(1).estimateGas({'from': ursula3})))
-    tx = staker_functions.withdraw(1).transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Withdraw", staker_functions.withdraw(1), {'from': ursula1})
 
     #
     # Confirm activity with re-stake
     #
-    tx = staker_functions.setReStake(True).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    tx = staker_functions.setReStake(True).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    tx = staker_functions.setReStake(True).transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    transact(staker_functions.setReStake(True), {'from': ursula1})
+    transact(staker_functions.setReStake(True), {'from': ursula2})
 
-    log.info("First confirm activity + mint with re-stake = " +
-             str(staker_functions.confirmActivity().estimateGas({'from': ursula1})))
-    tx = staker_functions.confirmActivity().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second confirm activity + mint with re-stake  = " +
-             str(staker_functions.confirmActivity().estimateGas({'from': ursula2})))
-    tx = staker_functions.confirmActivity().transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    log.info("Third confirm activity + mint with re-stake  = " +
-             str(staker_functions.confirmActivity().estimateGas({'from': ursula3})))
-    tx = staker_functions.confirmActivity().transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Confirm activity + mint with re-stake, 1st",
+                     staker_functions.confirmActivity(),
+                     {'from': ursula1})
+    transact_and_log("Confirm activity + mint with re-stake, 2nd",
+                     staker_functions.confirmActivity(),
+                     {'from': ursula2})
 
-    tx = staker_functions.setReStake(False).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    tx = staker_functions.setReStake(False).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    tx = staker_functions.setReStake(False).transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    transact(staker_functions.setReStake(False), {'from': ursula1})
+    transact(staker_functions.setReStake(False), {'from': ursula2})
 
     #
     # Wait 2 periods and confirm activity after downtime
     #
     testerchain.time_travel(periods=2)
-    log.info("First confirm activity after downtime = " +
-             str(staker_functions.confirmActivity().estimateGas({'from': ursula1})))
-    tx = staker_functions.confirmActivity().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second confirm activity after downtime  = " +
-             str(staker_functions.confirmActivity().estimateGas({'from': ursula2})))
-    tx = staker_functions.confirmActivity().transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    log.info("Third confirm activity after downtime  = " +
-             str(staker_functions.confirmActivity().estimateGas({'from': ursula3})))
-    tx = staker_functions.confirmActivity().transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Confirm activity after downtime, 1st", staker_functions.confirmActivity(), {'from': ursula1})
+    transact_and_log("Confirm activity after downtime, 2nd", staker_functions.confirmActivity(), {'from': ursula2})
 
     #
     # Ursula and Alice deposit some tokens to the escrow again
     #
-    log.info("First deposit tokens again = " +
-             str(staker_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
-    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second deposit tokens again = " +
-             str(staker_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
-    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    log.info("Third deposit tokens again = " +
-             str(staker_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
-    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Deposit tokens after confirming activity",
+                     staker_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS),
+                     {'from': ursula1})
+    transact(staker_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS), {'from': ursula2})
 
     #
     # Wait 1 period and mint tokens
     #
-    testerchain.time_travel(periods=1)
-    log.info("First mining again = " + str(staker_functions.mint().estimateGas({'from': ursula1})))
-    tx = staker_functions.mint().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second mining again = " + str(staker_functions.mint().estimateGas({'from': ursula2})))
-    tx = staker_functions.mint().transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    log.info("Third/last mining again = " + str(staker_functions.mint().estimateGas({'from': ursula3})))
-    tx = staker_functions.mint().transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(periods=2)
+    transact_and_log("Mining again, 1st", staker_functions.mint(), {'from': ursula1})
+    transact_and_log("Mining again, 2nd", staker_functions.mint(), {'from': ursula2})
 
     #
     # Create policy
@@ -399,27 +309,19 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
     policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
     number_of_periods = 10
-    log.info("First creating policy (1 node, 10 periods) = " +
-             str(policy_functions.createPolicy(policy_id_1, number_of_periods, 0, [ursula1]).estimateGas(
-                 {'from': alice1, 'value': 10000})))
-    tx = policy_functions.createPolicy(policy_id_1, number_of_periods, 0, [ursula1]).transact(
-        {'from': alice1, 'value': 10000})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second creating policy (1 node, 10 periods) = " +
-             str(policy_functions.createPolicy(policy_id_2, number_of_periods, 0, [ursula1]).estimateGas(
-                 {'from': alice1, 'value': 10000})))
-    tx = policy_functions.createPolicy(policy_id_2, number_of_periods, 0, [ursula1]).transact(
-        {'from': alice1, 'value': 10000})
-    testerchain.wait_for_receipt(tx)
+    value = 10000
+    transact_and_log("Creating policy (1 node, 10 periods), 1st",
+                     policy_functions.createPolicy(policy_id_1, number_of_periods, 0, [ursula1]),
+                     {'from': alice1, 'value': value})
+    transact_and_log("Creating policy (1 node, 10 periods), 2nd",
+                     policy_functions.createPolicy(policy_id_2, number_of_periods, 0, [ursula1]),
+                     {'from': alice1, 'value': value})
 
     #
     # Revoke policy
     #
-    log.info("Revoking policy = " + str(policy_functions.revokePolicy(policy_id_1).estimateGas({'from': alice1})))
-    tx = policy_functions.revokePolicy(policy_id_1).transact({'from': alice1})
-    testerchain.wait_for_receipt(tx)
-    tx = policy_functions.revokePolicy(policy_id_2).transact({'from': alice1})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Revoking policy, 1st", policy_functions.revokePolicy(policy_id_1), {'from': alice1})
+    transact_and_log("Revoking policy, 2nd", policy_functions.revokePolicy(policy_id_2), {'from': alice1})
 
     #
     # Create policy with more periods
@@ -428,56 +330,38 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
     policy_id_3 = os.urandom(int(Policy.POLICY_ID_LENGTH))
     number_of_periods = 100
-    log.info("First creating policy (1 node, " + str(number_of_periods) + " periods, first reward) = " +
-             str(policy_functions.createPolicy(policy_id_1, number_of_periods, 50, [ursula2]).estimateGas(
-                 {'from': alice1, 'value': 10050})))
-    tx = policy_functions.createPolicy(policy_id_1, number_of_periods, 50, [ursula2]).transact(
-        {'from': alice1, 'value': 10050})
-    testerchain.wait_for_receipt(tx)
+    value = 10050
+    first_reward = 50
+    transact_and_log("Creating policy (1 node, 100 periods, first reward), 1st",
+                     policy_functions.createPolicy(policy_id_1, number_of_periods, first_reward, [ursula2]),
+                     {'from': alice1, 'value': value})
     testerchain.time_travel(periods=1)
-    log.info("Second creating policy (1 node, " + str(number_of_periods) + " periods, first reward) = " +
-             str(policy_functions.createPolicy(policy_id_2, number_of_periods, 50, [ursula2]).estimateGas(
-                 {'from': alice1, 'value': 10050})))
-    tx = policy_functions.createPolicy(policy_id_2, number_of_periods, 50, [ursula2]).transact(
-        {'from': alice1, 'value': 10050})
-    testerchain.wait_for_receipt(tx)
-    log.info("Third creating policy (1 node, " + str(number_of_periods) + " periods, first reward) = " +
-             str(policy_functions.createPolicy(policy_id_3, number_of_periods, 50, [ursula1]).estimateGas(
-                 {'from': alice1, 'value': 10050})))
-    tx = policy_functions.createPolicy(policy_id_3, number_of_periods, 50, [ursula1]).transact(
-        {'from': alice1, 'value': 10050})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Creating policy (1 node, 100 periods, first reward), 2nd",
+                     policy_functions.createPolicy(policy_id_2, number_of_periods, first_reward, [ursula2]),
+                     {'from': alice1, 'value': value})
+    transact_and_log("Creating policy (1 node, 100 periods, first reward), 3rd",
+                     policy_functions.createPolicy(policy_id_3, number_of_periods, first_reward, [ursula1]),
+                     {'from': alice1, 'value': value})
 
     #
     # Mine and revoke policy
     #
     testerchain.time_travel(periods=10)
-    tx = staker_functions.confirmActivity().transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    tx = staker_functions.confirmActivity().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
+    transact(staker_functions.confirmActivity(), {'from': ursula1})
 
-    testerchain.time_travel(periods=1)
-    log.info("First mining after downtime = " + str(staker_functions.mint().estimateGas({'from': ursula1})))
-    tx = staker_functions.mint().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second mining after downtime = " + str(staker_functions.mint().estimateGas({'from': ursula2})))
-    tx = staker_functions.mint().transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(periods=2)
+    transact_and_log("Mining after downtime", staker_functions.mint(), {'from': ursula1})
 
     testerchain.time_travel(periods=10)
-    log.info("First revoking policy after downtime = " +
-             str(policy_functions.revokePolicy(policy_id_1).estimateGas({'from': alice1})))
-    tx = policy_functions.revokePolicy(policy_id_1).transact({'from': alice1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second revoking policy after downtime = " +
-             str(policy_functions.revokePolicy(policy_id_2).estimateGas({'from': alice1})))
-    tx = policy_functions.revokePolicy(policy_id_2).transact({'from': alice1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second revoking policy after downtime = " +
-             str(policy_functions.revokePolicy(policy_id_3).estimateGas({'from': alice1})))
-    tx = policy_functions.revokePolicy(policy_id_3).transact({'from': alice1})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Revoking policy after downtime, 1st",
+                     policy_functions.revokePolicy(policy_id_1),
+                     {'from': alice1})
+    transact_and_log("Revoking policy after downtime, 2nd",
+                     policy_functions.revokePolicy(policy_id_2),
+                     {'from': alice1})
+    transact_and_log("Revoking policy after downtime, 3rd",
+                     policy_functions.revokePolicy(policy_id_3),
+                     {'from': alice1})
 
     #
     # Create policy with multiple nodes
@@ -486,226 +370,129 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
     policy_id_3 = os.urandom(int(Policy.POLICY_ID_LENGTH))
     number_of_periods = 100
-    log.info("First creating policy (3 nodes, 100 periods, first reward) = " +
-             str(policy_functions
-                 .createPolicy(policy_id_1, number_of_periods, 50, [ursula1, ursula2, ursula3])
-                 .estimateGas({'from': alice1, 'value': 30150})))
-    tx = policy_functions.createPolicy(policy_id_1, number_of_periods, 50, [ursula1, ursula2, ursula3]).transact(
-        {'from': alice1, 'value': 30150})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second creating policy (3 nodes, 100 periods, first reward) = " +
-             str(policy_functions
-                 .createPolicy(policy_id_2, number_of_periods, 50, [ursula1, ursula2, ursula3])
-                 .estimateGas({'from': alice1, 'value': 30150})))
-    tx = policy_functions.createPolicy(policy_id_2, number_of_periods, 50, [ursula1, ursula2, ursula3]).transact(
-        {'from': alice1, 'value': 30150})
-    testerchain.wait_for_receipt(tx)
-    log.info("Third creating policy (2 nodes, 100 periods, first reward) = " +
-             str(policy_functions.createPolicy(policy_id_3, number_of_periods, 50, [ursula1, ursula2]).estimateGas(
-                 {'from': alice1, 'value': 20100})))
-    tx = policy_functions.createPolicy(policy_id_3, number_of_periods, 50, [ursula1, ursula2]).transact(
-        {'from': alice1, 'value': 20100})
-    testerchain.wait_for_receipt(tx)
+    value = 30150
+    first_reward = 50
+    transact_and_log("Creating policy (3 nodes, 100 periods, first reward), 1st",
+                     policy_functions.createPolicy(policy_id_1, number_of_periods, first_reward, [ursula1, ursula2, ursula3]),
+                     {'from': alice1, 'value': value})
+    transact_and_log("Creating policy (3 nodes, 100 periods, first reward), 2nd",
+                     policy_functions.createPolicy(policy_id_2, number_of_periods, first_reward, [ursula1, ursula2, ursula3]),
+                     {'from': alice1, 'value': value})
+    value = 20100
+    transact_and_log("Creating policy (2 nodes, 100 periods, first reward), 3rd",
+                     policy_functions.createPolicy(policy_id_3, number_of_periods, first_reward, [ursula1, ursula2]),
+                     {'from': alice1, 'value': value})
 
     for index in range(5):
-        tx = staker_functions.confirmActivity().transact({'from': ursula1})
-        testerchain.wait_for_receipt(tx)
-        tx = staker_functions.confirmActivity().transact({'from': ursula2})
-        testerchain.wait_for_receipt(tx)
-        tx = staker_functions.confirmActivity().transact({'from': ursula3})
-        testerchain.wait_for_receipt(tx)
+        transact(staker_functions.confirmActivity(), {'from': ursula1})
         testerchain.time_travel(periods=1)
-
-    tx = staker_functions.mint().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    tx = staker_functions.mint().transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    tx = staker_functions.mint().transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    transact(staker_functions.mint(), {'from': ursula1})
 
     #
     # Check regular deposit
     #
-    log.info("First deposit tokens = " + str(
-        staker_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
-    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second deposit tokens = " + str(
-        staker_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
-    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    log.info("Third deposit tokens = " + str(
-        staker_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
-    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Deposit tokens",
+                     staker_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS),
+                     {'from': ursula1})
 
     #
     # ApproveAndCall
     #
     testerchain.time_travel(periods=1)
+    transact(staker_functions.mint(), {'from': ursula1})
 
-    tx = staker_functions.mint().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    tx = staker_functions.mint().transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    tx = staker_functions.mint().transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
-
-    log.info("First approveAndCall = " +
-             str(token_functions.approveAndCall(staking_agent.contract_address,
-                                                MIN_ALLOWED_LOCKED * 2,
-                                                web3.toBytes(MIN_LOCKED_PERIODS)).estimateGas({'from': ursula1})))
-    tx = token_functions.approveAndCall(staking_agent.contract_address,
-                                        MIN_ALLOWED_LOCKED * 2,
-                                        web3.toBytes(MIN_LOCKED_PERIODS)).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second approveAndCall = " +
-             str(token_functions.approveAndCall(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 2,
-                                                web3.toBytes(MIN_LOCKED_PERIODS)).estimateGas({'from': ursula2})))
-    tx = token_functions.approveAndCall(staking_agent.contract_address,
-                                        MIN_ALLOWED_LOCKED * 2,
-                                        web3.toBytes(MIN_LOCKED_PERIODS)).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    log.info("Third approveAndCall = " +
-             str(token_functions.approveAndCall(staking_agent.contract_address,
-                                                MIN_ALLOWED_LOCKED * 2,
-                                                web3.toBytes(MIN_LOCKED_PERIODS)).estimateGas({'from': ursula3})))
-    tx = token_functions.approveAndCall(staking_agent.contract_address,
-                                        MIN_ALLOWED_LOCKED * 2,
-                                        web3.toBytes(MIN_LOCKED_PERIODS)).transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("ApproveAndCall",
+                     token_functions.approveAndCall(staking_agent.contract_address,
+                                                    MIN_ALLOWED_LOCKED * 2,
+                                                    web3.toBytes(MIN_LOCKED_PERIODS)),
+                     {'from': ursula1})
 
     #
     # Locking tokens
     #
     testerchain.time_travel(periods=1)
-
-    tx = staker_functions.confirmActivity().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    tx = staker_functions.confirmActivity().transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    tx = staker_functions.confirmActivity().transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
-
-    log.info("First locking tokens = " +
-             str(staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
-    tx = staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second locking tokens = " +
-             str(staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
-    tx = staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    log.info("Third locking tokens = " +
-             str(staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
-    tx = staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    transact(staker_functions.confirmActivity(), {'from': ursula1})
+    transact_and_log("Locking tokens", staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS), {'from': ursula1})
 
     #
     # Divide stake
     #
-    log.info("First divide stake = " + str(
-        staker_functions.divideStake(1, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
-    tx = staker_functions.divideStake(1, MIN_ALLOWED_LOCKED, 2).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Second divide stake = " + str(
-        staker_functions.divideStake(3, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
-    tx = staker_functions.divideStake(3, MIN_ALLOWED_LOCKED, 2).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Divide stake", staker_functions.divideStake(1, MIN_ALLOWED_LOCKED, 2), {'from': ursula1})
+    transact(staker_functions.divideStake(3, MIN_ALLOWED_LOCKED, 2), {'from': ursula1})
 
     #
     # Divide almost finished stake
     #
     testerchain.time_travel(periods=1)
-    tx = staker_functions.confirmActivity().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
+    transact(staker_functions.confirmActivity(), {'from': ursula1})
     testerchain.time_travel(periods=1)
-    log.info("Divide stake (next period is not confirmed) = " + str(
-        staker_functions.divideStake(0, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
-    tx = staker_functions.confirmActivity().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    log.info("Divide stake (next period is confirmed) = " + str(
-        staker_functions.divideStake(0, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
+    transact(staker_functions.confirmActivity(), {'from': ursula1})
 
     #
     # Slashing tests
     #
-    tx = staker_functions.confirmActivity().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
+    transact(staker_functions.confirmActivity(), {'from': ursula1})
     testerchain.time_travel(periods=1)
 
     #
     # Slashing
     #
     slashing_args = generate_args_for_slashing(ursula_with_stamp)
-    log.info("Slash just value = " + str(
-        adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
-    tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Slash just value", adjudicator_functions.evaluateCFrag(*slashing_args), {'from': alice1})
 
     deposit = staker_functions.stakerInfo(ursula1).call()[0]
-    unlocked = deposit - staker_functions.getLockedTokens(ursula1).call()
-    tx = staker_functions.withdraw(unlocked).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
+    unlocked = deposit - staker_functions.getLockedTokens(ursula1, 0).call()
+    transact(staker_functions.withdraw(unlocked), {'from': ursula1})
 
     sub_stakes_length = str(staker_functions.getSubStakesLength(ursula1).call())
     slashing_args = generate_args_for_slashing(ursula_with_stamp)
-    log.info("First slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes) = " +
-             str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
-    tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes), 1st",
+                     adjudicator_functions.evaluateCFrag(*slashing_args),
+                     {'from': alice1})
 
     sub_stakes_length = str(staker_functions.getSubStakesLength(ursula1).call())
     slashing_args = generate_args_for_slashing(ursula_with_stamp)
-    log.info("Second slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes) = " +
-             str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
-    tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes), 2nd",
+                     adjudicator_functions.evaluateCFrag(*slashing_args),
+                     {'from': alice1})
 
     sub_stakes_length = str(staker_functions.getSubStakesLength(ursula1).call())
     slashing_args = generate_args_for_slashing(ursula_with_stamp)
-    log.info("Third slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes) = " +
-             str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
-    tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes), 3rd",
+                     adjudicator_functions.evaluateCFrag(*slashing_args),
+                     {'from': alice1})
 
     sub_stakes_length = str(staker_functions.getSubStakesLength(ursula1).call())
     slashing_args = generate_args_for_slashing(ursula_with_stamp)
-    log.info("Slashing two sub stakes and saving old one (" + sub_stakes_length + " sub stakes) = " +
-             str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
-    tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Slashing two sub stakes and saving old one (" + sub_stakes_length + " sub stakes)",
+                     adjudicator_functions.evaluateCFrag(*slashing_args),
+                     {'from': alice1})
 
     for index in range(18):
-        tx = staker_functions.confirmActivity().transact({'from': ursula1})
-        testerchain.wait_for_receipt(tx)
+        transact(staker_functions.confirmActivity(), {'from': ursula1})
         testerchain.time_travel(periods=1)
 
-    tx = staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
+    transact(staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS), {'from': ursula1})
     deposit = staker_functions.stakerInfo(ursula1).call()[0]
     unlocked = deposit - staker_functions.getLockedTokens(ursula1, 1).call()
-    tx = staker_functions.withdraw(unlocked).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
+    transact(staker_functions.withdraw(unlocked), {'from': ursula1})
 
     sub_stakes_length = str(staker_functions.getSubStakesLength(ursula1).call())
     slashing_args = generate_args_for_slashing(ursula_with_stamp)
-    log.info("Slashing two sub stakes, shortest and new one (" + sub_stakes_length + " sub stakes) = " +
-             str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
-    tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Slashing two sub stakes, shortest and new one (" + sub_stakes_length + " sub stakes)",
+                     adjudicator_functions.evaluateCFrag(*slashing_args),
+                     {'from': alice1})
 
     sub_stakes_length = str(staker_functions.getSubStakesLength(ursula1).call())
     slashing_args = generate_args_for_slashing(ursula_with_stamp)
-    log.info("Slashing three sub stakes, two shortest and new one (" + sub_stakes_length + " sub stakes) = " +
-             str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
-    tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Slashing three sub stakes, two shortest and new one (" + sub_stakes_length + " sub stakes)",
+                     adjudicator_functions.evaluateCFrag(*slashing_args),
+                     {'from': alice1})
 
     slashing_args = generate_args_for_slashing(ursula_with_stamp, corrupt_cfrag=False)
-    log.info("Evaluating correct CFrag = " +
-             str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
-    tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
-    testerchain.wait_for_receipt(tx)
+    transact_and_log("Evaluating correct CFrag", adjudicator_functions.evaluateCFrag(*slashing_args), {'from': alice1})
+
+    transact_and_log("Prolong stake", staker_functions.prolongStake(0, 20), {'from': ursula1})
 
     print("********* All Done! *********")
 
