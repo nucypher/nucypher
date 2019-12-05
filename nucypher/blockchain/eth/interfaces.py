@@ -412,7 +412,7 @@ class BlockchainInterface:
 
         # Primary check
         deployment_status = receipt.get('status', UNKNOWN_TX_STATUS)
-        if deployment_status is 0:
+        if deployment_status == 0:
             failure = f"Transaction transmitted, but receipt returned status code 0. " \
                       f"Full receipt: \n {pprint.pformat(receipt, indent=2)}"
             raise self.InterfaceError(failure)
