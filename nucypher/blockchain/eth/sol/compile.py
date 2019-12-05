@@ -105,7 +105,22 @@ class SolidityCompiler:
             raw_interfaces = self._compile(root_source_dir, other_source_dirs)
             for name, data in raw_interfaces.items():
                 # Extract contract version from docs
-                version_search = re.search(r'\"details\":\".*?\|(v\d+\.\d+\.\d+)\|.*?\"', data['devdoc'])
+                version_search = re.search(r"""
+                
+                \"details\":  # @dev tag in contract docs
+                \".*?         # Skip any data in the beginning of details
+                \|            # Beginning of version definition |
+                (v            # Capture version starting from symbol v
+                \d+           # At least one digit of major version
+                \.            # Digits splitter
+                \d+           # At least one digit of minor version
+                \.            # Digits splitter
+                \d+           # At least one digit of patch
+                )             # End of capturing
+                \|            # End of version definition |
+                .*?\"         # Skip any data in the end of details
+                
+                """, data['devdoc'], re.VERBOSE)
                 version = version_search.group(1) if version_search else self.__default_contract_version
                 try:
                     existence_data = interfaces[name]

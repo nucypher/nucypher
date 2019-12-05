@@ -126,5 +126,5 @@ When the user wants to become a staker - they use the `PreallocationEscrow` cont
 Upgradeable contracts, such as `Adjudicator`, `StakingEscrow`, `PolicyManager` and `StakingInterface`, have their version specified in contract doc inside @dev.  
 Version format is `|vi.j.k|`, where `i` - major version, `j` - minor version, `k` - patch, for example `|v1.2.3|`:  
 * Different major versions mean different forks and they are not upgradeable
-* Minor versions relate to any signatures or state changes inside contract, contracts are upgradeable between minor versions, but have different ABI and as follows different agent layers 
-* Patch is changes inside function(s) with signature untouched. All patches inside one minor version can be upgraded from one to another without other changes
+* Minor versions relate to any signatures or state changes inside contract, contracts are upgradeable between minor versions, but have different ABI and follows different agent layers 
+* Patches involve changes inside function(s) with signature(s) untouched. All patches with a common minor version can be upgraded from one to another without other changes

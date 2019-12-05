@@ -663,14 +663,8 @@ class BlockchainDeployerInterface(BlockchainInterface):
         for version, data in contract_data.items():
             major, minor, patch = [int(v) for v in version[1:].split(".", 3)]
             if current_version_parsed[0] == -1 or \
-                requested_version == 'latest' and \
-                (major > current_version_parsed[0] or
-                 major == current_version_parsed[0] and minor > current_version_parsed[1] or
-                 major == current_version_parsed[0] and minor == current_version_parsed[1] and patch > current_version_parsed[2]) or \
-                requested_version == 'earliest' and \
-                (major < current_version_parsed[0] or
-                 major == current_version_parsed[0] and minor < current_version_parsed[1] or
-                 major == current_version_parsed[0] and minor == current_version_parsed[1] and patch < current_version_parsed[2]):
+               requested_version == 'latest' and (major, minor, patch) > current_version_parsed or \
+               requested_version == 'earliest' and (major, minor, patch) < current_version_parsed:
                 current_version_parsed = (major, minor, patch)
                 current_data = data
                 current_version = version

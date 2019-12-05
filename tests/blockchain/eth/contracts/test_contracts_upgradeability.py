@@ -67,7 +67,7 @@ def download_github_file(source_link: str, target_folder: str):
 # Constructor parameters overrides for previous versions if needed
 # 'None' value removes arg from list of constructor parameters
 CONSTRUCTOR_OVERRIDES = {
-    # TODO Test example, update after real usage
+    # Test example
     StakingEscrowDeployer.contract_name: {"v0.0.0": {"_hoursPerPeriod": 1}}
 }
 
@@ -94,7 +94,7 @@ def upgrade_to_latest_contract(deployer, secret: str):
 
 
 @pytest.mark.slow
-def test_upgradability(temp_dir_path, token_economics):
+def test_upgradeability(temp_dir_path, token_economics):
     # Prepare remote source for compilation
     download_github_dir(GITHUB_SOURCE_LINK, temp_dir_path)
     solidity_compiler = SolidityCompiler(source_dirs=[SourceDirs(SolidityCompiler.default_contract_dir()),
