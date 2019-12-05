@@ -48,6 +48,7 @@ from nucypher.cli import painting
 from nucypher.cli.types import IPV4_ADDRESS
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.node import CharacterConfiguration
+from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.teachers import TEACHER_NODES
 
@@ -114,6 +115,7 @@ def load_seednodes(emitter,
                    teacher_uris: list = None,
                    registry: BaseContractRegistry = None,
                    ) -> List:
+    emitter.message("Connecting to preferred seednodes...", color='yellow')
     from nucypher.characters.lawful import Ursula
 
     # Set domains
@@ -138,11 +140,15 @@ def load_seednodes(emitter,
             teacher_uris.extend(seednode_uris)
 
         for uri in teacher_uris:
-            teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
-                                                   min_stake=min_stake,
-                                                   federated_only=federated_only,
-                                                   network_middleware=network_middleware,
-                                                   registry=registry)
+            try:
+                teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
+                                                       min_stake=min_stake,
+                                                       federated_only=federated_only,
+                                                       network_middleware=network_middleware,
+                                                       registry=registry)
+            except NodeSeemsToBeDown:
+                LOG.info(f"Failed to load seednode URI {uri}")
+                continue
             teacher_nodes.append(teacher_node)
 
     if not teacher_nodes:
