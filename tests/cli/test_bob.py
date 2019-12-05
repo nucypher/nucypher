@@ -43,7 +43,7 @@ def test_initialize_bob_with_custom_configuration_root(custom_filepath, click_ru
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
     # Auth
-    assert 'Enter NuCypher keyring password:' in result.output, 'WARNING: User was not prompted for password'
+    assert 'Enter NuCypher keyring password' in result.output, 'WARNING: User was not prompted for password'
     assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
 
 

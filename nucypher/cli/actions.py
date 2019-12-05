@@ -88,7 +88,8 @@ def get_client_password(checksum_address: str, envvar: str = '') -> str:
 
 
 def get_nucypher_password(confirm: bool = False, envvar="NUCYPHER_KEYRING_PASSWORD") -> str:
-    prompt = "Enter NuCypher keyring password"
+    from nucypher.config.keyring import NucypherKeyring
+    prompt = f"Enter NuCypher keyring password (min. {NucypherKeyring.MINIMUM_PASSWORD_LENGTH} chars.)"
     keyring_password = get_password_from_prompt(prompt=prompt, confirm=confirm, envvar=envvar)
     return keyring_password
 
