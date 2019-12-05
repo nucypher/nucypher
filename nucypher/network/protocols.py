@@ -27,6 +27,9 @@ from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 
+from nucypher.network import middleware
+from nucypher.network.exceptions import NodeSeemsToBeDown
+
 
 class SuspiciousActivity(RuntimeError):
     """raised when an action appears to amount to malicious conduct."""
@@ -254,9 +257,16 @@ class AvailabilitySensor:
             certificate_filepath = self._ursula.node_storage.store_node_certificate(certificate=certificate)
 
             # Request status check
-            response = self._ursula.network_middleware.check_rest_availability(requesting_ursula=self._ursula,
-                                                                               responding_ursula=ursula,
-                                                                               certificate_filepath=certificate_filepath)
+            try:
+                response = self._ursula.network_middleware.check_rest_availability(requesting_ursula=self._ursula,
+                                                                                   responding_ursula=ursula,
+                                                                                   certificate_filepath=certificate_filepath)
+            except (*NodeSeemsToBeDown,
+                    middleware.NotFound,
+                    self._ursula.NotStaking):
+                # This node is not available, does not support uptime checks, or is not staking - do nothing.
+                continue
+
             # Record response
             if response.status_code == 200:
                 self.record(True)

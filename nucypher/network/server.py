@@ -145,16 +145,19 @@ def make_rest_app(
         if request_address != requesting_ursula_address:
             return Response(status=400)
 
-        # Fetch and store teacher certificate
-        certificate = this_node.network_middleware.get_certificate(host=requesting_ursula_address,
-                                                                   port=requesting_ursula_port)
-        certificate_filepath = this_node.node_storage.store_node_certificate(certificate=certificate)
-
+        #
         # Make a Sandwich
+        #
+
         try:
-            result = requests.get(f"https://{requesting_ursula.rest_interface}/public_information", verify=certificate_filepath)
-        except requests.exceptions.ConnectionError:
-            return Response(status=400)
+            # Fetch and store requester's teacher certificate.
+            certificate = this_node.network_middleware.get_certificate(host=requesting_ursula_address,
+                                                                       port=requesting_ursula_port)
+            certificate_filepath = this_node.node_storage.store_node_certificate(certificate=certificate)
+            result = requests.get(f"https://{requesting_ursula.rest_interface}/public_information",
+                                  verify=certificate_filepath)
+        except NodeSeemsToBeDown:
+            return Response(status=400)  # ... toasted
 
         if result.status_code != 200:
             return Response(status=400)

@@ -243,7 +243,7 @@ class RestMiddleware:
                                     port=responding_ursula.rest_interface.port,
                                     data=bytes(requesting_ursula),
                                     path="ping",
-                                    timeout=2,
+                                    timeout=4,  # Two round trips are expected
                                     certificate_filepath=certificate_filepath)
         return response
 
