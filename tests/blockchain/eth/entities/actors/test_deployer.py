@@ -15,6 +15,9 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
+import glob
+import os
 import random
 import string
 
@@ -87,6 +90,12 @@ def test_rapid_deployment(token_economics, test_registry):
         random_allocation = {'beneficiary_address': beneficiary_address, 'amount': amount, 'duration_seconds': duration}
         allocation_data.append(random_allocation)
 
-    deployer.deploy_beneficiary_contracts(allocations=allocation_data,
-                                          allocation_registry=allocation_registry,
-                                          interactive=False)
+    try:
+        deployer.deploy_beneficiary_contracts(allocations=allocation_data,
+                                              allocation_registry=allocation_registry,
+                                              interactive=False)
+    finally:
+        globs = ("allocation*.csv", "allocation*.json", "*ABI.json")
+        for glob_pattern in globs:
+            for filepath in glob.glob(glob_pattern):
+                os.remove(filepath)

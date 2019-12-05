@@ -16,6 +16,7 @@ def test_initialize_alice_defaults(click_runner, mocker):
     init_args = ('alice', 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--federated-only')
+
     user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
