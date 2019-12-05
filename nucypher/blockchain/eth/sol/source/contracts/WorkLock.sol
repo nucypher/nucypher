@@ -166,7 +166,7 @@ contract WorkLock {
     * @notice Cancel bid and refund deposited ETH
     */
     function cancelBid() external {
-        // TODO check date? check minimum amount of tokens?
+        // TODO check date? check minimum amount of tokens? (#1508)
         WorkInfo storage info = workInfo[msg.sender];
         require(info.depositedETH > 0, "No bid to cancel");
         require(address(info.preallocationEscrow) == address(0), "Tokens are already claimed");

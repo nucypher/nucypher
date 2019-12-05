@@ -497,7 +497,7 @@ def test_reentrancy(testerchain, token_economics, deploy_contract, token, escrow
     start_bid_date = now
     end_bid_date = start_bid_date + (60 * 60)
     boosting_refund = 100
-    locked_duration = 60 * 60
+    locking_duration = 60 * 60
     worklock, _ = deploy_contract(
         contract_name='WorkLock',
         _token=token.address,
@@ -506,9 +506,10 @@ def test_reentrancy(testerchain, token_economics, deploy_contract, token, escrow
         _startBidDate=start_bid_date,
         _endBidDate=end_bid_date,
         _boostingRefund=boosting_refund,
-        _lockedDuration=locked_duration
+        _lockingDuration=locking_duration
     )
     refund_log = worklock.events.Refund.createFilter(fromBlock='latest')
+    canceling_log = worklock.events.Canceled.createFilter(fromBlock='latest')
     worklock_supply = 3 * token_economics.maximum_allowed_locked
     tx = token.functions.approve(worklock.address, worklock_supply).transact()
     testerchain.wait_for_receipt(tx)
@@ -530,6 +531,20 @@ def test_reentrancy(testerchain, token_economics, deploy_contract, token, escrow
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(contract_address).call()[0] == deposit_eth
     assert testerchain.w3.eth.getBalance(worklock.address) == deposit_eth
+    tx = worklock.functions.bid().transact({'from': testerchain.etherbase_account, 'value': deposit_eth})
+    testerchain.wait_for_receipt(tx)
+
+    # Check reentrancy protection when cancelling a bid
+    balance = testerchain.w3.eth.getBalance(contract_address)
+    transaction = worklock.functions.cancelBid().buildTransaction({'gas': 0})
+    tx = reentrancy_contract.functions.setData(2, transaction['to'], 0, transaction['data']).transact()
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = testerchain.client.send_transaction({'to': contract_address})
+        testerchain.wait_for_receipt(tx)
+    assert testerchain.w3.eth.getBalance(contract_address) == balance
+    assert worklock.functions.workInfo(contract_address).call()[0] == deposit_eth
+    assert len(canceling_log.get_all_entries()) == 0
 
     # Claim
     testerchain.time_travel(seconds=3600)  # Wait exactly 1 hour
@@ -539,11 +554,11 @@ def test_reentrancy(testerchain, token_economics, deploy_contract, token, escrow
     tx = testerchain.client.send_transaction({'to': contract_address})
     testerchain.wait_for_receipt(tx)
     preallocation_escrow = worklock.functions.workInfo(contract_address).call()[2]
-    assert worklock.functions.getRemainingWork(preallocation_escrow).call() == worklock_supply
+    assert worklock.functions.getRemainingWork(preallocation_escrow).call() == worklock_supply // 2
 
     # Prepare for refund and check reentrancy protection
     balance = testerchain.w3.eth.getBalance(contract_address)
-    completed_work = worklock_supply // 3
+    completed_work = worklock_supply // 6
     tx = escrow.functions.setCompletedWork(preallocation_escrow, completed_work).transact()
     testerchain.wait_for_receipt(tx)
     transaction = worklock.functions.refund(preallocation_escrow).buildTransaction({'gas': 0})
@@ -554,5 +569,5 @@ def test_reentrancy(testerchain, token_economics, deploy_contract, token, escrow
         testerchain.wait_for_receipt(tx)
     assert testerchain.w3.eth.getBalance(contract_address) == balance
     assert worklock.functions.workInfo(contract_address).call()[0] == deposit_eth
-    assert worklock.functions.getRemainingWork(preallocation_escrow).call() == 2 * worklock_supply // 3
+    assert worklock.functions.getRemainingWork(preallocation_escrow).call() == 2 * worklock_supply // 6
     assert len(refund_log.get_all_entries()) == 0
