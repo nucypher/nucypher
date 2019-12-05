@@ -1027,10 +1027,12 @@ class Ursula(Teacher, Character, Worker):
                          min_stake: int,
                          network_middleware: RestMiddleware = None,
                          registry: BaseContractRegistry = None,
+                         retry_attempts: int = 2,
+                         retry_interval: int = 2
                          ) -> 'Ursula':
 
-        def __attempt(attempt=1, interval=10) -> Ursula:
-            if attempt > 3:
+        def __attempt(attempt=1, interval=retry_interval) -> Ursula:
+            if attempt >= retry_attempts:
                 raise ConnectionRefusedError("Host {} Refused Connection".format(teacher_uri))
 
             try:

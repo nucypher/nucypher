@@ -116,6 +116,7 @@ class NodeStorage(ABC):
             raise FileExistsError('A TLS certificate already exists at {}.'.format(certificate_filepath))
 
         # Write
+        os.makedirs(os.path.dirname(certificate_filepath), exist_ok=True)
         with open(certificate_filepath, 'wb') as certificate_file:
             public_pem_bytes = certificate.public_bytes(self.TLS_CERTIFICATE_ENCODING)
             certificate_file.write(public_pem_bytes)
@@ -383,6 +384,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return node
 
     def __write_metadata(self, filepath: str, node):
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
         with open(filepath, "wb") as f:
             f.write(self.serializer(self.character_class.__bytes__(node)))
         self.log.info("Wrote new node metadata to filesystem {}".format(filepath))
