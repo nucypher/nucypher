@@ -275,8 +275,8 @@ Registry  ................ {registry.filepath}
             proxy_payload = f"""
 {agent.contract_name} .... {bare_contract.address}
     ~ Owner .............. {bare_contract.functions.owner().call()}
-    ~ Ethers ............. {Web3.fromWei(blockchain.client.get_balance(dispatcher_deployer.contract_address), 'ether')} ETH
-    ~ Tokens ............. {NU.from_nunits(token_agent.get_balance(dispatcher_deployer.contract_address))}
+    ~ Ethers ............. {Web3.fromWei(blockchain.client.get_balance(bare_contract.address), 'ether')} ETH
+    ~ Tokens ............. {NU.from_nunits(token_agent.get_balance(bare_contract.address))}
     ~ Dispatcher ......... {dispatcher_deployer.contract_address}
         ~ Owner .......... {dispatcher_deployer.contract.functions.owner().call()}
         ~ Target ......... {dispatcher_deployer.contract.functions.target().call()}
@@ -308,10 +308,14 @@ Registry  ................ {registry.filepath}
                                                          bare=True)  # acquire agency for the dispatcher itself.
 
         preallocation_escrow_payload = f"""
-{staking_interface_agent.contract_name} .......... {bare_contract.address}
-    ~ StakingInterfaceRouter ...... {router_deployer.contract.address}
+{staking_interface_agent.contract_name} ......... {bare_contract.address}
+  ~ Ethers ............... {Web3.fromWei(blockchain.client.get_balance(bare_contract.address), 'ether')} ETH
+  ~ Tokens ............... {NU.from_nunits(token_agent.get_balance(bare_contract.address))}
+  ~ StakingInterfaceRouter {router_deployer.contract.address}
         ~ Owner .......... {router_deployer.contract.functions.owner().call()}
-        ~ Target ......... {router_deployer.contract.functions.target().call()}"""
+        ~ Target ......... {router_deployer.contract.functions.target().call()}
+        ~ Ethers ......... {Web3.fromWei(blockchain.client.get_balance(router_deployer.contract_address), 'ether')} ETH
+        ~ Tokens ......... {NU.from_nunits(token_agent.get_balance(router_deployer.contract_address))}"""
         emitter.echo(preallocation_escrow_payload)
         emitter.echo(sep)
 

@@ -115,8 +115,7 @@ def inspect(provider_uri, config_root, registry_infile, deployer_address, poa):
 @deploy.command()
 @_admin_actor_options
 @click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
-@click.option('--target-address', help="Recipient's checksum address for token or ownership transference.",
-              type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--target-address', help="Address of the target contract", type=EIP55_CHECKSUM_ADDRESS)
 def upgrade(# Admin Actor Options
             provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
             registry_infile, registry_outfile, dev,
