@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import json
 import time
 from base64 import b64encode
@@ -66,6 +68,7 @@ from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
+from nucypher.blockchain.eth.decorators import validate_checksum_address
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -877,6 +880,8 @@ class Ursula(Teacher, Character, Worker):
                     db_filepath=db_filepath,
                     serving_domains=domains,
                 )
+
+                # TODO: attach status app to rest_app
 
                 #
                 # TLSHostingPower (Ephemeral Self-Ursula)

@@ -14,7 +14,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
 
 import pytest
 
@@ -22,10 +21,7 @@ from nucypher.characters.control.emitters import WebEmitter
 from nucypher.cli.config import NucypherClickConfig
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import GlobalLoggerSettings
-# Logger Configuration
-#
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
-
 
 # Disable click sentry and file logging
 NucypherClickConfig.log_to_sentry = False
@@ -128,3 +124,4 @@ def pytest_collection_modifyitems(config, items):
     GlobalLoggerSettings.set_log_level(log_level_name)
     GlobalLoggerSettings.start_text_file_logging()
     GlobalLoggerSettings.start_json_file_logging()
+

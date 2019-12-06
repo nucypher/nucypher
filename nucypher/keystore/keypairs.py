@@ -14,6 +14,9 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import base64
+from typing import Union
+
 import sha3
 from OpenSSL.SSL import TLSv1_2_METHOD
 from OpenSSL.crypto import X509
@@ -21,15 +24,12 @@ from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
-from typing import Union
-import base64
-
 from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature, Signer
 
 from nucypher.crypto import api as API
-from nucypher.crypto.api import generate_self_signed_certificate
+from nucypher.crypto.api import generate_teacher_certificate
 from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 
@@ -174,10 +174,10 @@ class HostingKeypair(Keypair):
                           "But for that, you need to pass a host and checksum address."
                 raise TypeError(message)
 
-            certificate, private_key = generate_self_signed_certificate(host=host,
-                                                                        checksum_address=checksum_address,
-                                                                        private_key=private_key,
-                                                                        curve=self.curve)
+            certificate, private_key = generate_teacher_certificate(host=host,
+                                                                    checksum_address=checksum_address,
+                                                                    private_key=private_key,
+                                                                    curve=self.curve)
             super().__init__(private_key=private_key)
         else:
             raise TypeError("You didn't provide a cert, but also told us not to generate keys.  Not sure what to do.")
@@ -187,13 +187,6 @@ class HostingKeypair(Keypair):
 
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
-
-    def generate_self_signed_cert(self, common_name):
-        cryptography_key = self._privkey.to_cryptography_privkey()
-        return generate_self_signed_certificate(host=common_name,
-                                                curve=self.curve,
-                                                private_key=cryptography_key,
-                                                )
 
     def get_deployer(self, rest_app, port):
         return HendrixDeployTLS("start",

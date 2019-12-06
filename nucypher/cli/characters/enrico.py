@@ -23,7 +23,7 @@ def enrico():
 @enrico.command()
 @policy_encrypting_key_option
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
-@click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT)
+@click.option('--http-port', help="The host port to run Enrico HTTP services on", type=NETWORK_PORT)
 @nucypher_click_config
 def run(click_config, policy_encrypting_key, dry_run, http_port):
     """

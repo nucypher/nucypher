@@ -22,6 +22,7 @@ from abc import abstractmethod, ABC
 
 import OpenSSL
 import shutil
+import sqlite3
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -30,10 +31,10 @@ from eth_utils import is_checksum_address
 from twisted.logger import Logger
 from typing import Callable, Tuple, Union, Set, Any
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.crypto.api import read_certificate_pseudonym
 
 
 class NodeStorage(ABC):
@@ -178,17 +179,17 @@ class ForgetfulNodeStorage(NodeStorage):
     _name = ':memory:'
     __base_prefix = "nucypher-tmp-certs-"
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, parent_dir: str = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.__metadata = dict()
 
         # Certificates
         self.__certificates = dict()
         self.__temporary_certificates = list()
-        self.__temp_certificates_dir = tempfile.mkdtemp(prefix='nucypher-temp-certs-')
+        self._temp_certificates_dir = tempfile.mkdtemp(prefix='nucypher-temp-certs-', dir=parent_dir)
 
     def __del__(self):
-        shutil.rmtree(self.__temp_certificates_dir, ignore_errors=True)
+        shutil.rmtree(self._temp_certificates_dir, ignore_errors=True)
 
     def all(self, federated_only: bool, certificates_only: bool = False) -> set:
         return set(self.__metadata.values() if not certificates_only else self.__certificates.values())
@@ -221,10 +222,7 @@ class ForgetfulNodeStorage(NodeStorage):
         return len(self.__temporary_certificates) == 0
 
     def store_node_certificate(self, certificate: Certificate):
-        pseudonym = certificate.subject.get_attributes_for_oid(NameOID.PSEUDONYM)[0]
-        checksum_address = pseudonym.value
-        if not is_checksum_address(checksum_address):
-            raise RuntimeError("Invalid certificate checksum_address encountered")  # TODO: More
+        checksum_address = read_certificate_pseudonym(certificate=certificate)
         self.__certificates[checksum_address] = certificate
         self._write_tls_certificate(certificate=certificate)
         filepath = self.generate_certificate_filepath(checksum_address=checksum_address)
@@ -237,7 +235,7 @@ class ForgetfulNodeStorage(NodeStorage):
     @validate_checksum_address
     def generate_certificate_filepath(self, checksum_address: str) -> str:
         filename = '{}.pem'.format(checksum_address)
-        filepath = os.path.join(self.__temp_certificates_dir, filename)
+        filepath = os.path.join(self._temp_certificates_dir, filename)
         return filepath
 
     @validate_checksum_address
@@ -276,6 +274,81 @@ class ForgetfulNodeStorage(NodeStorage):
         self.__metadata = dict()
         self.__certificates = dict()
         return not bool(self.__metadata or self.__certificates)
+
+
+class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
+    """
+    SQLite forgetful storage of node metadata
+    """
+    _name = 'sqlite'
+    DB_FILE_NAME = 'nodes.sqlite'
+    DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, DB_FILE_NAME)
+
+    NODE_DB_NAME = 'node_info'
+    NODE_DB_SCHEMA = [('staker_address', 'text primary key'), ('rest_url', 'text'), ('nickname', 'text'),
+                      ('timestamp', 'text'), ('last_seen', 'text'), ('fleet_state_icon', 'text')]
+
+    def __init__(self, db_filepath: str = DEFAULT_DB_FILEPATH, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.db_filepath = db_filepath
+        self.db_conn = sqlite3.connect(self.db_filepath)
+        self.init_db_tables()
+
+    def __del__(self):
+        super().__del__()
+        try:
+            self.db_conn.close()
+        finally:
+            if os.path.exists(self.db_filepath):
+                os.remove(self.db_filepath)
+
+    def store_node_metadata(self, node, filepath: str = None):
+        self.__write_node_metadata(node)
+        return super().store_node_metadata(node=node, filepath=filepath)
+
+    @validate_checksum_address
+    def remove(self,
+               checksum_address: str,
+               metadata: bool = True,
+               certificate: bool = True
+               ) -> Tuple[bool, str]:
+
+        if metadata is True:
+            with self.db_conn:
+                self.db_conn.execute(f"DELETE FROM {self.NODE_DB_NAME} WHERE staker_address='{checksum_address}'")
+
+        return super().remove(checksum_address=checksum_address, metadata=metadata, certificate=certificate)
+
+    def clear(self, metadata: bool = True, certificates: bool = True) -> None:
+        if metadata is True:
+            with self.db_conn:
+                self.db_conn.execute(f"DELETE FROM {self.NODE_DB_NAME}")
+
+        super().clear(metadata=metadata, certificates=certificates)
+
+    def initialize(self) -> bool:
+        if os.path.exists(self.db_filepath):
+            os.remove(self.db_filepath)
+        self.db_conn = sqlite3.connect(self.db_filepath)
+        self.init_db_tables()
+        return super().initialize()
+
+    def init_db_tables(self):
+        with self.db_conn:
+            # ensure tables are empty
+            self.db_conn.execute(f"DROP TABLE IF EXISTS {self.NODE_DB_NAME}")
+
+            # create fresh new node table (same column names as FleetStateTracker.abridged_nodes_details)
+            node_db_schema = ", ".join(f"{schema[0]} {schema[1]}" for schema in self.NODE_DB_SCHEMA)
+            self.db_conn.execute(f"CREATE TABLE {self.NODE_DB_NAME} ({node_db_schema})")
+
+    def __write_node_metadata(self, node):
+        from nucypher.network.nodes import FleetStateTracker
+        node_dict = FleetStateTracker.abridged_node_details(node)
+        db_row = (node_dict['staker_address'], node_dict['rest_url'], node_dict['nickname'],
+                  node_dict['timestamp'], node_dict['last_seen'], node_dict['fleet_state_icon'])
+        with self.db_conn:
+            self.db_conn.execute(f'REPLACE INTO {self.NODE_DB_NAME} VALUES(?,?,?,?,?,?)', db_row)
 
 
 class LocalFileBasedNodeStorage(NodeStorage):
