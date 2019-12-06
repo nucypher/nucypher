@@ -72,8 +72,9 @@ def deploy():
 @deploy.command(name='download-registry')
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
+@click.option('--network', help="", type=click.Choice(['goerli']), default='goerli')  # TODO: #1496
 @click.option('--force', is_flag=True)
-def download_registry(config_root, registry_outfile, force):
+def download_registry(config_root, registry_outfile, network, force):
     """
     Download the latest registry.
     """
@@ -82,7 +83,9 @@ def download_registry(config_root, registry_outfile, force):
     _ensure_config_root(config_root)
 
     if not force:
-        prompt = f"Fetch and download latest registry from {BaseContractRegistry.source_manager[0]}?"
+        priority_source = BaseContractRegistry.source_manager[0](network=network,
+                                                                 registry_name=BaseContractRegistry.REGISTRY_NAME)
+        prompt = f"Fetch and download latest registry from {priority_source}?"
         click.confirm(prompt, abort=True)
     registry = InMemoryContractRegistry.from_latest_publication()
     output_filepath = registry.commit(filepath=registry_outfile, overwrite=force)
