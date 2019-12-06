@@ -47,12 +47,12 @@ class BaseContractRegistry(ABC):
     _contract_name = NotImplemented
 
     # Registry
-    REGISTRY_NAME = 'contract_registry.json'  # TODO: Save registry with ID-time-based filename
+    REGISTRY_NAME = 'contract_registry.json'  # TODO: #1511 Save registry with ID-time-based filename
     DEVELOPMENT_REGISTRY_NAME = 'dev_contract_registry.json'
 
     _PUBLICATION_USER = "nucypher"
     _PUBLICATION_REPO = f"{_PUBLICATION_USER}/ethereum-contract-registry"
-    _PUBLICATION_BRANCH = 'goerli'          # TODO: Allow other branches to be used
+    _PUBLICATION_BRANCH = 'goerli'          # TODO: Allow other branches to be used - #1496
 
     class RegistryError(Exception):
         pass
@@ -328,7 +328,7 @@ class InMemoryContractRegistry(BaseContractRegistry):
     def commit(self, filepath: str = None, overwrite: bool = False) -> str:
         """writes the current state of the registry to a file"""
         if not filepath:
-            filepath = os.path.join(DEFAULT_CONFIG_ROOT, self.REGISTRY_NAME)  # TODO: Use ID-based filename
+            filepath = os.path.join(DEFAULT_CONFIG_ROOT, self.REGISTRY_NAME)
         self.log.info("Committing in-memory registry to disk.")
         if os.path.exists(filepath) and not overwrite:
             existing_registry = LocalContractRegistry(filepath=filepath)
@@ -406,7 +406,7 @@ class AllocationRegistry(LocalContractRegistry):
             return True
         except (self.UnknownBeneficiary, self.NoAllocationRegistry):
             return False
-        # TODO: Tests!
+        # TODO: #1513 Needs a test for false case (improve unit tests for allocation registry)
 
     def enroll(self, beneficiary_address, contract_address, contract_abi) -> None:
         contract_data = [contract_address, contract_abi]

@@ -89,7 +89,7 @@ contract Adjudicator is Upgradeable {
         bytes memory _taskSignature,
         bytes memory _requesterPublicKey,
         bytes memory _workerPublicKey,
-        bytes memory _workerIdentityEvidence,   // TODO: Better name (#1085)
+        bytes memory _workerIdentityEvidence,
         bytes memory _preComputedData
     )
         public
@@ -181,7 +181,7 @@ contract Adjudicator is Upgradeable {
         penalty = basePenalty.add(penaltyHistoryCoefficient.mul(penaltyHistory[_staker]));
         penalty = Math.min(penalty, _stakerValue.div(percentagePenaltyCoefficient));
         reward = penalty.div(rewardCoefficient);
-        // TODO add maximum condition or other overflow protection or other penalty condition
+        // TODO add maximum condition or other overflow protection or other penalty condition (#305?)
         penaltyHistory[_staker] = penaltyHistory[_staker].add(1);
     }
 

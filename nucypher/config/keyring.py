@@ -237,7 +237,6 @@ def _generate_encryption_keys() -> Tuple[UmbralPrivateKey, UmbralPublicKey]:
 
 def _generate_signing_keys() -> Tuple[UmbralPrivateKey, UmbralPublicKey]:
     """
-    TODO: Do we really want to use Umbral keys for signing? Perhaps we can use Curve25519/EdDSA for signatures?
     """
     privkey = UmbralPrivateKey.gen_key()
     pubkey = privkey.get_pubkey()

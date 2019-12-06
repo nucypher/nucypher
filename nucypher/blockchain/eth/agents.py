@@ -42,7 +42,7 @@ from nucypher.crypto.api import sha256_digest
 
 
 class ContractAgency:
-    # TODO: Enforce singleton
+    # TODO: Enforce singleton - #1506
 
     __agents = dict()
 
@@ -74,7 +74,7 @@ class EthereumContractAgent:
     _forward_address = True
     _proxy_name = None
 
-    # TODO
+    # TODO - #842: Gas Management
     DEFAULT_TRANSACTION_GAS_LIMITS = {}
 
     class ContractNotDeployed(Exception):
@@ -166,7 +166,7 @@ class NucypherTokenAgent(EthereumContractAgent):
     @validate_checksum_address
     def approve_transfer(self, amount: int, target_address: str, sender_address: str):
         """Approve the transfer of tokens from the sender address to the target address."""
-        payload = {'gas': 500_000}  # TODO #413: gas needed for use with geth.
+        payload = {'gas': 500_000}  # TODO #842: gas needed for use with geth.
         contract_function = self.contract.functions.approve(target_address, amount)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    payload=payload,
@@ -185,7 +185,7 @@ class StakingEscrowAgent(EthereumContractAgent):
     registry_contract_name = STAKING_ESCROW_CONTRACT_NAME
     _proxy_name = DISPATCHER_CONTRACT_NAME
 
-    DEFAULT_PAGINATION_SIZE = 30    # TODO test on goerli
+    DEFAULT_PAGINATION_SIZE = 30    # TODO: Use dynamic pagination size (see #1424)
 
     class NotEnoughStakers(Exception):
         pass
@@ -452,10 +452,10 @@ class StakingEscrowAgent(EthereumContractAgent):
     def staking_parameters(self) -> Tuple:
         parameter_signatures = (
             # Period
-            'secondsPerPeriod',  # Seconds in single period  # FIXME: StakingEscrow says hoursPerPeriod
+            'secondsPerPeriod',  # Seconds in single period
 
             # Coefficients
-            'miningCoefficient',         # Staking coefficient (k2) # FIXME: Still says "mining"
+            'miningCoefficient',         # Staking coefficient (k2)
             'lockedPeriodsCoefficient',  # Locked periods coefficient (k1)
             'rewardedPeriods',           # Max periods that will be additionally rewarded (awarded_periods)
 
@@ -795,7 +795,7 @@ class AdjudicatorAgent(EthereumContractAgent):
         :param sender_address:
         :return:
         """
-        payload = {'gas': 500_000}  # TODO #413: gas needed for use with geth.
+        payload = {'gas': 500_000}  # TODO #842: gas needed for use with geth.
         contract_function = self.contract.functions.evaluateCFrag(*evidence.evaluation_arguments())
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    sender_address=sender_address,

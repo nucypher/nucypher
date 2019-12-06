@@ -188,7 +188,7 @@ class Stake:
         # Periods
         self.first_locked_period = first_locked_period
 
-        # TODO: Move Me Brightly - Docs
+        # TODO: #1502 - Move Me Brightly - Docs
         # After this period has passes, workers can go offline, if this is the only stake.
         # This is the last period that can be confirmed for this stake.
         # Meaning, It must be confirmed in the previous period,
@@ -215,15 +215,14 @@ class Stake:
             self.validate_duration()
 
         self.transactions = NO_STAKING_RECEIPT
-        self.receipt = NO_STAKING_RECEIPT  # TODO: Implement for initialize stake
+        self.receipt = NO_STAKING_RECEIPT
 
     def __repr__(self) -> str:
         r = f'Stake(index={self.index}, value={self.value}, end_period={self.final_locked_period})'
         return r
 
     def __eq__(self, other) -> bool:
-        # TODO: Is this right? Two stakes from different accounts, durations, etc, but of the same value, are equal?
-        return bool(self.value == other.value)
+        raise NotImplementedError
 
     @property
     def address_index_ordering_key(self):
@@ -236,7 +235,7 @@ class Stake:
 
     @property
     def is_expired(self) -> bool:
-        current_period = self.staking_agent.get_current_period()  # TODO this is online only.
+        current_period = self.staking_agent.get_current_period()  # TODO #1514 this is online only.
         return bool(current_period > self.final_locked_period)
 
     @property
@@ -284,7 +283,7 @@ class Stake:
     @property
     def periods_remaining(self) -> int:
         """Returns the number of periods remaining in the stake from now."""
-        current_period = self.staking_agent.get_current_period()  # TODO this is online only.
+        current_period = self.staking_agent.get_current_period()
         return self.final_locked_period - current_period + 1
 
     def time_remaining(self, slang: bool = False) -> Union[int, str]:
@@ -295,7 +294,7 @@ class Stake:
         if slang:
             result = self.unlock_datetime.slang_date()
         else:
-            # TODO - EthAgent?
+            # TODO - #1509 EthAgent?
             blocktime_epoch = self.staking_agent.blockchain.client.w3.eth.getBlock('latest').timestamp
             delta = self.unlock_datetime.epoch - blocktime_epoch
             result = delta
@@ -358,8 +357,7 @@ class Stake:
 
         first_period, last_period, locked_value = stake_info
         if not self.first_locked_period == first_period:
-            # TODO: Provide an escape path or re-attempt in implementation
-            raise self.StakingError("Inconsistent staking cache, aborting stake division.")
+            raise self.StakingError("Inconsistent staking cache.  Make sure your node is synced and try again.")
 
         # Mutate the instance with the on-chain values
         self.final_locked_period = last_period
@@ -421,7 +419,7 @@ class Stake:
         # Transmit
         #
 
-        # TODO: Entrypoint for PreallocationEscrowAgent here
+        # TODO: Entrypoint for PreallocationEscrowAgent here - #1497
         # Transmit the stake division transaction
         receipt = self.staking_agent.divide_stake(staker_address=self.staker_address,
                                                   stake_index=self.index,
@@ -459,6 +457,7 @@ class Stake:
         # Store the staking transactions on the instance
         staking_transactions = dict(approve=approve_receipt, deposit=initial_deposit_receipt)
         stake.transactions = staking_transactions
+        stake.receipt = staking_transactions
 
         # Log and return Stake instance
         log = Logger(f'stake-{staker.checksum_address}-creation')
@@ -534,21 +533,21 @@ class WorkTracker:
             self.log.warn(f"Unhandled error during work tracking: {failure.getTraceback()}")
 
     def _do_work(self) -> None:
-        # TODO: Check for stake expiration and exit
-        # TODO: Follow-up actions for downtime
+        # TODO: #1515 Shut down at end of terminal stake
 
         # Update on-chain status
         self.log.info(f"Checking for new period. Current period is {self.__current_period}")
         onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
         if self.current_period != onchain_period:
             self.__current_period = onchain_period
-            # self.worker.stakes.refresh()  # TODO: Track stakes
+            # self.worker.stakes.refresh()  # TODO: #1517 Move this a better location
 
         # Measure working interval
         interval = onchain_period - self.worker.last_active_period
         if interval < 0:
             return  # No need to confirm this period.  Save the gas.
         if interval > 0:
+            # TODO: #1516 Follow-up actions for downtime
             self.log.warn(f"MISSED CONFIRMATIONS - {interval} missed staking confirmations detected.")
 
         # Confirm Activity

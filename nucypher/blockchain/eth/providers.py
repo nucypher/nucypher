@@ -38,7 +38,7 @@ def _get_infura_provider(provider_uri):
     os.environ[infura_envvar] = os.environ.get(infura_envvar, uri_breakdown.netloc)
 
     try:
-        # TODO: Only testnet for now
+        # TODO: Only testnet for now - #1496
         from web3.auto.infura.goerli import w3
 
     except InfuraKeyNotFound:
@@ -86,7 +86,6 @@ def _get_test_geth_parity_provider(provider_uri):
     geth_process.wait_for_ipc(timeout=30)
     provider = IPCProvider(ipc_path=geth_process.ipc_path, timeout=BlockchainInterface.TIMEOUT)
 
-    #  TODO: this seems strange to modify a class attr here?
     BlockchainInterface.process = geth_process
     return provider
 
