@@ -547,8 +547,11 @@ def test_reentrancy(testerchain, escrow, policy_manager, deploy_contract):
     testerchain.wait_for_receipt(tx)
 
     # Create policy and mint one period
-    policy_value = int(2 * rate)
-    transaction = policy_manager.functions.createPolicy(policy_id, 2, 0, [contract_address]) \
+    periods = 3
+    policy_value = int(periods * rate)
+    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    end_timestamp = current_timestamp + (periods - 1) * one_period
+    transaction = policy_manager.functions.createPolicy(policy_id, end_timestamp, [contract_address]) \
         .buildTransaction({'gas': 0})
     tx = reentrancy_contract.functions.setData(1, transaction['to'], policy_value, transaction['data']).transact()
     testerchain.wait_for_receipt(tx)
@@ -557,11 +560,15 @@ def test_reentrancy(testerchain, escrow, policy_manager, deploy_contract):
     testerchain.wait_for_receipt(tx)
     assert policy_value == testerchain.client.get_balance(policy_manager.address)
 
+    tx = policy_manager.functions.createPolicy(policy_id_2, end_timestamp, [contract_address])\
+        .transact({'value': policy_value, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+
     testerchain.time_travel(hours=1)
     period = escrow.functions.getCurrentPeriod().call()
     tx = escrow.functions.mint(contract_address, period, 1).transact({'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert rate == policy_manager.functions.nodes(contract_address).call()[REWARD_FIELD]
+    assert 2 * rate == policy_manager.functions.nodes(contract_address).call()[REWARD_FIELD]
 
     # Check protection from reentrancy in withdrawal method
     balance = testerchain.client.get_balance(contract_address)
@@ -573,7 +580,7 @@ def test_reentrancy(testerchain, escrow, policy_manager, deploy_contract):
         tx = testerchain.client.send_transaction({'to': contract_address})
         testerchain.wait_for_receipt(tx)
     assert balance == testerchain.client.get_balance(contract_address)
-    assert rate == policy_manager.functions.nodes(contract_address).call()[REWARD_FIELD]
+    assert 2 * rate == policy_manager.functions.nodes(contract_address).call()[REWARD_FIELD]
     assert 0 == len(withdraw_log.get_all_entries())
 
     # Prepare for refund and check reentrancy protection
@@ -587,7 +594,7 @@ def test_reentrancy(testerchain, escrow, policy_manager, deploy_contract):
         testerchain.wait_for_receipt(tx)
     assert balance == testerchain.client.get_balance(contract_address)
     assert not policy_manager.functions.policies(policy_id).call()[DISABLED_FIELD]
-    assert rate == policy_manager.functions.nodes(contract_address).call()[REWARD_FIELD]
+    assert 2 * rate == policy_manager.functions.nodes(contract_address).call()[REWARD_FIELD]
     assert 0 == len(arrangement_revoked_log.get_all_entries())
     assert 0 == len(policy_revoked_log.get_all_entries())
     assert 0 == len(arrangement_refund_log.get_all_entries())

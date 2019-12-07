@@ -65,8 +65,8 @@ contract PolicyManager is Upgradeable {
         address creator;
 
         uint256 rewardRate;
-        uint256 startTimestamp;
-        uint256 endTimestamp;
+        uint64 startTimestamp;
+        uint64 endTimestamp;
         bool disabled;
 
         ArrangementInfo[] arrangements;
@@ -143,7 +143,7 @@ contract PolicyManager is Upgradeable {
     */
     function createPolicy(
         bytes16 _policyId,
-        uint256 _endTimestamp,
+        uint64 _endTimestamp,
         address[] memory _nodes
     )
         public payable
@@ -160,7 +160,7 @@ contract PolicyManager is Upgradeable {
 
         Policy storage policy = policies[_policyId];
         policy.creator = msg.sender;
-        policy.startTimestamp = block.timestamp;
+        policy.startTimestamp = uint64(block.timestamp);
         policy.endTimestamp = _endTimestamp;
         policy.rewardRate = msg.value.div(_nodes.length) / numberOfPeriods;
         require(policy.rewardRate > 0 && policy.rewardRate * numberOfPeriods * _nodes.length  == msg.value);
