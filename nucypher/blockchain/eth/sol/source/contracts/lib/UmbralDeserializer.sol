@@ -101,7 +101,7 @@ library UmbralDeserializer {
         _pointer += BIGNUM_SIZE;
 
         proof.kFragSignature = new bytes(SIGNATURE_SIZE);
-        // TODO optimize, just two mload->mstore
+        // TODO optimize, just two mload->mstore (#1500)
         _pointer = copyBytes(_pointer, proof.kFragSignature, SIGNATURE_SIZE);
         if (_proofBytesLength > CORRECTNESS_PROOF_SIZE) {
             proof.metadata = new bytes(_proofBytesLength - CORRECTNESS_PROOF_SIZE);
@@ -226,7 +226,7 @@ library UmbralDeserializer {
         require(pointer == initial_pointer + PRECOMPUTED_DATA_SIZE);
     }
 
-    // TODO extract to external library if needed
+    // TODO extract to external library if needed (#1500)
     /**
     * @notice Get the memory pointer for start of array
     **/
@@ -242,7 +242,7 @@ library UmbralDeserializer {
     function copyPoint(uint256 _pointer, Point memory _point)
         internal pure returns (uint256 resultPointer)
     {
-        // TODO optimize, copy to point memory directly
+        // TODO optimize, copy to point memory directly (#1500)
         uint8 temp;
         uint256 xCoord;
         assembly {

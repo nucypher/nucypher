@@ -459,7 +459,7 @@ contract PolicyManager is Upgradeable {
     * @notice Return the information about arrangement
     **/
     function getArrangementInfo(bytes16 _policyId, uint256 _index)
-    // TODO change to structure when ABIEncoderV2 is released
+    // TODO change to structure when ABIEncoderV2 is released (#1501)
 //        public view returns (ArrangementInfo)
         public view returns (address node, uint256 indexOfDowntimePeriods, uint16 lastRefundedPeriod)
     {

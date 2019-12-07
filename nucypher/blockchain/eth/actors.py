@@ -105,7 +105,7 @@ class NucypherTokenActor:
     @validate_checksum_address
     def __init__(self, registry: BaseContractRegistry, checksum_address: str = None):
 
-        # TODO: Consider this pattern - None for address?.
+        # TODO: Consider this pattern - None for address?.  #1507
         # Note: If the base class implements multiple inheritance and already has a checksum address...
         try:
             parent_address = self.checksum_address  # type: str
@@ -132,7 +132,7 @@ class NucypherTokenActor:
     @property
     def eth_balance(self) -> Decimal:
         """Return this actors's current ETH balance"""
-        blockchain = BlockchainInterfaceFactory.get_interface()  # TODO: EthAgent?
+        blockchain = BlockchainInterfaceFactory.get_interface()  # TODO: EthAgent?  #1509
         balance = blockchain.client.get_balance(self.checksum_address)
         return blockchain.client.w3.fromWei(balance, 'ether')
 
@@ -185,7 +185,7 @@ class ContractAdministrator(NucypherTokenActor):
                  economics: TokenEconomics = None):
         """
         Note: super() is not called here to avoid setting the token agent.
-        TODO: Review this logic ^^ "bare mode".
+        TODO: Review this logic ^^ "bare mode".  #1510
         """
         self.log = Logger("Deployment-Actor")
 
@@ -307,7 +307,7 @@ class ContractAdministrator(NucypherTokenActor):
             raise ValueError("'emitter' is a required keyword argument when interactive is True.")
 
         deployment_receipts = dict()
-        gas_limit = None  # TODO: Gas management
+        gas_limit = None  # TODO: Gas management - #842
 
         # deploy contracts
         total_deployment_transactions = 0
@@ -457,8 +457,6 @@ class ContractAdministrator(NucypherTokenActor):
             bar.short_limit = 0
             for allocation in allocations:
 
-                # TODO: Check if allocation already exists in allocation registry
-
                 beneficiary = allocation['beneficiary_address']
                 name = allocation.get('name', 'No name provided')
 
@@ -572,10 +570,10 @@ class ContractAdministrator(NucypherTokenActor):
         return receipts
 
     def save_deployment_receipts(self, receipts: dict, filename_prefix: str = 'deployment') -> str:
+        config_root = DEFAULT_CONFIG_ROOT  # We force the use of the default here.
         filename = f'{filename_prefix}-receipts-{self.deployer_address[:6]}-{maya.now().epoch}.json'
-        filepath = os.path.join(DEFAULT_CONFIG_ROOT, filename)
-        # TODO: Do not assume default config root
-        os.makedirs(DEFAULT_CONFIG_ROOT, exist_ok=True)
+        filepath = os.path.join(config_root, filename)
+        os.makedirs(config_root, exist_ok=True)
         with open(filepath, 'w') as file:
             data = dict()
             for contract_name, contract_receipts in receipts.items():
@@ -645,12 +643,6 @@ class Staker(NucypherTokenActor):
                           'worker': worker_address,
                           'stakes': stake_info}
         return staker_payload
-
-    # TODO: This is unused. Why? Should we remove it?
-    @classmethod
-    def from_dict(cls, staker_payload: dict) -> 'Staker':
-        staker = Staker(is_me=True, checksum_address=staker_payload['checksum_address'])
-        return staker
 
     @property
     def is_staking(self) -> bool:
@@ -1144,7 +1136,7 @@ class StakeHolder(Staker):
         def balances(self) -> Dict[str, int]:
             balances = dict()
             for account in self.accounts:
-                funds = {'ETH': self.blockchain.client.get_balance(account),  # TODO: EthAgent or something?
+                funds = {'ETH': self.blockchain.client.get_balance(account),  # TODO: EthAgent or something?  #1509
                          'NU': self.token_agent.get_balance(account)}
                 balances.update({account: funds})
             return balances

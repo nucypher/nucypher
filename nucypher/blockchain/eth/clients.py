@@ -281,7 +281,6 @@ class Web3Client:
                 check_for_timeout(t=self.SYNC_TIMEOUT_DURATION*2)
 
             while True:
-                #  TODO:  Should this timeout eventually?
                 syncdata = self.syncing
                 if not syncdata:
                     return False
@@ -297,15 +296,13 @@ class GethClient(Web3Client):
 
     @classmethod
     def _get_variant(cls, w3):
-        # TODO: Accept this as a final solution?
-        # Shim for infura variant of geth websocket provider
-        # AttributeError: 'IPCProvider' object has no attribute 'endpoint_uri'
         if 'infura' in getattr(w3.provider, 'endpoint_uri', ''):
             return InfuraClient
         return cls
 
     @property
     def is_local(self):
+        # TODO: #1505  -- rethink this metaphor
         return int(self.w3.net.version) not in PUBLIC_CHAINS
 
     @property
@@ -318,8 +315,6 @@ class GethClient(Web3Client):
 
     def unlock_account(self, address: str, password: str, duration: int = None):
         if self.is_local:
-            # TODO: Is there a more formalized check here for geth --dev mode?
-            # Geth --dev accounts are unlocked by default.
             return True
         debug_message = f"Unlocking account {address}"
 

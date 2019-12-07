@@ -909,7 +909,7 @@ contract StakingEscrow is Issuer {
         if (_penalty > 0) {
             unMint(_penalty);
         }
-        // TODO change to withdrawal pattern
+        // TODO change to withdrawal pattern (#1499)
         if (_reward > 0) {
             token.safeTransfer(_investigator, _reward);
         }
@@ -1132,7 +1132,7 @@ contract StakingEscrow is Issuer {
     * @notice Return the information about sub stake
     **/
     function getSubStakeInfo(address _staker, uint256 _index)
-    // TODO change to structure when ABIEncoderV2 is released
+    // TODO change to structure when ABIEncoderV2 is released (#1501)
 //        public view returns (SubStakeInfo)
         external view returns (uint16 firstPeriod, uint16 lastPeriod, uint16 periods, uint256 lockedValue)
     {
@@ -1154,7 +1154,7 @@ contract StakingEscrow is Issuer {
     * @notice Return the information about past downtime
     **/
     function  getPastDowntime(address _staker, uint256 _index)
-    // TODO change to structure when ABIEncoderV2 is released
+    // TODO change to structure when ABIEncoderV2 is released (#1501)
 //        public view returns (Downtime)
         external view returns (uint16 startPeriod, uint16 endPeriod)
     {

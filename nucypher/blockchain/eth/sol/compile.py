@@ -29,13 +29,11 @@ try:
     from solc import install_solc, compile_files
     from solc.exceptions import SolcError
 except ImportError:
-    # TODO: Issue #461 and #758 - Include precompiled ABI; Do not use py-solc in standard installation
+    # TODO: Issue #461 and #758 & PR #1480 - Include precompiled ABI; Do not use py-solc in standard installation
     pass
 
 
 class SolidityCompiler:
-
-    # TODO: Integrate with config classes
 
     __default_version = 'v0.5.9'
     __default_configuration_path = os.path.join(dirname(abspath(__file__)), './compiler.json')
@@ -47,6 +45,8 @@ class SolidityCompiler:
 
     __default_contract_dir = os.path.join(dirname(abspath(__file__)), 'source', 'contracts')
     __default_chain_name = 'tester'
+
+    optimization_runs = 200
 
     def __init__(self,
                  solc_binary_path: str = None,
@@ -75,7 +75,7 @@ class SolidityCompiler:
         https://github.com/ethereum/py-solc#installing-the-solc-binary
         """
         version = version if version is not None else self.__default_version
-        return install_solc(version, platform=None)  # TODO: fix path
+        return install_solc(version, platform=None)  # TODO: #1478 - Implement or remove this
 
     def compile(self) -> dict:
         """Executes the compiler with parameters specified in the json config"""
@@ -105,7 +105,7 @@ class SolidityCompiler:
 
         self.log.info("Compiling with import remappings {}".format(", ".join(remappings)))
 
-        optimization_runs = 200  # TODO: Move..?
+        optimization_runs = self.optimization_runs
         try:
             compiled_sol = compile_files(source_files=source_paths,
                                          import_remappings=remappings,

@@ -299,7 +299,6 @@ class UpgradeableContractMixin:
         # 1 - Raise if not all-systems-go #
         if not self._upgradeable:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
-        # TODO: Fails when this same object was used previously to deploy
         self.check_deployment_readiness()
 
         # 2 - Get Bare Contracts
@@ -432,7 +431,7 @@ class DispatcherDeployer(BaseContractDeployer, OwnableContractMixin):
 
     @validate_secret
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None) -> dict:
-        origin_args = {}  # TODO: Gas management
+        origin_args = {}  # TODO: Gas management - #842
         if gas_limit:
             origin_args.update({'gas': gas_limit})
 
@@ -548,7 +547,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         reward_function = self.token_contract.functions.transfer(the_escrow_contract.address,
                                                                  self.economics.erc20_reward_supply)
 
-        # TODO: Confirmations / Successful Transaction Indicator / Events ??
+        # TODO: Confirmations / Successful Transaction Indicator / Events ??  - #1193, #1194
         reward_receipt = self.blockchain.send_transaction(contract_function=reward_function,
                                                           sender_address=self.deployer_address,
                                                           payload=origin_args)
@@ -696,7 +695,7 @@ class StakingInterfaceRouterDeployer(BaseContractDeployer, OwnableContractMixin)
         if new_target == self._contract.address:
             raise self.ContractDeploymentError(f"{self.contract_name} {self._contract.address} cannot target itself.")
 
-        origin_args = {}  # TODO: Gas management
+        origin_args = {}  # TODO: Gas management - #842
         if gas_limit:
             origin_args.update({'gas': gas_limit})
         retarget_function = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash)
@@ -822,7 +821,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
     @validate_checksum_address
     def assign_beneficiary(self, checksum_address: str) -> dict:
         """Relinquish ownership of a PreallocationEscrow deployment to the beneficiary"""
-        # TODO: #413, #842 - Gas Management
+        # TODO: #842 - Gas Management
         payload = {'gas': 500_000}
         transfer_owner_function = self.contract.functions.transferOwnership(checksum_address)
         transfer_owner_receipt = self.blockchain.send_transaction(contract_function=transfer_owner_function,
@@ -837,14 +836,14 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
         # Approve
         approve_function = self.token_contract.functions.approve(self.contract.address, value)
         approve_receipt = self.blockchain.send_transaction(contract_function=approve_function,
-                                                           sender_address=self.deployer_address)  # TODO: Gas
+                                                           sender_address=self.deployer_address)  # TODO: Gas  - #842
 
         self.deployment_receipts.update({self.deployment_steps[1]: approve_receipt})
 
         if progress:
             progress.update(1)
         # Deposit
-        # TODO: #413, #842 - Gas Management
+        # TODO: #842 - Gas Management
         args = {'gas': 200_000}
         deposit_function = self.contract.functions.initialDeposit(value, duration_seconds)
         deposit_receipt = self.blockchain.send_transaction(contract_function=deposit_function,

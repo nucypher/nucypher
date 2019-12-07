@@ -295,7 +295,7 @@ class StandardTokenEconomics(TokenEconomics):
 
 
 class TokenEconomicsFactory:
-    # TODO: Enforce singleton
+    # TODO: #1518 Make this class into a module
 
     __economics = dict()
 

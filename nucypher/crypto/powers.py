@@ -303,7 +303,6 @@ class DelegatingPower(DerivedKeyBasedPower):
         :param m: Minimum number of KFrags needed to rebuild ciphertext
         :param n: Total number of KFrags to generate
         """
-        # TODO: salt?  #265
 
         __private_key = self._get_privkey_from_label(label)
         kfrags = pre.generate_kfrags(delegating_privkey=__private_key,

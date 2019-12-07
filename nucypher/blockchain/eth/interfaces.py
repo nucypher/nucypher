@@ -104,7 +104,7 @@ class BlockchainInterface:
         A blockchain "network interface"; The circumflex wraps entirely around the bounds of
         contract operations including compilation, deployment, and execution.
 
-        TODO: Move me to docs.
+        TODO: #1502 - Move me to docs.
 
          Filesystem          Configuration           Node              Client                  EVM
         ================ ====================== =============== =====================  ===========================
@@ -240,8 +240,8 @@ class BlockchainInterface:
         sync_state = self.client.sync()
         if show_progress:
             import click
-            # TODO: It is possible that output has been redirected from a higher-level emitter.
-            # TODO: Use console logging instead of StdOutEmitter here.
+            # TODO: #1503 - It is possible that output has been redirected from a higher-level emitter.
+            # TODO: #1503 - Use console logging instead of StdOutEmitter here.
             emitter = StdoutEmitter()
 
             emitter.echo(f"Syncing: {self.client.chain_name.capitalize()}. Waiting for sync to begin.")
@@ -382,7 +382,7 @@ class BlockchainInterface:
         try:
             unsigned_transaction = contract_function.buildTransaction(payload)
         except (ValidationError, ValueError) as e:
-            # TODO: Handle validation failures for gas limits, invalid fields, etc.
+            # TODO: #1504 - Handle validation failures for gas limits, invalid fields, etc.
             # Note: Geth raises ValueError in the same condition that pyevm raises ValidationError here.
             # Treat this condition as "Transaction Failed".
             self.log.critical(f"Validation error: {e}")
@@ -401,7 +401,7 @@ class BlockchainInterface:
         try:
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT)
         except TimeExhausted:
-            # TODO: Handle transaction timeout
+            # TODO: #1504 - Handle transaction timeout
             raise
         else:
             self.log.debug(f"[RECEIPT-{transaction_name}] | txhash: {receipt['transactionHash'].hex()}")
@@ -420,7 +420,7 @@ class BlockchainInterface:
         if deployment_status is UNKNOWN_TX_STATUS:
             self.log.info(f"Unknown transaction status for {txhash} (receipt did not contain a status field)")
 
-            # Secondary check TODO: Is this a sensible check?
+            # Secondary check
             tx = self.client.get_transaction(txhash)
             if tx["gas"] == receipt["gasUsed"]:
                 raise self.InterfaceError(f"Transaction consumed 100% of transaction gas."

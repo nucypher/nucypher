@@ -89,7 +89,7 @@ def test_staker_divides_stake(staker, token_economics):
     assert 4 == len(staker.stakes), 'A new stake was not added after two stake divisions'
     assert expected_old_stake == staker.stakes[stake_index + 1].to_stake_info(), 'Old stake values are invalid after two stake divisions'
     assert expected_new_stake == staker.stakes[stake_index + 2].to_stake_info(), 'New stake values are invalid after two stake divisions'
-    assert expected_yet_another_stake == staker.stakes[stake_index + 3], 'Third stake values are invalid'
+    assert expected_yet_another_stake.value == staker.stakes[stake_index + 3].value, 'Third stake values are invalid'
 
 
 def test_staker_manages_restaking(testerchain, test_registry, staker):
