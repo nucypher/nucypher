@@ -440,11 +440,18 @@ class Learner:
                              network_middleware=self.network_middleware,
                              registry=self.registry)  # composed on character subclass, determines operating mode
         except SSLError:
-            return False  # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
+            # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
+            return False
 
         except NodeSeemsToBeDown:
             self.log.info("No Response while trying to verify node {}|{}".format(node.rest_interface, node))
-            return False  # TODO: Bucket this node as "ghost" or something: somebody else knows about it, but we can't get to it.
+            # TODO: Bucket this node as "ghost" or something: somebody else knows about it, but we can't get to it.
+            return False
+
+        except node.NotStaking:
+            # TODO: Bucket this node as inactive, and potentially safe to forget.
+            self.log.info(f'Staker:Worker {node.checksum_address}:{node.worker_address} is not actively staking, skipping.')
+            return False
 
         listeners = self._learning_listeners.pop(node.checksum_address, tuple())
         address = node.checksum_address
