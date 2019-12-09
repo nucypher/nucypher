@@ -423,7 +423,7 @@ As an alternative to the ``--allocation-filepath`` flag, preallocation users
 can directly specify their beneficiary and staking contract addresses with the
 ``--beneficiary-address ADDRESS`` and ``--staking-address ADDRESS``, respectively.
 
-Finally, note that collected staking rewards always end up in the original
+Finally, note that collected staking rewards are always placed in the original
 staking account, which for preallocation users is the staking contract.
 Run the following command to view the balance of the ``PreallocationEscrow`` contract:
 

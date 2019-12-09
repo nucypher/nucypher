@@ -22,7 +22,7 @@ import click
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry, LocalContractRegistry, InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry, CanonicalRegistrySource, InMemoryContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions import (
@@ -72,7 +72,7 @@ def deploy():
 @deploy.command(name='download-registry')
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
-@click.option('--network', help="", type=click.Choice(['goerli']), default='goerli')  # TODO: #1496
+@click.option('--network', help="", type=click.Choice(CanonicalRegistrySource.networks), default='goerli')  # TODO: #1496
 @click.option('--force', is_flag=True)
 def download_registry(config_root, registry_outfile, network, force):
     """
