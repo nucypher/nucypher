@@ -612,10 +612,10 @@ def paint_preallocation_status(emitter, preallocation_agent, token_agent) -> Non
 
     token_balance = NU.from_nunits(token_agent.get_balance(staking_address))
     eth_balance = Web3.fromWei(blockchain.client.get_balance(staking_address), 'ether')
-    locked_tokens = NU.from_nunits(preallocation_agent.unvested_tokens)
+    initial_locked_amount = NU.from_nunits(preallocation_agent.initial_locked_amount)
+    current_locked_amount = NU.from_nunits(preallocation_agent.unvested_tokens)
+    available_amount = NU.from_nunits(preallocation_agent.available_balance)
     end_timestamp = preallocation_agent.end_timestamp
-
-    unlocked_tokens = token_balance - locked_tokens
 
     width = 64
     output = f"""
@@ -623,12 +623,16 @@ def paint_preallocation_status(emitter, preallocation_agent, token_agent) -> Non
 Staking contract: ... {staking_address}
 Beneficiary: ........ {preallocation_agent.beneficiary}
 
+{" Locked Tokens ".center(width, "-")}
+Initial locked amount: {initial_locked_amount}
+Current locked amount: {current_locked_amount}
+Locked until: ........ {maya.MayaDT(epoch=end_timestamp)}
+
 {" NU and ETH Balance ".center(width, "-")}
-NU balance: ..... {token_balance}
-    Unlocked: ... {unlocked_tokens} 
-    Locked: ..... {locked_tokens}  (Locked until {maya.MayaDT(epoch=end_timestamp)})
-ETH balance: .... {eth_balance} ETH
-    """
+NU balance: .......... {token_balance}
+    Available: ....... {available_amount} 
+ETH balance: ......... {eth_balance} ETH
+"""
     emitter.echo(output)
 
 

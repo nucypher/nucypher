@@ -601,7 +601,7 @@ def test_withdraw_from_preallocation(click_runner,
                                  input=INSECURE_DEVELOPMENT_PASSWORD,
                                  catch_exceptions=True)
     assert result.exit_code == 0
-    assert f'NU balance: ..... {tokens_in_contract}' in result.output
+    assert f'NU balance: .......... {tokens_in_contract}' in result.output
 
     balance_before_collecting = token_agent.get_balance(address=beneficiary)
 

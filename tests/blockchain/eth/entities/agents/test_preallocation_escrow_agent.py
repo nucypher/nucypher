@@ -215,10 +215,11 @@ def test_beneficiary_withdraws_tokens(testerchain,
     token_agent, staking_agent, policy_agent = agency
     deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
 
-    assert token_agent.get_balance(address=agent.contract_address) == agent.unvested_tokens
+    contract_address = agent.contract_address
+    assert token_agent.get_balance(address=contract_address) == agent.unvested_tokens == agent.initial_locked_amount
 
     # Trying to withdraw the tokens now fails, obviously
-    initial_amount = token_agent.get_balance(address=agent.contract_address)
+    initial_amount = token_agent.get_balance(address=contract_address)
     with pytest.raises((TransactionFailed, ValueError)):
         agent.withdraw_tokens(value=initial_amount)
 
@@ -232,6 +233,7 @@ def test_beneficiary_withdraws_tokens(testerchain,
     # Since 30% are staked, the locked amount is reduced by that 30% when withdrawing,
     # which results in an effective lock of 70%. However, the contract also has 70%, which means that, effectively,
     # the beneficiary can only withdraw 0 tokens.
+    assert agent.available_balance == 0
     with pytest.raises((TransactionFailed, ValueError)):
         agent.withdraw_tokens(value=initial_amount - staked_amount)
     agent.withdraw_tokens(value=0)
@@ -242,12 +244,13 @@ def test_beneficiary_withdraws_tokens(testerchain,
     token_airdrop(token_agent=token_agent,
                   amount=mocked_rewards,
                   origin=deployer_address,
-                  addresses=[agent.contract_address])
+                  addresses=[contract_address])
+    assert agent.available_balance == mocked_rewards
     agent.withdraw_tokens(value=int(mocked_rewards))
 
     # Once the lock passes, the beneficiary can withdraw what's left
     testerchain.time_travel(seconds=TEST_LOCK_DURATION_IN_SECONDS)
     receipt = agent.withdraw_tokens(value=initial_amount - staked_amount)
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert token_agent.get_balance(address=agent.contract_address) == 0
+    assert token_agent.get_balance(address=contract_address) == 0
     assert token_agent.get_balance(address=beneficiary_address) == initial_amount - staked_amount + mocked_rewards

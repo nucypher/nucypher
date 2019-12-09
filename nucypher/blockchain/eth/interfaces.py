@@ -172,7 +172,7 @@ class BlockchainInterface:
         self._provider = provider
         self._provider_process = provider_process
         self.w3 = NO_BLOCKCHAIN_CONNECTION
-        self.client = NO_BLOCKCHAIN_CONNECTION
+        self.client = NO_BLOCKCHAIN_CONNECTION  # type: Web3Client
         self.transacting_power = READ_ONLY_INTERFACE
         self.is_light = light
 
