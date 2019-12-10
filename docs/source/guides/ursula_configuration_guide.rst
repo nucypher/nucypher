@@ -103,7 +103,7 @@ If your installation is non-functional, be sure you have the latest version inst
 Running an Ursula with Docker
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Assuming geth is running locally on goerli, Configure and run an Ursula using port and volume bindings:
+Assuming geth is running locally on goerli, configure and run an Ursula using port and volume bindings:
 
 .. code:: bash
 
@@ -111,7 +111,7 @@ Assuming geth is running locally on goerli, Configure and run an Ursula using po
     export NUCYPHER_WORKER_ETH_PASSWORD=<your eth account password>
 
     # Interactive Ursula-Worker Initialization
-    docker run -it -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -e NUCYPHER_KEYRING_PASSWORD nucypher:latest nucypher ursula init --provider file:///root/.ethereum/goerli/geth.ipc --staking-address <YOUR STAKING ADDRESS>
+    docker run -it -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -e NUCYPHER_KEYRING_PASSWORD nucypher:latest nucypher ursula init --provider file:///root/.ethereum/goerli/geth.ipc --staker-address <YOUR STAKING ADDRESS>
 
     # Daemonized Ursula
     docker run -d -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD nucypher/nucypher:latest nucypher ursula run --teacher discover.nucypher.network:9151 --provider file:///root/.ethereum/goerli/geth.ipc
