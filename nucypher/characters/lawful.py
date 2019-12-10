@@ -17,7 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import json
-import time
 from base64 import b64encode
 from collections import OrderedDict
 from functools import partial
@@ -26,6 +25,7 @@ from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
 import requests
+import time
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
@@ -38,7 +38,9 @@ from eth_utils import to_checksum_address
 from flask import request, Response
 from twisted.internet import threads
 from twisted.logger import Logger
+from umbral import pre
 from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
 from umbral.pre import UmbralCorrectnessError
 from umbral.signing import Signature
 
@@ -62,13 +64,13 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, TransactingPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.keystore.keypairs import HostingKeypair
+from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, UnexpectedResponse, NotFound
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
-from nucypher.blockchain.eth.decorators import validate_checksum_address
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -820,7 +822,6 @@ class Ursula(Teacher, Character, Worker):
             from nucypher.config.node import CharacterConfiguration
             domains = (CharacterConfiguration.DEFAULT_DOMAIN,)
 
-        self._work_orders = list()
         Character.__init__(self,
                            is_me=is_me,
                            checksum_address=checksum_address,

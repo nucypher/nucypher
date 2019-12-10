@@ -19,18 +19,16 @@ import binascii
 import os
 from typing import Tuple
 
-from flask import Flask, Response
-from flask import request
-from jinja2 import Template, TemplateError
-from twisted.logger import Logger
-from umbral import pre
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
-
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
+from flask import Flask, Response
+from flask import request
 from hendrix.experience import crosstown_traffic
+from jinja2 import Template, TemplateError
+from twisted.logger import Logger
+from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
 
 import nucypher
 from nucypher.config.storages import ForgetfulNodeStorage
@@ -297,8 +295,7 @@ def make_rest_app(
         arrangement_id = binascii.unhexlify(id_as_hex)
         try:
             with ThreadedSession(db_engine) as session:
-                policy_arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
-                                                                      session=session)
+                arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(), session=session)
         except NotFound:
             return Response(response=arrangement_id, status=404)
         kfrag_bytes = policy_arrangement.kfrag  # Careful!  :-)
@@ -318,26 +315,14 @@ def make_rest_app(
 
         cfrag_byte_stream = b""
 
-        for task in work_order.tasks:
-            # Ursula signs on top of Bob's signature of each task.
-            # Now both are committed to the same task.  See #259.
-            reencryption_metadata = bytes(this_node.stamp(bytes(task.signature)))
-
-            capsule = task.capsule
-            capsule.set_correctness_keys(verifying=alices_verifying_key)
-            cfrag = pre.reencrypt(kfrag, capsule, metadata=reencryption_metadata)
-            log.info(f"Re-encrypting for {capsule}, made {cfrag}.")
-
-            # Finally, Ursula commits to her result
-            reencryption_signature = this_node.stamp(bytes(cfrag))
-            cfrag_byte_stream += VariableLengthBytestring(cfrag) + reencryption_signature
-
-        # TODO: Put this in Ursula's datastore
-        this_node._work_orders.append(work_order)
+        # Now, Ursula saves this workorder to her database...
+        with ThreadedSession(db_engine):
+            this_node.datastore.save_workorder(bob_verifying_key=bytes(work_order.bob.stamp),
+                                               bob_signature=bytes(work_order.receipt_signature),
+                                               arrangement_id=work_order.arrangement_id)
 
         headers = {'Content-Type': 'application/octet-stream'}
-
-        return Response(response=cfrag_byte_stream, headers=headers)
+        return Response(headers=headers, response=response)
 
     @rest_app.route('/treasure_map/<treasure_map_id>')
     def provide_treasure_map(treasure_map_id):

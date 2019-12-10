@@ -14,11 +14,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from typing import Union, List
+
 from bytestring_splitter import BytestringSplitter
 from sqlalchemy.orm import sessionmaker
-from typing import Union
-from umbral.kfrags import KFrag
 from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
 
 from nucypher.crypto.signing import Signature
 from nucypher.crypto.utils import fingerprint_from_key
@@ -79,10 +80,8 @@ class KeyStore(object):
         session = session or self._session_on_init_thread
 
         key = session.query(Key).filter_by(fingerprint=fingerprint).first()
-
         if not key:
-            raise NotFound(
-                "No key with fingerprint {} found.".format(fingerprint))
+            raise NotFound("No key with fingerprint {} found.".format(fingerprint))
 
         pubkey = UmbralPublicKey.from_bytes(key.key_data)
         return pubkey
@@ -160,30 +159,52 @@ class KeyStore(object):
         policy_arrangement.kfrag = bytes(kfrag)
         session.commit()
 
-    def add_workorder(self, bob_verifying_key, bob_signature, arrangement_id, session=None) -> Workorder:
+    def save_workorder(self, bob_verifying_key, bob_signature, arrangement_id, session=None) -> Workorder:
         """
         Adds a Workorder to the keystore.
         """
         session = session or self._session_on_init_thread
-        bob_verifying_key = self.add_key(bob_verifying_key)
-        new_workorder = Workorder(bob_verifying_key.id, bob_signature, arrangement_id)
+
+        # Get or Create Bob Verifying Key
+        fingerprint = fingerprint_from_key(bob_verifying_key)
+        key = session.query(Key).filter_by(fingerprint=fingerprint).first()
+        if not key:
+            key = self.add_key(key=bob_verifying_key)
+
+        new_workorder = Workorder(bob_verifying_key_id=key.id,
+                                  bob_signature=bob_signature,
+                                  arrangement_id=arrangement_id)
 
         session.add(new_workorder)
         session.commit()
-
         return new_workorder
 
-    def get_workorders(self, arrangement_id: bytes, session=None) -> Workorder:
+    def get_workorders(self,
+                       arrangement_id: bytes = None,
+                       bob_verifying_key: bytes = None,
+                       session=None
+                       ) -> List[Workorder]:
         """
         Returns a list of Workorders by HRAC.
         """
         session = session or self._session_on_init_thread
+        query = session.query(Workorder)
 
-        workorders = session.query(Workorder).filter_by(arrangement_id=arrangement_id)
+        if not arrangement_id and not bob_verifying_key:
+            workorders = list(query.all())
+        else:
+            if arrangement_id:
+                workorders = query.filter_by(arrangement_id=arrangement_id)
+            elif bob_verifying_key:
+                fingerprint = fingerprint_from_key(bob_verifying_key)
+                bvk = session.query(Key).filter_by(fingerprint=fingerprint).first()
+                workorders = query.filter_by(bob_verifying_key_id=bvk.id)
+            else:
+                raise ValueError
+            if not workorders:
+                raise NotFound
 
-        if not workorders:
-            raise NotFound("No Workorders with {} HRAC found.".format(arrangement_id))
-        return workorders
+        return list(workorders)
 
     def del_workorders(self, arrangement_id: bytes, session=None):
         """

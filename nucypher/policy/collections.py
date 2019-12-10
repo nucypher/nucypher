@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import binascii
+from typing import List, Optional, Tuple
 
 import maya
 import msgpack
@@ -23,8 +24,6 @@ from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
-from typing import List, Optional, Tuple
-
 from umbral.cfrags import CapsuleFrag
 from umbral.config import default_params
 from umbral.curvebn import CurveBN
