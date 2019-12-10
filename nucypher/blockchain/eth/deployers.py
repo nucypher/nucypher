@@ -486,13 +486,14 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
     deployment_steps = ('contract_deployment', 'dispatcher_deployment', 'reward_transfer', 'initialize')
     _proxy_deployer = DispatcherDeployer
 
-    def __init__(self,  *args, **kwargs):
+    def __init__(self, test_mode: bool = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__dispatcher_contract = None
 
         token_contract_name = NucypherTokenDeployer.contract_name
         self.token_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                    contract_name=token_contract_name)
+        self.test_mode = test_mode
 
     def __check_policy_manager(self):
         result = self.contract.functions.policyManager().call()
@@ -510,7 +511,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             "_minAllowableLockedTokens": args[5],
             "_maxAllowableLockedTokens": args[6],
             "_minWorkerPeriods": args[7],
-            "_isTestContract": False
+            "_isTestContract": self.test_mode
         }
         constructor_kwargs.update(overrides)
         constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
