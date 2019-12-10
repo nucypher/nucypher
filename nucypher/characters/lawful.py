@@ -1252,21 +1252,42 @@ class Ursula(Teacher, Character, Worker):
         return constants.BYTESTRING_IS_URSULA_IFACE_INFO + bytes(self)
 
     #
-    # Utilities
+    # Work Orders & Re-Encryption
     #
 
-    def work_orders(self, bob=None):
-        """
-        TODO: This is better written as a model method for Ursula's datastore.
-        """
-        if not bob:
-            return self._work_orders
-        else:
-            work_orders_from_bob = []
-            for work_order in self._work_orders:
-                if work_order.bob == bob:
-                    work_orders_from_bob.append(work_order)
-            return work_orders_from_bob
+    def work_orders(self, bob=None) -> List['WorkOrder']:
+        with ThreadedSession(self.datastore.engine):
+            if not bob:  # All
+                return self.datastore.get_workorders()
+            else:        # Filter
+                work_orders_from_bob = self.datastore.get_workorders(bob_verifying_key=bytes(bob.stamp))
+                return work_orders_from_bob
+
+    def _reencrypt(self, kfrag: KFrag, work_order: 'WorkOrder', alice_verifying_key: UmbralPublicKey):
+        
+        # Prepare a bytestring for concatenating re-encrypted
+        # capsule data for each work order task.
+        cfrag_byte_stream = bytes()
+        for task in work_order.tasks:
+
+            # Ursula signs on top of Bob's signature of each task.
+            # Now both are committed to the same task.  See #259.
+            reencryption_metadata = bytes(self.stamp(bytes(task.signature)))
+
+            # Ursula sets Alice's verifying key for capsule correctness verification.
+            capsule = task.capsule
+            capsule.set_correctness_keys(verifying=alice_verifying_key)
+
+            # Then re-encrypts the fragment.
+            cfrag = pre.reencrypt(kfrag, capsule, metadata=reencryption_metadata)  # <--- pyUmbral
+            self.log.info(f"Re-encrypted capsule {capsule} -> made {cfrag}.")
+
+            # Next, Ursula signs to commit to her results.
+            reencryption_signature = self.stamp(bytes(cfrag))
+            cfrag_byte_stream += VariableLengthBytestring(cfrag) + reencryption_signature
+
+        # ... and finally returns all the re-encrypted bytes
+        return cfrag_byte_stream
 
 
 class Enrico(Character):

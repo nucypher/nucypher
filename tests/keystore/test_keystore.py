@@ -74,4 +74,4 @@ def test_workorder_sqlite_keystore(test_keystore):
     # Test del workorder
     deleted = test_keystore.del_workorders(arrangement_id)
     assert deleted > 0
-    assert test_keystore.get_workorders(arrangement_id) == 0
+    assert len(test_keystore.get_workorders(arrangement_id)) == 0
