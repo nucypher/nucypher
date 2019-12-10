@@ -40,7 +40,7 @@ from nucypher.utilities.sandbox.constants import (
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('testerchain')
-def test_rapid_deployment(token_economics, test_registry):
+def test_rapid_deployment(token_economics, test_registry, tmpdir):
     compiler = SolidityCompiler()
     allocation_registry = InMemoryAllocationRegistry()
 
@@ -90,12 +90,7 @@ def test_rapid_deployment(token_economics, test_registry):
         random_allocation = {'beneficiary_address': beneficiary_address, 'amount': amount, 'duration_seconds': duration}
         allocation_data.append(random_allocation)
 
-    try:
-        deployer.deploy_beneficiary_contracts(allocations=allocation_data,
-                                              allocation_registry=allocation_registry,
-                                              interactive=False)
-    finally:
-        globs = ("allocation*.csv", "allocation*.json", "*ABI.json")
-        for glob_pattern in globs:
-            for filepath in glob.glob(glob_pattern):
-                os.remove(filepath)
+    deployer.deploy_beneficiary_contracts(allocations=allocation_data,
+                                          allocation_registry=allocation_registry,
+                                          output_dir=tmpdir,
+                                          interactive=False)

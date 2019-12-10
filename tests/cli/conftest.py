@@ -97,11 +97,6 @@ def mock_allocation_registry(testerchain, test_registry, mock_allocation_infile)
     if os.path.isfile(MOCK_ALLOCATION_REGISTRY_FILEPATH):
         os.remove(MOCK_ALLOCATION_REGISTRY_FILEPATH)
 
-    globs = ("allocation*.csv", "allocation*.json", "*ABI.json")
-    for glob_pattern in globs:
-        for filepath in glob.glob(glob_pattern):
-            os.remove(filepath)
-
 
 @pytest.fixture(scope='module', autouse=True)
 def temp_registry(testerchain, test_registry, agency):
