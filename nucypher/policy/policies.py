@@ -599,7 +599,7 @@ class BlockchainPolicy(Policy):
 
         # Capture the selection and search the network for those Ursulas
         selected_addresses.update(sampled_addresses)
-        found_ursulas = self.__find_ursulas(sampled_addresses, quantity)
+        found_ursulas = self.__find_ursulas(sampled_addresses, quantity, timeout=1000)
         return found_ursulas
 
     def publish(self, **kwargs) -> dict:
