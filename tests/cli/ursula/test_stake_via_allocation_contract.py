@@ -591,8 +591,7 @@ def test_withdraw_from_preallocation(click_runner,
     tokens_in_contract = NU.from_nunits(token_agent.get_balance(address=staker_address))
     locked_preallocation = NU.from_nunits(preallocation_escrow_agent.unvested_tokens)
 
-    collection_args = ('stake', 'preallocation',
-                       '--status',
+    collection_args = ('stake', 'preallocation', 'status',
                        '--config-file', stakeholder_configuration_file_location,
                        '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,)
 
@@ -605,8 +604,7 @@ def test_withdraw_from_preallocation(click_runner,
 
     balance_before_collecting = token_agent.get_balance(address=beneficiary)
 
-    collection_args = ('stake', 'preallocation',
-                       '--withdraw-tokens',
+    collection_args = ('stake', 'preallocation', 'withdraw',
                        '--config-file', stakeholder_configuration_file_location,
                        '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                        '--force')

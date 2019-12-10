@@ -642,8 +642,7 @@ def collect_reward(click_config,
 
 @stake.command('preallocation')
 @_stake_options
-@click.option('--status', help="View balance and lock information of preallocation contract", is_flag=True)
-@click.option('--withdraw-tokens', help="Withdraw tokens to beneficiary address", is_flag=True)
+@click.argument('action', type=click.Choice(['status', 'withdraw']))
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @nucypher_click_config
 def preallocation(click_config,
@@ -652,18 +651,14 @@ def preallocation(click_config,
                   poa, light, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
                   beneficiary_address, allocation_filepath,
 
-                  # Preallocation options
-                  status, withdraw_tokens,
+                  # Preallocation subcommands,
+                  action,
 
                   # Other
                   force):
     """
     Claim token rewards collected by a preallocation contract.
     """
-
-    action = (status, withdraw_tokens)
-    if sum(action) != 1:  # i.e., only one action flag must be active
-        raise click.BadArgumentUsage(f"Either --status or --withdraw-tokens must be selected.")
 
     ### Setup ###
     emitter = _setup_emitter(click_config)
@@ -679,7 +674,7 @@ def preallocation(click_config,
     #############
     # Unauthenticated actions: status
 
-    if status:
+    if action == 'status':
         paint_preallocation_status(emitter=emitter,
                                    token_agent=STAKEHOLDER.token_agent,
                                    preallocation_agent=STAKEHOLDER.preallocation_escrow_agent)
@@ -698,7 +693,7 @@ def preallocation(click_config,
         password = get_client_password(checksum_address=client_account)
 
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
-    if withdraw_tokens:
+    if action == 'withdraw':
         token_balance = NU.from_nunits(STAKEHOLDER.token_agent.get_balance(staking_address))
         locked_tokens = NU.from_nunits(STAKEHOLDER.preallocation_escrow_agent.unvested_tokens)
         unlocked_tokens = token_balance - locked_tokens
