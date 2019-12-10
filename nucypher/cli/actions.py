@@ -48,6 +48,7 @@ from nucypher.cli import painting
 from nucypher.cli.types import IPV4_ADDRESS
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.node import CharacterConfiguration
+from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.teachers import TEACHER_NODES
 
@@ -88,7 +89,8 @@ def get_client_password(checksum_address: str, envvar: str = '') -> str:
 
 
 def get_nucypher_password(confirm: bool = False, envvar="NUCYPHER_KEYRING_PASSWORD") -> str:
-    prompt = "Enter NuCypher keyring password"
+    from nucypher.config.keyring import NucypherKeyring
+    prompt = f"Enter NuCypher keyring password (min. {NucypherKeyring.MINIMUM_PASSWORD_LENGTH} chars.)"
     keyring_password = get_password_from_prompt(prompt=prompt, confirm=confirm, envvar=envvar)
     return keyring_password
 
@@ -114,6 +116,7 @@ def load_seednodes(emitter,
                    teacher_uris: list = None,
                    registry: BaseContractRegistry = None,
                    ) -> List:
+    emitter.message("Connecting to preferred seednodes...", color='yellow')
     from nucypher.characters.lawful import Ursula
 
     # Set domains
@@ -138,11 +141,15 @@ def load_seednodes(emitter,
             teacher_uris.extend(seednode_uris)
 
         for uri in teacher_uris:
-            teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
-                                                   min_stake=min_stake,
-                                                   federated_only=federated_only,
-                                                   network_middleware=network_middleware,
-                                                   registry=registry)
+            try:
+                teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
+                                                       min_stake=min_stake,
+                                                       federated_only=federated_only,
+                                                       network_middleware=network_middleware,
+                                                       registry=registry)
+            except NodeSeemsToBeDown:
+                LOG.info(f"Failed to load seednode URI {uri}")
+                continue
             teacher_nodes.append(teacher_node)
 
     if not teacher_nodes:

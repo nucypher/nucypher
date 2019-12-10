@@ -15,8 +15,23 @@ You will need a machine (could be a physical computer or a cloud instance) which
 can be externally accessed via a TCP port 9151 (make sure it can be accessed
 from the outside).
 
-First, you install geth. You'll need to run it in the background and sync up.
-For testnet, it is:
+You'll need to install and run geth until synced.
+
+
+Run geth Using Docker
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Run a local geth node on goerli using volume bindings:
+
+.. code:: bash
+
+    docker run -it -p 30303:30303 -v ~/.ethereum:/root/.ethereum ethereum/client-go --goerli
+
+For alternate methods of running geth via docker see: `Geth Docker Documentation <https://geth.ethereum.org/docs/install-and-build/installing-geth#run-inside-docker-container>`_.
+
+
+Run Geth via CLI
+~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -81,34 +96,30 @@ If your installation is non-functional, be sure you have the latest version inst
 .. _Installation Guide: installation_guide.html
 
 
-
 3. Configure a new Ursula node
 --------------------------------
 
-With Docker
+
+Running an Ursula with Docker
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Recall the volume mounts: `-v <path to a directory on your computer>:/root/.local/share/` which is where your Nucypher node stores persistent data as well as accesses ipc with your locally running geth node.
-
-Execute the following commands (Ubuntu):
+Assuming geth is running locally on goerli, configure and run an Ursula using port and volume bindings:
 
 .. code:: bash
 
     export NUCYPHER_KEYRING_PASSWORD=<your keyring password>
-    export MY_IP=$(wget -q -O - ifconfig.me);
-    export NUCYPHER_WORKER_ADDRESS=<eth account checksum of your worker>
-    export NUCYPHER_STAKER_ADDRESS=<eth account checksum of your staker>
     export NUCYPHER_WORKER_ETH_PASSWORD=<your eth account password>
 
-    # init your worker
-    docker run -v /home/ubuntu:/root/.local/share/ -e NUCYPHER_KEYRING_PASSWORD -it nucypher/nucypher:latest nucypher ursula init --provider /root/.local/share/geth/.ethereum/goerli/geth.ipc --poa --worker-address $NUCYPHER_WORKER_ADDRESS --staker-address $NUCYPHER_STAKER_ADDRESS --rest-host $MY_IP
+    # Interactive Ursula-Worker Initialization
+    docker run -it -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -e NUCYPHER_KEYRING_PASSWORD nucypher:latest nucypher ursula init --provider file:///root/.ethereum/goerli/geth.ipc --staker-address <YOUR STAKING ADDRESS>
 
-    # and then run the worker in the background
-    docker run -v /home/ubuntu:/root/.local/share/ -dit --restart unless-stopped -p 9151:9151  -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD  nucypher/nucypher:latest nucypher ursula run --teacher discover.nucypher.network:9151 --poa
+    # Daemonized Ursula
+    docker run -d -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD nucypher/nucypher:latest nucypher ursula run --teacher discover.nucypher.network:9151 --provider file:///root/.ethereum/goerli/geth.ipc
 
+``<YOUR STAKING ADDRESS>`` is the address you've staked from when following the :ref:`staking-guide`.
 
-Without Docker
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Running an Ursula via CLI
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -126,17 +137,7 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
  :ref:`staking-guide`.
 
 
-3. Enter or confirm your public-facing IPv4 address when prompted
--------------------------------------------------------------------
-
-.. code:: bash
-
-    Enter Nodes Public IPv4 Address: <YOUR NODE IP HERE>
-
-Additionally, make sure that your port 9151 is open.
-
-
-4. Create a password when prompted
+3. Create a password when prompted
 -----------------------------------------
 
 .. code:: bash
@@ -198,4 +199,4 @@ your node can be seen by other NuCypher nodes.
 
 .. code:: bash
 
-    (nucypher)$ nucypher ursula run --poa
+    (nucypher)$ nucypher ursula run

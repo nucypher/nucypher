@@ -16,9 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-# Hardcoded teacher nodes for, both, our testnet and mainnet.
-# Stored as a dict with the domain as the key.
+# Hardcoded bootstrapping teacher nodes keyed by network domain
 TEACHER_NODES = {
-    'goerli': [],
-    'mainnet': [],
+    'goerli': ('https://discover.nucyher.network:9151', )
 }

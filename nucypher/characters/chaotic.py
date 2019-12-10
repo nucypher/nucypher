@@ -351,7 +351,7 @@ class Felix(Character, NucypherTokenActor):
         message = f"{population} registered faucet recipients; " \
                   f"Distributed {str(NU(self.__distributed, 'NuNit'))} since {self.start_time.slang_time()}."
         self.log.debug(message)
-        if population is 0:
+        if population == 0:
             return  # Abort - no recipients are registered.
 
         # For filtration

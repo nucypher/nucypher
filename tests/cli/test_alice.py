@@ -16,6 +16,7 @@ def test_initialize_alice_defaults(click_runner, mocker):
     init_args = ('alice', 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--federated-only')
+
     user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
@@ -24,7 +25,7 @@ def test_initialize_alice_defaults(click_runner, mocker):
     assert "nucypher alice run" in result.output
 
     # Auth
-    assert 'Enter NuCypher keyring password:' in result.output, 'WARNING: User was not prompted for password'
+    assert 'Enter NuCypher keyring password' in result.output, 'WARNING: User was not prompted for password'
     assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
 
 
@@ -74,7 +75,7 @@ def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
     # Auth
-    assert 'Enter NuCypher keyring password:' in result.output, 'WARNING: User was not prompted for password'
+    assert 'Enter NuCypher keyring password' in result.output, 'WARNING: User was not prompted for password'
     assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
 
 

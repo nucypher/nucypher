@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import contextlib
+import glob
 import json
 import os
 import shutil
@@ -82,11 +83,17 @@ def mock_allocation_registry(testerchain, test_registry, mock_allocation_infile)
                                   client_password=INSECURE_DEVELOPMENT_PASSWORD,
                                   deployer_address=testerchain.etherbase_account)
 
+    if os.path.isfile(MOCK_ALLOCATION_REGISTRY_FILEPATH):
+        os.remove(MOCK_ALLOCATION_REGISTRY_FILEPATH)
+
     admin.deploy_beneficiaries_from_file(allocation_data_filepath=mock_allocation_infile,
                                          allocation_outfile=MOCK_ALLOCATION_REGISTRY_FILEPATH)
 
     allocation_registry = AllocationRegistry(filepath=MOCK_ALLOCATION_REGISTRY_FILEPATH)
+
     yield allocation_registry
+
+    # Cleanup Allocation Stuff
     if os.path.isfile(MOCK_ALLOCATION_REGISTRY_FILEPATH):
         os.remove(MOCK_ALLOCATION_REGISTRY_FILEPATH)
 

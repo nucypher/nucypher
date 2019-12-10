@@ -765,7 +765,7 @@ def manual_staker(testerchain, agency):
 
 @pytest.fixture(scope='module')
 def manual_worker(testerchain):
-    worker_private_key = '4115115f4159db59a06327aa29544c417c52ddb80a4a26517367ff4514e0f694'
+    worker_private_key = os.urandom(32).hex()
     address = testerchain.provider.ethereum_tester.add_account(worker_private_key,
                                                                password=INSECURE_DEVELOPMENT_PASSWORD)
 

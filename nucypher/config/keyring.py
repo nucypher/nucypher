@@ -319,6 +319,8 @@ class NucypherKeyring:
 
     """
 
+    MINIMUM_PASSWORD_LENGTH = 16
+
     __default_keyring_root = os.path.join(DEFAULT_CONFIG_ROOT, 'keyring')
     _private_key_serializer = _PrivateKeySerializer()
     __DEFAULT_TLS_CURVE = ec.SECP384R1
@@ -662,8 +664,8 @@ class NucypherKeyring:
         keyring_instance = cls(account=checksum_address, **keyring_args)
         return keyring_instance
 
-    @staticmethod
-    def validate_password(password: str) -> List:
+    @classmethod
+    def validate_password(cls, password: str) -> List:
         """
         Validate a password and return True or raise an error with a failure reason.
 
@@ -671,7 +673,8 @@ class NucypherKeyring:
         """
         rules = (
             (bool(password), 'Password must not be blank.'),
-            (len(password) >= 16, 'Password must be at least 16 characters long.'),
+            (len(password) >= cls.MINIMUM_PASSWORD_LENGTH,
+             f'Password must be at least {cls.MINIMUM_PASSWORD_LENGTH} characters long.'),
         )
 
         failures = list()

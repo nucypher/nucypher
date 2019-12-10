@@ -381,6 +381,7 @@ class ContractAdministrator(NucypherTokenActor):
                                      allocations: List[Dict[str, Union[str, int]]],
                                      allocation_outfile: str = None,
                                      allocation_registry: AllocationRegistry = None,
+                                     output_dir: str = None,
                                      crash_on_failure: bool = True,
                                      interactive: bool = True,
                                      emitter: StdoutEmitter = None,
@@ -437,9 +438,10 @@ class ContractAdministrator(NucypherTokenActor):
             "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", allocation_contract_abi]
         }
 
-        parent_path = Path(allocation_registry.filepath).parent  # Use same folder as allocation registry
+        if not output_dir:
+            output_dir = Path(allocation_registry.filepath).parent  # Use same folder as allocation registry
         template_filename = IndividualAllocationRegistry.REGISTRY_NAME
-        template_filepath = os.path.join(parent_path, template_filename)
+        template_filepath = os.path.join(output_dir, template_filename)
         AllocationRegistry(filepath=template_filepath).write(registry_data=allocation_template)
         if emitter:
             emitter.echo(f"Saved allocation template file to {template_filepath}", color='blue', bold=True)
@@ -501,7 +503,7 @@ class ContractAdministrator(NucypherTokenActor):
 
                     # Create individual allocation file
                     individual_allocation_filename = f'allocation-{beneficiary}.json'
-                    individual_allocation_filepath = os.path.join(parent_path, individual_allocation_filename)
+                    individual_allocation_filepath = os.path.join(output_dir, individual_allocation_filename)
                     individual_allocation_file_data = {
                         'beneficiary_address': beneficiary,
                         'contract_address': allocation_contract_address
@@ -524,7 +526,7 @@ class ContractAdministrator(NucypherTokenActor):
                 paint_deployed_allocations(emitter, allocated, failed)
 
             csv_filename = f'allocation-summary-{self.deployer_address[:6]}-{maya.now().epoch}.csv'
-            csv_filepath = os.path.join(parent_path, csv_filename)
+            csv_filepath = os.path.join(output_dir, csv_filename)
             write_deployed_allocations_to_csv(csv_filepath, allocated, failed)
             if emitter:
                 emitter.echo(f"Saved allocation summary CSV to {csv_filepath}", color='blue', bold=True)

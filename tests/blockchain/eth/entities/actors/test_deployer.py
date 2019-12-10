@@ -15,6 +15,9 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
+import glob
+import os
 import random
 import string
 
@@ -37,7 +40,7 @@ from nucypher.utilities.sandbox.constants import (
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('testerchain')
-def test_rapid_deployment(token_economics, test_registry):
+def test_rapid_deployment(token_economics, test_registry, tmpdir):
     compiler = SolidityCompiler()
     allocation_registry = InMemoryAllocationRegistry()
 
@@ -89,4 +92,5 @@ def test_rapid_deployment(token_economics, test_registry):
 
     deployer.deploy_beneficiary_contracts(allocations=allocation_data,
                                           allocation_registry=allocation_registry,
+                                          output_dir=tmpdir,
                                           interactive=False)
