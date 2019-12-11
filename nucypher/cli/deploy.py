@@ -22,7 +22,13 @@ import click
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry, CanonicalRegistrySource, InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    CanonicalRegistrySource,
+    InMemoryContractRegistry,
+    RegistrySourceManager,
+    GithubRegistrySource,
+)
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions import (
@@ -82,13 +88,23 @@ def download_registry(config_root, registry_outfile, network, force):
     emitter = StdoutEmitter()
     _ensure_config_root(config_root)
 
+    github_source = GithubRegistrySource(network=network, registry_name=BaseContractRegistry.REGISTRY_NAME)
+    source_manager = RegistrySourceManager(sources=[github_source])
+
     if not force:
-        priority_source = BaseContractRegistry.source_manager[0](network=network,
-                                                                 registry_name=BaseContractRegistry.REGISTRY_NAME)
-        prompt = f"Fetch and download latest registry from {priority_source}?"
+        prompt = f"Fetch and download latest contract registry from {github_source}?"
         click.confirm(prompt, abort=True)
-    registry = InMemoryContractRegistry.from_latest_publication()
-    output_filepath = registry.commit(filepath=registry_outfile, overwrite=force)
+    try:
+        registry = InMemoryContractRegistry.from_latest_publication(source_manager=source_manager)
+    except RegistrySourceManager.NoSourcesAvailable:
+        emitter.message("Registry not available.", color="red")
+        raise click.Abort
+
+    try:
+        output_filepath = registry.commit(filepath=registry_outfile, overwrite=force)
+    except InMemoryContractRegistry.CantOverwriteRegistry:
+        emitter.message("Can't overwrite existing registry. Use '--force' to overwrite.", color="red")
+        raise click.Abort
     emitter.message(f"Successfully downloaded latest registry to {output_filepath}")
 
 
