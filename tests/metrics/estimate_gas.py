@@ -228,6 +228,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
 
     transact(staker_functions.setWorker(ursula1), {'from': ursula1})
     transact(staker_functions.setWorker(ursula2), {'from': ursula2})
+    transact(staker_functions.setWorker(ursula3), {'from': ursula3})
     transact(staker_functions.setReStake(False), {'from': ursula1})
     transact(staker_functions.setReStake(False), {'from': ursula2})
     transact(staker_functions.confirmActivity(), {'from': ursula1})
@@ -284,11 +285,35 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact(staker_functions.setReStake(False), {'from': ursula2})
 
     #
+    # Wait 1 period
+    #
+    testerchain.time_travel(periods=1)
+
+    #
+    # Create policy
+    #
+    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    number_of_periods = 10
+    rate = 100
+    one_period = economics.hours_per_period * 60 * 60
+    value = number_of_periods * rate
+    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
+    transact_and_log("Creating policy (1 node, 10 periods, pre-confirmed), 1st",
+                     policy_functions.createPolicy(policy_id_1, end_timestamp, [ursula1]),
+                     {'from': alice1, 'value': value})
+    transact_and_log("Creating policy (1 node, 10 periods, pre-confirmed), 2nd",
+                     policy_functions.createPolicy(policy_id_2, end_timestamp, [ursula1]),
+                     {'from': alice1, 'value': value})
+
+    #
     # Wait 2 periods and confirm activity after downtime
     #
-    testerchain.time_travel(periods=2)
+    testerchain.time_travel(periods=1)
     transact_and_log("Confirm activity after downtime, 1st", staker_functions.confirmActivity(), {'from': ursula1})
     transact_and_log("Confirm activity after downtime, 2nd", staker_functions.confirmActivity(), {'from': ursula2})
+    transact(staker_functions.confirmActivity(), {'from': ursula3})
 
     #
     # Ursula and Alice deposit some tokens to the escrow again
@@ -299,49 +324,59 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact(staker_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS), {'from': ursula2})
 
     #
-    # Wait 1 period and mint tokens
-    #
-    testerchain.time_travel(periods=2)
-    transact_and_log("Mining again, 1st", staker_functions.mint(), {'from': ursula1})
-    transact_and_log("Mining again, 2nd", staker_functions.mint(), {'from': ursula2})
-
-    #
-    # Create policy
-    #
-    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    number_of_periods = 10
-    value = 10000
-    one_period = 60 * 60
-    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
-    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
-    transact_and_log("Creating policy (1 node, 10 periods), 1st",
-                     policy_functions.createPolicy(policy_id_1, end_timestamp, [ursula1]),
-                     {'from': alice1, 'value': value})
-    transact_and_log("Creating policy (1 node, 10 periods), 2nd",
-                     policy_functions.createPolicy(policy_id_2, end_timestamp, [ursula1]),
-                     {'from': alice1, 'value': value})
-
-    #
     # Revoke policy
     #
-    transact_and_log("Revoking policy, 1st", policy_functions.revokePolicy(policy_id_1), {'from': alice1})
-    transact_and_log("Revoking policy, 2nd", policy_functions.revokePolicy(policy_id_2), {'from': alice1})
+    transact_and_log("Revoking policy", policy_functions.revokePolicy(policy_id_1), {'from': alice1})
 
     #
-    # Create policy with more periods
+    # Wait 1 period
+    #
+    testerchain.time_travel(periods=1)
+
+    #
+    # Create policy with multiple pre-confirmed nodes
     #
     policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
     policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
     policy_id_3 = os.urandom(int(Policy.POLICY_ID_LENGTH))
     number_of_periods = 100
-    value = number_of_periods * 100
+    value = 3 * number_of_periods * rate
+    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
+    transact_and_log("Creating policy (3 nodes, 100 periods, pre-confirmed), 1st",
+                     policy_functions.createPolicy(policy_id_1, end_timestamp, [ursula1, ursula2, ursula3]),
+                     {'from': alice1, 'value': value})
+    transact_and_log("Creating policy (3 nodes, 100 periods, pre-confirmed), 2nd",
+                     policy_functions.createPolicy(policy_id_2, end_timestamp, [ursula1, ursula2, ursula3]),
+                     {'from': alice1, 'value': value})
+    value = 2 * number_of_periods * rate
+    transact_and_log("Creating policy (2 nodes, 100 periods, pre-confirmed), 3rd",
+                     policy_functions.createPolicy(policy_id_3, end_timestamp, [ursula1, ursula2]),
+                     {'from': alice1, 'value': value})
+
+    #
+    # Wait 1 period and mint tokens
+    #
+    testerchain.time_travel(periods=1)
+    transact_and_log("Mining with updating reward, 1st", staker_functions.mint(), {'from': ursula1})
+    transact_and_log("Mining with updating reward, 2nd", staker_functions.mint(), {'from': ursula2})
+
+    #
+    # Create policy again without pre-confirmed nodes
+    #
+    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    policy_id_3 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    number_of_periods = 100
+    value = number_of_periods * rate
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     transact_and_log("Creating policy (1 node, 100 periods), 1st",
                      policy_functions.createPolicy(policy_id_1, end_timestamp, [ursula2]),
                      {'from': alice1, 'value': value})
     testerchain.time_travel(periods=1)
+    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     transact_and_log("Creating policy (1 node, 100 periods), 2nd",
                      policy_functions.createPolicy(policy_id_2, end_timestamp, [ursula2]),
                      {'from': alice1, 'value': value})
@@ -368,27 +403,6 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact_and_log("Revoking policy after downtime, 3rd",
                      policy_functions.revokePolicy(policy_id_3),
                      {'from': alice1})
-
-    #
-    # Create policy with multiple nodes
-    #
-    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_3 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    number_of_periods = 100
-    value = 3 * number_of_periods * 100
-    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
-    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
-    transact_and_log("Creating policy (3 nodes, 100 periods), 1st",
-                     policy_functions.createPolicy(policy_id_1, end_timestamp, [ursula1, ursula2, ursula3]),
-                     {'from': alice1, 'value': value})
-    transact_and_log("Creating policy (3 nodes, 100 periods), 2nd",
-                     policy_functions.createPolicy(policy_id_2, end_timestamp, [ursula1, ursula2, ursula3]),
-                     {'from': alice1, 'value': value})
-    value = 2 * number_of_periods * 100
-    transact_and_log("Creating policy (2 nodes, 100 periods), 3rd",
-                     policy_functions.createPolicy(policy_id_3, end_timestamp, [ursula1, ursula2]),
-                     {'from': alice1, 'value': value})
 
     for index in range(5):
         transact(staker_functions.confirmActivity(), {'from': ursula1})

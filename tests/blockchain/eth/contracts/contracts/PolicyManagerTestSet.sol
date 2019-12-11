@@ -140,4 +140,10 @@ contract StakingEscrowForPolicyMock {
         }
     }
 
+    function setDefaultRewardDelta(address _node, uint16 _startPeriod, uint16 _numberOfPeriods) public {
+        for (uint16 i = 0; i < _numberOfPeriods; i++) {
+            policyManager.setDefaultRewardDelta(_node, i + _startPeriod);
+        }
+    }
+
 }

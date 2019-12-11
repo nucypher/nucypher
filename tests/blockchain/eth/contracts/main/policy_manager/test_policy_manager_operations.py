@@ -57,6 +57,8 @@ def test_reward(testerchain, escrow, policy_manager):
     assert 0 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
 
     # Create policy
+    tx = escrow.functions.setDefaultRewardDelta(node1, period - 1, number_of_periods + 2).transact()
+    testerchain.wait_for_receipt(tx)
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     tx = policy_manager.functions.createPolicy(policy_id, end_timestamp, [node1, node3])\
@@ -97,10 +99,11 @@ def test_reward(testerchain, escrow, policy_manager):
     assert 80 == event_args['value']
 
     # Mint more periods
-    for x in range(6):
-        tx = escrow.functions.mint(period, 1).transact({'from': node1, 'gas_price': 0})
-        testerchain.wait_for_receipt(tx)
-        period += 1
+    tx = escrow.functions.setDefaultRewardDelta(node1, period, 6).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.mint(period, 6).transact({'from': node1, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    period += 6
     assert 120 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
     tx = escrow.functions.mint(period, 1).transact({'from': node1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
@@ -120,12 +123,14 @@ def test_reward(testerchain, escrow, policy_manager):
     assert 120 == event_args['value']
 
     # Create policy
+    period = escrow.functions.getCurrentPeriod().call()
+    tx = escrow.functions.setDefaultRewardDelta(node1, period, 1).transact()
+    testerchain.wait_for_receipt(tx)
     tx = policy_manager.functions.createPolicy(policy_id_2, end_timestamp, [node2, node3]) \
         .transact({'from': policy_creator, 'value': int(2 * value)})
     testerchain.wait_for_receipt(tx)
 
     # Mint some periods
-    period = escrow.functions.getCurrentPeriod().call()
     tx = escrow.functions.mint(period, 5).transact({'from': node2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     period += 5
@@ -442,6 +447,9 @@ def test_refund(testerchain, escrow, policy_manager):
 
     policy_manager_balance = testerchain.client.get_balance(policy_manager.address)
     creator_balance = testerchain.client.get_balance(policy_creator)
+    period = escrow.functions.getCurrentPeriod().call()
+    tx = escrow.functions.setDefaultRewardDelta(node1, period + 1, number_of_periods).transact()
+    testerchain.wait_for_receipt(tx)
     tx = policy_manager.functions.revokePolicy(policy_id_3).transact({'from': policy_creator, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     returned = 40 + 5 * rate

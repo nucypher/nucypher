@@ -13,7 +13,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 /**
 * @notice Contract holds policy data and locks fees
-* @dev |v1.1.2|
+* @dev |v2.1.1|
 */
 contract PolicyManager is Upgradeable {
     using SafeERC20 for NuCypherToken;
@@ -82,6 +82,8 @@ contract PolicyManager is Upgradeable {
 
     bytes16 constant RESERVED_POLICY_ID = bytes16(0);
     address constant RESERVED_NODE = address(0);
+    // controlled overflow to get max int256
+    int256 public constant DEFAULT_REWARD_DELTA = int256((uint256(0) - 1) >> 1);
 
     StakingEscrow public escrow;
     uint32 public secondsPerPeriod;
@@ -170,13 +172,42 @@ contract PolicyManager is Upgradeable {
             require(node != RESERVED_NODE);
             NodeInfo storage nodeInfo = nodes[node];
             require(nodeInfo.lastMinedPeriod != 0 && policy.rewardRate >= nodeInfo.minRewardRate);
-            // Overflow protection removed, because ETH total supply less than uint255
-            nodeInfo.rewardDelta[currentPeriod] += int256(policy.rewardRate);
-            nodeInfo.rewardDelta[endPeriod] -= int256(policy.rewardRate);
+            // Check default value for rewardDelta
+            if (nodeInfo.rewardDelta[currentPeriod] == DEFAULT_REWARD_DELTA) {
+                nodeInfo.rewardDelta[currentPeriod] = int256(policy.rewardRate);
+            } else {
+                // Overflow protection removed, because ETH total supply less than uint255/int256
+                nodeInfo.rewardDelta[currentPeriod] += int256(policy.rewardRate);
+            }
+            if (nodeInfo.rewardDelta[endPeriod] == DEFAULT_REWARD_DELTA) {
+                nodeInfo.rewardDelta[endPeriod] = -int256(policy.rewardRate);
+            } else {
+                nodeInfo.rewardDelta[endPeriod] -= int256(policy.rewardRate);
+            }
+            // Reset to default value if needed
+            if (nodeInfo.rewardDelta[currentPeriod] == 0) {
+                nodeInfo.rewardDelta[currentPeriod] = DEFAULT_REWARD_DELTA;
+            }
+            if (nodeInfo.rewardDelta[endPeriod] == 0) {
+                nodeInfo.rewardDelta[endPeriod] = DEFAULT_REWARD_DELTA;
+            }
             policy.arrangements.push(ArrangementInfo(node, 0, 0));
         }
 
         emit PolicyCreated(_policyId, msg.sender);
+    }
+
+    /**
+    * @notice Set default `rewardDelta` value for specified period
+    * @dev This method increases gas cost for node in trade of decreasing cost for policy creator
+    * @param _node Node address
+    * @param _period Period to set
+    */
+    function setDefaultRewardDelta(address _node, uint16 _period) external onlyEscrowContract {
+        NodeInfo storage node = nodes[_node];
+        if (node.rewardDelta[_period] == 0) {
+            node.rewardDelta[_period] = DEFAULT_REWARD_DELTA;
+        }
     }
 
     /**
@@ -190,7 +221,11 @@ contract PolicyManager is Upgradeable {
             return;
         }
         for (uint16 i = node.lastMinedPeriod + 1; i <= _period; i++) {
-            node.rewardRate = node.rewardRate.addSigned(node.rewardDelta[i]);
+            if (node.rewardDelta[i] != DEFAULT_REWARD_DELTA) {
+                node.rewardRate = node.rewardRate.addSigned(node.rewardDelta[i]);
+            }
+            // gas refund
+            node.rewardDelta[i] = 0;
         }
         node.lastMinedPeriod = _period;
         node.reward += node.rewardRate;
@@ -292,8 +327,26 @@ contract PolicyManager is Upgradeable {
                 calculateRefundValue(policy, arrangement);
             if (_forceRevoke) {
                 NodeInfo storage nodeInfo = nodes[node];
-                nodeInfo.rewardDelta[arrangement.lastRefundedPeriod] -= int256(policy.rewardRate);
-                nodeInfo.rewardDelta[endPeriod] += int256(policy.rewardRate);
+
+                // Check default value for rewardDelta
+                if (nodeInfo.rewardDelta[arrangement.lastRefundedPeriod] == DEFAULT_REWARD_DELTA) {
+                    nodeInfo.rewardDelta[arrangement.lastRefundedPeriod] = -int256(policy.rewardRate);
+                } else {
+                    nodeInfo.rewardDelta[arrangement.lastRefundedPeriod] -= int256(policy.rewardRate);
+                }
+                if (nodeInfo.rewardDelta[endPeriod] == DEFAULT_REWARD_DELTA) {
+                    nodeInfo.rewardDelta[endPeriod] = -int256(policy.rewardRate);
+                } else {
+                    nodeInfo.rewardDelta[endPeriod] += int256(policy.rewardRate);
+                }
+
+                // Reset to default value if needed
+                if (nodeInfo.rewardDelta[arrangement.lastRefundedPeriod] == 0) {
+                    nodeInfo.rewardDelta[arrangement.lastRefundedPeriod] = DEFAULT_REWARD_DELTA;
+                }
+                if (nodeInfo.rewardDelta[endPeriod] == 0) {
+                    nodeInfo.rewardDelta[endPeriod] = DEFAULT_REWARD_DELTA;
+                }
                 nodeRefundValue += uint256(endPeriod - arrangement.lastRefundedPeriod) * policy.rewardRate;
             }
             if (_forceRevoke || arrangement.lastRefundedPeriod >= endPeriod) {

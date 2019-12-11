@@ -152,6 +152,11 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         testerchain.wait_for_receipt(tx)
 
     # Create new policy
+    period = escrow.functions.getCurrentPeriod().call()
+    tx = escrow.functions.setDefaultRewardDelta(node1, period, number_of_periods + 1).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setDefaultRewardDelta(node2, period, number_of_periods + 1).transact()
+    testerchain.wait_for_receipt(tx)
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     tx = policy_manager.functions.createPolicy(policy_id_2, end_timestamp, [node1, node2, node3])\
         .transact({'from': policy_creator, 'value': 6 * value, 'gas_price': 0})

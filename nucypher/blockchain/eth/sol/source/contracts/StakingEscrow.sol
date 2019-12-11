@@ -11,6 +11,7 @@ contract PolicyManagerInterface {
     function register(address _node, uint16 _period) external;
     function updateReward(address _node, uint16 _period) external;
     function escrow() public view returns (address);
+    function setDefaultRewardDelta(address _node, uint16 _period) external;
 }
 
 
@@ -753,6 +754,7 @@ contract StakingEscrow is Issuer {
         if (lastActivePeriod < currentPeriod) {
             info.pastDowntime.push(Downtime(lastActivePeriod + 1, currentPeriod));
         }
+        policyManager.setDefaultRewardDelta(staker, nextPeriod);
         emit ActivityConfirmed(staker, nextPeriod, lockedTokens);
     }
 
