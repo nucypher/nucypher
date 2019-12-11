@@ -74,6 +74,14 @@ class NucypherMiddlewareClient:
         No cleaning needed.
         """
 
+    def node_information(self, host, port, certificate_filepath=None):
+        response = self.get(node_or_sprout=EXEMPT_FROM_VERIFICATION.bool_value(False),
+                            host=host, port=port,
+                            path="public_information",
+                            timeout=2,
+                            certificate_filepath=certificate_filepath)
+        return response.content
+
     def __getattr__(self, method_name):
         # Quick sanity check.
         if not method_name in ("post", "get", "put", "patch", "delete"):
@@ -207,13 +215,6 @@ class RestMiddleware:
             node_or_sprout=work_order.ursula,
             path=f"kFrag/{id_as_hex}/reencrypt",
             data=payload, timeout=2)
-
-    def node_information(self, host, port, certificate_filepath=None):
-        response = self.client.get(host=host, port=port,
-                                   path="public_information",
-                                   timeout=2,
-                                   certificate_filepath=certificate_filepath)
-        return response.content
 
     def get_nodes_via_rest(self,
                            node,
