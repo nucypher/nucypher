@@ -19,6 +19,7 @@ import ssl
 
 import requests
 import time
+from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, EXEMPT_FROM_VERIFICATION
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
 from cryptography import x509
@@ -26,6 +27,8 @@ from cryptography.hazmat.backends import default_backend
 from twisted.logger import Logger
 from umbral.cfrags import CapsuleFrag
 from umbral.signing import Signature
+
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 
 
 class UnexpectedResponse(Exception):
@@ -83,9 +86,12 @@ class NucypherMiddlewareClient:
                            port=None,
                            certificate_filepath=None,
                            *args, **kwargs):
-            node_or_sprout.mature()  # Morph into a node.
-            node = node_or_sprout  # Definitely a node.
-            host, node_certificate_filepath, http_client = self.parse_node_or_host_and_port(node, host, port)
+            if node_or_sprout is not EXEMPT_FROM_VERIFICATION:
+                node_or_sprout.mature()  # Morph into a node.
+                node = node_or_sprout  # Definitely a node.
+                node.verify_node(network_middleware_client=self)
+
+            host, node_certificate_filepath, http_client = self.parse_node_or_host_and_port(node_or_sprout, host, port)
 
             if certificate_filepath:
                 filepaths_are_different = node_certificate_filepath != certificate_filepath
