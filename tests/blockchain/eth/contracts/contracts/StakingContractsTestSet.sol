@@ -73,10 +73,10 @@ contract StakingEscrowForStakingContractMock {
         periods += _periods;
     }
 
-    function getLockedTokens(address _staker, uint16 _periods)
+    function getAllTokens(address _staker)
         public view returns (uint256)
     {
-        return _periods <= periods? lockedValue : 0;
+        return value;
     }
 }
 

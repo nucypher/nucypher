@@ -12,7 +12,7 @@ import "contracts/staking_contracts/AbstractStakingContract.sol";
 * @notice StakingEscrow interface
 **/
 contract StakingEscrowInterface {
-    function getLockedTokens(address _staker, uint16 _periods) public view returns (uint256);
+    function getAllTokens(address _staker) public view returns (uint256);
     function secondsPerPeriod() public view returns (uint32);
 }
 
@@ -35,10 +35,15 @@ contract PreallocationEscrow is AbstractStakingContract, Ownable {
     StakingEscrowInterface public stakingEscrow;
 
     /**
-    * @param _router Interface router contract address
-    * @param _token Token contract
+    * @param _router Address of the StakingInterfaceRouter contract
+    * @param _token Address of the NuCypher token contract
+    * @param _stakingEscrow Address of the StakingEscrow contract
     **/
-    constructor(StakingInterfaceRouter _router, NuCypherToken _token, StakingEscrowInterface _stakingEscrow) public AbstractStakingContract(_router) {
+    constructor(
+        StakingInterfaceRouter _router,
+        NuCypherToken _token,
+        StakingEscrowInterface _stakingEscrow
+    ) public AbstractStakingContract(_router) {
         // check that the input addresses are contract
         require(_token.totalSupply() > 0);
         require(_stakingEscrow.secondsPerPeriod() > 0);
@@ -76,17 +81,10 @@ contract PreallocationEscrow is AbstractStakingContract, Ownable {
     **/
     function withdrawTokens(uint256 _value) public onlyOwner {
         uint256 balance = token.balanceOf(address(this));
-        uint32 secondsPerPeriod = stakingEscrow.secondsPerPeriod();
-        uint16 currentPeriod = uint16(block.timestamp / secondsPerPeriod);
-        uint16 endLockPeriod = uint16(endLockTimestamp / secondsPerPeriod);
-        if (currentPeriod <= endLockPeriod) {
-            uint256 stakedTokens = stakingEscrow.getLockedTokens(address(this), endLockPeriod - currentPeriod);
-            uint256 lockedTokens = getLockedTokens();
-            if (lockedTokens > stakedTokens) {
-                balance = balance.sub(lockedTokens - stakedTokens);
-            }
-        }
         require(balance >= _value);
+        // Withdrawal invariant for PreallocationEscrow:
+        // After withdrawing, the sum of all escrowed tokens (either here or in StakingEscrow) must exceed the locked amount
+        require(balance - _value + stakingEscrow.getAllTokens(address(this)) >= getLockedTokens());
         token.safeTransfer(msg.sender, _value);
         emit TokensWithdrawn(msg.sender, _value);
     }
