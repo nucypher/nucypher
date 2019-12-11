@@ -253,6 +253,7 @@ class Alice(Character, BlockchainPolicyAuthor):
               handpicked_ursulas: set = None,
               discover_on_this_thread: bool = True,
               timeout: int = None,
+              publish_treasure_map: bool = True,
               **policy_params):
 
         timeout = timeout or self.timeout
@@ -291,7 +292,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                                  handpicked_ursulas=handpicked_ursulas)
 
         # REST call happens here, as does population of TreasureMap.
-        policy.enact(network_middleware=self.network_middleware)
+        policy.enact(network_middleware=self.network_middleware, publish=publish_treasure_map)
         return policy  # Now with TreasureMap affixed!
 
     def get_policy_encrypting_key_from_label(self, label: bytes) -> UmbralPublicKey:
