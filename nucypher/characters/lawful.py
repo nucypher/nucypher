@@ -1174,20 +1174,17 @@ class Ursula(Teacher, Character, Worker):
             raise cls.IsFromTheFuture(message)
 
         # Version stuff checked out.  Moving on.
-        node_info = cls.internal_splitter(payload)
+        node_sprout = cls.internal_splitter(payload, partial=True)
+        node_sprout.mature()
+        return node_sprout
 
-        interface_info = node_info.pop("rest_interface")
-        node_info['rest_host'] = interface_info.host
-        node_info['rest_port'] = interface_info.port
+    @classmethod
+    def from_processed_bytes(cls, processed_bytes):
+        """
+        A convenience method for completing the maturation of a NodeSprout.
+        TODO: Either deprecate or consolidate this logic; it's mostly just workarounds.
+        """
 
-        node_info['timestamp'] = maya.MayaDT(node_info.pop("timestamp"))
-        node_info['checksum_address'] = to_checksum_address(node_info.pop("public_address"))
-
-        domains_vbytes = VariableLengthBytestring.dispense(node_info['domains'])
-        node_info['domains'] = set(d.decode('utf-8') for d in domains_vbytes)
-
-        ursula = cls.from_public_keys(federated_only=federated_only, **node_info)
-        return ursula
 
     @classmethod
     def batch_from_bytes(cls,
