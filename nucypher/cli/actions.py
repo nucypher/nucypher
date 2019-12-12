@@ -15,10 +15,10 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-
-
+import json
 import os
 import shutil
+from json import JSONDecodeError
 from typing import List, Tuple
 
 import click
@@ -108,6 +108,40 @@ def unlock_nucypher_keyring(emitter, password: str, character_configuration: Cha
         raise character_configuration.keyring.AuthenticationFailed
 
 
+def load_static_nodes(domain: str, filepath: str = None) -> List[str]:
+    """
+    Non-invasively read teacher-uris from a JSON configuration file keyed by domain name.
+    and return them as a list of URI strings.
+    """
+
+    # Get filepath
+    if not filepath:
+        filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'static-nodes.json')
+
+    # Read
+    try:
+        with open(filepath, 'r') as file:
+            data = file.read()
+    except FileNotFoundError:
+        # If there is no static nodes file, there are no results
+        return list()
+
+    # Decode
+    try:
+        static_nodes = json.loads(data)
+    except JSONDecodeError:
+        raise RuntimeError(f"Static nodes configuration at '{filepath}' contains invalid JSON.")
+
+    # Parse
+    try:
+        domain_static_nodes = static_nodes[domain]
+    except KeyError:
+        # If there are no nodes for the specified domain, there are no results
+        return list()
+
+    return domain_static_nodes
+
+
 def load_seednodes(emitter,
                    min_stake: int,
                    federated_only: bool,
@@ -116,6 +150,16 @@ def load_seednodes(emitter,
                    teacher_uris: list = None,
                    registry: BaseContractRegistry = None,
                    ) -> List:
+
+    """
+    Aggregates seednodes URI sources into a list or teacher URIs ordered
+    by connection priority in the following order:
+
+    1. --teacher CLI flag
+    2. static-nodes.json
+    3. Hardcoded teachers
+    """
+
     emitter.message("Connecting to preferred seednodes...", color='yellow')
     from nucypher.characters.lawful import Ursula
 
@@ -129,8 +173,13 @@ def load_seednodes(emitter,
         teacher_uris = list()
 
     for domain in network_domains:
+
+        # Static nodes from JSON file
+        static_nodes = load_static_nodes(domain=domain)
+        teacher_uris.extend(static_nodes)
+
+        # Hardcoded teachers from module
         try:
-            # Known NuCypher Domain
             seednode_uris = TEACHER_NODES[domain]
         except KeyError:
             # Unknown NuCypher Domain
