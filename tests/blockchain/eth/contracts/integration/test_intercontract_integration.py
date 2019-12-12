@@ -271,7 +271,7 @@ def test_all(testerchain,
 
     # Create the first preallocation escrow
     preallocation_escrow_1, _ = deploy_contract(
-        'PreallocationEscrow', staking_interface_router.address, token.address)
+        'PreallocationEscrow', staking_interface_router.address, token.address, escrow.address)
     preallocation_escrow_interface_1 = testerchain.client.get_contract(
         abi=staking_interface.abi,
         address=preallocation_escrow_1.address,

@@ -191,7 +191,7 @@ contract WorkLock {
         claimedTokens = ethToTokens(info.depositedETH);
         require(claimedTokens > 0, "Nothing to claim");
 
-        preallocationEscrow = new PreallocationEscrow(router, token);
+        preallocationEscrow = new PreallocationEscrow(router, token, StakingEscrowInterface(address(escrow)));
         token.approve(address(preallocationEscrow), claimedTokens);
         preallocationEscrow.initialDeposit(claimedTokens, lockingDuration);
         preallocationEscrow.transferOwnership(msg.sender);

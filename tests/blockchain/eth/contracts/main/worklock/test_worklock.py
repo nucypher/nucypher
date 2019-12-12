@@ -93,7 +93,7 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
     creator, staker1, staker2, staker3, *everyone_else = testerchain.w3.eth.accounts
 
     # Deploy fake preallocation escrow
-    preallocation_escrow_fake, _ = deploy_contract('PreallocationEscrow', router.address, token.address)
+    preallocation_escrow_fake, _ = deploy_contract('PreallocationEscrow', router.address, token.address, escrow.address)
     tx = preallocation_escrow_fake.functions.transferOwnership(staker1).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
