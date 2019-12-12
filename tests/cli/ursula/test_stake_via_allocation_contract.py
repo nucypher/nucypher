@@ -53,22 +53,8 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
 @pytest.fixture(autouse=True, scope='module')
-def patch_fetch_latest_publication(test_registry):
-    empty_allocation_escrow_deployer = PreallocationEscrowDeployer(registry=test_registry)
-    allocation_contract_abi = empty_allocation_escrow_deployer.get_contract_abi()
-    allocation_template = {
-        "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", allocation_contract_abi]
-    }
-    new_fetch_result = json.dumps(allocation_template).encode()
-
-    original_fetch = IndividualAllocationRegistry.fetch_latest_publication
-
-    def new_fetch(*args, **kwargs):
-        return new_fetch_result
-
-    IndividualAllocationRegistry.fetch_latest_publication = new_fetch
-    yield
-    IndividualAllocationRegistry.fetch_latest_publication = original_fetch
+def patch_individual_allocation_fetch_latest_publication(_patch_individual_allocation_fetch_latest_publication):
+    pass
 
 
 @pytest.fixture(scope='module')
@@ -431,6 +417,7 @@ def test_collect_rewards_integration(click_runner,
                                      mock_allocation_registry,
                                      manual_worker,
                                      token_economics,
+                                     mock_transacting_power_activation,
                                      stake_value,
                                      policy_value,
                                      policy_rate):
@@ -464,9 +451,7 @@ def test_collect_rewards_integration(click_runner,
     assert ursula.worker_address == worker_address
     assert ursula.checksum_address == staker_address
 
-    # Mock TransactingPower consumption (Worker-Ursula)
-    testerchain.transacting_power = TransactingPower(account=worker_address, password=INSECURE_DEVELOPMENT_PASSWORD)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=worker_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Confirm for half the first stake duration
     for _ in range(half_stake_time):
@@ -546,9 +531,7 @@ def test_collect_rewards_integration(click_runner,
     logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
 
     # Since we are mocking the blockchain connection, manually consume the transacting power of the Beneficiary.
-    testerchain.transacting_power = TransactingPower(account=beneficiary,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=beneficiary, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Collect Policy Reward
     collection_args = ('stake', 'collect-reward',
@@ -595,4 +578,43 @@ def test_collect_rewards_integration(click_runner,
     assert token_agent.get_balance(address=staker_address) >= balance_before_collecting
 
 
+def test_withdraw_from_preallocation(click_runner,
+                                     testerchain,
+                                     test_registry,
+                                     stakeholder_configuration_file_location,
+                                     beneficiary,
+                                     preallocation_escrow_agent,
+                                     ):
 
+    staker_address = preallocation_escrow_agent.principal_contract.address
+    token_agent = ContractAgency.get_agent(agent_class=NucypherTokenAgent, registry=test_registry)
+    tokens_in_contract = NU.from_nunits(token_agent.get_balance(address=staker_address))
+    locked_preallocation = NU.from_nunits(preallocation_escrow_agent.unvested_tokens)
+
+    collection_args = ('stake', 'preallocation', 'status',
+                       '--config-file', stakeholder_configuration_file_location,
+                       '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,)
+
+    result = click_runner.invoke(nucypher_cli,
+                                 collection_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=True)
+    assert result.exit_code == 0
+    assert f'NU balance: .......... {tokens_in_contract}' in result.output
+
+    balance_before_collecting = token_agent.get_balance(address=beneficiary)
+
+    collection_args = ('stake', 'preallocation', 'withdraw',
+                       '--config-file', stakeholder_configuration_file_location,
+                       '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
+                       '--force')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 collection_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=True)
+    assert result.exit_code == 0
+    assert token_agent.get_balance(address=staker_address) == locked_preallocation
+    withdrawn_amount = tokens_in_contract - locked_preallocation
+    balance_after_collecting = token_agent.get_balance(address=beneficiary)
+    assert balance_after_collecting == balance_before_collecting + withdrawn_amount

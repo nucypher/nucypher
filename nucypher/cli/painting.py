@@ -19,7 +19,6 @@ import csv
 import time
 import webbrowser
 from collections import Counter
-from decimal import Decimal
 from typing import List
 
 import click
@@ -276,8 +275,8 @@ Registry  ................ {registry.filepath}
             proxy_payload = f"""
 {agent.contract_name} .... {bare_contract.address}
     ~ Owner .............. {bare_contract.functions.owner().call()}
-    ~ Ethers ............. {Web3.fromWei(blockchain.client.get_balance(dispatcher_deployer.contract_address), 'ether')} ETH
-    ~ Tokens ............. {NU.from_nunits(token_agent.get_balance(dispatcher_deployer.contract_address))}
+    ~ Ethers ............. {Web3.fromWei(blockchain.client.get_balance(bare_contract.address), 'ether')} ETH
+    ~ Tokens ............. {NU.from_nunits(token_agent.get_balance(bare_contract.address))}
     ~ Dispatcher ......... {dispatcher_deployer.contract_address}
         ~ Owner .......... {dispatcher_deployer.contract.functions.owner().call()}
         ~ Target ......... {dispatcher_deployer.contract.functions.target().call()}
@@ -309,10 +308,14 @@ Registry  ................ {registry.filepath}
                                                          bare=True)  # acquire agency for the dispatcher itself.
 
         preallocation_escrow_payload = f"""
-{staking_interface_agent.contract_name} .......... {bare_contract.address}
-    ~ StakingInterfaceRouter ...... {router_deployer.contract.address}
+{staking_interface_agent.contract_name} ......... {bare_contract.address}
+  ~ Ethers ............... {Web3.fromWei(blockchain.client.get_balance(bare_contract.address), 'ether')} ETH
+  ~ Tokens ............... {NU.from_nunits(token_agent.get_balance(bare_contract.address))}
+  ~ StakingInterfaceRouter {router_deployer.contract.address}
         ~ Owner .......... {router_deployer.contract.functions.owner().call()}
-        ~ Target ......... {router_deployer.contract.functions.target().call()}"""
+        ~ Target ......... {router_deployer.contract.functions.target().call()}
+        ~ Ethers ......... {Web3.fromWei(blockchain.client.get_balance(router_deployer.contract_address), 'ether')} ETH
+        ~ Tokens ......... {NU.from_nunits(token_agent.get_balance(router_deployer.contract_address))}"""
         emitter.echo(preallocation_escrow_payload)
         emitter.echo(sep)
 
@@ -549,8 +552,8 @@ def paint_deployment_delay(emitter, delay: int = 3) -> None:
         time.sleep(1)
 
 
-def paint_stakers(emitter, stakers: List[str], agent) -> None:
-    current_period = agent.get_current_period()
+def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> None:
+    current_period = staking_agent.get_current_period()
     emitter.echo(f"\nCurrent period: {current_period}")
     emitter.echo("\n| Stakers |\n")
     emitter.echo(f"{'Checksum address':42}  Staker information")
@@ -562,19 +565,19 @@ def paint_stakers(emitter, stakers: List[str], agent) -> None:
         emitter.echo(f"{staker}  {'Nickname:':10} {nickname} {symbols}")
         tab = " " * len(staker)
 
-        owned_tokens = agent.owned_tokens(staker)
-        last_confirmed_period = agent.get_last_active_period(staker)
-        worker = agent.get_worker_from_staker(staker)
-        is_restaking = agent.is_restaking(staker)
+        owned_tokens = staking_agent.owned_tokens(staker)
+        last_confirmed_period = staking_agent.get_last_active_period(staker)
+        worker = staking_agent.get_worker_from_staker(staker)
+        is_restaking = staking_agent.is_restaking(staker)
 
         missing_confirmations = current_period - last_confirmed_period
         owned_in_nu = round(NU.from_nunits(owned_tokens), 2)
-        locked_tokens = round(NU.from_nunits(agent.get_locked_tokens(staker)), 2)
+        locked_tokens = round(NU.from_nunits(staking_agent.get_locked_tokens(staker)), 2)
 
         emitter.echo(f"{tab}  {'Owned:':10} {owned_in_nu}  (Staked: {locked_tokens})")
         if is_restaking:
-            if agent.is_restaking_locked(staker):
-                unlock_period = agent.get_restake_unlock_period(staker)
+            if staking_agent.is_restaking_locked(staker):
+                unlock_period = staking_agent.get_restake_unlock_period(staker)
                 emitter.echo(f"{tab}  {'Re-staking:':10} Yes  (Locked until period: {unlock_period})")
             else:
                 emitter.echo(f"{tab}  {'Re-staking:':10} Yes  (Unlocked)")
@@ -594,9 +597,43 @@ def paint_stakers(emitter, stakers: List[str], agent) -> None:
 
         emitter.echo(f"{tab}  {'Worker:':10} ", nl=False)
         if worker == BlockchainInterface.NULL_ADDRESS:
-            emitter.echo(f"Worker not set\n", color='red')
+            emitter.echo(f"Worker not set", color='red')
         else:
-            emitter.echo(f"{worker}\n")
+            emitter.echo(f"{worker}")
+
+        fees = policy_agent.get_reward_amount(staker)
+        emitter.echo(f"{tab}  Unclaimed fees: {Web3.fromWei(fees, 'gwei')} Gwei")
+
+
+def paint_preallocation_status(emitter, preallocation_agent, token_agent) -> None:
+    blockchain = token_agent.blockchain
+
+    staking_address = preallocation_agent.principal_contract.address
+
+    token_balance = NU.from_nunits(token_agent.get_balance(staking_address))
+    eth_balance = Web3.fromWei(blockchain.client.get_balance(staking_address), 'ether')
+    initial_locked_amount = NU.from_nunits(preallocation_agent.initial_locked_amount)
+    current_locked_amount = NU.from_nunits(preallocation_agent.unvested_tokens)
+    available_amount = NU.from_nunits(preallocation_agent.available_balance)
+    end_timestamp = preallocation_agent.end_timestamp
+
+    width = 64
+    output = f"""
+{" Addresses ".center(width, "-")}
+Staking contract: ... {staking_address}
+Beneficiary: ........ {preallocation_agent.beneficiary}
+
+{" Locked Tokens ".center(width, "-")}
+Initial locked amount: {initial_locked_amount}
+Current locked amount: {current_locked_amount}
+Locked until: ........ {maya.MayaDT(epoch=end_timestamp)}
+
+{" NU and ETH Balance ".center(width, "-")}
+NU balance: .......... {token_balance}
+    Available: ....... {available_amount} 
+ETH balance: ......... {eth_balance} ETH
+"""
+    emitter.echo(output)
 
 
 def paint_locked_tokens_status(emitter, agent, periods) -> None:

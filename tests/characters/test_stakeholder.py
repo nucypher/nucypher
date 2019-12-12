@@ -100,7 +100,8 @@ def test_set_worker(software_stakeholder, manual_worker, test_registry):
     assert staking_agent.get_worker_from_staker(staker_address=software_stakeholder.checksum_address) == manual_worker
 
 
-def test_collect_inflation_rewards(software_stakeholder, manual_worker, testerchain, test_registry):
+def test_collect_inflation_rewards(software_stakeholder, manual_worker, testerchain, test_registry,
+                                   mock_transacting_power_activation):
 
     # Get stake
     stake = software_stakeholder.stakes[1]
@@ -112,18 +113,14 @@ def test_collect_inflation_rewards(software_stakeholder, manual_worker, testerch
                     start_working_now=False,
                     registry=test_registry)
 
-    # Mock TransactingPower consumption (Worker-Ursula)
-    testerchain.transacting_power = TransactingPower(account=manual_worker)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=manual_worker, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Wait out stake lock periods, manually confirming activity once per period.
     for period in range(stake.periods_remaining-1):
         worker.confirm_activity()
         testerchain.time_travel(periods=1)
 
-    # Mock TransactingPower consumption (Staker-Ursula)
-    testerchain.transacting_power = TransactingPower(account=stake.staker_address)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=stake.staker_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Collect the staking reward in NU.
     result = software_stakeholder.collect_staking_reward()

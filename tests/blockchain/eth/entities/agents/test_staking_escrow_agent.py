@@ -36,17 +36,14 @@ def test_unknown_contract(testerchain, test_registry):
 
 
 @pytest.mark.slow()
-def test_deposit_tokens(testerchain, agency, token_economics):
+def test_deposit_tokens(testerchain, agency, token_economics, mock_transacting_power_activation):
     token_agent, staking_agent, _policy_agent = agency
 
     locked_tokens = token_economics.minimum_allowed_locked * 5
 
     staker_account = testerchain.unassigned_accounts[0]
 
-    # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=testerchain.etherbase_account)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=testerchain.etherbase_account, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     balance = token_agent.get_balance(address=staker_account)
     assert balance == 0
@@ -56,10 +53,7 @@ def test_deposit_tokens(testerchain, agency, token_economics):
                                    target_address=staker_account,
                                    sender_address=testerchain.etherbase_account)
 
-    # Mock Powerup consumption (Ursula-Staker)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=staker_account)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=staker_account, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     #
     # Deposit: The staker deposits tokens in the StakingEscrow contract.
@@ -184,15 +178,12 @@ def test_get_current_period(agency, testerchain):
 
 
 @pytest.mark.slow()
-def test_confirm_activity(agency, testerchain):
+def test_confirm_activity(agency, testerchain, mock_transacting_power_activation):
     _token_agent, staking_agent, _policy_agent = agency
 
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
-    # Mock Powerup consumption (Ursula-Worker)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=worker_account)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=worker_account, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     receipt = staking_agent.confirm_activity(worker_address=worker_account)
     assert receipt['status'] == 1, "Transaction Rejected"
@@ -275,7 +266,7 @@ def test_disable_restaking(agency, testerchain, test_registry):
 
 
 @pytest.mark.slow()
-def test_collect_staking_reward(agency, testerchain):
+def test_collect_staking_reward(agency, testerchain, mock_transacting_power_activation):
     token_agent, staking_agent, _policy_agent = agency
 
     staker_account, worker_account, *other = testerchain.unassigned_accounts
@@ -284,10 +275,7 @@ def test_collect_staking_reward(agency, testerchain):
     _receipt = staking_agent.confirm_activity(worker_address=worker_account)
     testerchain.time_travel(periods=2)
 
-    # Mock Powerup consumption (Ursula-Staker)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=staker_account)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=staker_account, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Mint
     _receipt = staking_agent.mint(staker_address=staker_account)

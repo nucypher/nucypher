@@ -297,11 +297,12 @@ No action is needed to release the re-staking lock once the release period begin
 Collect rewards earned by the staker
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Choose your staking address to withdraw compensation from
-(``nucypher stake accounts`` will show). Then, use
-``nucypher stake collect-reward`` with an option ``--staking-reward`` to collect
-inflation rewards in NU or ``--policy-reward`` to collect Ethers earned as
-fees, or both:
+NuCypher nodes earn two types of rewards: staking rewards (in NU) and policy rewards (i.e., service fees in ETH).
+To collect these rewards use ``nucypher stake collect-reward`` with flags ``--staking-reward`` and ``--policy-reward``
+(or even both).
+
+While staking rewards can only be collected to the original staker account, you can decide which account receives
+policy rewards using the ``--withdraw-address <ETH_ADDRESS>`` flag.
 
 .. code:: bash
 
@@ -317,9 +318,13 @@ fees, or both:
 
     The Holder of Stakes.
 
+    Collecting 12.345 NU from staking rewards...
+
     OK | 0xb0625030224e228198faa3ed65d43f93247cf6067aeb62264db6f31b5bf411fa (55062 gas)
     Block #1245170 | 0x63e4da39056873adaf869674db4002e016c80466f38256a4c251516a0e25e547
      See https://goerli.etherscan.io/tx/0xb0625030224e228198faa3ed65d43f93247cf6067aeb62264db6f31b5bf411fa
+
+    Collecting 0.978 ETH from policy rewards...
 
     OK | 0xe6d555be43263702b74727ce29dc4bcd6e32019159ccb15120791dfda0975372 (25070 gas)
     Block #1245171 | 0x0d8180a69213c240e2bf2045179976d5f18de56a82f17a9d59db54756b6604e4
@@ -418,19 +423,49 @@ As an alternative to the ``--allocation-filepath`` flag, preallocation users
 can directly specify their beneficiary and staking contract addresses with the
 ``--beneficiary-address ADDRESS`` and ``--staking-address ADDRESS``, respectively.
 
+Finally, note that collected staking rewards are always placed in the original
+staking account, which for preallocation users is the staking contract.
+Run the following command to view the balance of the ``PreallocationEscrow`` contract:
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake preallocation --status --allocation-filepath PATH
+
+    -------------------------- Addresses ---------------------------
+    Staking contract: ... 0x0f4Ebe8a28a8eF33bEcD6A3782D74308FC35D021
+    Beneficiary: ........ 0x4f5e87f833faF9a747463f7E4387a0d9323a3979
+
+    ------------------------ Locked Tokens -------------------------
+    Initial locked amount: 35000 NU
+    Current locked amount: 35000 NU
+    Locked until: ........ 2020-12-31 16:33:37+00:00
+
+    ---------------------- NU and ETH Balance ----------------------
+    NU balance: .......... 17.345 NU
+        Available: ....... 12.345 NU
+    ETH balance: ......... 0 ETH
+
+
+To withdraw the unlocked tokens, you need to retrieve them from the
+``PreallocationEscrow`` contract using the following command:
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake preallocation --withdraw-tokens --allocation-filepath PATH
+
 
 Inline Method
 --------------
 
-+----------------+----------------+--------------+
-| Option         | Flag           | Description  |
-+================+================+==============+
-| stake value    | ``--value``    | in NU        |
-+----------------+----------------+--------------+
-| stake duration | ``--duration`` | in periods   |
-+----------------+----------------+--------------+
-| stake index    | ``--index``    | to divide    |
-+----------------+----------------+--------------+
++--------------------+----------------+--------------+
+| Option             | Flag           | Description  |
++====================+================+==============+
+| ``stake value``    | ``--value``    | in NU        |
++--------------------+----------------+--------------+
+| ``stake duration`` | ``--duration`` | in periods   |
++--------------------+----------------+--------------+
+| ``stake index``    | ``--index``    | to divide    |
++--------------------+----------------+--------------+
 
 
 Stake 30000 NU for 90 Periods
@@ -454,3 +489,7 @@ Worker configuration
 ------------------------
 
 See :ref:`ursula-config-guide`.
+
+.. note:: If you're a preallocation user, recall that you're using a contract to stake.
+  Replace ``<YOUR STAKER ADDRESS>`` with the contract address when configuring your node.
+  If you don't know this address, you'll find it in the preallocation file.

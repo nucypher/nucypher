@@ -394,7 +394,7 @@ def test_all(testerchain,
 
     # Create the first preallocation escrow, set and lock re-stake parameter
     preallocation_escrow_1, _ = deploy_contract(
-        'PreallocationEscrow', staking_interface_router.address, token.address)
+        'PreallocationEscrow', staking_interface_router.address, token.address, escrow.address)
     preallocation_escrow_interface_1 = testerchain.client.get_contract(
         abi=staking_interface.abi,
         address=preallocation_escrow_1.address,
@@ -420,7 +420,7 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
 
     preallocation_escrow_2, _ = deploy_contract(
-        'PreallocationEscrow', staking_interface_router.address, token.address)
+        'PreallocationEscrow', staking_interface_router.address, token.address, escrow.address)
     tx = preallocation_escrow_2.functions.transferOwnership(ursula4).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = token.functions.approve(preallocation_escrow_2.address, 10000).transact({'from': creator})

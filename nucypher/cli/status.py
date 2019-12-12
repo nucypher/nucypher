@@ -15,11 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
+
 import functools
 
 import click
 
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency, PolicyManagerAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.characters.banners import NU_BANNER
@@ -62,9 +63,8 @@ def network(click_config,
     """
     # Init
     emitter = _setup_emitter(click_config)
-    staking_agent = _get_staking_agent(click_config, emitter, geth, poa, light, provider_uri, registry_filepath)
-
-    paint_contract_status(staking_agent.registry, emitter=emitter)
+    registry = _get_registry(click_config, emitter, geth, poa, light, provider_uri, registry_filepath)
+    paint_contract_status(registry, emitter=emitter)
 
 
 @status.command()
@@ -83,10 +83,13 @@ def stakers(click_config,
     """
     # Init
     emitter = _setup_emitter(click_config)
-    staking_agent = _get_staking_agent(click_config, emitter, geth, poa, light, provider_uri, registry_filepath)
+    registry = _get_registry(click_config, emitter, geth, poa, light, provider_uri, registry_filepath)
+
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
+    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
 
     stakers = [staking_address] if staking_address else staking_agent.get_stakers()
-    paint_stakers(emitter=emitter, stakers=stakers, agent=staking_agent)
+    paint_stakers(emitter=emitter, stakers=stakers, staking_agent=staking_agent, policy_agent=policy_agent)
 
 
 @status.command(name='locked-tokens')
@@ -105,8 +108,8 @@ def locked_tokens(click_config,
     """
     # Init
     emitter = _setup_emitter(click_config)
-    staking_agent = _get_staking_agent(click_config, emitter, geth, poa, light, provider_uri, registry_filepath)
-
+    registry = _get_registry(click_config, emitter, geth, poa, light, provider_uri, registry_filepath)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
     paint_locked_tokens_status(emitter=emitter, agent=staking_agent, periods=periods)
 
 
@@ -118,7 +121,7 @@ def _setup_emitter(click_config):
     return emitter
 
 
-def _get_staking_agent(click_config, emitter, geth, poa, light, provider_uri, registry_filepath):
+def _get_registry(click_config, emitter, geth, poa, light, provider_uri, registry_filepath):
     try:
         ETH_NODE = None
         if geth:
@@ -147,5 +150,4 @@ def _get_staking_agent(click_config, emitter, geth, poa, light, provider_uri, re
     else:
         registry = InMemoryContractRegistry.from_latest_publication()
 
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
-    return staking_agent
+    return registry

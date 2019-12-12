@@ -172,7 +172,7 @@ class BlockchainInterface:
         self._provider = provider
         self._provider_process = provider_process
         self.w3 = NO_BLOCKCHAIN_CONNECTION
-        self.client = NO_BLOCKCHAIN_CONNECTION
+        self.client = NO_BLOCKCHAIN_CONNECTION  # type: Web3Client
         self.transacting_power = READ_ONLY_INTERFACE
         self.is_light = light
 
@@ -385,7 +385,8 @@ class BlockchainInterface:
             # TODO: #1504 - Handle validation failures for gas limits, invalid fields, etc.
             # Note: Geth raises ValueError in the same condition that pyevm raises ValidationError here.
             # Treat this condition as "Transaction Failed".
-            self.log.critical(f"Validation error: {e}")
+            error = str(e).replace("{", "{{").replace("}", "}}")  # See #724
+            self.log.critical(f"Validation error: {error}")
             raise
         else:
             if deployment:

@@ -56,7 +56,7 @@ def test_staking_interface(testerchain, policy_manager, preallocation_escrow):
 
 
 @pytest.mark.slow
-def test_upgrading(testerchain, token, deploy_contract):
+def test_upgrading(testerchain, token, deploy_contract, escrow):
     creator = testerchain.client.accounts[0]
     owner = testerchain.client.accounts[1]
     tx = testerchain.client.send_transaction(
@@ -73,7 +73,7 @@ def test_upgrading(testerchain, token, deploy_contract):
     router_contract, _ = deploy_contract(
         'StakingInterfaceRouter', interface_v1.address, secret_hash)
     preallocation_escrow_contract, _ = deploy_contract(
-        'PreallocationEscrow', router_contract.address, token.address)
+        'PreallocationEscrow', router_contract.address, token.address, escrow.address)
     # Transfer ownership
     tx = preallocation_escrow_contract.functions.transferOwnership(owner).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -169,7 +169,7 @@ def test_upgrading(testerchain, token, deploy_contract):
 
 
 @pytest.mark.slow
-def test_interface_selfdestruct(testerchain, token, deploy_contract):
+def test_interface_selfdestruct(testerchain, token, deploy_contract, escrow):
     creator = testerchain.client.accounts[0]
     account = testerchain.client.accounts[1]
 
@@ -202,13 +202,13 @@ def test_interface_selfdestruct(testerchain, token, deploy_contract):
 
     # Can't create user escrow using wrong contracts
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('PreallocationEscrow', router_contract.address, router_contract.address)
+        deploy_contract('PreallocationEscrow', router_contract.address, router_contract.address, router_contract.address)
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('PreallocationEscrow', token.address, token.address)
+        deploy_contract('PreallocationEscrow', token.address, token.address, token.address)
 
     # Deploy preallocation escrow
     preallocation_escrow_contract, _ = deploy_contract(
-        'PreallocationEscrow', router_contract.address, token.address)
+        'PreallocationEscrow', router_contract.address, token.address, escrow.address)
     preallocation_escrow_interface = testerchain.client.get_contract(
         abi=interface1.abi,
         address=preallocation_escrow_contract.address,

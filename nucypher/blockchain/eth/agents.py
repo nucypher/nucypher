@@ -38,6 +38,7 @@ from nucypher.blockchain.eth.constants import (
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
+from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.crypto.api import sha256_digest
 
 
@@ -703,6 +704,30 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         if self.__principal_contract is NO_CONTRACT_AVAILABLE:
             raise RuntimeError("{} not available".format(self.registry_contract_name))
         return self.__principal_contract
+
+    @property
+    def initial_locked_amount(self) -> int:
+        return self.principal_contract.functions.lockedValue().call()
+
+    @property
+    def available_balance(self) -> int:
+        token_agent = ContractAgency.get_agent(NucypherTokenAgent, self.registry)
+        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, self.registry)
+
+        overall_balance = token_agent.get_balance(self.principal_contract.address)
+        seconds_per_period = staking_agent.contract.functions.secondsPerPeriod().call()
+        current_period = staking_agent.get_current_period()
+        end_lock_period = epoch_to_period(self.end_timestamp, seconds_per_period=seconds_per_period)
+
+        available_balance = overall_balance
+        if current_period <= end_lock_period:
+            staked_tokens = staking_agent.get_locked_tokens(staker_address=self.principal_contract.address,
+                                                            periods=end_lock_period - current_period)
+            if self.unvested_tokens > staked_tokens:
+                # The staked amount is deducted from the locked amount
+                available_balance -= self.unvested_tokens - staked_tokens
+
+        return available_balance
 
     @property
     def unvested_tokens(self) -> int:

@@ -40,9 +40,11 @@ from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                StakingEscrowDeployer,
                                                PolicyManagerDeployer,
-                                               AdjudicatorDeployer, StakingInterfaceDeployer)
+                                               AdjudicatorDeployer,
+                                               StakingInterfaceDeployer,
+                                               PreallocationEscrowDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry, GithubRegistrySource
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob
@@ -823,3 +825,28 @@ def get_random_checksum_address():
         checksum_address = to_checksum_address(canonical_address)
         return checksum_address
     return _get_random_checksum_address
+
+
+@pytest.fixture(scope='module')
+def _patch_individual_allocation_fetch_latest_publication(agency, test_registry):
+    empty_allocation_escrow_deployer = PreallocationEscrowDeployer(registry=test_registry)
+    allocation_contract_abi = empty_allocation_escrow_deployer.get_contract_abi()
+    allocation_template = {
+        "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", allocation_contract_abi]
+    }
+
+    def new_fetch(*args, **kwargs):
+        return json.dumps(allocation_template).encode()
+
+    original_fetch = GithubRegistrySource.fetch_latest_publication
+    GithubRegistrySource.fetch_latest_publication = new_fetch
+    yield
+    GithubRegistrySource.fetch_latest_publication = original_fetch
+
+
+@pytest.fixture(scope='module')
+def mock_transacting_power_activation(testerchain):
+    def _mock_transacting_power_activation(password, account):
+        testerchain.transacting_power = TransactingPower(password=password, account=account)
+        testerchain.transacting_power.activate()
+    return _mock_transacting_power_activation

@@ -22,13 +22,13 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import is_checksum_address, to_wei
 
 from nucypher.blockchain.eth.agents import PreallocationEscrowAgent
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer, StakingInterfaceDeployer, DispatcherDeployer
+from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
-from nucypher.crypto.powers import TransactingPower
+from nucypher.blockchain.eth.token import NU
+from nucypher.utilities.sandbox.blockchain import token_airdrop
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
-TEST_DURATION = 60*60
+TEST_LOCK_DURATION_IN_SECONDS = 60 * 60 * 24  # 1 day
 TEST_ALLOCATION_REGISTRY = InMemoryAllocationRegistry()
 
 
@@ -39,22 +39,18 @@ def allocation_value(token_economics):
 
 
 @pytest.fixture(scope='function')
-def agent(testerchain, test_registry, allocation_value, agency) -> PreallocationEscrowAgent:
+def agent(testerchain, test_registry, allocation_value, agency,
+          mock_transacting_power_activation) -> PreallocationEscrowAgent:
     deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
 
-    # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=deployer_address)
-    testerchain.transacting_power.activate()
-
-    # Escrow
     escrow_deployer = PreallocationEscrowDeployer(deployer_address=deployer_address,
                                                   registry=test_registry,
                                                   allocation_registry=TEST_ALLOCATION_REGISTRY)
 
+    mock_transacting_power_activation(account=deployer_address, password=INSECURE_DEVELOPMENT_PASSWORD)
     _receipt = escrow_deployer.deploy()
 
-    escrow_deployer.initial_deposit(value=allocation_value, duration_seconds=TEST_DURATION)
+    escrow_deployer.initial_deposit(value=allocation_value, duration_seconds=TEST_LOCK_DURATION_IN_SECONDS)
     assert escrow_deployer.contract.functions.getLockedTokens().call() == allocation_value
     escrow_deployer.assign_beneficiary(checksum_address=beneficiary_address)
     escrow_deployer.enroll_principal_contract()
@@ -121,7 +117,8 @@ def test_read_timestamp(agent):
 
 
 @pytest.mark.slow()
-def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_value, token_economics):
+def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_value, token_economics,
+                                        mock_transacting_power_activation):
     token_agent, staking_agent, policy_agent = agency
 
     assert staking_agent.get_locked_tokens(staker_address=agent.contract_address) == 0
@@ -129,14 +126,11 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     assert agent.unvested_tokens == allocation_value
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value
 
-    # Mock Powerup consumption (Beneficiary)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=agent.beneficiary)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=agent.beneficiary, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Move the tokens to the StakingEscrow
     receipt = agent.deposit_as_staker(amount=token_economics.minimum_allowed_locked, lock_periods=token_economics.minimum_locked_periods)
-    assert receipt  # TODO
+    assert receipt['status'] == 1, "Transaction Rejected"
 
     # Owner sets a worker in StakingEscrow via PreallocationEscrow
     worker = testerchain.ursula_account(0)
@@ -149,21 +143,14 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     assert staking_agent.get_locked_tokens(staker_address=agent.contract_address, periods=token_economics.minimum_locked_periods) == token_economics.minimum_allowed_locked
     assert staking_agent.get_locked_tokens(staker_address=agent.contract_address, periods=token_economics.minimum_locked_periods+1) == 0
 
-    # Mock Powerup consumption (Beneficiary-Worker)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=worker)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=worker, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     for _ in range(token_economics.minimum_locked_periods):
         staking_agent.confirm_activity(worker_address=worker)
         testerchain.time_travel(periods=1)
     testerchain.time_travel(periods=1)
 
-    # Mock Powerup consumption (Beneficiary)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=agent.beneficiary)
-    testerchain.transacting_power.activate()
-
+    mock_transacting_power_activation(account=agent.beneficiary, password=INSECURE_DEVELOPMENT_PASSWORD)
     agent.mint()
 
     assert staking_agent.get_locked_tokens(staker_address=agent.contract_address) == 0
@@ -175,19 +162,18 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     # Release worker
     _receipt = agent.release_worker()
 
-    receipt = agent.withdraw_as_staker(value=staking_agent.owned_tokens(staker_address=agent.contract_address))
+    expected_rewards = staking_agent.owned_tokens(staker_address=agent.contract_address)
+    assert expected_rewards > 0
+    receipt = agent.withdraw_as_staker(value=expected_rewards)
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert token_agent.get_balance(address=agent.contract_address) > allocation_value
+    assert token_agent.get_balance(address=agent.contract_address) == allocation_value + expected_rewards
 
 
-def test_collect_policy_reward(testerchain, agent, agency, token_economics):
+def test_collect_policy_reward(testerchain, agent, agency, token_economics, mock_transacting_power_activation):
     _token_agent, staking_agent, policy_agent = agency
     deployer_address, beneficiary_address, author, ursula, *everybody_else = testerchain.client.accounts
 
-    # Mock Powerup consumption (Beneficiary)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=agent.beneficiary)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=agent.beneficiary, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     _receipt = agent.deposit_as_staker(amount=token_economics.minimum_allowed_locked,
                                        lock_periods=token_economics.minimum_locked_periods)
@@ -198,11 +184,7 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
 
     testerchain.time_travel(periods=1)
 
-    # Mock Powerup consumption (Alice)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=author)
-    testerchain.transacting_power.activate()
-
+    mock_transacting_power_activation(account=author, password=INSECURE_DEVELOPMENT_PASSWORD)
     _receipt = policy_agent.create_policy(policy_id=os.urandom(16),
                                           author_address=author,
                                           value=to_wei(1, 'ether'),
@@ -210,42 +192,65 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
                                           first_period_reward=0,
                                           node_addresses=[agent.contract_address])
 
-    # Mock Powerup consumption (Beneficiary-Worker)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=worker)
-    testerchain.transacting_power.activate()
-
+    mock_transacting_power_activation(account=worker, password=INSECURE_DEVELOPMENT_PASSWORD)
     _receipt = staking_agent.confirm_activity(worker_address=worker)
     testerchain.time_travel(periods=2)
     _receipt = staking_agent.confirm_activity(worker_address=worker)
 
     old_balance = testerchain.client.get_balance(account=agent.beneficiary)
 
-    # Mock Powerup consumption (Beneficiary)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=agent.beneficiary)
-    testerchain.transacting_power.activate()
+    mock_transacting_power_activation(account=agent.beneficiary, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     receipt = agent.collect_policy_reward(collector_address=agent.beneficiary)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert testerchain.client.get_balance(account=agent.beneficiary) > old_balance
 
 
-def test_withdraw_tokens(testerchain, agent, agency, allocation_value):
+def test_beneficiary_withdraws_tokens(testerchain,
+                                      agent,
+                                      agency,
+                                      allocation_value,
+                                      mock_transacting_power_activation,
+                                      token_economics):
     token_agent, staking_agent, policy_agent = agency
     deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
 
-    # Mock Powerup consumption (Beneficiary)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=agent.beneficiary)
-    testerchain.transacting_power.activate()
+    contract_address = agent.contract_address
+    assert token_agent.get_balance(address=contract_address) == agent.unvested_tokens == agent.initial_locked_amount
 
-    assert token_agent.get_balance(address=agent.contract_address) == agent.unvested_tokens
+    # Trying to withdraw the tokens now fails, obviously
+    initial_amount = token_agent.get_balance(address=contract_address)
     with pytest.raises((TransactionFailed, ValueError)):
-        agent.withdraw_tokens(value=allocation_value)
-    testerchain.time_travel(seconds=TEST_DURATION)
+        agent.withdraw_tokens(value=initial_amount)
 
-    receipt = agent.withdraw_tokens(value=allocation_value)
+    # Let's deposit some of them (30% of initial amount)
+    staked_amount = 3 * initial_amount // 10
+    mock_transacting_power_activation(account=agent.beneficiary, password=INSECURE_DEVELOPMENT_PASSWORD)
+    _receipt = agent.deposit_as_staker(amount=staked_amount, lock_periods=token_economics.minimum_locked_periods)
+
+    # Trying to withdraw the remaining fails too:
+    # The locked amount is equal to the initial deposit (100% of the tokens).
+    # Since 30% are staked, the locked amount is reduced by that 30% when withdrawing,
+    # which results in an effective lock of 70%. However, the contract also has 70%, which means that, effectively,
+    # the beneficiary can only withdraw 0 tokens.
+    assert agent.available_balance == 0
+    with pytest.raises((TransactionFailed, ValueError)):
+        agent.withdraw_tokens(value=initial_amount - staked_amount)
+    agent.withdraw_tokens(value=0)
+
+    # Now let's assume the contract has more tokens (e.g., coming from staking rewards).
+    # The beneficiary should be able to collect this excess.
+    mocked_rewards = NU.from_nunits(1000)
+    token_airdrop(token_agent=token_agent,
+                  amount=mocked_rewards,
+                  origin=deployer_address,
+                  addresses=[contract_address])
+    assert agent.available_balance == mocked_rewards
+    agent.withdraw_tokens(value=int(mocked_rewards))
+
+    # Once the lock passes, the beneficiary can withdraw what's left
+    testerchain.time_travel(seconds=TEST_LOCK_DURATION_IN_SECONDS)
+    receipt = agent.withdraw_tokens(value=initial_amount - staked_amount)
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert token_agent.get_balance(address=agent.contract_address) == 0
-    assert token_agent.get_balance(address=beneficiary_address) == allocation_value
+    assert token_agent.get_balance(address=contract_address) == 0
+    assert token_agent.get_balance(address=beneficiary_address) == initial_amount - staked_amount + mocked_rewards

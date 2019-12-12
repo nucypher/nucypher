@@ -279,6 +279,7 @@ contract StakingEscrow is Issuer {
 
     /**
     * @notice Get the value of locked tokens for a staker in a future period
+    * @dev This function is used by PreallocationEscrow so its signature can't be updated.
     * @param _staker Staker
     * @param _periods Amount of periods that will be added to the current period
     **/

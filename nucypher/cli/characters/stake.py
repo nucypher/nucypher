@@ -35,7 +35,7 @@ from nucypher.cli.actions import (
     confirm_enable_restaking
 )
 from nucypher.cli.config import nucypher_click_config
-from nucypher.cli.painting import paint_receipt_summary
+from nucypher.cli.painting import paint_receipt_summary, paint_preallocation_status
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE
@@ -636,6 +636,71 @@ def collect_reward(click_config,
         emitter.echo(message=f'Collecting {reward_amount} ETH from policy rewards...')
         policy_receipt = STAKEHOLDER.collect_policy_reward(collector_address=withdraw_address)
         paint_receipt_summary(receipt=policy_receipt,
+                              chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
+                              emitter=emitter)
+
+
+@stake.command('preallocation')
+@_stake_options
+@click.argument('action', type=click.Choice(['status', 'withdraw']))
+@click.option('--force', help="Don't ask for confirmation", is_flag=True)
+@nucypher_click_config
+def preallocation(click_config,
+
+                  # Stake Options
+                  poa, light, registry_filepath, config_file, provider_uri, staking_address, hw_wallet,
+                  beneficiary_address, allocation_filepath,
+
+                  # Preallocation subcommands,
+                  action,
+
+                  # Other
+                  force):
+    """
+    Claim token rewards collected by a preallocation contract.
+    """
+
+    ### Setup ###
+    emitter = _setup_emitter(click_config)
+
+    STAKEHOLDER, blockchain = _create_stakeholder(config_file,
+                                                  provider_uri,
+                                                  poa,
+                                                  light,
+                                                  registry_filepath,
+                                                  staking_address,
+                                                  beneficiary_address=beneficiary_address,
+                                                  allocation_filepath=allocation_filepath)
+    #############
+    # Unauthenticated actions: status
+
+    if action == 'status':
+        paint_preallocation_status(emitter=emitter,
+                                   token_agent=STAKEHOLDER.token_agent,
+                                   preallocation_agent=STAKEHOLDER.preallocation_escrow_agent)
+        return
+
+    # Authenticated actions: withdraw-tokens
+
+    client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
+                                                                        stakeholder=STAKEHOLDER,
+                                                                        staking_address=staking_address,
+                                                                        individual_allocation=STAKEHOLDER.individual_allocation,
+                                                                        force=force)
+
+    password = None
+    if not hw_wallet and not blockchain.client.is_local:
+        password = get_client_password(checksum_address=client_account)
+
+    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+    if action == 'withdraw':
+        token_balance = NU.from_nunits(STAKEHOLDER.token_agent.get_balance(staking_address))
+        locked_tokens = NU.from_nunits(STAKEHOLDER.preallocation_escrow_agent.unvested_tokens)
+        unlocked_tokens = token_balance - locked_tokens
+
+        emitter.echo(message=f'Collecting {unlocked_tokens} from PreallocationEscrow contract {staking_address}...')
+        receipt = STAKEHOLDER.withdraw_preallocation_tokens(unlocked_tokens)
+        paint_receipt_summary(receipt=receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
                               emitter=emitter)
 

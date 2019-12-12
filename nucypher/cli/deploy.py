@@ -22,7 +22,13 @@ import click
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry, LocalContractRegistry, InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    CanonicalRegistrySource,
+    InMemoryContractRegistry,
+    RegistrySourceManager,
+    GithubRegistrySource,
+)
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions import (
@@ -72,8 +78,9 @@ def deploy():
 @deploy.command(name='download-registry')
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
+@click.option('--network', help="", type=click.Choice(CanonicalRegistrySource.networks), default='goerli')  # TODO: #1496
 @click.option('--force', is_flag=True)
-def download_registry(config_root, registry_outfile, force):
+def download_registry(config_root, registry_outfile, network, force):
     """
     Download the latest registry.
     """
@@ -81,11 +88,23 @@ def download_registry(config_root, registry_outfile, force):
     emitter = StdoutEmitter()
     _ensure_config_root(config_root)
 
+    github_source = GithubRegistrySource(network=network, registry_name=BaseContractRegistry.REGISTRY_NAME)
+    source_manager = RegistrySourceManager(sources=[github_source])
+
     if not force:
-        prompt = f"Fetch and download latest registry from {BaseContractRegistry.get_publication_endpoint()}?"
+        prompt = f"Fetch and download latest contract registry from {github_source}?"
         click.confirm(prompt, abort=True)
-    registry = InMemoryContractRegistry.from_latest_publication()
-    output_filepath = registry.commit(filepath=registry_outfile, overwrite=force)
+    try:
+        registry = InMemoryContractRegistry.from_latest_publication(source_manager=source_manager)
+    except RegistrySourceManager.NoSourcesAvailable:
+        emitter.message("Registry not available.", color="red")
+        raise click.Abort
+
+    try:
+        output_filepath = registry.commit(filepath=registry_outfile, overwrite=force)
+    except InMemoryContractRegistry.CantOverwriteRegistry:
+        emitter.message("Can't overwrite existing registry. Use '--force' to overwrite.", color="red")
+        raise click.Abort
     emitter.message(f"Successfully downloaded latest registry to {output_filepath}")
 
 
@@ -105,7 +124,8 @@ def inspect(provider_uri, config_root, registry_infile, deployer_address, poa):
     _initialize_blockchain(poa, provider_uri)
 
     local_registry = establish_deployer_registry(emitter=emitter,
-                                                 registry_infile=registry_infile)
+                                                 registry_infile=registry_infile,
+                                                 download_registry=not bool(registry_infile))
     paint_deployer_contract_inspection(emitter=emitter,
                                        registry=local_registry,
                                        deployer_address=deployer_address)
@@ -114,8 +134,7 @@ def inspect(provider_uri, config_root, registry_infile, deployer_address, poa):
 @deploy.command()
 @_admin_actor_options
 @click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
-@click.option('--target-address', help="Recipient's checksum address for token or ownership transference.",
-              type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--target-address', help="Address of the target contract", type=EIP55_CHECKSUM_ADDRESS)
 def upgrade(# Admin Actor Options
             provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
             registry_infile, registry_outfile, dev,

@@ -812,7 +812,7 @@ class Staker(NucypherTokenActor):
     @only_me
     @save_receipt
     @validate_checksum_address
-    def set_worker(self, worker_address: str) -> str:
+    def set_worker(self, worker_address: str) -> dict:
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.set_worker(worker_address=worker_address)
         else:
@@ -836,7 +836,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def detach_worker(self) -> str:
+    def detach_worker(self) -> dict:
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.release_worker()
         else:
@@ -871,17 +871,18 @@ class Staker(NucypherTokenActor):
     @validate_checksum_address
     def collect_policy_reward(self, collector_address=None) -> dict:
         """Collect rewarded ETH."""
-        withdraw_address = collector_address or self.checksum_address
         if self.is_contract:
+            withdraw_address = collector_address or self.beneficiary_address
             receipt = self.preallocation_escrow_agent.collect_policy_reward(collector_address=withdraw_address)
         else:
+            withdraw_address = collector_address or self.checksum_address
             receipt = self.policy_agent.collect_policy_reward(collector_address=withdraw_address,
                                                               staker_address=self.checksum_address)
         return receipt
 
     @only_me
     @save_receipt
-    def collect_staking_reward(self) -> str:
+    def collect_staking_reward(self) -> dict:
         """Withdraw tokens rewarded for staking."""
         if self.is_contract:
             reward_amount = self.calculate_staking_reward()
@@ -893,13 +894,35 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def withdraw(self, amount: NU) -> str:
-        """Withdraw tokens (assuming they're unlocked)"""
+    def withdraw(self, amount: NU) -> dict:
+        """Withdraw tokens from StakingEscrow (assuming they're unlocked)"""
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.withdraw_as_staker(value=int(amount))
         else:
             receipt = self.staking_agent.withdraw(staker_address=self.checksum_address,
                                                   amount=int(amount))
+        return receipt
+
+    @only_me
+    @save_receipt
+    def withdraw_preallocation_tokens(self, amount: NU) -> dict:
+        """Withdraw tokens from PreallocationEscrow (assuming they're unlocked)"""
+        if amount <= 0:
+            raise ValueError(f"Don't try to withdraw {amount}.")
+        if self.is_contract:
+            receipt = self.preallocation_escrow_agent.withdraw_tokens(value=int(amount))
+        else:
+            raise TypeError("This method can only be used when staking via a contract")
+        return receipt
+
+    @only_me
+    @save_receipt
+    def withdraw_preallocation_eth(self) -> dict:
+        """Withdraw ETH from PreallocationEscrow"""
+        if self.is_contract:
+            receipt = self.preallocation_escrow_agent.withdraw_eth()
+        else:
+            raise TypeError("This method can only be used when staking via a contract")
         return receipt
 
 
@@ -1138,7 +1161,7 @@ class StakeHolder(Staker):
         def balances(self) -> Dict[str, int]:
             balances = dict()
             for account in self.accounts:
-                funds = {'ETH': self.blockchain.client.get_balance(account),  # TODO: EthAgent or something?  #1509
+                funds = {'ETH': self.blockchain.client.get_balance(account),
                          'NU': self.token_agent.get_balance(account)}
                 balances.update({account: funds})
             return balances
@@ -1165,7 +1188,9 @@ class StakeHolder(Staker):
             # If an initial address was passed,
             # it is safe to understand that it has already been used at a higher level.
             if initial_address not in self.wallet:
-                raise self.StakingWallet.UnknownAccount
+                message = f"Account {initial_address} is not known by this Ethereum client. Is it a HW account? " \
+                          f"If so, make sure that your device is plugged in and you use the --hw-wallet flag."
+                raise self.StakingWallet.UnknownAccount(message)
             self.assimilate(checksum_address=initial_address, password=password)
 
     @validate_checksum_address
