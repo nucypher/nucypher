@@ -39,9 +39,7 @@ performance bottlenecks.
 """
 
 
-def test_alice_can_learn_about_a_whole_bunch_of_ursulas(large_fleet_of_highperf_mocked_ursulas,
-                                                        highperf_mocked_alice):
-
+def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     # During the fixture execution, Alice verified one node.
     # TODO: Consider changing this - #1449
     assert VerificationTracker.node_verifications == 1
@@ -49,22 +47,27 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(large_fleet_of_highperf_
     with mock_cert_storage, mock_cert_loading, mock_verify_node, mock_message_verification, mock_metadata_validation:
         with mock_pubkey_from_bytes, mock_stamp_call, mock_signature_bytes:
             started = time.time()
-            highperf_mocked_alice.block_until_number_of_known_nodes_is(8, learn_on_this_thread=True, timeout=60)
+            highperf_mocked_alice.block_until_number_of_known_nodes_is(8, learn_on_this_thread=True)
             ended = time.time()
             elapsed = ended - started
 
     assert VerificationTracker.node_verifications == 1  # We have only verified the first Ursula.
     assert sum(
         isinstance(u, Ursula) for u in highperf_mocked_alice.known_nodes) < 20  # We haven't instantiated many Ursulas.
-    assert elapsed < 8  # 8 seconds is still a little long to discover 8 out of 5000 nodes, but before starting the optimization that went with this test, this operation took about 18 minutes on jMyles' laptop.
+    assert elapsed < 6  # 6 seconds is still a little long to discover 8 out of 5000 nodes, but before starting the optimization that went with this test, this operation took about 18 minutes on jMyles' laptop.
     VerificationTracker.node_verifications = 0  # Cleanup
 
-def test_alice_verifies_ursula_just_in_time(large_fleet_of_highperf_mocked_ursulas, highperf_mocked_alice,
+
+@pytest.mark.parametrize('fleet_of_highperf_mocked_ursulas', [100], indirect=True)
+def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas, highperf_mocked_alice,
                                             highperf_mocked_bob):
+    _umbral_pubkey_from_bytes = UmbralPublicKey.from_bytes
+
     def actual_random_key_instead(*args, **kwargs):
-        _private_key = UmbralPrivateKey.gen_key()
-        public_key = _private_key.get_pubkey()
-        return public_key
+        _previous_bytes = args[0]
+        serial = _previous_bytes[-5:]
+        pubkey = NotAPublicKey(serial=serial)
+        return pubkey
 
     def mock_set_policy(id_as_hex):
         return ""

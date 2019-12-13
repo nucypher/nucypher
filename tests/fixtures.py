@@ -858,11 +858,15 @@ def mock_transacting_power_activation(testerchain):
 
 
 @pytest.fixture(scope="module")
-def large_fleet_of_highperf_mocked_ursulas(ursula_federated_test_config):
+def fleet_of_highperf_mocked_ursulas(ursula_federated_test_config, request):
+    try:
+        quantity = request.param
+    except AttributeError:
+        quantity = 5000  # Bigass fleet by default; that's kinda the point.
     with GlobalLoggerSettings.pause_all_logging_while():
         with mock_cert_storage, mock_cert_loading, mock_rest_app_creation, mock_cert_generation, mock_secret_source, mock_remember_node, mock_message_verification:
             _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
-                                              quantity=5000, know_each_other=False)
+                                              quantity=quantity, know_each_other=False)
             all_ursulas = {u.checksum_address: u for u in _ursulas}
             for ursula in _ursulas:
                 ursula.known_nodes._nodes = all_ursulas
@@ -871,7 +875,7 @@ def large_fleet_of_highperf_mocked_ursulas(ursula_federated_test_config):
 
 
 @pytest.fixture(scope="module")
-def highperf_mocked_alice(large_fleet_of_highperf_mocked_ursulas):
+def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas):
     config = AliceConfiguration(dev_mode=True,
                                 network_middleware=MockRestMiddlewareForLargeFleetTests(),
                                 federated_only=True,
@@ -880,12 +884,12 @@ def highperf_mocked_alice(large_fleet_of_highperf_mocked_ursulas):
                                 reload_metadata=False)
 
     with mock_cert_storage, mock_verify_node, mock_record_fleet_state, mock_message_verification, mock_keep_learning:
-        alice = config.produce(known_nodes=list(large_fleet_of_highperf_mocked_ursulas)[:1])
+        alice = config.produce(known_nodes=list(fleet_of_highperf_mocked_ursulas)[:1])
     return alice
 
 
 @pytest.fixture(scope="module")
-def highperf_mocked_bob(large_fleet_of_highperf_mocked_ursulas):
+def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
     config = BobConfiguration(dev_mode=True,
                                 network_middleware=MockRestMiddlewareForLargeFleetTests(),
                                 federated_only=True,
@@ -894,5 +898,5 @@ def highperf_mocked_bob(large_fleet_of_highperf_mocked_ursulas):
                                 reload_metadata=False)
 
     with mock_cert_storage, mock_verify_node, mock_record_fleet_state:
-        bob = config.produce(known_nodes=list(large_fleet_of_highperf_mocked_ursulas)[:1])
+        bob = config.produce(known_nodes=list(fleet_of_highperf_mocked_ursulas)[:1])
     return bob
