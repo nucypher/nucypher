@@ -240,18 +240,24 @@ def set_worker(click_config,
     if not hw_wallet and not blockchain.client.is_local:
         password = get_client_password(checksum_address=client_account)
 
-    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
-    receipt = STAKEHOLDER.set_worker(worker_address=worker_address)
-
     # TODO: Double-check dates
+    # Calculate release datetime
     current_period = STAKEHOLDER.staking_agent.get_current_period()
     bonded_date = datetime_at_period(period=current_period, seconds_per_period=economics.seconds_per_period)
-    min_worker_periods = STAKEHOLDER.staking_agent.staking_parameters()[7]
+    min_worker_periods = STAKEHOLDER.economics.minimum_worker_periods
     release_period = current_period + min_worker_periods
     release_date = datetime_at_period(period=release_period,
                                       seconds_per_period=economics.seconds_per_period,
                                       start_of_period=True)
 
+    click.confirm(f"Commit to bonding "
+                  f"worker {worker_address} to staker {client_account} "
+                  f"for a minimum of {STAKEHOLDER.economics.minimum_worker_periods} periods?", abort=True)
+
+    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+    receipt = STAKEHOLDER.set_worker(worker_address=worker_address)
+
+    # Report Success
     emitter.echo(f"\nWorker {worker_address} successfully bonded to staker {staking_address}", color='green')
     paint_receipt_summary(emitter=emitter,
                           receipt=receipt,
@@ -388,14 +394,15 @@ def create(click_config,
     value = NU.from_tokens(value)
 
     if not lock_periods:
-        prompt = f"Enter stake duration ({STAKEHOLDER.economics.minimum_locked_periods} periods minimum)"
+        prompt = f"Enter stake duration ({STAKEHOLDER.economics.minimum_locked_periods} - " \
+                 f"{STAKEHOLDER.economics.maximum_rewarded_periods})"
         lock_periods = click.prompt(prompt, type=stake_duration_range)
 
     start_period = STAKEHOLDER.staking_agent.get_current_period() + 1
     unlock_period = start_period + lock_periods
 
     #
-    # Review
+    # ReviewPub
     #
 
     if not force:
@@ -543,8 +550,9 @@ def divide(click_config,
 
     # Value
     if not value:
-        value = click.prompt(f"Enter target value ({str(current_stake.value)} - "
-                             f"{NU.from_nunits(STAKEHOLDER.economics.maximum_allowed_locked)})",
+        value = click.prompt(f"Enter target value"
+                             f"{NU.from_nunits(STAKEHOLDER.economics.minimum_allowed_locked)})"
+                             f"- ({str(current_stake.value)}",
                              type=stake_value_range)
     value = NU(value, 'NU')
 
