@@ -83,7 +83,7 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
 class MockRestMiddleware(RestMiddleware):
     _ursulas = None
 
-    client = _TestMiddlewareClient()
+    _client_class = _TestMiddlewareClient
 
     class NotEnoughMockUrsulas(Ursula.NotEnoughUrsulas):
         pass

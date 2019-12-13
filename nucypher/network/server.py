@@ -164,7 +164,7 @@ def make_rest_app(
                     certificate_filepath = forgetful_node_storage.store_node_certificate(
                         certificate=node.certificate)
 
-                    node.verify_node(this_node.network_middleware,
+                    node.verify_node(this_node.network_middleware.client,
                                      registry=this_node.registry,
                                      certificate_filepath=certificate_filepath)
 

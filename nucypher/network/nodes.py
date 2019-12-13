@@ -1287,7 +1287,7 @@ class Teacher:
                 raise
 
     def verify_node(self,
-                    network_middleware,
+                    network_middleware_client,
                     registry: BaseContractRegistry = None,
                     certificate_filepath: str = None,
                     force: bool = False
@@ -1329,28 +1329,31 @@ class Teacher:
             else:
                 certificate_filepath = self.certificate_filepath
 
-        response_data = network_middleware.node_information(host=self.rest_interface.host,
+        response_data = network_middleware_client.node_information(host=self.rest_interface.host,
                                                             port=self.rest_interface.port,
                                                             certificate_filepath=certificate_filepath)
 
         version, node_bytes = self.version_splitter(response_data, return_remainder=True)
-        node_details = self.internal_splitter(node_bytes)
+
+        sprout = self.internal_splitter(node_bytes, partial=True)
+
         # TODO: #589 - check timestamp here.
 
-        verifying_keys_match = node_details['verifying_key'] == self.public_keys(SigningPower)
-        encrypting_keys_match = node_details['encrypting_key'] == self.public_keys(DecryptingPower)
-        addresses_match = node_details['public_address'] == self.canonical_public_address
-        evidence_matches = node_details['decentralized_identity_evidence'] == self.__decentralized_identity_evidence
+        verifying_keys_match = sprout['verifying_key'] == self.public_keys(SigningPower)
+        encrypting_keys_match = sprout['encrypting_key'] == self.public_keys(DecryptingPower)
+        addresses_match = sprout['public_address'] == self.canonical_public_address
+        evidence_matches = sprout['decentralized_identity_evidence'] == self.__decentralized_identity_evidence
 
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
             # Failure
             if not addresses_match:
-                self.log.warn("Wallet address swapped out.  It appears that someone is trying to defraud this node.")
+                message = "Wallet address swapped out.  It appears that someone is trying to defraud this node."
             if not verifying_keys_match:
-                self.log.warn("Verifying key swapped out.  It appears that someone is impersonating this node.")
-
+                message = "Verifying key swapped out.  It appears that someone is impersonating this node."
+            else:
+                message = "Wrong cryptographic material for this node - something fishy going on."
             # TODO: #355 - Optional reporting.
-            raise self.InvalidNode("Wrong cryptographic material for this node - something fishy going on.")
+            raise self.InvalidNode(message)
 
         else:
             # Success
