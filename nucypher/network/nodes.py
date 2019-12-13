@@ -1003,25 +1003,22 @@ class Learner:
 
             fail_fast = True  # TODO
             try:
-                node_sprout = self.node_class.internal_splitter(node_bytes, partial=not eager)
-
-                ###########################################
+                node_or_sprout = self.node_class.internal_splitter(node_bytes, partial=not eager)
+#######################################
                 # TODO: This is repeated from remember_node
                 with suppress(KeyError):
-                    already_known_node = self.known_nodes[node_sprout.checksum_address]
-                    if not node_sprout.timestamp > already_known_node.timestamp:
+                    already_known_node = self.known_nodes[node_or_sprout.checksum_address]
+                    if not node_or_sprout.timestamp > already_known_node.timestamp:
                         self.log.debug("Skipping already known node {}".format(already_known_node))
                         # This node is already known.  We can continue.
                         continue
-
-
             except Exception as e:
                 if fail_fast:
                     raise
                 else:
-                    cls.log.warn(e.args[0])
+                    cls.log.warn(e.args[0])  # TODO: This needs to be re-introduced.
             else:
-                self.remember_node(node_sprout, record_fleet_state=False)
+                self.remember_node(node_or_sprout, record_fleet_state=False)
 
         # End outer repeated block from Ursula.batch_from_bytes
         ############################################
