@@ -1215,7 +1215,7 @@ contract StakingEscrow is Issuer {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public {
         super.verifyState(_testTarget);
-        require(delegateGet(_testTarget, "isTestContract()") == 0 ? !isTestContract : isTestContract);
+        require((delegateGet(_testTarget, "isTestContract()") == 0) == !isTestContract);
         require(uint16(delegateGet(_testTarget, "minWorkerPeriods()")) == minWorkerPeriods);
         require(delegateGet(_testTarget, "minAllowableLockedTokens()") == minAllowableLockedTokens);
         require(delegateGet(_testTarget, "maxAllowableLockedTokens()") == maxAllowableLockedTokens);

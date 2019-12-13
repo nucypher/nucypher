@@ -483,7 +483,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
     agency = StakingEscrowAgent
     contract_name = agency.registry_contract_name
-    deployment_steps = ('contract_deployment', 'dispatcher_deployment', 'reward_transfer', 'initialize')
+    deployment_steps = ('contract_deployment', 'dispatcher_deployment', 'approve_reward_transfer', 'initialize')
     _proxy_deployer = DispatcherDeployer
 
     def __init__(self, test_mode: bool = False, *args, **kwargs):
