@@ -114,9 +114,6 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_co
         address = node.checksum_address
         ursula.known_nodes[address] = node
 
-    class NotARestApp:
-        testing = True
-
     with GlobalLoggerSettings.pause_all_logging_while():
         with patch("nucypher.config.storages.ForgetfulNodeStorage.store_node_certificate",
                    new=lambda *args, **kwargs: "do not store cert."):
