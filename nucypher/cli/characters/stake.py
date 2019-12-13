@@ -374,12 +374,15 @@ def create(click_config,
     password = None
     if not hw_wallet and not blockchain.client.is_local:
         password = get_client_password(checksum_address=client_account)
+
     #
     # Stage Stake
     #
 
     if not value:
-        value = click.prompt(f"Enter stake value in NU",
+        value = click.prompt(f"Enter stake value in NU "
+                             f"({NU.from_nunits(STAKEHOLDER.economics.minimum_allowed_locked)} - "
+                             f"{NU.from_nunits(STAKEHOLDER.economics.maximum_allowed_locked)})",
                              type=stake_value_range,
                              default=NU.from_nunits(min_locked).to_tokens())
     value = NU.from_tokens(value)
@@ -540,7 +543,8 @@ def divide(click_config,
 
     # Value
     if not value:
-        value = click.prompt(f"Enter target value (must be less than or equal to {str(current_stake.value)})",
+        value = click.prompt(f"Enter target value ({str(current_stake.value)} - "
+                             f"{NU.from_nunits(STAKEHOLDER.economics.maximum_allowed_locked)})",
                              type=stake_value_range)
     value = NU(value, 'NU')
 
