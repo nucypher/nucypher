@@ -115,14 +115,18 @@ def test_staker(testerchain, token, escrow, preallocation_escrow, preallocation_
     deposits = preallocation_escrow.events.TokensDeposited.createFilter(fromBlock='latest')
 
     # Deposit some tokens to the preallocation escrow and lock them
-    tx = token.functions.approve(preallocation_escrow.address, 2000).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    tx = preallocation_escrow.functions.initialDeposit(2000, 1000).transact({'from': creator})
+    tx = token.functions.approveAndCall(preallocation_escrow.address, 2000, testerchain.w3.toBytes(1000))\
+        .transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 2000 == token.functions.balanceOf(preallocation_escrow.address).call()
+    assert 2000 == preallocation_escrow.functions.getLockedTokens().call()
 
     events = deposits.get_all_entries()
     assert 1 == len(events)
+    event_args = events[0]['args']
+    assert creator == event_args['sender']
+    assert 2000 == event_args['value']
+    assert 1000 == event_args['duration']
 
     # Only owner can deposit tokens to the staker escrow
     with pytest.raises((TransactionFailed, ValueError)):
