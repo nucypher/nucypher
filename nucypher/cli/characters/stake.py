@@ -542,7 +542,7 @@ def divide(click_config,
         STAKEHOLDER.stakes.refresh()
         current_stake = STAKEHOLDER.stakes[index]
     else:
-        current_stake = select_stake(stakeholder=STAKEHOLDER, emitter=emitter)
+        current_stake = select_stake(stakeholder=STAKEHOLDER, emitter=emitter, divisible=True)
 
     #
     # Stage Stake

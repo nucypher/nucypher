@@ -366,12 +366,17 @@ def make_cli_character(character_config,
     return CHARACTER
 
 
-def select_stake(stakeholder, emitter) -> Stake:
+def select_stake(stakeholder, emitter, divisible: bool = False) -> Stake:
     stakes = stakeholder.all_stakes
-    active_stakes = sorted((stake for stake in stakes if stake.is_active),
-                           key=lambda some_stake: some_stake.address_index_ordering_key)
-    enumerated_stakes = dict(enumerate(active_stakes))
-    painting.paint_stakes(stakes=active_stakes, emitter=emitter)
+    stakes = sorted((stake for stake in stakes if stake.is_active), key=lambda s: s.address_index_ordering_key)
+    if divisible:
+        emitter.echo("NOTE: Showing divisible stakes only", color='yellow')
+        stakes = list(filter(lambda s: bool(s.value >= stakeholder.economics.minimum_allowed_locked*2), stakes))
+        if not stakes:
+            emitter.echo(f"No divisible stakes found.", color='red')
+            raise click.Abort
+    enumerated_stakes = dict(enumerate(stakes))
+    painting.paint_stakes(stakes=stakes, emitter=emitter)
     choice = click.prompt("Select Stake", type=click.IntRange(min=0, max=len(enumerated_stakes)-1))
     chosen_stake = enumerated_stakes[choice]
     return chosen_stake
