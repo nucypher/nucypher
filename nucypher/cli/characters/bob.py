@@ -112,7 +112,7 @@ def run(click_config,
 
     BOB = actions.make_cli_character(character_config=bob_config,
                                      click_config=click_config,
-                                     dev=dev,
+                                     unlock_keyring=not dev,
                                      teacher_uri=teacher_uri,
                                      min_stake=min_stake)
 
@@ -209,9 +209,11 @@ def public_keys(click_config,
 
     BOB = actions.make_cli_character(character_config=bob_config,
                                      click_config=click_config,
-                                     dev=dev,
+                                     unlock_keyring=not dev,
                                      teacher_uri=teacher_uri,
-                                     min_stake=min_stake)
+                                     min_stake=min_stake,
+                                     load_preferred_teachers=False,
+                                     start_learning_now=False)
 
     response = BOB.controller.public_keys()
     return response
@@ -246,7 +248,7 @@ def retrieve(click_config,
 
     BOB = actions.make_cli_character(character_config=bob_config,
                                      click_config=click_config,
-                                     dev=dev,
+                                     unlock_keyring=not dev,
                                      teacher_uri=teacher_uri,
                                      min_stake=min_stake)
 

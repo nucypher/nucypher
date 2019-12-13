@@ -22,6 +22,7 @@ import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from twisted.internet import stdio
 
+from nucypher.blockchain.economics import TokenEconomicsFactory
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
@@ -315,7 +316,8 @@ def save_metadata(click_config,
                                                      rest_host, rest_port, db_filepath, poa, light)
     #############
 
-    URSULA = _create_ursula(ursula_config, click_config, dev, emitter, lonely, teacher_uri, min_stake)
+    URSULA = _create_ursula(ursula_config, click_config, dev, emitter, lonely,
+                            teacher_uri, min_stake, load_seednodes=False)
 
     metadata_path = URSULA.write_node_metadata(node=URSULA)
     emitter.message(f"Successfully saved node metadata to {metadata_path}.", color='green')
@@ -375,13 +377,16 @@ def confirm_activity(click_config,
                                                      rest_host, rest_port, db_filepath, poa, light)
     #############
 
-    URSULA = _create_ursula(ursula_config, click_config, dev, emitter, lonely, teacher_uri, min_stake)
-
-    receipt = URSULA.confirm_activity()
+    URSULA = _create_ursula(ursula_config, click_config, dev, emitter,
+                            lonely, teacher_uri, min_stake, load_seednodes=False)
 
     confirmed_period = URSULA.staking_agent.get_current_period() + 1
+    click.echo(f"Confirming activity for period {confirmed_period}", color='blue')
+    receipt = URSULA.confirm_activity()
+
+    economics = TokenEconomicsFactory.get_economics(registry=URSULA.registry)
     date = datetime_at_period(period=confirmed_period,
-                              seconds_per_period=URSULA.economics.seconds_per_period)
+                              seconds_per_period=economics.seconds_per_period)
 
     # TODO: Double-check dates here
     emitter.echo(f'\nActivity confirmed for period #{confirmed_period} '
@@ -474,7 +479,7 @@ def _get_ursula_config(emitter, geth, provider_uri, network, registry_filepath, 
     return ursula_config, provider_uri
 
 
-def _create_ursula(ursula_config, click_config, dev, emitter, lonely, teacher_uri, min_stake):
+def _create_ursula(ursula_config, click_config, dev, emitter, lonely, teacher_uri, min_stake, load_seednodes=True):
     #
     # Make Ursula
     #
@@ -490,9 +495,11 @@ def _create_ursula(ursula_config, click_config, dev, emitter, lonely, teacher_ur
                                             click_config=click_config,
                                             min_stake=min_stake,
                                             teacher_uri=teacher_uri,
-                                            dev=dev,
+                                            unlock_keyring=not dev,
                                             lonely=lonely,
-                                            client_password=client_password)
+                                            client_password=client_password,
+                                            load_preferred_teachers=load_seednodes,
+                                            start_learning_now=load_seednodes)
 
         return URSULA
     except NucypherKeyring.AuthenticationFailed as e:

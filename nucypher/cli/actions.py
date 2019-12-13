@@ -15,6 +15,8 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
+
+
 import json
 import os
 import shutil
@@ -307,9 +309,10 @@ def get_provider_process(start_now: bool = False):
 
 def make_cli_character(character_config,
                        click_config,
-                       dev: bool = False,
+                       unlock_keyring: bool = True,
                        teacher_uri: str = None,
                        min_stake: int = 0,
+                       load_preferred_teachers: bool = True,
                        **config_args):
 
     emitter = click_config.emitter
@@ -320,20 +323,22 @@ def make_cli_character(character_config,
 
     # Handle Keyring
 
-    if not dev:
+    if unlock_keyring:
         character_config.attach_keyring()
         unlock_nucypher_keyring(emitter,
                                 character_configuration=character_config,
                                 password=get_nucypher_password(confirm=False))
 
     # Handle Teachers
-    teacher_nodes = load_seednodes(emitter,
-                                   teacher_uris=[teacher_uri] if teacher_uri else None,
-                                   min_stake=min_stake,
-                                   federated_only=character_config.federated_only,
-                                   network_domains=character_config.domains,
-                                   network_middleware=character_config.network_middleware,
-                                   registry=character_config.registry)
+    teacher_nodes = list()
+    if load_preferred_teachers:
+        teacher_nodes = load_seednodes(emitter,
+                                       teacher_uris=[teacher_uri] if teacher_uri else None,
+                                       min_stake=min_stake,
+                                       federated_only=character_config.federated_only,
+                                       network_domains=character_config.domains,
+                                       network_middleware=character_config.network_middleware,
+                                       registry=character_config.registry)
 
     #
     # Character Init
