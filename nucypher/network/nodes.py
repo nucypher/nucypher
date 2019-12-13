@@ -356,8 +356,6 @@ class Learner:
 
         self.log = Logger("learning-loop")  # type: Logger
 
-        self.node_class = node_class or Teacher
-        self.node_class.set_federated_mode(self.federated_only)  # Kinda slams the door on #466 / #410
         self.learning_domains = domains
         self.network_middleware = network_middleware
         self.save_metadata = save_metadata
@@ -379,6 +377,10 @@ class Learner:
         self.node_storage = node_storage
         if save_metadata and node_storage is NO_STORAGE_AVAILIBLE:
             raise ValueError("Cannot save nodes without a configured node storage")
+
+        self.node_class = node_class or Teacher
+        self.node_class.set_cert_storage_function(node_storage.store_node_certificate)  #  TODO: Fix this temporary workaround for on-disk cert storage.
+        self.node_class.set_federated_mode(self.federated_only)  # Kinda slams the door on #466 / #410
 
         known_nodes = known_nodes or tuple()
         self.unresponsive_startup_nodes = list()  # TODO: Buckets - Attempt to use these again later
@@ -481,8 +483,9 @@ class Learner:
             # Probably a sprout.
             try:
                 if grow_node_sprout_into_node:
-                    node = self.node_class(**node)
+                    node.mature()
                 else:
+                    # TODO: Well, why?  What about eagerness, popping listeners, etc?  We not doing that stuff?
                     return node
             except Exception as e:
                 # Whoops, we got an Alice, Bob, or something totally wrong...
