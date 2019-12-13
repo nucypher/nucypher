@@ -123,8 +123,7 @@ def init(click_config,
 
     if (not staker_address or not worker_address) and not federated_only:
         if not staker_address:
-            prompt = "Select staker account"
-            staker_address = select_client_account(emitter=emitter, prompt=prompt, provider_uri=provider_uri)
+            staker_address = click.prompt("Enter staker address", type=EIP55_CHECKSUM_ADDRESS)
 
         if not worker_address:
             prompt = "Select worker account"
