@@ -110,8 +110,6 @@ class NucypherMiddlewareClient:
             else:
                 certificate_filepath = node_certificate_filepath
 
-            # TODO: Check node validity here?  or...."
-
             method = getattr(http_client, method_name)
 
             url = f"https://{host}/{path}"
@@ -135,7 +133,10 @@ class NucypherMiddlewareClient:
 class RestMiddleware:
     log = Logger()
 
-    client = NucypherMiddlewareClient()
+    _client_class = NucypherMiddlewareClient
+
+    def __init__(self, registry=None):
+        self.client = self._client_class()
 
     def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2,
                         current_attempt: int = 0):
