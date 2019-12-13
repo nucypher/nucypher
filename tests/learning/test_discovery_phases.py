@@ -14,18 +14,26 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from unittest.mock import patch
 
+import maya
+import pytest
 import time
+from flask import Response
+from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.lawful import Ursula
 from tests.performance_mocks import mock_cert_storage, mock_cert_loading, mock_verify_node, \
     mock_message_verification, \
-    mock_metadata_validation, mock_signature_bytes, mock_stamp_call, mock_pubkey_from_bytes, VerificationTracker
+    mock_metadata_validation, mock_signature_bytes, mock_stamp_call, mock_pubkey_from_bytes, VerificationTracker, \
+    NotARestApp, mock_secret_source, NotAPublicKey
 
 """
 Node Discovery happens in phases.  The first step is for a network actor to learn about the mere existence of a Node.
 This is a straightforward step which we currently do with our own logic, but which may someday be replaced by something
-like libp2p, depending on the course of development of those sorts of tools.
+like libp2p, depending on the course of development of those sorts of tools.  The introduction of hamming distance
+in particular is useful when wanting to learn about a small number (~500) of nodes among a much larger (25,000+) swarm.
+This toolchain is not built for that scenario at this time, although it is not a stated nongoal. 
 
 After this, our "Learning Loop" does four other things in sequence which are not part of the offering of node discovery tooling alone:
 
@@ -79,7 +87,13 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas, hi
         with NotARestApp.replace_route("set_policy", mock_set_policy):
             with patch('umbral.keys.UmbralPublicKey.__eq__', lambda *args, **kwargs: True):
                 with patch('umbral.keys.UmbralPublicKey.from_bytes',
-                           new=actual_random_key_instead), mock_message_verification:
-                    highperf_mocked_alice.grant(highperf_mocked_bob, b"any label", m=20, n=30,
-                                                expiration=maya.when('next week'))
-    assert VerificationTracker.node_verifications == 30
+                           new=actual_random_key_instead):
+                    with mock_cert_loading, mock_metadata_validation, mock_message_verification:
+                        with mock_secret_source:
+                            policy = highperf_mocked_alice.grant(
+                                highperf_mocked_bob, b"any label", m=20, n=30,
+                                expiration=maya.when('next week'),
+                                publish_treasure_map=False)
+    # TODO: Make some assertions about policy.
+    total_verified = sum(node.verified_node for node in highperf_mocked_alice.known_nodes)
+    assert total_verified == 30
