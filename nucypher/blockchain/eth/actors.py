@@ -1188,7 +1188,7 @@ class StakeHolder(Staker):
             transacting_power.activate(password=password)
 
         @property
-        def balances(self) -> Dict[str, int]:
+        def balances(self) -> Dict:
             balances = dict()
             for account in self.accounts:
                 funds = {'ETH': self.blockchain.client.get_balance(account),

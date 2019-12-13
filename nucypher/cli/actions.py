@@ -429,6 +429,8 @@ def select_client_account(emitter,
     account_range = click.IntRange(min=0, max=len(enumerated_accounts)-1)
     choice = click.prompt(prompt, type=account_range, default=default)
     chosen_account = enumerated_accounts[choice]
+
+    emitter.echo(f"Selected {choice}:{chosen_account}", color='blue')
     return chosen_account
 
 

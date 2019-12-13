@@ -466,6 +466,9 @@ def paint_accounts(emitter, balances):
 
         rows.append((address, eth, nu))
 
+    header = f'| Account  ------------------------------- | Balances ------------------' \
+             f'\n========================================================================'
+    emitter.echo(header)
     for address, eth, nu in rows:
         emitter.echo(f"{address} | {eth:{max_eth_len}} | {nu:{max_nu_len}}")
 

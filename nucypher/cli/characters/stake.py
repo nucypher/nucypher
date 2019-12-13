@@ -382,17 +382,20 @@ def create(click_config,
     #
 
     if not value:
+        token_balance = NU.from_nunits(STAKEHOLDER.token_agent.get_balance(staking_address))
+        lower_limit = NU.from_nunits(STAKEHOLDER.economics.minimum_allowed_locked)
+        upper_limit = min(token_balance, NU.from_nunits(STAKEHOLDER.economics.maximum_allowed_locked))
         value = click.prompt(f"Enter stake value in NU "
-                             f"({NU.from_nunits(STAKEHOLDER.economics.minimum_allowed_locked)} - "
-                             f"{NU.from_nunits(STAKEHOLDER.economics.maximum_allowed_locked)})",
+                             f"({lower_limit} - {upper_limit})",
                              type=stake_value_range,
-                             default=NU.from_nunits(min_locked).to_tokens())
+                             default=upper_limit.to_tokens())
     value = NU.from_tokens(value)
 
     if not lock_periods:
-        prompt = f"Enter stake duration ({STAKEHOLDER.economics.minimum_locked_periods} - " \
-                 f"{STAKEHOLDER.economics.maximum_rewarded_periods})"
-        lock_periods = click.prompt(prompt, type=stake_duration_range)
+        min_locktime = STAKEHOLDER.economics.minimum_locked_periods
+        max_locktime = STAKEHOLDER.economics.maximum_rewarded_periods
+        prompt = f"Enter stake duration ({min_locktime} - {max_locktime})"
+        lock_periods = click.prompt(prompt, type=stake_duration_range, default=max_locktime)
 
     start_period = STAKEHOLDER.staking_agent.get_current_period() + 1
     unlock_period = start_period + lock_periods
@@ -428,6 +431,8 @@ def create(click_config,
 
     # Authenticate and Execute
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+
+    emitter.echo("Broadcasting stake...", color='yellow')
     new_stake = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods)
 
     painting.paint_staking_confirmation(emitter=emitter,
@@ -557,9 +562,9 @@ def divide(click_config,
 
     # Value
     if not value:
-        value = click.prompt(f"Enter target value"
-                             f"{NU.from_nunits(STAKEHOLDER.economics.minimum_allowed_locked)})"
-                             f"- ({str(current_stake.value)}",
+        value = click.prompt(f"Enter target value "
+                             f"({NU.from_nunits(STAKEHOLDER.economics.minimum_allowed_locked)}"
+                             f" - {str(current_stake.value)})",
                              type=stake_value_range)
     value = NU(value, 'NU')
 
@@ -577,7 +582,7 @@ def divide(click_config,
                                              original_stake=current_stake,
                                              target_value=value,
                                              extension=extension)
-        click.confirm("Is this correct?", abort=True)
+        click.confirm("Publish stake division to the blockchain?", abort=True)
 
     # Authenticate
     password = None
@@ -592,6 +597,7 @@ def divide(click_config,
 
     # Execute
     STAKEHOLDER.assimilate(checksum_address=current_stake.staker_address, password=password)
+    emitter.echo("Broadcasting Stake Division...", color='yellow')
     modified_stake, new_stake = STAKEHOLDER.divide_stake(stake_index=current_stake.index,
                                                          target_value=value,
                                                          additional_periods=extension)
