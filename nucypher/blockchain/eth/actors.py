@@ -986,6 +986,20 @@ class Worker(NucypherTokenActor):
                 self.work_tracker.start(act_now=False)
 
     @property
+    def eth_balance(self) -> Decimal:
+        """Return this workers's current ETH balance"""
+        blockchain = BlockchainInterfaceFactory.get_interface()  # TODO: EthAgent?  #1509
+        balance = blockchain.client.get_balance(self.__worker_address)
+        return blockchain.client.w3.fromWei(balance, 'ether')
+
+    @property
+    def token_balance(self) -> NU:
+        """Return this worker's current token balance"""
+        balance = int(self.token_agent.get_balance(address=self.__worker_address))
+        nu_balance = NU(balance, 'NuNit')
+        return nu_balance
+
+    @property
     def last_active_period(self) -> int:
         period = self.staking_agent.get_last_active_period(staker_address=self.checksum_address)
         return period
