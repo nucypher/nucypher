@@ -304,7 +304,7 @@ def make_rest_app(
             return Response(response=arrangement_id, status=404)
 
         # Get KFrag
-        kfrag = KFrag.from_bytes(arrangement.kfrag)  # Careful!  :-)
+        kfrag = KFrag.from_bytes(arrangement.kfrag)
 
         # Get Work Order
         from nucypher.policy.collections import WorkOrder  # Avoid circular import

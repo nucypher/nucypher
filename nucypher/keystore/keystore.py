@@ -191,16 +191,20 @@ class KeyStore(object):
         query = session.query(Workorder)
 
         if not arrangement_id and not bob_verifying_key:
-            workorders = list(query.all())
+            workorders = query.all()  # Return all records
+
         else:
+
+            # Return arrangement records
             if arrangement_id:
                 workorders = query.filter_by(arrangement_id=arrangement_id)
-            elif bob_verifying_key:
-                fingerprint = fingerprint_from_key(bob_verifying_key)
-                bvk = session.query(Key).filter_by(fingerprint=fingerprint).first()
-                workorders = query.filter_by(bob_verifying_key_id=bvk.id)
+
+            # Return records for Bob
             else:
-                raise ValueError
+                fingerprint = fingerprint_from_key(bob_verifying_key)
+                key = session.query(Key).filter_by(fingerprint=fingerprint).first()
+                workorders = query.filter_by(bob_verifying_key_id=key.id)
+
             if not workorders:
                 raise NotFound
 
