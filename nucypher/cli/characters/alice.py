@@ -1,4 +1,5 @@
 import functools
+import json
 
 import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
@@ -137,10 +138,10 @@ def view(click_config, config_file):
     View existing Alice's configuration.
     """
     emitter = _setup_emitter(click_config)
-
     configuration_file_location = config_file or AliceConfiguration.default_filepath()
     response = AliceConfiguration._read_configuration_file(filepath=configuration_file_location)
-    return emitter.ipc(response=response, request_id=0, duration=0)  # FIXME: what are request_id and duration here?
+    emitter.echo(f"Alice Configuration {configuration_file_location} \n {'='*55}")
+    return emitter.echo(json.dumps(response, indent=4))
 
 
 @alice.command()

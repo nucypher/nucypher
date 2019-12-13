@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 import functools
+import json
 
 import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
@@ -345,23 +346,10 @@ def view(click_config,
                                                      rest_host, rest_port, db_filepath, poa, light)
     #############
 
-    URSULA = _create_ursula(ursula_config, click_config, dev, emitter, lonely, teacher_uri, min_stake)
-
-    if not URSULA.federated_only:
-        blockchain = URSULA.staking_agent.blockchain
-
-        emitter.echo("BLOCKCHAIN ----------\n")
-        painting.paint_contract_status(emitter=emitter, registry=URSULA.registry)
-        current_block = blockchain.w3.eth.blockNumber
-        emitter.echo(f'Block # {current_block}')
-
-        emitter.echo(f'NU Balance: {URSULA.token_balance}')
-        emitter.echo(f'ETH Balance: {URSULA.eth_balance}')
-        emitter.echo(f'Current Gas Price {blockchain.client.gas_price}')
-
-    emitter.echo("CONFIGURATION --------")
-    response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
-    return emitter.ipc(response=response, request_id=0, duration=0)  # TODO: what are request_id and duration here?
+    filepath = config_file or ursula_config.config_file_location
+    emitter.echo(f"Ursula Configuration {filepath} \n {'='*55}")
+    response = UrsulaConfiguration._read_configuration_file(filepath=filepath)
+    return emitter.echo(json.dumps(response, indent=4))
 
 
 @ursula.command(name='confirm-activity')
