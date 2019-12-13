@@ -415,8 +415,11 @@ def select_client_account(emitter,
         raise click.Abort()
 
     # Display account info
+    header = f'| # | Account  ---------------------------------- | Balance -----' \
+             f'\n================================================================='
+    emitter.echo(header)
     for index, account in enumerated_accounts.items():
-        message = f"{index} | {account} "
+        message = f"| {index} | {account} "
         if show_balances:
             message += f" | {NU.from_nunits(token_agent.get_balance(address=account))}"
         emitter.echo(message)
