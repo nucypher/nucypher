@@ -675,7 +675,8 @@ class Learner:
                     self.log.warn("Teacher was unreachable.  No good way to handle this on the main thread.")
 
             # The rest of the fucking owl
-            if (maya.now() - start).seconds > timeout:
+            round_finish = maya.now()
+            if (round_finish - start).seconds > timeout:
                 if not self._learning_task.running:
                     raise RuntimeError("Learning loop is not running.  Start it with start_learning().")
                 else:
