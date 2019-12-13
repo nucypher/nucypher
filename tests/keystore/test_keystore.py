@@ -64,8 +64,8 @@ def test_workorder_sqlite_keystore(test_keystore):
     arrangement_id = b'test'
 
     # Test add workorder
-    new_workorder1 = test_keystore.add_workorder(bob_keypair_sig1.pubkey, b'test0', arrangement_id)
-    new_workorder2 = test_keystore.add_workorder(bob_keypair_sig2.pubkey, b'test1', arrangement_id)
+    new_workorder1 = test_keystore.save_workorder(bob_keypair_sig1.pubkey, b'test0', arrangement_id)
+    new_workorder2 = test_keystore.save_workorder(bob_keypair_sig2.pubkey, b'test1', arrangement_id)
 
     # Test get workorder
     query_workorders = test_keystore.get_workorders(arrangement_id)
@@ -74,4 +74,4 @@ def test_workorder_sqlite_keystore(test_keystore):
     # Test del workorder
     deleted = test_keystore.del_workorders(arrangement_id)
     assert deleted > 0
-    assert test_keystore.get_workorders(arrangement_id).count() == 0
+    assert len(test_keystore.get_workorders(arrangement_id)) == 0

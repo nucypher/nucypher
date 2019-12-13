@@ -19,18 +19,16 @@ import binascii
 import os
 from typing import Tuple
 
-from flask import Flask, Response
-from flask import request
-from jinja2 import Template, TemplateError
-from twisted.logger import Logger
-from umbral import pre
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
-
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
+from flask import Flask, Response
+from flask import request
 from hendrix.experience import crosstown_traffic
+from jinja2 import Template, TemplateError
+from twisted.logger import Logger
+from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
 
 import nucypher
 from nucypher.config.storages import ForgetfulNodeStorage
@@ -293,51 +291,46 @@ def make_rest_app(
 
     @rest_app.route('/kFrag/<id_as_hex>/reencrypt', methods=["POST"])
     def reencrypt_via_rest(id_as_hex):
-        from nucypher.policy.collections import WorkOrder  # Avoid circular import
-        arrangement_id = binascii.unhexlify(id_as_hex)
+
+        # Get Policy Arrangement
+        try:
+            arrangement_id = binascii.unhexlify(id_as_hex)
+        except (binascii.Error, TypeError):
+            return Response(response=b'Invalid arrangement ID', status=405)
         try:
             with ThreadedSession(db_engine) as session:
-                policy_arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
-                                                                      session=session)
+                arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(), session=session)
         except NotFound:
             return Response(response=arrangement_id, status=404)
-        kfrag_bytes = policy_arrangement.kfrag  # Careful!  :-)
-        verifying_key_bytes = policy_arrangement.alice_verifying_key.key_data
 
-        # TODO: Push this to a lower level. Perhaps to Ursula character? #619
-        kfrag = KFrag.from_bytes(kfrag_bytes)
-        alices_verifying_key = UmbralPublicKey.from_bytes(verifying_key_bytes)
-        alices_address = canonical_address_from_umbral_key(alices_verifying_key)
+        # Get KFrag
+        kfrag = KFrag.from_bytes(arrangement.kfrag)
 
+        # Get Work Order
+        from nucypher.policy.collections import WorkOrder  # Avoid circular import
+        alice_verifying_key_bytes = arrangement.alice_verifying_key.key_data
+        alice_verifying_key = UmbralPublicKey.from_bytes(alice_verifying_key_bytes)
+        alice_address = canonical_address_from_umbral_key(alice_verifying_key)
+        work_order_payload = request.data
         work_order = WorkOrder.from_rest_payload(arrangement_id=arrangement_id,
-                                                 rest_payload=request.data,
+                                                 rest_payload=work_order_payload,
                                                  ursula=this_node,
-                                                 alice_address=alices_address)
-
+                                                 alice_address=alice_address)
         log.info(f"Work Order from {work_order.bob}, signed {work_order.receipt_signature}")
 
-        cfrag_byte_stream = b""
+        # Re-encrypt
+        response = this_node._reencrypt(kfrag=kfrag,
+                                        work_order=work_order,
+                                        alice_verifying_key=alice_verifying_key)
 
-        for task in work_order.tasks:
-            # Ursula signs on top of Bob's signature of each task.
-            # Now both are committed to the same task.  See #259.
-            reencryption_metadata = bytes(this_node.stamp(bytes(task.signature)))
-
-            capsule = task.capsule
-            capsule.set_correctness_keys(verifying=alices_verifying_key)
-            cfrag = pre.reencrypt(kfrag, capsule, metadata=reencryption_metadata)
-            log.info(f"Re-encrypting for {capsule}, made {cfrag}.")
-
-            # Finally, Ursula commits to her result
-            reencryption_signature = this_node.stamp(bytes(cfrag))
-            cfrag_byte_stream += VariableLengthBytestring(cfrag) + reencryption_signature
-
-        # TODO: Put this in Ursula's datastore
-        this_node._work_orders.append(work_order)
+        # Now, Ursula saves this workorder to her database...
+        with ThreadedSession(db_engine):
+            this_node.datastore.save_workorder(bob_verifying_key=bytes(work_order.bob.stamp),
+                                               bob_signature=bytes(work_order.receipt_signature),
+                                               arrangement_id=work_order.arrangement_id)
 
         headers = {'Content-Type': 'application/octet-stream'}
-
-        return Response(response=cfrag_byte_stream, headers=headers)
+        return Response(headers=headers, response=response)
 
     @rest_app.route('/treasure_map/<treasure_map_id>')
     def provide_treasure_map(treasure_map_id):

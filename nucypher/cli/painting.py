@@ -124,7 +124,7 @@ def paint_node_status(emitter, ursula, start_time):
              'Rest Interface ...... {}'.format(ursula.rest_url()),
              'Node Storage Type ... {}'.format(ursula.node_storage._name.capitalize()),
              'Known Nodes ......... {}'.format(len(ursula.known_nodes)),
-             'Work Orders ......... {}'.format(len(ursula._work_orders)),
+             'Work Orders ......... {}'.format(len(ursula.work_orders())),
              teacher]
 
     if not ursula.federated_only:

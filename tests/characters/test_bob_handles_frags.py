@@ -215,7 +215,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     # Now we'll show that Ursula saved the correct WorkOrder.
     work_orders_from_bob = ursula.work_orders(bob=federated_bob)
     assert len(work_orders_from_bob) == 1
-    assert work_orders_from_bob[0] == work_order
+    assert work_orders_from_bob[0].bob_signature == work_order.receipt_signature
 
 
 def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_federated_policy, federated_bob,
