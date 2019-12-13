@@ -267,26 +267,30 @@ class NodeSprout(PartiallyKwargifiedBytes):
     """
     An abridged node class designed for optimization of instantiation of > 100 nodes simultaneously.
     """
+    verified_node = False
+
     def __init__(self, node_metadata):
         super().__init__(node_metadata)
         self.checksum_address = to_checksum_address(node_metadata['public_address'][0])
+        self.nickname = nickname_from_seed(self.checksum_address)[0]
         self.timestamp = maya.MayaDT(int.from_bytes(node_metadata['timestamp'][0], byteorder="big"))
         self._hash = int.from_bytes(bytes(node_metadata['verifying_key'][0]), byteorder="big")
 
     def __hash__(self):
         return self._hash
 
+    def __repr__(self):
+        r = f"({self.__class__.__name__})⇀{self.nickname}↽ ({self.checksum_address})"
+        return r
+
+
     def mature(self):
-        #### This is kind of a ridiculous workaround.
-        interface_info, info_class, _kwargs = self.processed_objects.pop("rest_interface")
-        interface_info = info_class.from_bytes(interface_info)
-        self._additional_kwargs['rest_host'] = interface_info.host
-        self._additional_kwargs['rest_port'] = interface_info.port
-        ####
-
-        # self._additional_kwargs['federated_only'] =
-
         mature_node = self.finish()
+
+        # As long as we're doing egregious workarounds, here's another one.  # TODO: 1481
+        filepath = mature_node._cert_store_function(certificate=mature_node.certificate)
+        mature_node.certificate_filepath = filepath
+
         self.__class__ = mature_node.__class__
         self.__dict__ = mature_node.__dict__
 
