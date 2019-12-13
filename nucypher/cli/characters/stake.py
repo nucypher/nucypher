@@ -377,10 +377,6 @@ def create(click_config,
     stake_value_range = click.FloatRange(min=NU.from_nunits(min_locked).to_tokens(), clamp=False)
     stake_duration_range = click.IntRange(min=economics.minimum_locked_periods, clamp=False)
 
-    password = None
-    if not hw_wallet and not blockchain.client.is_local:
-        password = get_client_password(checksum_address=client_account)
-
     #
     # Stage Stake
     #
@@ -419,7 +415,18 @@ def create(click_config,
     # Last chance to bail
     click.confirm("Publish staged stake to the blockchain?", abort=True)
 
-    # Execute
+    # Authenticate
+    password = None
+    if not hw_wallet and not blockchain.client.is_local:
+        password = get_client_password(checksum_address=client_account)
+
+    # Consistency check to prevent the above agreement from going stale.
+    last_second_current_period = STAKEHOLDER.staking_agent.get_current_period()
+    if start_period != last_second_current_period + 1:
+        emitter.echo("Current period advanced before stake was broadcasted. Please try again.")
+        raise click.Abort
+
+    # Authenticate and Execute
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
     new_stake = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods)
 
@@ -556,6 +563,8 @@ def divide(click_config,
                              type=stake_value_range)
     value = NU(value, 'NU')
 
+    action_period = STAKEHOLDER.staking_agent.get_current_period()
+
     # Duration
     if not lock_periods:
         extension = click.prompt("Enter number of periods to extend", type=stake_extension_range)
@@ -570,11 +579,18 @@ def divide(click_config,
                                              extension=extension)
         click.confirm("Is this correct?", abort=True)
 
-    # Execute
+    # Authenticate
     password = None
     if not hw_wallet and not blockchain.client.is_local:
         password = get_client_password(checksum_address=current_stake.staker_address)
 
+    # Consistency check to prevent the above agreement from going stale.
+    last_second_current_period = STAKEHOLDER.staking_agent.get_current_period()
+    if action_period != last_second_current_period:
+        emitter.echo("Current period advanced before stake division was broadcasted. Please try again.")
+        raise click.Abort
+
+    # Execute
     STAKEHOLDER.assimilate(checksum_address=current_stake.staker_address, password=password)
     modified_stake, new_stake = STAKEHOLDER.divide_stake(stake_index=current_stake.index,
                                                          target_value=value,
