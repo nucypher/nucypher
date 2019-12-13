@@ -50,6 +50,20 @@ class NotAPublicKey:
     def to_bytes(self, *args, **kwargs):
         return b"this is not a public key... but it is 64 bytes.. so, ya know" + self.serial
 
+    def i_want_to_be_a_real_boy(self):
+        _umbral_pubkey = self._umbral_pubkey_from_bytes(bytes(self))
+        self.__dict__ = _umbral_pubkey.__dict__
+        self.__class__ = _umbral_pubkey.__class__
+
+    @property
+    def params(self):
+        # Holy heck, metamock hacking.
+        self.i_want_to_be_a_real_boy()
+        return self.params
+
+    def __eq__(self, other):
+        return bytes(self) == bytes(other)
+
 
 class NotAPrivateKey:
     params = default_params()
