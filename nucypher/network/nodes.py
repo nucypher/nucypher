@@ -1035,8 +1035,8 @@ class Learner:
 
         ###################
 
-        #
-        # learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
+
+        learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
         # self.log.info(learning_round_log_message.format(self._learning_round,
         #                                                 current_teacher,
         #                                                 len(node_list),
@@ -1117,11 +1117,17 @@ class Teacher:
     class IsFromTheFuture(TypeError):
         """Raised when deserializing a Character from a future version."""
 
+    @classmethod
+    def set_cert_storage_function(cls, node_storage_function):
+        cls._cert_store_function = node_storage_function
+
     def mature(self, *args, **kwargs):
         """
         This is the most mature form, so we do nothing.
         """
 
+    def save_cert_for_this_stranger_node(stranger, certificate):
+        return stranger._cert_store_function(certificate)
 
     @classmethod
     def set_federated_mode(cls, federated_only: bool):
