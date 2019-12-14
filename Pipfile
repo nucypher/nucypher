@@ -10,7 +10,7 @@ python_version = "3"
 # NuCypher
 umbral = "==0.1.3a2"
 constant-sorrow = ">=0.1.0a8"
-bytestring-splitter = ">=1.0.0a4"
+bytestring-splitter = ">=1.3.0"
 hendrix = ">=3.2.5"
 # Third-Party
 pyopenssl = "*"
