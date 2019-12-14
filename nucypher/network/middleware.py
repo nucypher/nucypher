@@ -132,6 +132,9 @@ class NucypherMiddlewareClient:
     def node_selector(self, node):
         return node.rest_url(), self.library
 
+    def __len__(self):
+        return 0  # Workaround so debuggers can represent objects of this class despite the unusual __getattr__.
+
 
 class RestMiddleware:
     log = Logger()
