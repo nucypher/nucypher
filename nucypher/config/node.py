@@ -45,6 +45,8 @@ class CharacterConfiguration(BaseConfiguration):
     'Sideways Engagement' of Character classes; a reflection of input parameters.
     """
 
+    VERSION = 1  # bump when static payload scheme changes
+
     CHARACTER_CLASS = NotImplemented
     DEFAULT_CONTROLLER_PORT = NotImplemented
     DEFAULT_DOMAIN = 'goerli'
@@ -284,7 +286,6 @@ class CharacterConfiguration(BaseConfiguration):
         """
         Warning: This method allows mutation and may result in an inconsistent configuration.
         """
-
         payload = cls._read_configuration_file(filepath=filepath)
         node_storage = cls.load_node_storage(storage_payload=payload['node_storage'],
                                              federated_only=payload['federated_only'])
@@ -310,8 +311,7 @@ class CharacterConfiguration(BaseConfiguration):
         try:
             node_configuration = cls(filepath=filepath, provider_process=provider_process, **assembled_params)
         except TypeError as e:
-            # TODO: Trigger configuration migration?
-            raise cls.ConfigurationError(f"Your configuration file may be out of date: {e}")
+            raise cls.ConfigurationError(e)
         return node_configuration
 
     def validate(self) -> bool:
