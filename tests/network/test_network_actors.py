@@ -119,7 +119,7 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_co
         with patch("nucypher.config.storages.ForgetfulNodeStorage.store_node_certificate",
                    new=lambda *args, **kwargs: "do not store cert."):
             with patch("nucypher.characters.lawful.make_rest_app",
-                       new=lambda *args, **kwargs: (NotARestApp(), "this is not a datastore")):
+                       new=NotARestApp.create_with_not_a_datastore):
                 with patch("nucypher.characters.lawful.load_pem_x509_certificate",
                            new=lambda *args, **kwargs: NotACert()):
                     with patch("nucypher.keystore.keypairs.generate_self_signed_certificate", new=do_not_create_cert):
