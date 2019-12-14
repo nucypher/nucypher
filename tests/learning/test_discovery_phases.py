@@ -52,17 +52,23 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     # TODO: Consider changing this - #1449
     assert VerificationTracker.node_verifications == 1
 
+    # A quick setup so that the bytes casting of Ursulas (on what in the real world will be the remote node)
+    # doesn't take up all the time.
+    _teacher = highperf_mocked_alice.current_teacher_node()
+    _teacher_known_nodes_bytestring = _teacher.bytestring_of_known_nodes()
+    _teacher.bytestring_of_known_nodes  =lambda *args, **kwargs: _teacher_known_nodes_bytestring # TODO: Formalize this?  #1537
+
     with mock_cert_storage, mock_cert_loading, mock_verify_node, mock_message_verification, mock_metadata_validation:
-        with mock_pubkey_from_bytes, mock_stamp_call, mock_signature_bytes:
+        with mock_pubkey_from_bytes(), mock_stamp_call, mock_signature_bytes:
             started = time.time()
-            highperf_mocked_alice.block_until_number_of_known_nodes_is(8, learn_on_this_thread=True)
+            highperf_mocked_alice.block_until_number_of_known_nodes_is(4000, learn_on_this_thread=True)
             ended = time.time()
             elapsed = ended - started
 
+    assert elapsed < 6  # 6 seconds is still a little long to discover 4000 out of 5000 nodes, but before starting the optimization that went with this test, this operation took about 18 minutes on jMyles' laptop.
     assert VerificationTracker.node_verifications == 1  # We have only verified the first Ursula.
     assert sum(
         isinstance(u, Ursula) for u in highperf_mocked_alice.known_nodes) < 20  # We haven't instantiated many Ursulas.
-    assert elapsed < 6  # 6 seconds is still a little long to discover 8 out of 5000 nodes, but before starting the optimization that went with this test, this operation took about 18 minutes on jMyles' laptop.
     VerificationTracker.node_verifications = 0  # Cleanup
 
 
@@ -89,7 +95,7 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas, hi
                 with patch('umbral.keys.UmbralPublicKey.from_bytes',
                            new=actual_random_key_instead):
                     with mock_cert_loading, mock_metadata_validation, mock_message_verification:
-                        with mock_secret_source:
+                        with mock_secret_source():
                             policy = highperf_mocked_alice.grant(
                                 highperf_mocked_bob, b"any label", m=20, n=30,
                                 expiration=maya.when('next week'),

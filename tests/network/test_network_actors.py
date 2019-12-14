@@ -34,6 +34,7 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+from tests.performance_mocks import NotARestApp
 
 
 def test_alice_can_learn_about_a_whole_bunch_of_ursulas(ursula_federated_test_config):

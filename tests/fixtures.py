@@ -864,13 +864,14 @@ def fleet_of_highperf_mocked_ursulas(ursula_federated_test_config, request):
     except AttributeError:
         quantity = 5000  # Bigass fleet by default; that's kinda the point.
     with GlobalLoggerSettings.pause_all_logging_while():
-        with mock_cert_storage, mock_cert_loading, mock_rest_app_creation, mock_cert_generation, mock_secret_source, mock_remember_node, mock_message_verification:
-            _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
-                                              quantity=quantity, know_each_other=False)
-            all_ursulas = {u.checksum_address: u for u in _ursulas}
-            for ursula in _ursulas:
-                ursula.known_nodes._nodes = all_ursulas
-                ursula.known_nodes.checksum = b"This is a fleet state checksum..".hex()
+        with mock_secret_source():
+            with mock_cert_storage, mock_cert_loading, mock_rest_app_creation, mock_cert_generation, mock_remember_node, mock_message_verification:
+                _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
+                                                  quantity=quantity, know_each_other=False)
+                all_ursulas = {u.checksum_address: u for u in _ursulas}
+                for ursula in _ursulas:
+                    ursula.known_nodes._nodes = all_ursulas
+                    ursula.known_nodes.checksum = b"This is a fleet state checksum..".hex()
     return _ursulas
 
 
