@@ -279,6 +279,7 @@ class WorkOrder:
 
     @classmethod
     def construct_by_bob(cls, arrangement_id, capsules, ursula, bob):
+        ursula.mature()
         alice_verifying_key = capsules[0].get_correctness_keys()["verifying"]
         alice_address = canonical_address_from_umbral_key(alice_verifying_key)
 
