@@ -1022,7 +1022,7 @@ class Ursula(Teacher, Character, Worker):
                       federated_only: bool,
                       *args, **kwargs
                       ):
-        response_data = network_middleware.node_information(host, port, certificate_filepath=certificate_filepath)
+        response_data = network_middleware.client.node_information(host, port, certificate_filepath=certificate_filepath)
 
         stranger_ursula_from_public_keys = cls.from_bytes(response_data,
                                                           federated_only=federated_only,
@@ -1126,7 +1126,7 @@ class Ursula(Teacher, Character, Worker):
 
         # Verify the node's TLS certificate
         try:
-            potential_seed_node.verify_node(network_middleware=network_middleware,
+            potential_seed_node.verify_node(network_middleware_client=network_middleware.client,
                                             registry=registry,
                                             certificate_filepath=temp_certificate_filepath)
         except potential_seed_node.InvalidNode:

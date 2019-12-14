@@ -502,7 +502,7 @@ class Learner:
         if eager:
             try:
                 node.verify_node(force=force_verification_recheck,
-                                 network_middleware=self.network_middleware,
+                                 network_middleware_client=self.network_middleware.client,
                                  registry=self.registry)  # composed on character subclass, determines operating mode
             except SSLError:
                 # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
