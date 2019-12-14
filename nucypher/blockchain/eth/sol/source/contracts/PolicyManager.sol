@@ -25,7 +25,12 @@ contract PolicyManager is Upgradeable {
 
     event PolicyCreated(
         bytes16 indexed policyId,
-        address indexed sender
+        address indexed creator,
+        address indexed owner,
+        uint256 rewardRate,
+        uint64 startTimestamp,
+        uint64 endTimestamp,
+        uint256 numberOfNodes
     );
     event PolicyRevoked(
         bytes16 indexed policyId,
@@ -62,7 +67,8 @@ contract PolicyManager is Upgradeable {
     }
 
     struct Policy {
-        address creator;
+        address payable creator;
+        address owner;
 
         uint256 rewardRate;
         uint64 startTimestamp;
@@ -140,11 +146,13 @@ contract PolicyManager is Upgradeable {
     * @notice Create policy
     * @dev Generate policy id before creation
     * @param _policyId Policy id
+    * @param _owner Policy owner. Zero address means sender is owner
     * @param _endTimestamp End timestamp of the policy in seconds
     * @param _nodes Nodes that will handle policy
     */
     function createPolicy(
         bytes16 _policyId,
+        address _owner,
         uint64 _endTimestamp,
         address[] memory _nodes
     )
@@ -166,6 +174,9 @@ contract PolicyManager is Upgradeable {
         policy.endTimestamp = _endTimestamp;
         policy.rewardRate = msg.value.div(_nodes.length) / numberOfPeriods;
         require(policy.rewardRate > 0 && policy.rewardRate * numberOfPeriods * _nodes.length  == msg.value);
+        if (_owner != msg.sender && _owner != address(0)) {
+            policy.owner = _owner;
+        }
 
         for (uint256 i = 0; i < _nodes.length; i++) {
             address node = _nodes[i];
@@ -194,7 +205,23 @@ contract PolicyManager is Upgradeable {
             policy.arrangements.push(ArrangementInfo(node, 0, 0));
         }
 
-        emit PolicyCreated(_policyId, msg.sender);
+        emit PolicyCreated(
+            _policyId,
+            msg.sender,
+            _owner == address(0) ? msg.sender : _owner,
+            policy.rewardRate,
+            policy.startTimestamp,
+            policy.endTimestamp,
+            _nodes.length
+        );
+    }
+
+    /**
+    * @notice Get policy owner
+    */
+    function getPolicyOwner(bytes16 _policyId) public view returns (address) {
+        Policy storage policy = policies[_policyId];
+        return policy.owner == address(0) ? policy.creator : policy.owner;
     }
 
     /**
@@ -311,7 +338,7 @@ contract PolicyManager is Upgradeable {
         internal returns (uint256 refundValue)
     {
         Policy storage policy = policies[_policyId];
-        require(policy.creator == msg.sender && !policy.disabled);
+        require(!policy.disabled);
         uint16 endPeriod = uint16(policy.endTimestamp / secondsPerPeriod) + 1;
         uint256 numberOfActive = policy.arrangements.length;
         uint256 i = 0;
@@ -376,7 +403,7 @@ contract PolicyManager is Upgradeable {
             require(i < policy.arrangements.length);
         }
         if (refundValue > 0) {
-            msg.sender.sendValue(refundValue);
+            policy.creator.sendValue(refundValue);
         }
     }
 
@@ -389,7 +416,7 @@ contract PolicyManager is Upgradeable {
         internal view returns (uint256 refundValue)
     {
         Policy storage policy = policies[_policyId];
-        require(msg.sender == policy.creator && !policy.disabled);
+        require((policy.owner == msg.sender || policy.creator == msg.sender) && !policy.disabled);
         uint256 i = 0;
         for (; i < policy.arrangements.length; i++) {
             ArrangementInfo storage arrangement = policy.arrangements[i];
@@ -413,6 +440,8 @@ contract PolicyManager is Upgradeable {
     * @param _policyId Policy id
     */
     function revokePolicy(bytes16 _policyId) public {
+        // TODO modifier?
+        require(getPolicyOwner(_policyId) == msg.sender);
         refundInternal(_policyId, RESERVED_NODE, true);
     }
 
@@ -425,6 +454,7 @@ contract PolicyManager is Upgradeable {
         public returns (uint256 refundValue)
     {
         require(_node != RESERVED_NODE);
+        require(getPolicyOwner(_policyId) == msg.sender);
         return refundInternal(_policyId, _node, true);
     }
 
@@ -433,6 +463,8 @@ contract PolicyManager is Upgradeable {
     * @param _policyId Policy id
     */
     function refund(bytes16 _policyId) public {
+        Policy storage policy = policies[_policyId];
+        require(policy.owner == msg.sender || policy.creator == msg.sender);
         refundInternal(_policyId, RESERVED_NODE, false);
     }
 
@@ -445,6 +477,8 @@ contract PolicyManager is Upgradeable {
         public returns (uint256 refundValue)
     {
         require(_node != RESERVED_NODE);
+        Policy storage policy = policies[_policyId];
+        require(policy.owner == msg.sender || policy.creator == msg.sender);
         return refundInternal(_policyId, _node, false);
     }
 
@@ -551,6 +585,7 @@ contract PolicyManager is Upgradeable {
         Policy storage policy = policies[RESERVED_POLICY_ID];
         Policy memory policyToCheck = delegateGetPolicy(_testTarget, RESERVED_POLICY_ID);
         require(policyToCheck.creator == policy.creator &&
+            policyToCheck.owner == policy.owner &&
             policyToCheck.rewardRate == policy.rewardRate &&
             policyToCheck.startTimestamp == policy.startTimestamp &&
             policyToCheck.endTimestamp == policy.endTimestamp &&
@@ -586,7 +621,8 @@ contract PolicyManager is Upgradeable {
         secondsPerPeriod = policyManager.secondsPerPeriod();
         // Create fake Policy and NodeInfo to use them in verifyState(address)
         Policy storage policy = policies[RESERVED_POLICY_ID];
-        policy.creator = owner();
+        policy.creator = msg.sender;
+        policy.owner = address(this);
         policy.startTimestamp = 1;
         policy.endTimestamp = 2;
         policy.rewardRate = 3;

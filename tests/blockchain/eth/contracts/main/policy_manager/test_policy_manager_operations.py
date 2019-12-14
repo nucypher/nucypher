@@ -24,10 +24,11 @@ from eth_tester.exceptions import TransactionFailed
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 CREATOR_FIELD = 0
-RATE_FIELD = 1
-START_TIMESTAMP_FIELD = 2
-END_TIMESTAMP_FIELD = 3
-DISABLED_FIELD = 4
+OWNER_FIELD = 1
+RATE_FIELD = 2
+START_TIMESTAMP_FIELD = 3
+END_TIMESTAMP_FIELD = 4
+DISABLED_FIELD = 5
 
 REWARD_FIELD = 0
 REWARD_RATE_FIELD = 1
@@ -61,7 +62,7 @@ def test_reward(testerchain, escrow, policy_manager):
     testerchain.wait_for_receipt(tx)
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
-    tx = policy_manager.functions.createPolicy(policy_id, end_timestamp, [node1, node3])\
+    tx = policy_manager.functions.createPolicy(policy_id, policy_creator, end_timestamp, [node1, node3])\
         .transact({'from': policy_creator, 'value': 2 * value})
     testerchain.wait_for_receipt(tx)
 
@@ -77,6 +78,10 @@ def test_reward(testerchain, escrow, policy_manager):
     # Can't register directly (only through deposit method in the escrow contract)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.register(bad_node, period).transact({'from': bad_node})
+        testerchain.wait_for_receipt(tx)
+    # Can't set default value directly (only through confirmActivity method in the escrow contract)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.setDefaultRewardDelta(bad_node, period).transact({'from': bad_node})
         testerchain.wait_for_receipt(tx)
 
     # Mint some periods for calling updateReward method
@@ -126,7 +131,7 @@ def test_reward(testerchain, escrow, policy_manager):
     period = escrow.functions.getCurrentPeriod().call()
     tx = escrow.functions.setDefaultRewardDelta(node1, period, 1).transact()
     testerchain.wait_for_receipt(tx)
-    tx = policy_manager.functions.createPolicy(policy_id_2, end_timestamp, [node2, node3]) \
+    tx = policy_manager.functions.createPolicy(policy_id_2, policy_creator, end_timestamp, [node2, node3]) \
         .transact({'from': policy_creator, 'value': int(2 * value)})
     testerchain.wait_for_receipt(tx)
 
@@ -161,11 +166,8 @@ def test_reward(testerchain, escrow, policy_manager):
 
 @pytest.mark.slow
 def test_refund(testerchain, escrow, policy_manager):
-    creator = testerchain.client.accounts[0]
-    policy_creator = testerchain.client.accounts[1]
-    node1 = testerchain.client.accounts[3]
-    node2 = testerchain.client.accounts[4]
-    node3 = testerchain.client.accounts[5]
+    creator, policy_creator, bad_node, node1, node2, node3, policy_owner, *everyone_else = testerchain.client.accounts
+
     creator_balance = testerchain.client.get_balance(policy_creator)
     policy_created_log = policy_manager.events.PolicyCreated.createFilter(fromBlock='latest')
     arrangement_revoked_log = policy_manager.events.ArrangementRevoked.createFilter(fromBlock='latest')
@@ -176,7 +178,7 @@ def test_refund(testerchain, escrow, policy_manager):
     # Create policy
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
-    tx = policy_manager.functions.createPolicy(policy_id, end_timestamp, [node1]) \
+    tx = policy_manager.functions.createPolicy(policy_id, policy_owner, end_timestamp, [node1]) \
         .transact({'from': policy_creator, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     period = escrow.functions.getCurrentPeriod().call()
@@ -187,12 +189,12 @@ def test_refund(testerchain, escrow, policy_manager):
     # Check that methods only calculate value
     tx = policy_manager.functions.calculateRefundValue(policy_id).transact({'from': policy_creator, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    tx = policy_manager.functions.calculateRefundValue(policy_id, node1).transact({'from': policy_creator, 'gas_price': 0})
+    tx = policy_manager.functions.calculateRefundValue(policy_id, node1).transact({'from': policy_owner, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert 200 == testerchain.client.get_balance(policy_manager.address)
     assert creator_balance - 200 == testerchain.client.get_balance(policy_creator)
     assert 180 == policy_manager.functions.calculateRefundValue(policy_id, node1).call({'from': policy_creator})
-    assert 180 == policy_manager.functions.calculateRefundValue(policy_id).call({'from': policy_creator})
+    assert 180 == policy_manager.functions.calculateRefundValue(policy_id).call({'from': policy_owner})
 
     # Call refund, the result must be almost all ETH without payment for one period
     tx = policy_manager.functions.refund(policy_id).transact({'from': policy_creator, 'gas_price': 0})
@@ -221,7 +223,7 @@ def test_refund(testerchain, escrow, policy_manager):
     assert 20 == policy_manager.functions.calculateRefundValue(policy_id, node1).call({'from': policy_creator})
 
     # Call refund, last period must be refunded
-    tx = policy_manager.functions.refund(policy_id).transact({'from': policy_creator, 'gas_price': 0})
+    tx = policy_manager.functions.refund(policy_id).transact({'from': policy_owner, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert 0 == testerchain.client.get_balance(policy_manager.address)
     assert creator_balance == testerchain.client.get_balance(policy_creator)
@@ -233,7 +235,7 @@ def test_refund(testerchain, escrow, policy_manager):
     assert 1 == len(events)
     event_args = events[0]['args']
     assert policy_id == event_args['policyId']
-    assert policy_creator == event_args['sender']
+    assert policy_owner == event_args['sender']
     assert node1 == event_args['node']
     assert 20 == event_args['value']
 
@@ -243,7 +245,7 @@ def test_refund(testerchain, escrow, policy_manager):
     assert 1 == len(events)
     event_args = events[0]['args']
     assert policy_id == event_args['policyId']
-    assert policy_creator == event_args['sender']
+    assert policy_owner == event_args['sender']
     assert 20 == event_args['value']
 
     # Can't refund again because policy and all arrangements are disabled
@@ -270,7 +272,7 @@ def test_refund(testerchain, escrow, policy_manager):
     testerchain.wait_for_receipt(tx)
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
-    tx = policy_manager.functions.createPolicy(policy_id_2, end_timestamp, [node1, node2, node3]) \
+    tx = policy_manager.functions.createPolicy(policy_id_2, policy_creator, end_timestamp, [node1, node2, node3]) \
         .transact({'from': policy_creator, 'value': 3 * value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
 
@@ -323,7 +325,7 @@ def test_refund(testerchain, escrow, policy_manager):
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         policy_manager.functions.calculateRefundValue(policy_id_3).call({'from': policy_creator})
-    # Only policy owner can call refund
+    # Only policy creator or owner can call refund
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.refund(policy_id_2).transact({'from': node1})
         testerchain.wait_for_receipt(tx)
@@ -425,7 +427,7 @@ def test_refund(testerchain, escrow, policy_manager):
     period = escrow.functions.getCurrentPeriod().call()
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
-    tx = policy_manager.functions.createPolicy(policy_id_3, end_timestamp, [node1])\
+    tx = policy_manager.functions.createPolicy(policy_id_3, policy_creator, end_timestamp, [node1])\
         .transact({'from': policy_creator, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
 
@@ -488,7 +490,7 @@ def test_refund(testerchain, escrow, policy_manager):
     number_of_periods_4 = 3
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods_4 - 1) * one_period
-    tx = policy_manager.functions.createPolicy(policy_id_4, end_timestamp, [node1]) \
+    tx = policy_manager.functions.createPolicy(policy_id_4, policy_creator, end_timestamp, [node1]) \
         .transact({'from': policy_creator, 'value': number_of_periods_4 * rate, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
 
@@ -559,7 +561,7 @@ def test_reentrancy(testerchain, escrow, policy_manager, deploy_contract):
     policy_value = int(periods * rate)
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (periods - 1) * one_period
-    transaction = policy_manager.functions.createPolicy(policy_id, end_timestamp, [contract_address]) \
+    transaction = policy_manager.functions.createPolicy(policy_id, contract_address, end_timestamp, [contract_address])\
         .buildTransaction({'gas': 0})
     tx = reentrancy_contract.functions.setData(1, transaction['to'], policy_value, transaction['data']).transact()
     testerchain.wait_for_receipt(tx)
@@ -568,7 +570,8 @@ def test_reentrancy(testerchain, escrow, policy_manager, deploy_contract):
     testerchain.wait_for_receipt(tx)
     assert policy_value == testerchain.client.get_balance(policy_manager.address)
 
-    tx = policy_manager.functions.createPolicy(policy_id_2, end_timestamp, [contract_address])\
+    tx = policy_manager.functions.createPolicy(
+        policy_id_2, BlockchainInterface.NULL_ADDRESS, end_timestamp, [contract_address])\
         .transact({'value': policy_value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
 

@@ -168,7 +168,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     web3 = testerchain.w3
 
     # Accounts
-    origin, ursula1, ursula2, ursula3, alice1, *everyone_else = testerchain.client.accounts
+    origin, ursula1, ursula2, ursula3, alice1, alice2, *everyone_else = testerchain.client.accounts
 
     ursula_with_stamp = mock_ursula(testerchain, ursula1)
 
@@ -301,10 +301,10 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     transact_and_log("Creating policy (1 node, 10 periods, pre-confirmed), 1st",
-                     policy_functions.createPolicy(policy_id_1, end_timestamp, [ursula1]),
+                     policy_functions.createPolicy(policy_id_1, alice1, end_timestamp, [ursula1]),
                      {'from': alice1, 'value': value})
     transact_and_log("Creating policy (1 node, 10 periods, pre-confirmed), 2nd",
-                     policy_functions.createPolicy(policy_id_2, end_timestamp, [ursula1]),
+                     policy_functions.createPolicy(policy_id_2, alice1, end_timestamp, [ursula1]),
                      {'from': alice1, 'value': value})
 
     #
@@ -344,14 +344,14 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     transact_and_log("Creating policy (3 nodes, 100 periods, pre-confirmed), 1st",
-                     policy_functions.createPolicy(policy_id_1, end_timestamp, [ursula1, ursula2, ursula3]),
+                     policy_functions.createPolicy(policy_id_1, alice1, end_timestamp, [ursula1, ursula2, ursula3]),
                      {'from': alice1, 'value': value})
     transact_and_log("Creating policy (3 nodes, 100 periods, pre-confirmed), 2nd",
-                     policy_functions.createPolicy(policy_id_2, end_timestamp, [ursula1, ursula2, ursula3]),
+                     policy_functions.createPolicy(policy_id_2, alice1, end_timestamp, [ursula1, ursula2, ursula3]),
                      {'from': alice1, 'value': value})
     value = 2 * number_of_periods * rate
     transact_and_log("Creating policy (2 nodes, 100 periods, pre-confirmed), 3rd",
-                     policy_functions.createPolicy(policy_id_3, end_timestamp, [ursula1, ursula2]),
+                     policy_functions.createPolicy(policy_id_3, alice1, end_timestamp, [ursula1, ursula2]),
                      {'from': alice1, 'value': value})
 
     #
@@ -372,16 +372,16 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     transact_and_log("Creating policy (1 node, 100 periods), 1st",
-                     policy_functions.createPolicy(policy_id_1, end_timestamp, [ursula2]),
+                     policy_functions.createPolicy(policy_id_1, alice2, end_timestamp, [ursula2]),
                      {'from': alice1, 'value': value})
     testerchain.time_travel(periods=1)
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     transact_and_log("Creating policy (1 node, 100 periods), 2nd",
-                     policy_functions.createPolicy(policy_id_2, end_timestamp, [ursula2]),
+                     policy_functions.createPolicy(policy_id_2, alice2, end_timestamp, [ursula2]),
                      {'from': alice1, 'value': value})
     transact_and_log("Creating policy (1 node, 100 periods), 3rd",
-                     policy_functions.createPolicy(policy_id_3, end_timestamp, [ursula1]),
+                     policy_functions.createPolicy(policy_id_3, alice2, end_timestamp, [ursula1]),
                      {'from': alice1, 'value': value})
 
     #
@@ -396,13 +396,13 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.time_travel(periods=10)
     transact_and_log("Revoking policy after downtime, 1st",
                      policy_functions.revokePolicy(policy_id_1),
-                     {'from': alice1})
+                     {'from': alice2})
     transact_and_log("Revoking policy after downtime, 2nd",
                      policy_functions.revokePolicy(policy_id_2),
-                     {'from': alice1})
+                     {'from': alice2})
     transact_and_log("Revoking policy after downtime, 3rd",
                      policy_functions.revokePolicy(policy_id_3),
-                     {'from': alice1})
+                     {'from': alice2})
 
     for index in range(5):
         transact(staker_functions.confirmActivity(), {'from': ursula1})

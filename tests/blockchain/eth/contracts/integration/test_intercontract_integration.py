@@ -24,6 +24,7 @@ from eth_utils import to_canonical_address, to_wei
 from web3.contract import Contract
 
 from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
@@ -33,7 +34,7 @@ from nucypher.crypto.signing import SignatureStamp
 
 DISABLE_RE_STAKE_FIELD = 3
 
-DISABLED_FIELD = 4
+DISABLED_FIELD = 5
 
 SECRET_LENGTH = 32
 escrow_secret = os.urandom(SECRET_LENGTH)
@@ -608,27 +609,31 @@ def test_all(testerchain,
     value = 2 * one_node_value
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
-    tx = policy_manager.functions.createPolicy(policy_id_1, end_timestamp, [ursula1, preallocation_escrow_2.address]) \
+    tx = policy_manager.functions.createPolicy(policy_id_1, alice1, end_timestamp, [ursula1, preallocation_escrow_2.address]) \
         .transact({'from': alice1, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
 
     policy_id_2 = os.urandom(16)
-    tx = policy_manager.functions.createPolicy(policy_id_2, end_timestamp, [preallocation_escrow_2.address, preallocation_escrow_1.address]) \
+    tx = policy_manager.functions.createPolicy(
+        policy_id_2, alice2, end_timestamp, [preallocation_escrow_2.address, preallocation_escrow_1.address]) \
         .transact({'from': alice1, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
 
     policy_id_3 = os.urandom(16)
-    tx = policy_manager.functions.createPolicy(policy_id_3, end_timestamp, [ursula1, preallocation_escrow_1.address]) \
+    tx = policy_manager.functions.createPolicy(
+        policy_id_3, BlockchainInterface.NULL_ADDRESS, end_timestamp, [ursula1, preallocation_escrow_1.address]) \
         .transact({'from': alice2, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
 
     policy_id_4 = os.urandom(16)
-    tx = policy_manager.functions.createPolicy(policy_id_4, end_timestamp, [preallocation_escrow_2.address, preallocation_escrow_1.address]) \
+    tx = policy_manager.functions.createPolicy(
+        policy_id_4, alice1, end_timestamp, [preallocation_escrow_2.address, preallocation_escrow_1.address]) \
         .transact({'from': alice2, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
 
     policy_id_5 = os.urandom(16)
-    tx = policy_manager.functions.createPolicy(policy_id_5, end_timestamp, [ursula1, preallocation_escrow_2.address]) \
+    tx = policy_manager.functions.createPolicy(
+        policy_id_5, alice1, end_timestamp, [ursula1, preallocation_escrow_2.address]) \
         .transact({'from': alice2, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert 5 * value == testerchain.client.get_balance(policy_manager.address)
@@ -638,7 +643,7 @@ def test_all(testerchain,
         tx = policy_manager.functions.revokePolicy(policy_id_5).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
     alice2_balance = testerchain.client.get_balance(alice2)
-    tx = policy_manager.functions.revokePolicy(policy_id_5).transact({'from': alice2, 'gas_price': 0})
+    tx = policy_manager.functions.revokePolicy(policy_id_5).transact({'from': alice1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     two_nodes_rate = 2 * rate
     assert 4 * value + two_nodes_rate == testerchain.client.get_balance(policy_manager.address)
@@ -654,7 +659,7 @@ def test_all(testerchain,
         testerchain.wait_for_receipt(tx)
 
     alice1_balance = testerchain.client.get_balance(alice1)
-    tx = policy_manager.functions.revokeArrangement(policy_id_2, preallocation_escrow_2.address).transact({'from': alice1, 'gas_price': 0})
+    tx = policy_manager.functions.revokeArrangement(policy_id_2, preallocation_escrow_2.address).transact({'from': alice2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     remaining_value = 3 * value + two_nodes_rate + one_node_value + rate
     assert remaining_value == testerchain.client.get_balance(policy_manager.address)
@@ -735,7 +740,7 @@ def test_all(testerchain,
     tx = policy_manager.functions.refund(policy_id_3).transact({'from': alice2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert alice2_balance == testerchain.client.get_balance(alice2)
-    tx = policy_manager.functions.refund(policy_id_4).transact({'from': alice2, 'gas_price': 0})
+    tx = policy_manager.functions.refund(policy_id_4).transact({'from': alice1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert alice2_balance < testerchain.client.get_balance(alice2)
 
