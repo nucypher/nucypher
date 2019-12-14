@@ -47,6 +47,14 @@ class NucypherMiddlewareClient:
     def response_cleaner(response):
         return response
 
+    def verify_and_parse_node_or_host_and_port(self, node_or_sprout, host, port):
+        if node_or_sprout:
+            if node_or_sprout is not EXEMPT_FROM_VERIFICATION:
+                node_or_sprout.mature()  # Morph into a node.
+                node = node_or_sprout  # Definitely a node.
+                node.verify_node(network_middleware_client=self)
+        return self.parse_node_or_host_and_port(node_or_sprout, host, port)
+
     def parse_node_or_host_and_port(self, node, host, port):
         if node:
             if any((host, port)):
@@ -94,12 +102,7 @@ class NucypherMiddlewareClient:
                            port=None,
                            certificate_filepath=None,
                            *args, **kwargs):
-            if node_or_sprout is not EXEMPT_FROM_VERIFICATION:
-                node_or_sprout.mature()  # Morph into a node.
-                node = node_or_sprout  # Definitely a node.
-                node.verify_node(network_middleware_client=self)
-
-            host, node_certificate_filepath, http_client = self.parse_node_or_host_and_port(node_or_sprout, host, port)
+            host, node_certificate_filepath, http_client = self.verify_and_parse_node_or_host_and_port(node_or_sprout, host, port)
 
             if certificate_filepath:
                 filepaths_are_different = node_certificate_filepath != certificate_filepath
@@ -187,7 +190,7 @@ class RestMiddleware:
     def revoke_arrangement(self, ursula, revocation):
         # TODO: Implement revocation confirmations
         response = self.client.delete(
-            node=ursula,
+            node_or_sprout=ursula,
             path=f"kFrag/{revocation.arrangement_id.hex()}",
             data=bytes(revocation),
         )
