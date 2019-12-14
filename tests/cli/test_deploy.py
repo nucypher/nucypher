@@ -55,7 +55,8 @@ def test_nucypher_deploy_contracts(click_runner,
     command = ['contracts',
                '--registry-outfile', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa']
+               '--poa',
+               '--se-test-mode']
 
     user_input = '0\n' + 'Y\n' + (f'{INSECURE_SECRETS[1]}\n' * 8) + 'DEPLOY'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
@@ -101,6 +102,7 @@ def test_nucypher_deploy_contracts(click_runner,
     assert token_agent.get_balance() == 0
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
     assert staking_agent.get_current_period()
+    assert staking_agent.contract.functions.isTestContract().call()
 
     # and at least the others can be instantiated
     assert PolicyManagerAgent(registry=registry)

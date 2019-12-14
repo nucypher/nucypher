@@ -61,6 +61,7 @@ def _admin_actor_options(func):
     @click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
     @click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
     @click.option('--dev', '-d', help="Forcibly use the development registry filepath.", is_flag=True)
+    @click.option('--se-test-mode', help="Enable test mode for StakingEscrow in deployment.", is_flag=True)
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -138,7 +139,7 @@ def inspect(provider_uri, config_root, registry_infile, deployer_address, poa):
 @click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
 def upgrade(# Admin Actor Options
             provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
-            registry_infile, registry_outfile, dev,
+            registry_infile, registry_outfile, dev, se_test_mode,
 
             # Other
             retarget, target_address, ignore_deployed):
@@ -165,7 +166,8 @@ def upgrade(# Admin Actor Options
                                                                                            registry_outfile,
                                                                                            hw_wallet,
                                                                                            dev,
-                                                                                           force)
+                                                                                           force,
+                                                                                           se_test_mode)
 
     if not contract_name:
         raise click.BadArgumentUsage(message="--contract-name is required when using --upgrade")
@@ -200,7 +202,7 @@ def upgrade(# Admin Actor Options
 @_admin_actor_options
 def rollback(# Admin Actor Options
              provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
-             registry_infile, registry_outfile, dev):
+             registry_infile, registry_outfile, dev, se_test_mode):
     """
     Rollback a proxy contract's target.
     """
@@ -224,7 +226,8 @@ def rollback(# Admin Actor Options
                                                                                            registry_outfile,
                                                                                            hw_wallet,
                                                                                            dev,
-                                                                                           force)
+                                                                                           force,
+                                                                                           se_test_mode)
 
     if not contract_name:
         raise click.BadArgumentUsage(message="--contract-name is required when using --rollback")
@@ -242,7 +245,7 @@ def rollback(# Admin Actor Options
 @click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
 def contracts(# Admin Actor Options
               provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
-              registry_infile, registry_outfile, dev,
+              registry_infile, registry_outfile, dev, se_test_mode,
 
               # Other
               bare, gas, ignore_deployed):
@@ -269,7 +272,8 @@ def contracts(# Admin Actor Options
                                                                                            registry_outfile,
                                                                                            hw_wallet,
                                                                                            dev,
-                                                                                           force)
+                                                                                           force,
+                                                                                           se_test_mode)
 
     #
     # Deploy Single Contract (Amend Registry)
@@ -354,7 +358,7 @@ def contracts(# Admin Actor Options
               type=click.Path(exists=False, file_okay=True))
 def allocations(# Admin Actor Options
                 provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
-                registry_infile, registry_outfile, dev,
+                registry_infile, registry_outfile, dev, se_test_mode,
 
                 # Other
                 allocation_infile, allocation_outfile):
@@ -381,7 +385,8 @@ def allocations(# Admin Actor Options
                                                                                            registry_outfile,
                                                                                            hw_wallet,
                                                                                            dev,
-                                                                                           force)
+                                                                                           force,
+                                                                                           se_test_mode)
 
     if not allocation_infile:
         allocation_infile = click.prompt("Enter allocation data filepath")
@@ -398,7 +403,7 @@ def allocations(# Admin Actor Options
 @click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
 def transfer_tokens(# Admin Actor Options
                     provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
-                    registry_infile, registry_outfile, dev,
+                    registry_infile, registry_outfile, dev, se_test_mode,
 
                     # Other
                     target_address, value):
@@ -425,7 +430,8 @@ def transfer_tokens(# Admin Actor Options
                                                                                            registry_outfile,
                                                                                            hw_wallet,
                                                                                            dev,
-                                                                                           force)
+                                                                                           force,
+                                                                                           se_test_mode)
 
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=local_registry)
     if not target_address:
@@ -448,7 +454,7 @@ def transfer_tokens(# Admin Actor Options
 @click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
 def transfer_ownership(# Admin Actor Options
                        provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
-                       registry_infile, registry_outfile, dev,
+                       registry_infile, registry_outfile, dev, se_test_mode,
 
                        # Other
                        target_address, gas):
@@ -475,7 +481,8 @@ def transfer_ownership(# Admin Actor Options
                                                                                            registry_outfile,
                                                                                            hw_wallet,
                                                                                            dev,
-                                                                                           force)
+                                                                                           force,
+                                                                                           se_test_mode)
 
     if not target_address:
         target_address = click.prompt("Enter new owner's checksum address", type=EIP55_CHECKSUM_ADDRESS)
@@ -498,7 +505,7 @@ def transfer_ownership(# Admin Actor Options
 
 
 def _make_authenticated_deployment_actor(emitter, provider_uri, deployer_address, deployer_interface, contract_name,
-                                         registry_infile, registry_outfile, hw_wallet, dev, force):
+                                         registry_infile, registry_outfile, hw_wallet, dev, force, se_test_mode):
     #
     # Establish Registry
     #
@@ -525,7 +532,8 @@ def _make_authenticated_deployment_actor(emitter, provider_uri, deployer_address
     # Produce Actor
     ADMINISTRATOR = ContractAdministrator(registry=local_registry,
                                           client_password=password,
-                                          deployer_address=deployer_address)
+                                          deployer_address=deployer_address,
+                                          staking_escrow_test_mode=se_test_mode)
     # Verify ETH Balance
     emitter.echo(f"\n\nDeployer ETH balance: {ADMINISTRATOR.eth_balance}")
     if ADMINISTRATOR.eth_balance == 0:
