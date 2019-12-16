@@ -196,12 +196,13 @@ Initialize a new stake
     Accept ursula node operator obligation? [y/N]: y
     Publish staged stake to the blockchain? [y/N]: y
 
-    Escrow Address ... 0xBc6297c0781C25A9Bc44eEe22181C98a30DC0229
-    Approve .......... 0xa74ac03a5500fc549636f9b0c44d0dc415e8fc0df4c648cb7386e4b95c4f3a3e
-    Deposit .......... 0x341e406b77ff0f3a0e98982d61814fd8af82d90c5cfe7bad5353e2b757c2d96e
+    Stake initialization transaction was successful.
 
+    Transaction details:
+    OK | deposit stake | 0xe05babab52d00157d0c6e95b7c5165a95adc0ee7ff64ca4d89807805f0ef0fcf (229181 gas)
+    Block #16 | 0xbf8252bc84831c26fc91a2272047e394ec0356af515d785d4a179596e722d836
 
-    Successfully transmitted stake initialization transactions.
+    StakingEscrow address: 0xDe09E74d4888Bc4e65F589e8c13Bce9F71DdF4c7
 
 If you used a hardware wallet, you will need to confirm two transactions here.
 

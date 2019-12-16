@@ -21,7 +21,6 @@ import json
 import os
 from datetime import datetime
 from decimal import Decimal
-from json import JSONDecodeError
 from pathlib import Path
 from typing import Tuple, List, Dict, Union, Optional
 
@@ -34,6 +33,7 @@ from constant_sorrow.constants import (
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak, is_checksum_address, to_checksum_address
 from twisted.logger import Logger
+from web3 import Web3
 
 from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics, TokenEconomicsFactory
 from nucypher.blockchain.eth.agents import (
@@ -59,7 +59,6 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import (
     AllocationRegistry,
     BaseContractRegistry,
-    InMemoryAllocationRegistry,
     IndividualAllocationRegistry
 )
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
@@ -116,7 +115,7 @@ class NucypherTokenActor:
             self.checksum_address = checksum_address  # type: str
 
         self.registry = registry
-        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
+        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)  # type: NucypherTokenAgent
         self._saved_receipts = list()  # track receipts of transmitted transactions
 
     def __repr__(self):
@@ -766,19 +765,13 @@ class Staker(NucypherTokenActor):
     def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
         """Public facing method for token locking."""
         if self.is_contract:
-            approve_receipt = self.token_agent.approve_transfer(amount=amount,
-                                                                target_address=self.staking_agent.contract_address,
-                                                                sender_address=self.beneficiary_address)
-            deposit_receipt = self.preallocation_escrow_agent.deposit_as_staker(amount=amount, lock_periods=lock_periods)
+            receipt = self.preallocation_escrow_agent.deposit_as_staker(amount=amount, lock_periods=lock_periods)
         else:
-            approve_receipt = self.token_agent.approve_transfer(amount=amount,
-                                                                target_address=self.staking_agent.contract_address,
-                                                                sender_address=self.checksum_address)
-            deposit_receipt = self.staking_agent.deposit_tokens(amount=amount,
-                                                                lock_periods=lock_periods,
-                                                                sender_address=self.checksum_address)
-
-        return approve_receipt, deposit_receipt
+            receipt = self.token_agent.approve_and_call(amount=amount,
+                                                        target_address=self.staking_agent.contract_address,
+                                                        sender_address=self.checksum_address,
+                                                        call_data=Web3.toBytes(lock_periods))
+        return receipt
 
     @property
     def is_restaking(self) -> bool:

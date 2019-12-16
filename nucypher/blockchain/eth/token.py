@@ -214,7 +214,6 @@ class Stake:
         if validate_now:
             self.validate_duration()
 
-        self.transactions = NO_STAKING_RECEIPT
         self.receipt = NO_STAKING_RECEIPT
 
     def __repr__(self) -> str:
@@ -448,13 +447,8 @@ class Stake:
         stake.validate_value()
         stake.validate_duration()
 
-        # Transmit
-        approve_receipt, initial_deposit_receipt = staker.deposit(amount=int(amount), lock_periods=lock_periods)
-
-        # Store the staking transactions on the instance
-        staking_transactions = dict(approve=approve_receipt, deposit=initial_deposit_receipt)
-        stake.transactions = staking_transactions
-        stake.receipt = staking_transactions
+        # Create stake on-chain
+        stake.receipt = staker.deposit(amount=int(amount), lock_periods=lock_periods)
 
         # Log and return Stake instance
         log = Logger(f'stake-{staker.checksum_address}-creation')

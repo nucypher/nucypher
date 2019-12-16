@@ -94,3 +94,26 @@ def test_transfer(agent, token_economics, mock_transacting_power_activation):
 
     new_balance = agent.get_balance(someone)
     assert new_balance == old_balance + token_economics.minimum_allowed_locked
+
+
+def test_approve_and_call(agent, token_economics, mock_transacting_power_activation, deploy_contract):
+    testerchain = agent.blockchain
+    deployer, someone, *everybody_else = testerchain.client.accounts
+
+    mock_target, _ = deploy_contract('ReceiveApprovalMethodMock')
+
+    mock_transacting_power_activation(account=someone, password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    # Approve and call
+    call_data = b"Good morning, that's a nice tnetennba."
+    receipt = agent.approve_and_call(amount=token_economics.minimum_allowed_locked,
+                                     target_address=mock_target.address,
+                                     sender_address=someone,
+                                     call_data=call_data)
+
+    assert receipt['status'] == 1, "Transaction Rejected"
+    assert receipt['logs'][0]['address'] == agent.contract_address
+
+    assert mock_target.functions.extraData().call() == call_data
+    assert mock_target.functions.sender().call() == someone
+    assert mock_target.functions.value().call() == token_economics.minimum_allowed_locked
