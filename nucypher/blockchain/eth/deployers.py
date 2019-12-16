@@ -20,6 +20,7 @@ from collections import OrderedDict
 from typing import Tuple, Dict
 
 from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGURED, NO_BENEFICIARY
+from web3 import Web3
 from web3.contract import Contract
 
 from nucypher.blockchain.economics import StandardTokenEconomics
@@ -860,7 +861,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
 
     agency = PreallocationEscrowAgent
     contract_name = agency.registry_contract_name
-    deployment_steps = ('contract_deployment', 'approve_transfer', 'initial_deposit', 'transfer_ownership')
+    deployment_steps = ('contract_deployment', 'initial_deposit', 'transfer_ownership')
     _router_deployer = StakingInterfaceRouterDeployer
     __allocation_registry = AllocationRegistry
 
@@ -875,7 +876,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
         self.__beneficiary_address = NO_BENEFICIARY
         self.__allocation_registry = allocation_registry or self.__allocation_registry()
 
-    def make_agent(self) -> 'PreallocationEscrowDeployer':
+    def make_agent(self) -> 'PreallocationEscrowAgent':
         if self.__beneficiary_address is NO_BENEFICIARY:
             raise self.ContractDeploymentError("No beneficiary assigned to {}".format(self.contract.address))
         agent = self.agency(registry=self.registry,
@@ -888,7 +889,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
         return self.__allocation_registry
 
     @validate_checksum_address
-    def assign_beneficiary(self, checksum_address: str) -> dict:
+    def assign_beneficiary(self, checksum_address: str, progress=None) -> dict:
         """Relinquish ownership of a PreallocationEscrow deployment to the beneficiary"""
         # TODO: #842 - Gas Management
         payload = {'gas': 500_000}
@@ -897,29 +898,21 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
                                                                   sender_address=self.deployer_address,
                                                                   payload=payload)
         self.__beneficiary_address = checksum_address
-        self.deployment_receipts.update({self.deployment_steps[3]: transfer_owner_receipt})
+        self.deployment_receipts.update({self.deployment_steps[2]: transfer_owner_receipt})
+        if progress:
+            progress.update(1)
         return transfer_owner_receipt
 
     def initial_deposit(self, value: int, duration_seconds: int, progress=None):
-        """Allocate an amount of tokens with lock time in seconds, and transfer ownership to the beneficiary"""
-        # Approve
-        approve_function = self.token_contract.functions.approve(self.contract.address, value)
-        approve_receipt = self.blockchain.send_transaction(contract_function=approve_function,
-                                                           sender_address=self.deployer_address)  # TODO: Gas  - #842
+        """Allocate an amount of tokens with lock time in seconds"""
+        # Initial deposit transfer, using NuCypherToken.approveAndCall()
+        call_data = Web3.toBytes(duration_seconds)  # Additional parameters to PreallocationEscrow.initialDeposit()
+        approve_and_call = self.token_contract.functions.approveAndCall(self.contract.address, value, call_data)
+        approve_and_call_receipt = self.blockchain.send_transaction(contract_function=approve_and_call,
+                                                                    sender_address=self.deployer_address)  # TODO: Gas  - #842
 
-        self.deployment_receipts.update({self.deployment_steps[1]: approve_receipt})
+        self.deployment_receipts.update({self.deployment_steps[1]: approve_and_call_receipt})
 
-        if progress:
-            progress.update(1)
-        # Deposit
-        # TODO: #842 - Gas Management
-        args = {'gas': 200_000}
-        deposit_function = self.contract.functions.initialDeposit(value, duration_seconds)
-        deposit_receipt = self.blockchain.send_transaction(contract_function=deposit_function,
-                                                           sender_address=self.deployer_address,
-                                                           payload=args)
-
-        self.deployment_receipts.update({self.deployment_steps[2]: deposit_receipt})
         if progress:
             progress.update(1)
 
@@ -943,9 +936,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
         """
 
         self.initial_deposit(value=value, duration_seconds=duration, progress=progress)
-        self.assign_beneficiary(checksum_address=beneficiary_address)
-        if progress:
-            progress.update(1)
+        self.assign_beneficiary(checksum_address=beneficiary_address, progress=progress)
         self.enroll_principal_contract()
 
     def deploy(self, initial_deployment: bool = True, gas_limit: int = None, progress=None) -> dict:
