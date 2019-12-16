@@ -133,6 +133,7 @@ Whitepapers
    :maxdepth: 1
    :caption: Demos
 
+   demos/cli_demo
    demos/local_fleet_demo
    demos/finnegans_wake_demo
    demos/heartbeat_demo

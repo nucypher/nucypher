@@ -1,0 +1,105 @@
+CLI Demo of Grant and Retrieve
+==============================
+
+Overview
+--------
+
+.. important::
+
+    The demo requires connecting to NuCypher's Görli Testnet.
+
+This demo is an example of NuCypher's decentralized network allowing Alice to share a secret
+with Bob using the NuCypher Network via the ``nucypher`` CLI. It is analagous to the ``python`` example
+in :doc:`/guides/getting_started`. To better understand the commands and their options you can use
+the ``--help`` option.
+
+
+Initialize Alice and Bob
+------------------------
+.. code::
+
+    (nucypher)$ nucypher alice init --provider <YOUR PROVIDER URI> --poa
+
+    (nucypher)$ nucypher bob init --provider <YOUR PROVIDER URI>
+
+Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
+
+    - ``ipc:///home/ubuntu/.ethereum/goerli/geth.ipc`` - Geth Node on Görli testnet running under user ``ubuntu`` (most probably that's what you need).
+
+
+Get Bob's Public Keys
+---------------------
+.. code::
+
+    (nucypher)$ nucypher bob public-keys
+
+Output:
+
+.. code::
+
+    bob_encrypting_key ...... 0202a6be8e400acdd50db42f8b4c62241b61461a08462731efc064b86d63c7cf6f
+    bob_verifying_key ...... 02ce770f45fecbbee0630129cce0da4fffc0c4276093bdb3f83ecf1ed824e2696c
+
+
+Alice Grants Access To Secret
+-----------------------------
+.. code::
+
+    (nucypher)$ nucypher alice grant \
+    >     --teacher discover.nucypher.network:9151 \
+    >     --bob-verifying-key 02ce770f45fecbbee0630129cce0da4fffc0c4276093bdb3f83ecf1ed824e2696c \
+    >     --bob-encrypting-key 0202a6be8e400acdd50db42f8b4c62241b61461a08462731efc064b86d63c7cf6f \
+    >     --label <LABEL> \
+    >     --expiration 2019-12-20T10:07:50Z \
+    >     --m 1 --n 1 --value 1 --debug
+
+Output:
+
+.. code::
+
+    treasure_map ...... dAYjo1M+OWFWXS/EkRGGBUJ6ywgGczmbELGbncfYT1W51k/EBO6y/LwSIeoQcrT/NzE25OXnsnnwOzwoZxT5oE7fhO+HbJPiGTt1Fl4iCvVrwxuJWIk0Nrw9WslSNBzAAAABHAM2ndUrO/67tZnGmF8ca1U8h09k2Qsn3gohnEP2M4aIfwPxG9F2jOqSS7OVoBsNnziS0qdYqMXmPPMnNrUPyR4PfB+9RmvtufpZ1DbbP4MEyxL1qL4xrmNhr6AYSMbnJD6FA3Qb0AGzgLrvTrO7qaWSJ2mxKMyGNnC/FeZhjg4AeuTfuEGEkogqeL/uMTNrl5vG3JwNIXFVsPY3sXR743ZKpP4ypu8HFj8BoqSfxleRmcwbANHQlSdwBd+/NJLcdqQCVuB1UdFDJPCJ3HxvjHIRhxWHTtuQ4L/HIjxTHoRsS/CFwjembIWhqpxqfswnxmKRQ5hCosO6iqK3aRYkDpOQMPwqgkv0diRBx5AC7Fj1nSfuXlpJix8PLxcy
+    policy_encrypting_key ...... 021664726f939a8e79df4f4b737da2dd78d1c0fea106d19d6fce4df678e552c561
+    alice_verifying_key ...... 03741bd001b380baef4eb3bba9a5922769b128cc863670bf15e6618e0e007ae4df
+
+
+Enrico Encrypts Secret
+----------------------
+
+.. code::
+
+    (nucypher)$ nucypher enrico encrypt \
+    >     --policy-encrypting-key 021664726f939a8e79df4f4b737da2dd78d1c0fea106d19d6fce4df678e552c561 \
+    >     --message "Llama's ass"
+
+Output:
+
+.. code::
+
+    message_kit ...... ApZrJG9HOoNM7F6YZiiMhjRmWcMWP3rKmNLrsuAwdxh7A1cMPdJ5wppSU3LUgmvbJMiddZzsJKw0iJ1Vn1ax4TsmRqSKyR5NBEescZjTzX8fn7wzfwL0Q/vyIL9XFCi3nHACaNPrLk8yON7fAD/LDndn9BrdBRtM3lEXJ43tesa+v/g7i1uQ7HqAp2SDtQTrqyWQ3oc3xx0+TDN2ASvlYm+yed1/B3EM1I/ItghTsrDegoroVeYQbeTEbbs+PR9OgPyLUoXmDricfc6OdTaYZh4ZviXo6XpTPboQ6tv32pDqmoVY8TkPSmPkq5ZC7dD9SeModP92/A==
+    signature ...... 6bE86KVxKdhX7fmXnfg9ym7aUgxl9seQcOAq2cMzJ7saJjD8lFMqmJ5gFToqJF341GUy+BdUMQiXMqpwrwivoA==
+
+
+Bob Retrieves And Decrypts Secret Message
+-----------------------------------------
+
+.. code::
+
+    (nucypher)$ nucypher bob retrieve \
+    >     --label <LABEL> \
+    >     --message-kit ApZrJG9HOoNM7F6YZiiMhjRmWcMWP3rKmNLrsuAwdxh7A1cMPdJ5wppSU3LUgmvbJMiddZzsJKw0iJ1Vn1ax4TsmRqSKyR5NBEescZjTzX8fn7wzfwL0Q \
+    >     --policy-encrypting-key 021664726f939a8e79df4f4b737da2dd78d1c0fea106d19d6fce4df678e552c561 \
+    >     --alice-verifying-key 03741bd001b380baef4eb3bba9a5922769b128cc863670bf15e6618e0e007ae4df \
+    >     --teacher discover.nucypher.network:9151
+
+Output:
+
+.. code::
+
+    cleartexts ...... ['TGxhbWEncyBhc3M=']
+
+The resulting cleartext is ``"Llama's ass"`` in base64:
+
+.. code::
+
+    (nucypher)$ echo TGxhbWEncyBhc3M= | base64 -d
+    Llama's ass
