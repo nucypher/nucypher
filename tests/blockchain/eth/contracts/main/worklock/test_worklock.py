@@ -17,8 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 
 import pytest
+import rlp
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import to_wei, keccak, to_normalized_address, to_canonical_address, to_checksum_address
+from eth_utils import to_wei, keccak, to_canonical_address, to_checksum_address
 from web3.contract import Contract
 
 
@@ -38,42 +39,10 @@ def router(testerchain, deploy_contract):
 
 
 def next_address(testerchain, worklock):
+    # https://github.com/ethereum/wiki/wiki/Subtleties#nonces
     nonce = testerchain.w3.eth.getTransactionCount(worklock.address)
-    if nonce == 0:
-        data = bytes.fromhex('d6') + \
-               bytes.fromhex('94') + \
-               to_canonical_address(worklock.address) + \
-               bytes.fromhex('80')
-    elif nonce <= 127:
-        data = bytes.fromhex('d6') + \
-               bytes.fromhex('94') + \
-               to_canonical_address(worklock.address) + \
-               nonce.to_bytes(1, byteorder='big')
-    elif nonce <= 255:
-        data = bytes.fromhex('d7') + \
-               bytes.fromhex('94') + \
-               to_canonical_address(worklock.address) + \
-               bytes.fromhex('81') + \
-               nonce.to_bytes(1, byteorder='big')
-    elif nonce <= 65535:
-        data = bytes.fromhex('d8') + \
-               bytes.fromhex('94') + \
-               to_canonical_address(worklock.address) + \
-               bytes.fromhex('82') + \
-               nonce.to_bytes(2, byteorder='big')
-    elif nonce <= 16777215:
-        data = bytes.fromhex('d9') + \
-               bytes.fromhex('94') + \
-               to_canonical_address(worklock.address) + \
-               bytes.fromhex('83') + \
-               nonce.to_bytes(3, byteorder='big')
-    else:
-        data = bytes.fromhex('da') + \
-               bytes.fromhex('94') + \
-               to_canonical_address(worklock.address) + \
-               bytes.fromhex('84') + \
-               nonce.to_bytes(4, byteorder='big')
-    return to_checksum_address(keccak(data)[12:32])
+    data_to_encode = [to_canonical_address(worklock.address), nonce]
+    return to_checksum_address(keccak(rlp.codec.encode(data_to_encode))[12:])
 
 
 @pytest.fixture()
