@@ -20,7 +20,7 @@ import os
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import keccak
+from eth_utils import keccak, to_canonical_address
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -43,18 +43,16 @@ secret2 = (654321).to_bytes(32, byteorder='big')
 
 
 POLICY_ID_LENGTH = 16
-policy_id = os.urandom(POLICY_ID_LENGTH)
-policy_id_2 = os.urandom(POLICY_ID_LENGTH)
-policy_id_3 = os.urandom(POLICY_ID_LENGTH)
-rate = 20
-one_period = 60 * 60
-number_of_periods = 10
-value = rate * number_of_periods
 
 
 @pytest.mark.slow
 def test_create_revoke(testerchain, escrow, policy_manager):
     creator, policy_creator, bad_node, node1, node2, node3, policy_owner, *everyone_else = testerchain.client.accounts
+
+    rate = 20
+    one_period = 60 * 60
+    number_of_periods = 10
+    value = rate * number_of_periods
 
     policy_creator_balance = testerchain.client.get_balance(policy_creator)
     policy_owner_balance = testerchain.client.get_balance(policy_owner)
@@ -71,6 +69,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     assert 0 == policy_manager.functions.nodes(bad_node).call()[LAST_MINED_PERIOD_FIELD]
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
+    policy_id = os.urandom(POLICY_ID_LENGTH)
 
     # Try to create policy for bad (unregistered) node
     with pytest.raises((TransactionFailed, ValueError)):
@@ -168,6 +167,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     tx = escrow.functions.setDefaultRewardDelta(node2, period, number_of_periods + 1).transact()
     testerchain.wait_for_receipt(tx)
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
+    policy_id_2 = os.urandom(POLICY_ID_LENGTH)
     tx = policy_manager.functions.createPolicy(policy_id_2, policy_owner, end_timestamp, [node1, node2, node3])\
         .transact({'from': policy_creator, 'value': 6 * value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
@@ -274,6 +274,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
 
     # Can't create policy with wrong ETH value - when reward is not calculated by formula:
     # numberOfNodes * rewardRate * numberOfPeriods
+    policy_id_3 = os.urandom(POLICY_ID_LENGTH)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.createPolicy(policy_id_3, policy_creator, end_timestamp, [node1])\
             .transact({'from': policy_creator, 'value': 11})
@@ -298,11 +299,6 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         tx = policy_manager.functions.createPolicy(policy_id_3, policy_creator, end_timestamp, [node1, node2])\
             .transact({'from': policy_creator, 'value': 30})
         testerchain.wait_for_receipt(tx)
-
-    events = arrangement_refund_log.get_all_entries()
-    assert 0 == len(events)
-    events = policy_refund_log.get_all_entries()
-    assert 0 == len(events)
 
     # Create new policy
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
@@ -333,8 +329,61 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     assert end_timestamp == event_args['endTimestamp']
     assert 2 == event_args['numberOfNodes']
 
-    tx = policy_manager.functions.revokePolicy(policy_id_3).transact({'from': policy_creator, 'gas_price': 0})
+    # Revocation using signature
+
+    data = policy_id_3 + to_canonical_address(node1)
+    wrong_signature = testerchain.client.sign_message(account=creator, message=data)
+    # Only owner's signature can be used
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.revoke(policy_id_3, node1, wrong_signature)\
+            .transact({'from': policy_creator, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
+    signature = testerchain.client.sign_message(account=policy_creator, message=data)
+    tx = policy_manager.functions.revoke(policy_id_3, node1, signature)\
+        .transact({'from': policy_creator, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
+    assert value == testerchain.client.get_balance(policy_manager.address)
+    assert policy_creator_balance - value == testerchain.client.get_balance(policy_creator)
+    assert not policy_manager.functions.policies(policy_id_3).call()[DISABLED_FIELD]
+    assert BlockchainInterface.NULL_ADDRESS == policy_manager.functions.getArrangementInfo(policy_id_3, 0).call()[0]
+    assert node2 == policy_manager.functions.getArrangementInfo(policy_id_3, 1).call()[0]
+
+    data = policy_id_3 + to_canonical_address(BlockchainInterface.NULL_ADDRESS)
+    signature = testerchain.client.sign_message(account=policy_creator, message=data)
+    tx = policy_manager.functions.revoke(policy_id_3, BlockchainInterface.NULL_ADDRESS, signature)\
+        .transact({'from': creator, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert policy_manager.functions.policies(policy_id_3).call()[DISABLED_FIELD]
+
+    # Create new policy
+    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
+    policy_id_4 = os.urandom(POLICY_ID_LENGTH)
+    tx = policy_manager.functions.createPolicy(policy_id_4, policy_owner, end_timestamp, [node1, node2, node3]) \
+        .transact({'from': policy_creator, 'value': 3 * value, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+
+    data = policy_id_4 + to_canonical_address(BlockchainInterface.NULL_ADDRESS)
+    wrong_signature = testerchain.client.sign_message(account=policy_creator, message=data)
+    # Only owner's signature can be used
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.revoke(policy_id_4, BlockchainInterface.NULL_ADDRESS, wrong_signature)\
+            .transact({'from': policy_owner, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
+    signature = testerchain.client.sign_message(account=policy_owner, message=data)
+    tx = policy_manager.functions.revoke(policy_id_4, BlockchainInterface.NULL_ADDRESS, signature)\
+        .transact({'from': creator, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert policy_manager.functions.policies(policy_id_4).call()[DISABLED_FIELD]
+
+    events = policy_revoked_log.get_all_entries()
+    assert 4 == len(events)
+    events = arrangement_revoked_log.get_all_entries()
+    assert 9 == len(events)
+
+    events = arrangement_refund_log.get_all_entries()
+    assert 0 == len(events)
+    events = policy_refund_log.get_all_entries()
+    assert 0 == len(events)
 
 
 @pytest.mark.slow

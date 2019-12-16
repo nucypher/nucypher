@@ -6,6 +6,7 @@ import "zeppelin/math/SafeMath.sol";
 import "zeppelin/math/Math.sol";
 import "zeppelin/utils/Address.sol";
 import "contracts/lib/AdditionalMath.sol";
+import "contracts/lib/SignatureVerifier.sol";
 import "contracts/StakingEscrow.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/proxy/Upgradeable.sol";
@@ -146,13 +147,13 @@ contract PolicyManager is Upgradeable {
     * @notice Create policy
     * @dev Generate policy id before creation
     * @param _policyId Policy id
-    * @param _owner Policy owner. Zero address means sender is owner
+    * @param _policyOwner Policy owner. Zero address means sender is owner
     * @param _endTimestamp End timestamp of the policy in seconds
     * @param _nodes Nodes that will handle policy
     */
     function createPolicy(
         bytes16 _policyId,
-        address _owner,
+        address _policyOwner,
         uint64 _endTimestamp,
         address[] memory _nodes
     )
@@ -174,8 +175,8 @@ contract PolicyManager is Upgradeable {
         policy.endTimestamp = _endTimestamp;
         policy.rewardRate = msg.value.div(_nodes.length) / numberOfPeriods;
         require(policy.rewardRate > 0 && policy.rewardRate * numberOfPeriods * _nodes.length  == msg.value);
-        if (_owner != msg.sender && _owner != address(0)) {
-            policy.owner = _owner;
+        if (_policyOwner != msg.sender && _policyOwner != address(0)) {
+            policy.owner = _policyOwner;
         }
 
         for (uint256 i = 0; i < _nodes.length; i++) {
@@ -208,7 +209,7 @@ contract PolicyManager is Upgradeable {
         emit PolicyCreated(
             _policyId,
             msg.sender,
-            _owner == address(0) ? msg.sender : _owner,
+            _policyOwner == address(0) ? msg.sender : _policyOwner,
             policy.rewardRate,
             policy.startTimestamp,
             policy.endTimestamp,
@@ -439,10 +440,9 @@ contract PolicyManager is Upgradeable {
     * @notice Revoke policy by the creator
     * @param _policyId Policy id
     */
-    function revokePolicy(bytes16 _policyId) public {
-        // TODO modifier?
+    function revokePolicy(bytes16 _policyId) public returns (uint256 refundValue) {
         require(getPolicyOwner(_policyId) == msg.sender);
-        refundInternal(_policyId, RESERVED_NODE, true);
+        return refundInternal(_policyId, RESERVED_NODE, true);
     }
 
     /**
@@ -455,6 +455,41 @@ contract PolicyManager is Upgradeable {
     {
         require(_node != RESERVED_NODE);
         require(getPolicyOwner(_policyId) == msg.sender);
+        return refundInternal(_policyId, _node, true);
+    }
+
+    /**
+    * @notice Get unsigned hash for revocation
+    * @param _policyId Policy id
+    * @param _node Node that will be excluded
+    * @return Revocation hash
+    */
+    function getRevocationHash(bytes16 _policyId, address _node) public view returns (bytes32) {
+        return SignatureVerifier.hashEIP191(abi.encodePacked(_policyId, _node), byte(0x45));
+    }
+
+    /**
+    * @notice Check correctness of signature
+    * @param _policyId Policy id
+    * @param _node Node that will be excluded, zero address if whole policy will be revoked
+    * @param _signature Signature of owner
+    */
+    function checkOwnerSignature(bytes16 _policyId, address _node, bytes memory _signature) internal view {
+        bytes32 hash = getRevocationHash(_policyId, _node);
+        address recovered = SignatureVerifier.recover(hash, _signature);
+        require(getPolicyOwner(_policyId) == recovered);
+    }
+
+    /**
+    * @notice Revoke policy or arrangement using owner's signature
+    * @param _policyId Policy id
+    * @param _node Node that will be excluded, zero address if whole policy will be revoked
+    * @param _signature Signature of owner
+    */
+    function revoke(bytes16 _policyId, address _node, bytes memory _signature)
+        public returns (uint256 refundValue)
+    {
+        checkOwnerSignature(_policyId, _node, _signature);
         return refundInternal(_policyId, _node, true);
     }
 

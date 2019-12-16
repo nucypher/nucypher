@@ -73,7 +73,7 @@ contract StakingEscrowForStakingContractMock {
         periods += _periods;
     }
 
-    function getAllTokens(address _staker)
+    function getAllTokens(address)
         public view returns (uint256)
     {
         return value;
