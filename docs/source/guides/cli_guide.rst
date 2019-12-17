@@ -1,17 +1,19 @@
-CLI Demo of Grant and Retrieve
-==============================
+==================
+NuCypher CLI Guide
+==================
 
 Overview
 --------
 
 .. important::
 
-    The demo requires connecting to NuCypher's Görli Testnet.
+    The guide uses NuCypher's Görli Testnet.
 
-This demo is an example of NuCypher's decentralized network allowing Alice to share a secret
-with Bob using the NuCypher Network via the ``nucypher`` CLI. It is analagous to the ``python`` example
-in :doc:`/guides/getting_started`. To better understand the commands and their options you can use
-the ``--help`` option.
+This guide is an example of NuCypher's decentralized network allowing Alice to share a secret
+with Bob using the NuCypher Network via the ``nucypher`` CLI. It is analogous to the ``python`` example
+in :doc:`/guides/getting_started`.
+
+To better understand the commands and their options, use the ``--help`` option.
 
 
 Initialize Alice and Bob
@@ -79,8 +81,8 @@ Output:
     signature ...... 6bE86KVxKdhX7fmXnfg9ym7aUgxl9seQcOAq2cMzJ7saJjD8lFMqmJ5gFToqJF341GUy+BdUMQiXMqpwrwivoA==
 
 
-Bob Retrieves And Decrypts Secret Message
------------------------------------------
+Bob Retrieves And Decrypts Secret
+---------------------------------
 
 .. code::
 

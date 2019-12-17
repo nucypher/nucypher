@@ -126,6 +126,7 @@ Whitepapers
    guides/getting_started
    guides/staking_guide
    guides/ursula_configuration_guide
+   guides/cli_guide
    guides/character_control_guide
    guides/contribution_guide
 
@@ -133,7 +134,6 @@ Whitepapers
    :maxdepth: 1
    :caption: Demos
 
-   demos/cli_demo
    demos/local_fleet_demo
    demos/finnegans_wake_demo
    demos/heartbeat_demo
