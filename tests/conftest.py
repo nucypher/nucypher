@@ -23,6 +23,12 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
+
+#
+# Global Session Mock & Patch
+#
+
+
 # Disable click sentry and file logging
 NucypherClickConfig.log_to_sentry = False
 NucypherClickConfig.log_to_file = True
@@ -33,6 +39,9 @@ WebEmitter._crash_on_error_default = True
 # Dont re-lock account in background during activity confirmations
 LOCK_FUNCTION = TransactingPower.lock_account
 TransactingPower.lock_account = lambda *a, **k: True
+
+# Disable any hardcoded preferred teaches during tests.
+TEACHER_NODES = dict()
 
 
 ##########################################
@@ -61,7 +70,6 @@ def __very_pretty_and_insecure_scrypt_do_not_use():
     # Disable Scrypt KDF
     Scrypt.derive = __insecure_derive
     yield
-
     # Re-Enable Scrypt KDF
     Scrypt.derive = original_derivation_function
 
