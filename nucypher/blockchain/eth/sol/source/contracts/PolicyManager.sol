@@ -76,6 +76,12 @@ contract PolicyManager is Upgradeable {
         uint64 endTimestamp;
         bool disabled;
 
+        uint256 reservedSlot1;
+        uint256 reservedSlot2;
+        uint256 reservedSlot3;
+        uint256 reservedSlot4;
+        uint256 reservedSlot5;
+
         ArrangementInfo[] arrangements;
     }
 
@@ -159,9 +165,10 @@ contract PolicyManager is Upgradeable {
     )
         public payable
     {
+        Policy storage policy = policies[_policyId];
         require(
             _policyId != RESERVED_POLICY_ID &&
-            policies[_policyId].rewardRate == 0 &&
+            policy.rewardRate == 0 &&
             _endTimestamp > block.timestamp &&
             msg.value > 0
         );
@@ -169,7 +176,6 @@ contract PolicyManager is Upgradeable {
         uint16 endPeriod = uint16(_endTimestamp / secondsPerPeriod) + 1;
         uint256 numberOfPeriods = endPeriod - currentPeriod;
 
-        Policy storage policy = policies[_policyId];
         policy.creator = msg.sender;
         policy.startTimestamp = uint64(block.timestamp);
         policy.endTimestamp = _endTimestamp;
@@ -357,10 +363,11 @@ contract PolicyManager is Upgradeable {
                 NodeInfo storage nodeInfo = nodes[node];
 
                 // Check default value for rewardDelta
-                if (nodeInfo.rewardDelta[arrangement.lastRefundedPeriod] == DEFAULT_REWARD_DELTA) {
-                    nodeInfo.rewardDelta[arrangement.lastRefundedPeriod] = -int256(policy.rewardRate);
+                uint16 lastRefundedPeriod = arrangement.lastRefundedPeriod;
+                if (nodeInfo.rewardDelta[lastRefundedPeriod] == DEFAULT_REWARD_DELTA) {
+                    nodeInfo.rewardDelta[lastRefundedPeriod] = -int256(policy.rewardRate);
                 } else {
-                    nodeInfo.rewardDelta[arrangement.lastRefundedPeriod] -= int256(policy.rewardRate);
+                    nodeInfo.rewardDelta[lastRefundedPeriod] -= int256(policy.rewardRate);
                 }
                 if (nodeInfo.rewardDelta[endPeriod] == DEFAULT_REWARD_DELTA) {
                     nodeInfo.rewardDelta[endPeriod] = -int256(policy.rewardRate);
@@ -369,13 +376,13 @@ contract PolicyManager is Upgradeable {
                 }
 
                 // Reset to default value if needed
-                if (nodeInfo.rewardDelta[arrangement.lastRefundedPeriod] == 0) {
-                    nodeInfo.rewardDelta[arrangement.lastRefundedPeriod] = DEFAULT_REWARD_DELTA;
+                if (nodeInfo.rewardDelta[lastRefundedPeriod] == 0) {
+                    nodeInfo.rewardDelta[lastRefundedPeriod] = DEFAULT_REWARD_DELTA;
                 }
                 if (nodeInfo.rewardDelta[endPeriod] == 0) {
                     nodeInfo.rewardDelta[endPeriod] = DEFAULT_REWARD_DELTA;
                 }
-                nodeRefundValue += uint256(endPeriod - arrangement.lastRefundedPeriod) * policy.rewardRate;
+                nodeRefundValue += uint256(endPeriod - lastRefundedPeriod) * policy.rewardRate;
             }
             if (_forceRevoke || arrangement.lastRefundedPeriod >= endPeriod) {
                 arrangement.node = RESERVED_NODE;
@@ -392,9 +399,14 @@ contract PolicyManager is Upgradeable {
                break;
             }
         }
+        address payable policyCreator = policy.creator;
         if (_node == RESERVED_NODE) {
             if (numberOfActive == 0) {
                 policy.disabled = true;
+                // gas refund
+                // deletion more slots will increase gas usage instead of decreasing (in current code)
+                // because gas refund can be no more than half of all gas
+                policy.creator = address(0);
                 emit PolicyRevoked(_policyId, msg.sender, refundValue);
             } else {
                 emit RefundForPolicy(_policyId, msg.sender, refundValue);
@@ -404,7 +416,7 @@ contract PolicyManager is Upgradeable {
             require(i < policy.arrangements.length);
         }
         if (refundValue > 0) {
-            policy.creator.sendValue(refundValue);
+            policyCreator.sendValue(refundValue);
         }
     }
 
