@@ -33,7 +33,7 @@ contract WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v1.5.1|
+* @dev |v2.1.1|
 */
 contract StakingEscrow is Issuer {
     using AdditionalMath for uint256;
@@ -82,7 +82,7 @@ contract StakingEscrow is Issuer {
         */
         uint16 confirmedPeriod1;
         uint16 confirmedPeriod2;
-        bool reStake;
+        bool disableReStake;
         uint16 lockReStakeUntilPeriod;
         address worker;
         // period when worker was set
@@ -468,10 +468,10 @@ contract StakingEscrow is Issuer {
     function setReStake(bool _reStake) public isInitialized {
         require(!isReStakeLocked(msg.sender));
         StakerInfo storage info = stakerInfo[msg.sender];
-        if (info.reStake == _reStake) {
+        if (info.disableReStake == !_reStake) {
             return;
         }
-        info.reStake = _reStake;
+        info.disableReStake = !_reStake;
         emit ReStakeSet(msg.sender, _reStake);
     }
 
@@ -837,7 +837,7 @@ contract StakingEscrow is Issuer {
                     lockedPerPeriod[mintingPeriod],
                     lastPeriod.sub16(mintingPeriod));
                 reward += subStakeReward;
-                if (_info.reStake) {
+                if (!_info.disableReStake) {
                     subStake.lockedValue += subStakeReward;
                 }
             }
@@ -848,7 +848,7 @@ contract StakingEscrow is Issuer {
         } else {
             _info.confirmedPeriod2 = EMPTY_CONFIRMED_PERIOD;
         }
-        if (!_info.reStake) {
+        if (_info.disableReStake) {
             return reward;
         }
         if (_confirmedPeriodNumber == 1 &&
@@ -1239,7 +1239,7 @@ contract StakingEscrow is Issuer {
         require(infoToCheck.value == info.value &&
             infoToCheck.confirmedPeriod1 == info.confirmedPeriod1 &&
             infoToCheck.confirmedPeriod2 == info.confirmedPeriod2 &&
-            infoToCheck.reStake == info.reStake &&
+            infoToCheck.disableReStake == info.disableReStake &&
             infoToCheck.lockReStakeUntilPeriod == info.lockReStakeUntilPeriod &&
             infoToCheck.lastActivePeriod == info.lastActivePeriod &&
             infoToCheck.measureWork == info.measureWork &&
