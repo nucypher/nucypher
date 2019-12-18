@@ -99,10 +99,6 @@ def test_default_character_configuration_preservation(configuration_class):
         with open(character_config.filepath, 'r') as f:
             contents = f.read()
 
-        # Deserialize
-        serialized_payload = json.dumps(character_config.static_payload(), indent=BaseConfiguration.INDENTATION)
-        assert contents == serialized_payload
-
         # Restore from JSON file
         restored_configuration = configuration_class.from_configuration_file()
         assert character_config == restored_configuration
