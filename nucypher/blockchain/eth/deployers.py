@@ -865,7 +865,10 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
     _router_deployer = StakingInterfaceRouterDeployer
     __allocation_registry = AllocationRegistry
 
-    def __init__(self, allocation_registry: AllocationRegistry = None, *args, **kwargs) -> None:
+    def __init__(self,
+                 allocation_registry: AllocationRegistry = None,
+                 sidekick_address: str = None,
+                 *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.token_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                    contract_name=NucypherTokenDeployer.contract_name)
@@ -875,6 +878,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
                                                                             proxy_name=dispatcher_name)
         self.__beneficiary_address = NO_BENEFICIARY
         self.__allocation_registry = allocation_registry or self.__allocation_registry()
+        self.sidekick_address = sidekick_address
 
     def make_agent(self) -> 'PreallocationEscrowAgent':
         if self.__beneficiary_address is NO_BENEFICIARY:
@@ -889,19 +893,20 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
         return self.__allocation_registry
 
     @validate_checksum_address
-    def assign_beneficiary(self, checksum_address: str, progress=None) -> dict:
+    def assign_beneficiary(self, checksum_address: str, use_sidekick: bool = False, progress=None) -> dict:
         """Relinquish ownership of a PreallocationEscrow deployment to the beneficiary"""
+        deployer_address = self.sidekick_address if use_sidekick else self.deployer_address
         # TODO: #842 - Gas Management
         payload = {'gas': 500_000}
         transfer_owner_function = self.contract.functions.transferOwnership(checksum_address)
-        transfer_owner_receipt = self.blockchain.send_transaction(contract_function=transfer_owner_function,
-                                                                  sender_address=self.deployer_address,
-                                                                  payload=payload)
+        receipt = self.blockchain.send_transaction(contract_function=transfer_owner_function,
+                                                   sender_address=deployer_address,
+                                                   payload=payload)
         self.__beneficiary_address = checksum_address
-        self.deployment_receipts.update({self.deployment_steps[1]: transfer_owner_receipt})
+        self.deployment_receipts.update({self.deployment_steps[1]: receipt})
         if progress:
             progress.update(1)
-        return transfer_owner_receipt
+        return receipt
 
     def initial_deposit(self, value: int, duration_seconds: int, progress=None):
         """Allocate an amount of tokens with lock time in seconds"""
@@ -923,25 +928,29 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
                                           contract_address=self.contract.address,
                                           contract_abi=self.contract.abi)
 
-    def deploy(self, initial_deployment: bool = True, gas_limit: int = None, progress=None) -> dict:
+    def deploy(self,
+               initial_deployment: bool = True,
+               gas_limit: int = None,
+               use_sidekick: bool = False,
+               progress=None) -> dict:
         """Deploy a new instance of PreallocationEscrow to the blockchain."""
         self.check_deployment_readiness()
         router_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                contract_name=self._router_deployer.contract_name)
-        args = (self.deployer_address,
-                self.registry,
-                self.contract_name,
-                router_contract.address,
-                self.token_contract.address,
-                self.staking_escrow_contract.address)
+        constructor_args = (router_contract.address,
+                            self.token_contract.address,
+                            self.staking_escrow_contract.address)
 
-        preallocation_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(*args,
-                                                                                        gas_limit=gas_limit,
-                                                                                        enroll=False)
+        deployer_address = self.sidekick_address if use_sidekick else self.deployer_address
+        self._contract, deploy_receipt = self.blockchain.deploy_contract(deployer_address,
+                                                                         self.registry,
+                                                                         self.contract_name,
+                                                                         *constructor_args,
+                                                                         gas_limit=gas_limit,
+                                                                         enroll=False)
         if progress:
             progress.update(1)
 
-        self._contract = preallocation_escrow_contract
         self.deployment_receipts.update({self.deployment_steps[0]: deploy_receipt})
         return deploy_receipt
 

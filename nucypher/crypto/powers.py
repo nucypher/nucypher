@@ -137,7 +137,6 @@ class TransactingPower(CryptoPowerUp):
 
         self.device = is_from_hw_wallet
 
-
         self.__password = password
         self.__unlocked = False
         self.__activated = False

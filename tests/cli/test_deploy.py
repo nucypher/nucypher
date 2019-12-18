@@ -355,7 +355,8 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
 
     account_index = '0\n'
     yes = 'Y\n'
-    user_input = account_index + yes + yes
+    no = 'N\n'
+    user_input = account_index + yes + no + yes
 
     result = click_runner.invoke(deploy,
                                  deploy_command,

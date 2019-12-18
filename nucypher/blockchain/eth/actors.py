@@ -196,13 +196,39 @@ class ContractAdministrator(NucypherTokenActor):
         self.registry = registry
         self.deployers = {d.contract_name: d for d in self.deployer_classes}
 
-        self.transacting_power = TransactingPower(password=client_password, account=deployer_address, cache=True)
+        self.deployer_power = TransactingPower(password=client_password, account=deployer_address, cache=True)
+        self.transacting_power = self.deployer_power
         self.transacting_power.activate()
         self.staking_escrow_test_mode = staking_escrow_test_mode
+
+        self.sidekick_power = None
+        self.sidekick_address = None
 
     def __repr__(self):
         r = '{name} - {deployer_address})'.format(name=self.__class__.__name__, deployer_address=self.deployer_address)
         return r
+
+    def recruit_sidekick(self, sidekick_address: str, sidekick_password: str):
+        self.sidekick_power = TransactingPower(account=sidekick_address, password=sidekick_password, cache=True)
+        if self.sidekick_power.device:
+            raise ValueError("Holy Wallet! Sidekicks can only be SW accounts")
+        self.sidekick_address = sidekick_address
+
+    def activate_deployer(self, refresh: bool = True):
+        if not self.deployer_power.is_active:
+            self.transacting_power = self.deployer_power
+            self.transacting_power.activate()
+        elif refresh:
+            self.transacting_power.activate()
+
+    def activate_sidekick(self, refresh: bool = True):
+        if not self.sidekick_power:
+            raise TransactingPower.not_found_error
+        elif not self.sidekick_power.is_active:
+            self.transacting_power = self.sidekick_power
+            self.transacting_power.activate()
+        elif refresh:
+            self.transacting_power.activate()
 
     def __get_deployer(self, contract_name: str):
         try:
@@ -480,14 +506,29 @@ class ContractAdministrator(NucypherTokenActor):
                 duration = allocation['duration_seconds']
 
                 try:
-                    self.transacting_power.activate()  # Activate the TransactingPower in case too much time has passed
-
                     deployer = PreallocationEscrowDeployer(registry=self.registry,
                                                            deployer_address=self.deployer_address,
+                                                           sidekick_address=self.sidekick_address,
                                                            allocation_registry=allocation_registry)
-                    deployer.deploy(progress=bar)
-                    deployer.assign_beneficiary(checksum_address=beneficiary, progress=bar)
+
+                    # 0 - Activate a TransactingPower (use the Sidekick if necessary)
+                    use_sidekick = bool(self.sidekick_power)
+                    if use_sidekick:
+                        self.activate_sidekick(refresh=True)
+                    else:
+                        self.activate_deployer(refresh=True)
+
+                    # 1 - Deploy the contract
+                    deployer.deploy(use_sidekick=use_sidekick, progress=bar)
+
+                    # 2 - Assign ownership to beneficiary
+                    deployer.assign_beneficiary(checksum_address=beneficiary, use_sidekick=use_sidekick, progress=bar)
+
+                    # 3 - Use main deployer account to do the initial deposit
+                    self.activate_deployer(refresh=False)
                     deployer.initial_deposit(value=amount, duration_seconds=duration, progress=bar)
+
+                    # 4 - Enroll in allocation registry
                     deployer.enroll_principal_contract()
 
                 except TransactionFailed as e:
