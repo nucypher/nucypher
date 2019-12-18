@@ -90,10 +90,16 @@ contract StakingEscrow is Issuer {
         uint16 workerStartPeriod;
         // last confirmed active period
         uint16 lastActivePeriod;
-        Downtime[] pastDowntime;
-        SubStakeInfo[] subStakes;
         bool measureWork;
         uint256 completedWork;
+
+        uint256 reservedSlot1;
+        uint256 reservedSlot2;
+        uint256 reservedSlot3;
+        uint256 reservedSlot4;
+
+        Downtime[] pastDowntime;
+        SubStakeInfo[] subStakes;
     }
 
     // Used as removed value for confirmedPeriod1(2)
@@ -1190,11 +1196,6 @@ contract StakingEscrow is Issuer {
         bytes32 memoryAddress = delegateGetData(_target, "stakerInfo(address)", 1, _staker, 0);
         assembly {
             result := memoryAddress
-            // copy data to the right position after the array pointer place
-            // measureWork
-            mstore(add(memoryAddress, 0x140), mload(add(memoryAddress, 0x100)))
-            // completedWork
-            mstore(add(memoryAddress, 0x160), mload(add(memoryAddress, 0x120)))
         }
     }
 
