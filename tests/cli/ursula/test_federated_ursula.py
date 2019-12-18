@@ -112,25 +112,6 @@ def test_configuration_file_contents(custom_filepath, nominal_federated_configur
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
 
-def test_password_prompt(click_runner, custom_filepath):
-
-    # Ensure the configuration file still exists
-    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
-    assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
-
-    view_args = ('ursula', 'view', '--config-file', custom_config_filepath, '--federated-only')
-
-    user_input = '{}\n'.format(INSECURE_DEVELOPMENT_PASSWORD)
-    result = click_runner.invoke(nucypher_cli, view_args, input=user_input, catch_exceptions=False, env=dict())
-    assert 'password' in result.output, 'WARNING: User was not prompted for password'
-    assert result.exit_code == 0
-
-    envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD}
-    result = click_runner.invoke(nucypher_cli, view_args, input=user_input, catch_exceptions=False, env=envvars)
-    assert not 'password' in result.output, 'User was prompted for password'
-    assert result.exit_code == 0
-
-
 def test_ursula_view_configuration(custom_filepath, click_runner, nominal_federated_configuration_fields):
 
     # Ensure the configuration file still exists
@@ -145,7 +126,6 @@ def test_ursula_view_configuration(custom_filepath, click_runner, nominal_federa
                                  catch_exceptions=False)
 
     # CLI Output
-    assert 'password' in result.output, 'WARNING: User was not prompted for password'
     assert MOCK_CUSTOM_INSTALLATION_PATH in result.output
     for field in nominal_federated_configuration_fields:
         assert field in result.output, "Missing field '{}' from configuration file."
