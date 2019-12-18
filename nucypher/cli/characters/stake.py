@@ -250,9 +250,10 @@ def set_worker(click_config,
                                       seconds_per_period=economics.seconds_per_period,
                                       start_of_period=True)
 
-    click.confirm(f"Commit to bonding "
-                  f"worker {worker_address} to staker {client_account} "
-                  f"for a minimum of {STAKEHOLDER.economics.minimum_worker_periods} periods?", abort=True)
+    if not force:
+        click.confirm(f"Commit to bonding "
+                      f"worker {worker_address} to staker {client_account} "
+                      f"for a minimum of {STAKEHOLDER.economics.minimum_worker_periods} periods?", abort=True)
 
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
     receipt = STAKEHOLDER.set_worker(worker_address=worker_address)
