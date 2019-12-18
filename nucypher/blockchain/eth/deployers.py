@@ -271,7 +271,7 @@ class UpgradeableContractMixin:
 
     def get_proxy_contract(self, registry: BaseContractRegistry, provider_uri: str = None) -> VersionedContract:
         if not self._upgradeable:
-            raise cls.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
+            raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
         blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
         principal_contract = self.get_principal_contract(registry=registry, provider_uri=provider_uri)
         proxy_contract = blockchain.get_proxy_contract(registry=registry,
@@ -861,7 +861,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
 
     agency = PreallocationEscrowAgent
     contract_name = agency.registry_contract_name
-    deployment_steps = ('contract_deployment', 'initial_deposit', 'transfer_ownership')
+    deployment_steps = ('contract_deployment', 'transfer_ownership', 'initial_deposit')
     _router_deployer = StakingInterfaceRouterDeployer
     __allocation_registry = AllocationRegistry
 
@@ -898,7 +898,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
                                                                   sender_address=self.deployer_address,
                                                                   payload=payload)
         self.__beneficiary_address = checksum_address
-        self.deployment_receipts.update({self.deployment_steps[2]: transfer_owner_receipt})
+        self.deployment_receipts.update({self.deployment_steps[1]: transfer_owner_receipt})
         if progress:
             progress.update(1)
         return transfer_owner_receipt
@@ -911,7 +911,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
         approve_and_call_receipt = self.blockchain.send_transaction(contract_function=approve_and_call,
                                                                     sender_address=self.deployer_address)  # TODO: Gas  - #842
 
-        self.deployment_receipts.update({self.deployment_steps[1]: approve_and_call_receipt})
+        self.deployment_receipts.update({self.deployment_steps[2]: approve_and_call_receipt})
 
         if progress:
             progress.update(1)
@@ -926,17 +926,17 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
     @validate_checksum_address
     def deliver(self, value: int, duration: int, beneficiary_address: str, progress=None):
         """
-        Transfer allocated tokens and hand-off the contract to the beneficiary.
+        Hand-off the contract to the beneficiary, transfer allocated tokens and lock.
 
          Encapsulates three operations:
-            - Initial Deposit
             - Transfer Ownership
+            - Initial Deposit & Lock
             - Enroll in Allocation Registry
 
         """
 
-        self.initial_deposit(value=value, duration_seconds=duration, progress=progress)
         self.assign_beneficiary(checksum_address=beneficiary_address, progress=progress)
+        self.initial_deposit(value=value, duration_seconds=duration, progress=progress)
         self.enroll_principal_contract()
 
     def deploy(self, initial_deployment: bool = True, gas_limit: int = None, progress=None) -> dict:
