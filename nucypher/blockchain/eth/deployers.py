@@ -923,22 +923,6 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
                                           contract_address=self.contract.address,
                                           contract_abi=self.contract.abi)
 
-    @validate_checksum_address
-    def deliver(self, value: int, duration: int, beneficiary_address: str, progress=None):
-        """
-        Hand-off the contract to the beneficiary, transfer allocated tokens and lock.
-
-         Encapsulates three operations:
-            - Transfer Ownership
-            - Initial Deposit & Lock
-            - Enroll in Allocation Registry
-
-        """
-
-        self.assign_beneficiary(checksum_address=beneficiary_address, progress=progress)
-        self.initial_deposit(value=value, duration_seconds=duration, progress=progress)
-        self.enroll_principal_contract()
-
     def deploy(self, initial_deployment: bool = True, gas_limit: int = None, progress=None) -> dict:
         """Deploy a new instance of PreallocationEscrow to the blockchain."""
         self.check_deployment_readiness()

@@ -22,7 +22,7 @@ import os
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Tuple, List, Dict, Union, Optional
+from typing import Tuple, List, Dict, Union
 
 import click
 import maya
@@ -194,7 +194,6 @@ class ContractAdministrator(NucypherTokenActor):
         self.economics = economics or StandardTokenEconomics()
 
         self.registry = registry
-        self.preallocation_escrow_deployers = dict()
         self.deployers = {d.contract_name: d for d in self.deployer_classes}
 
         self.transacting_power = TransactingPower(password=client_password, account=deployer_address, cache=True)
@@ -291,15 +290,6 @@ class ContractAdministrator(NucypherTokenActor):
         receipts = deployer.rollback(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
                                      new_secret_hash=new_secret_hash)
         return receipts
-
-    def deploy_preallocation_escrow(self, allocation_registry: AllocationRegistry, progress=None) -> PreallocationEscrowDeployer:
-        preallocation_escrow_deployer = PreallocationEscrowDeployer(registry=self.registry,
-                                                                    deployer_address=self.deployer_address,
-                                                                    allocation_registry=allocation_registry)
-        preallocation_escrow_deployer.deploy(progress=progress)
-        principal_address = preallocation_escrow_deployer.contract.address
-        self.preallocation_escrow_deployers[principal_address] = preallocation_escrow_deployer
-        return preallocation_escrow_deployer
 
     def deploy_network_contracts(self,
                                  secrets: dict,
@@ -492,13 +482,14 @@ class ContractAdministrator(NucypherTokenActor):
                 try:
                     self.transacting_power.activate()  # Activate the TransactingPower in case too much time has passed
 
-                    deployer = self.deploy_preallocation_escrow(allocation_registry=allocation_registry,
-                                                                progress=bar)
+                    deployer = PreallocationEscrowDeployer(registry=self.registry,
+                                                           deployer_address=self.deployer_address,
+                                                           allocation_registry=allocation_registry)
+                    deployer.deploy(progress=bar)
+                    deployer.assign_beneficiary(checksum_address=beneficiary, progress=bar)
+                    deployer.initial_deposit(value=amount, duration_seconds=duration, progress=bar)
+                    deployer.enroll_principal_contract()
 
-                    deployer.deliver(value=amount,
-                                     duration=duration,
-                                     beneficiary_address=beneficiary,
-                                     progress=bar)
                 except TransactionFailed as e:
                     if crash_on_failure:
                         raise
