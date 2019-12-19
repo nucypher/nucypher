@@ -13,6 +13,8 @@ def test_availability_sensor_success(blockchain_ursulas):
     ursula = blockchain_ursulas.pop()
     start_pytest_ursula_services(ursula=ursula)
 
+    ursula._availability_sensor = AvailabilitySensor(ursula=ursula)
+
     def measure():
         ursula._availability_sensor.start()
         assert ursula._availability_sensor.score == 10
@@ -43,7 +45,12 @@ def test_availability_sensor_success(blockchain_ursulas):
         AvailabilitySensor.issue_warnings = original_issuer
 
     # Run the Callbacks
-    d = threads.deferToThread(measure)
-    yield d
-    d = threads.deferToThread(maintain)
-    yield d
+    try:
+        d = threads.deferToThread(measure)
+        yield d
+        d = threads.deferToThread(maintain)
+        yield d
+    finally:
+        if ursula._availability_sensor:
+            ursula._availability_sensor.stop()
+            ursula._availability_sensor = None

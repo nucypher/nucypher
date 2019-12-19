@@ -53,6 +53,7 @@ class UrsulaConfiguration(CharacterConfiguration):
                  rest_port: int = None,
                  tls_curve: EllipticCurve = None,
                  certificate: Certificate = None,
+                 availability_check: bool = True,
                  *args, **kwargs) -> None:
 
         if not rest_port:
@@ -66,6 +67,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.certificate = certificate
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
         self.worker_address = worker_address
+        self.availability_check = availability_check
         super().__init__(dev_mode=dev_mode, *args, **kwargs)
 
     def generate_runtime_filepaths(self, config_root: str) -> dict:
@@ -84,6 +86,7 @@ class UrsulaConfiguration(CharacterConfiguration):
             rest_host=self.rest_host,
             rest_port=self.rest_port,
             db_filepath=self.db_filepath,
+            availability_check=self.availability_check,
         )
         return {**super().static_payload(), **payload}
 
