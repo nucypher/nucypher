@@ -2,7 +2,7 @@ import maya
 import pytest_twisted as pt
 from twisted.internet import threads
 
-from nucypher.network.protocols import AvailabilitySensor
+from nucypher.network.sensors import AvailabilitySensor
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 
@@ -14,23 +14,23 @@ def test_availability_sensor_success(blockchain_ursulas):
     start_pytest_ursula_services(ursula=ursula)
 
     def measure():
-        assert ursula._availability_sensor.measure()
+        ursula._availability_sensor.start()
+        assert ursula._availability_sensor.score == 10
+        ursula._availability_sensor.record(False)
+        assert ursula._availability_sensor.score == 9.0
+        for i in range(7):
+            ursula._availability_sensor.record(True)
+        assert ursula._availability_sensor.score > 9.5
 
     def maintain():
         sensor = ursula._availability_sensor
-        assert len(sensor._records) == 0
         sensor.maintain()
-        assert len(sensor._records) == 1
-        assert sensor._records[0].result is True
 
         # The node goes offline for some time...
-        for _ in range(7):
-            fake_failed_record = sensor.Record(time=maya.now().epoch, result=False)
-            sensor._records.append(fake_failed_record)
+        for _ in range(10):
+            ursula._availability_sensor.record(False)
 
-        assert sensor.retention == 10
-        assert len(sensor._records) == 8
-        assert sensor.score == 0.125  # 1/8
+        assert sensor.score < 4
 
         original_issuer = AvailabilitySensor.issue_warnings
         warnings = dict()

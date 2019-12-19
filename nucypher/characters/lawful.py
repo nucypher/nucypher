@@ -72,7 +72,8 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.nodes import Teacher
-from nucypher.network.protocols import InterfaceInfo, parse_node_uri, AvailabilitySensor
+from nucypher.network.protocols import InterfaceInfo, parse_node_uri
+from nucypher.network.sensors import AvailabilitySensor
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 
 
