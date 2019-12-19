@@ -13,6 +13,9 @@ from nucypher.crypto.powers import DecryptingPower
 
 
 # Args (provider_uri, network, registry_filepath, checksum_address)
+from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
+
+
 def _admin_options(func):
     @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
     @click.option('--network', help="Network Domain Name", type=click.STRING)
@@ -276,7 +279,7 @@ def _get_bob_config(click_config, dev, provider_uri, network, registry_filepath,
                     discovery_port):
     if dev:
         bob_config = BobConfiguration(dev_mode=True,
-                                      domains={network},
+                                      domains={TEMPORARY_DOMAIN},
                                       provider_uri=provider_uri,
                                       federated_only=True,
                                       checksum_address=checksum_address,
