@@ -122,7 +122,6 @@ def paint_node_status(emitter, ursula, start_time):
              '{}'.format(ursula),
              'Uptime .............. {}'.format(maya.now() - start_time),
              'Start Time .......... {}'.format(start_time.slang_time()),
-             'Availability Score .. {}'.format(ursula._availability_sensor.score),
              'Fleet State.......... {}'.format(fleet_state),
              'Learning Status ..... {}'.format(learning_status),
              'Learning Round ...... Round #{}'.format(ursula._learning_round),
@@ -137,6 +136,10 @@ def paint_node_status(emitter, ursula, start_time):
         worker_address = 'Worker Address ...... {}'.format(ursula.worker_address)
         current_period = f'Current Period ...... {ursula.staking_agent.get_current_period()}'
         stats.extend([current_period, worker_address])
+
+    if ursula._availability_sensor:
+        score = 'Availability Score .. {}'.format(ursula._availability_sensor.score),
+        stats.append(score)
 
     emitter.echo('\n' + '\n'.join(stats) + '\n')
 

@@ -167,8 +167,8 @@ class RestMiddleware:
             if current_attempt == retry_attempts:
                 message = f"No Response from seednode {host}:{port} after {retry_attempts} attempts"
                 self.log.info(message)
-                raise RuntimeError("No response from {}:{}".format(host, port))
-            self.log.info("No Response from seednode {}. Retrying in {} seconds...".format(host, retry_rate))
+                raise ConnectionRefusedError("No response from {}:{}".format(host, port))
+            self.log.info(f"No Response from seednode {host}:{port}. Retrying in {retry_rate} seconds...")
             time.sleep(retry_rate)
             return self.get_certificate(host, port, timeout, retry_attempts, retry_rate, current_attempt + 1)
 

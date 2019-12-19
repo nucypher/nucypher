@@ -13,8 +13,8 @@ class AvailabilitySensor:
 
     FAST_INTERVAL = 5          # Seconds
     SLOW_INTERVAL = 60 * 5
-    SEEDING_DURATION = 60 * 2
-    MAXIMUM_ALONE_TIME = 10
+    SEEDING_DURATION = 60
+    MAXIMUM_ALONE_TIME = 120
 
     MAXIMUM_SCORE = 10.0       # Score
     SAMPLE_SIZE = 1            # Ursulas
@@ -49,10 +49,10 @@ class AvailabilitySensor:
         self.__task = LoopingCall(self.maintain)
 
     def mild_warning(self) -> None:
-        self.log.info(f'[UNREACHABLE NOTICE] {self._ursula.rest_url} was recently reported as unreachable.')
+        self.log.info(f'[UNREACHABLE NOTICE] This node was recently reported as unreachable.')
 
     def medium_warning(self) -> None:
-        self.log.warn(f'[UNREACHABLE CAUTION] {self._ursula.rest_url} is reporting as unreachable.'
+        self.log.warn(f'[UNREACHABLE CAUTION] This node is reporting as unreachable.'
                       f'Please check your network and firewall configuration.')
 
     def severe_warning(self) -> None:
@@ -158,12 +158,13 @@ class AvailabilitySensor:
 
             # Fetch and store teacher certificate
             responding_ursula_address, responding_ursula_port = tuple(ursula.rest_interface)
-            certificate = self._ursula.network_middleware.get_certificate(host=responding_ursula_address,
-                                                                          port=responding_ursula_port)
-            certificate_filepath = self._ursula.node_storage.store_node_certificate(certificate=certificate)
 
             # Request status check
             try:
+                certificate = self._ursula.network_middleware.get_certificate(host=responding_ursula_address,
+                                                                              port=responding_ursula_port)
+                certificate_filepath = self._ursula.node_storage.store_node_certificate(certificate=certificate)
+
                 response = self._ursula.network_middleware.check_rest_availability(requesting_ursula=self._ursula,
                                                                                    responding_ursula=ursula,
                                                                                    certificate_filepath=certificate_filepath)
