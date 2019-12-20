@@ -19,6 +19,7 @@ contract StakingEscrowForStakingContractMock {
     bool public reStake;
     uint16 public lockReStakeUntilPeriod;
     address public worker;
+    bool public windDown;
 
     constructor(NuCypherToken _token) public {
         token = _token;
@@ -77,6 +78,10 @@ contract StakingEscrowForStakingContractMock {
         public view returns (uint256)
     {
         return value;
+    }
+
+    function setWindDown(bool _windDown) public {
+        windDown = _windDown;
     }
 }
 

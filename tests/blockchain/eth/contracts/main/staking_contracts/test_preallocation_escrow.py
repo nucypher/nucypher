@@ -186,6 +186,9 @@ def test_staker(testerchain, token, escrow, preallocation_escrow, preallocation_
     with pytest.raises((TransactionFailed, ValueError)):
         tx = staking_interface.functions.prolongStake(2, 2).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.setWindDown(True).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
 
     locks = preallocation_escrow_interface.events.Locked.createFilter(fromBlock='latest')
     divides = preallocation_escrow_interface.events.Divided.createFilter(fromBlock='latest')
@@ -196,6 +199,7 @@ def test_staker(testerchain, token, escrow, preallocation_escrow, preallocation_
     re_stake_locks = preallocation_escrow_interface.events.ReStakeLocked.createFilter(fromBlock='latest')
     worker_logs = preallocation_escrow_interface.events.WorkerSet.createFilter(fromBlock='latest')
     prolong_logs = preallocation_escrow_interface.events.Prolonged.createFilter(fromBlock='latest')
+    wind_down_logs = preallocation_escrow_interface.events.WindDownSet.createFilter(fromBlock='latest')
 
     # Use stakers methods through the preallocation escrow
     tx = preallocation_escrow_interface.functions.lock(100, 1).transact({'from': owner})
@@ -239,6 +243,11 @@ def test_staker(testerchain, token, escrow, preallocation_escrow, preallocation_
     tx = preallocation_escrow_interface.functions.setWorker(owner).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
     assert owner == escrow.functions.worker().call()
+
+    # Test wind-down
+    tx = preallocation_escrow_interface.functions.setWindDown(True).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.windDown().call()
 
     events = locks.get_all_entries()
     assert 1 == len(events)
@@ -293,6 +302,12 @@ def test_staker(testerchain, token, escrow, preallocation_escrow, preallocation_
     assert owner == event_args['sender']
     assert 2 == event_args['index']
     assert 2 == event_args['periods']
+
+    events = wind_down_logs.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['sender']
+    assert event_args['windDown']
 
     # Owner can withdraw reward for mining but no more than locked
     with pytest.raises((TransactionFailed, ValueError)):

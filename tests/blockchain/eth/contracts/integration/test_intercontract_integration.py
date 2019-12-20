@@ -33,6 +33,7 @@ from nucypher.crypto.signing import SignatureStamp
 
 
 DISABLE_RE_STAKE_FIELD = 3
+WIND_DOWN_FIELD = 10
 
 DISABLED_FIELD = 5
 
@@ -400,6 +401,9 @@ def test_all(testerchain,
     escrow_balance = token_economics.erc20_reward_supply + staker2_tokens
     assert escrow.functions.getAllTokens(staker2).call() == staker2_tokens
     assert escrow.functions.getCompletedWork(staker2).call() == 0
+    tx = escrow.functions.setWindDown(True).transact({'from': staker2})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.stakerInfo(staker2).call()[WIND_DOWN_FIELD]
 
     # Burn remaining tokens in WorkLock
     tx = worklock.functions.burnUnclaimed().transact({'from': creator})
@@ -517,6 +521,9 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setReStake(False).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWindDown(True).transact({'from': staker1})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.stakerInfo(staker1).call()[WIND_DOWN_FIELD]
     tx = escrow.functions.confirmActivity().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     escrow_balance += 1000
@@ -533,6 +540,9 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = preallocation_escrow_interface_1.functions.setWorker(staker3).transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
+    tx = preallocation_escrow_interface_1.functions.setWindDown(True).transact({'from': staker3})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.stakerInfo(preallocation_escrow_interface_1.address).call()[WIND_DOWN_FIELD]
     tx = escrow.functions.confirmActivity().transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
     escrow_balance += 1000

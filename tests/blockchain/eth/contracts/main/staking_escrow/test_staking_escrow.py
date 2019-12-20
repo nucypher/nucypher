@@ -39,6 +39,7 @@ def test_staking(testerchain, token, escrow_contract):
     activity_log = escrow.events.ActivityConfirmed.createFilter(fromBlock='latest')
     divides_log = escrow.events.Divided.createFilter(fromBlock='latest')
     withdraw_log = escrow.events.Withdrawn.createFilter(fromBlock='latest')
+    wind_down_log = escrow.events.WindDownSet.createFilter(fromBlock='latest')
 
     # Give Ursula and Ursula(2) some coins
     tx = token.functions.transfer(ursula1, 10000).transact({'from': creator})
@@ -111,6 +112,8 @@ def test_staking(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWorker(ursula1).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWindDown(True).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
     assert 1000 == token.functions.balanceOf(escrow.address).call()
     assert 9000 == token.functions.balanceOf(ursula1).call()
     assert 0 == escrow.functions.getLockedTokens(ursula1, 0).call()
@@ -132,11 +135,18 @@ def test_staking(testerchain, token, escrow_contract):
     assert 1000 == event_args['value']
     assert current_period + 1 == event_args['firstPeriod']
     assert 2 == event_args['periods']
+    events = wind_down_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert ursula1 == event_args['staker']
+    assert event_args['windDown']
 
     # Ursula(2) stakes tokens also
     tx = escrow.functions.deposit(500, 2).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWorker(ursula2).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWindDown(True).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     assert 1500 == token.functions.balanceOf(escrow.address).call()
     assert 9500 == token.functions.balanceOf(ursula2).call()
@@ -156,6 +166,11 @@ def test_staking(testerchain, token, escrow_contract):
     assert 500 == event_args['value']
     assert current_period + 1 == event_args['firstPeriod']
     assert 2 == event_args['periods']
+    events = wind_down_log.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert ursula2 == event_args['staker']
+    assert event_args['windDown']
 
     # Ursula and Ursula(2) confirm activity
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
@@ -563,6 +578,8 @@ def test_max_sub_stakes(testerchain, token, escrow_contract):
     tx = escrow.functions.deposit(100, 2).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWorker(ursula).transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWindDown(True).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     assert 1 == escrow.functions.getSubStakesLength(ursula).call()
 

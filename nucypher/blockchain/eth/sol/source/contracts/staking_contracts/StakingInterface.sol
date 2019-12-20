@@ -11,7 +11,7 @@ import "contracts/PolicyManager.sol";
 * @notice Interface for accessing main contracts from a staking contract
 * @dev All methods must be stateless because this code will be executed by delegatecall call.
 * If state is needed - use getStateContract() method to access state of this contract.
-* @dev |v1.2.1|
+* @dev |v1.3.1|
 */
 contract StakingInterface {
 
@@ -26,6 +26,7 @@ contract StakingInterface {
     event ReStakeLocked(address indexed sender, uint16 lockUntilPeriod);
     event WorkerSet(address indexed sender, address worker);
     event Prolonged(address indexed sender, uint256 index, uint16 periods);
+    event WindDownSet(address indexed sender, bool windDown);
 
     NuCypherToken public token;
     StakingEscrow public escrow;
@@ -173,6 +174,15 @@ contract StakingInterface {
     function prolongStake(uint256 _index, uint16 _periods) public {
         getStateContract().escrow().prolongStake(_index, _periods);
         emit Prolonged(msg.sender, _index, _periods);
+    }
+
+    /**
+    * @notice Set `windDown` parameter in the staking escrow
+    * @param _windDown Value for parameter
+    */
+    function setWindDown(bool _windDown) public {
+        getStateContract().escrow().setWindDown(_windDown);
+        emit WindDownSet(msg.sender, _windDown);
     }
 
 }
