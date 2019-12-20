@@ -62,7 +62,7 @@ def test_federated_development_character_configurations(character, configuration
     assert isinstance(thing_one.node_storage, ForgetfulNodeStorage)
     assert thing_one.node_storage._name == ":memory:"
 
-    # All development characters are unique
+    # All development commands are unique
     _characters = [thing_one, thing_two]
     for _ in range(3):
         another_character = config()

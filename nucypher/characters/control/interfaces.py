@@ -123,7 +123,7 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
 
     def revoke(self, label: bytes, bob_verifying_key: bytes) -> dict:
 
-        # TODO: Move deeper into characters
+        # TODO: Move deeper into commands
         policy_id = construct_policy_id(label, bob_verifying_key)
         policy = self.character.active_policies[policy_id]
 

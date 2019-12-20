@@ -18,8 +18,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import random
 import re
 
-import pytest
-
 from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     StakingEscrowAgent,
@@ -27,9 +25,8 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     ContractAgency
 )
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.token import NU
-from nucypher.cli.status import status
+from nucypher.cli.commands.status import status
 from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI, MOCK_REGISTRY_FILEPATH
 
 

@@ -18,7 +18,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.registry import LocalContractRegistry
-from nucypher.cli.deploy import deploy
+from nucypher.cli.commands.deploy import deploy
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
     MOCK_REGISTRY_FILEPATH,

@@ -21,7 +21,7 @@ import pytest
 
 import nucypher
 from nucypher.cli.config import NucypherClickConfig
-from nucypher.cli.deploy import deploy
+from nucypher.cli.commands.deploy import deploy
 from nucypher.cli.main import nucypher_cli, ENTRY_POINTS
 
 NUCYPHER_CLICK_CONFIG_OPTIONS = set(inspect.signature(NucypherClickConfig.set_options).parameters.keys())

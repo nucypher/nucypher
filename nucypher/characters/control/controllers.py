@@ -30,7 +30,7 @@ from nucypher.utilities.controllers import JSONRPCTestClient
 class CharacterControllerBase(ABC):
     """
     A transactional interface for a human to  interact with all
-    of one characters entry and exit points.
+    of one commands entry and exit points.
 
     Subclasses of CharacterControllerBase handle a character's public interface I/O,
     serialization, interface specification, validation, and transport.

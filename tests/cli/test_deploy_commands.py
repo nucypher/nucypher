@@ -9,7 +9,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import StakingEscrowDeployer
 from nucypher.blockchain.eth.registry import LocalContractRegistry
-from nucypher.cli.deploy import deploy
+from nucypher.cli.commands.deploy import deploy
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
     MOCK_REGISTRY_FILEPATH,

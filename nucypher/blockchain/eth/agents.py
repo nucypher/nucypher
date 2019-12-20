@@ -877,7 +877,7 @@ class AdjudicatorAgent(EthereumContractAgent):
 
 class MultiSigAgent(EthereumContractAgent):
 
-    Vector = List[str, str, str]
+    Vector = List[str]
 
     def get_owners(self) -> Tuple[str]:
         result = self.contract.functions.owners().call()
