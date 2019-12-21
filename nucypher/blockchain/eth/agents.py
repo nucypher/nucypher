@@ -467,6 +467,24 @@ class StakingEscrowAgent(EthereumContractAgent):
         restake_unlock_period = int(staker_info[4])  # TODO: #1348 Use constant or enum
         return restake_unlock_period
 
+    @validate_checksum_address
+    def is_winding_down(self, staker_address: str) -> bool:
+        staker_info = self.get_staker_info(staker_address)
+        winddown_flag = bool(staker_info[10])  # TODO: #1348 Use constant or enum
+        return winddown_flag
+
+    @validate_checksum_address
+    def set_winding_down(self, staker_address: str, value: bool) -> dict:
+        """
+        Enable wind down for stake.
+        If set to True, then stakes duration will be decreasing in each period with `confirmActivity()`.
+        """
+        contract_function = self.contract.functions.setWindDown(value)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=staker_address)
+        # TODO: Handle WindDownSet event (see #1193)
+        return receipt
+
     def staking_parameters(self) -> Tuple:
         parameter_signatures = (
             # Period
@@ -825,6 +843,17 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    sender_address=self.__beneficiary)
         # TODO: Handle ReStakeLocked event (see #1193)
+        return receipt
+
+    def set_winding_down(self, value: bool) -> dict:
+        """
+                Enable wind down for stake.
+                If set to True, then stakes duration will be decreasing in each period with `confirmActivity()`.
+                """
+        contract_function = self.__interface_agent.functions.setWindDown(value)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=self.__beneficiary)
+        # TODO: Handle WindDownSet event (see #1193)
         return receipt
 
 

@@ -136,6 +136,10 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     worker = testerchain.ursula_account(0)
     _receipt = agent.set_worker(worker_address=worker)
 
+    # Owner enables winding down
+    receipt = agent.set_winding_down(value=True)
+    assert receipt['status'] == 1, "Transaction Rejected"
+
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value - token_economics.minimum_allowed_locked
     assert agent.unvested_tokens == allocation_value
     assert staking_agent.get_locked_tokens(staker_address=agent.contract_address) == 0

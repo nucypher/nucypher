@@ -496,7 +496,7 @@ contract StakingEscrow is Issuer {
 
     /**
     * @notice Set `windDown` parameter.
-    * If true then stakes duration is decreasing in each period with `confirmActivity()`
+    * If true then stakes duration will be decreasing in each period with `confirmActivity()`
     * @param _windDown Value for parameter
     */
     function setWindDown(bool _windDown) public onlyStaker {
