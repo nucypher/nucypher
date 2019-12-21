@@ -500,6 +500,14 @@ def confirm_enable_restaking(emitter, staking_address: str) -> bool:
     return True
 
 
+def confirm_enable_winding_down(emitter, staking_address: str) -> bool:
+    winding_down_agreement = f"By enabling the winding down for {staking_address}, " \
+                             f"stakes duration will be decreasing in each period."
+    emitter.message(winding_down_agreement)
+    click.confirm(f"Confirm enable automatic winding down for staker {staking_address}?", abort=True)
+    return True
+
+
 def establish_deployer_registry(emitter,
                                 registry_infile: str = None,
                                 registry_outfile: str = None,

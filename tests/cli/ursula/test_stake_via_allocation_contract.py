@@ -343,6 +343,55 @@ def test_stake_restake(click_runner,
     assert "Successfully enabled" in result.output
 
 
+def test_stake_winddown(click_runner,
+                       beneficiary,
+                       preallocation_escrow_agent,
+                       mock_allocation_registry,
+                       test_registry,
+                       manual_worker,
+                       testerchain,
+                       stakeholder_configuration_file_location):
+    individual_allocation = IndividualAllocationRegistry.from_allocation_file(MOCK_INDIVIDUAL_ALLOCATION_FILEPATH)
+    staker = Staker(is_me=True,
+                    checksum_address=beneficiary,
+                    registry=test_registry,
+                    individual_allocation=individual_allocation)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    assert not staker.is_winding_down
+    allocation_contract_address = preallocation_escrow_agent.principal_contract.address
+    assert not staking_agent.is_winding_down(allocation_contract_address)
+
+    restake_args = ('stake', 'winddown',
+                    '--enable',
+                    '--config-file', stakeholder_configuration_file_location,
+                    '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
+                    '--force')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 restake_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+    assert staker.is_winding_down
+    assert staking_agent.is_winding_down(allocation_contract_address)
+    assert "Successfully enabled" in result.output
+
+    disable_args = ('stake', 'winddown',
+                    '--disable',
+                    '--config-file', stakeholder_configuration_file_location,
+                    '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
+                    '--force')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 disable_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+    assert not staker.is_winding_down
+    assert not staking_agent.is_winding_down(allocation_contract_address)
+    assert "Successfully disabled" in result.output
+
+
 def test_ursula_init(click_runner,
                      custom_filepath,
                      mock_registry_filepath,

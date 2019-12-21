@@ -847,6 +847,11 @@ class Staker(NucypherTokenActor):
         receipt = self._set_restaking_value(value=False)
         return receipt
 
+    @property
+    def is_winding_down(self) -> bool:
+        winding_down = self.staking_agent.is_winding_down(staker_address=self.checksum_address)
+        return winding_down
+
     @only_me
     @save_receipt
     def _set_winding_down_value(self, value: bool) -> dict:

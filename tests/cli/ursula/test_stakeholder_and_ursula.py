@@ -328,6 +328,45 @@ def test_stake_restake(click_runner,
     assert "Successfully enabled" in result.output
 
 
+def test_stake_winddown(click_runner,
+                        manual_staker,
+                        custom_filepath,
+                        testerchain,
+                        test_registry,
+                        stakeholder_configuration_file_location):
+
+    staker = Staker(is_me=True, checksum_address=manual_staker, registry=test_registry)
+    assert not staker.is_winding_down
+
+    restake_args = ('stake', 'winddown',
+                    '--enable',
+                    '--config-file', stakeholder_configuration_file_location,
+                    '--staking-address', manual_staker,
+                    '--force')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 restake_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+    assert staker.is_winding_down
+    assert "Successfully enabled" in result.output
+
+    disable_args = ('stake', 'winddown',
+                    '--disable',
+                    '--config-file', stakeholder_configuration_file_location,
+                    '--staking-address', manual_staker,
+                    '--force')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 disable_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+    assert not staker.is_winding_down
+    assert "Successfully disabled" in result.output
+
+
 def test_collect_rewards_integration(click_runner,
                                      testerchain,
                                      test_registry,

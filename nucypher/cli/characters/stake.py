@@ -30,7 +30,8 @@ from nucypher.cli.actions import (
     select_stake,
     handle_client_account_for_staking,
     confirm_enable_restaking_lock,
-    confirm_enable_restaking
+    confirm_enable_restaking,
+    confirm_enable_winding_down
 )
 from nucypher.cli.common_options import (
     group_options,
@@ -494,6 +495,50 @@ def restake(general_config, transacting_staker_options, config_file, enable, loc
             click.confirm(f"Confirm disable re-staking for staker {staking_address}?", abort=True)
         receipt = STAKEHOLDER.disable_restaking()
         emitter.echo(f'Successfully disabled re-staking for {staking_address}', color='green', verbosity=1)
+
+    paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
+
+
+@stake.command()
+@group_transacting_staker_options
+@option_config_file
+@click.option('--enable/--disable', help="Used to enable and disable winding down", is_flag=True, default=True)
+@click.option('--lock-until', help="Period to release re-staking lock", type=click.IntRange(min=0))
+@option_force
+@group_general_config
+def winddown(general_config, transacting_staker_options, config_file, enable, lock_until, force):
+    """
+    Manage winding down with --enable or --disable.
+    """
+
+    emitter = _setup_emitter(general_config)
+
+    STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
+    blockchain = transacting_staker_options.get_blockchain()
+
+    client_account, staking_address = handle_client_account_for_staking(
+        emitter=emitter,
+        stakeholder=STAKEHOLDER,
+        staking_address=transacting_staker_options.staker_options.staking_address,
+        individual_allocation=STAKEHOLDER.individual_allocation,
+        force=force)
+
+    # Authenticate
+    password = transacting_staker_options.get_password(blockchain, client_account)
+
+    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+
+    # Inner Exclusive Switch
+    if enable:
+        if not force:
+            confirm_enable_winding_down(emitter, staking_address=staking_address)
+        receipt = STAKEHOLDER.enable_winding_down()
+        emitter.echo(f'Successfully enabled winding down for {staking_address}', color='green', verbosity=1)
+    else:
+        if not force:
+            click.confirm(f"Confirm disable winding down for staker {staking_address}?", abort=True)
+        receipt = STAKEHOLDER.disable_winding_down()
+        emitter.echo(f'Successfully disabled winding down for {staking_address}', color='green', verbosity=1)
 
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
 

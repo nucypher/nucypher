@@ -572,6 +572,7 @@ def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> N
         last_confirmed_period = staking_agent.get_last_active_period(staker)
         worker = staking_agent.get_worker_from_staker(staker)
         is_restaking = staking_agent.is_restaking(staker)
+        is_winding_down = staking_agent.is_winding_down(staker)
 
         missing_confirmations = current_period - last_confirmed_period
         owned_in_nu = round(NU.from_nunits(owned_tokens), 2)
@@ -586,6 +587,10 @@ def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> N
                 emitter.echo(f"{tab}  {'Re-staking:':10} Yes  (Unlocked)")
         else:
             emitter.echo(f"{tab}  {'Re-staking:':10} No")
+        if is_winding_down:
+            emitter.echo(f"{tab}  {'Winding down:':10} Yes")
+        else:
+            emitter.echo(f"{tab}  {'Winding down:':10} No")
         emitter.echo(f"{tab}  {'Activity:':10} ", nl=False)
         if missing_confirmations == -1:
             emitter.echo(f"Next period confirmed (#{last_confirmed_period})", color='green')
