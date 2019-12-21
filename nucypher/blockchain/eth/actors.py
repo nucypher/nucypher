@@ -847,6 +847,23 @@ class Staker(NucypherTokenActor):
         receipt = self._set_restaking_value(value=False)
         return receipt
 
+    @only_me
+    @save_receipt
+    def _set_winding_down_value(self, value: bool) -> dict:
+        if self.is_contract:
+            receipt = self.preallocation_escrow_agent.set_winding_down(value=value)
+        else:
+            receipt = self.staking_agent.set_winding_down(staker_address=self.checksum_address, value=value)
+        return receipt
+
+    def enable_winding_down(self) -> dict:
+        receipt = self._set_winding_down_value(value=True)
+        return receipt
+
+    def disable_winding_down(self) -> dict:
+        receipt = self._set_winding_down_value(value=False)
+        return receipt
+
     #
     # Bonding with Worker
     #

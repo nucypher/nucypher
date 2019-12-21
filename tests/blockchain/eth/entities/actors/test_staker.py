@@ -162,3 +162,37 @@ def test_staker_collects_staking_reward(testerchain,
 
     final_balance = token_agent.get_balance(staker.checksum_address)
     assert final_balance > initial_balance
+
+
+def test_staker_manages_winding_down(testerchain,
+                                     test_registry,
+                                     staker,
+                                     token_economics,
+                                     ursula_decentralized_test_config):
+    # Get worker
+    ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
+                                        stakers_addresses=[staker.checksum_address],
+                                        workers_addresses=[staker.worker_address],
+                                        confirm_activity=False,
+                                        registry=test_registry).pop()
+
+    # Enable winding down
+    testerchain.time_travel(periods=1)
+    base_duration = token_economics.minimum_locked_periods + 4
+    receipt = staker.enable_winding_down()
+    assert receipt['status'] == 1
+    assert staker.locked_tokens(base_duration) != 0
+    assert staker.locked_tokens(base_duration + 1) == 0
+    ursula.confirm_activity()
+    assert staker.locked_tokens(base_duration) != 0
+    assert staker.locked_tokens(base_duration + 1) == 0
+
+    # Disable winding down
+    testerchain.time_travel(periods=1)
+    receipt = staker.disable_winding_down()
+    assert receipt['status'] == 1
+    assert staker.locked_tokens(base_duration - 1) != 0
+    assert staker.locked_tokens(base_duration) == 0
+    ursula.confirm_activity()
+    assert staker.locked_tokens(base_duration) != 0
+    assert staker.locked_tokens(base_duration + 1) == 0
