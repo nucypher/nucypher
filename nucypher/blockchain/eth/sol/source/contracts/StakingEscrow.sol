@@ -82,7 +82,7 @@ contract StakingEscrow is Issuer {
         */
         uint16 confirmedPeriod1;
         uint16 confirmedPeriod2;
-        bool disableReStake;
+        bool reStakeDisabled;
         uint16 lockReStakeUntilPeriod;
         address worker;
         // period when worker was set
@@ -468,10 +468,10 @@ contract StakingEscrow is Issuer {
     function setReStake(bool _reStake) public isInitialized {
         require(!isReStakeLocked(msg.sender));
         StakerInfo storage info = stakerInfo[msg.sender];
-        if (info.disableReStake == !_reStake) {
+        if (info.reStakeDisabled == !_reStake) {
             return;
         }
-        info.disableReStake = !_reStake;
+        info.reStakeDisabled = !_reStake;
         emit ReStakeSet(msg.sender, _reStake);
     }
 
@@ -837,7 +837,7 @@ contract StakingEscrow is Issuer {
                     lockedPerPeriod[mintingPeriod],
                     lastPeriod.sub16(mintingPeriod));
                 reward += subStakeReward;
-                if (!_info.disableReStake) {
+                if (!_info.reStakeDisabled) {
                     subStake.lockedValue += subStakeReward;
                 }
             }
@@ -848,7 +848,7 @@ contract StakingEscrow is Issuer {
         } else {
             _info.confirmedPeriod2 = EMPTY_CONFIRMED_PERIOD;
         }
-        if (_info.disableReStake) {
+        if (_info.reStakeDisabled) {
             return reward;
         }
         if (_confirmedPeriodNumber == 1 &&
@@ -1239,7 +1239,7 @@ contract StakingEscrow is Issuer {
         require(infoToCheck.value == info.value &&
             infoToCheck.confirmedPeriod1 == info.confirmedPeriod1 &&
             infoToCheck.confirmedPeriod2 == info.confirmedPeriod2 &&
-            infoToCheck.disableReStake == info.disableReStake &&
+            infoToCheck.reStakeDisabled == info.reStakeDisabled &&
             infoToCheck.lockReStakeUntilPeriod == info.lockReStakeUntilPeriod &&
             infoToCheck.lastActivePeriod == info.lastActivePeriod &&
             infoToCheck.measureWork == info.measureWork &&
