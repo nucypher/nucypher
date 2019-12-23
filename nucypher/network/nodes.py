@@ -899,70 +899,60 @@ class Learner:
                                             number_of_known_nodes=len(self.known_nodes))
             return FLEET_STATES_MATCH
 
-        ##################
-        # OPTIMIZE!
-        ##################
+        # Note: There was previously a version check here, but that required iterating through node bytestrings twice,
+        # so it has been removed.  When we create a new Ursula bytestring version, let's put the check
+        # somewhere more performant, like mature() or verify_node().
 
-        ####################################################
-        # TODO: Repeated from Ursula.batch_from_bytes()
-        node_splitter = BytestringSplitter(VariableLengthBytestring)
-        nodes_vbytes = node_splitter.repeat(node_payload)
-        version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
-        versions_and_node_bytes = [version_splitter(n, return_remainder=True) for n in nodes_vbytes]
-
-        ursulas = {}
-
-        for version, node_bytes in versions_and_node_bytes:
-
-            #################################################
-            # TODO: This is repeated from Ursula.from_bytes
-            # Check version and raise IsFromTheFuture if this node is... you guessed it...
-            if version > 1:  # TODO: Unhardcode this; pass version from Learner to here somehow.
-
-                # Try to handle failure, even during failure, graceful degradation
-                # TODO: #154 - Some auto-updater logic?
-
-                try:
-                    nickname, _ = nickname_from_seed(checksum_address)
-                    display_name = cls._display_name_template.format(cls.__name__, nickname, checksum_address)
-                    message = cls.unknown_version_message.format(display_name, version, cls.LEARNER_VERSION)
-                except BytestringSplittingError:
-                    message = cls.really_unknown_version_message.format(version, cls.LEARNER_VERSION)
-                raise cls.IsFromTheFuture(message)
-            # End repeated block from Ursula.from_bytes
-            ############################################
-
+        sprouts = self.node_class.batch_from_bytes(node_payload)
+        remembered = []
+        for sprout in sprouts:
             fail_fast = True  # TODO
             try:
-                node_or_sprout = self.node_class.internal_splitter(node_bytes, partial=not eager)
-#######################################
-                # TODO: This is repeated from remember_node
-                with suppress(KeyError):
-                    already_known_node = self.known_nodes[node_or_sprout.checksum_address]
-                    if not node_or_sprout.timestamp > already_known_node.timestamp:
-                        self.log.debug("Skipping already known node {}".format(already_known_node))
-                        # This node is already known.  We can continue.
-                        continue
-            except Exception as e:
-                if fail_fast:
-                    raise
-                else:
-                    cls.log.warn(e.args[0])  # TODO: This needs to be re-introduced.
-            else:
-                self.remember_node(node_or_sprout, record_fleet_state=False)
+                node_or_false = self.remember_node(sprout,
+                                                   record_fleet_state=False,
+                                                   # Do we want both of these to be decided by `eager`?
+                                                   eager=eager,
+                                                   grow_node_sprout_into_node=eager)
+                remembered.append(node_or_false)
 
-        # End outer repeated block from Ursula.batch_from_bytes
-        ############################################
+                #
+                # Report Failure
+                #
 
+            except NodeSeemsToBeDown:
+                self.log.info(f"Verification Failed - "
+                              f"Cannot establish connection to {node}.")
 
-        # node_list, new_nodes = self.parse_and_maybe_validate_fleet_bytes(node_payload=node_payload, verify_now=eager)
+            except sprout.StampNotSigned:
+                self.log.warn(f'Verification Failed - '
+                              f'{sprout} stamp is unsigned.')
 
-        #############
+            except sprout.NotStaking:
+                self.log.warn(f'Verification Failed - '
+                              f'{sprout} has no active stakes in the current period '
+                              f'({self.staking_agent.get_current_period()}')
+
+            except sprout.InvalidWorkerSignature:
+                self.log.warn(f'Verification Failed - '
+                              f'{sprout} has an invalid wallet signature for {sprout.decentralized_identity_evidence}')
+
+            except sprout.DetachedWorker:
+                self.log.warn(f'Verification Failed - '
+                              f'{sprout} is not bonded to a Staker.')
+
+            except sprout.Invalidsprout:
+                self.log.warn(sprout.invalid_metadata_message.format(sprout))
+
+            except sprout.SuspiciousActivity:
+                message = f"Suspicious Activity: Discovered sprout with bad signature: {sprout}." \
+                          f"Propagated by: {current_teacher}"
+                self.log.warn(message)
+
 
         # Is cycling happening in the right order?
         current_teacher.update_snapshot(checksum=checksum,
                                         updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
-                                        number_of_known_nodes=len(ursulas))
+                                        number_of_known_nodes=len(sprouts))
 
         ###################
 
