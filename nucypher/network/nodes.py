@@ -962,11 +962,9 @@ class Learner:
         #                                                 current_teacher,
         #                                                 len(node_list),
         #                                                 len(new_nodes)))
-        # if new_nodes:
-        #     self.known_nodes.record_fleet_state()
-        #     for node in new_nodes:
-        #         self.node_storage.store_node_certificate(certificate=node.certificate)
-        return ursulas
+        if any(remembered):
+            self.known_nodes.record_fleet_state()
+        return sprouts
 
 
 class Teacher:
