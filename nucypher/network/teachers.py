@@ -18,5 +18,5 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 # Hardcoded bootstrapping teacher nodes keyed by network domain
 TEACHER_NODES = {
-    'goerli': ('https://discover.nucyher.network:9151', )
+    'goerli': ('https://discover.nucypher.network:9151', )
 }

@@ -15,11 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-
-
+import json
 import os
 import shutil
-from typing import List, Tuple
+from json import JSONDecodeError
+from typing import List, Tuple, Dict, Set, Optional
 
 import click
 import requests
@@ -50,6 +50,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.node import CharacterConfiguration
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
+from nucypher.network.nodes import Teacher
 from nucypher.network.teachers import TEACHER_NODES
 
 NO_BLOCKCHAIN_CONNECTION.bool_value(False)
@@ -108,6 +109,47 @@ def unlock_nucypher_keyring(emitter, password: str, character_configuration: Cha
         raise character_configuration.keyring.AuthenticationFailed
 
 
+def load_static_nodes(domains: Set[str], filepath: Optional[str] = None) -> Dict[str, 'Ursula']:
+    """
+    Non-invasively read teacher-uris from a JSON configuration file keyed by domain name.
+    and return a filtered subset of domains and teacher URIs as a dict.
+    """
+
+    if not filepath:
+        filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'static-nodes.json')
+    try:
+        with open(filepath, 'r') as file:
+            static_nodes = json.load(file)
+    except FileNotFoundError:
+        return dict()   # No static nodes file, No static nodes.
+    except JSONDecodeError:
+        raise RuntimeError(f"Static nodes file '{filepath}' contains invalid JSON.")
+    filtered_static_nodes = {domain: uris for domain, uris in static_nodes.items() if domain in domains}
+    return filtered_static_nodes
+
+
+def aggregate_seednode_uris(domains: set, highest_priority: Optional[List[str]] = None) -> List[str]:
+
+    # Read from the disk
+    static_nodes = load_static_nodes(domains=domains)
+
+    # Priority 1 - URI passed via --teacher
+    uris = highest_priority or list()
+    for domain in domains:
+
+        # 2 - Static nodes from JSON file
+        domain_static_nodes = static_nodes.get(domain)
+        if domain_static_nodes:
+            uris.extend(domain_static_nodes)
+
+        # 3 - Hardcoded teachers from module
+        hardcoded_uris = TEACHER_NODES.get(domain)
+        if hardcoded_uris:
+            uris.extend(hardcoded_uris)
+
+    return uris
+
+
 def load_seednodes(emitter,
                    min_stake: int,
                    federated_only: bool,
@@ -116,45 +158,45 @@ def load_seednodes(emitter,
                    teacher_uris: list = None,
                    registry: BaseContractRegistry = None,
                    ) -> List:
-    emitter.message("Connecting to preferred seednodes...", color='yellow')
+
+    """
+    Aggregates seednodes URI sources into a list or teacher URIs ordered
+    by connection priority in the following order:
+
+    1. --teacher CLI flag
+    2. static-nodes.json
+    3. Hardcoded teachers
+    """
+
+    # Heads up
+    emitter.message("Connecting to preferred teacher nodes...", color='yellow')
     from nucypher.characters.lawful import Ursula
 
-    # Set domains
-    if network_domains is None:
-        from nucypher.config.node import CharacterConfiguration
-        network_domains = {CharacterConfiguration.DEFAULT_DOMAIN, }
+    # Aggregate URIs (Ordered by Priority)
+    teacher_nodes = list()  # type: List[Ursula]
+    teacher_uris = aggregate_seednode_uris(domains=network_domains, highest_priority=teacher_uris)
+    if not teacher_uris:
+        emitter.message(f"No teacher nodes available for domains: {','.join(network_domains)}")
+        return teacher_nodes
 
-    teacher_nodes = list()  # Ursula
-    if teacher_uris is None:
-        teacher_uris = list()
-
-    for domain in network_domains:
+    # Construct Ursulas
+    for uri in teacher_uris:
         try:
-            # Known NuCypher Domain
-            seednode_uris = TEACHER_NODES[domain]
-        except KeyError:
-            # Unknown NuCypher Domain
-            if not teacher_uris:
-                emitter.message(f"No default teacher nodes exist for the specified network: {domain}")
-        else:
-            # Prefer the injected teacher URI, then use the hardcoded seednodes.
-            teacher_uris.extend(seednode_uris)
-
-        for uri in teacher_uris:
-            try:
-                teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
-                                                       min_stake=min_stake,
-                                                       federated_only=federated_only,
-                                                       network_middleware=network_middleware,
-                                                       registry=registry)
-            except NodeSeemsToBeDown:
-                LOG.info(f"Failed to load seednode URI {uri}")
-                continue
-            teacher_nodes.append(teacher_node)
+            teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
+                                                   min_stake=min_stake,
+                                                   federated_only=federated_only,
+                                                   network_middleware=network_middleware,
+                                                   registry=registry)
+        except NodeSeemsToBeDown:
+            LOG.info(f"Failed to connect to teacher: {uri}")
+            continue
+        except Teacher.NotStaking:
+            LOG.info(f"Teacher: {uri} is not actively staking, skipping")
+            continue
+        teacher_nodes.append(teacher_node)
 
     if not teacher_nodes:
-        emitter.message(f'WARNING - No Bootnodes Available')
-
+        emitter.message(f"WARNING - No Peers Available for domains: {','.join(network_domains)}")
     return teacher_nodes
 
 

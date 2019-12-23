@@ -13,6 +13,9 @@ from nucypher.config.keyring import NucypherKeyring
 
 
 # Args (geth, provider_uri, federated_only, dev, pay_with, network, registry_filepath)
+from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
+
+
 def _admin_options(func):
     @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
     @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
@@ -416,7 +419,7 @@ def _get_or_create_alice_config(click_config, dev, network, eth_node, provider_u
     if dev:
         alice_config = AliceConfiguration(dev_mode=True,
                                           network_middleware=click_config.middleware,
-                                          domains={network},
+                                          domains={TEMPORARY_DOMAIN},
                                           provider_process=eth_node,
                                           provider_uri=provider_uri,
                                           federated_only=True)
