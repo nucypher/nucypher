@@ -99,7 +99,7 @@ contract PreallocationEscrow is AbstractStakingContract, Ownable {
         // 0x04: _from                 32 bytes after encoding
         // 0x24: _value                32 bytes after encoding
         // 0x44: _tokenContract        32 bytes after encoding
-        // 0x64: _extraData pointer    32 bytes. Value should be 0x84 (address of _extraData's data in calldata)
+        // 0x64: _extraData pointer    32 bytes. Value must be 0x80 (offset of _extraData wrt to 1st parameter)
         // 0x84: _extraData length     32 bytes
         // 0xA4: _extraData data       Length determined by previous variable
         //
