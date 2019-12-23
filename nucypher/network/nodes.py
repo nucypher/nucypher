@@ -1076,7 +1076,6 @@ class Teacher:
 
     def bytestring_of_known_nodes(self):
         payload = self.known_nodes.snapshot()
-
         ursulas_as_vbytes = (VariableLengthBytestring(n) for n in self.known_nodes)
         ursulas_as_bytes = bytes().join(bytes(u) for u in ursulas_as_vbytes)
         ursulas_as_bytes += VariableLengthBytestring(bytes(self))
@@ -1273,7 +1272,6 @@ class Teacher:
                 message = "Wrong cryptographic material for this node - something fishy going on."
             # TODO: #355 - Optional reporting.
             raise self.InvalidNode(message)
-
         else:
             # Success
             self.verified_node = True

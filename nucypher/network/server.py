@@ -143,30 +143,24 @@ def make_rest_app(
             signature = this_node.stamp(payload)
             return Response(bytes(signature) + payload, headers=headers)
 
-        nodes = _node_class.batch_from_bytes(request.data,
-                                             registry=this_node.registry,
-                                             federated_only=this_node.federated_only)  # TODO: 466
+        sprouts = _node_class.batch_from_bytes(request.data,
+                                             registry=this_node.registry)
 
         # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.
         # Let's find a better way.  #555
-        for node in nodes:
-            if not set(serving_domains).intersection(set(node.serving_domains)):
-                continue  # This node is not serving any of our domains.
-
-            if node in this_node.known_nodes:
-                if node.timestamp <= this_node.known_nodes[node.checksum_address].timestamp:
-                    continue
-
+        for node in sprouts:
             @crosstown_traffic()
             def learn_about_announced_nodes():
+                if node in this_node.known_nodes:
+                    if node.timestamp <= this_node.known_nodes[node.checksum_address].timestamp:
+                        return
+
+                node.mature()
 
                 try:
-                    certificate_filepath = forgetful_node_storage.store_node_certificate(
-                        certificate=node.certificate)
-
                     node.verify_node(this_node.network_middleware.client,
                                      registry=this_node.registry,
-                                     certificate_filepath=certificate_filepath)
+                                     )
 
                 # Suspicion
                 except node.SuspiciousActivity as e:
