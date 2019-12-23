@@ -243,13 +243,19 @@ class Character(Learner):
         #
         # Nicknames
         #
-        try:
-            self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_address)
-        except SigningPower.not_found_error:
-            if self.federated_only:
-                self.nickname = self.nickname_metadata = NO_NICKNAME
-            else:
-                raise
+        if self._checksum_address is NO_BLOCKCHAIN_CONNECTION and not self.federated_only and not is_me:
+            # Sometimes we don't care about the nickname.  For example, if Alice is granting to Bob, she usually
+            # doesn't know or care about his wallet.  Maybe this needs to change?
+            # Currently, if this is a stranger and there's no blockchain connection, we assign NO_NICKNAME:
+            self.nickname = self.nickname_metadata = NO_NICKNAME
+        else:
+            try:
+                self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_address)
+            except SigningPower.not_found_error:  # TODO: Handle NO_BLOCKCHAIN_CONNECTION more coherently - #1547
+                if self.federated_only:
+                    self.nickname = self.nickname_metadata = NO_NICKNAME
+                else:
+                    raise
 
         #
         # Fleet state
