@@ -282,8 +282,8 @@ class Character(Learner):
         r = self._display_name_template
         try:
             r = r.format(self.__class__.__name__, self.nickname, self.checksum_address)
-        except NoSigningPower:  # TODO: ....yeah?
-            r = r.format(self.__class__.__name__, self.nickname)
+        except (NoSigningPower, TypeError):  # TODO: ....yeah?  We can probably do better for a repr here.
+            r = f"({self.__class__.__name__})⇀{self.nickname}↽"
         return r
 
     @property
