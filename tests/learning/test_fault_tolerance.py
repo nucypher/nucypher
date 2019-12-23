@@ -40,7 +40,7 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas):
     lonely_blockchain_learner.remember_node(blockchain_teacher)
 
     globalLogPublisher.addObserver(warning_trapper)
-    lonely_blockchain_learner.learn_from_teacher_node()
+    lonely_blockchain_learner.learn_from_teacher_node(eager=True)
     globalLogPublisher.removeObserver(warning_trapper)
 
     # We received one warning during learning, and it was about this very matter.
