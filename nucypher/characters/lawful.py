@@ -1179,7 +1179,6 @@ class Ursula(Teacher, Character, Worker):
 
         # Version stuff checked out.  Moving on.
         node_sprout = cls.internal_splitter(payload, partial=True)
-        node_sprout.mature()
         return node_sprout
 
     @classmethod
