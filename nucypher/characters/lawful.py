@@ -835,11 +835,15 @@ class Ursula(Teacher, Character, Worker):
             from nucypher.config.node import CharacterConfiguration
             domains = (CharacterConfiguration.DEFAULT_DOMAIN,)
 
+        if is_me:
+            # If we're federated only, we assume that all other nodes in our domain are as well.
+            self.set_federated_mode(federated_only)
+
         Character.__init__(self,
                            is_me=is_me,
                            checksum_address=checksum_address,
                            start_learning_now=False,  # Handled later in this function to avoid race condition
-                           federated_only=federated_only,
+                           federated_only=self._federated_only_instances,
                            crypto_power=crypto_power,
                            abort_on_learning_error=abort_on_learning_error,
                            known_nodes=known_nodes,
@@ -1025,7 +1029,6 @@ class Ursula(Teacher, Character, Worker):
         response_data = network_middleware.client.node_information(host, port, certificate_filepath=certificate_filepath)
 
         stranger_ursula_from_public_keys = cls.from_bytes(response_data,
-                                                          federated_only=federated_only,
                                                           *args, **kwargs)
 
         return stranger_ursula_from_public_keys
@@ -1159,7 +1162,6 @@ class Ursula(Teacher, Character, Worker):
     def from_bytes(cls,
                    ursula_as_bytes: bytes,
                    version: int = INCLUDED_IN_BYTESTRING,
-                   federated_only: bool = False,
                    registry: BaseContractRegistry = None,
                    ) -> 'Ursula':
 
@@ -1217,7 +1219,6 @@ class Ursula(Teacher, Character, Worker):
     @classmethod
     def batch_from_bytes(cls,
                          ursulas_as_bytes: Iterable[bytes],
-                         federated_only: bool = False,
                          registry: BaseContractRegistry = None,
                          fail_fast: bool = False,
                          ) -> List['Ursula']:
@@ -1227,22 +1228,20 @@ class Ursula(Teacher, Character, Worker):
         version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
         versions_and_node_bytes = [version_splitter(n, return_remainder=True) for n in nodes_vbytes]
 
-        ursulas = []
+        sprouts = []
         for version, node_bytes in versions_and_node_bytes:
             try:
-                ursula = cls.from_bytes(node_bytes,
-                                        version,
-                                        registry=registry,
-                                        federated_only=federated_only)
+                sprout = cls.from_bytes(node_bytes,
+                                        version=version,
+                                        registry=registry)
             except Ursula.IsFromTheFuture as e:
                 if fail_fast:
                     raise
                 else:
                     cls.log.warn(e.args[0])
             else:
-                ursulas.append(ursula)
-
-        return ursulas
+                sprouts.append(sprout)
+        return sprouts
 
     @classmethod
     def from_storage(cls,
@@ -1334,6 +1333,7 @@ class Enrico(Character):
 
         # Encrico never uses the blockchain, hence federated_only)
         kwargs['federated_only'] = True
+        kwargs['node_class'] = Ursula
         super().__init__(*args, **kwargs)
 
         if controller:

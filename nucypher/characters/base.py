@@ -322,7 +322,6 @@ class Character(Learner):
                          powers_and_material: Dict = None,
                          verifying_key: Union[bytes, UmbralPublicKey] = None,
                          encrypting_key: Union[bytes, UmbralPublicKey] = None,
-                         federated_only: bool = True,
                          *args, **kwargs) -> 'Character':
         """
         Sometimes we discover a Character and, at the same moment,
@@ -336,10 +335,7 @@ class Character(Learner):
 
         Alternatively, you can pass directly a verifying public key
         (for SigningPower) and/or an encrypting public key (for DecryptionPower).
-
-        # TODO: Need to be federated only until we figure out the best way to get the checksum_address in here.
         """
-
         crypto_power = CryptoPower()
 
         if powers_and_material is None:
@@ -358,7 +354,7 @@ class Character(Learner):
 
             crypto_power.consume_power_up(power_up(public_key=umbral_key))
 
-        return cls(is_me=False, federated_only=federated_only, crypto_power=crypto_power, *args, **kwargs)
+        return cls(is_me=False, crypto_power=crypto_power, *args, **kwargs)
 
     def store_metadata(self, filepath: str) -> str:
         """

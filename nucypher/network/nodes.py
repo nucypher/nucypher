@@ -380,7 +380,6 @@ class Learner:
 
         self.node_class = node_class or Teacher
         self.node_class.set_cert_storage_function(node_storage.store_node_certificate)  #  TODO: Fix this temporary workaround for on-disk cert storage.
-        self.node_class.set_federated_mode(self.federated_only)  # Kinda slams the door on #466 / #410
 
         known_nodes = known_nodes or tuple()
         self.unresponsive_startup_nodes = list()  # TODO: Buckets - Attempt to use these again later

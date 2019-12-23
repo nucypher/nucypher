@@ -373,7 +373,7 @@ def test_alice_does_not_update_with_old_ursula_info(federated_alice, federated_u
     # Indeed, her metadata is not the same now.
     assert bytes(ursula) != old_metadata
 
-    old_ursula = Ursula.from_bytes(old_metadata, federated_only=True)
+    old_ursula = Ursula.from_bytes(old_metadata)
 
     # Once Alice learns about Ursula's updated info...
     federated_alice.remember_node(ursula)
