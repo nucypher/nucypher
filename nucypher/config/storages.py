@@ -459,7 +459,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
     def __write_metadata(self, filepath: str, node):
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         with open(filepath, "wb") as f:
-            f.write(self.serializer(self.character_class.__bytes__(node)))
+            f.write(self.serializer(bytes(node)))
         self.log.info("Wrote new node metadata to filesystem {}".format(filepath))
         return filepath
 
