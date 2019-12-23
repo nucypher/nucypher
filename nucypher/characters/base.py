@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import contextlib
+from contextlib import suppress
 from typing import Dict, ClassVar, Set
 from typing import Optional
 from typing import Union, List
@@ -115,7 +116,22 @@ class Character(Learner):
 
         #
         # Operating Mode
-        #
+
+        if is_me:
+            # Once in a while, in tests or demos, we init a plain Character who doesn't already know about its node class.
+            from nucypher.characters.lawful import Ursula
+            node_class = node_class or Ursula
+            try:
+                # If we're federated only, we assume that all other nodes in our domain are as well.
+                node_class.set_federated_mode(federated_only)
+            except Exception as e:
+                raise
+        else:
+            # What an awful hack.  The last convulsions of #466.
+            # TODO: Anything else.
+            with suppress(AttributeError):
+                federated_only = node_class._federated_only_instances
+
         if federated_only:
             if registry or provider_uri:
                 raise ValueError(f"Cannot init federated-only character with {registry or provider_uri}.")
@@ -160,10 +176,6 @@ class Character(Learner):
         #
 
         if is_me:
-            if not bool(federated_only) ^ bool(registry):
-                raise ValueError(f"Pass either federated only or registry for is_me Characters.  \
-                                 Got '{federated_only}' and '{registry}'.")
-
             self.treasure_maps = {}  # type: dict
             self.network_middleware = network_middleware or RestMiddleware()
 
