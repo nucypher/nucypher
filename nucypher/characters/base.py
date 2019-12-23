@@ -301,7 +301,7 @@ class Character(Learner):
 
     @property
     def canonical_public_address(self):
-        return to_canonical_address(self.checksum_address)
+        return to_canonical_address(self._checksum_address)
 
     @canonical_public_address.setter
     def canonical_public_address(self, address_bytes):
