@@ -47,6 +47,12 @@ class NucypherMiddlewareClient:
         return response
 
     def verify_and_parse_node_or_host_and_port(self, node_or_sprout, host, port):
+        """
+        Does two things:
+        1) Verifies the node (unless it is EXEMPT_FROM_VERIFICATION, like when we initially get its certificate)
+        2) Parses the node into a host and port, or returns the provided host and port.
+        :return: A 3-tuple: host string, certificate, and the library to be used for the connection.
+        """
         if node_or_sprout:
             if node_or_sprout is not EXEMPT_FROM_VERIFICATION:
                 node_or_sprout.mature()  # Morph into a node.
@@ -82,7 +88,8 @@ class NucypherMiddlewareClient:
         """
 
     def node_information(self, host, port, certificate_filepath=None):
-        response = self.get(node_or_sprout=EXEMPT_FROM_VERIFICATION.bool_value(False),
+        # The only time a node is exempt from verification - when we are first getting its info.
+        response = self.get(node_or_sprout=EXEMPT_FROM_VERIFICATION,
                             host=host, port=port,
                             path="public_information",
                             timeout=2,
