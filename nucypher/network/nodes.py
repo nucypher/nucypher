@@ -283,6 +283,18 @@ class NodeSprout(PartiallyKwargifiedBytes):
         r = f"({self.__class__.__name__})⇀{self.nickname}↽ ({self.checksum_address})"
         return r
 
+    def __bytes__(self):
+        b = super().__bytes__()
+
+        # We assume that the TEACHER_VERSION of this codebase is the version for this NodeSprout.
+        # This is probably true, right?  Might need to be re-examined someday if we have
+        # different node types of different versions.
+        version = Teacher.TEACHER_VERSION.to_bytes(2, "big")
+        return version + b
+
+    @property
+    def stamp(self) -> bytes:
+        return self.processed_objects['verifying_key'][0]
 
     def mature(self):
         mature_node = self.finish()
