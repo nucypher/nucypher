@@ -495,6 +495,7 @@ class Learner:
             try:
                 if grow_node_sprout_into_node:
                     node.mature()
+                    stranger_certificate = node.certificate
                 else:
                     # TODO: Well, why?  What about eagerness, popping listeners, etc?  We not doing that stuff?
                     return node
@@ -534,7 +535,7 @@ class Learner:
         self.log.info(
             "Remembering {} ({}), popping {} listeners.".format(node.nickname, node.checksum_address, len(listeners)))
         for listener in listeners:
-            listener.add(address)
+            listener.add(node.checksum_address)
         self._node_ids_to_learn_about_immediately.discard(node.checksum_address)
 
         if record_fleet_state:
