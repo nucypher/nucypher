@@ -332,7 +332,7 @@ contract StakingEscrow is Issuer {
     }
 
     /**
-    * @notice Get the value of locked tokens for active stakersdin (getCurrentPeriod() + _periods) period
+    * @notice Get the value of locked tokens for active stakers in (getCurrentPeriod() + _periods) period
     * as well as stakers and their locked tokens
     * @param _periods Amount of periods for locked tokens calculation
     * @param _startIndex Start index for looking in stakers array

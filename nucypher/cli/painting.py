@@ -587,10 +587,7 @@ def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> N
                 emitter.echo(f"{tab}  {'Re-staking:':10} Yes  (Unlocked)")
         else:
             emitter.echo(f"{tab}  {'Re-staking:':10} No")
-        if is_winding_down:
-            emitter.echo(f"{tab}  {'Winding down:':10} Yes")
-        else:
-            emitter.echo(f"{tab}  {'Winding down:':10} No")
+        emitter.echo(f"{tab}  {'Winding down:':10} {'Yes' if is_winding_down else 'No'}")
         emitter.echo(f"{tab}  {'Activity:':10} ", nl=False)
         if missing_confirmations == -1:
             emitter.echo(f"Next period confirmed (#{last_confirmed_period})", color='green')
