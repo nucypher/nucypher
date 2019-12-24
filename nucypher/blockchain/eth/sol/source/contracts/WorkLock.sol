@@ -50,7 +50,7 @@ contract WorkLock {
     */
     uint256 public boostingRefund;
     uint16 public constant SLOWING_REFUND = 100;
-    uint256 private constant MAX_ETH_SUPPLY = 200000000000000000000000000;
+    uint256 private constant MAX_ETH_SUPPLY = 2e10 ether;
 
     uint256 public tokenSupply;
     uint256 public ethSupply;
