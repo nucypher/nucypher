@@ -276,10 +276,10 @@ def test_stake_restake(click_runner,
                     checksum_address=beneficiary,
                     registry=test_registry,
                     individual_allocation=individual_allocation)
-    assert not staker.is_restaking
+    assert staker.is_restaking
 
     restake_args = ('stake', 'restake',
-                    '--enable',
+                    '--disable',
                     '--config-file', stakeholder_configuration_file_location,
                     '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                     '--force')
@@ -289,8 +289,8 @@ def test_stake_restake(click_runner,
                                  input=INSECURE_DEVELOPMENT_PASSWORD,
                                  catch_exceptions=False)
     assert result.exit_code == 0
-    assert staker.is_restaking
-    assert "Successfully enabled" in result.output
+    assert not staker.is_restaking
+    assert "Successfully disabled" in result.output
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     current_period = staking_agent.get_current_period()
@@ -307,8 +307,8 @@ def test_stake_restake(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    # Still staking and the lock is enabled
-    assert staker.is_restaking
+    # Still not staking and the lock is enabled
+    assert not staker.is_restaking
     assert staker.restaking_lock_enabled
 
     # CLI Output includes success message
@@ -318,10 +318,10 @@ def test_stake_restake(click_runner,
     # Wait until release period
     testerchain.time_travel(periods=1)
     assert not staker.restaking_lock_enabled
-    assert staker.is_restaking
+    assert not staker.is_restaking
 
     disable_args = ('stake', 'restake',
-                    '--disable',
+                    '--enable',
                     '--config-file', stakeholder_configuration_file_location,
                     '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                     '--force')
@@ -333,14 +333,14 @@ def test_stake_restake(click_runner,
     assert result.exit_code == 0
 
     allocation_contract_address = preallocation_escrow_agent.principal_contract.address
-    assert not staking_agent.is_restaking(allocation_contract_address)
+    assert staking_agent.is_restaking(allocation_contract_address)
 
     staker = Staker(is_me=True,
                     checksum_address=beneficiary,
                     registry=test_registry,
                     individual_allocation=individual_allocation)
-    assert not staker.is_restaking
-    assert "Successfully disabled" in result.output
+    assert staker.is_restaking
+    assert "Successfully enabled" in result.output
 
 
 def test_ursula_init(click_runner,

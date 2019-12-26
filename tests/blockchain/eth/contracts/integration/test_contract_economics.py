@@ -44,6 +44,7 @@ def test_reward(testerchain, agency, token_economics, mock_transacting_power_act
                                            lock_periods=100 * token_economics.maximum_rewarded_periods,
                                            sender_address=ursula)
     _txhash = staking_agent.set_worker(staker_address=ursula, worker_address=ursula)
+    _txhash = staking_agent.set_restaking(staker_address=ursula, value=False)
 
     # Get a reward for one period
     _txhash = staking_agent.confirm_activity(worker_address=ursula)

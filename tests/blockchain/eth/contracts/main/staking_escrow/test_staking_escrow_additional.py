@@ -24,7 +24,7 @@ from web3.contract import Contract
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU
 
-RE_STAKE_FIELD = 3
+DISABLE_RE_STAKE_FIELD = 3
 LOCK_RE_STAKE_UNTIL_PERIOD_FIELD = 4
 
 secret = (123456).to_bytes(32, byteorder='big')
@@ -228,26 +228,29 @@ def test_re_stake(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     # Set re-stake parameter even before initialization
-    assert not escrow.functions.stakerInfo(ursula).call()[RE_STAKE_FIELD]
+    assert not escrow.functions.stakerInfo(ursula).call()[DISABLE_RE_STAKE_FIELD]
     tx = escrow.functions.setReStake(False).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    assert not escrow.functions.stakerInfo(ursula).call()[RE_STAKE_FIELD]
+    assert escrow.functions.stakerInfo(ursula).call()[DISABLE_RE_STAKE_FIELD]
     tx = escrow.functions.setReStake(True).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.stakerInfo(ursula).call()[RE_STAKE_FIELD]
+    assert not escrow.functions.stakerInfo(ursula).call()[DISABLE_RE_STAKE_FIELD]
     tx = escrow.functions.setReStake(True).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.stakerInfo(ursula).call()[RE_STAKE_FIELD]
+    assert not escrow.functions.stakerInfo(ursula).call()[DISABLE_RE_STAKE_FIELD]
     tx = escrow.functions.setReStake(False).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    assert not escrow.functions.stakerInfo(ursula).call()[RE_STAKE_FIELD]
+    assert escrow.functions.stakerInfo(ursula).call()[DISABLE_RE_STAKE_FIELD]
 
     events = re_stake_log.get_all_entries()
-    assert 2 == len(events)
+    assert 3 == len(events)
     event_args = events[0]['args']
     assert ursula == event_args['staker']
-    assert event_args['reStake']
+    assert not event_args['reStake']
     event_args = events[1]['args']
+    assert ursula == event_args['staker']
+    assert event_args['reStake']
+    event_args = events[2]['args']
     assert ursula == event_args['staker']
     assert not event_args['reStake']
 
@@ -311,7 +314,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     # Set re-stake and lock parameter
     tx = escrow.functions.setReStake(True).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.stakerInfo(ursula).call()[RE_STAKE_FIELD]
+    assert not escrow.functions.stakerInfo(ursula).call()[DISABLE_RE_STAKE_FIELD]
     tx = escrow.functions.lockReStake(period + 6).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     # Can't set re-stake parameter during 6 periods
@@ -320,8 +323,8 @@ def test_re_stake(testerchain, token, escrow_contract):
         testerchain.wait_for_receipt(tx)
 
     events = re_stake_log.get_all_entries()
-    assert 3 == len(events)
-    event_args = events[2]['args']
+    assert 4 == len(events)
+    event_args = events[3]['args']
     assert ursula == event_args['staker']
     assert event_args['reStake']
     events = re_stake_lock_log.get_all_entries()
@@ -384,6 +387,8 @@ def test_re_stake(testerchain, token, escrow_contract):
     tx = escrow.functions.deposit(stake, sub_stake_duration).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWorker(ursula2).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setReStake(False).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
@@ -450,11 +455,11 @@ def test_re_stake(testerchain, token, escrow_contract):
     # Now turn off re-stake
     tx = escrow.functions.setReStake(False).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    assert not escrow.functions.stakerInfo(ursula).call()[RE_STAKE_FIELD]
+    assert escrow.functions.stakerInfo(ursula).call()[DISABLE_RE_STAKE_FIELD]
 
     events = re_stake_log.get_all_entries()
-    assert 4 == len(events)
-    event_args = events[3]['args']
+    assert 6 == len(events)
+    event_args = events[5]['args']
     assert ursula == event_args['staker']
     assert not event_args['reStake']
 

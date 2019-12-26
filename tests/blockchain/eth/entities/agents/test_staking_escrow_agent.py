@@ -227,14 +227,14 @@ def test_divide_stake(agency, token_economics):
 
 
 @pytest.mark.slow()
-def test_enable_restaking(agency, testerchain, test_registry):
+def test_disable_restaking(agency, testerchain, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
-    assert not staking_agent.is_restaking(staker_account)
-    receipt = staking_agent.set_restaking(staker_account, value=True)
-    assert receipt['status'] == 1
     assert staking_agent.is_restaking(staker_account)
+    receipt = staking_agent.set_restaking(staker_account, value=False)
+    assert receipt['status'] == 1
+    assert not staking_agent.is_restaking(staker_account)
 
 
 @pytest.mark.slow()

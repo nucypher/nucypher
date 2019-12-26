@@ -417,7 +417,7 @@ class StakingEscrowAgent(EthereumContractAgent):
     @validate_checksum_address
     def is_restaking(self, staker_address: str) -> bool:
         staker_info = self.get_staker_info(staker_address)
-        restake_flag = bool(staker_info[3])  # TODO: #1348 Use constant or enum
+        restake_flag = not bool(staker_info[3])  # TODO: #1348 Use constant or enum
         return restake_flag
 
     @validate_checksum_address

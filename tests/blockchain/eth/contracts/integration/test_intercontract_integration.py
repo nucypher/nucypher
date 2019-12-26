@@ -31,7 +31,7 @@ from nucypher.crypto.api import sha256_digest
 from nucypher.crypto.signing import SignatureStamp
 
 
-RE_STAKE_FIELD = 3
+DISABLE_RE_STAKE_FIELD = 3
 
 DISABLED_FIELD = 5
 
@@ -467,13 +467,11 @@ def test_all(testerchain,
     # Set and lock re-stake parameter in first preallocation escrow
     tx = preallocation_escrow_1.functions.transferOwnership(ursula3).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    assert not escrow.functions.stakerInfo(preallocation_escrow_1.address).call()[RE_STAKE_FIELD]
-    tx = preallocation_escrow_interface_1.functions.setReStake(True).transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
+    assert not escrow.functions.stakerInfo(preallocation_escrow_1.address).call()[DISABLE_RE_STAKE_FIELD]
     current_period = escrow.functions.getCurrentPeriod().call()
     tx = preallocation_escrow_interface_1.functions.lockReStake(current_period + 22).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.stakerInfo(preallocation_escrow_1.address).call()[RE_STAKE_FIELD]
+    assert not escrow.functions.stakerInfo(preallocation_escrow_1.address).call()[DISABLE_RE_STAKE_FIELD]
     # Can't unlock re-stake parameter now
     with pytest.raises((TransactionFailed, ValueError)):
         tx = preallocation_escrow_interface_1.functions.setReStake(False).transact({'from': ursula3})
@@ -528,6 +526,8 @@ def test_all(testerchain,
     tx = escrow.functions.deposit(1000, 10).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWorker(ursula1).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setReStake(False).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
@@ -586,10 +586,10 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
 
     # Turn on re-stake for Ursula1
-    assert not escrow.functions.stakerInfo(ursula1).call()[RE_STAKE_FIELD]
+    assert escrow.functions.stakerInfo(ursula1).call()[DISABLE_RE_STAKE_FIELD]
     tx = escrow.functions.setReStake(True).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.stakerInfo(ursula1).call()[RE_STAKE_FIELD]
+    assert not escrow.functions.stakerInfo(ursula1).call()[DISABLE_RE_STAKE_FIELD]
 
     testerchain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
@@ -689,10 +689,10 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
 
     # Turn off re-stake for Ursula1
-    assert escrow.functions.stakerInfo(ursula1).call()[RE_STAKE_FIELD]
+    assert not escrow.functions.stakerInfo(ursula1).call()[DISABLE_RE_STAKE_FIELD]
     tx = escrow.functions.setReStake(False).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    assert not escrow.functions.stakerInfo(ursula1).call()[RE_STAKE_FIELD]
+    assert escrow.functions.stakerInfo(ursula1).call()[DISABLE_RE_STAKE_FIELD]
 
     testerchain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
@@ -1068,7 +1068,7 @@ def test_all(testerchain,
     # Now can turn off re-stake
     tx = preallocation_escrow_interface_1.functions.setReStake(False).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
-    assert not escrow.functions.stakerInfo(preallocation_escrow_1.address).call()[RE_STAKE_FIELD]
+    assert escrow.functions.stakerInfo(preallocation_escrow_1.address).call()[DISABLE_RE_STAKE_FIELD]
 
     tx = escrow.functions.mint().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)

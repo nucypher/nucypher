@@ -228,6 +228,8 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
 
     transact(staker_functions.setWorker(ursula1), {'from': ursula1})
     transact(staker_functions.setWorker(ursula2), {'from': ursula2})
+    transact(staker_functions.setReStake(False), {'from': ursula1})
+    transact(staker_functions.setReStake(False), {'from': ursula2})
     transact(staker_functions.confirmActivity(), {'from': ursula1})
     transact(staker_functions.confirmActivity(), {'from': ursula2})
 
