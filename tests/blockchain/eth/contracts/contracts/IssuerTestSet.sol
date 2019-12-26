@@ -8,7 +8,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 /**
 * @dev Contract for testing internal methods in the Issuer contract
-**/
+*/
 contract IssuerMock is Issuer {
 
     constructor(
@@ -54,7 +54,7 @@ contract IssuerMock is Issuer {
 
 /**
 * @notice Upgrade to this contract must lead to fail
-**/
+*/
 contract IssuerBad is Upgradeable {
 
     address public token;
@@ -72,7 +72,7 @@ contract IssuerBad is Upgradeable {
 
 /**
 * @notice Contract for testing upgrading the Issuer contract
-**/
+*/
 contract IssuerV2Mock is Issuer {
 
     uint256 public valueToCheck;

@@ -3,7 +3,7 @@ pragma solidity ^0.5.3;
 
 /**
 * @notice Contract for using in token tests
-**/
+*/
 contract ReceiveApprovalMethodMock {
 
     address public sender;

@@ -135,12 +135,13 @@ def inspect(provider_uri, config_root, registry_infile, deployer_address, poa):
 @_admin_actor_options
 @click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
 @click.option('--target-address', help="Address of the target contract", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
 def upgrade(# Admin Actor Options
             provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
             registry_infile, registry_outfile, dev,
 
             # Other
-            retarget, target_address):
+            retarget, target_address, ignore_deployed):
     """
     Upgrade NuCypher existing proxy contract deployments.
     """
@@ -188,7 +189,8 @@ def upgrade(# Admin Actor Options
             click.confirm(f"Confirm deploy new version of {contract_name} and retarget proxy?", abort=True)
         receipts = ADMINISTRATOR.upgrade_contract(contract_name=contract_name,
                                                   existing_plaintext_secret=existing_secret,
-                                                  new_plaintext_secret=new_secret)
+                                                  new_plaintext_secret=new_secret,
+                                                  ignore_deployed=ignore_deployed)
         emitter.message(f"Successfully deployed and upgraded {contract_name}", color='green')
         for name, receipt in receipts.items():
             paint_receipt_summary(emitter=emitter, receipt=receipt)
@@ -237,12 +239,13 @@ def rollback(# Admin Actor Options
 @_admin_actor_options
 @click.option('--bare', help="Deploy a contract *only* without any additional operations.", is_flag=True)
 @click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
+@click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
 def contracts(# Admin Actor Options
               provider_uri, contract_name, config_root, poa, force, etherscan, hw_wallet, deployer_address,
               registry_infile, registry_outfile, dev,
 
               # Other
-              bare, gas):
+              bare, gas, ignore_deployed):
     """
     Compile and deploy contracts.
     """
@@ -288,12 +291,14 @@ def contracts(# Admin Actor Options
             receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
                                                             plaintext_secret=secret,
                                                             gas_limit=gas,
-                                                            bare=bare)
+                                                            bare=bare,
+                                                            ignore_deployed=ignore_deployed)
         else:
             # Non-Upgradeable or Bare
             receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
                                                             gas_limit=gas,
-                                                            bare=bare)
+                                                            bare=bare,
+                                                            ignore_deployed=ignore_deployed)
 
         # Report
         paint_contract_deployment(contract_name=contract_name,
@@ -330,7 +335,8 @@ def contracts(# Admin Actor Options
     deployment_receipts = ADMINISTRATOR.deploy_network_contracts(secrets=secrets,
                                                                  emitter=emitter,
                                                                  interactive=not force,
-                                                                 etherscan=etherscan)
+                                                                 etherscan=etherscan,
+                                                                 ignore_deployed=ignore_deployed)
 
     # Paint outfile paths
     registry_outfile = local_registry.filepath

@@ -7,7 +7,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 /**
 * @dev This contract can't be target for dispatcher because missed `previousTarget`
-**/
+*/
 contract BadDispatcherStorage {
 
     address public owner;
@@ -24,7 +24,7 @@ contract BadDispatcherStorage {
 
 /**
 * @dev Upgrade to this contract will fail because added `fakeValue`
-**/
+*/
 contract ContractV2BadStorage is Upgradeable {
 
     // TODO can't catch such a violation
@@ -59,7 +59,7 @@ contract ContractV2BadStorage is Upgradeable {
 
 /**
 * @dev Upgrade to this contract will fail because `verifyState` is broken
-**/
+*/
 contract ContractV2BadVerifyState is ContractV1(1) {
 
     function verifyState(address) public {

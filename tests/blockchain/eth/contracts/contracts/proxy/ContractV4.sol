@@ -10,7 +10,7 @@ import "contracts/proxy/Upgradeable.sol";
 * This demonstrates how to mitigate possible changes in the compiler while using the proxy pattern
 * Many methods are not optimized on purpose to increase readability
 * see https://solidity.readthedocs.io/en/latest/miscellaneous.html#layout-of-state-variables-in-storage
-**/
+*/
 contract ContractV4 is Upgradeable {
 
     // slot allocation costs nothing

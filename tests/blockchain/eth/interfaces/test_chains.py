@@ -14,26 +14,29 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import os
+from os.path import dirname, abspath
 
 import pytest
 
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 # Prevents TesterBlockchain to be picked up by py.test as a test class
+from nucypher.blockchain.eth.sol.compile import SolidityCompiler, SourceDirs
+from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
-    TEST_PROVIDER_URI
-)
+    TEST_PROVIDER_URI,
+    INSECURE_DEVELOPMENT_PASSWORD)
 
 
 @pytest.fixture()
 def another_testerchain(solidity_compiler):
-    testerchain = _TesterBlockchain(eth_airdrop=True, free_transactions=True, light=True)
+    testerchain = _TesterBlockchain(eth_airdrop=True, free_transactions=True, light=True, compiler=solidity_compiler)
     testerchain.deployer_address = testerchain.etherbase_account
     assert testerchain.is_light
     yield testerchain
@@ -86,3 +89,71 @@ def test_testerchain_creation(testerchain, another_testerchain):
             tx = {'to': etherbase, 'from': account, 'value': 100}
             txhash = chain.client.send_transaction(tx)
             _receipt = chain.wait_for_receipt(txhash)
+
+
+def test_multiversion_contract():
+    # Prepare compiler
+    base_dir = os.path.join(dirname(abspath(__file__)), "contracts", "multiversion")
+    v1_dir = os.path.join(base_dir, "v1")
+    v2_dir = os.path.join(base_dir, "v2")
+    root_dir = SolidityCompiler.default_contract_dir()
+    solidity_compiler = SolidityCompiler(source_dirs=[SourceDirs(root_dir, {v2_dir}),
+                                                      SourceDirs(root_dir, {v1_dir})])
+
+    # Prepare chain
+    blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm/2', compiler=solidity_compiler)
+    blockchain_interface.connect()
+    origin = blockchain_interface.client.accounts[0]
+    blockchain_interface.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=origin)
+    blockchain_interface.transacting_power.activate()
+
+    # Searching both contract through raw data
+    contract_name = "VersionTest"
+    requested_version = "v1.2.3"
+    version, _data = blockchain_interface.find_raw_contract_data(contract_name=contract_name,
+                                                                 requested_version=requested_version)
+    assert version == requested_version
+    version, _data = blockchain_interface.find_raw_contract_data(contract_name=contract_name,
+                                                                 requested_version="latest")
+    assert version == requested_version
+
+    requested_version = "v1.1.4"
+    version, _data = blockchain_interface.find_raw_contract_data(contract_name=contract_name,
+                                                                 requested_version=requested_version)
+    assert version == requested_version
+    version, _data = blockchain_interface.find_raw_contract_data(contract_name=contract_name,
+                                                                 requested_version="earliest")
+    assert version == requested_version
+
+    # Deploy different contracts and check their versions
+    registry = InMemoryContractRegistry()
+    contract, receipt = blockchain_interface.deploy_contract(deployer_address=origin,
+                                                             registry=registry,
+                                                             contract_name=contract_name,
+                                                             contract_version="v1.1.4")
+    assert contract.version == "v1.1.4"
+    assert contract.functions.VERSION().call() == 1
+    contract, receipt = blockchain_interface.deploy_contract(deployer_address=origin,
+                                                             registry=registry,
+                                                             contract_name=contract_name,
+                                                             contract_version="earliest")
+    assert contract.version == "v1.1.4"
+    assert contract.functions.VERSION().call() == 1
+
+    contract, receipt = blockchain_interface.deploy_contract(deployer_address=origin,
+                                                             registry=registry,
+                                                             contract_name=contract_name,
+                                                             contract_version="v1.2.3")
+    assert contract.version == "v1.2.3"
+    assert contract.functions.VERSION().call() == 2
+    contract, receipt = blockchain_interface.deploy_contract(deployer_address=origin,
+                                                             registry=registry,
+                                                             contract_name=contract_name,
+                                                             contract_version="latest")
+    assert contract.version == "v1.2.3"
+    assert contract.functions.VERSION().call() == 2
+    contract, receipt = blockchain_interface.deploy_contract(deployer_address=origin,
+                                                             registry=registry,
+                                                             contract_name=contract_name)
+    assert contract.version == "v1.2.3"
+    assert contract.functions.VERSION().call() == 2

@@ -37,8 +37,7 @@ from eth_tester import EthereumTester
 from eth_utils import to_checksum_address, is_checksum_address
 from twisted.logger import Logger
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
-from web3.contract import Contract
-from web3.contract import ContractConstructor
+from web3.contract import ContractConstructor, Contract
 from web3.contract import ContractFunction
 from web3.exceptions import TimeExhausted
 from web3.exceptions import ValidationError
@@ -59,9 +58,12 @@ from nucypher.blockchain.eth.providers import (
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.utilities.logging import console_observer, GlobalLoggerSettings
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
+
+
+class VersionedContract(Contract):
+    version = None
 
 
 class BlockchainInterface:
@@ -76,7 +78,7 @@ class BlockchainInterface:
     process = NO_PROVIDER_PROCESS.bool_value(False)
     Web3 = Web3
 
-    _contract_factory = Contract
+    _contract_factory = VersionedContract
 
     class InterfaceError(Exception):
         pass
@@ -431,20 +433,21 @@ class BlockchainInterface:
 
     def get_contract_by_name(self,
                              registry: BaseContractRegistry,
-                             name: str,
-                             version: int = None,
+                             contract_name: str,
+                             contract_version: str = None,
+                             enrollment_version: Union[int, str] = None,
                              proxy_name: str = None,
                              use_proxy_address: bool = True
-                             ) -> Union[Contract, List[tuple]]:
+                             ) -> Union[VersionedContract, List[tuple]]:
         """
         Instantiate a deployed contract from registry data,
         and assimilate it with its proxy if it is upgradeable,
         or return all registered records if use_proxy_address is False.
         """
-        target_contract_records = registry.search(contract_name=name)
+        target_contract_records = registry.search(contract_name=contract_name, contract_version=contract_version)
 
         if not target_contract_records:
-            raise self.UnknownContract(f"No such contract records with name {name}.")
+            raise self.UnknownContract(f"No such contract records with name {contract_name}:{contract_version}.")
 
         if proxy_name:
 
@@ -452,61 +455,69 @@ class BlockchainInterface:
             proxy_records = registry.search(contract_name=proxy_name)
 
             results = list()
-            for proxy_name, proxy_addr, proxy_abi in proxy_records:
+            for proxy_name, proxy_version, proxy_address, proxy_abi in proxy_records:
                 proxy_contract = self.client.w3.eth.contract(abi=proxy_abi,
-                                                             address=proxy_addr,
+                                                             address=proxy_address,
+                                                             version=proxy_version,
                                                              ContractFactoryClass=self._contract_factory)
 
                 # Read this dispatcher's target address from the blockchain
                 proxy_live_target_address = proxy_contract.functions.target().call()
-                for target_name, target_addr, target_abi in target_contract_records:
+                for target_name, target_version, target_address, target_abi in target_contract_records:
 
-                    if target_addr == proxy_live_target_address:
+                    if target_address == proxy_live_target_address:
                         if use_proxy_address:
-                            pair = (proxy_addr, target_abi)
+                            triplet = (proxy_address, target_version, target_abi)
                         else:
-                            pair = (target_addr, target_abi)
+                            triplet = (target_address, target_version, target_abi)
                     else:
                         continue
 
-                    results.append(pair)
+                    results.append(triplet)
 
             if len(results) > 1:
-                address, abi = results[0]
+                address, _version, _abi = results[0]
                 message = "Multiple {} deployments are targeting {}".format(proxy_name, address)
-                raise self.InterfaceError(message.format(name))
+                raise self.InterfaceError(message.format(contract_name))
 
             else:
                 try:
-                    selected_address, selected_abi = results[0]
+                    selected_address, selected_version, selected_abi = results[0]
                 except IndexError:
-                    raise self.UnknownContract(f"There are no Dispatcher records targeting '{name}'")
+                    raise self.UnknownContract(
+                        f"There are no Dispatcher records targeting '{contract_name}':{contract_version}")
 
         else:
             # NOTE: 0 must be allowed as a valid version number
             if len(target_contract_records) != 1:
-                if version is None:
-                    m = f"{len(target_contract_records)} records enrolled for contract {name} " \
+                if enrollment_version is None:
+                    m = f"{len(target_contract_records)} records enrolled " \
+                        f"for contract {contract_name}:{contract_version} " \
                         f"and no version index was supplied."
                     raise self.InterfaceError(m)
-                version = self.__get_version_index(name=name,
-                                                   version_index=version,
-                                                   enrollments=len(target_contract_records))
+                enrollment_version = self.__get_enrollment_version_index(name=contract_name,
+                                                                         contract_version=contract_version,
+                                                                         version_index=enrollment_version,
+                                                                         enrollments=len(target_contract_records))
 
             else:
-                version = -1  # default
+                enrollment_version = -1  # default
 
-            _target_contract_name, selected_address, selected_abi = target_contract_records[version]
+            _contract_name, selected_version, selected_address, selected_abi = target_contract_records[enrollment_version]
 
         # Create the contract from selected sources
         unified_contract = self.client.w3.eth.contract(abi=selected_abi,
                                                        address=selected_address,
+                                                       version=selected_version,
                                                        ContractFactoryClass=self._contract_factory)
 
         return unified_contract
 
     @staticmethod
-    def __get_version_index(version_index: Union[int, str], enrollments: int, name: str):
+    def __get_enrollment_version_index(version_index: Union[int, str],
+                                       enrollments: int,
+                                       name: str,
+                                       contract_version: str):
         version_names = {'latest': -1, 'earliest': 0}
         try:
             version = version_names[version_index]
@@ -515,10 +526,11 @@ class BlockchainInterface:
                 version = int(version_index)
             except ValueError:
                 what_is_this = version_index
-                raise ValueError(f"'{what_is_this}' is not a valid version number")
+                raise ValueError(f"'{what_is_this}' is not a valid enrollment version number")
             else:
                 if version > enrollments - 1:
-                    message = f"Version index '{version}' is larger than the number of enrollments for {name}."
+                    message = f"Version index '{version}' is larger than the number of enrollments " \
+                              f"for {name}:{contract_version}."
                     raise ValueError(message)
         return version
 
@@ -526,7 +538,7 @@ class BlockchainInterface:
 class BlockchainDeployerInterface(BlockchainInterface):
 
     TIMEOUT = 600  # seconds
-    _contract_factory = Contract
+    _contract_factory = VersionedContract
 
     class NoDeployerAddress(RuntimeError):
         pass
@@ -544,18 +556,13 @@ class BlockchainDeployerInterface(BlockchainInterface):
         return self.is_connected
 
     def _setup_solidity(self, compiler: SolidityCompiler = None):
-
-        # if a SolidityCompiler class instance was passed,
-        # compile from solidity source code.
-        self.__sol_compiler = compiler
         if compiler:
             # Execute the compilation if we're recompiling
             # Otherwise read compiled contract data from the registry.
-            interfaces = self.__sol_compiler.compile()
-            __raw_contract_cache = interfaces
+            _raw_contract_cache = compiler.compile()
         else:
-            __raw_contract_cache = NO_COMPILATION_PERFORMED
-        self.__raw_contract_cache = __raw_contract_cache
+            _raw_contract_cache = NO_COMPILATION_PERFORMED
+        self._raw_contract_cache = _raw_contract_cache
 
     @validate_checksum_address
     def deploy_contract(self,
@@ -565,8 +572,9 @@ class BlockchainDeployerInterface(BlockchainInterface):
                         *constructor_args,
                         enroll: bool = True,
                         gas_limit: int = None,
+                        contract_version: str = 'latest',
                         **constructor_kwargs
-                        ) -> Tuple[Contract, dict]:
+                        ) -> Tuple[VersionedContract, dict]:
         """
         Retrieve compiled interface data from the cache and
         return an instantiated deployed contract
@@ -585,11 +593,12 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
         pprint_args = str(tuple(constructor_args))
         pprint_args = pprint_args.replace("{", "{{").replace("}", "}}")  # See #724
-        self.log.info(f"Deploying contract {contract_name} with "
+
+        contract_factory = self.get_contract_factory(contract_name=contract_name, version=contract_version)
+        self.log.info(f"Deploying contract {contract_name}:{contract_factory.version} with "
                       f"deployer address {deployer_address} "
                       f"and parameters {pprint_args}")
 
-        contract_factory = self.get_contract_factory(contract_name=contract_name)
         transaction_function = contract_factory.constructor(*constructor_args, **constructor_kwargs)
 
         #
@@ -606,39 +615,74 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
         # Success
         address = receipt['contractAddress']
-        self.log.info(f"Confirmed {contract_name} deployment: new address {address}")
+        self.log.info(f"Confirmed {contract_name}:{contract_factory.version} deployment: new address {address}")
 
         #
         # Instantiate & Enroll contract
         #
 
-        contract = self.client.w3.eth.contract(address=address, abi=contract_factory.abi)
+        contract = self.client.w3.eth.contract(address=address,
+                                               abi=contract_factory.abi,
+                                               version=contract_factory.version,
+                                               ContractFactoryClass=self._contract_factory)
 
         if enroll is True:
             registry.enroll(contract_name=contract_name,
                             contract_address=contract.address,
-                            contract_abi=contract_factory.abi)
+                            contract_abi=contract.abi,
+                            contract_version=contract.version)
 
         return contract, receipt  # receipt
 
-    def get_contract_factory(self, contract_name: str) -> Contract:
-        """Retrieve compiled interface data from the cache and return web3 contract"""
+    def find_raw_contract_data(self, contract_name: str, requested_version: str = 'latest') -> Tuple[str, dict]:
         try:
-            interface = self.__raw_contract_cache[contract_name]
+            contract_data = self._raw_contract_cache[contract_name]
         except KeyError:
             raise self.UnknownContract('{} is not a locally compiled contract.'.format(contract_name))
         except TypeError:
-            if self.__raw_contract_cache is NO_COMPILATION_PERFORMED:
+            if self._raw_contract_cache is NO_COMPILATION_PERFORMED:
                 message = "The local contract compiler cache is empty because no compilation was performed."
                 raise self.InterfaceError(message)
             raise
-        else:
-            contract = self.client.w3.eth.contract(abi=interface['abi'],
-                                                   bytecode=interface['bin'],
-                                                   ContractFactoryClass=Contract)
-            return contract
 
-    def _wrap_contract(self, wrapper_contract: Contract, target_contract: Contract) -> Contract:
+        try:
+            return requested_version, contract_data[requested_version]
+        except KeyError:
+            if requested_version != 'latest' and requested_version != 'earliest':
+                raise self.UnknownContract('Version {} of contract {} is not a locally compiled. '
+                                           'Available versions: {}'
+                                           .format(requested_version, contract_name, contract_data.keys()))
+
+        if len(contract_data.keys()) == 1:
+            return next(iter(contract_data.items()))
+
+        # Get the latest or the earliest versions
+        current_version_parsed = (-1, -1, -1)
+        current_version = None
+        current_data = None
+        for version, data in contract_data.items():
+            major, minor, patch = [int(v) for v in version[1:].split(".", 3)]
+            if current_version_parsed[0] == -1 or \
+               requested_version == 'latest' and (major, minor, patch) > current_version_parsed or \
+               requested_version == 'earliest' and (major, minor, patch) < current_version_parsed:
+                current_version_parsed = (major, minor, patch)
+                current_data = data
+                current_version = version
+        return current_version, current_data
+
+    def get_contract_factory(self, contract_name: str, version: str = 'latest') -> VersionedContract:
+        """Retrieve compiled interface data from the cache and return web3 contract"""
+        version, interface = self.find_raw_contract_data(contract_name, version)
+        contract = self.client.w3.eth.contract(abi=interface['abi'],
+                                               bytecode=interface['bin'],
+                                               version=version,
+                                               ContractFactoryClass=self._contract_factory)
+        return contract
+
+    def _wrap_contract(self,
+                       wrapper_contract: VersionedContract,
+                       target_contract: VersionedContract
+                       ) -> VersionedContract:
         """
         Used for upgradeable contracts; Returns a new contract object assembled
         with its own address but the abi of the other.
@@ -647,6 +691,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         # Wrap the contract
         wrapped_contract = self.client.w3.eth.contract(abi=target_contract.abi,
                                                        address=wrapper_contract.address,
+                                                       version=target_contract.version,
                                                        ContractFactoryClass=self._contract_factory)
         return wrapped_contract
 
@@ -654,15 +699,16 @@ class BlockchainDeployerInterface(BlockchainInterface):
     def get_proxy_contract(self,
                            registry: BaseContractRegistry,
                            target_address: str,
-                           proxy_name: str) -> Contract:
+                           proxy_name: str) -> VersionedContract:
 
         # Lookup proxies; Search for a registered proxy that targets this contract record
         records = registry.search(contract_name=proxy_name)
 
         dispatchers = list()
-        for name, addr, abi in records:
+        for name, version, address, abi in records:
             proxy_contract = self.client.w3.eth.contract(abi=abi,
-                                                         address=addr,
+                                                         address=address,
+                                                         version=version,
                                                          ContractFactoryClass=self._contract_factory)
 
             # Read this dispatchers target address from the blockchain

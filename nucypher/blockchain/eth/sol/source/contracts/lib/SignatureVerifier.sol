@@ -4,7 +4,7 @@ pragma solidity ^0.5.3;
 /**
 * @notice Library to recover address and verify signatures
 * @dev Simple wrapper for `ecrecover`
-**/
+*/
 library SignatureVerifier {
 
     enum HashAlgorithm {KECCAK256, SHA256, RIPEMD160}
@@ -16,7 +16,7 @@ library SignatureVerifier {
     * @notice Recover signer address from hash and signature
     * @param _hash 32 bytes message hash
     * @param _signature Signature of hash - 32 bytes r + 32 bytes s + 1 byte v (could be 0, 1, 27, 28)
-    **/
+    */
     function recover(bytes32 _hash, bytes memory _signature)
         internal
         pure
@@ -44,7 +44,7 @@ library SignatureVerifier {
     /**
     * @notice Transform public key to address
     * @param _publicKey secp256k1 public key
-    **/
+    */
     function toAddress(bytes memory _publicKey) internal pure returns (address) {
         return address(uint160(uint256(keccak256(_publicKey))));
     }
@@ -53,7 +53,7 @@ library SignatureVerifier {
     * @notice Hash using one of pre built hashing algorithm
     * @param _message Signed message
     * @param _algorithm Hashing algorithm
-    **/
+    */
     function hash(bytes memory _message, HashAlgorithm _algorithm)
         internal
         pure
@@ -75,7 +75,7 @@ library SignatureVerifier {
     * @param _signature Signature of message hash
     * @param _publicKey secp256k1 public key in uncompressed format without prefix byte (64 bytes)
     * @param _algorithm Hashing algorithm
-    **/
+    */
     function verify(
         bytes memory _message,
         bytes memory _signature,
@@ -96,7 +96,7 @@ library SignatureVerifier {
     * @dev Only supports version 0 and version E (0x45)
     * @param _message Message to sign
     * @param _version EIP191 version to use
-    **/
+    */
     function hashEIP191(
         bytes memory _message,
         byte _version
@@ -140,7 +140,7 @@ library SignatureVerifier {
     * @param _signature Signature of message hash
     * @param _publicKey secp256k1 public key in uncompressed format without prefix byte (64 bytes)
     * @param _version EIP191 version to use
-    **/
+    */
     function verifyEIP191(
         bytes memory _message,
         bytes memory _signature,

@@ -32,19 +32,13 @@ def generate_insecure_secret() -> str:
     return formatted_secret
 
 
-# TODO: Use temp module
-DEPLOYMENT_REGISTRY_FILEPATH = os.path.join('/', 'tmp', 'nucypher-test-autodeploy.json')
 PLANNED_UPGRADES = 4
 INSECURE_SECRETS = {v: generate_insecure_secret() for v in range(1, PLANNED_UPGRADES+1)}
 
 
 @pytest.fixture(scope="module")
-def registry_filepath():
-    if os.path.exists(DEPLOYMENT_REGISTRY_FILEPATH):
-        os.remove(DEPLOYMENT_REGISTRY_FILEPATH)
-    yield DEPLOYMENT_REGISTRY_FILEPATH
-    if os.path.exists(DEPLOYMENT_REGISTRY_FILEPATH):
-        os.remove(DEPLOYMENT_REGISTRY_FILEPATH)
+def registry_filepath(temp_dir_path):
+    return os.path.join(temp_dir_path, 'nucypher-test-autodeploy.json')
 
 
 def test_nucypher_deploy_contracts(click_runner,
@@ -90,7 +84,7 @@ def test_nucypher_deploy_contracts(click_runner,
 
         # Read several records
         token_record, escrow_record, dispatcher_record, *other_records = registry_data
-        registered_name, registered_address, registered_abi = token_record
+        registered_name, registered_version, registered_address, registered_abi = token_record
 
     #
     # Agency
@@ -101,6 +95,7 @@ def test_nucypher_deploy_contracts(click_runner,
     assert token_agent.contract_name == registered_name
     assert token_agent.registry_contract_name == registered_name
     assert token_agent.contract_address == registered_address
+    assert token_agent.contract.version == registered_version
 
     # Now show that we can use contract Agency and read from the blockchain
     assert token_agent.get_balance() == 0
@@ -214,7 +209,7 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
             proxy_name = 'Dispatcher'
 
         registry = LocalContractRegistry(filepath=registry_filepath)
-        real_old_contract = testerchain.get_contract_by_name(name=contract_name,
+        real_old_contract = testerchain.get_contract_by_name(contract_name=contract_name,
                                                              registry=registry,
                                                              proxy_name=proxy_name,
                                                              use_proxy_address=False)
@@ -227,7 +222,7 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
         assert targeted_address == real_old_contract.address
 
         # Assemble CLI command
-        command = (cli_action, '--contract-name', contract_name, *base_command)
+        command = (cli_action, '--contract-name', contract_name, '--ignore-deployed', *base_command)
 
         # Select upgrade interactive input scenario
         current_version = version_tracker[contract_name]
@@ -268,8 +263,8 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
         assert len(records) == contract_enrollments, error
 
         old, new = records[-2:]            # Get the last two entries
-        old_name, old_address, *abi = old  # Previous version
-        new_name, new_address, *abi = new  # New version
+        old_name, _old_version, old_address, *abi = old  # Previous version
+        new_name, _new_version, new_address, *abi = new  # New version
 
         assert old_address == real_old_contract.address
         assert old_name == new_name        # TODO: Inspect ABI / Move to different test.
@@ -319,8 +314,8 @@ def test_rollback(click_runner, testerchain, registry_filepath):
         *old_records, v3, v4 = records
         current_target, rollback_target = v4, v3
 
-        _name, current_target_address, *abi = current_target
-        _name, rollback_target_address, *abi = rollback_target
+        _name, _version, current_target_address, *abi = current_target
+        _name, _version, rollback_target_address, *abi = rollback_target
         assert current_target_address != rollback_target_address
 
         # Ensure the proxy targets the rollback target (previous version)

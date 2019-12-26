@@ -69,7 +69,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
     _PROVIDER_URI = 'tester://pyevm'
     TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
-    _compiler = SolidityCompiler(test_contract_dir=TEST_CONTRACTS_DIR)
+    _compiler = SolidityCompiler(source_dirs=[(SolidityCompiler.default_contract_dir(), {TEST_CONTRACTS_DIR})])
     _test_account_cache = list()
 
     _default_test_accounts = NUMBER_OF_ETH_TEST_ACCOUNTS

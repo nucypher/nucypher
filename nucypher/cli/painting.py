@@ -260,7 +260,7 @@ Registry  ................ {registry.filepath}
     from nucypher.blockchain.eth.actors import ContractAdministrator
     for contract_deployer_class in ContractAdministrator.dispatched_upgradeable_deployer_classes:
         try:
-            bare_contract = blockchain.get_contract_by_name(name=contract_deployer_class.contract_name,
+            bare_contract = blockchain.get_contract_by_name(contract_name=contract_deployer_class.contract_name,
                                                             proxy_name=DispatcherDeployer.contract_name,
                                                             registry=registry,
                                                             use_proxy_address=False)
@@ -297,7 +297,7 @@ Registry  ................ {registry.filepath}
         #
 
         staking_interface_agent = PreallocationEscrowAgent.StakingInterfaceAgent(registry=registry)
-        bare_contract = blockchain.get_contract_by_name(name=staking_interface_agent.contract_name,
+        bare_contract = blockchain.get_contract_by_name(contract_name=staking_interface_agent.contract_name,
                                                         proxy_name=StakingInterfaceRouterDeployer.contract_name,
                                                         use_proxy_address=False,
                                                         registry=registry)

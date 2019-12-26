@@ -117,7 +117,8 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, test_regis
                '--provider', TEST_PROVIDER_URI,
                '--registry-infile', MOCK_REGISTRY_FILEPATH,
                '--registry-outfile', ALTERNATE_REGISTRY_FILEPATH,
-               '--poa')
+               '--poa',
+               '--ignore-deployed')
 
     user_input = '0\n' + 'Y\n' + 'DEPLOY'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)

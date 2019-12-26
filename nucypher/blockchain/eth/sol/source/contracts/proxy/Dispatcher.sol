@@ -8,7 +8,7 @@ import "zeppelin/utils/Address.sol";
 /**
 * @notice Proxying requests to other contracts.
 * Client should use ABI of real contract and address of this contract
-**/
+*/
 contract Dispatcher is Upgradeable {
     using Address for address;
 
@@ -17,7 +17,7 @@ contract Dispatcher is Upgradeable {
 
     /**
     * @dev Set upgrading status before and after operations
-    **/
+    */
     modifier upgrading()
     {
         isUpgrade = UPGRADE_TRUE;
@@ -28,7 +28,7 @@ contract Dispatcher is Upgradeable {
     /**
     * @param _target Target contract address
     * @param _newSecretHash Secret hash (keccak256)
-    **/
+    */
     constructor(address _target, bytes32 _newSecretHash) public upgrading {
         require(_target.isContract());
         // Checks that target contract inherits Dispatcher state
@@ -46,7 +46,7 @@ contract Dispatcher is Upgradeable {
     * @param _target New target contract address
     * @param _secret Secret for proof of contract owning
     * @param _newSecretHash New secret hash (keccak256)
-    **/
+    */
     function upgrade(address _target, bytes memory _secret, bytes32 _newSecretHash) public onlyOwner upgrading {
         require(_target.isContract());
         require(keccak256(_secret) == secretHash && _newSecretHash != secretHash);
@@ -69,7 +69,7 @@ contract Dispatcher is Upgradeable {
     * @dev Test storage carefully before upgrade again after rollback
     * @param _secret Secret for proof of contract owning
     * @param _newSecretHash New secret hash (keccak256)
-    **/
+    */
     function rollback(bytes memory _secret, bytes32 _newSecretHash) public onlyOwner upgrading {
         require(previousTarget.isContract());
         require(keccak256(_secret) == secretHash && _newSecretHash != secretHash);
@@ -88,7 +88,7 @@ contract Dispatcher is Upgradeable {
 
     /**
     * @dev Call verifyState method for Upgradeable contract
-    **/
+    */
     function verifyUpgradeableState(address _from, address _to) private {
         (bool callSuccess,) = _from.delegatecall(abi.encodeWithSignature("verifyState(address)", _to));
         require(callSuccess);
@@ -96,7 +96,7 @@ contract Dispatcher is Upgradeable {
 
     /**
     * @dev Call finishUpgrade method from the Upgradeable contract
-    **/
+    */
     function finishUpgrade() private {
         (bool callSuccess,) = target.delegatecall(abi.encodeWithSignature("finishUpgrade(address)", target));
         require(callSuccess);
@@ -113,12 +113,12 @@ contract Dispatcher is Upgradeable {
 
     /**
     * @dev Override function using empty code because no reason to call this function in Dispatcher
-    **/
+    */
     function finishUpgrade(address) public {}
 
     /**
     * @dev Fallback function send all requests to the target contract
-    **/
+    */
     function () external payable {
         assert(target.isContract());
         // execute requested function from target contract using storage of the dispatcher

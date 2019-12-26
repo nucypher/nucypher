@@ -3,7 +3,7 @@ pragma solidity ^0.5.3;
 
 /**
 * @notice Deserialization library for Umbral objects
-**/
+*/
 library UmbralDeserializer {
 
     struct Point {
@@ -72,7 +72,7 @@ library UmbralDeserializer {
 
     /**
     * @notice Deserialize to capsule (not activated)
-    **/
+    */
     function toCapsule(bytes memory _capsuleBytes)
         internal pure returns (Capsule memory capsule)
     {
@@ -87,7 +87,7 @@ library UmbralDeserializer {
     * @notice Deserialize to correctness proof
     * @param _pointer Proof bytes memory pointer
     * @param _proofBytesLength Proof bytes length
-    **/
+    */
     function toCorrectnessProof(uint256 _pointer, uint256 _proofBytesLength)
         internal pure returns (CorrectnessProof memory proof)
     {
@@ -111,7 +111,7 @@ library UmbralDeserializer {
 
     /**
     * @notice Deserialize to correctness proof
-    **/
+    */
     function toCorrectnessProof(bytes memory _proofBytes)
         internal pure returns (CorrectnessProof memory proof)
     {
@@ -121,7 +121,7 @@ library UmbralDeserializer {
 
     /**
     * @notice Deserialize to CapsuleFrag
-    **/
+    */
     function toCapsuleFrag(bytes memory _cFragBytes)
         internal pure returns (CapsuleFrag memory cFrag)
     {
@@ -140,7 +140,7 @@ library UmbralDeserializer {
 
     /**
     * @notice Deserialize to precomputed data
-    **/
+    */
     function toPreComputedData(bytes memory _preComputedData)
         internal pure returns (PreComputedData memory data)
     {
@@ -229,7 +229,7 @@ library UmbralDeserializer {
     // TODO extract to external library if needed (#1500)
     /**
     * @notice Get the memory pointer for start of array
-    **/
+    */
     function getPointer(bytes memory _bytes) internal pure returns (uint256 pointer) {
         assembly {
             pointer := add(_bytes, 32) // skip array length
@@ -238,7 +238,7 @@ library UmbralDeserializer {
 
     /**
     * @notice Copy point data from memory in the pointer position
-    **/
+    */
     function copyPoint(uint256 _pointer, Point memory _point)
         internal pure returns (uint256 resultPointer)
     {
@@ -256,7 +256,7 @@ library UmbralDeserializer {
 
     /**
     * @notice Read 1 byte from memory in the pointer position
-    **/
+    */
     function getByte(uint256 _pointer) internal pure returns (byte result) {
         bytes32 word;
         assembly {
@@ -268,7 +268,7 @@ library UmbralDeserializer {
 
     /**
     * @notice Read 32 bytes from memory in the pointer position
-    **/
+    */
     function getBytes32(uint256 _pointer) internal pure returns (bytes32 result) {
         assembly {
             result := mload(_pointer)
@@ -282,7 +282,7 @@ library UmbralDeserializer {
     * @param _bytesPointer Source memory pointer
     * @param _target Target array
     * @param _bytesLength Number of bytes to copy
-    **/
+    */
     function copyBytes(uint256 _bytesPointer, bytes memory _target, uint256 _bytesLength)
         internal
         pure

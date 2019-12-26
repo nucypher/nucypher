@@ -10,7 +10,8 @@ import "zeppelin/math/Math.sol";
 
 /**
 * @notice Supervises stakers' behavior and punishes when something's wrong.
-**/
+* @dev |v1.1.1|
+*/
 contract Adjudicator is Upgradeable {
 
     using SafeMath for uint256;
@@ -47,7 +48,7 @@ contract Adjudicator is Upgradeable {
     * @param _penaltyHistoryCoefficient Coefficient for calculating the penalty depending on the history
     * @param _percentagePenaltyCoefficient Coefficient for calculating the percentage penalty
     * @param _rewardCoefficient Coefficient for calculating the reward
-    **/
+    */
     constructor(
         StakingEscrow _escrow,
         SignatureVerifier.HashAlgorithm _hashAlgorithm,
@@ -81,7 +82,7 @@ contract Adjudicator is Upgradeable {
     * @param _workerPublicKey Worker's signing public key, also known as "stamp"
     * @param _workerIdentityEvidence Signature of worker's public key by worker's eth-key
     * @param _preComputedData Additional pre-computed data for CFrag correctness verification
-    **/
+    */
     function evaluateCFrag(
         bytes memory _capsuleBytes,
         bytes memory _cFragBytes,
@@ -174,7 +175,7 @@ contract Adjudicator is Upgradeable {
     * @notice Calculate penalty to the staker and reward to the investigator
     * @param _staker Staker's address
     * @param _stakerValue Amount of tokens that belong to the staker
-    **/
+    */
     function calculatePenaltyAndReward(address _staker, uint256 _stakerValue)
         internal returns (uint256 penalty, uint256 reward)
     {

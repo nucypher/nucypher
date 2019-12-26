@@ -83,7 +83,7 @@ def test_policy_manager_has_dispatcher(policy_manager_deployer, testerchain, tes
 
     # Let's get the "bare" PolicyManager contract (i.e., unwrapped, no dispatcher)
     existing_bare_contract = testerchain.get_contract_by_name(registry=test_registry,
-                                                              name=policy_manager_deployer.contract_name,
+                                                              contract_name=policy_manager_deployer.contract_name,
                                                               proxy_name=DispatcherDeployer.contract_name,
                                                               use_proxy_address=False)
 
@@ -106,7 +106,7 @@ def test_upgrade(testerchain, test_registry):
                                      deployer_address=testerchain.etherbase_account)
 
     bare_contract = testerchain.get_contract_by_name(registry=test_registry,
-                                                     name=PolicyManagerDeployer.contract_name,
+                                                     contract_name=PolicyManagerDeployer.contract_name,
                                                      proxy_name=DispatcherDeployer.contract_name,
                                                      use_proxy_address=False)
     old_address = bare_contract.address
@@ -116,10 +116,11 @@ def test_upgrade(testerchain, test_registry):
                          new_secret_hash=new_secret_hash)
 
     receipts = deployer.upgrade(existing_secret_plaintext=old_secret,
-                                new_secret_hash=new_secret_hash)
+                                new_secret_hash=new_secret_hash,
+                                ignore_deployed=True)
 
     bare_contract = testerchain.get_contract_by_name(registry=test_registry,
-                                                     name=PolicyManagerDeployer.contract_name,
+                                                     contract_name=PolicyManagerDeployer.contract_name,
                                                      proxy_name=DispatcherDeployer.contract_name,
                                                      use_proxy_address=False)
 
@@ -146,7 +147,8 @@ def test_rollback(testerchain, test_registry):
 
     # Let's do one more upgrade
     receipts = deployer.upgrade(existing_secret_plaintext=old_secret,
-                                new_secret_hash=new_secret_hash)
+                                new_secret_hash=new_secret_hash,
+                                ignore_deployed=True)
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
 

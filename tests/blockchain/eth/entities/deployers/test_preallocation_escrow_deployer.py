@@ -80,7 +80,7 @@ def test_deploy_multiple_preallocations(testerchain, test_registry):
     testerchain = testerchain
     deployer_account = testerchain.etherbase_account
 
-    router = testerchain.get_contract_by_name(registry=test_registry, name=StakingInterfaceRouterDeployer.contract_name)
+    router = testerchain.get_contract_by_name(registry=test_registry, contract_name=StakingInterfaceRouterDeployer.contract_name)
     router_address = router.address
     for index in range(NUMBER_OF_PREALLOCATIONS):
         deployer = PreallocationEscrowDeployer(deployer_address=deployer_account, registry=test_registry)
@@ -108,10 +108,10 @@ def test_upgrade_staking_interface(testerchain, test_registry):
     old_secret = INSECURE_DEPLOYMENT_SECRET_PLAINTEXT
     new_secret = 'new' + STAKING_INTERFACE_DEPLOYMENT_SECRET
     new_secret_hash = keccak_digest(new_secret.encode())
-    router = testerchain.get_contract_by_name(registry=test_registry, name=StakingInterfaceRouterDeployer.contract_name)
+    router = testerchain.get_contract_by_name(registry=test_registry, contract_name=StakingInterfaceRouterDeployer.contract_name)
 
     contract = testerchain.get_contract_by_name(registry=test_registry,
-                                                name=StakingInterfaceDeployer.contract_name,
+                                                contract_name=StakingInterfaceDeployer.contract_name,
                                                 proxy_name=StakingInterfaceRouterDeployer.contract_name,
                                                 use_proxy_address=False)
 
@@ -122,7 +122,8 @@ def test_upgrade_staking_interface(testerchain, test_registry):
                                                           registry=test_registry)
 
     receipts = staking_interface_deployer.upgrade(existing_secret_plaintext=old_secret,
-                                                  new_secret_hash=new_secret_hash)
+                                                  new_secret_hash=new_secret_hash,
+                                                  ignore_deployed=True)
 
     assert len(receipts) == 2
 
@@ -135,7 +136,7 @@ def test_upgrade_staking_interface(testerchain, test_registry):
 
     new_target = router.functions.target().call()
     contract = testerchain.get_contract_by_name(registry=test_registry,
-                                                name=StakingInterfaceDeployer.contract_name,
+                                                contract_name=StakingInterfaceDeployer.contract_name,
                                                 proxy_name=StakingInterfaceRouterDeployer.contract_name,
                                                 use_proxy_address=False)
     assert new_target == contract.address

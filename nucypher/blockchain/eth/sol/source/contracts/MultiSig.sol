@@ -6,7 +6,7 @@ import "zeppelin/math/SafeMath.sol";
 
 /**
 * @notice Multi-signature contract with off-chain signing
-**/
+*/
 contract MultiSig {
     using SafeMath for uint256;
 
@@ -33,7 +33,7 @@ contract MultiSig {
     /**
     * @param _required Number of required signings
     * @param _owners List of initial owners.
-    **/
+    */
     constructor (uint8 _required, address[] memory _owners) public {
         require(_owners.length <= MAX_OWNER_COUNT &&
             _required <= _owners.length &&
@@ -56,7 +56,7 @@ contract MultiSig {
     * @param _value Amount of ETH to transfer
     * @param _data Call data
     * @param _nonce Nonce
-    **/
+    */
     function getUnsignedTransactionHash(
         address _sender,
         address _destination,
@@ -78,7 +78,7 @@ contract MultiSig {
     * @param _destination Destination address
     * @param _value Amount of ETH to transfer
     * @param _data Call data
-    **/
+    */
     function execute(
         uint8[] calldata _sigV,
         bytes32[] calldata _sigR,
@@ -111,7 +111,7 @@ contract MultiSig {
     * @notice Allows to add a new owner
     * @dev Transaction has to be sent by `execute` method.
     * @param _owner Address of new owner
-    **/
+    */
     function addOwner(address _owner)
         public
         onlyThisContract
@@ -128,7 +128,7 @@ contract MultiSig {
     * @notice Allows to remove an owner
     * @dev Transaction has to be sent by `execute` method.
     * @param _owner Address of owner
-    **/
+    */
     function removeOwner(address _owner)
         public
         onlyThisContract
@@ -149,7 +149,7 @@ contract MultiSig {
     * @notice Allows to change the number of required signings
     * @dev Transaction has to be sent by `execute` method
     * @param _required Number of required signings
-    **/
+    */
     function changeRequirement(uint8 _required)
         public
         onlyThisContract
