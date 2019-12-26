@@ -827,9 +827,9 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     wind_down_log = escrow.events.WindDownSet.createFilter(fromBlock='latest')
 
     # Give Escrow tokens for reward and initialize contract
-    tx = token.functions.transfer(escrow.address, token_economics.reward_supply).transact({'from': creator})
+    tx = token.functions.approve(escrow.address, token_economics.reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.initialize().transact({'from': creator})
+    tx = escrow.functions.initialize(token_economics.reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Only staker can set wind-down parameter
@@ -850,6 +850,8 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     tx = escrow.functions.deposit(sub_stake, duration).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWorker(staker).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setReStake(False).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     assert 0 == escrow.functions.getLockedTokens(staker, 0).call()
     assert sub_stake == escrow.functions.getLockedTokens(staker, 1).call()

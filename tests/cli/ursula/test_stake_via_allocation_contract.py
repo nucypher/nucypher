@@ -361,14 +361,14 @@ def test_stake_winddown(click_runner,
     allocation_contract_address = preallocation_escrow_agent.principal_contract.address
     assert not staking_agent.is_winding_down(allocation_contract_address)
 
-    restake_args = ('stake', 'winddown',
-                    '--enable',
-                    '--config-file', stakeholder_configuration_file_location,
-                    '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
-                    '--force')
+    winddown_args = ('stake', 'winddown',
+                     '--enable',
+                     '--config-file', stakeholder_configuration_file_location,
+                     '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
+                     '--force')
 
     result = click_runner.invoke(nucypher_cli,
-                                 restake_args,
+                                 winddown_args,
                                  input=INSECURE_DEVELOPMENT_PASSWORD,
                                  catch_exceptions=False)
     assert result.exit_code == 0
@@ -470,6 +470,18 @@ def test_collect_rewards_integration(click_runner,
                                      stake_value,
                                      policy_value,
                                      policy_rate):
+    # Disable re-staking
+    restake_args = ('stake', 'restake',
+                    '--disable',
+                    '--config-file', stakeholder_configuration_file_location,
+                    '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
+                    '--force')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 restake_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
 
     half_stake_time = token_economics.minimum_locked_periods // 2  # Test setup
     logger = Logger("Test-CLI")  # Enter the Teacher's Logger, and
