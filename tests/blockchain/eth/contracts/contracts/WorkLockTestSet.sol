@@ -56,4 +56,14 @@ contract StakingEscrowForWorkLockMock {
         stakerInfo[_staker].completedWork = _completedWork;
     }
 
+    function burn(uint256 _value) public {
+        token.transferFrom(msg.sender, address(this), _value);
+    }
+
 }
+
+
+/**
+* @notice Contract for using in WorkLock tests
+**/
+contract StakingInterfaceMock {}

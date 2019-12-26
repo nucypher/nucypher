@@ -182,7 +182,8 @@ class ContractAdministrator(NucypherTokenActor):
                  registry: BaseContractRegistry,
                  deployer_address: str = None,
                  client_password: str = None,
-                 economics: TokenEconomics = None):
+                 economics: TokenEconomics = None,
+                 staking_escrow_test_mode: bool = False):
         """
         Note: super() is not called here to avoid setting the token agent.
         TODO: Review this logic ^^ "bare mode".  #1510
@@ -199,6 +200,7 @@ class ContractAdministrator(NucypherTokenActor):
 
         self.transacting_power = TransactingPower(password=client_password, account=deployer_address, cache=True)
         self.transacting_power.activate()
+        self.staking_escrow_test_mode = staking_escrow_test_mode
 
     def __repr__(self):
         r = '{name} - {deployer_address})'.format(name=self.__class__.__name__, deployer_address=self.deployer_address)
@@ -235,6 +237,9 @@ class ContractAdministrator(NucypherTokenActor):
                         ) -> Tuple[dict, BaseContractDeployer]:
 
         Deployer = self.__get_deployer(contract_name=contract_name)
+        if Deployer is StakingEscrowDeployer:
+            kwargs.update({"test_mode": self.staking_escrow_test_mode})
+
         deployer = Deployer(registry=self.registry,
                             deployer_address=self.deployer_address,
                             economics=self.economics,

@@ -457,7 +457,7 @@ def _make_agency(testerchain, test_registry):
     token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)
     token_deployer.deploy()
 
-    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
+    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry, test_mode=True)
     staking_escrow_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
     policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin, registry=test_registry)

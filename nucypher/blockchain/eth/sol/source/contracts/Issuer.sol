@@ -6,6 +6,7 @@ import "zeppelin/math/SafeMath.sol";
 import "zeppelin/math/Math.sol";
 import "contracts/proxy/Upgradeable.sol";
 import "contracts/lib/AdditionalMath.sol";
+import "zeppelin/token/ERC20/SafeERC20.sol";
 
 
 /**
@@ -13,9 +14,11 @@ import "contracts/lib/AdditionalMath.sol";
 * @dev |v1.1.2|
 */
 contract Issuer is Upgradeable {
+    using SafeERC20 for NuCypherToken;
     using SafeMath for uint256;
     using AdditionalMath for uint32;
 
+    event Burnt(address indexed sender, uint256 value);
     /// Issuer is initialized with a reserved reward
     event Initialized(uint256 reservedReward);
 
@@ -97,14 +100,14 @@ contract Issuer is Upgradeable {
     /**
     * @notice Initialize reserved tokens for reward
     */
-    function initialize() public onlyOwner {
+    function initialize(uint256 _reservedReward) public onlyOwner {
         require(currentSupply1 == 0);
+        token.safeTransferFrom(msg.sender, address(this), _reservedReward);
         currentMintingPeriod = getCurrentPeriod();
-        uint256 reservedReward = token.balanceOf(address(this));
-        uint256 currentTotalSupply = totalSupply - reservedReward;
+        uint256 currentTotalSupply = totalSupply - _reservedReward;
         currentSupply1 = currentTotalSupply;
         currentSupply2 = currentTotalSupply;
-        emit Initialized(reservedReward);
+        emit Initialized(_reservedReward);
     }
 
     /**
@@ -167,6 +170,16 @@ contract Issuer is Upgradeable {
     function unMint(uint256 _amount) internal {
         currentSupply1 = currentSupply1 - _amount;
         currentSupply2 = currentSupply2 - _amount;
+    }
+
+    /**
+    * @notice Burn sender's tokens. Amount of tokens will be returned for future minting
+    * @param _value Amount to burn
+    */
+    function burn(uint256 _value) public {
+        token.safeTransferFrom(msg.sender, address(this), _value);
+        unMint(_value);
+        emit Burnt(msg.sender, _value);
     }
 
     /**

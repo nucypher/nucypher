@@ -483,16 +483,17 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
     agency = StakingEscrowAgent
     contract_name = agency.registry_contract_name
-    deployment_steps = ('contract_deployment', 'dispatcher_deployment', 'reward_transfer', 'initialize')
+    deployment_steps = ('contract_deployment', 'dispatcher_deployment', 'approve_reward_transfer', 'initialize')
     _proxy_deployer = DispatcherDeployer
 
-    def __init__(self,  *args, **kwargs):
+    def __init__(self, test_mode: bool = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__dispatcher_contract = None
 
         token_contract_name = NucypherTokenDeployer.contract_name
         self.token_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                    contract_name=token_contract_name)
+        self.test_mode = test_mode
 
     def __check_policy_manager(self):
         result = self.contract.functions.policyManager().call()
@@ -509,7 +510,8 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             "_minLockedPeriods": args[4],
             "_minAllowableLockedTokens": args[5],
             "_maxAllowableLockedTokens": args[6],
-            "_minWorkerPeriods": args[7]
+            "_minWorkerPeriods": args[7],
+            "_isTestContract": self.test_mode
         }
         constructor_kwargs.update(overrides)
         constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
@@ -597,19 +599,19 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         # Switch the contract for the wrapped one
         the_escrow_contract = wrapped_escrow_contract
 
-        # 3 - Transfer the reward supply tokens to StakingEscrow #
-        reward_function = self.token_contract.functions.transfer(the_escrow_contract.address,
-                                                                 self.economics.erc20_reward_supply)
+        # 3 - Approve transfer the reward supply tokens to StakingEscrow #
+        approve_reward_function = self.token_contract.functions.approve(the_escrow_contract.address,
+                                                                        self.economics.erc20_reward_supply)
 
         # TODO: Confirmations / Successful Transaction Indicator / Events ??  - #1193, #1194
-        reward_receipt = self.blockchain.send_transaction(contract_function=reward_function,
-                                                          sender_address=self.deployer_address,
-                                                          payload=origin_args)
+        approve_reward_receipt = self.blockchain.send_transaction(contract_function=approve_reward_function,
+                                                                  sender_address=self.deployer_address,
+                                                                  payload=origin_args)
         if progress:
             progress.update(1)
 
         # 4 - Initialize the StakingEscrow contract
-        init_function = the_escrow_contract.functions.initialize()
+        init_function = the_escrow_contract.functions.initialize(self.economics.erc20_reward_supply)
 
         init_receipt = self.blockchain.send_transaction(contract_function=init_function,
                                                         sender_address=self.deployer_address,
@@ -618,7 +620,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             progress.update(1)
 
         # Gather the transaction receipts
-        ordered_receipts = (deploy_receipt, dispatcher_deploy_receipt, reward_receipt, init_receipt)
+        ordered_receipts = (deploy_receipt, dispatcher_deploy_receipt, approve_reward_receipt, init_receipt)
         deployment_receipts = dict(zip(self.deployment_steps, ordered_receipts))
 
         # Set the contract and transaction receipts #
