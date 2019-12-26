@@ -39,6 +39,14 @@ def parse_node_uri(uri: str):
     else:
         checksum_address = None  # federated
 
+    #############################################
+    # Strange logic here to ensure https:// - possibly pursuant to https://bugs.python.org/msg179670
+    # It's not clear that there is any version of python 3.7+ that requires this, so we may
+    # be able to drop it in the near future.
+    if not uri.startswith("https://"):
+        uri = "https://" + uri
+    #############################################
+
     parsed_uri = urlparse(uri)
 
     if not parsed_uri.scheme:
