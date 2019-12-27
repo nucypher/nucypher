@@ -48,7 +48,7 @@ from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
 from umbral.signing import Signature
 
-from nucypher.blockchain.economics import TokenEconomicsFactory
+from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -1134,7 +1134,7 @@ class Teacher:
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)  # type: StakingEscrowAgent
 
         try:
-            economics = TokenEconomicsFactory.get_economics(registry=registry)
+            economics = EconomicsFactory.get_economics(registry=registry)
         except Exception:
             raise  # TODO: Get StandardEconomics
 

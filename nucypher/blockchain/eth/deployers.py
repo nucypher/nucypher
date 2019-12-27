@@ -24,7 +24,6 @@ from web3 import Web3
 from web3.contract import Contract
 
 from nucypher.blockchain.economics import StandardTokenEconomics
-from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,
     StakingEscrowAgent,
@@ -35,11 +34,13 @@ from nucypher.blockchain.eth.agents import (
     WorkLockAgent, ContractAgency)
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_secret, validate_checksum_address
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory, \
-    VersionedContract
-from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import (
+    VersionedContract
+)
 from nucypher.blockchain.eth.registry import AllocationRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 
 
 class BaseContractDeployer:
@@ -64,7 +65,7 @@ class BaseContractDeployer:
 
     def __init__(self,
                  registry: BaseContractRegistry,
-                 economics: TokenEconomics = None,
+                 economics: StandardTokenEconomics = None,
                  deployer_address: str = None):
 
         #
@@ -86,7 +87,7 @@ class BaseContractDeployer:
         self.__economics = economics or StandardTokenEconomics()
 
     @property
-    def economics(self) -> TokenEconomics:
+    def economics(self) -> StandardTokenEconomics:
         """Read-only access for economics instance."""
         return self.__economics
 
@@ -1074,8 +1075,8 @@ class WorklockDeployer(BaseContractDeployer):
     def __init__(self, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
-        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
+        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
 
     def deploy(self, gas_limit: int = None) -> Dict[str, str]:
         """

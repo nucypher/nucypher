@@ -16,7 +16,7 @@ from twisted.internet import threads, reactor
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 
-from nucypher.blockchain.economics import TokenEconomicsFactory
+from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
@@ -117,7 +117,7 @@ class Felix(Character, NucypherTokenActor):
         self._distribution_task.clock = self._CLOCK
         self.start_time = NOT_RUNNING
 
-        self.economics = TokenEconomicsFactory.get_economics(registry=registry)
+        self.economics = EconomicsFactory.get_economics(registry=registry)
         self.MAXIMUM_DISBURSEMENT = self.economics.maximum_allowed_locked
         self.INITIAL_DISBURSEMENT = self.economics.minimum_allowed_locked * 3
 

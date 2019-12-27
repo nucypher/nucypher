@@ -1,44 +1,17 @@
-import random
-
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3 import Web3
 
 from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency, NucypherTokenAgent
-from nucypher.blockchain.eth.deployers import WorkLockDeployer
+from nucypher.blockchain.eth.deployers import WorklockDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
-
 
 DEPOSIT_RATE = 100
 
 
-@pytest.fixture(scope="module", autouse=True)
-def deploy_worklock(testerchain, agency, test_registry, token_economics):
-
-    # TODO: Move to "WorkLockEconomics" class #1126
-    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
-    start_bid_date = now + (60 * 60)  # 1 Hour
-    end_bid_date = start_bid_date + (60 * 60)
-    deposit_rate = DEPOSIT_RATE
-    refund_rate = 200
-    locked_periods = 2 * token_economics.minimum_locked_periods
-
-    # Deploy
-    deployer = WorkLockDeployer(registry=test_registry,
-                                deployer_address=testerchain.etherbase_account,
-                                start_date=start_bid_date,
-                                end_date=end_bid_date,
-                                refund_rate=refund_rate,
-                                deposit_rate=deposit_rate,
-                                locked_periods=locked_periods)
-    _deployment_receipts = deployer.deploy()
-    return deployer
-
-
-def test_create_worklock_agent(testerchain, test_registry, agency, token_economics, deploy_worklock):
+def test_create_worklock_agent(testerchain, test_registry, agency, token_economics):
     agent = WorkLockAgent(registry=test_registry)
     assert agent.contract_address
     same_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
@@ -52,13 +25,13 @@ def test_bid_rejection_before_funding(testerchain, agency, token_economics, test
         _receipt = agent.bid(sender_address=big_bidder, eth_amount=int(Web3.fromWei(1, 'ether')))
 
 
-def test_funding_worklock_contract(testerchain, agency, test_registry, token_economics, deploy_worklock):
-    deployer = deploy_worklock
-    assert deployer.contract_address
-    assert deployer.contract_address is not BlockchainInterface.NULL_ADDRESS
-
+def test_funding_worklock_contract(testerchain, agency, test_registry, token_economics):
     transacting_power = TransactingPower(account=testerchain.etherbase_account, password=INSECURE_DEVELOPMENT_PASSWORD)
     transacting_power.activate()
+
+    deployer = WorklockDeployer(registry=test_registry,
+                                economics=token_economics,
+                                deployer_address=testerchain.etherbase_account)
 
     # WorkLock contract is unfunded.
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)

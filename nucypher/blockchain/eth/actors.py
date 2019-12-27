@@ -35,7 +35,7 @@ from eth_utils import keccak, is_checksum_address, to_checksum_address
 from twisted.logger import Logger
 from web3 import Web3
 
-from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics, TokenEconomicsFactory
+from nucypher.blockchain.economics import StandardTokenEconomics, EconomicsFactory
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
@@ -190,8 +190,8 @@ class ContractAdministrator(NucypherTokenActor):
                  registry: BaseContractRegistry,
                  deployer_address: str = None,
                  client_password: str = None,
-                 economics: TokenEconomics = None,
-                 staking_escrow_test_mode: bool = False):
+                 staking_escrow_test_mode: bool = False,
+                 economics: StandardTokenEconomics = None):
         """
         Note: super() is not called here to avoid setting the token agent.
         TODO: Review this logic ^^ "bare mode".  #1510
@@ -672,9 +672,9 @@ class Staker(NucypherTokenActor):
         self.__worker_address = None
 
         # Blockchain
-        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)  # type: PolicyManagerAgent
+        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)   # type: PolicyManagerAgent
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)  # type: StakingEscrowAgent
-        self.economics = TokenEconomicsFactory.get_economics(registry=self.registry)
+        self.economics = EconomicsFactory.get_economics(registry=self.registry)
 
         # Staking via contract
         self.individual_allocation = individual_allocation
@@ -1130,7 +1130,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
 
-        self.economics = TokenEconomicsFactory.get_economics(registry=self.registry)
+        self.economics = EconomicsFactory.get_economics(registry=self.registry)
         self.rate = rate
         self.duration_periods = duration_periods
 

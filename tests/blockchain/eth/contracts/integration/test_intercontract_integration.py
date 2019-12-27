@@ -23,14 +23,12 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address, to_wei
 from web3.contract import Contract
 
-from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.economics import TestEconomics
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
-
 from nucypher.crypto.api import sha256_digest
 from nucypher.crypto.signing import SignatureStamp
-
+from umbral.keys import UmbralPrivateKey
+from umbral.signing import Signer
 
 DISABLE_RE_STAKE_FIELD = 3
 WIND_DOWN_FIELD = 10
@@ -46,18 +44,19 @@ adjudicator_secret = os.urandom(SECRET_LENGTH)
 
 @pytest.fixture()
 def token_economics():
-    economics = TokenEconomics(initial_supply=10 ** 9,
-                               total_supply=2 * 10 ** 9,
-                               staking_coefficient=8 * 10 ** 7,
-                               locked_periods_coefficient=4,
-                               maximum_rewarded_periods=4,
-                               hours_per_period=1,
-                               minimum_locked_periods=6,
-                               minimum_allowed_locked=100,
-                               maximum_allowed_locked=2000,
-                               minimum_worker_periods=2,
-                               base_penalty=300,
-                               percentage_penalty_coefficient=2)
+    economics = TestEconomics()
+    # initial_supply=10 ** 9,
+    #                            total_supply=2 * 10 ** 9,
+    #                            staking_coefficient=8 * 10 ** 7,
+    #                            locked_periods_coefficient=4,
+    #                            maximum_rewarded_periods=4,
+    #                            hours_per_period=1,
+    #                            minimum_locked_periods=6,
+    #                            minimum_allowed_locked=100,
+    #                            maximum_allowed_locked=2000,
+    #                            minimum_worker_periods=2,
+    #                            base_penalty=300,
+    #                            percentage_penalty_coefficient=2)
     return economics
 
 

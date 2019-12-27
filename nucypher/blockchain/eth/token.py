@@ -568,8 +568,8 @@ class StakeList(UserList):
         super().__init__(*args, **kwargs)
         self.log = Logger('stake-tracker')
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
-        from nucypher.blockchain.economics import TokenEconomicsFactory
-        self.economics = TokenEconomicsFactory.get_economics(registry=registry)
+        from nucypher.blockchain.economics import EconomicsFactory
+        self.economics = EconomicsFactory.get_economics(registry=registry)
 
         self.__initial_period = NOT_STAKING
         self.__terminal_period = NOT_STAKING

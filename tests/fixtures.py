@@ -33,7 +33,7 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 from web3 import Web3
 
-from nucypher.blockchain.economics import StandardTokenEconomics
+from nucypher.blockchain.economics import TestEconomics
 from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
@@ -42,8 +42,11 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                StakingEscrowDeployer,
                                                PolicyManagerDeployer,
                                                AdjudicatorDeployer,
-                                               StakingInterfaceDeployer)
+                                               StakingInterfaceDeployer,
+                                               WorklockDeployer
+                                               )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
     RegistrySourceManager,
@@ -51,7 +54,6 @@ from nucypher.blockchain.eth.registry import (
     IndividualAllocationRegistry,
     CanonicalRegistrySource
 )
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob
@@ -91,7 +93,6 @@ from nucypher.utilities.sandbox.ursula import make_federated_ursulas
 from tests.performance_mocks import mock_cert_storage, mock_cert_loading, mock_rest_app_creation, mock_cert_generation, \
     mock_secret_source, mock_remember_node, mock_verify_node, mock_record_fleet_state, mock_message_verification, \
     mock_keep_learning
-
 
 test_logger = Logger("test-logger")
 
@@ -386,7 +387,7 @@ def federated_ursulas(ursula_federated_test_config):
 
 @pytest.fixture(scope='session')
 def token_economics():
-    economics = StandardTokenEconomics()
+    economics = TestEconomics()
     return economics
 
 
@@ -462,7 +463,7 @@ def testerchain(_testerchain):
     yield testerchain
 
 
-def _make_agency(testerchain, test_registry):
+def _make_agency(testerchain, test_registry, token_economics):
     """
     Launch the big three contracts on provided chain,
     make agents for each and return them.
@@ -475,25 +476,42 @@ def _make_agency(testerchain, test_registry):
 
     origin = testerchain.etherbase_account
 
-    token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)
+    token_deployer = NucypherTokenDeployer(deployer_address=origin,
+                                           economics=token_economics,
+                                           registry=test_registry)
     token_deployer.deploy()
 
-    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry, test_mode=True)
+    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin,
+                                                    economics=token_economics,
+                                                    registry=test_registry,
+                                                    test_mode=True)
     staking_escrow_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin, registry=test_registry)
+    policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin,
+                                                    economics=token_economics,
+                                                    registry=test_registry)
     policy_manager_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry)
+    adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin,
+                                               economics=token_economics,
+                                               registry=test_registry)
     adjudicator_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    staking_interface_deployer = StakingInterfaceDeployer(deployer_address=origin, registry=test_registry)
+    staking_interface_deployer = StakingInterfaceDeployer(deployer_address=origin,
+                                                          economics=token_economics,
+                                                          registry=test_registry)
     staking_interface_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    token_agent = token_deployer.make_agent()  # 1 Token
-    staking_agent = staking_escrow_deployer.make_agent()  # 2 Staking Escrow
-    policy_agent = policy_manager_deployer.make_agent()  # 3 Policy Agent
-    _adjudicator_agent = adjudicator_deployer.make_agent()  # 4 Adjudicator
+    worklock_deployer = WorklockDeployer(deployer_address=origin,
+                                         economics=token_economics,
+                                         registry=test_registry)
+    worklock_deployer.deploy()
+
+    token_agent = token_deployer.make_agent()                           # 1 Token
+    staking_agent = staking_escrow_deployer.make_agent()                # 2 Staking Escrow
+    policy_agent = policy_manager_deployer.make_agent()                 # 3 Policy Agent
+    _adjudicator_agent = adjudicator_deployer.make_agent()              # 4 Adjudicator
+    _worklock_agent = worklock_deployer.make_agent()                    # 5 Worklock
 
     # TODO: Get rid of returning these agents here.
     # What's important is deploying and creating the first agent for each contract,
@@ -547,8 +565,10 @@ def test_registry_source_manager(testerchain, test_registry):
 
 
 @pytest.fixture(scope='module')
-def agency(testerchain, test_registry, test_registry_source_manager):
-    agents = _make_agency(testerchain=testerchain, test_registry=test_registry)
+def agency(testerchain, test_registry, token_economics, test_registry_source_manager):
+    agents = _make_agency(testerchain=testerchain,
+                          test_registry=test_registry,
+                          token_economics=token_economics)
     yield agents
 
 

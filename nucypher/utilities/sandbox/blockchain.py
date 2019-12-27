@@ -25,7 +25,7 @@ from eth_tester.exceptions import TransactionFailed
 from twisted.logger import Logger
 from web3 import Web3
 
-from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics
+from nucypher.blockchain.economics import StandardTokenEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
@@ -206,7 +206,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
     @classmethod
     def bootstrap_network(cls,
-                          economics: TokenEconomics = None
+                          economics: StandardTokenEconomics = None
                           ) -> Tuple['TesterBlockchain', 'InMemoryContractRegistry']:
         """For use with metric testing scripts"""
 

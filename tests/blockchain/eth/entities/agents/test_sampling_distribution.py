@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from collections import Counter
 
-from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
@@ -26,7 +26,7 @@ from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 
 @pytest.fixture()
 def token_economics():
-    economics = TokenEconomics(initial_supply=10 ** 9,
+    economics = StandardTokenEconomics(initial_supply=10 ** 9,
                                total_supply=2 * 10 ** 9,
                                staking_coefficient=8 * 10 ** 7,
                                locked_periods_coefficient=4,

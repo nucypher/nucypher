@@ -987,3 +987,18 @@ class WorkLockAgent(EthereumContractAgent):
         """
         result = self.contract.functions.getRemainingWork(target_address).call()
         return result
+
+    def worklock_parameters(self) -> Tuple:
+        parameter_signatures = (
+            'startBidDate',
+            'endBidDate',
+            'depositRate',
+            'refundRate',
+            'lockedPeriods'
+        )
+
+        def _call_function_by_name(name: str):
+            return getattr(self.contract.functions, name)().call()
+
+        parameters = tuple(map(_call_function_by_name, parameter_signatures))
+        return parameters
