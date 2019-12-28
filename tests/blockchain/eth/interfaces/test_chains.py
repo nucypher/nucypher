@@ -15,23 +15,25 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
+import types
 from os.path import dirname, abspath
 
+import maya
 import pytest
 
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-# Prevents TesterBlockchain to be picked up by py.test as a test class
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler, SourceDirs
 from nucypher.crypto.powers import TransactingPower
+# Prevents TesterBlockchain to be picked up by py.test as a test class
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
-    TEST_PROVIDER_URI,
-    INSECURE_DEVELOPMENT_PASSWORD)
+    INSECURE_DEVELOPMENT_PASSWORD
+)
 
 
 @pytest.fixture()
@@ -157,3 +159,76 @@ def test_multiversion_contract():
                                                              contract_name=contract_name)
     assert contract.version == "v1.2.3"
     assert contract.functions.VERSION().call() == 2
+
+
+def test_block_confirmations(testerchain, test_registry):
+
+    testerchain.TIMEOUT = 5  # Reduce timeout for tests, for the moment
+    origin = testerchain.etherbase_account
+
+    # Let's try to deploy a simple contract (ReceiveApprovalMethodMock) with 1 confirmation.
+    # Since the testerchain doesn't automine, this fails.
+    with pytest.raises(testerchain.NotEnoughConfirmations):
+        _ = testerchain.deploy_contract(origin,
+                                        test_registry,
+                                        'ReceiveApprovalMethodMock',
+                                        confirmations=10)
+
+    # Trying again with no confirmation succeeds.
+    contract, _ = testerchain.deploy_contract(origin,
+                                              test_registry,
+                                              'ReceiveApprovalMethodMock')
+
+    # Trying a simple function of the contract with 1 confirmations fails too, for the same reason
+    tx_function = contract.functions.receiveApproval(origin, 0, origin, b'')
+    with pytest.raises(testerchain.NotEnoughConfirmations):
+        _ = testerchain.send_transaction(contract_function=tx_function,
+                                         sender_address=origin,
+                                         confirmations=1)
+
+    # Trying again with no confirmation succeeds.
+    tx_receipt = testerchain.send_transaction(contract_function=tx_function,
+                                              sender_address=origin,
+                                              confirmations=0)
+
+    assert testerchain.get_confirmations(tx_receipt) == 0
+    testerchain.w3.eth.web3.testing.mine(1)
+    assert testerchain.get_confirmations(tx_receipt) == 1
+
+    # TODO: Find a way to test block confirmations. The following approach fails sometimes. Perhaps using a background threat that mines blocks?
+    # # Ok, I admit that the tests so far weren't very exciting, since we cannot directly test confirmations
+    # # as new blocks are not mined continuously in our test framework.
+    # # Let's do something hacky and monkey-patch the method that checks the number of confirmations to
+    # # mine a new block, say, each 5 seconds.
+    #
+    # get_confirmations = testerchain.get_confirmations
+    #
+    # def patched_get_confirmations(self, receipt):
+    #     now = maya.now().second
+    #     elapsed = now - patched_get_confirmations.timestamp
+    #     blocks = elapsed // 5
+    #     if blocks > 0:
+    #         testerchain.w3.eth.web3.testing.mine(blocks)
+    #         patched_get_confirmations.timestamp = now
+    #     return get_confirmations(receipt)
+    #
+    # patched_get_confirmations.timestamp = maya.now().second
+    # testerchain.get_confirmations = types.MethodType(patched_get_confirmations, testerchain)
+    #
+    # # With a timeout of 30, now we can ask for 1 or 2 confirmations...
+    # testerchain.TIMEOUT = 30
+    # _ = testerchain.send_transaction(contract_function=tx_function,
+    #                                  sender_address=origin,
+    #                                  confirmations=1)
+    #
+    # _ = testerchain.send_transaction(contract_function=tx_function,
+    #                                  sender_address=origin,
+    #                                  confirmations=2)
+    #
+    # # ... but not 10, that's too much.
+    # with pytest.raises(testerchain.NotEnoughConfirmations):
+    #     _ = testerchain.send_transaction(contract_function=tx_function,
+    #                                      sender_address=origin,
+    #                                      confirmations=10)
+
+

@@ -25,6 +25,7 @@ from typing import Union
 from urllib.parse import urlparse
 
 import click
+import maya
 import requests
 import time
 from constant_sorrow.constants import (
@@ -93,6 +94,9 @@ class BlockchainInterface:
         pass
 
     class UnknownContract(InterfaceError):
+        pass
+
+    class NotEnoughConfirmations(InterfaceError):
         pass
 
     def __init__(self,
@@ -341,6 +345,7 @@ class BlockchainInterface:
                          sender_address: str,
                          payload: dict = None,
                          transaction_gas_limit: int = None,
+                         confirmations: int = 0,
                          ) -> dict:
 
         if self.transacting_power is READ_ONLY_INTERFACE:
@@ -427,7 +432,27 @@ class BlockchainInterface:
                 raise self.InterfaceError(f"Transaction consumed 100% of transaction gas."
                                           f"Full receipt: \n {pprint.pformat(receipt, indent=2)}")
 
+        # Block confirmations
+        start = maya.now()
+        confirmations_so_far = self.get_confirmations(receipt)
+        while confirmations_so_far < confirmations:
+            self.log.info(f"So far, we've only got {confirmations_so_far} confirmations. "
+                          f"Waiting for {confirmations - confirmations_so_far} more.")
+            time.sleep(3)
+            confirmations_so_far = self.get_confirmations(receipt)
+            if (maya.now() - start).seconds > self.TIMEOUT:
+                raise self.NotEnoughConfirmations
+
         return receipt
+
+    def get_confirmations(self, receipt: dict) -> int:
+        tx_block_number = receipt.get('blockNumber')
+        latest_block_number = self.w3.eth.blockNumber
+        confirmations = latest_block_number - tx_block_number
+        if confirmations < 0:
+            raise ValueError(f"Can't get number of confirmations for transaction {receipt['transactionHash'].hex()}, "
+                             f"as it seems to come from {-confirmations} blocks in the future...")
+        return confirmations
 
     def get_contract_by_name(self,
                              registry: BaseContractRegistry,
@@ -570,6 +595,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                         *constructor_args,
                         enroll: bool = True,
                         gas_limit: int = None,
+                        confirmations: int = 0,
                         contract_version: str = 'latest',
                         **constructor_kwargs
                         ) -> Tuple[VersionedContract, dict]:
@@ -602,11 +628,8 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
         receipt = self.send_transaction(contract_function=transaction_function,
                                         sender_address=deployer_address,
-                                        payload=deploy_transaction)
-
-        #
-        # Verify deployment success
-        #
+                                        payload=deploy_transaction,
+                                        confirmations=confirmations)
 
         # Success
         address = receipt['contractAddress']
