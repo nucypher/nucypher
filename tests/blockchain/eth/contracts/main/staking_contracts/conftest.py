@@ -26,7 +26,7 @@ from nucypher.blockchain.eth.token import NU
 @pytest.fixture()
 def token(testerchain, deploy_contract):
     # Create an ERC20 token
-    token, _ = deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 9, 'NuNit')))
+    token, _ = deploy_contract('NuCypherToken', _totalSupplyOfTokens=int(NU(2 * 10 ** 9, 'NuNit')))
     return token
 
 

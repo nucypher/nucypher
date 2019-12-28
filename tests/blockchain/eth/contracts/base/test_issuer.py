@@ -31,7 +31,7 @@ TOTAL_SUPPLY = 2 * 10 ** 36
 @pytest.fixture()
 def token(testerchain, deploy_contract):
     # Create an ERC20 token
-    token, _ = deploy_contract('NuCypherToken', _totalSupply=TOTAL_SUPPLY)
+    token, _ = deploy_contract('NuCypherToken', _totalSupplyOfTokens=TOTAL_SUPPLY)
     return token
 
 

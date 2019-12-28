@@ -44,7 +44,7 @@ def token_economics():
 @pytest.fixture()
 def token(deploy_contract, token_economics):
     # Create an ERC20 token
-    token, _ = deploy_contract('NuCypherToken', _totalSupply=token_economics.erc20_total_supply)
+    token, _ = deploy_contract('NuCypherToken', _totalSupplyOfTokens=token_economics.erc20_total_supply)
     return token
 
 
