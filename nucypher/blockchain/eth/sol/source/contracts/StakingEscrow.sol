@@ -278,6 +278,7 @@ contract StakingEscrow is Issuer {
     function getLockedTokens(StakerInfo storage _info, uint16 _currentPeriod, uint16 _period)
         internal view returns (uint256 lockedValue)
     {
+        lockedValue = 0;
         uint16 startPeriod = getStartPeriod(_info, _currentPeriod);
         for (uint256 i = 0; i < _info.subStakes.length; i++) {
             SubStakeInfo storage subStake = _info.subStakes[i];
@@ -352,6 +353,7 @@ contract StakingEscrow is Issuer {
             endIndex = _startIndex + _maxStakers;
         }
         activeStakers = new uint256[2][](endIndex - _startIndex);
+        allLockedTokens = 0;
 
         uint256 resultIndex = 0;
         uint16 currentPeriod = getCurrentPeriod();
@@ -871,6 +873,7 @@ contract StakingEscrow is Issuer {
     )
         internal returns (uint256 reward)
     {
+        reward = 0;
         uint16 mintingPeriod = _confirmedPeriodNumber == 1 ? _info.confirmedPeriod1 : _info.confirmedPeriod2;
         for (uint256 i = 0; i < _info.subStakes.length; i++) {
             SubStakeInfo storage subStake =  _info.subStakes[i];
@@ -992,6 +995,10 @@ contract StakingEscrow is Issuer {
         uint16 minDuration = MAX_UINT16;
         uint16 minLastPeriod = MAX_UINT16;
         shortestSubStakeIndex = MAX_SUB_STAKES;
+        currentLock = 0;
+        nextLock = 0;
+        currentAndNextLock = 0;
+
         for (uint256 i = 0; i < _info.subStakes.length; i++) {
             SubStakeInfo storage subStake = _info.subStakes[i];
             uint16 lastPeriod = getLastPeriodOfSubStake(subStake, _startPeriod);

@@ -363,6 +363,7 @@ contract PolicyManager is Upgradeable {
     function refundInternal(bytes16 _policyId, address _node, bool _forceRevoke)
         internal returns (uint256 refundValue)
     {
+        refundValue = 0;
         Policy storage policy = policies[_policyId];
         require(!policy.disabled);
         uint16 endPeriod = uint16(policy.endTimestamp / secondsPerPeriod) + 1;
@@ -447,6 +448,7 @@ contract PolicyManager is Upgradeable {
     function calculateRefundValueInternal(bytes16 _policyId, address _node)
         internal view returns (uint256 refundValue)
     {
+        refundValue = 0;
         Policy storage policy = policies[_policyId];
         require((policy.owner == msg.sender || policy.sponsor == msg.sender) && !policy.disabled);
         uint256 i = 0;
