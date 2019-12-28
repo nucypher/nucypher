@@ -30,7 +30,7 @@ contract StakingInterfaceRouter is Ownable {
     * @param _secret Secret for proof of contract owning
     * @param _newSecretHash New secret hash (keccak256)
     */
-    function upgrade(address _target, bytes memory _secret, bytes32 _newSecretHash) public onlyOwner {
+    function upgrade(address _target, bytes calldata _secret, bytes32 _newSecretHash) external onlyOwner {
         require(_target.isContract());
         require(keccak256(_secret) == secretHash && _newSecretHash != secretHash);
         target = _target;

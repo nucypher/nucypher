@@ -12,8 +12,8 @@ import "contracts/staking_contracts/AbstractStakingContract.sol";
 * @notice StakingEscrow interface
 */
 contract StakingEscrowInterface {
-    function getAllTokens(address _staker) public view returns (uint256);
-    function secondsPerPeriod() public view returns (uint32);
+    function getAllTokens(address _staker) external view returns (uint256);
+    function secondsPerPeriod() external view returns (uint32);
 }
 
 /**
@@ -71,7 +71,7 @@ contract PreallocationEscrow is AbstractStakingContract, Ownable {
     * @param _value Amount of token to deposit
     * @param _duration Duration of tokens locking
     */
-    function initialDeposit(uint256 _value, uint256 _duration) public {
+    function initialDeposit(uint256 _value, uint256 _duration) external {
         initialDeposit(msg.sender, _value, _duration);
     }
 
@@ -129,7 +129,7 @@ contract PreallocationEscrow is AbstractStakingContract, Ownable {
     * @notice Withdraw available amount of tokens to owner
     * @param _value Amount of token to withdraw
     */
-    function withdrawTokens(uint256 _value) public onlyOwner {
+    function withdrawTokens(uint256 _value) external onlyOwner {
         uint256 balance = token.balanceOf(address(this));
         require(balance >= _value);
         // Withdrawal invariant for PreallocationEscrow:
@@ -142,7 +142,7 @@ contract PreallocationEscrow is AbstractStakingContract, Ownable {
     /**
     * @notice Withdraw available ETH to the owner
     */
-    function withdrawETH() public onlyOwner {
+    function withdrawETH() external onlyOwner {
         uint256 balance = address(this).balance;
         require(balance != 0);
         msg.sender.sendValue(balance);

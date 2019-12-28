@@ -198,7 +198,7 @@ def test_inflation_rate(testerchain, token, deploy_contract):
     testerchain.wait_for_receipt(tx)
     tx = token.functions.approve(issuer.address, amount_to_burn).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    tx = issuer.functions.testBurn(amount_to_burn).transact({'from': ursula})
+    tx = issuer.functions.burn(amount_to_burn).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     assert reward + amount_to_burn == issuer.functions.getReservedReward().call()
 

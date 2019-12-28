@@ -45,10 +45,6 @@ contract IssuerMock is Issuer {
         token.transfer(msg.sender, amount);
     }
 
-    function testBurn(uint256 _value) public {
-        burn(_value);
-    }
-
 }
 
 

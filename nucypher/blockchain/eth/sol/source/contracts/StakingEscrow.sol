@@ -10,7 +10,7 @@ import "contracts/Issuer.sol";
 contract PolicyManagerInterface {
     function register(address _node, uint16 _period) external;
     function updateReward(address _node, uint16 _period) external;
-    function escrow() public view returns (address);
+    function escrow() external view returns (address);
     function setDefaultRewardDelta(address _node, uint16 _period) external;
 }
 
@@ -19,7 +19,7 @@ contract PolicyManagerInterface {
 * @notice Adjudicator interface
 */
 contract AdjudicatorInterface {
-    function escrow() public view returns (address);
+    function escrow() external view returns (address);
 }
 
 
@@ -27,7 +27,7 @@ contract AdjudicatorInterface {
 * @notice WorkLock interface
 */
 contract WorkLockInterface {
-    function escrow() public view returns (address);
+    function escrow() external view returns (address);
 }
 
 
@@ -389,7 +389,7 @@ contract StakingEscrow is Issuer {
     /**
     * @notice Get worker using staker's address
     */
-    function getWorkerFromStaker(address _staker) public view returns (address) {
+    function getWorkerFromStaker(address _staker) external view returns (address) {
         StakerInfo storage info = stakerInfo[_staker];
         // specified address is not a staker
         if (stakerInfo[_staker].subStakes.length == 0) {
@@ -408,7 +408,7 @@ contract StakingEscrow is Issuer {
     /**
     * @notice Get work that completed by the staker
     */
-    function getCompletedWork(address _staker) public view returns (uint256) {
+    function getCompletedWork(address _staker) external view returns (uint256) {
         return stakerInfo[_staker].completedWork;
     }
 
@@ -434,7 +434,7 @@ contract StakingEscrow is Issuer {
     * @param _measureWork Value for `measureWork` parameter
     * @return Work that was previously done
     */
-    function setWorkMeasurement(address _staker, bool _measureWork) public returns (uint256) {
+    function setWorkMeasurement(address _staker, bool _measureWork) external returns (uint256) {
         require(msg.sender == address(workLock));
         StakerInfo storage info = stakerInfo[_staker];
         info.measureWork = _measureWork;
@@ -445,7 +445,7 @@ contract StakingEscrow is Issuer {
     /** @notice Set worker
     * @param _worker Worker address. Must be a real address, not a contract
     */
-    function setWorker(address _worker) public onlyStaker {
+    function setWorker(address _worker) external onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
         require(_worker != info.worker, "Specified worker is already set for this staker");
         uint16 currentPeriod = getCurrentPeriod();
@@ -476,7 +476,7 @@ contract StakingEscrow is Issuer {
     * Only if this parameter is not locked
     * @param _reStake Value for parameter
     */
-    function setReStake(bool _reStake) public isInitialized {
+    function setReStake(bool _reStake) external isInitialized {
         require(!isReStakeLocked(msg.sender));
         StakerInfo storage info = stakerInfo[msg.sender];
         if (info.reStakeDisabled == !_reStake) {
@@ -490,7 +490,7 @@ contract StakingEscrow is Issuer {
     * @notice Lock `reStake` parameter. Only if this parameter is not locked
     * @param _lockReStakeUntilPeriod Can't change `reStake` value until this period
     */
-    function lockReStake(uint16 _lockReStakeUntilPeriod) public isInitialized {
+    function lockReStake(uint16 _lockReStakeUntilPeriod) external isInitialized {
         require(!isReStakeLocked(msg.sender) &&
             _lockReStakeUntilPeriod > getCurrentPeriod());
         stakerInfo[msg.sender].lockReStakeUntilPeriod = _lockReStakeUntilPeriod;
@@ -502,7 +502,7 @@ contract StakingEscrow is Issuer {
     * If true then stakes duration will be decreasing in each period with `confirmActivity()`
     * @param _windDown Value for parameter
     */
-    function setWindDown(bool _windDown) public onlyStaker {
+    function setWindDown(bool _windDown) external onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
         if (info.windDown == _windDown) {
             return;

@@ -148,7 +148,7 @@ contract PolicyManager is Upgradeable {
     /**
     * @notice Set the minimum reward that the node will take
     */
-    function setMinRewardRate(uint256 _minRewardRate) public {
+    function setMinRewardRate(uint256 _minRewardRate) external {
         NodeInfo storage node = nodes[msg.sender];
         node.minRewardRate = _minRewardRate;
     }
@@ -165,9 +165,9 @@ contract PolicyManager is Upgradeable {
         bytes16 _policyId,
         address _policyOwner,
         uint64 _endTimestamp,
-        address[] memory _nodes
+        address[] calldata _nodes
     )
-        public payable
+        external payable
     {
         Policy storage policy = policies[_policyId];
         require(
@@ -287,7 +287,7 @@ contract PolicyManager is Upgradeable {
     /**
     * @notice Withdraw reward by node
     */
-    function withdraw() public returns (uint256) {
+    function withdraw() external returns (uint256) {
         return withdraw(msg.sender);
     }
 
@@ -473,7 +473,7 @@ contract PolicyManager is Upgradeable {
     * @notice Revoke policy by the sponsor
     * @param _policyId Policy id
     */
-    function revokePolicy(bytes16 _policyId) public returns (uint256 refundValue) {
+    function revokePolicy(bytes16 _policyId) external returns (uint256 refundValue) {
         require(getPolicyOwner(_policyId) == msg.sender);
         return refundInternal(_policyId, RESERVED_NODE, true);
     }
@@ -484,7 +484,7 @@ contract PolicyManager is Upgradeable {
     * @param _node Node that will be excluded
     */
     function revokeArrangement(bytes16 _policyId, address _node)
-        public returns (uint256 refundValue)
+        external returns (uint256 refundValue)
     {
         require(_node != RESERVED_NODE);
         require(getPolicyOwner(_policyId) == msg.sender);
@@ -519,8 +519,8 @@ contract PolicyManager is Upgradeable {
     * @param _node Node that will be excluded, zero address if whole policy will be revoked
     * @param _signature Signature of owner, EIP191 version 0x45 ('E')
     */
-    function revoke(bytes16 _policyId, address _node, bytes memory _signature)
-        public returns (uint256 refundValue)
+    function revoke(bytes16 _policyId, address _node, bytes calldata _signature)
+        external returns (uint256 refundValue)
     {
         checkOwnerSignature(_policyId, _node, _signature);
         return refundInternal(_policyId, _node, true);
@@ -530,7 +530,7 @@ contract PolicyManager is Upgradeable {
     * @notice Refund part of fee by the sponsor
     * @param _policyId Policy id
     */
-    function refund(bytes16 _policyId) public {
+    function refund(bytes16 _policyId) external {
         Policy storage policy = policies[_policyId];
         require(policy.owner == msg.sender || policy.sponsor == msg.sender);
         refundInternal(_policyId, RESERVED_NODE, false);
@@ -542,7 +542,7 @@ contract PolicyManager is Upgradeable {
     * @param _node Node address
     */
     function refund(bytes16 _policyId, address _node)
-        public returns (uint256 refundValue)
+        external returns (uint256 refundValue)
     {
         require(_node != RESERVED_NODE);
         Policy storage policy = policies[_policyId];
@@ -577,7 +577,7 @@ contract PolicyManager is Upgradeable {
     * @param _policyId Policy id
     */
     function getArrangementsLength(bytes16 _policyId)
-        public view returns (uint256)
+        external returns (uint256)
     {
         return policies[_policyId].arrangements.length;
     }
@@ -588,7 +588,7 @@ contract PolicyManager is Upgradeable {
     * @param _period Period to get reward delta
     */
     function getNodeRewardDelta(address _node, uint16 _period)
-        public view returns (int256)
+        external view returns (int256)
     {
         return nodes[_node].rewardDelta[_period];
     }
@@ -599,7 +599,7 @@ contract PolicyManager is Upgradeable {
     function getArrangementInfo(bytes16 _policyId, uint256 _index)
     // TODO change to structure when ABIEncoderV2 is released (#1501)
 //        public view returns (ArrangementInfo)
-        public view returns (address node, uint256 indexOfDowntimePeriods, uint16 lastRefundedPeriod)
+        external view returns (address node, uint256 indexOfDowntimePeriods, uint16 lastRefundedPeriod)
     {
         ArrangementInfo storage info = policies[_policyId].arrangements[_index];
         node = info.node;
