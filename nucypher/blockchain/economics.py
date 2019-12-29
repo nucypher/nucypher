@@ -97,11 +97,10 @@ class BaseEconomics:
                  reward_coefficient: int = __default_reward_coefficient,
 
                  # WorkLock
+                 worklock_supply: int = NotImplemented,
                  bidding_start_date: int = NotImplemented,
                  bidding_end_date: int = NotImplemented,
-                 worklock_supply: int = NotImplemented,
-                 worklock_deposit_rate: int = NotImplemented,
-                 worklock_refund_rate: int = NotImplemented,
+                 worklock_boosting_refund_rate: int = NotImplemented,
                  worklock_commitment_duration: int = NotImplemented):
 
         """
@@ -130,8 +129,7 @@ class BaseEconomics:
         self.bidding_start_date = bidding_start_date
         self.bidding_end_date = bidding_end_date
         self.worklock_supply = worklock_supply
-        self.worklock_deposit_rate = worklock_deposit_rate
-        self.worklock_refund_rate = worklock_refund_rate
+        self.worklock_boosting_refund_rate = worklock_boosting_refund_rate
         self.worklock_commitment_duration = worklock_commitment_duration
 
         #
@@ -211,8 +209,7 @@ class BaseEconomics:
     def worklock_deployment_parameters(self):
         deployment_parameters = [self.bidding_start_date,
                                  self.bidding_end_date,
-                                 self.worklock_deposit_rate,
-                                 self.worklock_refund_rate,
+                                 self.worklock_boosting_refund_rate,
                                  self.worklock_commitment_duration]
         return tuple(map(int, deployment_parameters))
 
@@ -343,13 +340,11 @@ class TestEconomics(StandardTokenEconomics):
     nickname = 'test-economics'
     description = f'Identical to {StandardTokenEconomics.nickname} with Instant-start one-hour worklock.'
 
-    __default_worklock_deposit_rate = 100
-    __default_worklock_refund_rate = 200
+    __default_worklock_boosting_refund_rate = 200
     __default_worklock_supply = NotImplemented
 
     def __init__(self,
-                 worklock_deposit_rate: int = __default_worklock_deposit_rate,
-                 worklock_refund_rate: int = __default_worklock_refund_rate,
+                 worklock_boosting_refund_rate: int = __default_worklock_boosting_refund_rate,
                  worklock_supply: int = __default_worklock_supply,
                  *args, **kwargs):
 
@@ -357,8 +352,7 @@ class TestEconomics(StandardTokenEconomics):
         # Injected
         #
 
-        super().__init__(worklock_deposit_rate=worklock_deposit_rate,
-                         worklock_refund_rate=worklock_refund_rate,
+        super().__init__(worklock_boosting_refund_rate=worklock_boosting_refund_rate,
                          worklock_supply=worklock_supply,
                          *args, **kwargs)
 
@@ -368,13 +362,22 @@ class TestEconomics(StandardTokenEconomics):
 
         self.worklock_supply = self.maximum_allowed_locked
 
-        # TODO: Move to Standard Economics
-        self.maximum_bid = int(self.maximum_allowed_locked // self.worklock_deposit_rate)
-        self.minimum_bid = int(self.minimum_allowed_locked // self.worklock_deposit_rate)
+        # TODO: Restore & Move to Standard Economics?
+        # self.maximum_bid = int(self.maximum_allowed_locked // self.worklock_deposit_rate)
+        # self.minimum_bid = int(self.minimum_allowed_locked // self.worklock_deposit_rate)
 
     @property
     def worklock_deployment_parameters(self):
-        """Lazy"""
+        """
+        0 token - Token contract
+        1 escrow -  Escrow contract
+        2 router - Router contract
+        ...
+        3 startBidDate - Timestamp when bidding starts
+        4 endBidDate - Timestamp when bidding will end
+        5 boostingRefund - Coefficient to boost refund ETH
+        6 lockingDuration - Duration of tokens locking
+        """
         from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
         # from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI
 
@@ -391,8 +394,7 @@ class TestEconomics(StandardTokenEconomics):
 
         deployment_parameters = [self.bidding_start_date,
                                  self.bidding_end_date,
-                                 self.worklock_deposit_rate,
-                                 self.worklock_refund_rate,
+                                 self.worklock_boosting_refund_rate,
                                  self.worklock_commitment_duration]
         return tuple(map(int, deployment_parameters))
 
@@ -414,28 +416,37 @@ class EconomicsFactory:
 
     @staticmethod
     def retrieve_from_blockchain(registry: BaseContractRegistry) -> BaseEconomics:
+
+        # Agents
         token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
         adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=registry)
         worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)
 
+        # Token
         total_supply = token_agent.contract.functions.totalSupply().call()
         reward_supply = staking_agent.contract.functions.getReservedReward().call()
         # it's not real initial_supply value because used current reward instead of initial
         initial_supply = total_supply - reward_supply
 
+        # Staking Escrow
         staking_parameters = list(staking_agent.staking_parameters())
         seconds_per_period = staking_parameters.pop(0)
         staking_parameters.insert(3, seconds_per_period // 60 // 60)  # hours_per_period
+
+        # Adjudicator
         slashing_parameters = adjudicator_agent.slashing_parameters()
 
-        # TODO: How to get worklock supply?
+        # Worklock
         worklock_parameters = worklock_agent.worklock_parameters()
+        worklock_supply = worklock_agent.total_supply()
 
+        # Aggregate (order-sensitive)
         economics_parameters = (initial_supply,
                                 total_supply,
                                 *staking_parameters,
                                 *slashing_parameters,
+                                worklock_supply,
                                 *worklock_parameters)
 
         economics = BaseEconomics(*economics_parameters)

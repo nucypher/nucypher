@@ -1077,26 +1077,19 @@ class WorklockDeployer(BaseContractDeployer):
         super().__init__(*args, **kwargs)
         self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+        self.interface_agent = ContractAgency.get_agent(PreallocationEscrowAgent.StakingInterfaceAgent,
+                                                        registry=self.registry)
 
-    def deploy(self, gas_limit: int = None) -> Dict[str, str]:
-        """
-
-        Worklock Constructor Parameters (Ordered)
-        ============================================================================
-        _token Token contract
-        _escrow Escrow contract
-        _startBidDate Timestamp when bidding starts
-        _endBidDate Timestamp when bidding will end
-        _depositRate ETH -> NU rate
-        _refundRate Work -> ETH rate
-        _lockedPeriods Number of periods during which claimed tokens will be locked
-
-        """
+    def deploy(self, initial_deployment: bool = True, gas_limit: int = None, progress=None) -> Dict[str, str]:
         self.check_deployment_readiness()
 
+        interface_router = self.blockchain.get_proxy_contract(registry=self.registry,
+                                                              target_address=self.interface_agent.contract_address,
+                                                              proxy_name=self.interface_agent._proxy_name)
         # Deploy
         constructor_args = (self.token_agent.contract_address,
                             self.staking_agent.contract_address,
+                            interface_router.address,
                             *self.economics.worklock_deployment_parameters)
 
         worklock_contract, deploy_txhash = self.blockchain.deploy_contract(self.deployer_address,
@@ -1113,11 +1106,3 @@ class WorklockDeployer(BaseContractDeployer):
         self.deployment_transactions = {'deployment': deploy_txhash, 'bond_escrow': bonding_receipt}
         self._contract = worklock_contract
         return self.deployment_transactions
-
-    def fund(self, sender_address: str, value: int) -> dict:
-        """Convenience method for funding the contract."""
-        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
-        receipt = token_agent.transfer(sender_address=sender_address,
-                                       target_address=self.contract_address,
-                                       amount=value)
-        return receipt

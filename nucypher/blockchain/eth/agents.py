@@ -954,6 +954,20 @@ class WorkLockAgent(EthereumContractAgent):
 
     registry_contract_name = "WorkLock"
 
+    def fund(self, sender_address: str, supply) -> dict:
+        """Convenience method for funding the contract."""
+        supply = supply.to_nunits()
+
+        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
+        approve_function = token_agent.contract.functions.approve(self.contract_address, supply)
+        approve_receipt = self.blockchain.send_transaction(contract_function=approve_function,
+                                                           sender_address=sender_address)
+
+        funding_function = self.contract.functions.tokenDeposit(supply)
+        funding_receipt = self.blockchain.send_transaction(contract_function=funding_function,
+                                                           sender_address=sender_address)
+        return funding_receipt
+
     def bid(self, eth_amount: int,  sender_address: str) -> dict:
         """
         Bid for tokens with ETH.
