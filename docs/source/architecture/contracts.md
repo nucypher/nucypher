@@ -21,14 +21,14 @@ For a guide of how to deploy these contracts automatically, see the [Deployment 
 2. Deploy `StakingEscrow` with a dispatcher targeting it
 3. Deploy `PolicyManager` with its own dispatcher, also targeting it
 4. Deploy `Adjudicator` with a dispatcher
-5. Deploy `WorkLock` contract
-6. Transfer reward tokens to the `StakingEscrow` contract. These tokens are future mining rewards and initial allocations
-7. Run the `initialize()` method to initialize the `StakingEscrow` contract
-8. Set the address of the `PolicyManager` contract  in the `StakingEscrow` by using the `setPolicyManager(address)`
-9. Set the address of the `Adjudicator` contract  in the `StakingEscrow` by using the `setAdjudicator(address)`
-10. Set the address of the `WorkLock` contract  in the `StakingEscrow` by using the `setWorkLock(address)`
-11. Transfer tokens for distribution to the `WorkLock` contract
-12. Deploy `StakingInterface` with `StakingInterfaceRouter` targeting it
+5. Deploy `StakingInterface` with `StakingInterfaceRouter` targeting it
+6. Deploy `WorkLock` contract
+7. Set the address of the `PolicyManager` contract  in the `StakingEscrow` by using the `setPolicyManager(address)`
+8. Set the address of the `Adjudicator` contract  in the `StakingEscrow` by using the `setAdjudicator(address)`
+9. Set the address of the `WorkLock` contract  in the `StakingEscrow` by using the `setWorkLock(address)`
+10. Approve tokens transfer to the `StakingEscrow` contract. These tokens are future mining rewards
+11. Run the `initialize(uint256)` method to initialize the `StakingEscrow` contract
+12. Approve tokens transfer for distribution to the `WorkLock` contract and call `tokenDeposit(uint256)` method
 13. Pre-deposit tokens to the `PreallocationEscrow`:
 	* Create new instance of the `PreallocationEscrow` contract 
 	* Transfer ownership of the instance of the `PreallocationEscrow` contract to the user
@@ -41,22 +41,24 @@ For a guide of how to deploy these contracts automatically, see the [Deployment 
 
 Alice uses a network of Ursula stakers to deploy policies.
 In order to take advantage of the network, Alice chooses stakers and deploys policies with fees for those stakers.
-Alice can choose stakers by herself ("handpicked") or by using `StakingEscrow.sample(uint256[], uint16)` - This is  known as ("sampling").
-`sample` parameters are:
-* The array of absolute values
+Alice can choose stakers by herself ("handpicked") or select from the result of `StakingEscrow.getActiveStakers(uint16, uint256, uint256)` method - This is  known as ("sampling").
+`getActiveStakers` parameters are:
 * Minimum number of periods during which tokens are locked
+* Start index for looking in stakers array 
+* Max stakers for looking
 This method will return only active stakers.
 
-In order to place the fee for a policy, Alice calls the method `PolicyManager.createPolicy(bytes16, uint16, uint256, address[])`,
-specifying the staker's addresses, the policy ID (off-chain generation), the policy duration in periods, and the first period's reward.
-Payment should be added to the transaction in ETH and the amount is `firstReward * stakers.length + rewardRate * periods * stakers.length`.
-The reward rate must be greater than or equal to the minimum reward for each staker in the list. The first period's reward is not refundable, and can be zero.
+In order to place the fee for a policy, Alice calls the method `PolicyManager.createPolicy(bytes16, address, uint64, address[])`,
+specifying the staker's addresses, the policy ID (off-chain generation), the policy owner (could be zero address), and the end timestamp of the policy.
+Payment should be added to the transaction in ETH and the amount is `rewardRate * periods * stakers.length`, where `periods` is `endTimestampPeriod - currentPeriod + 1`.
+The reward rate must be greater than or equal to the minimum reward for each staker in the list.
 
 ### Alice Revokes a Blockchain Policy
 
 When Alice wants to revoke a policy, she calls the `PolicyManager.revokePolicy(bytes16)` or `PolicyManager.revokeArrangement(bytes16, address)`.
 Execution of these methods results in Alice recovering all fees for future periods, and also for periods when the stakers were inactive.
 Alice can refund ETH for any inactive periods without revoking the policy by using the method `PolicyManager.refund(bytes16)` or `PolicyManager.refund(bytes16, address)`.
+If Alice doesn't have ability to execute on-chain transaction or wants to share ability to revoke then she can sign revocation parameters. Anyone who have this signature will be able to revoke policy using `PolicyManager.revoke(bytes16, address, bytes)`
 
 
 ## Staker's Contract Interaction
@@ -118,7 +120,7 @@ The staker can set a minimum reward rate for a policy. For that, the staker shou
 ### NuCypher Partner Ursula Staking
 Some users will have locked but not staked tokens.
 In that case, an instance of the `PreallocationEscrow` contract will hold their tokens (method `PreallocationEscrow.initialDeposit(uint256, uint256)`).
-All tokens will be unlocked after a specified time and the user can retrieve them using the `PreallocationEscrow.withdraw(uint256)` method.
+All tokens will be unlocked after a specified time and the user can retrieve them using the `PreallocationEscrow.withdrawTokens(uint256)` method.
 When the user wants to become a staker - they use the `PreallocationEscrow` contract as a proxy for the `StakingEscrow` and `PolicyManager` contracts.
 
 
