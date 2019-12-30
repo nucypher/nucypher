@@ -67,7 +67,8 @@ def test_sampling_distribution(testerchain, token, deploy_contract):
         _minLockedPeriods=2,
         _minAllowableLockedTokens=100,
         _maxAllowableLockedTokens=max_allowed_locked_tokens,
-        _minWorkerPeriods=1
+        _minWorkerPeriods=1,
+        _isTestContract=False
     )
     staking_agent = StakingEscrowAgent(registry=None, contract=staking_escrow_contract)
 
@@ -83,10 +84,10 @@ def test_sampling_distribution(testerchain, token, deploy_contract):
     creator = testerchain.etherbase_account
 
     # Give Escrow tokens for reward and initialize contract
-    tx = token.functions.transfer(staking_escrow_contract.address, 10 ** 9).transact({'from': creator})
+    tx = token.functions.approve(staking_escrow_contract.address, 10 ** 9).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
-    tx = staking_escrow_contract.functions.initialize().transact({'from': creator})
+    tx = staking_escrow_contract.functions.initialize(10 ** 9).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     stakers = testerchain.stakers_accounts
