@@ -48,7 +48,6 @@ def test_bidding_post_funding(testerchain, agency, token_economics, test_registr
     maximum_deposit_eth = token_economics.maximum_allowed_locked // DEPOSIT_RATE
     minimum_deposit_eth = token_economics.minimum_allowed_locked // DEPOSIT_RATE
 
-    # testerchain.time_travel(seconds=3602)  # Wait exactly 1 hour, until bid start time
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
     # Round 1
@@ -69,23 +68,34 @@ def test_bidding_post_funding(testerchain, agency, token_economics, test_registr
     assert receipt['status'] == 1
 
 
-def test_get_remaining_work(testerchain, agency, token_economics, test_registry):
+def test_get_remaining_work_before_bidding_ends(testerchain, agency, token_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     bidder = testerchain.unassigned_accounts[-1]
     remaining = agent.get_remaining_work(target_address=bidder)
-    assert remaining
+    assert remaining == 0
 
 
-def test_claim(testerchain, agency, token_economics, test_registry):
-    testerchain.time_travel(seconds=(60*60)+1)  # Wait exactly 1 hour + 1 second
+def test_early_claim(testerchain, agency, token_economics, test_registry):
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    bidder = testerchain.unassigned_accounts[-1]
+    with pytest.raises(TransactionFailed):
+        receipt = agent.claim(sender_address=bidder)
+        assert receipt
+
+
+def test_refund_before_bidding_ends(testerchain, agency, token_economics, test_registry):
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    bidder = testerchain.unassigned_accounts[-1]
+    with pytest.raises(TransactionFailed):
+        _receipt = agent.refund(sender_address=bidder)
+
+
+def test_successful_claim(testerchain, agency, token_economics, test_registry):
+    # Wait exactly 1 hour + 1 second
+    testerchain.time_travel(seconds=(60*60)+1)
+
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     bidder = testerchain.unassigned_accounts[-1]
     receipt = agent.claim(sender_address=bidder)
     assert receipt
 
-
-def test_refund_rejection_without_work(testerchain, agency, token_economics, test_registry):
-    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    bidder = testerchain.unassigned_accounts[-1]
-    with pytest.raises(TransactionFailed):
-        _receipt = agent.refund(sender_address=bidder)

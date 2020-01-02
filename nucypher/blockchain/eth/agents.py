@@ -970,7 +970,7 @@ class WorkLockAgent(EthereumContractAgent):
 
     def bid(self, eth_amount: int,  sender_address: str) -> dict:
         """
-        Bid for tokens with ETH.
+        Bid for NU tokens with ETH.
         """
         contract_function = self.contract.functions.bid()
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
@@ -978,11 +978,29 @@ class WorkLockAgent(EthereumContractAgent):
                                                    payload={'value': eth_amount})
         return receipt
 
+    def cancel_bid(self, sender_address: str) -> dict:
+        """
+        Cancel bid and refund deposited ETH.
+        """
+        contract_function = self.contract.functions.cancelBid()
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=sender_address)
+        return receipt
+
     def claim(self, sender_address: str) -> dict:
         """
         Claim tokens - will be deposited and locked as stake in the StakingEscrow contract.
         """
         contract_function = self.contract.functions.claim()
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=sender_address)
+        return receipt
+
+    def burn_unclaimed(self, sender_address: str) -> dict:
+        """
+        Burn unclaimed tokens.
+        """
+        contract_function = self.contract.functions.burnUnclaimed()
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    sender_address=sender_address)
         return receipt
