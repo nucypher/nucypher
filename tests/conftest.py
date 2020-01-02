@@ -40,7 +40,7 @@ WebEmitter._crash_on_error_default = True
 LOCK_FUNCTION = TransactingPower.lock_account
 TransactingPower.lock_account = lambda *a, **k: True
 
-# Disable any hardcoded preferred teaches during tests.
+# Disable any hardcoded preferred teachers during tests.
 TEACHER_NODES = dict()
 
 

@@ -994,7 +994,10 @@ class Worker(NucypherTokenActor):
 
     @property
     def token_balance(self) -> NU:
-        """Return this worker's current token balance"""
+        """
+        Return this worker's current token balance.
+        Note: Workers typically do not control any tokens.
+        """
         balance = int(self.token_agent.get_balance(address=self.__worker_address))
         nu_balance = NU(balance, 'NuNit')
         return nu_balance

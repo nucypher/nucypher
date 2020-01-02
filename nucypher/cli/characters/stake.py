@@ -252,7 +252,7 @@ def set_worker(click_config,
 
     if not force:
         click.confirm(f"Commit to bonding "
-                      f"worker {worker_address} to staker {client_account} "
+                      f"worker {worker_address} to staker {staking_address} "
                       f"for a minimum of {STAKEHOLDER.economics.minimum_worker_periods} periods?", abort=True)
 
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
@@ -427,7 +427,8 @@ def create(click_config,
     # Consistency check to prevent the above agreement from going stale.
     last_second_current_period = STAKEHOLDER.staking_agent.get_current_period()
     if start_period != last_second_current_period + 1:
-        emitter.echo("Current period advanced before stake was broadcasted. Please try again.")
+        emitter.echo("Current period advanced before stake was broadcasted. Please try again.",
+                     color='red')
         raise click.Abort
 
     # Authenticate and Execute
@@ -593,7 +594,8 @@ def divide(click_config,
     # Consistency check to prevent the above agreement from going stale.
     last_second_current_period = STAKEHOLDER.staking_agent.get_current_period()
     if action_period != last_second_current_period:
-        emitter.echo("Current period advanced before stake division was broadcasted. Please try again.")
+        emitter.echo("Current period advanced before stake division was broadcasted. Please try again.",
+                     red='red')
         raise click.Abort
 
     # Execute

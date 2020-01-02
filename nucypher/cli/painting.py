@@ -420,7 +420,7 @@ def paint_stakes(emitter, stakes, paint_inactive: bool = False):
         emitter.echo(header, bold=True)
         emitter.echo(breaky, bold=True)
 
-        for stake in sorted([s for s in stakes if s not in active_stakes],  # TODO
+        for stake in sorted([s for s in stakes if s not in active_stakes],  # TODO: Code optimization here..?
                             key=lambda some_stake: some_stake.address_index_ordering_key):
             row = prettify_stake(stake=stake, index=None)
             emitter.echo(row, color='red')
