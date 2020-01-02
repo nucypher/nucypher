@@ -118,14 +118,12 @@ class Character(Learner):
         # Operating Mode
 
         if is_me:
-            # Once in a while, in tests or demos, we init a plain Character who doesn't already know about its node class.
-            from nucypher.characters.lawful import Ursula
-            node_class = node_class or Ursula
-            try:
-                # If we're federated only, we assume that all other nodes in our domain are as well.
-                node_class.set_federated_mode(federated_only)
-            except Exception as e:
-                raise
+            if not node_class:
+                # Once in a while, in tests or demos, we init a plain Character who doesn't already know about its node class.
+                from nucypher.characters.lawful import Ursula
+                node_class = Ursula
+            # If we're federated only, we assume that all other nodes in our domain are as well.
+            node_class.set_federated_mode(federated_only)
         else:
             # What an awful hack.  The last convulsions of #466.
             # TODO: Anything else.
