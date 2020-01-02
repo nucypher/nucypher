@@ -564,9 +564,9 @@ def divide(click_config,
 
     # Value
     if not value:
-        value = click.prompt(f"Enter target value "
-                             f"({NU.from_nunits(STAKEHOLDER.economics.minimum_allowed_locked)}"
-                             f" - {str(current_stake.value)})",
+        min_allowed_locked = NU.from_nunits(STAKEHOLDER.economics.minimum_allowed_locked)
+        max_divide_value = max(min_allowed_locked, current_stake.value - min_allowed_locked)
+        value = click.prompt(f"Enter target value ({min_allowed_locked} - {str(max_divide_value)})",
                              type=stake_value_range)
     value = NU(value, 'NU')
 
