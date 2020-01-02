@@ -1,4 +1,5 @@
 import functools
+import json
 
 import click
 
@@ -111,7 +112,7 @@ def run(click_config,
 
     BOB = actions.make_cli_character(character_config=bob_config,
                                      click_config=click_config,
-                                     dev=dev,
+                                     unlock_keyring=not dev,
                                      teacher_uri=teacher_uri,
                                      min_stake=min_stake)
 
@@ -143,22 +144,14 @@ def view(click_config,
     """
     View existing Bob's configuration.
     """
-    ### Setup ###
-    _setup_emitter(click_config)
-
+    emitter = _setup_emitter(click_config)
     bob_config = _get_bob_config(click_config, dev, provider_uri, network, registry_filepath, checksum_address,
                                  config_file, discovery_port)
     #############
-
-    BOB = actions.make_cli_character(character_config=bob_config,
-                                     click_config=click_config,
-                                     dev=dev,
-                                     teacher_uri=teacher_uri,
-                                     min_stake=min_stake)
-
-    response = BobConfiguration._read_configuration_file(filepath=config_file or bob_config.config_file_location)
-    return BOB.controller.emitter.ipc(response, request_id=0,
-                                      duration=0)  # FIXME: #1216 - what are request_id and duration here?
+    filepath = config_file or bob_config.config_file_location
+    emitter.echo(f"Bob Configuration {filepath} \n {'='*55}")
+    response = BobConfiguration._read_configuration_file(filepath=filepath)
+    return emitter.echo(json.dumps(response, indent=4))
 
 
 @bob.command()
@@ -216,9 +209,11 @@ def public_keys(click_config,
 
     BOB = actions.make_cli_character(character_config=bob_config,
                                      click_config=click_config,
-                                     dev=dev,
+                                     unlock_keyring=not dev,
                                      teacher_uri=teacher_uri,
-                                     min_stake=min_stake)
+                                     min_stake=min_stake,
+                                     load_preferred_teachers=False,
+                                     start_learning_now=False)
 
     response = BOB.controller.public_keys()
     return response
@@ -253,7 +248,7 @@ def retrieve(click_config,
 
     BOB = actions.make_cli_character(character_config=bob_config,
                                      click_config=click_config,
-                                     dev=dev,
+                                     unlock_keyring=not dev,
                                      teacher_uri=teacher_uri,
                                      min_stake=min_stake)
 

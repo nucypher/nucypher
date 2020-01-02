@@ -240,18 +240,25 @@ def set_worker(click_config,
     if not hw_wallet and not blockchain.client.is_local:
         password = get_client_password(checksum_address=client_account)
 
-    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
-    receipt = STAKEHOLDER.set_worker(worker_address=worker_address)
-
     # TODO: Double-check dates
+    # Calculate release datetime
     current_period = STAKEHOLDER.staking_agent.get_current_period()
     bonded_date = datetime_at_period(period=current_period, seconds_per_period=economics.seconds_per_period)
-    min_worker_periods = STAKEHOLDER.staking_agent.staking_parameters()[7]
+    min_worker_periods = STAKEHOLDER.economics.minimum_worker_periods
     release_period = current_period + min_worker_periods
     release_date = datetime_at_period(period=release_period,
                                       seconds_per_period=economics.seconds_per_period,
                                       start_of_period=True)
 
+    if not force:
+        click.confirm(f"Commit to bonding "
+                      f"worker {worker_address} to staker {staking_address} "
+                      f"for a minimum of {STAKEHOLDER.economics.minimum_worker_periods} periods?", abort=True)
+
+    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+    receipt = STAKEHOLDER.set_worker(worker_address=worker_address)
+
+    # Report Success
     emitter.echo(f"\nWorker {worker_address} successfully bonded to staker {staking_address}", color='green')
     paint_receipt_summary(emitter=emitter,
                           receipt=receipt,
@@ -371,28 +378,31 @@ def create(click_config,
     stake_value_range = click.FloatRange(min=NU.from_nunits(min_locked).to_tokens(), clamp=False)
     stake_duration_range = click.IntRange(min=economics.minimum_locked_periods, clamp=False)
 
-    password = None
-    if not hw_wallet and not blockchain.client.is_local:
-        password = get_client_password(checksum_address=client_account)
     #
     # Stage Stake
     #
 
     if not value:
-        value = click.prompt(f"Enter stake value in NU",
+        token_balance = NU.from_nunits(STAKEHOLDER.token_agent.get_balance(staking_address))
+        lower_limit = NU.from_nunits(STAKEHOLDER.economics.minimum_allowed_locked)
+        upper_limit = min(token_balance, NU.from_nunits(STAKEHOLDER.economics.maximum_allowed_locked))
+        value = click.prompt(f"Enter stake value in NU "
+                             f"({lower_limit} - {upper_limit})",
                              type=stake_value_range,
-                             default=NU.from_nunits(min_locked).to_tokens())
+                             default=upper_limit.to_tokens())
     value = NU.from_tokens(value)
 
     if not lock_periods:
-        prompt = f"Enter stake duration ({STAKEHOLDER.economics.minimum_locked_periods} periods minimum)"
-        lock_periods = click.prompt(prompt, type=stake_duration_range)
+        min_locktime = STAKEHOLDER.economics.minimum_locked_periods
+        max_locktime = STAKEHOLDER.economics.maximum_rewarded_periods
+        prompt = f"Enter stake duration ({min_locktime} - {max_locktime})"
+        lock_periods = click.prompt(prompt, type=stake_duration_range, default=max_locktime)
 
     start_period = STAKEHOLDER.staking_agent.get_current_period() + 1
     unlock_period = start_period + lock_periods
 
     #
-    # Review
+    # ReviewPub
     #
 
     if not force:
@@ -409,8 +419,22 @@ def create(click_config,
     # Last chance to bail
     click.confirm("Publish staged stake to the blockchain?", abort=True)
 
-    # Execute
+    # Authenticate
+    password = None
+    if not hw_wallet and not blockchain.client.is_local:
+        password = get_client_password(checksum_address=client_account)
+
+    # Consistency check to prevent the above agreement from going stale.
+    last_second_current_period = STAKEHOLDER.staking_agent.get_current_period()
+    if start_period != last_second_current_period + 1:
+        emitter.echo("Current period advanced before stake was broadcasted. Please try again.",
+                     color='red')
+        raise click.Abort
+
+    # Authenticate and Execute
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+
+    emitter.echo("Broadcasting stake...", color='yellow')
     new_stake = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods)
 
     painting.paint_staking_confirmation(emitter=emitter,
@@ -532,7 +556,7 @@ def divide(click_config,
         STAKEHOLDER.stakes.refresh()
         current_stake = STAKEHOLDER.stakes[index]
     else:
-        current_stake = select_stake(stakeholder=STAKEHOLDER, emitter=emitter)
+        current_stake = select_stake(stakeholder=STAKEHOLDER, emitter=emitter, divisible=True)
 
     #
     # Stage Stake
@@ -540,9 +564,13 @@ def divide(click_config,
 
     # Value
     if not value:
-        value = click.prompt(f"Enter target value (must be less than or equal to {str(current_stake.value)})",
+        value = click.prompt(f"Enter target value "
+                             f"({NU.from_nunits(STAKEHOLDER.economics.minimum_allowed_locked)}"
+                             f" - {str(current_stake.value)})",
                              type=stake_value_range)
     value = NU(value, 'NU')
+
+    action_period = STAKEHOLDER.staking_agent.get_current_period()
 
     # Duration
     if not lock_periods:
@@ -556,14 +584,23 @@ def divide(click_config,
                                              original_stake=current_stake,
                                              target_value=value,
                                              extension=extension)
-        click.confirm("Is this correct?", abort=True)
+        click.confirm("Publish stake division to the blockchain?", abort=True)
 
-    # Execute
+    # Authenticate
     password = None
     if not hw_wallet and not blockchain.client.is_local:
         password = get_client_password(checksum_address=current_stake.staker_address)
 
+    # Consistency check to prevent the above agreement from going stale.
+    last_second_current_period = STAKEHOLDER.staking_agent.get_current_period()
+    if action_period != last_second_current_period:
+        emitter.echo("Current period advanced before stake division was broadcasted. Please try again.",
+                     red='red')
+        raise click.Abort
+
+    # Execute
     STAKEHOLDER.assimilate(checksum_address=current_stake.staker_address, password=password)
+    emitter.echo("Broadcasting Stake Division...", color='yellow')
     modified_stake, new_stake = STAKEHOLDER.divide_stake(stake_index=current_stake.index,
                                                          target_value=value,
                                                          additional_periods=extension)

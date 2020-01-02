@@ -1,4 +1,5 @@
 import functools
+import json
 
 import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
@@ -137,10 +138,10 @@ def view(click_config, config_file):
     View existing Alice's configuration.
     """
     emitter = _setup_emitter(click_config)
-
     configuration_file_location = config_file or AliceConfiguration.default_filepath()
     response = AliceConfiguration._read_configuration_file(filepath=configuration_file_location)
-    return emitter.ipc(response=response, request_id=0, duration=0)  # FIXME: what are request_id and duration here?
+    emitter.echo(f"Alice Configuration {configuration_file_location} \n {'='*55}")
+    return emitter.echo(json.dumps(response, indent=4))
 
 
 @alice.command()
@@ -241,7 +242,8 @@ def public_keys(click_config,
                                                    geth, network, pay_with, provider_uri, registry_filepath)
     #############
 
-    ALICE = _create_alice(alice_config, click_config, dev, emitter, hw_wallet, teacher_uri, min_stake)
+    ALICE = _create_alice(alice_config, click_config, dev,
+                          emitter, hw_wallet, teacher_uri, min_stake, load_seednodes=False)
 
     response = ALICE.controller.public_keys()
     return response
@@ -269,7 +271,8 @@ def derive_policy_pubkey(click_config,
                                                    geth, network, pay_with, provider_uri, registry_filepath)
     #############
 
-    ALICE = _create_alice(alice_config, click_config, dev, emitter, hw_wallet, teacher_uri, min_stake)
+    ALICE = _create_alice(alice_config, click_config, dev,
+                          emitter, hw_wallet, teacher_uri, min_stake, load_seednodes=False)
 
     # Request
     return ALICE.controller.derive_policy_encrypting_key(label=label)
@@ -379,7 +382,8 @@ def decrypt(click_config,
                                                    geth, network, pay_with, provider_uri, registry_filepath)
     #############
 
-    ALICE = _create_alice(alice_config, click_config, dev, emitter, hw_wallet, teacher_uri, min_stake)
+    ALICE = _create_alice(alice_config, click_config, dev, emitter,
+                          hw_wallet, teacher_uri, min_stake, load_seednodes=False)
 
     # Request
     request_data = {'label': label, 'message_kit': message_kit}
@@ -442,7 +446,7 @@ def _get_or_create_alice_config(click_config, dev, network, eth_node, provider_u
     return alice_config
 
 
-def _create_alice(alice_config, click_config, dev, emitter, hw_wallet, teacher_uri, min_stake):
+def _create_alice(alice_config, click_config, dev, emitter, hw_wallet, teacher_uri, min_stake, load_seednodes=True):
     #
     # Produce Alice
     #
@@ -453,10 +457,12 @@ def _create_alice(alice_config, click_config, dev, emitter, hw_wallet, teacher_u
     try:
         ALICE = actions.make_cli_character(character_config=alice_config,
                                            click_config=click_config,
-                                           dev=dev,
+                                           unlock_keyring=not dev,
                                            teacher_uri=teacher_uri,
                                            min_stake=min_stake,
-                                           client_password=client_password)
+                                           client_password=client_password,
+                                           load_preferred_teachers=load_seednodes,
+                                           start_learning_now=load_seednodes)
 
         return ALICE
     except NucypherKeyring.AuthenticationFailed as e:

@@ -41,6 +41,7 @@ class RestorableTestItem(BaseConfiguration):
 
     _NAME = 'something'
     DEFAULT_CONFIG_ROOT = '/tmp'
+    VERSION = 1
 
     def __init__(self, item: str, *args, **kwargs):
         self.item = item
@@ -66,6 +67,7 @@ def test_configuration_implementation():
 
     # Subclasses must implement static_payload specification
     class BadConfigurableItem(BaseConfiguration):
+        VERSION = 1
         pass
 
     with pytest.raises(TypeError):
@@ -73,6 +75,7 @@ def test_configuration_implementation():
 
     # Subclasses must implement _NAME
     class NoNameItem(BaseConfiguration):
+        VERSION = 1
         def static_payload(self) -> dict:
             item_payload = {'key': 'value'}
             payload = {**super().static_payload(), **item_payload}
@@ -85,6 +88,7 @@ def test_configuration_implementation():
     class BareMinimumConfigurableItem(BaseConfiguration):
 
         _NAME = 'bare-minimum'
+        VERSION = 2
 
         def static_payload(self) -> dict:
             item_payload = {'key': 'value'}
@@ -148,7 +152,6 @@ def test_configuration_preservation():
     # Serialize
     serialized_item = restorable_item.serialize()
     serialized_payload = json.dumps(restorable_item.static_payload(), indent=BaseConfiguration.INDENTATION)
-    assert serialized_item == serialized_payload
 
     # Write to JSON file
     filepath = restorable_item.to_configuration_file()
@@ -169,11 +172,10 @@ def test_configuration_preservation():
         with open(restorable_item.filepath, 'r') as f:
             contents = f.read()
 
-        # Ensure raw configuration file contents are accurate
-        assert contents == serialized_payload
-
         # Ensure file contents are JSON deserializable
         deserialized_file_contents = json.loads(contents)
+        del deserialized_file_contents['version']  # do not test version of config serialization here.
+
         deserialized_payload = RestorableTestItem.deserialize(payload=contents)
         assert deserialized_payload == deserialized_file_contents
 

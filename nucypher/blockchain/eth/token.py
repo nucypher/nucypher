@@ -221,9 +221,6 @@ class Stake:
         r = f'Stake(index={self.index}, value={self.value}, end_period={self.final_locked_period})'
         return r
 
-    def __eq__(self, other) -> bool:
-        raise NotImplementedError
-
     @property
     def address_index_ordering_key(self):
         """To be used as a lexicographical order key for Stakes based on the tuple (staker_address, index)."""

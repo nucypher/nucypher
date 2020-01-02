@@ -14,20 +14,26 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
+import pathlib
 from contextlib import contextmanager
 from functools import lru_cache
-import pathlib
 
 from sentry_sdk import capture_exception, add_breadcrumb
 from sentry_sdk.integrations.logging import LoggingIntegration
 from twisted.logger import FileLogObserver, jsonFileLogObserver, formatEvent, formatEventAsClassicLogText
-from twisted.logger import ILogObserver
 from twisted.logger import LogLevel
-from twisted.logger import globalLogPublisher, globalLogBeginner
-from twisted.python.logfile import DailyLogFile
+from twisted.logger import globalLogPublisher
+from twisted.python.logfile import LogFile
 
 import nucypher
 from nucypher.config.constants import USER_LOG_DIR, NUCYPHER_SENTRY_ENDPOINT
+
+ONE_MEGABYTE = 1_048_576
+MAXIMUM_LOG_SIZE = ONE_MEGABYTE * 10
+MAX_LOG_FILES = 10
+# A single loggers retention = MAXIMUM_LOG_SIZE * MAX_LOG_FILES
 
 
 def initialize_sentry(dsn: str):
@@ -151,9 +157,9 @@ def _ensure_dir_exists(path):
 
 
 @lru_cache()
-def get_json_file_observer(name="nucypher.log.json", path=USER_LOG_DIR):  # TODO: More configurable naming here?
+def get_json_file_observer(name="nucypher.json", path=USER_LOG_DIR):
     _ensure_dir_exists(path)
-    logfile = DailyLogFile(name, path)
+    logfile = LogFile(name=name, directory=path, rotateLength=MAXIMUM_LOG_SIZE, maxRotatedFiles=MAX_LOG_FILES)
     observer = jsonFileLogObserver(outFile=logfile)
     return observer
 
@@ -161,6 +167,6 @@ def get_json_file_observer(name="nucypher.log.json", path=USER_LOG_DIR):  # TODO
 @lru_cache()
 def get_text_file_observer(name="nucypher.log", path=USER_LOG_DIR):
     _ensure_dir_exists(path)
-    logfile = DailyLogFile(name, path)
+    logfile = LogFile(name=name, directory=path, rotateLength=MAXIMUM_LOG_SIZE, maxRotatedFiles=MAX_LOG_FILES)
     observer = FileLogObserver(formatEvent=formatEventAsClassicLogText, outFile=logfile)
     return observer

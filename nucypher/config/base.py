@@ -2,6 +2,10 @@ import json
 import os
 from abc import ABC, abstractmethod
 
+from constant_sorrow.constants import (
+    UNKNOWN_VERSION
+)
+
 from nucypher.config import constants
 
 
@@ -70,6 +74,8 @@ class BaseConfiguration(ABC):
     INDENTATION = 2
     DEFAULT_CONFIG_ROOT = constants.DEFAULT_CONFIG_ROOT
 
+    VERSION = NotImplemented
+
     class ConfigurationError(RuntimeError):
         pass
 
@@ -77,6 +83,9 @@ class BaseConfiguration(ABC):
         pass
 
     class NoConfigurationRoot(InvalidConfiguration):
+        pass
+
+    class OldVersion(InvalidConfiguration):
         pass
 
     def __init__(self,
@@ -220,11 +229,17 @@ class BaseConfiguration(ABC):
 
     def serialize(self, serializer=json.dumps) -> str:
         """Returns the JSON serialized output of `static_payload`"""
-        serialized_payload = serializer(self.static_payload(), indent=self.INDENTATION)
+        payload = self.static_payload()
+        payload['version'] = self.VERSION
+        serialized_payload = serializer(payload, indent=self.INDENTATION)
         return serialized_payload
 
     @classmethod
     def deserialize(cls, payload: str, deserializer=json.loads) -> dict:
         """Returns the JSON deserialized content of `payload`"""
         deserialized_payload = deserializer(payload)
+        version = deserialized_payload.pop('version', UNKNOWN_VERSION)
+        if version != cls.VERSION:
+            raise cls.OldVersion(f"Configuration file is the wrong version "
+                                 f"Expected version {cls.VERSION}; Got version {version}")
         return deserialized_payload

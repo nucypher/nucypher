@@ -420,10 +420,11 @@ def paint_stakes(emitter, stakes, paint_inactive: bool = False):
         emitter.echo(header, bold=True)
         emitter.echo(breaky, bold=True)
 
-        for stake in sorted([s for s in stakes if s not in active_stakes],
+        for stake in sorted([s for s in stakes if s not in active_stakes],  # TODO: Code optimization here..?
                             key=lambda some_stake: some_stake.address_index_ordering_key):
             row = prettify_stake(stake=stake, index=None)
             emitter.echo(row, color='red')
+
         emitter.echo('')  # newline
     elif not active_stakes:
         emitter.echo(f"There are no active stakes\n")
@@ -434,9 +435,9 @@ def paint_staged_stake_division(emitter,
                                 original_stake,
                                 target_value,
                                 extension):
-    new_end_period = original_stake.end_period + extension
-    new_duration_periods = new_end_period - original_stake.start_period
-    staking_address = original_stake.owner_address
+    new_end_period = original_stake.final_locked_period + extension
+    new_duration_periods = new_end_period - original_stake.first_locked_period
+    staking_address = original_stake.staker_address
 
     division_message = f"""
 Staking address: {staking_address}
@@ -448,7 +449,7 @@ Staking address: {staking_address}
                        staking_address=staking_address,
                        stake_value=target_value,
                        lock_periods=new_duration_periods,
-                       start_period=original_stake.start_period,
+                       start_period=original_stake.first_locked_period,
                        unlock_period=new_end_period,
                        division_message=division_message)
 
@@ -465,6 +466,9 @@ def paint_accounts(emitter, balances):
 
         rows.append((address, eth, nu))
 
+    header = f'| Account  ------------------------------- | Balances ------------------' \
+             f'\n========================================================================'
+    emitter.echo(header)
     for address, eth, nu in rows:
         emitter.echo(f"{address} | {eth:{max_eth_len}} | {nu:{max_nu_len}}")
 

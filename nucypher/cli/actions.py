@@ -15,6 +15,8 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
+
+
 import json
 import os
 import shutil
@@ -90,8 +92,10 @@ def get_client_password(checksum_address: str, envvar: str = '') -> str:
 
 
 def get_nucypher_password(confirm: bool = False, envvar="NUCYPHER_KEYRING_PASSWORD") -> str:
-    from nucypher.config.keyring import NucypherKeyring
-    prompt = f"Enter NuCypher keyring password (min. {NucypherKeyring.MINIMUM_PASSWORD_LENGTH} chars.)"
+    prompt = f"Enter NuCypher keyring password"
+    if confirm:
+        from nucypher.config.keyring import NucypherKeyring
+        prompt += f" ({NucypherKeyring.MINIMUM_PASSWORD_LENGTH} character minimum)"
     keyring_password = get_password_from_prompt(prompt=prompt, confirm=confirm, envvar=envvar)
     return keyring_password
 
@@ -305,9 +309,10 @@ def get_provider_process(start_now: bool = False):
 
 def make_cli_character(character_config,
                        click_config,
-                       dev: bool = False,
+                       unlock_keyring: bool = True,
                        teacher_uri: str = None,
                        min_stake: int = 0,
+                       load_preferred_teachers: bool = True,
                        **config_args):
 
     emitter = click_config.emitter
@@ -318,20 +323,22 @@ def make_cli_character(character_config,
 
     # Handle Keyring
 
-    if not dev:
+    if unlock_keyring:
         character_config.attach_keyring()
         unlock_nucypher_keyring(emitter,
                                 character_configuration=character_config,
                                 password=get_nucypher_password(confirm=False))
 
     # Handle Teachers
-    teacher_nodes = load_seednodes(emitter,
-                                   teacher_uris=[teacher_uri] if teacher_uri else None,
-                                   min_stake=min_stake,
-                                   federated_only=character_config.federated_only,
-                                   network_domains=character_config.domains,
-                                   network_middleware=character_config.network_middleware,
-                                   registry=character_config.registry)
+    teacher_nodes = list()
+    if load_preferred_teachers:
+        teacher_nodes = load_seednodes(emitter,
+                                       teacher_uris=[teacher_uri] if teacher_uri else None,
+                                       min_stake=min_stake,
+                                       federated_only=character_config.federated_only,
+                                       network_domains=character_config.domains,
+                                       network_middleware=character_config.network_middleware,
+                                       registry=character_config.registry)
 
     #
     # Character Init
@@ -359,12 +366,17 @@ def make_cli_character(character_config,
     return CHARACTER
 
 
-def select_stake(stakeholder, emitter) -> Stake:
+def select_stake(stakeholder, emitter, divisible: bool = False) -> Stake:
     stakes = stakeholder.all_stakes
-    active_stakes = sorted((stake for stake in stakes if stake.is_active),
-                           key=lambda some_stake: some_stake.address_index_ordering_key)
-    enumerated_stakes = dict(enumerate(active_stakes))
-    painting.paint_stakes(stakes=active_stakes, emitter=emitter)
+    stakes = sorted((stake for stake in stakes if stake.is_active), key=lambda s: s.address_index_ordering_key)
+    if divisible:
+        emitter.echo("NOTE: Showing divisible stakes only", color='yellow')
+        stakes = list(filter(lambda s: bool(s.value >= stakeholder.economics.minimum_allowed_locked*2), stakes))
+        if not stakes:
+            emitter.echo(f"No divisible stakes found.", color='red')
+            raise click.Abort
+    enumerated_stakes = dict(enumerate(stakes))
+    painting.paint_stakes(stakes=stakes, emitter=emitter)
     choice = click.prompt("Select Stake", type=click.IntRange(min=0, max=len(enumerated_stakes)-1))
     chosen_stake = enumerated_stakes[choice]
     return chosen_stake
@@ -403,8 +415,11 @@ def select_client_account(emitter,
         raise click.Abort()
 
     # Display account info
+    header = f'| # | Account  ---------------------------------- | Balance -----' \
+             f'\n================================================================='
+    emitter.echo(header)
     for index, account in enumerated_accounts.items():
-        message = f"{index} | {account} "
+        message = f"| {index} | {account} "
         if show_balances:
             message += f" | {NU.from_nunits(token_agent.get_balance(address=account))}"
         emitter.echo(message)
@@ -414,6 +429,8 @@ def select_client_account(emitter,
     account_range = click.IntRange(min=0, max=len(enumerated_accounts)-1)
     choice = click.prompt(prompt, type=account_range, default=default)
     chosen_account = enumerated_accounts[choice]
+
+    emitter.echo(f"Selected {choice}:{chosen_account}", color='blue')
     return chosen_account
 
 
