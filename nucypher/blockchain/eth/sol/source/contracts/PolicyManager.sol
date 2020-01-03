@@ -26,7 +26,7 @@ contract PolicyManager is Upgradeable {
 
     event PolicyCreated(
         bytes16 indexed policyId,
-        address indexed creator,
+        address indexed sponsor,
         address indexed owner,
         uint256 rewardRate,
         uint64 startTimestamp,
@@ -68,7 +68,7 @@ contract PolicyManager is Upgradeable {
     }
 
     struct Policy {
-        address payable creator;
+        address payable sponsor;
         address owner;
 
         uint256 rewardRate;
@@ -176,7 +176,7 @@ contract PolicyManager is Upgradeable {
         uint16 endPeriod = uint16(_endTimestamp / secondsPerPeriod) + 1;
         uint256 numberOfPeriods = endPeriod - currentPeriod;
 
-        policy.creator = msg.sender;
+        policy.sponsor = msg.sender;
         policy.startTimestamp = uint64(block.timestamp);
         policy.endTimestamp = _endTimestamp;
         policy.rewardRate = msg.value.div(_nodes.length) / numberOfPeriods;
@@ -228,12 +228,12 @@ contract PolicyManager is Upgradeable {
     */
     function getPolicyOwner(bytes16 _policyId) public view returns (address) {
         Policy storage policy = policies[_policyId];
-        return policy.owner == address(0) ? policy.creator : policy.owner;
+        return policy.owner == address(0) ? policy.sponsor : policy.owner;
     }
 
     /**
     * @notice Set default `rewardDelta` value for specified period
-    * @dev This method increases gas cost for node in trade of decreasing cost for policy creator
+    * @dev This method increases gas cost for node in trade of decreasing cost for policy sponsor
     * @param _node Node address
     * @param _period Period to set
     */
@@ -336,7 +336,7 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Revoke/refund arrangement/policy by the creator
+    * @notice Revoke/refund arrangement/policy by the sponsor
     * @param _policyId Policy id
     * @param _node Node that will be excluded or RESERVED_NODE if full policy should be used
     ( @param _forceRevoke Force revoke arrangement/policy
@@ -399,14 +399,14 @@ contract PolicyManager is Upgradeable {
                break;
             }
         }
-        address payable policyCreator = policy.creator;
+        address payable policySponsor = policy.sponsor;
         if (_node == RESERVED_NODE) {
             if (numberOfActive == 0) {
                 policy.disabled = true;
                 // gas refund
                 // deletion more slots will increase gas usage instead of decreasing (in current code)
                 // because gas refund can be no more than half of all gas
-                policy.creator = address(0);
+                policy.sponsor = address(0);
                 emit PolicyRevoked(_policyId, msg.sender, refundValue);
             } else {
                 emit RefundForPolicy(_policyId, msg.sender, refundValue);
@@ -416,7 +416,7 @@ contract PolicyManager is Upgradeable {
             require(i < policy.arrangements.length);
         }
         if (refundValue > 0) {
-            policyCreator.sendValue(refundValue);
+            policySponsor.sendValue(refundValue);
         }
     }
 
@@ -429,7 +429,7 @@ contract PolicyManager is Upgradeable {
         internal view returns (uint256 refundValue)
     {
         Policy storage policy = policies[_policyId];
-        require((policy.owner == msg.sender || policy.creator == msg.sender) && !policy.disabled);
+        require((policy.owner == msg.sender || policy.sponsor == msg.sender) && !policy.disabled);
         uint256 i = 0;
         for (; i < policy.arrangements.length; i++) {
             ArrangementInfo storage arrangement = policy.arrangements[i];
@@ -449,7 +449,7 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Revoke policy by the creator
+    * @notice Revoke policy by the sponsor
     * @param _policyId Policy id
     */
     function revokePolicy(bytes16 _policyId) public returns (uint256 refundValue) {
@@ -458,7 +458,7 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Revoke arrangement by the creator
+    * @notice Revoke arrangement by the sponsor
     * @param _policyId Policy id
     * @param _node Node that will be excluded
     */
@@ -474,7 +474,7 @@ contract PolicyManager is Upgradeable {
     * @notice Get unsigned hash for revocation
     * @param _policyId Policy id
     * @param _node Node that will be excluded
-    * @return Revocation hash
+    * @return Revocation hash, EIP191 version 0x45 ('E')
     */
     function getRevocationHash(bytes16 _policyId, address _node) public view returns (bytes32) {
         return SignatureVerifier.hashEIP191(abi.encodePacked(_policyId, _node), byte(0x45));
@@ -496,7 +496,7 @@ contract PolicyManager is Upgradeable {
     * @notice Revoke policy or arrangement using owner's signature
     * @param _policyId Policy id
     * @param _node Node that will be excluded, zero address if whole policy will be revoked
-    * @param _signature Signature of owner
+    * @param _signature Signature of owner, EIP191 version 0x45 ('E')
     */
     function revoke(bytes16 _policyId, address _node, bytes memory _signature)
         public returns (uint256 refundValue)
@@ -506,17 +506,17 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Refund part of fee by the creator
+    * @notice Refund part of fee by the sponsor
     * @param _policyId Policy id
     */
     function refund(bytes16 _policyId) public {
         Policy storage policy = policies[_policyId];
-        require(policy.owner == msg.sender || policy.creator == msg.sender);
+        require(policy.owner == msg.sender || policy.sponsor == msg.sender);
         refundInternal(_policyId, RESERVED_NODE, false);
     }
 
     /**
-    * @notice Refund part of one node's fee by the creator
+    * @notice Refund part of one node's fee by the sponsor
     * @param _policyId Policy id
     * @param _node Node address
     */
@@ -525,7 +525,7 @@ contract PolicyManager is Upgradeable {
     {
         require(_node != RESERVED_NODE);
         Policy storage policy = policies[_policyId];
-        require(policy.owner == msg.sender || policy.creator == msg.sender);
+        require(policy.owner == msg.sender || policy.sponsor == msg.sender);
         return refundInternal(_policyId, _node, false);
     }
 
@@ -631,7 +631,7 @@ contract PolicyManager is Upgradeable {
         require(uint32(delegateGet(_testTarget, "secondsPerPeriod()")) == secondsPerPeriod);
         Policy storage policy = policies[RESERVED_POLICY_ID];
         Policy memory policyToCheck = delegateGetPolicy(_testTarget, RESERVED_POLICY_ID);
-        require(policyToCheck.creator == policy.creator &&
+        require(policyToCheck.sponsor == policy.sponsor &&
             policyToCheck.owner == policy.owner &&
             policyToCheck.rewardRate == policy.rewardRate &&
             policyToCheck.startTimestamp == policy.startTimestamp &&
@@ -668,7 +668,7 @@ contract PolicyManager is Upgradeable {
         secondsPerPeriod = policyManager.secondsPerPeriod();
         // Create fake Policy and NodeInfo to use them in verifyState(address)
         Policy storage policy = policies[RESERVED_POLICY_ID];
-        policy.creator = msg.sender;
+        policy.sponsor = msg.sender;
         policy.owner = address(this);
         policy.startTimestamp = 1;
         policy.endTimestamp = 2;

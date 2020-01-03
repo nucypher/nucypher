@@ -489,7 +489,9 @@ class BlockchainPolicy(Policy):
         rate_per_period = self.value // self.n // self.duration_periods  # wei
         recalculated_value = self.duration_periods * rate_per_period * self.n
         if recalculated_value != self.value:
-            raise ValueError(f"Invalid policy value calculation.")  # TODO: Make a better suggestion.
+            raise ValueError(f"Invalid policy value calculation - "
+                             f"{self.value} can't be divided into {self.n} staker payments per period "
+                             f"for {self.duration_periods} periods without a remainder")
 
     @staticmethod
     def generate_policy_parameters(n: int,
@@ -504,7 +506,7 @@ class BlockchainPolicy(Policy):
         # Check for policy params
         if not bool(value) ^ bool(rate):
             # TODO: Review this suggestion
-            raise BlockchainPolicy.InvalidPolicyValue(f"Only one parameter must be provided to calculate policy value and rate.")
+            raise BlockchainPolicy.InvalidPolicyValue(f"Either 'value' or 'rate'  must be provided for policy.")
 
         if not value:
             value = rate * duration_periods * n

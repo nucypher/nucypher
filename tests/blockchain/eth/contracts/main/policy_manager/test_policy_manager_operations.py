@@ -23,7 +23,7 @@ from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
-CREATOR_FIELD = 0
+SPONSOR_FIELD = 0
 OWNER_FIELD = 1
 RATE_FIELD = 2
 START_TIMESTAMP_FIELD = 3
@@ -47,7 +47,7 @@ value = rate * number_of_periods
 
 @pytest.mark.slow
 def test_reward(testerchain, escrow, policy_manager):
-    creator, policy_creator, bad_node, node1, node2, node3, *everyone_else = testerchain.client.accounts
+    creator, policy_sponsor, bad_node, node1, node2, node3, *everyone_else = testerchain.client.accounts
     node_balance = testerchain.client.get_balance(node1)
     withdraw_log = policy_manager.events.Withdrawn.createFilter(fromBlock='latest')
 
@@ -62,8 +62,8 @@ def test_reward(testerchain, escrow, policy_manager):
     testerchain.wait_for_receipt(tx)
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
-    tx = policy_manager.functions.createPolicy(policy_id, policy_creator, end_timestamp, [node1, node3])\
-        .transact({'from': policy_creator, 'value': 2 * value})
+    tx = policy_manager.functions.createPolicy(policy_id, policy_sponsor, end_timestamp, [node1, node3])\
+        .transact({'from': policy_sponsor, 'value': 2 * value})
     testerchain.wait_for_receipt(tx)
 
     # Nothing to withdraw
@@ -131,8 +131,8 @@ def test_reward(testerchain, escrow, policy_manager):
     period = escrow.functions.getCurrentPeriod().call()
     tx = escrow.functions.setDefaultRewardDelta(node1, period, 1).transact()
     testerchain.wait_for_receipt(tx)
-    tx = policy_manager.functions.createPolicy(policy_id_2, policy_creator, end_timestamp, [node2, node3]) \
-        .transact({'from': policy_creator, 'value': int(2 * value)})
+    tx = policy_manager.functions.createPolicy(policy_id_2, policy_sponsor, end_timestamp, [node2, node3]) \
+        .transact({'from': policy_sponsor, 'value': int(2 * value)})
     testerchain.wait_for_receipt(tx)
 
     # Mint some periods
@@ -201,7 +201,7 @@ def test_refund(testerchain, escrow, policy_manager):
     testerchain.wait_for_receipt(tx)
     assert 20 == testerchain.client.get_balance(policy_manager.address)
     assert creator_balance - 20 == testerchain.client.get_balance(policy_creator)
-    assert policy_creator == policy_manager.functions.policies(policy_id).call()[CREATOR_FIELD]
+    assert policy_creator == policy_manager.functions.policies(policy_id).call()[SPONSOR_FIELD]
 
     events = arrangement_refund_log.get_all_entries()
     assert 1 == len(events)
