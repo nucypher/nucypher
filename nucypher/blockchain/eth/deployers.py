@@ -865,6 +865,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
     _router_deployer = StakingInterfaceRouterDeployer
     __allocation_registry = AllocationRegistry
 
+    @validate_checksum_address
     def __init__(self,
                  allocation_registry: AllocationRegistry = None,
                  sidekick_address: str = None,

@@ -208,6 +208,7 @@ class ContractAdministrator(NucypherTokenActor):
         r = '{name} - {deployer_address})'.format(name=self.__class__.__name__, deployer_address=self.deployer_address)
         return r
 
+    @validate_checksum_address
     def recruit_sidekick(self, sidekick_address: str, sidekick_password: str):
         self.sidekick_power = TransactingPower(account=sidekick_address, password=sidekick_password, cache=True)
         if self.sidekick_power.device:
