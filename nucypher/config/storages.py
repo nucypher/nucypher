@@ -189,8 +189,9 @@ class ForgetfulNodeStorage(NodeStorage):
         self.__temporary_certificates = list()
         self._temp_certificates_dir = tempfile.mkdtemp(prefix='nucypher-temp-certs-', dir=parent_dir)
 
-    def __del__(self):
-        shutil.rmtree(self._temp_certificates_dir, ignore_errors=True)
+    # TODO: Pending fix for 1554.
+    # def __del__(self):
+    #     shutil.rmtree(self._temp_certificates_dir, ignore_errors=True)
 
     def all(self, federated_only: bool, certificates_only: bool = False) -> set:
         return set(self.__metadata.values() if not certificates_only else self.__certificates.values())
@@ -582,10 +583,11 @@ class TemporaryFileBasedNodeStorage(LocalFileBasedNodeStorage):
                          certificates_dir=self.__temp_certificates_dir,
                          *args, **kwargs)
 
-    def __del__(self):
-        if self.__temp_metadata_dir is not None:
-            shutil.rmtree(self.__temp_metadata_dir, ignore_errors=True)
-            shutil.rmtree(self.__temp_certificates_dir, ignore_errors=True)
+    # TODO: Pending fix for 1554.
+    # def __del__(self):
+    #     if self.__temp_metadata_dir is not None:
+    #         shutil.rmtree(self.__temp_metadata_dir, ignore_errors=True)
+    #         shutil.rmtree(self.__temp_certificates_dir, ignore_errors=True)
 
     def initialize(self) -> bool:
         # Metadata
