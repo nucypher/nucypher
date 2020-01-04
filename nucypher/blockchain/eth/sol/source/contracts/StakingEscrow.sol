@@ -503,9 +503,19 @@ contract StakingEscrow is Issuer {
         external
     {
         require(_tokenContract == address(token) && msg.sender == address(token));
-        // copy first 32 bytes from _extraData. Position is calculated as
-        // 4 bytes method signature plus 32 * 3 bytes for previous params and
-        // addition 32 bytes to skip _extraData pointer
+
+        // Copy first 32 bytes from _extraData, according to calldata memory layout:
+        //
+        // 0x00: method signature      4 bytes
+        // 0x04: _from                 32 bytes after encoding
+        // 0x24: _value                32 bytes after encoding
+        // 0x44: _tokenContract        32 bytes after encoding
+        // 0x64: _extraData pointer    32 bytes. Value must be 0x80 (offset of _extraData wrt to 1st parameter)
+        // 0x84: _extraData length     32 bytes
+        // 0xA4: _extraData data       Length determined by previous variable
+        //
+        // See https://solidity.readthedocs.io/en/latest/abi-spec.html#examples
+
         uint256 payloadSize;
         uint256 payload;
         assembly {

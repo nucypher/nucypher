@@ -34,7 +34,7 @@ from nucypher.blockchain.eth.agents import (
     StakingEscrowAgent,
     PreallocationEscrowAgent
 )
-from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME
+from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import DispatcherDeployer, StakingInterfaceRouterDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -365,17 +365,16 @@ Staking address: {staking_address}
     emitter.echo('=========================================================================', bold=True)
 
 
-def paint_staking_confirmation(emitter, ursula, transactions):
-    emitter.echo(f'\nEscrow Address ... {ursula.staking_agent.contract_address}', color='blue')
-    for tx_name, receipt in transactions.items():
-        emitter.echo(f'{tx_name.capitalize()} .......... {receipt["transactionHash"].hex()}', color='green')
-    emitter.echo(f'''
-
-Successfully transmitted stake initialization transactions.
-
-View your stakes by running 'nucypher stake list'
+def paint_staking_confirmation(emitter, staker, new_stake):
+    emitter.echo("\nStake initialization transaction was successful.", color='green')
+    emitter.echo(f'\nTransaction details:')
+    paint_receipt_summary(emitter=emitter, receipt=new_stake.receipt, transaction_type="deposit stake")
+    emitter.echo(f'\n{STAKING_ESCROW_CONTRACT_NAME} address: {staker.staking_agent.contract_address}', color='blue')
+    next_steps = f'''\nView your stakes by running 'nucypher stake list'
 or set your Ursula worker node address by running 'nucypher stake set-worker'.
-''', color='green')
+
+See https://docs.nucypher.com/en/latest/guides/staking_guide.html'''
+    emitter.echo(next_steps, color='green')
 
 
 def prettify_stake(stake, index: int = None) -> str:

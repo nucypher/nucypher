@@ -21,9 +21,8 @@ import json
 import os
 from datetime import datetime
 from decimal import Decimal
-from json import JSONDecodeError
 from pathlib import Path
-from typing import Tuple, List, Dict, Union, Optional
+from typing import Tuple, List, Dict, Union
 
 import click
 import maya
@@ -34,6 +33,7 @@ from constant_sorrow.constants import (
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak, is_checksum_address, to_checksum_address
 from twisted.logger import Logger
+from web3 import Web3
 
 from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics, TokenEconomicsFactory
 from nucypher.blockchain.eth.agents import (
@@ -59,7 +59,6 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import (
     AllocationRegistry,
     BaseContractRegistry,
-    InMemoryAllocationRegistry,
     IndividualAllocationRegistry
 )
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
@@ -116,7 +115,7 @@ class NucypherTokenActor:
             self.checksum_address = checksum_address  # type: str
 
         self.registry = registry
-        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
+        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)  # type: NucypherTokenAgent
         self._saved_receipts = list()  # track receipts of transmitted transactions
 
     def __repr__(self):
@@ -195,16 +194,42 @@ class ContractAdministrator(NucypherTokenActor):
         self.economics = economics or StandardTokenEconomics()
 
         self.registry = registry
-        self.preallocation_escrow_deployers = dict()
         self.deployers = {d.contract_name: d for d in self.deployer_classes}
 
-        self.transacting_power = TransactingPower(password=client_password, account=deployer_address, cache=True)
+        self.deployer_power = TransactingPower(password=client_password, account=deployer_address, cache=True)
+        self.transacting_power = self.deployer_power
         self.transacting_power.activate()
         self.staking_escrow_test_mode = staking_escrow_test_mode
+
+        self.sidekick_power = None
+        self.sidekick_address = None
 
     def __repr__(self):
         r = '{name} - {deployer_address})'.format(name=self.__class__.__name__, deployer_address=self.deployer_address)
         return r
+
+    @validate_checksum_address
+    def recruit_sidekick(self, sidekick_address: str, sidekick_password: str):
+        self.sidekick_power = TransactingPower(account=sidekick_address, password=sidekick_password, cache=True)
+        if self.sidekick_power.device:
+            raise ValueError("Holy Wallet! Sidekicks can only be SW accounts")
+        self.sidekick_address = sidekick_address
+
+    def activate_deployer(self, refresh: bool = True):
+        if not self.deployer_power.is_active:
+            self.transacting_power = self.deployer_power
+            self.transacting_power.activate()
+        elif refresh:
+            self.transacting_power.activate()
+
+    def activate_sidekick(self, refresh: bool = True):
+        if not self.sidekick_power:
+            raise TransactingPower.not_found_error
+        elif not self.sidekick_power.is_active:
+            self.transacting_power = self.sidekick_power
+            self.transacting_power.activate()
+        elif refresh:
+            self.transacting_power.activate()
 
     def __get_deployer(self, contract_name: str):
         try:
@@ -292,15 +317,6 @@ class ContractAdministrator(NucypherTokenActor):
         receipts = deployer.rollback(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
                                      new_secret_hash=new_secret_hash)
         return receipts
-
-    def deploy_preallocation_escrow(self, allocation_registry: AllocationRegistry, progress=None) -> PreallocationEscrowDeployer:
-        preallocation_escrow_deployer = PreallocationEscrowDeployer(registry=self.registry,
-                                                                    deployer_address=self.deployer_address,
-                                                                    allocation_registry=allocation_registry)
-        preallocation_escrow_deployer.deploy(progress=progress)
-        principal_address = preallocation_escrow_deployer.contract.address
-        self.preallocation_escrow_deployers[principal_address] = preallocation_escrow_deployer
-        return preallocation_escrow_deployer
 
     def deploy_network_contracts(self,
                                  secrets: dict,
@@ -491,15 +507,31 @@ class ContractAdministrator(NucypherTokenActor):
                 duration = allocation['duration_seconds']
 
                 try:
-                    self.transacting_power.activate()  # Activate the TransactingPower in case too much time has passed
+                    deployer = PreallocationEscrowDeployer(registry=self.registry,
+                                                           deployer_address=self.deployer_address,
+                                                           sidekick_address=self.sidekick_address,
+                                                           allocation_registry=allocation_registry)
 
-                    deployer = self.deploy_preallocation_escrow(allocation_registry=allocation_registry,
-                                                                progress=bar)
+                    # 0 - Activate a TransactingPower (use the Sidekick if necessary)
+                    use_sidekick = bool(self.sidekick_power)
+                    if use_sidekick:
+                        self.activate_sidekick(refresh=True)
+                    else:
+                        self.activate_deployer(refresh=True)
 
-                    deployer.deliver(value=amount,
-                                     duration=duration,
-                                     beneficiary_address=beneficiary,
-                                     progress=bar)
+                    # 1 - Deploy the contract
+                    deployer.deploy(use_sidekick=use_sidekick, progress=bar)
+
+                    # 2 - Assign ownership to beneficiary
+                    deployer.assign_beneficiary(checksum_address=beneficiary, use_sidekick=use_sidekick, progress=bar)
+
+                    # 3 - Use main deployer account to do the initial deposit
+                    self.activate_deployer(refresh=False)
+                    deployer.initial_deposit(value=amount, duration_seconds=duration, progress=bar)
+
+                    # 4 - Enroll in allocation registry
+                    deployer.enroll_principal_contract()
+
                 except TransactionFailed as e:
                     if crash_on_failure:
                         raise
@@ -766,19 +798,13 @@ class Staker(NucypherTokenActor):
     def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
         """Public facing method for token locking."""
         if self.is_contract:
-            approve_receipt = self.token_agent.approve_transfer(amount=amount,
-                                                                target_address=self.staking_agent.contract_address,
-                                                                sender_address=self.beneficiary_address)
-            deposit_receipt = self.preallocation_escrow_agent.deposit_as_staker(amount=amount, lock_periods=lock_periods)
+            receipt = self.preallocation_escrow_agent.deposit_as_staker(amount=amount, lock_periods=lock_periods)
         else:
-            approve_receipt = self.token_agent.approve_transfer(amount=amount,
-                                                                target_address=self.staking_agent.contract_address,
-                                                                sender_address=self.checksum_address)
-            deposit_receipt = self.staking_agent.deposit_tokens(amount=amount,
-                                                                lock_periods=lock_periods,
-                                                                sender_address=self.checksum_address)
-
-        return approve_receipt, deposit_receipt
+            receipt = self.token_agent.approve_and_call(amount=amount,
+                                                        target_address=self.staking_agent.contract_address,
+                                                        sender_address=self.checksum_address,
+                                                        call_data=Web3.toBytes(lock_periods))
+        return receipt
 
     @property
     def is_restaking(self) -> bool:

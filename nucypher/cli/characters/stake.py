@@ -437,9 +437,7 @@ def create(click_config,
     emitter.echo("Broadcasting stake...", color='yellow')
     new_stake = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods)
 
-    painting.paint_staking_confirmation(emitter=emitter,
-                                        ursula=STAKEHOLDER,
-                                        transactions=new_stake.transactions)
+    painting.paint_staking_confirmation(emitter=emitter, staker=STAKEHOLDER, new_stake=new_stake)
 
 
 @stake.command()

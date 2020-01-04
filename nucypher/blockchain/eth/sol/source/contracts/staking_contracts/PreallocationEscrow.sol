@@ -54,15 +54,65 @@ contract PreallocationEscrow is AbstractStakingContract, Ownable {
 
     /**
     * @notice Initial tokens deposit
+    * @param _sender Token sender
+    * @param _value Amount of token to deposit
+    * @param _duration Duration of tokens locking
+    */
+    function initialDeposit(address _sender, uint256 _value, uint256 _duration) internal {
+        require(lockedValue == 0 && _value > 0);
+        endLockTimestamp = block.timestamp.add(_duration);
+        lockedValue = _value;
+        token.safeTransferFrom(_sender, address(this), _value);
+        emit TokensDeposited(_sender, _value, _duration);
+    }
+
+    /**
+    * @notice Initial tokens deposit
     * @param _value Amount of token to deposit
     * @param _duration Duration of tokens locking
     */
     function initialDeposit(uint256 _value, uint256 _duration) public {
-        require(lockedValue == 0 && _value > 0);
-        endLockTimestamp = block.timestamp.add(_duration);
-        lockedValue = _value;
-        token.safeTransferFrom(msg.sender, address(this), _value);
-        emit TokensDeposited(msg.sender, _value, _duration);
+        initialDeposit(msg.sender, _value, _duration);
+    }
+
+    /**
+    * @notice Implementation of the receiveApproval(address,uint256,address,bytes) method
+    * (see NuCypherToken contract). Initial tokens deposit
+    * @param _from Sender
+    * @param _value Amount of tokens to deposit
+    * @param _tokenContract Token contract address
+    * @notice (param _extraData) Amount of seconds during which tokens will be locked
+    */
+    function receiveApproval(
+        address _from,
+        uint256 _value,
+        address _tokenContract,
+        bytes calldata /* _extraData */
+    )
+        external
+    {
+        require(_tokenContract == address(token) && msg.sender == address(token));
+
+        // Copy first 32 bytes from _extraData, according to calldata memory layout:
+        //
+        // 0x00: method signature      4 bytes
+        // 0x04: _from                 32 bytes after encoding
+        // 0x24: _value                32 bytes after encoding
+        // 0x44: _tokenContract        32 bytes after encoding
+        // 0x64: _extraData pointer    32 bytes. Value must be 0x80 (offset of _extraData wrt to 1st parameter)
+        // 0x84: _extraData length     32 bytes
+        // 0xA4: _extraData data       Length determined by previous variable
+        //
+        // See https://solidity.readthedocs.io/en/latest/abi-spec.html#examples
+
+        uint256 payloadSize;
+        uint256 payload;
+        assembly {
+            payloadSize := calldataload(0x84)
+            payload := calldataload(0xA4)
+        }
+        payload = payload >> 8*(32 - payloadSize);
+        initialDeposit(_from, _value, payload);
     }
 
     /**

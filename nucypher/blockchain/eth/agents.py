@@ -180,6 +180,23 @@ class NucypherTokenAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return receipt
 
+    @validate_checksum_address
+    def approve_and_call(self,
+                         amount: int,
+                         target_address: str,
+                         sender_address: str,
+                         call_data: bytes = b'',
+                         gas_limit: int = None):
+        payload = None
+        if gas_limit:  # TODO: Gas management - #842
+            payload = {'gas': gas_limit}
+
+        approve_and_call = self.contract.functions.approveAndCall(target_address, amount, call_data)
+        approve_and_call_receipt = self.blockchain.send_transaction(contract_function=approve_and_call,
+                                                                    sender_address=sender_address,
+                                                                    payload=payload)
+        return approve_and_call_receipt
+
 
 class StakingEscrowAgent(EthereumContractAgent):
 
