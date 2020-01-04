@@ -128,7 +128,7 @@ class Alice(Character, BlockchainPolicyAuthor):
             self.n = STRANGER_ALICE
 
         Character.__init__(self,
-                           node_class=Ursula,
+                           known_node_class=Ursula,
                            is_me=is_me,
                            federated_only=federated_only,
                            checksum_address=checksum_address,
@@ -463,7 +463,7 @@ class Bob(Character):
             self.evidence = evidence
 
     def __init__(self, controller: bool = True, *args, **kwargs) -> None:
-        Character.__init__(self, node_class=Ursula, *args, **kwargs)
+        Character.__init__(self, known_node_class=Ursula, *args, **kwargs)
 
         if controller:
             self.controller = self._controller_class(bob=self)
@@ -848,7 +848,7 @@ class Ursula(Teacher, Character, Worker):
                            abort_on_learning_error=abort_on_learning_error,
                            known_nodes=known_nodes,
                            domains=domains,
-                           node_class=Ursula,
+                           known_node_class=Ursula,
                            **character_kwargs)
 
         #
@@ -1125,7 +1125,7 @@ class Ursula(Teacher, Character, Worker):
             seednode_stake = staking_agent.get_locked_tokens(staker_address=checksum_address)
             if seednode_stake < minimum_stake:
                 raise Learner.NotATeacher(
-                    f"{checksum_address} is staking less then the specified minimum stake value ({minimum_stake}).")
+                    f"{checksum_address} is staking less than the specified minimum stake value ({minimum_stake}).")
 
         # OK - everyone get out
         temp_node_storage.forget()
@@ -1323,7 +1323,7 @@ class Enrico(Character):
 
         # Encrico never uses the blockchain, hence federated_only)
         kwargs['federated_only'] = True
-        kwargs['node_class'] = Ursula
+        kwargs['known_node_class'] = Ursula
         super().__init__(*args, **kwargs)
 
         if controller:

@@ -76,7 +76,7 @@ class Character(Learner):
 
     def __init__(self,
                  domains: Set = None,
-                 node_class: object = None,
+                 known_node_class: object = None,
                  is_me: bool = True,
                  federated_only: bool = False,
                  checksum_address: str = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
@@ -118,17 +118,17 @@ class Character(Learner):
         # Operating Mode
 
         if is_me:
-            if not node_class:
+            if not known_node_class:
                 # Once in a while, in tests or demos, we init a plain Character who doesn't already know about its node class.
                 from nucypher.characters.lawful import Ursula
-                node_class = Ursula
+                known_node_class = Ursula
             # If we're federated only, we assume that all other nodes in our domain are as well.
-            node_class.set_federated_mode(federated_only)
+            known_node_class.set_federated_mode(federated_only)
         else:
             # What an awful hack.  The last convulsions of #466.
             # TODO: Anything else.
             with suppress(AttributeError):
-                federated_only = node_class._federated_only_instances
+                federated_only = known_node_class._federated_only_instances
 
         if federated_only:
             if registry or provider_uri:
@@ -201,7 +201,7 @@ class Character(Learner):
             Learner.__init__(self,
                              domains=domains,
                              network_middleware=self.network_middleware,
-                             node_class=node_class,
+                             node_class=known_node_class,
                              *args, **kwargs)
 
         #

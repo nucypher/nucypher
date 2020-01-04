@@ -913,7 +913,8 @@ class Learner:
                                                    # Do we want both of these to be decided by `eager`?
                                                    eager=eager,
                                                    grow_node_sprout_into_node=eager)
-                remembered.append(node_or_false)
+                if node_or_false is not False:
+                    remembered.append(node_or_false)
 
                 #
                 # Report Failure
@@ -958,11 +959,11 @@ class Learner:
 
 
         learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
-        # self.log.info(learning_round_log_message.format(self._learning_round,
-        #                                                 current_teacher,
-        #                                                 len(node_list),
-        #                                                 len(new_nodes)))
-        if any(remembered):
+        self.log.info(learning_round_log_message.format(self._learning_round,
+                                                        current_teacher,
+                                                        len(sprouts),
+                                                        len(remembered)))
+        if remembered:
             self.known_nodes.record_fleet_state()
         return sprouts
 
@@ -1353,7 +1354,7 @@ class Teacher:
     def nickname_icon_html(self):
         icon_template = """
         <div class="nucypher-nickname-icon" style="border-top-color:{first_color}; border-left-color:{first_color}; border-bottom-color:{second_color}; border-right-color:{second_color};">
-        <span class="small">{node_class} v{version}</span>
+        <span class="small">{known_node_class} v{version}</span>
         <div class="symbols">
             <span class="single-symbol" style="color: {first_color}">{first_symbol}&#xFE0E;</span>
             <span class="single-symbol" style="color: {second_color}">{second_symbol}&#xFE0E;</span>
