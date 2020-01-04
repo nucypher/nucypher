@@ -1024,9 +1024,8 @@ class WorkLockAgent(EthereumContractAgent):
         parameter_signatures = (
             'startBidDate',
             'endBidDate',
-            'depositRate',
-            'refundRate',
-            'lockedPeriods'
+            'boostingRefund',
+            'lockingDuration'
         )
 
         def _call_function_by_name(name: str):
