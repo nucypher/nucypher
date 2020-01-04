@@ -21,7 +21,7 @@ import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from twisted.internet import stdio
 
-from nucypher.blockchain.economics import TokenEconomicsFactory
+from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
@@ -414,7 +414,7 @@ def confirm_activity(general_config, character_options, config_file):
     click.echo(f"Confirming activity for period {confirmed_period}", color='blue')
     receipt = URSULA.confirm_activity()
 
-    economics = TokenEconomicsFactory.get_economics(registry=URSULA.registry)
+    economics = EconomicsFactory.get_economics(registry=URSULA.registry)
     date = datetime_at_period(period=confirmed_period,
                               seconds_per_period=economics.seconds_per_period)
 

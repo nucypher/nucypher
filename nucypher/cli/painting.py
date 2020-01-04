@@ -16,13 +16,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import csv
-import time
 import webbrowser
 from collections import Counter
 from typing import List
 
 import click
 import maya
+import time
 from constant_sorrow.constants import NO_KNOWN_NODES
 from web3 import Web3
 
@@ -32,8 +32,8 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     PolicyManagerAgent,
     StakingEscrowAgent,
-    PreallocationEscrowAgent
-)
+    PreallocationEscrowAgent,
+    WorkLockAgent)
 from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import DispatcherDeployer, StakingInterfaceRouterDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
@@ -726,3 +726,74 @@ def echo_solidity_version(ctx, param, value):
         return
     click.secho(f"Supported solidity version: {SOLIDITY_COMPILER_VERSION}", bold=True)
     ctx.exit()
+
+
+def paint_worklock_status(emitter, registry: BaseContractRegistry):
+    from maya import MayaDT
+    WORKLOCK_AGENT = ContractAgency.get_agent(WorkLockAgent, registry=registry)
+    blockchain = WORKLOCK_AGENT.blockchain
+
+    # Agency
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
+
+    # Time
+    start = MayaDT(WORKLOCK_AGENT.contract.functions.startBidDate().call())
+    end = MayaDT(WORKLOCK_AGENT.contract.functions.endBidDate().call())
+    duration = end - start
+    remaining = end - maya.now()
+
+    payload = f"""
+
+Time
+======================================================
+Start Date ........ {start}
+End Date .......... {end}
+Duration .......... {duration}
+Time Remaining .... {remaining} 
+
+Economics
+======================================================            
+Max. Locked ....... {WORKLOCK_AGENT.contract.functions.minAllowableLockedTokens().call()}
+Min. Locked ....... {WORKLOCK_AGENT.contract.functions.maxAllowableLockedTokens().call()}
+Deposit Rate ...... {WORKLOCK_AGENT.contract.functions.depositRate().call()} 
+Refund Rate ....... {WORKLOCK_AGENT.contract.functions.refundRate().call()}
+Total Bids ........ {blockchain.client.get_balance(WORKLOCK_AGENT.contract_address)}
+Claimed Tokens .... {WORKLOCK_AGENT.contract.functions.allClaimedTokens().call()}
+Remaining Tokens .. {token_agent.get_balance(WORKLOCK_AGENT.contract_address)}
+
+    """
+    emitter.message(payload)
+    return
+
+
+def paint_worklock_participant_notice(emitter, bidder_address, registry):
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)
+
+    obligation = f"""
+* WorkLock Participant Notice *
+-------------------------------
+
+- By participating in NuCypher's WorkLock you are committing to operating a staking NuCypher
+  node after the bidding window closes.
+
+- WorkLock token rewards are claimed in the form of a stake and will be locked for the stake duration.
+
+- WorkLock ETH deposits will be available for refund at a rate of {worklock_agent.economics.worklock_refund_rate} wei per confirmed period.
+
+- Once claiming WorkLock tokens, you are obligated to maintain a networked
+  and available Ursula-Worker node bonded to the staker address {bidder_address} for the duration 
+  of the stake(s) ({worklock_agent.economics.worklock_commitment_duration} periods).
+
+- Allow NuCypher network users to carry out uninterrupted re-encryption
+  work orders at-will without interference. Failure to keep your node online, 
+  or violation of re-encryption work orders will result in the loss of staked tokens as
+  described in the NuCypher slashing protocol.
+
+- Keeping your Ursula node online during the staking period and successfully
+  producing correct re-encryption work orders will result in rewards
+  paid out in ethers retro-actively and on-demand.
+
+Accept worklock terms and node operator obligation?"""
+
+    emitter.message(obligation)
+    return
