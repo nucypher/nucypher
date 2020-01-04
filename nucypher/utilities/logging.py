@@ -86,16 +86,6 @@ class GlobalLoggerSettings:
 
     @classmethod
     @contextmanager
-    def pause_console_logging_while(cls):
-        was_already_going = console_observer in globalLogPublisher._observers
-        if was_already_going:
-            globalLogPublisher.removeObserver(console_observer)
-        yield
-        if was_already_going:
-            globalLogPublisher.addObserver(console_observer)
-
-    @classmethod
-    @contextmanager
     def pause_all_logging_while(cls):
         former_observers = tuple(globalLogPublisher._observers)
         for observer in former_observers:
