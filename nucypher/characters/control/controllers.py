@@ -274,9 +274,6 @@ class JSONRPCController(CharacterControlServer):
     def handle_message(self, message: dict, *args, **kwargs) -> int:
         """Handle single JSON RPC message"""
 
-        # Validate incoming message
-        self.validate_request(request=message)
-
         try:
             _request_id = message['id']
 

@@ -45,16 +45,10 @@ def character_control_interface(func):
                         request = json.loads(request)
                     request = spec.load(request)
 
-            # Validate request
-            instance.validate_request(request=request, interface_name=interface_name)
-
         ######################
         # INTERNAL INTERFACE #
         response = func(self=instance, request=request, *args, **kwargs)
         ######################
-
-        # Validate response
-        instance.validate_response(response=response, interface_name=interface_name)
 
         # Record duration
         responding = maya.now()
