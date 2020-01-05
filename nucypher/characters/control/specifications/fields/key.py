@@ -1,4 +1,5 @@
 from marshmallow import fields
+from marshmallow.exceptions import ValidationError
 from umbral.keys import UmbralPublicKey
 
 class KeyField(fields.Field):
@@ -9,7 +10,10 @@ class KeyField(fields.Field):
     def _deserialize(self, value, attr, data, **kwargs):
         if isinstance(value, bytes):
             return value
-        return bytes.fromhex(value)
+        try:
+            return bytes.fromhex(value)
+        except ValueError as e:
+            raise ValidationError(e)
 
     def _validate(self, value):
         try:
