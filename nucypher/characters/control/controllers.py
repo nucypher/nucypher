@@ -53,6 +53,7 @@ class CharacterControllerBase(ABC):
 
     def _perform_action(self, action: str, request: dict) -> dict:
         serializer = self.get_serializer(action)
+        request = request or {} # for requests with no input params request can be ''
         response_data = serializer.dump(
             getattr(
                 super(self.__class__, self),

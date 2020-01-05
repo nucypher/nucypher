@@ -202,7 +202,7 @@ class BobInterface(CharacterPublicInterface, BobSpecification):
         Character control endpoint for joining a policy on the network.
         """
         self.bob.join_policy(label=label, alice_verifying_key=alice_verifying_key)
-        response = dict()  # {'policy_encrypting_key': ''}  # FIXME
+        response = {'policy_encrypting_key': 'OK'}  # FIXME
         return response
 
     def retrieve(self,
