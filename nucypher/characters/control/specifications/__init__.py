@@ -2,6 +2,12 @@
 from .bob import specifications as bob
 from .alice import specifications as alice
 from .enrico import specifications as enrico
+from .exceptions import (
+    SpecificationError,
+    MissingField,
+    InvalidInputField,
+    InvalidOutputField
+)
 
 from abc import ABC
 from collections import namedtuple
@@ -13,17 +19,10 @@ class CharacterSpecification(ABC):
 
     _specifications = NotImplemented
 
-    class SpecificationError(ValueError):
-        """The protocol request is completely unusable"""
-
-    class MissingField(SpecificationError):
-        """The protocol request can be deserialized by is missing required fields"""
-
-    class InvalidInputField(SpecificationError):
-        """Response data does not match the output specification"""
-
-    class InvalidOutputField(SpecificationError):
-        """Response data does not match the output specification"""
+    SpecificationError = SpecificationError
+    MissingField = MissingField
+    InvalidInputField = InvalidInputField
+    InvalidOutputField = InvalidOutputField
 
     @classmethod
     def get_specifications(cls, interface_name: str) -> tuple:
@@ -39,7 +38,7 @@ class CharacterSpecification(ABC):
             for k in ['input', 'optional', 'output']})
 
     @classmethod
-    def get_spec(cls, interface_name: str) -> tuple:
+    def get_serializer(cls, interface_name: str) -> tuple:
         if cls._specifications is NotImplemented:
             raise NotImplementedError("Missing specifications for character")
         try:
@@ -51,7 +50,7 @@ class CharacterSpecification(ABC):
 
     @classmethod
     def get_specifications(cls, interface_name: str) -> tuple:
-        spec = cls.get_spec(interface_name)
+        spec = cls.get_serializer(interface_name)
 
         if isinstance(spec, dict):
             return SpecificationTuple(**{

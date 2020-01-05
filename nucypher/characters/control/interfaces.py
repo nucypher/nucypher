@@ -1,4 +1,6 @@
 import functools
+import json
+from collections.abc import Mapping
 
 import maya
 from umbral.keys import UmbralPublicKey
@@ -33,7 +35,15 @@ def character_control_interface(func):
 
             # Serialize request
             if instance.serialize:
-                request = instance.serializer(data=request, specification=input_specification)
+                spec = instance.get_serializer(interface_name)
+
+                # handle un-refactored specs
+                if isinstance(spec, dict):
+                    request = instance.serializer(data=request, specification=input_specification)
+                else:
+                    if not isinstance(request, Mapping):
+                        request = json.loads(request)
+                    request = spec.load(request)
 
             # Validate request
             instance.validate_request(request=request, interface_name=interface_name)
@@ -108,6 +118,7 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
               expiration: maya.MayaDT,
               value: int = None,
               rate: int = None,
+              first_period_reward: int = None,
               ) -> dict:
 
         from nucypher.characters.lawful import Bob

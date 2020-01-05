@@ -79,33 +79,6 @@ class CharacterControlJSONSerializer(CharacterControlSerializer):
 
 class AliceControlJSONSerializer(CharacterControlJSONSerializer, MessageHandlerMixin):
 
-    @staticmethod
-    def load_create_policy_input(request: dict):
-        parsed_input = dict(bob_encrypting_key=bytes.fromhex(request['bob_encrypting_key']),
-                            bob_verifying_key=bytes.fromhex(request['bob_verifying_key']),
-                            label=request['label'].encode(),
-                            m=request['m'],
-                            n=request['n'],
-                            expiration=maya.MayaDT.from_iso8601(iso8601_string=request['expiration']))
-        for field in ('value', 'rate'):
-            if field in request:
-                parsed_input[field] = request[field]
-        return parsed_input
-
-    @staticmethod
-    def dump_create_policy_output(response):
-        unicode_label = response['label'].decode()
-        policy_encrypting_key_hex = response['policy_encrypting_key'].to_bytes().hex()
-        response_data = {'label': unicode_label, 'policy_encrypting_key': policy_encrypting_key_hex}
-        return response_data
-
-    @staticmethod
-    def dump_derive_policy_encrypting_key_output(response: dict):
-        policy_encrypting_key_hex = bytes(response['policy_encrypting_key']).hex()
-        unicode_label = response['label'].decode()
-        response_data = {'policy_encrypting_key': policy_encrypting_key_hex, 'label': unicode_label}
-        return response_data
-
     def load_decrypt_input(self, request: dict) -> dict:
         parsed_input = dict(label=request['label'].encode(),
                             message_kit=self.decode(request['message_kit']))

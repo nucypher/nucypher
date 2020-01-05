@@ -22,6 +22,9 @@ from nucypher.characters.control.serializers import (
     EnricoControlJSONSerializer,
     CharacterControlSerializer
 )
+
+from nucypher.characters.control.specifications import AliceSpecification
+
 from nucypher.characters.control.specifications import CharacterSpecification
 from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.utilities.controllers import JSONRPCTestClient
@@ -53,48 +56,48 @@ class CharacterControllerBase(ABC):
         # Disables request & response serialization
         self.serialize = serialize
 
+    def get_serializer(self, interface_name: str):
+        return self.specification.get_serializer(inteface_name)
+
 
 class AliceJSONController(AliceInterface, CharacterControllerBase):
     """Serialized and validated JSON controller; Implements Alice's public interfaces"""
 
-    _control_serializer_class = AliceControlJSONSerializer
+    _control_serializer_class = AliceSpecification
+    specification = AliceSpecification
     _emitter_class = StdoutEmitter
 
     @character_control_interface
     def create_policy(self, request):
-        serialized_output = self.serializer.load_create_policy_input(request=request)
-        result = super().create_policy(**serialized_output)
-        response_data = self.serializer.dump_create_policy_output(response=result)
+        serializer = self.get_serializer('create_policy')
+        response_data = serializer.dump(super().create_policy(**serializer.load(request)))
         return response_data
 
     @character_control_interface
     def derive_policy_encrypting_key(self, label: str = None, request=None):
-        if label:
-            label_bytes = label.encode()
-
-        else:
-            label_bytes = request['label'].encode()
-
-        result = super().derive_policy_encrypting_key(label=label_bytes)
-        response_data = self.serializer.dump_derive_policy_encrypting_key_output(response=result)
+        label = label or request.get('label')
+        serializer = self.get_serializer('derive_policy_encrypting_key')
+        data = serializer.load(dict(label=label))
+        response_data = serializer.dump(super().derive_policy_encrypting_key(**data))
         return response_data
+
 
     @character_control_interface
     def grant(self, request):
-        result = super().grant(**self.serializer.parse_grant_input(request=request))
-        response_data = self.serializer.dump_grant_output(response=result)
+        serializer = self.get_serializer('grant')
+        response_data = serializer.dump(super().grant(**serializer.load(request)))
         return response_data
 
     @character_control_interface
     def revoke(self, request):
-        result = super().revoke(**self.serializer.parse_revoke_input(request=request))
-        response_data = result
+        serializer = self.get_serializer('revoke')
+        response_data = serializer.dump(super().revoke(**serializer.load(request)))
         return response_data
 
     @character_control_interface
     def decrypt(self, request: dict):
-        result = super().decrypt(**self.serializer.load_decrypt_input(request=request))
-        response_data = self.serializer.dump_decrypt_output(response=result)
+        serializer = self.get_serializer('decrypt')
+        response_data = serializer.dump(super().decrypt(**serializer.load(request)))
         return response_data
 
     @character_control_interface
@@ -102,8 +105,8 @@ class AliceJSONController(AliceInterface, CharacterControllerBase):
         """
         Character control endpoint for getting Bob's encrypting and signing public keys
         """
-        result = super().public_keys()
-        response_data = self.serializer.dump_public_keys_output(response=result)
+        serializer = self.get_serializer('public_keys')
+        response_data = serializer.dump(super().public_keys(**serializer.load(request)))
         return response_data
 
 

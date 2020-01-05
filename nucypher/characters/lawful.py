@@ -681,7 +681,7 @@ class Bob(Character):
         cleartexts = []
 
         if must_do_new_retrieval:
-            # TODO: Consider blocking until map is done being followed. #1114 
+            # TODO: Consider blocking until map is done being followed. #1114
 
             work_orders = self.generate_work_orders(map_id, capsule, cache=cache)
             the_airing_of_grievances = []

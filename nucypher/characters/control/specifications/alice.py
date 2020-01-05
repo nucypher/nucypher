@@ -1,15 +1,14 @@
-from marshmallow import Schema
 from .fields import fields
+from .base import BaseSchema
 
-
-class PolicyBaseSchema(Schema):
+class PolicyBaseSchema(BaseSchema):
 
     #required input fields
     bob_encrypting_key = fields.Key(required=True, load_only=True)
     bob_verifying_key = fields.Key(required=True, load_only=True)
     m = fields.Integer(required=True, load_only=True)
     n = fields.Integer(required=True, load_only=True)
-    expiration = fields.Date(required=True, load_only=True)
+    expiration = fields.DateTime(required=True, load_only=True)
 
     # optional input
     value = fields.Integer(load_only=True)
@@ -22,38 +21,37 @@ class PolicyBaseSchema(Schema):
 
 class CreatePolicy(PolicyBaseSchema):
 
-    label = fields.Str(required=True)
+    label = fields.Label(required=True)
 
 
 class GrantPolicy(PolicyBaseSchema):
 
     treasure_map = fields.TreasureMap(dump_only=True)
     alice_verifying_key = fields.Key(dump_only=True)
-    label = fields.Str(load_only=True, required=True)
+    label = fields.Label(load_only=True, required=True)
 
 
-class DerivePolicyEncryptionKey(Schema):
+class DerivePolicyEncryptionKey(BaseSchema):
 
-    label = fields.Str(required=True)
+    label = fields.Label(required=True)
     policy_encrypting_key = fields.Key(dump_only=True)
 
 
-class Revoke(Schema):
+class Revoke(BaseSchema):
 
-    label = fields.Str(required=True, load_only=True)
+    label = fields.Label(required=True, load_only=True)
     bob_verifying_key = fields.Key(required=True, load_only=True)
 
-    failed_revocations = fields.List(fields.Str(), dump_only=True)
+    failed_revocations = fields.Integer(dump_only=True)
 
 
-class Decrypt(Schema):
-    label = fields.Str(required=True, load_only=True)
+class Decrypt(BaseSchema):
+    label = fields.Label(required=True, load_only=True)
     message_kit = fields.MessageKit(load_only=True)
-
     cleartexts = fields.List(fields.Str(), dump_only=True)
 
 
-class PublicKeys(Schema):
+class PublicKeys(BaseSchema):
 
     alice_verifying_key = fields.Key(dump_only=True)
 
