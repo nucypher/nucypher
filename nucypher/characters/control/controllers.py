@@ -16,14 +16,12 @@ from nucypher.characters.control.interfaces import (
     EnricoInterface,
     BobInterface
 )
-from nucypher.characters.control.serializers import (
-    AliceControlJSONSerializer,
-    BobControlJSONSerializer,
-    EnricoControlJSONSerializer,
-    CharacterControlSerializer
-)
 
-from nucypher.characters.control.specifications import AliceSpecification
+from nucypher.characters.control.specifications import (
+    AliceSpecification,
+    BobSpecification,
+    EnricoSpecification
+)
 
 from nucypher.characters.control.specifications import CharacterSpecification
 from nucypher.cli.processes import JSONRPCLineReceiver
@@ -40,18 +38,12 @@ class CharacterControllerBase(ABC):
 
     (stdio, http, in-memory python containers, other IPC, or another protocol.)
     """
-
-    _control_serializer_class = NotImplemented
     _emitter_class = NotImplemented
 
-    def __init__(self, control_serializer=None, serialize: bool = False):
-
-        # Control Serializer
-        self.serializer = control_serializer or self._control_serializer_class()
+    def __init__(self, serialize: bool = False):
 
         # Control Emitter
         self.emitter = self._emitter_class()
-        self.emitter.transport_serializer = self.serializer
 
         # Disables request & response serialization
         self.serialize = serialize
@@ -59,103 +51,79 @@ class CharacterControllerBase(ABC):
     def get_serializer(self, interface_name: str):
         return self.specification.get_serializer(inteface_name)
 
+    def _perform_action(self, action: str, request: dict) -> dict:
+        serializer = self.get_serializer(action)
+        response_data = serializer.dump(
+            getattr(
+                super(self.__class__, self),
+                action
+            )(
+                **serializer.load(request)
+            )
+        )
+        return response_data
+
 
 class AliceJSONController(AliceInterface, CharacterControllerBase):
     """Serialized and validated JSON controller; Implements Alice's public interfaces"""
 
-    _control_serializer_class = AliceSpecification
     specification = AliceSpecification
     _emitter_class = StdoutEmitter
 
     @character_control_interface
     def create_policy(self, request):
-        serializer = self.get_serializer('create_policy')
-        response_data = serializer.dump(super().create_policy(**serializer.load(request)))
-        return response_data
+        return self._perform_action('create_policy', request)
 
     @character_control_interface
     def derive_policy_encrypting_key(self, label: str = None, request=None):
         label = label or request.get('label')
-        serializer = self.get_serializer('derive_policy_encrypting_key')
-        data = serializer.load(dict(label=label))
-        response_data = serializer.dump(super().derive_policy_encrypting_key(**data))
-        return response_data
-
+        return self._perform_action('derive_policy_encrypting_key', dict(label=label))
 
     @character_control_interface
     def grant(self, request):
-        serializer = self.get_serializer('grant')
-        response_data = serializer.dump(super().grant(**serializer.load(request)))
-        return response_data
+        return self._perform_action('grant', request)
 
     @character_control_interface
     def revoke(self, request):
-        serializer = self.get_serializer('revoke')
-        response_data = serializer.dump(super().revoke(**serializer.load(request)))
-        return response_data
+        return self._perform_action('revoke', request)
 
     @character_control_interface
     def decrypt(self, request: dict):
-        serializer = self.get_serializer('decrypt')
-        response_data = serializer.dump(super().decrypt(**serializer.load(request)))
-        return response_data
+        return self._perform_action('decrypt', request)
 
     @character_control_interface
     def public_keys(self, request):
-        """
-        Character control endpoint for getting Bob's encrypting and signing public keys
-        """
-        serializer = self.get_serializer('public_keys')
-        response_data = serializer.dump(super().public_keys(**serializer.load(request)))
-        return response_data
+        return self._perform_action('public_keys', request)
 
 
 class BobJSONController(BobInterface, CharacterControllerBase):
     """Serialized and validated JSON controller; Implements Bob's public interfaces"""
 
-    _control_serializer_class = BobControlJSONSerializer
+    specification = BobSpecification
     _emitter_class = StdoutEmitter
 
     @character_control_interface
     def join_policy(self, request):
-        """
-        Character control endpoint for joining a policy on the network.
-        """
-        serialized_output = self.serializer.load_join_policy_input(request=request)
-        _result = super().join_policy(**serialized_output)
-        response = {'policy_encrypting_key': 'OK'}  # FIXME
-        return response
+        return self._perform_action('join_policy', request)
 
     @character_control_interface
     def retrieve(self, request):
-        """
-        Character control endpoint for re-encrypting and decrypting policy data.
-        """
-        result = super().retrieve(**self.serializer.load_retrieve_input(request=request))
-        response_data = self.serializer.dump_retrieve_output(response=result)
-        return response_data
+        return self._perform_action('retrieve', request)
 
     @character_control_interface
     def public_keys(self, request):
-        """
-        Character control endpoint for getting Bob's encrypting and signing public keys
-        """
-        result = super().public_keys()
-        response_data = self.serializer.dump_public_keys_output(response=result)
-        return response_data
+        return self._perform_action('public_keys', request)
 
 
 class EnricoJSONController(EnricoInterface, CharacterControllerBase):
     """Serialized and validated JSON controller; Implements Enrico's public interfaces"""
 
-    _control_serializer_class = EnricoControlJSONSerializer
+    specification = EnricoSpecification
     _emitter_class = StdoutEmitter
 
     @character_control_interface
     def encrypt_message(self, request: str):
-        result = super().encrypt_message(**self.serializer.load_encrypt_message_input(request=request))
-        response_data = self.serializer.dump_encrypt_message_output(response=result)
-        return response_data
+        return self._perform_action('encrypt_message', request)
 
 
 class CharacterControlServer(CharacterControllerBase):
@@ -185,7 +153,7 @@ class CharacterControlServer(CharacterControllerBase):
         self._internal_controller = character_controller
         self._internal_controller.emitter = self.emitter
 
-        super().__init__(control_serializer=self._internal_controller.serializer)
+        super().__init__()
 
         self.log = Logger(app_name)
 
@@ -403,7 +371,7 @@ class WebController(CharacterControlServer):
 
         _400_exceptions = (CharacterSpecification.MissingField,
                            CharacterSpecification.InvalidInputField,
-                           CharacterControlSerializer.SerializerError)
+                           )
         try:
             response = interface(request=control_request.data, *args, **kwargs)  # < ------- INLET
 
