@@ -1069,6 +1069,8 @@ class WorklockDeployer(BaseContractDeployer):
 
     agency = WorkLockAgent
     contract_name = agency.registry_contract_name
+    deployment_steps = ('contract_deployment', 'bond_escrow')
+
     _upgradeable = False
     __proxy_deployer = NotImplemented
 
@@ -1080,7 +1082,7 @@ class WorklockDeployer(BaseContractDeployer):
         self.interface_agent = ContractAgency.get_agent(PreallocationEscrowAgent.StakingInterfaceAgent,
                                                         registry=self.registry)
 
-    def deploy(self, initial_deployment: bool = True, gas_limit: int = None, progress=None) -> Dict[str, str]:
+    def deploy(self, initial_deployment: bool = True, gas_limit: int = None, progress=None) -> Dict[str, dict]:
         self.check_deployment_readiness()
 
         interface_router = self.blockchain.get_proxy_contract(registry=self.registry,
@@ -1097,12 +1099,17 @@ class WorklockDeployer(BaseContractDeployer):
                                                                            self.contract_name,
                                                                            *constructor_args,
                                                                            gas_limit=gas_limit)
+        if progress:
+            progress.update(1)
 
         bonding_function = self.staking_agent.contract.functions.setWorkLock(worklock_contract.address)
         bonding_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
                                                            contract_function=bonding_function)
 
+        if progress:
+            progress.update(1)
+
         # Gather the transaction hashes
-        self.deployment_transactions = {'deployment': deploy_txhash, 'bond_escrow': bonding_receipt}
+        self.deployment_transactions = {'contract_deployment': deploy_txhash, 'bond_escrow': bonding_receipt}
         self._contract = worklock_contract
         return self.deployment_transactions

@@ -17,45 +17,71 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import pytest
-from eth_utils import is_checksum_address
+from eth_utils import keccak
 
-from nucypher.blockchain.eth.agents import WorkLockAgent
-from nucypher.blockchain.eth.deployers import WorklockDeployer
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency
+from nucypher.blockchain.eth.constants import WORKLOCK_CONTRACT_NAME
+from nucypher.blockchain.eth.deployers import WorklockDeployer, StakingInterfaceDeployer, AdjudicatorDeployer
+from nucypher.utilities.sandbox.constants import STAKING_ESCROW_DEPLOYMENT_SECRET, INSECURE_DEPLOYMENT_SECRET_HASH, \
+    POLICY_MANAGER_DEPLOYMENT_SECRET
 
 
-def test_worklock_deployer(testerchain, test_registry, agency, token_economics):
-    origin = testerchain.etherbase_account
+@pytest.fixture(scope="module")
+def worklock_deployer(staking_escrow_deployer,
+                      policy_manager_deployer,
+                      adjudicator_deployer,
+                      staking_interface_deployer,
+                      testerchain,
+                      test_registry,
+                      token_economics):
 
-    # Trying to get token from blockchain before it's been published fails
-    with pytest.raises(BaseContractRegistry.UnknownContract):
-        WorkLockAgent(registry=test_registry)
+    # Set the stage
+    adjudicator_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
+    staking_interface_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    # Generate WorkLock params
-    # TODO: Move to "WorkLockEconomics" class #1126
-    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
-    start_bid_date = now + (60 * 60)  # 1 Hour
-    end_bid_date = start_bid_date + (60 * 60)
-    deposit_rate = 100
-    refund_rate = 200
-    locked_periods = 2 * token_economics.minimum_locked_periods
+    # Now the worklock itself
+    worklock_deployer = WorklockDeployer(registry=test_registry,
+                                         economics=token_economics,
+                                         deployer_address=testerchain.etherbase_account)
+    return worklock_deployer
 
-    # Create WorkLock Deployer
-    deployer = WorklockDeployer(blockchain=testerchain,
-                                deployer_address=origin,
-                                start_date=start_bid_date,
-                                end_date=end_bid_date,
-                                refund_rate=refund_rate,
-                                deposit_rate=deposit_rate,
-                                locked_periods=locked_periods)
 
-    # Deploy WorkLock
-    deployment_receipts = deployer.deploy()
-    assert len(deployment_receipts) == 1
+def test_worklock_deployment(worklock_deployer, staking_escrow_deployer, deployment_progress):
 
-    # Create a token instance
-    assert deployer.contract
-    assert is_checksum_address(deployer.contract_address)
-    assert deployer.contract.address == deployer.contract_address
+    assert worklock_deployer.contract_name == WORKLOCK_CONTRACT_NAME
 
-    testerchain.registry.clear()
+    deployment_receipts = worklock_deployer.deploy(progress=deployment_progress)
+
+    # deployment steps must match expected number of steps
+    steps = worklock_deployer.deployment_steps
+    assert deployment_progress.num_steps == len(steps) == len(deployment_receipts) == 2
+
+    # Ensure every step is successful
+    for step_title in steps:
+        assert deployment_receipts[step_title]['status'] == 1
+
+    # Ensure the correct staking escrow address is set
+    staking_escrow_address = worklock_deployer.contract.functions.escrow().call()
+    assert staking_escrow_deployer.contract_address == staking_escrow_address
+
+
+def test_make_agent(policy_manager_deployer, test_registry):
+
+    # Create a PolicyManagerAgent
+    policy_agent = policy_manager_deployer.make_agent()
+
+    # Retrieve the PolicyManagerAgent singleton
+    some_policy_agent = WorkLockAgent(registry=test_registry)
+    assert policy_agent == some_policy_agent  # __eq__
+
+    # Compare the contract address for equality
+    assert policy_agent.contract_address == some_policy_agent.contract_address
+
+
+def test_deployment_parameters(policy_manager_deployer, staking_escrow_deployer, test_registry):
+
+    escrow_address = policy_manager_deployer.contract.functions.escrow().call()
+    assert staking_escrow_deployer.contract_address == escrow_address
+
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    seconds_per_period = worklock_agent.worklock_parameters()[0]
