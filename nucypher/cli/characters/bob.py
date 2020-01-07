@@ -153,8 +153,8 @@ def init(general_config, config_options, federated_only, config_root):
     """
     emitter = _setup_emitter(general_config)
 
-    if not config_root:  # Flag
-        config_root = general_config.config_file  # Envvar
+    if not config_root:
+        config_root = general_config.config_root
 
     new_bob_config = config_options.generate_config(emitter, config_root, federated_only)
 

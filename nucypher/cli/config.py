@@ -46,7 +46,7 @@ class GroupGeneralConfig:
     verbosity = 0
 
     # Environment Variables
-    config_file = os.environ.get('NUCYPHER_CONFIG_FILE')
+    config_root = os.environ.get('NUCYPHER_CONFIG_ROOT')
     sentry_endpoint = os.environ.get("NUCYPHER_SENTRY_DSN", NUCYPHER_SENTRY_ENDPOINT)
     log_to_sentry = get_env_bool("NUCYPHER_SENTRY_LOGS", True)
     log_to_file = get_env_bool("NUCYPHER_FILE_LOGS", True)

@@ -230,7 +230,7 @@ def init(general_config, config_options, config_root, poa, light, m, n, rate, du
     emitter = _setup_emitter(general_config)
 
     if not config_root:
-        config_root = general_config.config_file # FIXME: better called `config_root`?
+        config_root = general_config.config_root
 
     new_alice_config = config_options.generate_config(
         emitter, config_root, poa, light, m, n, duration_periods, rate)

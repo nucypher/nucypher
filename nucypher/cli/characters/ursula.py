@@ -266,7 +266,7 @@ def init(general_config, config_options, force, config_root):
     emitter = _setup_emitter(general_config, config_options.worker_address)
     _pre_launch_warnings(emitter, dev=None, force=force)
     if not config_root:
-        config_root = general_config.config_file
+        config_root = general_config.config_root
     ursula_config = config_options.generate_config(emitter, config_root, force)
     painting.paint_new_installation_help(emitter, new_configuration=ursula_config)
 
