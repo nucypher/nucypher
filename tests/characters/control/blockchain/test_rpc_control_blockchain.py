@@ -40,11 +40,6 @@ def test_alice_rpc_character_control_create_policy(alice_rpc_test_client, create
     assert rpc_response.success is True
     assert rpc_response.id == 2
 
-    # Send bad data to assert error returns (Request #3)
-    alice_rpc_test_client.crash_on_error = False
-    response = alice_rpc_test_client.send(request={'bogus': 'input'}, malformed=True)
-    assert response.error_code == -32600
-
     # Send a bulk create policy request
     bulk_request = list()
     for i in range(50):
@@ -56,6 +51,14 @@ def test_alice_rpc_character_control_create_policy(alice_rpc_test_client, create
         assert rpc_response.success is True
         assert rpc_response.id == response_id
 
+def test_alice_rpc_character_control_bad_input(alice_rpc_test_client, create_policy_control_request):
+    alice_rpc_test_client.__class__.MESSAGE_ID = 0
+
+    # Send bad data to assert error returns (Request #3)
+    alice_rpc_test_client.crash_on_error = False
+
+    response = alice_rpc_test_client.send(request={'bogus': 'input'}, malformed=True)
+    assert response.error_code == -32600
 
 def test_alice_rpc_character_control_derive_policy_encrypting_key(alice_rpc_test_client):
     method_name = 'derive_policy_encrypting_key'
