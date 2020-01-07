@@ -48,7 +48,7 @@ class Revoke(BaseSchema):
 class Decrypt(BaseSchema):
     label = fields.Label(required=True, load_only=True)
     message_kit = fields.MessageKit(load_only=True)
-    cleartexts = fields.List(fields.Str(), dump_only=True)
+    cleartexts = fields.List(fields.Cleartext(), dump_only=True)
 
 
 class PublicKeys(BaseSchema):

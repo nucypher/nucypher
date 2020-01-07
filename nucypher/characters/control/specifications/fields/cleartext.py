@@ -4,6 +4,8 @@ from marshmallow import fields
 class CleartextField(fields.Field):
 
     def _serialize(self, value, attr, data, **kwargs):
+        if isinstance(value, bytes):
+            return value.decode()
         return b64encode(value).decode()
 
 fields.Cleartext = CleartextField
