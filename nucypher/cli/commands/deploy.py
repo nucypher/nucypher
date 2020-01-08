@@ -329,7 +329,8 @@ def rollback(general_config, actor_options):
 @click.option('--bare', help="Deploy a contract *only* without any additional operations.", is_flag=True)
 @option_gas
 @option_ignore_deployed
-def contracts(general_config, actor_options, bare, gas, ignore_deployed):
+@click.option('--confirmations', help="Number of required block confirmations", type=click.IntRange(min=0))
+def contracts(general_config, actor_options, bare, gas, ignore_deployed, confirmations):
     """
     Compile and deploy contracts.
     """
@@ -359,13 +360,15 @@ def contracts(general_config, actor_options, bare, gas, ignore_deployed):
                                                             plaintext_secret=secret,
                                                             gas_limit=gas,
                                                             bare=bare,
-                                                            ignore_deployed=ignore_deployed)
+                                                            ignore_deployed=ignore_deployed,
+                                                            confirmations=confirmations)
         else:
             # Non-Upgradeable or Bare
             receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
                                                             gas_limit=gas,
                                                             bare=bare,
-                                                            ignore_deployed=ignore_deployed)
+                                                            ignore_deployed=ignore_deployed,
+                                                            confirmations=confirmations)
 
         # Report
         paint_contract_deployment(contract_name=contract_name,
