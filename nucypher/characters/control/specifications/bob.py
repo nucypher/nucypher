@@ -1,5 +1,5 @@
-from .fields import fields
-from .base import BaseSchema
+from nucypher.characters.control.specifications.fields import fields
+from nucypher.characters.control.specifications.base import BaseSchema
 
 
 class JoinPolicy(BaseSchema):
@@ -16,7 +16,7 @@ class Retrieve(BaseSchema):
     label = fields.Label(required=True, load_only=True)
     policy_encrypting_key = fields.Key(required=True, load_only=True)
     alice_verifying_key = fields.Key(required=True, load_only=True, )
-    message_kit = fields.MessageKit(required=True, load_only=True)
+    message_kit = fields.UmbralMessageKit(required=True, load_only=True)
 
     cleartexts = fields.List(fields.Cleartext(), dump_only=True)
 

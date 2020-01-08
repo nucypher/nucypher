@@ -1,5 +1,6 @@
-from .fields import fields
-from .base import BaseSchema
+from nucypher.characters.control.specifications.fields import fields
+from nucypher.characters.control.specifications.base import BaseSchema
+
 
 class PolicyBaseSchema(BaseSchema):
 
@@ -47,7 +48,7 @@ class Revoke(BaseSchema):
 
 class Decrypt(BaseSchema):
     label = fields.Label(required=True, load_only=True)
-    message_kit = fields.MessageKit(load_only=True)
+    message_kit = fields.UmbralMessageKit(load_only=True)
     cleartexts = fields.List(fields.Cleartext(), dump_only=True)
 
 

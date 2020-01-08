@@ -1,8 +1,8 @@
 
-from .bob import specifications as bob
-from .alice import specifications as alice
-from .enrico import specifications as enrico
-from .exceptions import (
+from nucypher.characters.control.specifications.bob import specifications as bob
+from nucypher.characters.control.specifications.alice import specifications as alice
+from nucypher.characters.control.specifications.enrico import specifications as enrico
+from nucypher.characters.control.specifications.exceptions import (
     SpecificationError,
     MissingField,
     InvalidInputField,
@@ -26,8 +26,6 @@ class CharacterSpecification(ABC):
 
     @classmethod
     def get_serializer(cls, interface_name: str) -> tuple:
-        if cls._specifications is NotImplemented:
-            raise NotImplementedError("Missing specifications for character")
         try:
             spec = cls.specifications()[interface_name]
         except KeyError:

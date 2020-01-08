@@ -1,5 +1,6 @@
 from marshmallow import Schema, INCLUDE, EXCLUDE
-from .exceptions import InvalidInputField
+from nucypher.characters.control.specifications.exceptions import InvalidInputField
+
 
 class BaseSchema(Schema):
 

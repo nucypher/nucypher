@@ -4,7 +4,7 @@ from marshmallow import fields
 from nucypher.crypto.kits import UmbralMessageKit
 
 
-class MessageKitField(fields.Field):
+class UmbralMessageKitField(fields.Field):
 
     def _serialize(self, value: UmbralMessageKit, attr, obj, **kwargs):
         return b64encode(value.to_bytes()).decode()
@@ -21,4 +21,4 @@ class MessageKitField(fields.Field):
         except Exception as e:
             return False
 
-fields.MessageKit = MessageKitField
+fields.UmbralMessageKit = UmbralMessageKitField
