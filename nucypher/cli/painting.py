@@ -753,14 +753,9 @@ Time Remaining .... {remaining}
 
 Economics
 ======================================================            
-Max. Locked ....... {WORKLOCK_AGENT.contract.functions.minAllowableLockedTokens().call()}
-Min. Locked ....... {WORKLOCK_AGENT.contract.functions.maxAllowableLockedTokens().call()}
-Deposit Rate ...... {WORKLOCK_AGENT.contract.functions.depositRate().call()} 
-Refund Rate ....... {WORKLOCK_AGENT.contract.functions.refundRate().call()}
+Refund Rate ....... {WORKLOCK_AGENT.contract.functions.boostingRefund().call()}
 Total Bids ........ {blockchain.client.get_balance(WORKLOCK_AGENT.contract_address)}
-Claimed Tokens .... {WORKLOCK_AGENT.contract.functions.allClaimedTokens().call()}
-Remaining Tokens .. {token_agent.get_balance(WORKLOCK_AGENT.contract_address)}
-
+Unclaimed Tokens .... {WORKLOCK_AGENT.contract.functions.unclaimedTokens().call()}
     """
     emitter.message(payload)
     return

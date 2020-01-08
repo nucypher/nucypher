@@ -65,17 +65,16 @@ def test_worklock_deployment(worklock_deployer, staking_escrow_deployer, deploym
     assert staking_escrow_deployer.contract_address == staking_escrow_address
 
 
-def test_make_agent(policy_manager_deployer, test_registry):
+def test_make_agent(worklock_deployer, test_registry):
 
-    # Create a PolicyManagerAgent
-    policy_agent = policy_manager_deployer.make_agent()
+    agent = worklock_deployer.make_agent()
 
     # Retrieve the PolicyManagerAgent singleton
-    some_policy_agent = WorkLockAgent(registry=test_registry)
-    assert policy_agent == some_policy_agent  # __eq__
+    another_worklock_agent = WorkLockAgent(registry=test_registry)
+    assert agent == another_worklock_agent  # __eq__
 
     # Compare the contract address for equality
-    assert policy_agent.contract_address == some_policy_agent.contract_address
+    assert agent.contract_address == another_worklock_agent.contract_address
 
 
 def test_deployment_parameters(policy_manager_deployer, staking_escrow_deployer, test_registry):

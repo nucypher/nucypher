@@ -968,14 +968,14 @@ class WorkLockAgent(EthereumContractAgent):
                                                            sender_address=sender_address)
         return funding_receipt
 
-    def bid(self, eth_amount: int,  sender_address: str) -> dict:
+    def bid(self, value: int, sender_address: str) -> dict:
         """
         Bid for NU tokens with ETH.
         """
         contract_function = self.contract.functions.bid()
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    sender_address=sender_address,
-                                                   payload={'value': eth_amount})
+                                                   payload={'value': value})
         return receipt
 
     def cancel_bid(self, sender_address: str) -> dict:
