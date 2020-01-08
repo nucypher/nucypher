@@ -38,6 +38,8 @@ from eth_utils import to_checksum_address
 from flask import request, Response
 from twisted.internet import threads
 from twisted.logger import Logger
+
+from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
@@ -52,9 +54,6 @@ from nucypher.blockchain.eth.token import WorkTracker
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import (
-    AliceJSONController,
-    BobJSONController,
-    EnricoJSONController,
     WebController
 )
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
@@ -75,7 +74,7 @@ from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_
 
 class Alice(Character, BlockchainPolicyAuthor):
     banner = ALICE_BANNER
-    _controller_class = AliceJSONController
+    _interface_class = AliceInterface
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
 
     def __init__(self,
@@ -136,7 +135,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                                             checksum_address=checksum_address)
 
         if is_me and controller:
-            self.controller = self._controller_class(alice=self)
+            self.controller = self._interface_class(character=self)
 
         self.log = Logger(self.__class__.__name__)
         self.log.info(self.banner)
@@ -441,7 +440,7 @@ class Alice(Character, BlockchainPolicyAuthor):
 
 class Bob(Character):
     banner = BOB_BANNER
-    _controller_class = BobJSONController
+    _interface_class = BobInterface
 
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
@@ -457,7 +456,7 @@ class Bob(Character):
         Character.__init__(self, known_node_class=Ursula, *args, **kwargs)
 
         if controller:
-            self.controller = self._controller_class(bob=self)
+            self.controller = self._interface_class(bob=self)
 
         from nucypher.policy.collections import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
@@ -1306,7 +1305,7 @@ class Enrico(Character):
     """A Character that represents a Data Source that encrypts data for some policy's public key"""
 
     banner = ENRICO_BANNER
-    _controller_class = EnricoJSONController
+    _interface_class = EnricoInterface
     _default_crypto_powerups = [SigningPower]
 
     def __init__(self, policy_encrypting_key, controller: bool = True, *args, **kwargs):
@@ -1318,7 +1317,7 @@ class Enrico(Character):
         super().__init__(*args, **kwargs)
 
         if controller:
-            self.controller = self._controller_class(enrico=self)
+            self.controller = self._interface_class(enrico=self)
 
         self.log = Logger(f'{self.__class__.__name__}-{bytes(policy_encrypting_key).hex()[:6]}')
         self.log.info(self.banner.format(policy_encrypting_key))

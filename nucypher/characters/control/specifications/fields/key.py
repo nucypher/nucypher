@@ -2,6 +2,7 @@ from marshmallow import fields
 from marshmallow.exceptions import ValidationError
 from umbral.keys import UmbralPublicKey
 
+
 class KeyField(fields.Field):
 
     def _serialize(self, value, attr, obj, **kwargs):

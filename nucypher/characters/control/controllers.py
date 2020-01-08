@@ -10,20 +10,6 @@ from twisted.internet import reactor, stdio
 from twisted.logger import Logger
 
 from nucypher.characters.control.emitters import StdoutEmitter, WebEmitter, JSONRPCStdoutEmitter
-from nucypher.characters.control.interfaces import (
-    AliceInterface,
-    character_control_interface,
-    EnricoInterface,
-    BobInterface
-)
-
-from nucypher.characters.control.specifications import (
-    AliceSpecification,
-    BobSpecification,
-    EnricoSpecification
-)
-
-from nucypher.characters.control.specifications import CharacterSpecification
 from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.utilities.controllers import JSONRPCTestClient
 
@@ -40,20 +26,17 @@ class CharacterControllerBase(ABC):
     """
     _emitter_class = NotImplemented
 
-    def __init__(self, serialize: bool = False):
+    def __init__(self):
 
         # Control Emitter
         self.emitter = self._emitter_class()
 
-        # Disables request & response serialization
-        self.serialize = serialize
-
     def get_serializer(self, interface_name: str):
-        return self.specification.get_serializer(inteface_name)
+        return self.specifications[interface_name]
 
     def _perform_action(self, action: str, request: dict) -> dict:
         serializer = self.get_serializer(action)
-        request = request or {} # for requests with no input params request can be ''
+        request = request or {}  # for requests with no input params request can be ''
         response_data = serializer.dump(
             getattr(
                 super(self.__class__, self),
@@ -63,68 +46,6 @@ class CharacterControllerBase(ABC):
             )
         )
         return response_data
-
-
-class AliceJSONController(AliceInterface, CharacterControllerBase):
-    """Serialized and validated JSON controller; Implements Alice's public interfaces"""
-
-    specification = AliceSpecification
-    _emitter_class = StdoutEmitter
-
-    @character_control_interface
-    def create_policy(self, request):
-        return self._perform_action('create_policy', request)
-
-    @character_control_interface
-    def derive_policy_encrypting_key(self, label: str = None, request=None):
-        label = label or request.get('label')
-        return self._perform_action('derive_policy_encrypting_key', dict(label=label))
-
-    @character_control_interface
-    def grant(self, request):
-        return self._perform_action('grant', request)
-
-    @character_control_interface
-    def revoke(self, request):
-        return self._perform_action('revoke', request)
-
-    @character_control_interface
-    def decrypt(self, request: dict):
-        return self._perform_action('decrypt', request)
-
-    @character_control_interface
-    def public_keys(self, request):
-        return self._perform_action('public_keys', request)
-
-
-class BobJSONController(BobInterface, CharacterControllerBase):
-    """Serialized and validated JSON controller; Implements Bob's public interfaces"""
-
-    specification = BobSpecification
-    _emitter_class = StdoutEmitter
-
-    @character_control_interface
-    def join_policy(self, request):
-        return self._perform_action('join_policy', request)
-
-    @character_control_interface
-    def retrieve(self, request):
-        return self._perform_action('retrieve', request)
-
-    @character_control_interface
-    def public_keys(self, request):
-        return self._perform_action('public_keys', request)
-
-
-class EnricoJSONController(EnricoInterface, CharacterControllerBase):
-    """Serialized and validated JSON controller; Implements Enrico's public interfaces"""
-
-    specification = EnricoSpecification
-    _emitter_class = StdoutEmitter
-
-    @character_control_interface
-    def encrypt_message(self, request: str):
-        return self._perform_action('encrypt_message', request)
 
 
 class CharacterControlServer(CharacterControllerBase):
@@ -368,8 +289,8 @@ class WebController(CharacterControlServer):
 
         interface_name = interface.__name__
 
-        _400_exceptions = (CharacterSpecification.MissingField,
-                           CharacterSpecification.InvalidInputField,
+        _400_exceptions = (CommandSpecification.MissingField,
+                           CommandSpecification.InvalidInputField,
                            )
         try:
             response = interface(request=control_request.data, *args, **kwargs)  # < ------- INLET
@@ -388,7 +309,7 @@ class WebController(CharacterControlServer):
         #
         # Server Errors
         #
-        except CharacterSpecification.SpecificationError as e:
+        except CommandSpecification.SpecificationError as e:
             __exception_code = 500
             if self.crash_on_error:
                 raise

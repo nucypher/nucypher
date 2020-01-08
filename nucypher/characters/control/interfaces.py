@@ -5,7 +5,6 @@ from collections.abc import Mapping
 import maya
 from umbral.keys import UmbralPublicKey
 
-from nucypher.characters.control.specifications import AliceSpecification, BobSpecification, EnricoSpecification
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.utils import construct_policy_id
@@ -20,34 +19,21 @@ def character_control_interface(func):
 
     # noinspection PyPackageRequirements
     @functools.wraps(func)
-    def wrapped(instance, request=None, request_id: int = None, *args, **kwargs) -> bytes:
+    def wrapped(controller, request=None, request_id: int = None, *args, **kwargs) -> bytes:
 
+        # Handle RPC Quirk
         if request_id is None:
             request_id = internal_request_id
 
-        # Get specification
-        interface_name = func.__name__
-        input_specification, optional_specification, output_specification =\
-            instance.get_specifications(interface_name=interface_name)
-        input_specification = input_specification + optional_specification
-
-        if request and instance.serialize:
-
-            # Serialize request
-            if instance.serialize:
-                spec = instance.get_serializer(interface_name)
-
-                # handle un-refactored specs
-                if isinstance(spec, dict):
-                    request = instance.serializer(data=request, specification=input_specification)
-                else:
-                    if not isinstance(request, Mapping):
-                        request = json.loads(request)
-                    request = spec.load(request)
+        # Handle Optional Serialization
+        if request:
+            if not isinstance(request, Mapping):
+                request = json.loads(request)
 
         ######################
         # INTERNAL INTERFACE #
-        response = func(self=instance, request=request, *args, **kwargs)
+        # This is both operation and response validation under the hood
+        response = controller._perform_action(func.__name__, request, *args, **kwargs)
         ######################
 
         # Record duration
@@ -55,7 +41,7 @@ def character_control_interface(func):
         duration = responding - received
 
         # Emit
-        return instance.emitter.ipc(response=response, request_id=request_id, duration=duration)
+        return controller.emitter.ipc(response=response, request_id=request_id, duration=duration)
 
     return wrapped
 
@@ -67,11 +53,7 @@ class CharacterPublicInterface:
         super().__init__(*args, **kwargs)
 
 
-class AliceInterface(CharacterPublicInterface, AliceSpecification):
-
-    def __init__(self, alice, *args, **kwargs):
-        self.alice = alice
-        super().__init__(character=alice, *args, **kwargs)
+class AliceInterface(CharacterPublicInterface):
 
     def create_policy(self,
                       bob_encrypting_key: bytes,
@@ -180,22 +162,18 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         """
         Character control endpoint for getting Alice's public keys.
         """
-        verifying_key = self.alice.public_keys(SigningPower)
+        verifying_key = self.character.public_keys(SigningPower)
         response_data = {'alice_verifying_key': verifying_key}
         return response_data
 
 
-class BobInterface(CharacterPublicInterface, BobSpecification):
-
-    def __init__(self, bob, *args, **kwargs):
-        self.bob = bob
-        super().__init__(*args, **kwargs)
+class BobInterface(CharacterPublicInterface):
 
     def join_policy(self, label: bytes, alice_verifying_key: bytes):
         """
         Character control endpoint for joining a policy on the network.
         """
-        self.bob.join_policy(label=label, alice_verifying_key=alice_verifying_key)
+        self.character.join_policy(label=label, alice_verifying_key=alice_verifying_key)
         response = {'policy_encrypting_key': 'OK'}  # FIXME
         return response
 
@@ -217,11 +195,11 @@ class BobInterface(CharacterPublicInterface, BobSpecification):
                                               policy_encrypting_key=policy_encrypting_key,
                                               label=label)
 
-        self.bob.join_policy(label=label, alice_verifying_key=alice_verifying_key)
-        plaintexts = self.bob.retrieve(message_kit=message_kit,
-                                       data_source=data_source,
-                                       alice_verifying_key=alice_verifying_key,
-                                       label=label)
+        self.character.join_policy(label=label, alice_verifying_key=alice_verifying_key)
+        plaintexts = self.character.retrieve(message_kit=message_kit,
+                                             data_source=data_source,
+                                             alice_verifying_key=alice_verifying_key,
+                                             label=label)
 
         response_data = {'cleartexts': plaintexts}
         return response_data
@@ -230,23 +208,19 @@ class BobInterface(CharacterPublicInterface, BobSpecification):
         """
         Character control endpoint for getting Bob's encrypting and signing public keys
         """
-        verifying_key = self.bob.public_keys(SigningPower)
-        encrypting_key = self.bob.public_keys(DecryptingPower)
+        verifying_key = self.character.public_keys(SigningPower)
+        encrypting_key = self.character.public_keys(DecryptingPower)
         response_data = {'bob_encrypting_key': encrypting_key, 'bob_verifying_key': verifying_key}
         return response_data
 
 
-class EnricoInterface(CharacterPublicInterface, EnricoSpecification):
-
-    def __init__(self, enrico, *args, **kwargs):
-        self.enrico = enrico
-        super().__init__(*args, **kwargs)
+class EnricoInterface(CharacterPublicInterface):
 
     def encrypt_message(self, message: str):
         """
         Character control endpoint for encrypting data for a policy and
         receiving the messagekit (and signature) to give to Bob.
         """
-        message_kit, signature = self.enrico.encrypt_message(bytes(message, encoding='utf-8'))
+        message_kit, signature = self.character.encrypt_message(bytes(message, encoding='utf-8'))
         response_data = {'message_kit': message_kit, 'signature': signature}
         return response_data
