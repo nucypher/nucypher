@@ -212,11 +212,9 @@ class WebEmitter:
         self.log = Logger('web-emitter')
 
     @staticmethod
-    def assemble_response(response: dict, request_id: int, duration) -> dict:
+    def assemble_response(response: dict) -> dict:
         response_data = {'result': response,
-                         'version': str(nucypher.__version__),
-                         'id': str(request_id),
-                         'duration': str(duration)}
+                         'version': str(nucypher.__version__)}
         return response_data
 
     def exception(drone_character,
@@ -232,10 +230,8 @@ class WebEmitter:
             raise e
         return drone_character.sink(str(e), status=response_code)
 
-    def ipc(drone_character, response, request_id, duration) -> Response:
-        assembled_response = drone_character.assemble_response(response=response,
-                                                               request_id=request_id,
-                                                               duration=duration)
+    def respond(drone_character, response) -> Response:
+        assembled_response = drone_character.assemble_response(response=response)
         serialized_response = WebEmitter.transport_serializer(assembled_response)
 
         # ---------- HTTP OUTPUT

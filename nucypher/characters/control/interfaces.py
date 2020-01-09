@@ -125,7 +125,7 @@ class AliceInterface(CharacterPublicInterface):
             label=label
         )
 
-        plaintexts = self.alice.decrypt_message_kit(
+        plaintexts = self.character.decrypt_message_kit(
             message_kit=message_kit,
             data_source=data_source,
             label=label

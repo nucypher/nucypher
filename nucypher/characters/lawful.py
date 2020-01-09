@@ -718,7 +718,8 @@ class Bob(Character):
         app_name = bytes(drone_bob.stamp).hex()[:6]
         controller = WebController(app_name=app_name,
                                    character_controller=drone_bob.controller,
-                                   crash_on_error=crash_on_error)
+                                   crash_on_error=crash_on_error,
+                                   interface=drone_bob._interface_class(character=drone_bob))
 
         drone_bob.controller = controller.make_control_transport()
 
@@ -1338,7 +1339,8 @@ class Enrico(Character):
         app_name = bytes(drone_enrico.stamp).hex()[:6]
         controller = WebController(app_name=app_name,
                                    character_controller=drone_enrico.controller,
-                                   crash_on_error=crash_on_error)
+                                   crash_on_error=crash_on_error,
+                                   interface=drone_enrico._interface_class(character=drone_enrico))
 
         drone_enrico.controller = controller
 

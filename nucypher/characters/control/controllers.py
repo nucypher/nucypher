@@ -304,9 +304,16 @@ class WebController(CharacterControlServer):
 
         _400_exceptions = (MissingField,
                            InvalidInputField,
-                           )
+                           TypeError,
+                           JSONDecodeError)
+
         try:
-            response = interface(request=control_request.data, *args, **kwargs)  # < ------- INLET
+            request_body = control_request.data or dict()
+            if request_body:
+                request_body = json.loads(request_body)
+            request_body.update(kwargs)
+
+            response = self._perform_action(action=interface.__name__, request=request_body)
 
         #
         # Client Errors
@@ -350,4 +357,4 @@ class WebController(CharacterControlServer):
         #
         else:
             self.log.debug(f"{interface_name} [200 - OK]")
-            return response
+            return self.emitter.respond(response=response)
