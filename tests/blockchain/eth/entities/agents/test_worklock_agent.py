@@ -1,6 +1,7 @@
 import pytest
+import rlp
 from eth_tester.exceptions import TransactionFailed
-from web3 import Web3
+from eth_utils import to_canonical_address, keccak, to_checksum_address
 
 from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.token import NU
@@ -10,18 +11,18 @@ from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 DEPOSIT_RATE = 100
 
 
+def next_address(testerchain, worklock):
+    # https://github.com/ethereum/wiki/wiki/Subtleties#nonces
+    nonce = testerchain.w3.eth.getTransactionCount(worklock.address)
+    data_to_encode = [to_canonical_address(worklock.address), nonce]
+    return to_checksum_address(keccak(rlp.codec.encode(data_to_encode))[12:])
+
+
 def test_create_worklock_agent(testerchain, test_registry, agency, token_economics):
     agent = WorkLockAgent(registry=test_registry)
     assert agent.contract_address
     same_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     assert agent == same_agent
-
-
-# def test_bid_before_funding(testerchain, agency, token_economics, test_registry):
-#     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-#     big_bidder = testerchain.unassigned_accounts[-1]
-#     receipt = agent.bid(sender_address=big_bidder, eth_amount=int(Web3.fromWei(1, 'ether')))
-#     assert receipt['status'] == 1
 
 
 def test_funding_worklock_contract(testerchain, agency, test_registry, token_economics):
@@ -53,25 +54,25 @@ def test_bidding_post_funding(testerchain, agency, token_economics, test_registr
     # Round 1
     for multiplier, bidder in enumerate(testerchain.unassigned_accounts[:3], start=1):
         bid = minimum_deposit_eth * multiplier
-        receipt = agent.bid(sender_address=bidder, eth_amount=bid)
+        receipt = agent.bid(sender_address=bidder, value=bid)
         assert receipt['status'] == 1
 
     # Round 2
     for multiplier, bidder in enumerate(testerchain.unassigned_accounts[:3], start=1):
         bid = (minimum_deposit_eth * 2) * multiplier
-        receipt = agent.bid(sender_address=bidder, eth_amount=bid)
+        receipt = agent.bid(sender_address=bidder, value=bid)
         assert receipt['status'] == 1
 
     big_bidder = testerchain.unassigned_accounts[-1]
     bid_wei = maximum_deposit_eth - 1
-    receipt = agent.bid(sender_address=big_bidder, eth_amount=bid_wei)
+    receipt = agent.bid(sender_address=big_bidder, value=bid_wei)
     assert receipt['status'] == 1
 
 
 def test_get_remaining_work_before_bidding_ends(testerchain, agency, token_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    bidder = testerchain.unassigned_accounts[-1]
-    remaining = agent.get_remaining_work(target_address=bidder)
+    preallocation_address = next_address(testerchain, agent.contract)
+    remaining = agent.get_remaining_work(allocation_address=preallocation_address)
     assert remaining == 0
 
 
@@ -86,8 +87,9 @@ def test_early_claim(testerchain, agency, token_economics, test_registry):
 def test_refund_before_bidding_ends(testerchain, agency, token_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     bidder = testerchain.unassigned_accounts[-1]
+    allocation_address = next_address(testerchain, agent.contract)
     with pytest.raises(TransactionFailed):
-        _receipt = agent.refund(sender_address=bidder)
+        _receipt = agent.refund(sender_address=bidder, allocation_address=allocation_address)
 
 
 def test_successful_claim(testerchain, agency, token_economics, test_registry):
@@ -99,3 +101,12 @@ def test_successful_claim(testerchain, agency, token_economics, test_registry):
     receipt = agent.claim(sender_address=bidder)
     assert receipt
 
+
+def test_get_remaining_work(testerchain, agency, token_economics, test_registry):
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    bidder = testerchain.unassigned_accounts[-1]
+    receipt = agent.claim(sender_address=bidder)
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    preallocation_address = next_address(testerchain, agent.contract)
+    remaining_work = agent.get_remaining_work(allocation_address=preallocation_address)
+    assert remaining_work

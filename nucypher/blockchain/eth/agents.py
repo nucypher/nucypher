@@ -1005,19 +1005,19 @@ class WorkLockAgent(EthereumContractAgent):
                                                    sender_address=sender_address)
         return receipt
 
-    def refund(self, sender_address: str) -> dict:
+    def refund(self, sender_address: str, allocation_address: str) -> dict:
         """
         Refund ETH for completed work.
         """
-        contract_function = self.contract.functions.refund()
+        contract_function = self.contract.functions.refund(allocation_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return receipt
 
-    def get_remaining_work(self, target_address: str) -> int:
+    def get_remaining_work(self, allocation_address: str) -> int:
         """
         Get remaining work periods until full refund for the target address.
         """
-        result = self.contract.functions.getRemainingWork(target_address).call()
+        result = self.contract.functions.getRemainingWork(allocation_address).call()
         return result
 
     def worklock_parameters(self) -> Tuple:
