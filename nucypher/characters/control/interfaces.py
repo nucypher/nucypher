@@ -1,4 +1,5 @@
 import functools
+import click
 import json
 from collections.abc import Mapping
 
@@ -20,6 +21,23 @@ class CharacterPublicInterface:
     def __init__(self, character=None, *args, **kwargs):
         self.character = character
         super().__init__(*args, **kwargs)
+
+    @classmethod
+    def command(cls, action):
+
+        schema = cls.specifications[action]
+
+        def callable(func):
+            c = func
+            for k, f in schema.load_fields.items():
+                c = click.option(*f.click.args, **f.click.kwargs)(c)
+
+            @functools.wraps(func)
+            def wrapped(*args, **kwargs):
+                return c(*args, **kwargs)
+            return wrapped
+
+        return callable
 
 
 class AliceInterface(CharacterPublicInterface):
