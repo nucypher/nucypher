@@ -24,8 +24,3 @@ class Retrieve(BaseSchema):
 class PublicKeys(BaseSchema):
     bob_encrypting_key = fields.Key(dump_only=True)
     bob_verifying_key = fields.Key(dump_only=True)
-
-
-specifications = {'join_policy': JoinPolicy(),
-                    'retrieve': Retrieve(),
-                    'public_keys': PublicKeys()}

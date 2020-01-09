@@ -456,7 +456,7 @@ class Bob(Character):
         Character.__init__(self, known_node_class=Ursula, *args, **kwargs)
 
         if controller:
-            self.controller = self._interface_class(bob=self)
+            self.controller = self._interface_class(character=self)
 
         from nucypher.policy.collections import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()

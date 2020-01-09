@@ -515,11 +515,12 @@ class Character(Learner):
 
         self._checksum_address = public_address
 
-    def make_rpc_controller(drone, crash_on_error: bool = False):
-        app_name = bytes(drone.stamp).hex()[:6]
+    def make_rpc_controller(self, crash_on_error: bool = False):
+        app_name = bytes(self.stamp).hex()[:6]
         controller = JSONRPCController(app_name=app_name,
-                                       character_controller=drone.controller,
-                                       crash_on_error=crash_on_error)
+                                       character_controller=self.controller,
+                                       crash_on_error=crash_on_error,
+                                       interface=self._interface_class(character=self))
 
-        drone.controller = controller
+        self.controller = controller
         return controller

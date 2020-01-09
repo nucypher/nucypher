@@ -55,11 +55,3 @@ class Decrypt(BaseSchema):
 class PublicKeys(BaseSchema):
 
     alice_verifying_key = fields.Key(dump_only=True)
-
-
-specifications = {'create_policy': CreatePolicy(),
-                  'derive_policy_encrypting_key': DerivePolicyEncryptionKey(),
-                  'grant': GrantPolicy(),
-                  'revoke': Revoke(),
-                  'public_keys': PublicKeys(),
-                  'decrypt': Decrypt()}

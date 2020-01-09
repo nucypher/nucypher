@@ -4,12 +4,15 @@ from abc import ABC, abstractmethod
 from json import JSONDecodeError
 from typing import Callable
 
+import maya
 from flask import Response, Flask
 from hendrix.deploy.base import HendrixDeploy
+from marshmallow import Schema
 from twisted.internet import reactor, stdio
 from twisted.logger import Logger
 
 from nucypher.characters.control.emitters import StdoutEmitter, WebEmitter, JSONRPCStdoutEmitter
+from nucypher.characters.control.interfaces import CharacterPublicInterface
 from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.utilities.controllers import JSONRPCTestClient
 
@@ -26,25 +29,25 @@ class CharacterControllerBase(ABC):
     """
     _emitter_class = NotImplemented
 
-    def __init__(self):
+    def __init__(self, interface: CharacterPublicInterface):
 
         # Control Emitter
         self.emitter = self._emitter_class()
+        self.specifications = interface.specifications
+        self.interface = interface
 
-    def get_serializer(self, interface_name: str):
+    def get_serializer(self, interface_name: str) -> Schema:
         return self.specifications[interface_name]
 
     def _perform_action(self, action: str, request: dict) -> dict:
         serializer = self.get_serializer(action)
         request = request or {}  # for requests with no input params request can be ''
-        response_data = serializer.dump(
-            getattr(
-                super(self.__class__, self),
-                action
-            )(
-                **serializer.load(request)
-            )
-        )
+        method = getattr(self.interface, action)
+        params = serializer.load(request)
+
+        response = method(**params)  # < ---- INLET
+
+        response_data = serializer.dump(response)
         return response_data
 
 
@@ -57,7 +60,8 @@ class CharacterControlServer(CharacterControllerBase):
                  app_name: str,
                  character_controller: CharacterControllerBase,
                  start_learning: bool = True,
-                 crash_on_error: bool = _crash_on_error_default):
+                 crash_on_error: bool = _crash_on_error_default,
+                 *args, **kwargs):
 
         self.app_name = app_name
 
@@ -75,7 +79,7 @@ class CharacterControlServer(CharacterControllerBase):
         self._internal_controller = character_controller
         self._internal_controller.emitter = self.emitter
 
-        super().__init__()
+        super().__init__(*args, **kwargs)
 
         self.log = Logger(app_name)
 
@@ -127,7 +131,7 @@ class JSONRPCController(CharacterControlServer):
     def handle_server_notification(self, notification_request) -> int:
         pass
 
-    def handle_procedure_call(self, control_request, *args, **kwargs) -> int:
+    def handle_procedure_call(self, control_request) -> int:
 
         # Validate request and read request metadata
         jsonrpc2 = control_request['jsonrpc']
@@ -140,11 +144,9 @@ class JSONRPCController(CharacterControlServer):
         method_name = control_request['method']
         method_params = control_request.get('params', dict())  # optional
 
-        # Lookup the public interface
-        interface = self.get_interface(name=method_name)
-
-        # Call the internal interface | pipe to output
-        return interface(request=method_params, request_id=request_id, *args, **kwargs)  # < ------- INLET
+        return self.call_interface(method_name=method_name,
+                                   request=method_params,
+                                   request_id=request_id)
 
     def validate_request(self, request: dict):
 
@@ -203,7 +205,7 @@ class JSONRPCController(CharacterControlServer):
         except TypeError:
             raise self.emitter.InvalidRequest
         else:             # RPC
-            return self.handle_procedure_call(control_request=message, *args, **kwargs)
+            return self.handle_procedure_call(control_request=message)
 
     def handle_batch(self, control_requests: list) -> int:
 
@@ -240,6 +242,16 @@ class JSONRPCController(CharacterControlServer):
             if self.crash_on_error:
                 raise
             return self.emitter.error(e)
+
+    def call_interface(self, method_name, request, request_id: int = None):
+        received = maya.now()
+        internal_request_id = received.epoch
+        if request_id is None:
+            request_id = internal_request_id
+        response = self._perform_action(action=method_name, request=request)
+        responding = maya.now()
+        duration = responding - received
+        return self.emitter.ipc(response=response, request_id=request_id, duration=duration)
 
 
 class WebController(CharacterControlServer):

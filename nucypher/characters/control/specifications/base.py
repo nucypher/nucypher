@@ -21,7 +21,3 @@ class BaseSchema(Schema):
 
     def handle_error(self, error, data, many, **kwargs):
         raise InvalidInputField(error)
-
-    def make_click_commands(self):
-        for field in self.load_fields:
-            pass

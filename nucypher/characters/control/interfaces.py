@@ -3,6 +3,8 @@ import json
 from collections.abc import Mapping
 
 import maya
+
+from nucypher.characters.control.specifications import alice, bob, enrico
 from umbral.keys import UmbralPublicKey
 
 from nucypher.crypto.kits import UmbralMessageKit
@@ -11,42 +13,9 @@ from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import NotFound
 
 
-def character_control_interface(func):
-
-    # Use server time for internal request IDs
-    received = maya.now()
-    internal_request_id = received.epoch
-
-    # noinspection PyPackageRequirements
-    @functools.wraps(func)
-    def wrapped(controller, request=None, request_id: int = None, *args, **kwargs) -> bytes:
-
-        # Handle RPC Quirk
-        if request_id is None:
-            request_id = internal_request_id
-
-        # Handle Optional Serialization
-        if request:
-            if not isinstance(request, Mapping):
-                request = json.loads(request)
-
-        ######################
-        # INTERNAL INTERFACE #
-        # This is both operation and response validation under the hood
-        response = controller._perform_action(func.__name__, request, *args, **kwargs)
-        ######################
-
-        # Record duration
-        responding = maya.now()
-        duration = responding - received
-
-        # Emit
-        return controller.emitter.ipc(response=response, request_id=request_id, duration=duration)
-
-    return wrapped
-
-
 class CharacterPublicInterface:
+
+    specification = NotImplemented
 
     def __init__(self, character=None, *args, **kwargs):
         self.character = character
@@ -54,6 +23,13 @@ class CharacterPublicInterface:
 
 
 class AliceInterface(CharacterPublicInterface):
+
+    specifications = {'create_policy': alice.CreatePolicy(),
+                      'derive_policy_encrypting_key': alice.DerivePolicyEncryptionKey(),
+                      'grant': alice.GrantPolicy(),
+                      'revoke': alice.Revoke(),
+                      'public_keys': alice.PublicKeys(),
+                      'decrypt': alice.Decrypt()}
 
     def create_policy(self,
                       bob_encrypting_key: bytes,
@@ -169,6 +145,10 @@ class AliceInterface(CharacterPublicInterface):
 
 class BobInterface(CharacterPublicInterface):
 
+    specifications = {'join_policy': bob.JoinPolicy(),
+                      'retrieve': bob.Retrieve(),
+                      'public_keys': bob.PublicKeys()}
+
     def join_policy(self, label: bytes, alice_verifying_key: bytes):
         """
         Character control endpoint for joining a policy on the network.
@@ -215,6 +195,8 @@ class BobInterface(CharacterPublicInterface):
 
 
 class EnricoInterface(CharacterPublicInterface):
+
+    specifications = {'encrypt_message': enrico.EncryptMessage()}
 
     def encrypt_message(self, message: str):
         """
