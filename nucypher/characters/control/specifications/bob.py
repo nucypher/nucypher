@@ -1,4 +1,4 @@
-from nucypher.characters.control.specifications.fields import fields
+from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.base import BaseSchema
 
 
@@ -7,7 +7,7 @@ class JoinPolicy(BaseSchema):
     label = fields.Label(load_only=True, required=True)
     alice_verifying_key = fields.Key(load_only=True, required=True)
 
-    policy_encrypting_key = fields.Str(dump_only=True)
+    policy_encrypting_key = fields.String(dump_only=True)
     # this should be a Key Field
     # but bob.join_policy outputs {'policy_encrypting_key': 'OK'}
 

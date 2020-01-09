@@ -1,4 +1,4 @@
-from nucypher.characters.control.specifications.fields import fields
+from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.base import BaseSchema
 
 

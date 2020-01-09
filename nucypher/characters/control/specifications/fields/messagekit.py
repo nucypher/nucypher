@@ -1,10 +1,10 @@
-from typing import Union
 from base64 import b64decode, b64encode
 from marshmallow import fields
+from nucypher.characters.control.specifications.fields.base import BaseField
 from nucypher.crypto.kits import UmbralMessageKit
 
 
-class UmbralMessageKitField(fields.Field):
+class UmbralMessageKit(BaseField, fields.Field):
 
     def _serialize(self, value: UmbralMessageKit, attr, obj, **kwargs):
         return b64encode(value.to_bytes()).decode()
@@ -20,5 +20,3 @@ class UmbralMessageKitField(fields.Field):
             return True
         except Exception as e:
             return False
-
-fields.UmbralMessageKit = UmbralMessageKitField

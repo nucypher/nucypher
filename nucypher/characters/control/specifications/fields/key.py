@@ -1,9 +1,10 @@
 from marshmallow import fields
 from marshmallow.exceptions import ValidationError
 from umbral.keys import UmbralPublicKey
+from nucypher.characters.control.specifications.fields.base import BaseField
 
 
-class KeyField(fields.Field):
+class Key(BaseField, fields.Field):
 
     def _serialize(self, value, attr, obj, **kwargs):
         return bytes(value).hex()
@@ -22,5 +23,3 @@ class KeyField(fields.Field):
             return True
         except Exception as e:
             return False
-
-fields.Key = KeyField

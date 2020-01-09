@@ -1,35 +1,62 @@
-from nucypher.characters.control.specifications.fields import fields
+from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.base import BaseSchema
 
 
 class PolicyBaseSchema(BaseSchema):
 
-    #required input fields
-    bob_encrypting_key = fields.Key(required=True, load_only=True)
-    bob_verifying_key = fields.Key(required=True, load_only=True)
-    m = fields.Integer(required=True, load_only=True)
-    n = fields.Integer(required=True, load_only=True)
-    expiration = fields.DateTime(required=True, load_only=True)
+    bob_encrypting_key = fields.Key(
+        required=True, load_only=True,
+        click=fields.click(
+            '--bob-encrypting-key',
+            help="Bob's encrypting key as a hexadecimal string"))
+    bob_verifying_key = fields.Key(
+        required=True, load_only=True,
+        click=fields.click(
+            '--bob-verifying-key',
+            help="Bob's verifying key as a hexadecimal string"))
+    m = fields.M(
+        required=True, load_only=True,
+        click=fields.click(
+            '--m', help="M-Threshold KFrags"))
+    n = fields.N(
+        required=True, load_only=True,
+        click=fields.click(
+            '--n', help="N-Total KFrags"))
+    expiration = fields.DateTime(
+        required=True, load_only=True,
+        click=fields.click(
+            '--expiration', help="Expiration Datetime of a policy"))
 
     # optional input
-    value = fields.Integer(load_only=True)
-    first_period_reward = fields.Integer(load_only=True)
-    rate = fields.Integer(load_only=True)
+    value = fields.Wei(
+        load_only=True,
+        click=fields.click('--value', help="Total policy value (in Wei)"))
+    rate = fields.Wei(
+        load_only=True,
+        click=fields.click('--rate', help="Policy value (in Wei) per period"))
 
-    #output
+    # output
     policy_encrypting_key = fields.Key(dump_only=True)
 
 
 class CreatePolicy(PolicyBaseSchema):
 
-    label = fields.Label(required=True)
+    label = fields.Label(
+        required=True,
+        click=fields.click(
+            '--label', help="The label for a policy"))
 
 
 class GrantPolicy(PolicyBaseSchema):
 
+    label = fields.Label(
+        load_only=True, required=True,
+        click=fields.click(
+            '--label', help="The label for a policy"))
+
+    # output fields
     treasure_map = fields.TreasureMap(dump_only=True)
     alice_verifying_key = fields.Key(dump_only=True)
-    label = fields.Label(load_only=True, required=True)
 
 
 class DerivePolicyEncryptionKey(BaseSchema):
@@ -55,3 +82,6 @@ class Decrypt(BaseSchema):
 class PublicKeys(BaseSchema):
 
     alice_verifying_key = fields.Key(dump_only=True)
+
+
+grant = GrantPolicy()
