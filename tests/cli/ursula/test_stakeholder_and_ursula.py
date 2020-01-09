@@ -15,10 +15,10 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import datetime
 import json
 import os
 import random
+from unittest import mock
 
 import maya
 from twisted.logger import Logger
@@ -29,7 +29,6 @@ from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration, StakeHolderConfiguration
-from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import (
     MOCK_IP_ADDRESS,
     TEST_PROVIDER_URI,
@@ -40,6 +39,15 @@ from nucypher.utilities.sandbox.constants import (
     select_test_port,
 )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+
+
+@mock.patch('nucypher.config.characters.StakeHolderConfiguration.default_filepath', return_value='/non/existent/file')
+def test_missing_configuration_file(default_filepath_mock, click_runner):
+    cmd_args = ('stake', 'list')
+    result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
+    assert result.exit_code != 0
+    assert default_filepath_mock.called
+    assert "run: 'nucypher stake init-stakeholder'" in result.output
 
 
 def test_new_stakeholder(click_runner,

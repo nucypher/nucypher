@@ -286,11 +286,12 @@ paid out in ethers retro-actively and on-demand.
 Accept ursula node operator obligation?""", abort=True)
 
 
-def handle_missing_configuration_file(character_config_class, config_file: str = None):
+def handle_missing_configuration_file(character_config_class, init_command_hint: str = None, config_file: str = None):
     config_file_location = config_file or character_config_class.default_filepath()
+    init_command = init_command_hint or f"{character_config_class._NAME} init"
     message = f'No {character_config_class._NAME.capitalize()} configuration file found.\n' \
               f'To create a new persistent {character_config_class._NAME.capitalize()} run: ' \
-              f'\'nucypher {character_config_class._NAME} init\''
+              f'\'nucypher {init_command}\''
 
     raise click.FileError(filename=config_file_location, hint=message)
 

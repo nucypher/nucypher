@@ -2,14 +2,17 @@ import json
 import os
 import tempfile
 
+import click
 import pytest
 from constant_sorrow.constants import NO_KEYRING_ATTACHED, CERTIFICATE_NOT_SAVED, NO_BLOCKCHAIN_CONNECTION
 
+from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.characters.chaotic import Felix
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.characters.lawful import Ursula
-from nucypher.config.base import BaseConfiguration
-from nucypher.config.characters import AliceConfiguration, BobConfiguration, FelixConfiguration
+from nucypher.cli.actions import handle_missing_configuration_file
+from nucypher.config.characters import AliceConfiguration, BobConfiguration, \
+    FelixConfiguration, StakeHolderConfiguration
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
@@ -19,8 +22,8 @@ configurations = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)
 characters = (Alice, Bob, Ursula)
 
 # Auxiliary Support
-blockchain_only_configurations = (FelixConfiguration, )
-blockchain_only_characters = (Felix, )
+blockchain_only_configurations = (FelixConfiguration, StakeHolderConfiguration)
+blockchain_only_characters = (Felix, StakeHolder)
 
 # Assemble
 characters_and_configurations = list(zip(characters, configurations))
@@ -71,7 +74,7 @@ def test_federated_development_character_configurations(character, configuration
 
 
 @pytest.mark.parametrize('configuration_class', all_configurations)
-def test_default_character_configuration_preservation(configuration_class):
+def test_default_character_configuration_preservation(configuration_class, testerchain):
 
     configuration_class.DEFAULT_CONFIG_ROOT = '/tmp'
     fake_address = '0xdeadbeef'
@@ -85,7 +88,11 @@ def test_default_character_configuration_preservation(configuration_class):
         os.remove(expected_filepath)
     assert not os.path.exists(expected_filepath)
 
-    character_config = configuration_class(checksum_address=fake_address)
+    if configuration_class == StakeHolderConfiguration:
+        # special case for defaults
+        character_config = StakeHolderConfiguration(provider_uri=testerchain.provider_uri)
+    else:
+        character_config = configuration_class(checksum_address=fake_address)
 
     generated_filepath = character_config.generate_filepath()
     assert generated_filepath == expected_filepath

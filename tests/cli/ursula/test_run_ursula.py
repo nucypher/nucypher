@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
+from unittest import mock
 
 import pytest
 import pytest_twisted as pt
@@ -33,6 +34,16 @@ from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
     TEST_PROVIDER_URI, MOCK_IP_ADDRESS, MOCK_REGISTRY_FILEPATH)
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
+
+
+@mock.patch('nucypher.config.characters.UrsulaConfiguration.default_filepath', return_value='/non/existent/file')
+def test_missing_configuration_file(default_filepath_mock, click_runner):
+    cmd_args = ('ursula', 'run')
+    result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
+    assert result.exit_code != 0
+    assert default_filepath_mock.called
+    assert "run: 'nucypher ursula init'" in result.output
+
 
 
 @pt.inlineCallbacks
