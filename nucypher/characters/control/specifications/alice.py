@@ -31,9 +31,6 @@ class PolicyBaseSchema(BaseSchema):
     value = fields.Wei(
         load_only=True,
         click=fields.click('--value', help="Total policy value (in Wei)"))
-    rate = fields.Wei(
-        load_only=True,
-        click=fields.click('--rate', help="Policy value (in Wei) per period"))
 
     # output
     policy_encrypting_key = fields.Key(dump_only=True)
@@ -84,4 +81,3 @@ class PublicKeys(BaseSchema):
     alice_verifying_key = fields.Key(dump_only=True)
 
 
-grant = GrantPolicy()
