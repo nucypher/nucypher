@@ -354,21 +354,12 @@ class Alice(Character, BlockchainPolicyAuthor):
         )]
         return cleartexts
 
-    # def make_rpc_controller(drone_alice, crash_on_error: bool = False):
-    #     app_name = bytes(drone_alice.stamp).hex()[:6]
-    #     controller = JSONRPCController(app_name=app_name,
-    #                                    character_controller=drone_alice.controller,
-    #                                    crash_on_error=crash_on_error)
-    #
-    #     drone_alice.controller = controller
-    #     alice_rpc_control = controller.make_control_transport(rpc_controller=controller)
-    #     return controller
-
     def make_web_controller(drone_alice, crash_on_error: bool = False):
         app_name = bytes(drone_alice.stamp).hex()[:6]
         controller = WebController(app_name=app_name,
                                    character_controller=drone_alice.controller,
-                                   crash_on_error=crash_on_error)
+                                   crash_on_error=crash_on_error,
+                                   interface=drone_alice._interface_class(character=drone_alice))
         drone_alice.controller = controller
 
         # Register Flask Decorator
@@ -1317,7 +1308,7 @@ class Enrico(Character):
         super().__init__(*args, **kwargs)
 
         if controller:
-            self.controller = self._interface_class(enrico=self)
+            self.controller = self._interface_class(character=self)
 
         self.log = Logger(f'{self.__class__.__name__}-{bytes(policy_encrypting_key).hex()[:6]}')
         self.log.info(self.banner.format(policy_encrypting_key))

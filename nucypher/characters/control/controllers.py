@@ -13,6 +13,7 @@ from twisted.logger import Logger
 
 from nucypher.characters.control.emitters import StdoutEmitter, WebEmitter, JSONRPCStdoutEmitter
 from nucypher.characters.control.interfaces import CharacterPublicInterface
+from nucypher.characters.control.specifications.exceptions import MissingField, InvalidInputField, SpecificationError
 from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.utilities.controllers import JSONRPCTestClient
 
@@ -301,8 +302,8 @@ class WebController(CharacterControlServer):
 
         interface_name = interface.__name__
 
-        _400_exceptions = (CommandSpecification.MissingField,
-                           CommandSpecification.InvalidInputField,
+        _400_exceptions = (MissingField,
+                           InvalidInputField,
                            )
         try:
             response = interface(request=control_request.data, *args, **kwargs)  # < ------- INLET
@@ -321,7 +322,7 @@ class WebController(CharacterControlServer):
         #
         # Server Errors
         #
-        except CommandSpecification.SpecificationError as e:
+        except SpecificationError as e:
             __exception_code = 500
             if self.crash_on_error:
                 raise
