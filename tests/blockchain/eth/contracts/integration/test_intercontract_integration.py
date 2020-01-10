@@ -24,6 +24,7 @@ from eth_utils import to_canonical_address, to_wei
 from web3.contract import Contract
 
 from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
@@ -601,42 +602,52 @@ def test_all(testerchain,
 
     # Create policies
     policy_id_1 = os.urandom(16)
-    tx = policy_manager.functions.createPolicy(policy_id_1, 5, 44, [ursula1, preallocation_escrow_2.address]) \
-        .transact({'from': alice1, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0})
-
+    number_of_periods = 5
+    one_period = 60 * 60
+    rate = 200
+    one_node_value = number_of_periods * rate
+    value = 2 * one_node_value
+    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
+    tx = policy_manager.functions.createPolicy(policy_id_1, alice1, end_timestamp, [ursula1, preallocation_escrow_2.address]) \
+        .transact({'from': alice1, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
+
     policy_id_2 = os.urandom(16)
-    tx = policy_manager.functions\
-        .createPolicy(policy_id_2, 5, 44, [preallocation_escrow_2.address, preallocation_escrow_1.address]) \
-        .transact({'from': alice1, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0})
-
+    tx = policy_manager.functions.createPolicy(
+        policy_id_2, alice2, end_timestamp, [preallocation_escrow_2.address, preallocation_escrow_1.address]) \
+        .transact({'from': alice1, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
+
     policy_id_3 = os.urandom(16)
-    tx = policy_manager.functions.createPolicy(policy_id_3, 5, 44, [ursula1, preallocation_escrow_1.address]) \
-        .transact({'from': alice2, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0})
-
+    tx = policy_manager.functions.createPolicy(
+        policy_id_3, BlockchainInterface.NULL_ADDRESS, end_timestamp, [ursula1, preallocation_escrow_1.address]) \
+        .transact({'from': alice2, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
+
     policy_id_4 = os.urandom(16)
-    tx = policy_manager.functions\
-        .createPolicy(policy_id_4, 5, 44, [preallocation_escrow_2.address, preallocation_escrow_1.address]) \
-        .transact({'from': alice2, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0})
-
+    tx = policy_manager.functions.createPolicy(
+        policy_id_4, alice1, end_timestamp, [preallocation_escrow_2.address, preallocation_escrow_1.address]) \
+        .transact({'from': alice2, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
+
     policy_id_5 = os.urandom(16)
-    tx = policy_manager.functions.createPolicy(policy_id_5, 5, 44, [ursula1, preallocation_escrow_2.address]) \
-        .transact({'from': alice2, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0})
-
+    tx = policy_manager.functions.createPolicy(
+        policy_id_5, alice1, end_timestamp, [ursula1, preallocation_escrow_2.address]) \
+        .transact({'from': alice2, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
+    assert 5 * value == testerchain.client.get_balance(policy_manager.address)
 
     # Only Alice can revoke policy
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.revokePolicy(policy_id_5).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
     alice2_balance = testerchain.client.get_balance(alice2)
-    tx = policy_manager.functions.revokePolicy(policy_id_5).transact({'from': alice2, 'gas_price': 0})
+    tx = policy_manager.functions.revokePolicy(policy_id_5).transact({'from': alice1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 8440 == testerchain.client.get_balance(policy_manager.address)
-    assert alice2_balance + 2000 == testerchain.client.get_balance(alice2)
+    two_nodes_rate = 2 * rate
+    assert 4 * value + two_nodes_rate == testerchain.client.get_balance(policy_manager.address)
+    assert alice2_balance + (value - two_nodes_rate) == testerchain.client.get_balance(alice2)
     assert policy_manager.functions.policies(policy_id_5).call()[DISABLED_FIELD]
 
     # Can't revoke again
@@ -648,11 +659,11 @@ def test_all(testerchain,
         testerchain.wait_for_receipt(tx)
 
     alice1_balance = testerchain.client.get_balance(alice1)
-    tx = policy_manager.functions.revokeArrangement(policy_id_2, preallocation_escrow_2.address)\
-        .transact({'from': alice1, 'gas_price': 0})
+    tx = policy_manager.functions.revokeArrangement(policy_id_2, preallocation_escrow_2.address).transact({'from': alice2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 7440 == testerchain.client.get_balance(policy_manager.address)
-    assert alice1_balance + 1000 == testerchain.client.get_balance(alice1)
+    remaining_value = 3 * value + two_nodes_rate + one_node_value + rate
+    assert remaining_value == testerchain.client.get_balance(policy_manager.address)
+    assert alice1_balance + one_node_value - rate == testerchain.client.get_balance(alice1)
     assert not policy_manager.functions.policies(policy_id_2).call()[DISABLED_FIELD]
 
     # Can't revoke again
@@ -729,7 +740,7 @@ def test_all(testerchain,
     tx = policy_manager.functions.refund(policy_id_3).transact({'from': alice2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert alice2_balance == testerchain.client.get_balance(alice2)
-    tx = policy_manager.functions.refund(policy_id_4).transact({'from': alice2, 'gas_price': 0})
+    tx = policy_manager.functions.refund(policy_id_4).transact({'from': alice1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert alice2_balance < testerchain.client.get_balance(alice2)
 

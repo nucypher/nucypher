@@ -253,17 +253,20 @@ def enacted_federated_policy(idle_federated_policy, federated_ursulas):
 
 
 @pytest.fixture(scope="module")
-def idle_blockchain_policy(blockchain_alice, blockchain_bob, token_economics):
+def idle_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, token_economics):
     """
     Creates a Policy, in a manner typical of how Alice might do it, with a unique label
     """
     random_label = generate_random_label()
     days = token_economics.minimum_locked_periods // 2
-    expiration = maya.now().add(days=days)
+    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    expiration = maya.MayaDT(now).add(days=days-1)
+    n = 3
+    m = 2
     policy = blockchain_alice.create_policy(blockchain_bob,
                                             label=random_label,
-                                            m=2, n=3,
-                                            value=3 * days * 100,
+                                            m=m, n=n,
+                                            value=n * days * 100,
                                             expiration=expiration)
     return policy
 

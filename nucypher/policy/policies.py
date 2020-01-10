@@ -467,10 +467,8 @@ class BlockchainPolicy(Policy):
                  rate: int,
                  duration_periods: int,
                  expiration: maya.MayaDT,
-                 first_period_reward: int,
                  *args, **kwargs):
 
-        self.first_period_reward = first_period_reward
         self.duration_periods = duration_periods
         self.expiration = expiration
         self.value = value
@@ -488,33 +486,30 @@ class BlockchainPolicy(Policy):
         self.validate_reward_value()
 
     def validate_reward_value(self) -> None:
-        rate_per_period = ((self.value // self.n) - self.first_period_reward) // self.duration_periods  # wei
-        if rate_per_period <= self.first_period_reward:
-            raise ValueError(
-                f"Policy rate ({rate_per_period} wei) is less then the initial reward ({self.first_period_reward})")
-
-        recalculated_value = ((self.duration_periods * rate_per_period) + self.first_period_reward) * self.n
+        rate_per_period = self.value // self.n // self.duration_periods  # wei
+        recalculated_value = self.duration_periods * rate_per_period * self.n
         if recalculated_value != self.value:
-            raise ValueError(f"Invalid policy value calculation.")  # TODO: Make a better suggestion.
+            raise ValueError(f"Invalid policy value calculation - "
+                             f"{self.value} can't be divided into {self.n} staker payments per period "
+                             f"for {self.duration_periods} periods without a remainder")
 
     @staticmethod
     def generate_policy_parameters(n: int,
                                    duration_periods: int,
-                                   first_period_reward: int = None,
                                    value: int = None,
                                    rate: int = None) -> dict:
 
         # Check for negative inputs
-        if sum(True for i in (n, duration_periods, first_period_reward, value, rate) if i is not None and i < 0) > 0:
+        if sum(True for i in (n, duration_periods, value, rate) if i is not None and i < 0) > 0:
             raise BlockchainPolicy.InvalidPolicyValue(f"Negative policy parameters are not allowed. Be positive.")
 
         # Check for policy params
-        if sum(True for i in (first_period_reward, value, rate) if i is not None) != 2:
+        if not bool(value) ^ bool(rate):
             # TODO: Review this suggestion
-            raise BlockchainPolicy.InvalidPolicyValue(f"Exactly two parameters must be provided to calculate policy value and rate.")
+            raise BlockchainPolicy.InvalidPolicyValue(f"Either 'value' or 'rate'  must be provided for policy.")
 
         if not value:
-            value = ((rate * duration_periods) + first_period_reward) * n
+            value = rate * duration_periods * n
 
         else:
             value_per_node = value // n
@@ -522,21 +517,13 @@ class BlockchainPolicy(Policy):
                 raise BlockchainPolicy.InvalidPolicyValue(f"Policy value of ({value} wei) cannot be"
                                                           f" divided by N ({n}) without a remainder.")
 
-            if not rate:
-                rate = (value_per_node - first_period_reward) // duration_periods
-                if rate * duration_periods + first_period_reward != value_per_node:
-                    raise BlockchainPolicy.InvalidPolicyValue(f"Policy value of ({value_per_node} wei) per node minus "
-                                                              f"first period reward ({first_period_reward} wei) "
-                                                              f"cannot be divided by duration ({duration_periods} periods)"
-                                                              f" without a remainder.")
-            else:
-                first_period_reward = value_per_node - (rate * duration_periods)
+            rate = value_per_node // duration_periods
+            if rate * duration_periods != value_per_node:
+                raise BlockchainPolicy.InvalidPolicyValue(f"Policy value of ({value_per_node} wei) per node "
+                                                          f"cannot be divided by duration ({duration_periods} periods)"
+                                                          f" without a remainder.")
 
-        if first_period_reward >= rate:
-            raise BlockchainPolicy.InvalidPolicyValue(f"Policy rate of ({rate} wei) per period must be greater than "
-                                                      f"the first period reward of ({first_period_reward} wei).")
-
-        params = dict(first_period_reward=first_period_reward, rate=rate, value=value)
+        params = dict(rate=rate, value=value)
         return params
 
     def __find_ursulas(self,
@@ -601,8 +588,7 @@ class BlockchainPolicy(Policy):
                        policy_id=self.hrac()[:16],          # bytes16 _policyID
                        author_address=self.author.checksum_address,
                        value=self.value,
-                       periods=self.duration_periods,           # uint16 _numberOfPeriods
-                       first_period_reward=self.first_period_reward,  # uint256 _firstPartialReward
+                       end_timestamp=self.expiration.epoch,           # uint16 _numberOfPeriods
                        node_addresses=prearranged_ursulas   # address[] memory _nodes
         )
 

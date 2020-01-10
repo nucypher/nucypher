@@ -581,12 +581,16 @@ class PolicyManagerAgent(EthereumContractAgent):
                       policy_id: str,
                       author_address: str,
                       value: int,
-                      periods: int,
-                      first_period_reward: int,
-                      node_addresses: List[str]):
+                      end_timestamp: int,
+                      node_addresses: List[str],
+                      owner_address: str = None):
 
+        owner_address = owner_address or author_address
         payload = {'value': value}
-        contract_function = self.contract.functions.createPolicy(policy_id, periods, first_period_reward, node_addresses)
+        contract_function = self.contract.functions.createPolicy(policy_id,
+                                                                 owner_address,
+                                                                 end_timestamp,
+                                                                 node_addresses)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    payload=payload,
                                                    sender_address=author_address)

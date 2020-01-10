@@ -76,8 +76,7 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
                       m: int,
                       n: int,
                       expiration: maya.MayaDT,
-                      value: int = None,
-                      first_period_reward: int = None
+                      value: int = None
                       ) -> dict:
 
         from nucypher.characters.lawful import Bob
@@ -85,8 +84,13 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
                                    verifying_key=bob_verifying_key)
 
         new_policy = self.character.create_policy(
-            bob=bob, label=label, m=m, n=n, expiration=expiration,
-            value=value, first_period_reward=first_period_reward)
+            bob=bob,
+            label=label,
+            m=m,
+            n=n,
+            expiration=expiration,
+            value=value
+        )
         response_data = {'label': new_policy.label, 'policy_encrypting_key': new_policy.public_key}
         return response_data
 
