@@ -509,7 +509,8 @@ def confirm_enable_winding_down(emitter, staking_address: str) -> bool:
                              f"can remain constant until you specify that `wind down` should begin. " \
                              f"By keeping the locked stake duration constant, it ensures that you will " \
                              f"receive maximum inflation compensation. If `wind down` was previously disabled, " \
-                             f"you can enable it at any point and the locked duration will decrease after each period."
+                             f"you can enable it at any point and the locked duration will decrease after each period.\n" \
+                             f"For more information see https://docs.nucypher.com/en/latest/architecture/sub_stakes.html#winding-down."
     emitter.message(winding_down_agreement)
     click.confirm(f"Confirm enable automatic winding down for staker {staking_address}?", abort=True)
     return True

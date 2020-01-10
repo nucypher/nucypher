@@ -72,7 +72,7 @@ Penalty Scenarios:
 
 * *Scenario 2*: Staker incurs penalty calculated to be worth **300 tokens**:
 
-    The unlocked tokens can only cover 200 tokens. In the current period, 700 tokens are locked and 800 tokens are locked for the next period. Therefore, we should reduce amount of locked tokens for the next period and leave unchanged locked amount in the current period. The 3rd sub-stake suits for this purpose but it's not the shortest one. So we take the 2nd sub-stake (the shortest), reduce it to 100 tokens and add new sub-stake with 100 tokens which active only in the current period.
+    The unlocked tokens can only cover 200 tokens worth of the penalty. Beyond that, the staker has 700 tokens currently locked and 100 tokens that will lock in the next period, meaning 800 tokens will be locked in total. In this scenario, we should reduce amount of locked tokens for the next period and leave unchanged locked amount in the current period. The 3rd sub-stake would be suitable to be reduced except that it's not the shortest, in terms of its unlock date. Instead, the 2nd sub-stake – the shortest (2 periods until unlock) – is reduced to 100 tokens and a new sub-stake with 100 tokens is added which is only active in the current period.
 
     Result:
 
@@ -101,7 +101,7 @@ Penalty Scenarios:
    
 * *Scenario 3*: Staker incurs penalty calculated to be worth **400 tokens**:
 
-    The difference from the previous scenario is that should also decrease locked tokens in the current period. At the first step the 2nd sub-stake is reduced to 100 tokens. Next step - adjustment for the next period. The shortest sub-stake still the same - the 2nd. And we need to deacrese it from 100 to 0 only for the next period. Will be the same if we change duration of the 2nd sub-stake from 2 periods to 1 and the other sub-stakes remain unchanged.
+    The difference between this and the previous scenario is that the current period's sum of locked tokens is also reduced. The first step is to reduce the 2nd sub-stake to 100 tokens. Then, the next period is adjusted – the shortest sub-stake is still the 2nd – and it is reduced from 100 to zero for the next period. Notably, this would have the same result if we changed the duration of the 2nd sub-stake from 2 periods to 1 and the other sub-stakes remained unchanged.
 
     Result:
 
@@ -127,7 +127,7 @@ Penalty Scenarios:
  
 * *Scenario 4*: Staker incurs penalty calculated to be worth **600 tokens**:
 
-    Reducing the unlocked remaining tokens, 3rd sub-stakes, and the shortest sub-stake (2nd) is not enough, so they are all removed. The next shortest sub-stake is the 1st which is reduced from 500 to 400.
+    The unlocked tokens, the 3rd sub-stake, and the shortest sub-stake (2nd) are all reduced to zero. This is not quite enough, so the next shortest sub-stake, the 1st, is also reduced from 500 to 400.
 
     Result:
 
