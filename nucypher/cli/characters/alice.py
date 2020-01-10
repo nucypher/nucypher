@@ -63,7 +63,7 @@ class AliceConfigOptions:
         eth_node = NO_BLOCKCHAIN_CONNECTION
         if geth:
             eth_node = actions.get_provider_process()
-            provider_uri = ETH_NODE.provider_uri(scheme='file')
+            provider_uri = eth_node.provider_uri(scheme='file')
 
         self.dev = dev
         self.domains = {network} if network else None
