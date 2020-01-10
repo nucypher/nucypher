@@ -15,10 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import contextlib
+from contextlib import suppress
 from typing import Dict, ClassVar, Set
 from typing import Optional
 from typing import Union, List
 
+from bytestring_splitter import BytestringSplitter
 from constant_sorrow import default_constant_splitter
 from constant_sorrow.constants import (
     DO_NOT_SIGN,
@@ -74,6 +76,7 @@ class Character(Learner):
 
     def __init__(self,
                  domains: Set = None,
+                 known_node_class: object = None,
                  is_me: bool = True,
                  federated_only: bool = False,
                  checksum_address: str = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
@@ -113,7 +116,20 @@ class Character(Learner):
 
         #
         # Operating Mode
-        #
+
+        if is_me:
+            if not known_node_class:
+                # Once in a while, in tests or demos, we init a plain Character who doesn't already know about its node class.
+                from nucypher.characters.lawful import Ursula
+                known_node_class = Ursula
+            # If we're federated only, we assume that all other nodes in our domain are as well.
+            known_node_class.set_federated_mode(federated_only)
+        else:
+            # What an awful hack.  The last convulsions of #466.
+            # TODO: Anything else.
+            with suppress(AttributeError):
+                federated_only = known_node_class._federated_only_instances
+
         if federated_only:
             if registry or provider_uri:
                 raise ValueError(f"Cannot init federated-only character with {registry or provider_uri}.")
@@ -158,10 +174,6 @@ class Character(Learner):
         #
 
         if is_me:
-            if not bool(federated_only) ^ bool(registry):
-                raise ValueError(f"Pass either federated only or registry for is_me Characters.  \
-                                 Got '{federated_only}' and '{registry}'.")
-
             self.treasure_maps = {}  # type: dict
             self.network_middleware = network_middleware or RestMiddleware()
 
@@ -189,6 +201,7 @@ class Character(Learner):
             Learner.__init__(self,
                              domains=domains,
                              network_middleware=self.network_middleware,
+                             node_class=known_node_class,
                              *args, **kwargs)
 
         #
@@ -228,13 +241,19 @@ class Character(Learner):
         #
         # Nicknames
         #
-        try:
-            self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_address)
-        except SigningPower.not_found_error:
-            if self.federated_only:
-                self.nickname = self.nickname_metadata = NO_NICKNAME
-            else:
-                raise
+        if self._checksum_address is NO_BLOCKCHAIN_CONNECTION and not self.federated_only and not is_me:
+            # Sometimes we don't care about the nickname.  For example, if Alice is granting to Bob, she usually
+            # doesn't know or care about his wallet.  Maybe this needs to change?
+            # Currently, if this is a stranger and there's no blockchain connection, we assign NO_NICKNAME:
+            self.nickname = self.nickname_metadata = NO_NICKNAME
+        else:
+            try:
+                self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_address)
+            except SigningPower.not_found_error:  # TODO: Handle NO_BLOCKCHAIN_CONNECTION more coherently - #1547
+                if self.federated_only:
+                    self.nickname = self.nickname_metadata = NO_NICKNAME
+                else:
+                    raise
 
         #
         # Fleet state
@@ -261,8 +280,8 @@ class Character(Learner):
         r = self._display_name_template
         try:
             r = r.format(self.__class__.__name__, self.nickname, self.checksum_address)
-        except NoSigningPower:  # TODO: ....yeah?
-            r = r.format(self.__class__.__name__, self.nickname)
+        except (NoSigningPower, TypeError):  # TODO: ....yeah?  We can probably do better for a repr here.
+            r = f"({self.__class__.__name__})⇀{self.nickname}↽"
         return r
 
     @property
@@ -280,7 +299,7 @@ class Character(Learner):
 
     @property
     def canonical_public_address(self):
-        return to_canonical_address(self.checksum_address)
+        return to_canonical_address(self._checksum_address)
 
     @canonical_public_address.setter
     def canonical_public_address(self, address_bytes):
@@ -301,7 +320,6 @@ class Character(Learner):
                          powers_and_material: Dict = None,
                          verifying_key: Union[bytes, UmbralPublicKey] = None,
                          encrypting_key: Union[bytes, UmbralPublicKey] = None,
-                         federated_only: bool = True,
                          *args, **kwargs) -> 'Character':
         """
         Sometimes we discover a Character and, at the same moment,
@@ -315,10 +333,7 @@ class Character(Learner):
 
         Alternatively, you can pass directly a verifying public key
         (for SigningPower) and/or an encrypting public key (for DecryptionPower).
-
-        # TODO: Need to be federated only until we figure out the best way to get the checksum_address in here.
         """
-
         crypto_power = CryptoPower()
 
         if powers_and_material is None:
@@ -337,7 +352,7 @@ class Character(Learner):
 
             crypto_power.consume_power_up(power_up(public_key=umbral_key))
 
-        return cls(is_me=False, federated_only=federated_only, crypto_power=crypto_power, *args, **kwargs)
+        return cls(is_me=False, crypto_power=crypto_power, *args, **kwargs)
 
     def store_metadata(self, filepath: str) -> str:
         """

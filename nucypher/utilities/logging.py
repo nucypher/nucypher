@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import pathlib
 from contextlib import contextmanager
 from functools import lru_cache
@@ -33,6 +32,8 @@ from nucypher.config.constants import USER_LOG_DIR, NUCYPHER_SENTRY_ENDPOINT
 ONE_MEGABYTE = 1_048_576
 MAXIMUM_LOG_SIZE = ONE_MEGABYTE * 10
 MAX_LOG_FILES = 10
+
+
 # A single loggers retention = MAXIMUM_LOG_SIZE * MAX_LOG_FILES
 
 
@@ -42,7 +43,7 @@ def initialize_sentry(dsn: str):
 
     # Logger blacklist
     from nucypher.blockchain.eth.clients import NuCypherGethProcess
-    ignored_loggers = (NuCypherGethProcess._LOG_NAME, )
+    ignored_loggers = (NuCypherGethProcess._LOG_NAME,)
 
     def before_breadcrumb(crumb, hint):
         logger = crumb.get('category')
@@ -57,7 +58,7 @@ def initialize_sentry(dsn: str):
         return event
 
     sentry_logging = LoggingIntegration(
-        level=logging.DEBUG,       # Capture debug and above as breadcrumbs
+        level=logging.DEBUG,  # Capture debug and above as breadcrumbs
         event_level=logging.ERROR  # Send errors as events
     )
     sentry_sdk.init(
@@ -70,7 +71,6 @@ def initialize_sentry(dsn: str):
 
 
 class GlobalLoggerSettings:
-
     log_level = LogLevel.levelWithName("info")
 
     @classmethod
@@ -90,10 +90,20 @@ class GlobalLoggerSettings:
     def pause_console_logging_while(cls):
         was_already_going = console_observer in globalLogPublisher._observers
         if was_already_going:
-             globalLogPublisher.removeObserver(console_observer)
+            globalLogPublisher.removeObserver(console_observer)
         yield
         if was_already_going:
             globalLogPublisher.addObserver(console_observer)
+
+    @classmethod
+    @contextmanager
+    def pause_all_logging_while(cls):
+        former_observers = tuple(globalLogPublisher._observers)
+        for observer in former_observers:
+            globalLogPublisher.removeObserver(observer)
+        yield
+        for observer in former_observers:
+            globalLogPublisher.addObserver(observer)
 
     @classmethod
     def start_text_file_logging(cls):
@@ -127,7 +137,6 @@ def console_observer(event):
 
 
 class _SentryInitGuard:
-
     initialized = False
     dsn = None
 

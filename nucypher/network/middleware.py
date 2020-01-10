@@ -19,13 +19,15 @@ import ssl
 
 import requests
 import time
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
+from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, EXEMPT_FROM_VERIFICATION
+EXEMPT_FROM_VERIFICATION.bool_value(False)
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from twisted.logger import Logger
 from umbral.cfrags import CapsuleFrag
 from umbral.signing import Signature
+
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 
 
 class UnexpectedResponse(Exception):
@@ -43,6 +45,20 @@ class NucypherMiddlewareClient:
     @staticmethod
     def response_cleaner(response):
         return response
+
+    def verify_and_parse_node_or_host_and_port(self, node_or_sprout, host, port):
+        """
+        Does two things:
+        1) Verifies the node (unless it is EXEMPT_FROM_VERIFICATION, like when we initially get its certificate)
+        2) Parses the node into a host and port, or returns the provided host and port.
+        :return: A 3-tuple: host string, certificate, and the library to be used for the connection.
+        """
+        if node_or_sprout:
+            if node_or_sprout is not EXEMPT_FROM_VERIFICATION:
+                node_or_sprout.mature()  # Morph into a node.
+                node = node_or_sprout  # Definitely a node.
+                node.verify_node(network_middleware_client=self)
+        return self.parse_node_or_host_and_port(node_or_sprout, host, port)
 
     def parse_node_or_host_and_port(self, node, host, port):
         if node:
@@ -71,6 +87,15 @@ class NucypherMiddlewareClient:
         No cleaning needed.
         """
 
+    def node_information(self, host, port, certificate_filepath=None):
+        # The only time a node is exempt from verification - when we are first getting its info.
+        response = self.get(node_or_sprout=EXEMPT_FROM_VERIFICATION,
+                            host=host, port=port,
+                            path="public_information",
+                            timeout=2,
+                            certificate_filepath=certificate_filepath)
+        return response.content
+
     def __getattr__(self, method_name):
         # Quick sanity check.
         if not method_name in ("post", "get", "put", "patch", "delete"):
@@ -78,12 +103,12 @@ class NucypherMiddlewareClient:
                 f"This client is for HTTP only - you need to use a real HTTP verb, not '{method_name}'.")
 
         def method_wrapper(path,
-                           node=None,
+                           node_or_sprout=None,
                            host=None,
                            port=None,
                            certificate_filepath=None,
                            *args, **kwargs):
-            host, node_certificate_filepath, http_client = self.parse_node_or_host_and_port(node, host, port)
+            host, node_certificate_filepath, http_client = self.verify_and_parse_node_or_host_and_port(node_or_sprout, host, port)
 
             if certificate_filepath:
                 filepaths_are_different = node_certificate_filepath != certificate_filepath
@@ -113,11 +138,17 @@ class NucypherMiddlewareClient:
     def node_selector(self, node):
         return node.rest_url(), self.library
 
+    def __len__(self):
+        return 0  # Workaround so debuggers can represent objects of this class despite the unusual __getattr__.
+
 
 class RestMiddleware:
     log = Logger()
 
-    client = NucypherMiddlewareClient()
+    _client_class = NucypherMiddlewareClient
+
+    def __init__(self, registry=None):
+        self.client = self._client_class()
 
     def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2,
                         current_attempt: int = 0):
@@ -144,7 +175,7 @@ class RestMiddleware:
 
     def consider_arrangement(self, arrangement):
         node = arrangement.ursula
-        response = self.client.post(node=node,
+        response = self.client.post(node_or_sprout=node,
                                     path="consider_arrangement",
                                     data=bytes(arrangement),
                                     timeout=2,
@@ -152,7 +183,7 @@ class RestMiddleware:
         return response
 
     def enact_policy(self, ursula, kfrag_id, payload):
-        response = self.client.post(node=ursula,
+        response = self.client.post(node_or_sprout=ursula,
                                     path=f'kFrag/{kfrag_id.hex()}',
                                     data=payload,
                                     timeout=2)
@@ -168,7 +199,7 @@ class RestMiddleware:
     def revoke_arrangement(self, ursula, revocation):
         # TODO: Implement revocation confirmations
         response = self.client.delete(
-            node=ursula,
+            node_or_sprout=ursula,
             path=f"kFrag/{revocation.arrangement_id.hex()}",
             data=bytes(revocation),
         )
@@ -178,13 +209,13 @@ class RestMiddleware:
         return NotImplemented
 
     def get_treasure_map_from_node(self, node, map_id):
-        response = self.client.get(node=node,
+        response = self.client.get(node_or_sprout=node,
                                    path=f"treasure_map/{map_id}",
                                    timeout=2)
         return response
 
     def put_treasure_map_on_node(self, node, map_id, map_payload):
-        response = self.client.post(node=node,
+        response = self.client.post(node_or_sprout=node,
                                     path=f"treasure_map/{map_id}",
                                     data=map_payload,
                                     timeout=2)
@@ -194,16 +225,9 @@ class RestMiddleware:
         payload = work_order.payload()
         id_as_hex = work_order.arrangement_id.hex()
         return self.client.post(
-            node=work_order.ursula,
+            node_or_sprout=work_order.ursula,
             path=f"kFrag/{id_as_hex}/reencrypt",
             data=payload, timeout=2)
-
-    def node_information(self, host, port, certificate_filepath=None):
-        response = self.client.get(host=host, port=port,
-                                   path="public_information",
-                                   timeout=2,
-                                   certificate_filepath=certificate_filepath)
-        return response.content
 
     def get_nodes_via_rest(self,
                            node,
@@ -223,13 +247,13 @@ class RestMiddleware:
 
         if announce_nodes:
             payload = bytes().join(bytes(VariableLengthBytestring(n)) for n in announce_nodes)
-            response = self.client.post(node=node,
+            response = self.client.post(node_or_sprout=node,
                                         path="node_metadata",
                                         params=params,
                                         data=payload,
                                         )
         else:
-            response = self.client.get(node=node,
+            response = self.client.get(node_or_sprout=node,
                                        path="node_metadata",
                                        params=params)
 

@@ -65,16 +65,11 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_
 
     # ...amidst a few others that are down.
     more_nodes = list(federated_ursulas)[2:10]
-
-    # Alice still only knows about two nodes (the one that is down and the new one).
-    assert len(federated_alice.known_nodes) == 2
-
     for node in more_nodes:
         federated_alice.network_middleware.node_is_down(node)
 
-    # Alice can't verify enough nodes to complete the Policy.
-    with pytest.raises(Learner.NotEnoughNodes):
-        alice_grant_action()
+    # Alice still only knows about two nodes (the one that is down and the new one).
+    assert len(federated_alice.known_nodes) == 2
 
     # Now we'll have a situation where Alice knows about all 10,
     # though only one is up.

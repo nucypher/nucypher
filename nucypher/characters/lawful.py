@@ -45,6 +45,16 @@ from umbral.pre import UmbralCorrectnessError
 from umbral.signing import Signature
 
 import nucypher
+from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker, Staker
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent, ContractAgency, \
+    PreallocationEscrowAgent
+from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.token import StakeList, WorkTracker, NU
+from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER, STAKEHOLDER_BANNER
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -68,13 +78,12 @@ from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, UnexpectedResponse, NotFound
 from nucypher.network.nicknames import nickname_from_seed
-from nucypher.network.nodes import Teacher
+from nucypher.network.nodes import Teacher, NodeSprout
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 
 
 class Alice(Character, BlockchainPolicyAuthor):
-
     banner = ALICE_BANNER
     _controller_class = AliceJSONController
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
@@ -119,6 +128,7 @@ class Alice(Character, BlockchainPolicyAuthor):
             self.n = STRANGER_ALICE
 
         Character.__init__(self,
+                           known_node_class=Ursula,
                            is_me=is_me,
                            federated_only=federated_only,
                            checksum_address=checksum_address,
@@ -242,6 +252,8 @@ class Alice(Character, BlockchainPolicyAuthor):
                                                          expiration=expiration,
                                                          *args, **kwargs)
             base_payload.update(payload)
+        elif not expiration:
+            raise TypeError("For a federated policy, you must specify expiration (duration_periods don't count).")
         return base_payload
 
     def grant(self,
@@ -250,6 +262,7 @@ class Alice(Character, BlockchainPolicyAuthor):
               handpicked_ursulas: set = None,
               discover_on_this_thread: bool = True,
               timeout: int = None,
+              publish_treasure_map: bool = True,
               **policy_params):
 
         timeout = timeout or self.timeout
@@ -288,7 +301,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                                  handpicked_ursulas=handpicked_ursulas)
 
         # REST call happens here, as does population of TreasureMap.
-        policy.enact(network_middleware=self.network_middleware)
+        policy.enact(network_middleware=self.network_middleware, publish=publish_treasure_map)
         return policy  # Now with TreasureMap affixed!
 
     def get_policy_encrypting_key_from_label(self, label: bytes) -> UmbralPublicKey:
@@ -436,7 +449,6 @@ class Alice(Character, BlockchainPolicyAuthor):
 
 
 class Bob(Character):
-
     banner = BOB_BANNER
     _controller_class = BobJSONController
 
@@ -446,11 +458,12 @@ class Bob(Character):
         """
         Raised when Bob detects incorrect CFrags returned by some Ursulas
         """
+
         def __init__(self, evidence: List):
             self.evidence = evidence
 
     def __init__(self, controller: bool = True, *args, **kwargs) -> None:
-        Character.__init__(self, *args, **kwargs)
+        Character.__init__(self, known_node_class=Ursula, *args, **kwargs)
 
         if controller:
             self.controller = self._controller_class(bob=self)
@@ -468,7 +481,7 @@ class Bob(Character):
             else:
                 raise ValueError("You need to pass either treasure_map or map_id.")
         elif map_id:
-                raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
+            raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
         return treasure_map
 
     def peek_at_treasure_map(self, treasure_map=None, map_id=None):
@@ -664,7 +677,8 @@ class Bob(Character):
             if cache:
                 must_do_new_retrieval = False
             else:
-                raise TypeError("Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  Not sure what to do.")
+                raise TypeError(
+                    "Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  Not sure what to do.")
         else:
             must_do_new_retrieval = True
 
@@ -763,7 +777,6 @@ class Bob(Character):
 
 
 class Ursula(Teacher, Character, Worker):
-
     banner = URSULA_BANNER
     _alice_class = Alice
 
@@ -822,15 +835,20 @@ class Ursula(Teacher, Character, Worker):
             from nucypher.config.node import CharacterConfiguration
             domains = (CharacterConfiguration.DEFAULT_DOMAIN,)
 
+        if is_me:
+            # If we're federated only, we assume that all other nodes in our domain are as well.
+            self.set_federated_mode(federated_only)
+
         Character.__init__(self,
                            is_me=is_me,
                            checksum_address=checksum_address,
                            start_learning_now=False,  # Handled later in this function to avoid race condition
-                           federated_only=federated_only,
+                           federated_only=self._federated_only_instances,
                            crypto_power=crypto_power,
                            abort_on_learning_error=abort_on_learning_error,
                            known_nodes=known_nodes,
                            domains=domains,
+                           known_node_class=Ursula,
                            **character_kwargs)
 
         #
@@ -851,7 +869,8 @@ class Ursula(Teacher, Character, Worker):
 
                 # Use this power to substantiate the stamp
                 self.substantiate_stamp()
-                self.log.debug(f"Created decentralized identity evidence: {self.decentralized_identity_evidence[:10].hex()}")
+                self.log.debug(
+                    f"Created decentralized identity evidence: {self.decentralized_identity_evidence[:10].hex()}")
                 decentralized_identity_evidence = self.decentralized_identity_evidence
 
                 Worker.__init__(self,
@@ -1007,10 +1026,9 @@ class Ursula(Teacher, Character, Worker):
                       federated_only: bool,
                       *args, **kwargs
                       ):
-        response_data = network_middleware.node_information(host, port, certificate_filepath=certificate_filepath)
+        response_data = network_middleware.client.node_information(host, port, certificate_filepath=certificate_filepath)
 
         stranger_ursula_from_public_keys = cls.from_bytes(response_data,
-                                                          federated_only=federated_only,
                                                           *args, **kwargs)
 
         return stranger_ursula_from_public_keys
@@ -1050,7 +1068,8 @@ class Ursula(Teacher, Character, Worker):
 
             except NodeSeemsToBeDown:
                 log = Logger(cls.__name__)
-                log.warn("Can't connect to seed node (attempt {}).  Will retry in {} seconds.".format(attempt, interval))
+                log.warn(
+                    "Can't connect to seed node (attempt {}).  Will retry in {} seconds.".format(attempt, interval))
                 time.sleep(interval)
                 return __attempt(attempt=attempt + 1)
             else:
@@ -1105,27 +1124,20 @@ class Ursula(Teacher, Character, Worker):
             staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
             seednode_stake = staking_agent.get_locked_tokens(staker_address=checksum_address)
             if seednode_stake < minimum_stake:
-                raise Learner.NotATeacher(f"{checksum_address} is staking less then the specified minimum stake value ({minimum_stake}).")
-
-        # Verify the node's TLS certificate
-        try:
-            potential_seed_node.verify_node(network_middleware=network_middleware,
-                                            registry=registry,
-                                            certificate_filepath=temp_certificate_filepath)
-        except potential_seed_node.InvalidNode:
-            # TODO: What if our seed node fails verification?
-            raise
+                raise Learner.NotATeacher(
+                    f"{checksum_address} is staking less than the specified minimum stake value ({minimum_stake}).")
 
         # OK - everyone get out
         temp_node_storage.forget()
         return potential_seed_node
 
     @classmethod
-    def internal_splitter(cls, splittable):
-        result = BytestringKwargifier(
-            dict,
+    def internal_splitter(cls, splittable, partial=False):
+        splitter = BytestringKwargifier(
+            _receiver=cls.from_processed_bytes,
+            _partial_receiver=NodeSprout,
             public_address=PUBLIC_ADDRESS_LENGTH,
-            domains=VariableLengthBytestring,
+            domains=VariableLengthBytestring,  # TODO:  Multiple domains?
             timestamp=(int, 4, {'byteorder': 'big'}),
             interface_signature=Signature,
             decentralized_identity_evidence=VariableLengthBytestring,
@@ -1134,13 +1146,13 @@ class Ursula(Teacher, Character, Worker):
             certificate=(load_pem_x509_certificate, VariableLengthBytestring, {"backend": default_backend()}),
             rest_interface=InterfaceInfo,
         )
-        return result(splittable)
+        result = splitter(splittable, partial=partial)
+        return result
 
     @classmethod
     def from_bytes(cls,
                    ursula_as_bytes: bytes,
                    version: int = INCLUDED_IN_BYTESTRING,
-                   federated_only: bool = False,
                    registry: BaseContractRegistry = None,
                    ) -> 'Ursula':
 
@@ -1166,25 +1178,37 @@ class Ursula(Teacher, Character, Worker):
             raise cls.IsFromTheFuture(message)
 
         # Version stuff checked out.  Moving on.
-        node_info = cls.internal_splitter(payload)
+        node_sprout = cls.internal_splitter(payload, partial=True)
+        return node_sprout
 
-        interface_info = node_info.pop("rest_interface")
-        node_info['rest_host'] = interface_info.host
-        node_info['rest_port'] = interface_info.port
+    @classmethod
+    def from_processed_bytes(cls, **processed_objects):
+        """
+        A convenience method for completing the maturation of a NodeSprout.
+        TODO: Either deprecate or consolidate this logic; it's mostly just workarounds.
+        """
+        #### This is kind of a ridiculous workaround and repeated logic from Ursula.from_bytes
+        interface_info = processed_objects.pop("rest_interface")
+        rest_host = interface_info.host
+        rest_port = interface_info.port
+        checksum_address = to_checksum_address(processed_objects.pop('public_address'))
 
-        node_info['timestamp'] = maya.MayaDT(node_info.pop("timestamp"))
-        node_info['checksum_address'] = to_checksum_address(node_info.pop("public_address"))
+        domains_vbytes = VariableLengthBytestring.dispense(processed_objects.pop('domains'))
+        domains = set(d.decode('utf-8') for d in domains_vbytes)
 
-        domains_vbytes = VariableLengthBytestring.dispense(node_info['domains'])
-        node_info['domains'] = set(d.decode('utf-8') for d in domains_vbytes)
+        timestamp = maya.MayaDT(processed_objects.pop('timestamp'))
 
-        ursula = cls.from_public_keys(federated_only=federated_only, **node_info)
+        ursula = cls.from_public_keys(rest_host=rest_host,
+                                      rest_port=rest_port,
+                                      checksum_address=checksum_address,
+                                      domains=domains,
+                                      timestamp=timestamp,
+                                      **processed_objects)
         return ursula
 
     @classmethod
     def batch_from_bytes(cls,
                          ursulas_as_bytes: Iterable[bytes],
-                         federated_only: bool = False,
                          registry: BaseContractRegistry = None,
                          fail_fast: bool = False,
                          ) -> List['Ursula']:
@@ -1194,22 +1218,20 @@ class Ursula(Teacher, Character, Worker):
         version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
         versions_and_node_bytes = [version_splitter(n, return_remainder=True) for n in nodes_vbytes]
 
-        ursulas = []
+        sprouts = []
         for version, node_bytes in versions_and_node_bytes:
             try:
-                ursula = cls.from_bytes(node_bytes,
-                                        version,
-                                        registry=registry,
-                                        federated_only=federated_only)
+                sprout = cls.from_bytes(node_bytes,
+                                        version=version,
+                                        registry=registry)
             except Ursula.IsFromTheFuture as e:
                 if fail_fast:
                     raise
                 else:
                     cls.log.warn(e.args[0])
             else:
-                ursulas.append(ursula)
-
-        return ursulas
+                sprouts.append(sprout)
+        return sprouts
 
     @classmethod
     def from_storage(cls,
@@ -1218,7 +1240,6 @@ class Ursula(Teacher, Character, Worker):
                      federated_only: bool = False) -> 'Ursula':
         return node_storage.get(checksum_address=checksum_adress,
                                 federated_only=federated_only)
-
 
     #
     # Properties
@@ -1264,7 +1285,7 @@ class Ursula(Teacher, Character, Worker):
                 return work_orders_from_bob
 
     def _reencrypt(self, kfrag: KFrag, work_order: 'WorkOrder', alice_verifying_key: UmbralPublicKey):
-        
+
         # Prepare a bytestring for concatenating re-encrypted
         # capsule data for each work order task.
         cfrag_byte_stream = bytes()
@@ -1302,6 +1323,7 @@ class Enrico(Character):
 
         # Encrico never uses the blockchain, hence federated_only)
         kwargs['federated_only'] = True
+        kwargs['known_node_class'] = Ursula
         super().__init__(*args, **kwargs)
 
         if controller:
@@ -1363,7 +1385,7 @@ class Enrico(Character):
 
             response_data = {
                 'result': {
-                    'message_kit': b64encode(message_kit.to_bytes()).decode(),   # FIXME
+                    'message_kit': b64encode(message_kit.to_bytes()).decode(),  # FIXME
                     'signature': b64encode(bytes(signature)).decode(),
                 },
                 'version': str(nucypher.__version__)

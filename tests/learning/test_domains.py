@@ -30,7 +30,7 @@ def test_learner_learns_about_domains_separately(ursula_federated_test_config, c
         assert len(big_learner.known_nodes) == 5
 
         new_first_domain_learner = lonely_ursula_maker(domains={"nucypher1.test_suite"}).pop()
-        new_second_domain_learner = lonely_ursula_maker(domains={"nucypher2.test_suite"})
+        _new_second_domain_learner = lonely_ursula_maker(domains={"nucypher2.test_suite"})
 
         new_first_domain_learner._current_teacher_node = big_learner
         new_first_domain_learner.learn_from_teacher_node()

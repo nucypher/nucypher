@@ -15,9 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import pytest
-from binascii import unhexlify
 from hendrix.experience import crosstown_traffic
 from hendrix.utils.test_utils import crosstownTaskListDecoratorFactory
 
@@ -42,13 +40,12 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
             if address == propagating_ursula.checksum_address:
                 continue
             else:
-                assert address in propagating_ursula.known_nodes.addresses(), "{} did not know about {}".\
+                assert address in propagating_ursula.known_nodes.addresses(), "{} did not know about {}". \
                     format(propagating_ursula, nickname_from_seed(address))
 
 
 @pytest.mark.slow()
 def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_ursulas):
-
     # Imagine alice knows of nobody.
     blockchain_alice._Learner__known_nodes = FleetStateTracker()
 
@@ -134,7 +131,7 @@ def test_treasure_map_is_legit(enacted_federated_policy):
         assert ursula_address in enacted_federated_policy.bob.known_nodes.addresses()
 
 
-@pytest.mark.skip("See Issue #1075")    # TODO: Issue #1075
+@pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075
 def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     """
     Although Ursulas propagate each other's interface information, as demonstrated above,
@@ -182,7 +179,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     assert vladimir in other_ursula.suspicious_activities_witnessed['vladimirs']
 
 
-@pytest.mark.skip("See Issue #1075")    # TODO: Issue #1075
+@pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075
 def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_alice,
                                                                   idle_blockchain_policy,
                                                                   blockchain_ursulas):
@@ -221,7 +218,7 @@ def test_alice_does_not_update_with_old_ursula_info(federated_alice, federated_u
     # Indeed, her metadata is not the same now.
     assert bytes(ursula) != old_metadata
 
-    old_ursula = Ursula.from_bytes(old_metadata, federated_only=True)
+    old_ursula = Ursula.from_bytes(old_metadata)
 
     # Once Alice learns about Ursula's updated info...
     federated_alice.remember_node(ursula)
