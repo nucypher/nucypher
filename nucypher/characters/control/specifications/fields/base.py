@@ -8,6 +8,6 @@ class BaseField:
     def __init__(self, *args, **kwargs):
         self.click = kwargs.pop('click', None)
         if self.click:
-            self.click.kwargs['required'] = kwargs.get('required', False)
-            self.click.kwargs['type'] = self.click_type
+            self.click.required = kwargs.get('required', False)
+            self.click.type = click.types.convert_type(self.click_type)
         super().__init__(*args, **kwargs)

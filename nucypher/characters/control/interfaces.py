@@ -14,6 +14,20 @@ from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import NotFound
 
 
+def attach_schema(schema):
+
+    def callable(func):
+        func._schema = schema()
+
+        @functools.wraps(func)
+        def wrapped(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapped
+
+    return callable
+
+
+
 class CharacterPublicInterface:
 
     specification = NotImplemented
@@ -23,14 +37,14 @@ class CharacterPublicInterface:
         super().__init__(*args, **kwargs)
 
     @classmethod
-    def command(cls, action):
+    def connect(cls, action):
 
-        schema = cls.specifications[action]
+        schema = getattr(cls, action)._schema
 
         def callable(func):
             c = func
             for k, f in schema.load_fields.items():
-                c = click.option(*f.click.args, **f.click.kwargs)(c)
+                c = f.click(c)
 
             @functools.wraps(func)
             def wrapped(*args, **kwargs):
@@ -49,6 +63,7 @@ class AliceInterface(CharacterPublicInterface):
                       'public_keys': alice.PublicKeys(),
                       'decrypt': alice.Decrypt()}
 
+    @attach_schema(alice.CreatePolicy)
     def create_policy(self,
                       bob_encrypting_key: bytes,
                       bob_verifying_key: bytes,
@@ -74,11 +89,13 @@ class AliceInterface(CharacterPublicInterface):
         response_data = {'label': new_policy.label, 'policy_encrypting_key': new_policy.public_key}
         return response_data
 
+    @attach_schema(alice.DerivePolicyEncryptionKey)
     def derive_policy_encrypting_key(self, label: bytes) -> dict:
         policy_encrypting_key = self.character.get_policy_encrypting_key_from_label(label)
         response_data = {'policy_encrypting_key': policy_encrypting_key, 'label': label}
         return response_data
 
+    @attach_schema(alice.GrantPolicy)
     def grant(self,
               bob_encrypting_key: bytes,
               bob_verifying_key: bytes,
@@ -108,6 +125,7 @@ class AliceInterface(CharacterPublicInterface):
                          'alice_verifying_key': new_policy.alice.stamp}
         return response_data
 
+    @attach_schema(alice.Revoke)
     def revoke(self, label: bytes, bob_verifying_key: bytes) -> dict:
 
         # TODO: Move deeper into characters
@@ -126,6 +144,7 @@ class AliceInterface(CharacterPublicInterface):
         response_data = {'failed_revocations': len(failed_revocations)}
         return response_data
 
+    @attach_schema(alice.Decrypt)
     def decrypt(self, label: bytes, message_kit: bytes) -> dict:
         """
         Character control endpoint to allow Alice to decrypt her own data.

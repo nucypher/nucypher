@@ -26,8 +26,6 @@ from nucypher.cli.types import (
     EXISTING_READABLE_FILE,
     NETWORK_PORT,
     )
-from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
 # Alphabetical
@@ -170,6 +168,9 @@ def wrap_option(handler, **options):
 
 
 def process_middleware(mock_networking):
+    print ('process_middleware')
+    from nucypher.network.middleware import RestMiddleware
+    from nucypher.utilities.sandbox.middleware import MockRestMiddleware
     if mock_networking:
         middleware = MockRestMiddleware()
     else:
@@ -178,4 +179,7 @@ def process_middleware(mock_networking):
     return 'middleware', middleware
 
 
-option_middleware = wrap_option(process_middleware, mock_networking=_option_middleware)
+option_middleware = wrap_option(
+    process_middleware,
+    mock_networking=click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True),
+    )

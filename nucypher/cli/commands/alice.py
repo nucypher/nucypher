@@ -22,6 +22,7 @@ import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 
 from nucypher.characters.banners import ALICE_BANNER
+from nucypher.characters.control.interfaces import AliceInterface
 from nucypher.cli import actions, painting, types
 from nucypher.cli.actions import get_nucypher_password, select_client_account, get_client_password
 from nucypher.cli.config import group_general_config
@@ -359,15 +360,7 @@ def derive_policy_pubkey(general_config, label, character_options, config_file):
 
 
 @alice.command()
-@click.option('--bob-encrypting-key', help="Bob's encrypting key as a hexadecimal string", type=click.STRING,
-              required=True)
-@option_bob_verifying_key
-@option_label(required=True)
-@option_m
-@option_n
-@option_rate
-@click.option('--expiration', help="Expiration Datetime of a policy", type=click.STRING)  # TODO: click.DateTime()
-@click.option('--value', help="Total policy value (in Wei)", type=types.WEI)
+@AliceInterface.connect('grant')
 @group_character_options
 @option_config_file
 @group_general_config
@@ -412,8 +405,7 @@ def grant(general_config,
 
 
 @alice.command()
-@option_bob_verifying_key
-@option_label(required=True)
+@AliceInterface.connect('revoke')
 @group_character_options
 @option_config_file
 @group_general_config
