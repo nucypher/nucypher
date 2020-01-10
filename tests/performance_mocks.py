@@ -21,6 +21,16 @@ mock_keep_learning = patch('nucypher.network.nodes.Learner.keep_learning_about_n
 mock_record_fleet_state = patch("nucypher.network.nodes.FleetStateTracker.record_fleet_state",
                                 new=lambda *args, **kwargs: None)
 
+"""
+Some hairy stuff ahead.  We want 5,000 Ursulas for some of these tests.  OK, so what effect does that have?  For one thing, if you generate 5k Ursulas, you end up generate some 20k keypairs (validating, signing, delegating, and TLSHosting for each of the 5k Ursulas). That causes this test to go from taking about 7s total (on jMyles' laptop) to about 2min. So that's obviously unacceptable.
+
+Instead, we generate mock keys in serial, and then, when Alice chooses her 8 Ursulas (out of the 4000 about whom she has learned, out of the 5000 that we have made), she verifies them, and at this stage, we're no longer mocking out, which causes the bytes of the key to be cast back into a real key.
+
+The problem is that, for any mock key string, there are going to be some bytes that aren't properly formatted to be a real key. So, I have included all of the numbers which ultimately produce bytes which can't be used as a public key.
+
+The only other obvious way to have a test this fast is to hardcode 20k keypairs into the codebase (and even then, it will be far, far less performant than this).
+"""
+
 serials_which_produce_bytes_which_are_not_viable_as_a_pubkey = (10001, 10003, 10004, 10005, 10007, 10013, 10014, 10018,
                                                                 10020, 10022, 10029, 10031, 10033, 10034, 10035, 10036,
                                                                 10037, 10038, 10040, 10041, 10043, 10045, 10049, 10051,
