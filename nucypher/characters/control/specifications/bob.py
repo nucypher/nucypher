@@ -1,11 +1,20 @@
+import click
+from nucypher.cli import common_options
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.base import BaseSchema
 
 
-class JoinPolicy(BaseSchema):
+class JoinPolicy(BaseSchema):  #TODO:  this doesn't have a cli implementation
 
-    label = fields.Label(load_only=True, required=True)
-    alice_verifying_key = fields.Key(load_only=True, required=True)
+    label = fields.Label(
+        load_only=True, required=True,
+        click=common_options.option_label(required=True))
+    alice_verifying_key = fields.Key(
+        load_only=True, required=True,
+        click=click.option(
+            '--alice-verifying-key',
+            help="Alice's verifying key as a hexadecimal string",
+            required=True, type=click.STRING,))
 
     policy_encrypting_key = fields.String(dump_only=True)
     # this should be a Key Field
@@ -13,10 +22,23 @@ class JoinPolicy(BaseSchema):
 
 
 class Retrieve(BaseSchema):
-    label = fields.Label(required=True, load_only=True)
-    policy_encrypting_key = fields.Key(required=True, load_only=True)
-    alice_verifying_key = fields.Key(required=True, load_only=True, )
-    message_kit = fields.UmbralMessageKit(required=True, load_only=True)
+    label = fields.Label(
+        required=True, load_only=True,
+        click=common_options.option_label(required=True))
+    policy_encrypting_key = fields.Key(
+        required=True,
+        load_only=True,
+        click=common_options.option_policy_encrypting_key(required=True))
+    alice_verifying_key = fields.Key(
+        required=True, load_only=True,
+        click=click.option(
+            '--alice-verifying-key',
+            help="Alice's verifying key as a hexadecimal string",
+            type=click.STRING,
+            required=True))
+    message_kit = fields.UmbralMessageKit(
+        required=True, load_only=True,
+        click=common_options.option_message_kit(required=True))
 
     cleartexts = fields.List(fields.Cleartext(), dump_only=True)
 

@@ -30,7 +30,7 @@ from nucypher.cli.options import (
 from nucypher.config.characters import BobConfiguration
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
-
+from nucypher.characters.control.interfaces import BobInterface
 
 class BobConfigOptions:
 
@@ -230,6 +230,7 @@ def destroy(general_config, config_options, config_file, force):
 @bob.command(name='public-keys')
 @group_character_options
 @option_config_file
+@BobInterface.connect_cli('public_keys')
 @group_general_config
 def public_keys(general_config, character_options, config_file):
     """
@@ -244,10 +245,7 @@ def public_keys(general_config, character_options, config_file):
 @bob.command()
 @group_character_options
 @option_config_file
-@option_label()
-@option_policy_encrypting_key()
-@click.option('--alice-verifying-key', help="Alice's verifying key as a hexadecimal string", type=click.STRING)
-@option_message_kit()
+@BobInterface.connect_cli('retrieve')
 @group_general_config
 def retrieve(general_config, character_options, config_file,
              label, policy_encrypting_key, alice_verifying_key, message_kit):

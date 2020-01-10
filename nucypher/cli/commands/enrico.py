@@ -6,6 +6,7 @@ from nucypher.characters.lawful import Enrico
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import option_dry_run, option_policy_encrypting_key
 from nucypher.cli.types import NETWORK_PORT
+from nucypher.characters.control.interfaces import EnricoInterface
 
 
 @click.group()
@@ -45,8 +46,7 @@ def run(general_config, policy_encrypting_key, dry_run, http_port):
 
 
 @enrico.command()
-@option_policy_encrypting_key(required=True)
-@click.option('--message', help="A unicode message to encrypt for a policy", type=click.STRING, required=True)
+@EnricoInterface.connect_cli('encrypt_message')
 @group_general_config
 def encrypt(general_config, policy_encrypting_key, message):
     """
