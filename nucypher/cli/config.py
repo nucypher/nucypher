@@ -25,10 +25,9 @@ import click
 from twisted.logger import Logger
 
 from nucypher.characters.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
+from nucypher.cli.common_options import option_etherscan, group_options
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
-from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import GlobalLoggerSettings
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
 def get_env_bool(var_name: str, default: bool) -> bool:
@@ -40,28 +39,19 @@ def get_env_bool(var_name: str, default: bool) -> bool:
         return default
 
 
-class NucypherClickConfig:
+class GroupGeneralConfig:
+
+    __option_name__ = 'general_config'
 
     verbosity = 0
 
-    # Output Sinks
-    __emitter = None
-
     # Environment Variables
-    config_file = os.environ.get('NUCYPHER_CONFIG_FILE')
+    config_root = os.environ.get('NUCYPHER_CONFIG_ROOT')
     sentry_endpoint = os.environ.get("NUCYPHER_SENTRY_DSN", NUCYPHER_SENTRY_ENDPOINT)
     log_to_sentry = get_env_bool("NUCYPHER_SENTRY_LOGS", True)
     log_to_file = get_env_bool("NUCYPHER_FILE_LOGS", True)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Logging
-        self.log = Logger(self.__class__.__name__)
-
-    def set_options(self,
-                    mock_networking,
-                    etherscan,
+    def __init__(self,
                     json_ipc,
                     verbose,
                     quiet,
@@ -72,6 +62,8 @@ class NucypherClickConfig:
                     log_level,
                     debug):
 
+        self.log = Logger(self.__class__.__name__)
+
         # Session Emitter for pre and post character control engagement.
         if verbose and quiet:
             raise click.BadOptionUsage(
@@ -80,18 +72,18 @@ class NucypherClickConfig:
                         "and cannot be used at the same time.")
 
         if verbose:
-            NucypherClickConfig.verbosity = 2
+            GroupGeneralConfig.verbosity = 2
         elif quiet:
-            NucypherClickConfig.verbosity = 0
+            GroupGeneralConfig.verbosity = 0
         else:
-            NucypherClickConfig.verbosity = 1
+            GroupGeneralConfig.verbosity = 1
 
         if json_ipc:
-            emitter = JSONRPCStdoutEmitter(verbosity=NucypherClickConfig.verbosity)
+            emitter = JSONRPCStdoutEmitter(verbosity=GroupGeneralConfig.verbosity)
         else:
-            emitter = StdoutEmitter(verbosity=NucypherClickConfig.verbosity)
+            emitter = StdoutEmitter(verbosity=GroupGeneralConfig.verbosity)
 
-        self.attach_emitter(emitter)
+        self.emitter = emitter
 
         if verbose:
             self.emitter.message("Verbose mode is enabled", color='blue')
@@ -134,91 +126,34 @@ class NucypherClickConfig:
         if json_ipc:
             GlobalLoggerSettings.stop_console_logging()  # JSON-RPC Protection
 
-        # CLI Session Configuration
-        self.mock_networking = mock_networking
         self.debug = debug
         self.json_ipc = json_ipc
-        self.etherscan = etherscan
-
-        # Only used for testing outputs;
-        # Redirects outputs to in-memory python containers.
-        if mock_networking:
-            self.emitter.message("WARNING: Mock networking is enabled")
-            self.middleware = MockRestMiddleware()
-        else:
-            self.middleware = RestMiddleware()
-
-    @classmethod
-    def attach_emitter(cls, emitter) -> None:
-        cls.__emitter = emitter
-
-    @property
-    def emitter(cls):
-        return cls.__emitter
 
 
-# Register the above click configuration classes as a decorators
-_nucypher_click_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
-
-
-def nucypher_click_config(func):
-    @_nucypher_click_config
-    @click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True)
-    @click.option('--etherscan/--no-etherscan', help="Enable/disable viewing TX in Etherscan", default=False)
-    @click.option('-J', '--json-ipc', help="Send all IPC output to stdout as JSON, and turn off the rest", is_flag=True)
-    @click.option('-v', '--verbose', help="Verbose console messages", is_flag=True)
-    @click.option('-Q', '--quiet', help="Disable console messages", is_flag=True)
-    @click.option('-L', '--no-logs', help="Disable all logging output", is_flag=True)
-    @click.option('--console-logs/--no-console-logs',
+group_general_config = group_options(
+    GroupGeneralConfig,
+    json_ipc=click.option('-J', '--json-ipc', help="Send all IPC output to stdout as JSON, and turn off the rest", is_flag=True),
+    verbose=click.option('-v', '--verbose', help="Verbose console messages", is_flag=True),
+    quiet=click.option('-Q', '--quiet', help="Disable console messages", is_flag=True),
+    no_logs=click.option('-L', '--no-logs', help="Disable all logging output", is_flag=True),
+    console_logs=click.option('--console-logs/--no-console-logs',
                   help="Enable/disable logging to console. "
                        "Defaults to `--no-console-logs`.",
-                  default=False)
-    @click.option('--file-logs/--no-file-logs',
+                  default=False),
+    file_logs=click.option('--file-logs/--no-file-logs',
                   help="Enable/disable logging to file. "
                        "Defaults to NUCYPHER_FILE_LOGS, or to `--file-logs` if it is not set.",
-                  default=None)
-    @click.option('--sentry-logs/--no-sentry-logs',
+                  default=None),
+    sentry_logs=click.option('--sentry-logs/--no-sentry-logs',
                   help="Enable/disable logging to Sentry. "
                   "Defaults to NUCYPHER_SENTRY_LOGS, or to `--sentry-logs` if it is not set.",
-                  default=None)
-    @click.option('--log-level', help="The log level for this process.  Is overridden by --debug.",
+                  default=None),
+    log_level=click.option('--log-level', help="The log level for this process.  Is overridden by --debug.",
                   type=click.Choice(['critical', 'error', 'warn', 'info', 'debug']),
-                  default='info')
-    @click.option('-D', '--debug',
+                  default='info'),
+    debug=click.option('-D', '--debug',
                   help="Enable debugging mode, crashing on more exceptions instead of trying to recover. "
                        "Also sets log level to \"debug\", turns on console and file logging "
                        "and turns off Sentry logging.",
-                  is_flag=True)
-    @functools.wraps(func)
-    def wrapper(config,
-                *args,
-                mock_networking,
-                etherscan,
-                json_ipc,
-                verbose,
-                quiet,
-                no_logs,
-                console_logs,
-                file_logs,
-                sentry_logs,
-                log_level,
-                debug,
-                **kwargs):
-
-        # NOTE: `set_options` MUST maintain same order as click_options provided - there is a unit test that depends
-        #       on this order being maintained
-        config.set_options(
-            mock_networking,
-            etherscan,
-            json_ipc,
-            verbose,
-            quiet,
-            no_logs,
-            console_logs,
-            file_logs,
-            sentry_logs,
-            log_level,
-            debug)
-
-        return func(config, *args, **kwargs)
-    return wrapper
+                  is_flag=True),
+    )

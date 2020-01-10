@@ -4,16 +4,12 @@ from collections import deque
 
 import pytest
 
-from nucypher.cli.config import NucypherClickConfig
+from nucypher.cli.config import GroupGeneralConfig
 from nucypher.cli.processes import JSONRPCLineReceiver
 
 
 class TransportTrap:
     """Temporarily diverts system standard output"""
-
-    # Disable click sentry and file logging
-    NucypherClickConfig.log_to_sentry = False
-    NucypherClickConfig.log_to_file = True
 
     def __init__(self):
         self.___stdout = sys.stdout

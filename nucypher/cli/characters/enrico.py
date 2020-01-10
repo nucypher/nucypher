@@ -3,13 +3,12 @@ from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.banners import ENRICO_BANNER
 from nucypher.characters.lawful import Enrico
-from nucypher.cli.config import nucypher_click_config
+from nucypher.cli.common_options import (
+    option_dry_run,
+    option_policy_encrypting_key,
+    )
+from nucypher.cli.config import group_general_config
 from nucypher.cli.types import NETWORK_PORT
-
-
-policy_encrypting_key_option =  \
-    click.option('--policy-encrypting-key', help="Encrypting Public Key for Policy as hexadecimal string",
-                 type=click.STRING, required=True)
 
 
 @click.group()
@@ -21,23 +20,23 @@ def enrico():
 
 
 @enrico.command()
-@policy_encrypting_key_option
-@click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
+@option_policy_encrypting_key(required=True)
+@option_dry_run
 @click.option('--http-port', help="The host port to run Enrico HTTP services on", type=NETWORK_PORT)
-@nucypher_click_config
-def run(click_config, policy_encrypting_key, dry_run, http_port):
+@group_general_config
+def run(general_config, policy_encrypting_key, dry_run, http_port):
     """
     Start Enrico's controller.
     """
 
     ### Setup ###
-    emitter = _setup_emitter(click_config, policy_encrypting_key)
+    emitter = _setup_emitter(general_config, policy_encrypting_key)
 
     ENRICO = _create_enrico(emitter, policy_encrypting_key)
     #############
 
     # RPC
-    if click_config.json_ipc:
+    if general_config.json_ipc:
         rpc_controller = ENRICO.make_rpc_controller()
         _transport = rpc_controller.make_control_transport()
         rpc_controller.start()
@@ -49,16 +48,16 @@ def run(click_config, policy_encrypting_key, dry_run, http_port):
 
 
 @enrico.command()
-@policy_encrypting_key_option
+@option_policy_encrypting_key(required=True)
 @click.option('--message', help="A unicode message to encrypt for a policy", type=click.STRING, required=True)
-@nucypher_click_config
-def encrypt(click_config, policy_encrypting_key, message):
+@group_general_config
+def encrypt(general_config, policy_encrypting_key, message):
     """
     Encrypt a message under a given policy public key.
     """
 
     ### Setup ###
-    emitter = _setup_emitter(click_config, policy_encrypting_key)
+    emitter = _setup_emitter(general_config, policy_encrypting_key)
 
     ENRICO = _create_enrico(emitter, policy_encrypting_key)
     #############
@@ -69,8 +68,8 @@ def encrypt(click_config, policy_encrypting_key, message):
     return response
 
 
-def _setup_emitter(click_config, policy_encrypting_key):
-    emitter = click_config.emitter
+def _setup_emitter(general_config, policy_encrypting_key):
+    emitter = general_config.emitter
     emitter.clear()
     emitter.banner(ENRICO_BANNER.format(policy_encrypting_key))
 

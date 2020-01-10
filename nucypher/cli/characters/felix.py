@@ -7,42 +7,159 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from nucypher.characters.banners import FELIX_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import get_nucypher_password, unlock_nucypher_keyring
-from nucypher.cli.config import nucypher_click_config
+from nucypher.cli.common_options import (
+    group_options,
+    option_checksum_address,
+    option_config_file,
+    option_config_root,
+    option_db_filepath,
+    option_dev,
+    option_discovery_port,
+    option_dry_run,
+    option_force,
+    option_geth,
+    option_middleware,
+    option_min_stake,
+    option_network,
+    option_poa,
+    option_provider_uri,
+    option_registry_filepath,
+    option_teacher_uri,
+    )
+from nucypher.cli.config import group_general_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import FelixConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
-# Args (checksum_address, geth, dev, network, registry_filepath,  provider_uri, host, db_filepath, poa)
-def _admin_options(func):
-    @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-    @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-    @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
-    @click.option('--network', help="Network Domain Name", type=click.STRING)
-    @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
-    @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
-    @click.option('--host', help="The host to run Felix HTTP services on", type=click.STRING, default='127.0.0.1')
-    @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
-    @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
-    return wrapper
-
-
-# Args (config_file, port, teacher_uri)
-def _api_options(func):
-    @_admin_options
-    @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-    @click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT,
+option_port = click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT,
                   default=FelixConfiguration.DEFAULT_REST_PORT)
-    @click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
-    @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT,
-                  default=0)
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
-    return wrapper
+
+
+class FelixConfigOptions:
+
+    __option_name__ = 'config_options'
+
+    def __init__(
+            self, geth, dev, network, provider_uri, host,
+            db_filepath, checksum_address, registry_filepath, poa, port):
+
+        eth_node = NO_BLOCKCHAIN_CONNECTION
+        if geth:
+            eth_node = actions.get_provider_process(dev)
+            provider_uri = eth_node.provider_uri
+
+        self.eth_node = eth_node
+        self.provider_uri = provider_uri
+        self.domains = {network} if network else None
+        self.dev = dev
+        self.host = host
+        self.db_filepath = db_filepath
+        self.checksum_address = checksum_address
+        self.registry_filepath = registry_filepath
+        self.poa = poa
+        self.port = port
+
+    def create_config(self, emitter, config_file):
+        # Load Felix from Configuration File with overrides
+        try:
+            return FelixConfiguration.from_configuration_file(
+                emitter=emitter,
+                filepath=config_file,
+                domains=self.domains,
+                registry_filepath=self.registry_filepath,
+                provider_process=self.eth_node,
+                provider_uri=self.provider_uri,
+                rest_host=self.host,
+                rest_port=self.port,
+                db_filepath=self.db_filepath,
+                poa=self.poa)
+
+            return felix_config
+        except FileNotFoundError:
+            emitter.echo(f"No Felix configuration file found at {config_file}. "
+                         f"Check the filepath or run 'nucypher felix init' to create a new system configuration.")
+            raise click.Abort
+
+    def generate_config(self, config_root, discovery_port):
+        # FIXME: why isn't port used here?
+        return FelixConfiguration.generate(
+            password=get_nucypher_password(confirm=True),
+            config_root=config_root,
+            rest_host=self.host,
+            rest_port=discovery_port,
+            db_filepath=self.db_filepath,
+            domains=self.domains,
+            checksum_address=self.checksum_address,
+            registry_filepath=self.registry_filepath,
+            provider_uri=self.provider_uri,
+            provider_process=self.eth_node,
+            poa=self.poa)
+
+
+group_config_options = group_options(
+    FelixConfigOptions,
+    geth=option_geth,
+    dev=option_dev,
+    network=option_network,
+    provider_uri=option_provider_uri(),
+    host=click.option('--host', help="The host to run Felix HTTP services on", type=click.STRING, default='127.0.0.1'),
+    db_filepath=option_db_filepath,
+    checksum_address=option_checksum_address,
+    registry_filepath=option_registry_filepath,
+    poa=option_poa,
+    port=option_port,
+    )
+
+
+class FelixCharacterOptions:
+
+    __option_name__ = 'character_options'
+
+    def __init__(self, config_options, teacher_uri, min_stake, middleware):
+        self.config_options = config_options
+        self.teacher_uris = [teacher_uri] if teacher_uri else None
+        self.min_stake = min_stake
+        self.middleware = middleware
+
+    def create_character(self, emitter, config_file, debug):
+
+        felix_config = self.config_options.create_config(emitter, config_file)
+
+        try:
+            # Authenticate
+            unlock_nucypher_keyring(emitter,
+                                    character_configuration=felix_config,
+                                    password=get_nucypher_password(confirm=False))
+
+            # Produce Teacher Ursulas
+            teacher_nodes = actions.load_seednodes(emitter,
+                                                   teacher_uris=self.teacher_uris,
+                                                   min_stake=self.min_stake,
+                                                   federated_only=felix_config.federated_only,
+                                                   network_domains=felix_config.domains,
+                                                   network_middleware=self.middleware)
+
+            # Produce Felix
+            FELIX = felix_config.produce(domains=self.config_options.domains, known_nodes=teacher_nodes)
+            FELIX.make_web_app()  # attach web application, but dont start service
+
+            return FELIX
+        except Exception as e:
+            if debug:
+                raise
+            else:
+                emitter.echo(str(e), color='red', bold=True)
+                raise click.Abort
+
+
+group_character_options = group_options(
+    FelixCharacterOptions,
+    config_options=group_config_options,
+    teacher_uri=option_teacher_uri,
+    min_stake=option_min_stake,
+    middleware=option_middleware,
+    )
 
 
 @click.group()
@@ -54,44 +171,23 @@ def felix():
 
 
 @felix.command()
-@_admin_options
-@click.option('--config-root', help="Custom configuration directory", type=click.Path())
-@click.option('--discovery-port', help="The host port to run Felix Node Discovery services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_LEARNER_PORT)
-@nucypher_click_config
-def init(click_config,
-
-         # Admin Options
-         checksum_address, geth, dev, network, registry_filepath, provider_uri, host, db_filepath, poa,
-
-         # Other
-         config_root, discovery_port):
+@group_general_config
+@option_config_root
+@option_discovery_port(default=FelixConfiguration.DEFAULT_LEARNER_PORT)
+@group_config_options
+def init(general_config, config_options, config_root, discovery_port):
     """
     Create a brand-new Felix.
     """
-    emitter = _setup_emitter(click_config, checksum_address)
-
-    ETH_NODE = NO_BLOCKCHAIN_CONNECTION
-    if geth:
-        ETH_NODE = actions.get_provider_process(dev)
-        provider_uri = ETH_NODE.provider_uri
+    emitter = _setup_emitter(general_config, config_options.checksum_address)
 
     if not config_root:  # Flag
         config_root = DEFAULT_CONFIG_ROOT  # Envvar or init-only default
 
     try:
-        new_felix_config = FelixConfiguration.generate(password=get_nucypher_password(confirm=True),
-                                                       config_root=config_root,
-                                                       rest_host=host,
-                                                       rest_port=discovery_port,
-                                                       db_filepath=db_filepath,
-                                                       domains={network} if network else None,
-                                                       checksum_address=checksum_address,
-                                                       registry_filepath=registry_filepath,
-                                                       provider_uri=provider_uri,
-                                                       provider_process=ETH_NODE,
-                                                       poa=poa)
+        new_felix_config = config_options.generate_config(config_root, discovery_port)
     except Exception as e:
-        if click_config.debug:
+        if general_config.debug:
             raise
         else:
             emitter.echo(str(e), color='red', bold=True)
@@ -102,57 +198,31 @@ def init(click_config,
 
 
 @felix.command()
-@_admin_options
-@click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-@click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_REST_PORT)
-@click.option('--force', help="Don't ask for confirmation", is_flag=True)
-@nucypher_click_config
-def destroy(click_config,
-
-            # Admin Options
-            checksum_address, geth, dev, network, registry_filepath, provider_uri, host, db_filepath, poa,
-
-            # Other
-            config_file, port, force):
+@group_config_options
+@option_config_file
+@option_force
+@group_general_config
+def destroy(general_config, config_options, config_file, force):
     """
     Destroy Felix Configuration.
     """
-    emitter = _setup_emitter(click_config, checksum_address)
-
-    ETH_NODE = NO_BLOCKCHAIN_CONNECTION
-    if geth:
-        ETH_NODE = actions.get_provider_process(dev)
-        provider_uri = ETH_NODE.provider_uri
-
-    felix_config = _get_config(emitter, network, config_file, registry_filepath, ETH_NODE, provider_uri, host, port, db_filepath, poa)
+    emitter = _setup_emitter(general_config, config_options.checksum_address)
+    felix_config = config_options.create_config(emitter, config_file)
     actions.destroy_configuration(emitter, character_config=felix_config, force=force)
 
 
 @felix.command()
-@_api_options
-@click.option('--force', help="Don't ask for confirmation", is_flag=True)
-@nucypher_click_config
-def createdb(click_config,
-
-             # API Options
-             checksum_address, geth, dev, network, registry_filepath, provider_uri, host, db_filepath, poa,
-             config_file, port, teacher_uri, min_stake,
-
-             # Other
-             force):
+@group_character_options
+@option_config_file
+@option_force
+@group_general_config
+def createdb(general_config, character_options, config_file, force):
     """
     Create Felix DB.
     """
-    emitter = _setup_emitter(click_config, checksum_address)
+    emitter = _setup_emitter(general_config, character_options.config_options.checksum_address)
 
-    ETH_NODE = NO_BLOCKCHAIN_CONNECTION
-    if geth:
-        ETH_NODE = actions.get_provider_process(dev)
-        provider_uri = ETH_NODE.provider_uri
-
-    felix_config = _get_config(emitter, network, config_file, registry_filepath, ETH_NODE, provider_uri, host, port,
-                               db_filepath, poa)
-    FELIX = _create_felix(emitter, click_config, felix_config, teacher_uri, min_stake, network)
+    FELIX = character_options.create_character(emitter, config_file, general_config.debug)
 
     if os.path.isfile(FELIX.db_filepath):
         if not force:
@@ -165,26 +235,16 @@ def createdb(click_config,
 
 
 @felix.command()
-@_api_options
-@nucypher_click_config
-def view(click_config,
-
-         # API Options
-         checksum_address, geth, dev, network, registry_filepath, provider_uri, host, db_filepath, poa,
-         config_file, port, teacher_uri, min_stake):
+@group_character_options
+@option_config_file
+@group_general_config
+def view(general_config, character_options, config_file):
     """
     View Felix token balance.
     """
-    emitter = _setup_emitter(click_config, checksum_address)
+    emitter = _setup_emitter(general_config, character_options.config_options.checksum_address)
 
-    ETH_NODE = NO_BLOCKCHAIN_CONNECTION
-    if geth:
-        ETH_NODE = actions.get_provider_process(dev)
-        provider_uri = ETH_NODE.provider_uri
-
-    felix_config = _get_config(emitter, network, config_file, registry_filepath, ETH_NODE, provider_uri, host, port,
-                               db_filepath, poa)
-    FELIX = _create_felix(emitter, click_config, felix_config, teacher_uri, min_stake, network)
+    FELIX = character_options.create_character(emitter, config_file, general_config.debug)
 
     token_balance = FELIX.token_balance
     eth_balance = FELIX.eth_balance
@@ -196,26 +256,16 @@ def view(click_config,
 
 
 @felix.command()
-@_api_options
-@nucypher_click_config
-def accounts(click_config,
-
-             # API Options
-             checksum_address, geth, dev, network, registry_filepath, provider_uri, host, db_filepath, poa,
-             config_file, port, teacher_uri, min_stake):
+@group_character_options
+@option_config_file
+@group_general_config
+def accounts(general_config, character_options, config_file):
     """
     View Felix known accounts.
     """
-    emitter = _setup_emitter(click_config, checksum_address)
+    emitter = _setup_emitter(general_config, character_options.config_options.checksum_address)
 
-    ETH_NODE = NO_BLOCKCHAIN_CONNECTION
-    if geth:
-        ETH_NODE = actions.get_provider_process(dev)
-        provider_uri = ETH_NODE.provider_uri
-
-    felix_config = _get_config(emitter, network, config_file, registry_filepath, ETH_NODE, provider_uri, host, port,
-                               db_filepath, poa)
-    FELIX = _create_felix(emitter, click_config, felix_config, teacher_uri, min_stake, network)
+    FELIX = character_options.create_character(emitter, config_file, general_config.debug)
 
     accounts = FELIX.blockchain.client.accounts
     for account in accounts:
@@ -223,93 +273,31 @@ def accounts(click_config,
 
 
 @felix.command()
-@_api_options
-@click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True, default=False)
-@nucypher_click_config
-def run(click_config,
-
-        # API Options
-        checksum_address, geth, dev, network, registry_filepath, provider_uri, host, db_filepath, poa,
-        config_file, port, teacher_uri, min_stake,
-
-        # Other
-        dry_run):
+@group_character_options
+@option_config_file
+@option_dry_run
+@group_general_config
+def run(general_config, character_options, config_file, dry_run):
     """
     Run Felix service.
     """
-    emitter = _setup_emitter(click_config, checksum_address)
+    emitter = _setup_emitter(general_config, character_options.config_options.checksum_address)
 
-    ETH_NODE = NO_BLOCKCHAIN_CONNECTION
-    if geth:
-        ETH_NODE = actions.get_provider_process(dev)
-        provider_uri = ETH_NODE.provider_uri
+    FELIX = character_options.create_character(emitter, config_file, general_config.debug)
 
-    felix_config = _get_config(emitter, network, config_file, registry_filepath, ETH_NODE, provider_uri, host, port,
-                               db_filepath, poa)
-    FELIX = _create_felix(emitter, click_config, felix_config, teacher_uri, min_stake, network)
-
+    host = character_options.config_options.host
+    port = character_options.config_options.port
     emitter.echo("Waiting for blockchain sync...", color='yellow')
     emitter.message(f"Running Felix on {host}:{port}")
     FELIX.start(host=host,
                 port=port,
                 web_services=not dry_run,
                 distribution=True,
-                crash_on_error=click_config.debug)
+                crash_on_error=general_config.debug)
 
 
-def _create_felix(emitter, click_config, felix_config, teacher_uri, min_stake, network):
-    try:
-        # Authenticate
-        unlock_nucypher_keyring(emitter,
-                                character_configuration=felix_config,
-                                password=get_nucypher_password(confirm=False))
-
-        # Produce Teacher Ursulas
-        teacher_nodes = actions.load_seednodes(emitter,
-                                               teacher_uris=[teacher_uri] if teacher_uri else None,
-                                               min_stake=min_stake,
-                                               federated_only=felix_config.federated_only,
-                                               network_domains=felix_config.domains,
-                                               network_middleware=click_config.middleware)
-
-        # Produce Felix
-        FELIX = felix_config.produce(domains=network, known_nodes=teacher_nodes)
-        FELIX.make_web_app()  # attach web application, but dont start service
-
-        return FELIX
-    except Exception as e:
-        if click_config.debug:
-            raise
-        else:
-            emitter.echo(str(e), color='red', bold=True)
-            raise click.Abort
-
-
-def _get_config(emitter, network, config_file, registry_filepath, eth_node, provider_uri, host, port, db_filepath, poa):
-    # Domains -> bytes | or default
-    domains = [network] if network else None
-
-    # Load Felix from Configuration File with overrides
-    try:
-        felix_config = FelixConfiguration.from_configuration_file(filepath=config_file,
-                                                                  domains=domains,
-                                                                  registry_filepath=registry_filepath,
-                                                                  provider_process=eth_node,
-                                                                  provider_uri=provider_uri,
-                                                                  rest_host=host,
-                                                                  rest_port=port,
-                                                                  db_filepath=db_filepath,
-                                                                  poa=poa)
-
-        return felix_config
-    except FileNotFoundError:
-        emitter.echo(f"No Felix configuration file found at {config_file}. "
-                     f"Check the filepath or run 'nucypher felix init' to create a new system configuration.")
-        raise click.Abort
-
-
-def _setup_emitter(click_config, checksum_address):
-    emitter = click_config.emitter
+def _setup_emitter(general_config, checksum_address):
+    emitter = general_config.emitter
 
     # Intro
     emitter.clear()
