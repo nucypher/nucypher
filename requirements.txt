@@ -1,10 +1,10 @@
 -i https://pypi.python.org/simple
 appdirs==1.4.3
 argh==0.26.2
-asn1crypto==1.2.0
+asn1crypto==1.3.0
 attrdict==2.0.1
 attrs==19.3.0
-autobahn==19.11.1
+autobahn==19.11.2
 automat==0.8.0
 base58==1.0.3
 blake2b-py==0.1.3
@@ -62,7 +62,7 @@ protobuf==3.11.2
 py-ecc==1.7.1
 py-evm==0.3.0a12
 py-geth==2.2.0
-pyasn1-modules==0.2.7
+pyasn1-modules==0.2.8
 pyasn1==0.4.8
 pychalk==2.0.1
 pycparser==2.19
@@ -71,13 +71,13 @@ pyethash==0.1.27
 pyhamcrest==1.9.0
 pynacl==1.3.0
 pyopenssl==19.1.0
-pyrsistent==0.15.6
+pyrsistent==0.15.7
 pysha3==1.0.2
 python-dateutil==2.8.1
 pytz==2019.3
 pytzdata==2019.3
-pyyaml==5.3b1
-regex==2019.12.20
+pyyaml==5.3
+regex==2020.1.8
 requests==2.22.0
 rlp==1.2.0
 semantic-version==2.8.4

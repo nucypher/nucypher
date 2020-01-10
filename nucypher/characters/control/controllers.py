@@ -198,9 +198,9 @@ class JSONRPCController(CharacterControlServer):
             _request_id = message['id']
 
         except KeyError:  # Notification
-            raise self.emitter.InvalidRequest
+            raise self.emitter.InvalidRequest('No request id')
         except TypeError:
-            raise self.emitter.InvalidRequest
+            raise self.emitter.InvalidRequest(f'Request object not valid: {type(message)}')
         else:             # RPC
             return self.handle_procedure_call(control_request=message)
 
@@ -246,8 +246,8 @@ class JSONRPCController(CharacterControlServer):
         if request_id is None:
             request_id = internal_request_id
         response = self._perform_action(action=method_name, request=request)
-        responding = maya.now()
-        duration = responding - received
+        responded = maya.now()
+        duration = responded - received
         return self.emitter.ipc(response=response, request_id=request_id, duration=duration)
 
 
