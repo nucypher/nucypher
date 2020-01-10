@@ -2,14 +2,10 @@ import pytest
 
 from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
 
-alice_specification = AliceInterface.specifications
-bob_specification = BobInterface.specifications
-enrico_specification = EnricoInterface.specifications
 
+def get_fields(interface, method_name):
 
-def get_fields(specification, method_name):
-
-    spec = specification[method_name]
+    spec = getattr(interface, method_name)._schema
     input_fields = [k for k, f in spec.load_fields.items() if f.required]
     optional_fields = [k for k, f in spec.load_fields.items() if not f.required]
     required_output_fileds = list(spec.dump_fields.keys())
@@ -21,9 +17,9 @@ def get_fields(specification, method_name):
     )
 
 
-def validate_json_rpc_response_data(response, method_name, specification):
+def validate_json_rpc_response_data(response, method_name, interface):
 
-    required_output_fileds = get_fields(specification, method_name)[-1]
+    required_output_fileds = get_fields(interface, method_name)[-1]
 
     assert 'jsonrpc' in response.data
     for output_field in required_output_fileds:
@@ -39,7 +35,7 @@ def test_alice_rpc_character_control_create_policy(alice_rpc_test_client, create
     assert rpc_response.success is True
     assert rpc_response.id == 1
 
-    _input_fields, _optional_fields, required_output_fileds = get_fields(alice_specification, method_name)
+    _input_fields, _optional_fields, required_output_fileds = get_fields(AliceInterface, method_name)
 
     assert 'jsonrpc' in rpc_response.data
     for output_field in required_output_fileds:
@@ -83,7 +79,7 @@ def test_alice_rpc_character_control_derive_policy_encrypting_key(alice_rpc_test
     assert response.success is True
     assert validate_json_rpc_response_data(response=response,
                                            method_name=method_name,
-                                           specification=alice_specification)
+                                           interface=AliceInterface)
 
 
 def test_alice_rpc_character_control_grant(alice_rpc_test_client, grant_control_request):
@@ -92,7 +88,7 @@ def test_alice_rpc_character_control_grant(alice_rpc_test_client, grant_control_
     response = alice_rpc_test_client.send(request_data)
     assert validate_json_rpc_response_data(response=response,
                                            method_name=method_name,
-                                           specification=alice_specification)
+                                           interface=AliceInterface)
 
 
 def test_bob_rpc_character_control_join_policy(bob_rpc_controller, join_control_request, enacted_federated_policy):
@@ -105,7 +101,7 @@ def test_bob_rpc_character_control_join_policy(bob_rpc_controller, join_control_
     response = bob_rpc_controller.send(request_data)
     assert validate_json_rpc_response_data(response=response,
                                            method_name=method_name,
-                                           specification=bob_specification)
+                                           interface=BobInterface)
 
 
 def test_enrico_rpc_character_control_encrypt_message(enrico_rpc_controller_test_client, encrypt_control_request):
@@ -114,7 +110,7 @@ def test_enrico_rpc_character_control_encrypt_message(enrico_rpc_controller_test
     response = enrico_rpc_controller_test_client.send(request_data)
     assert validate_json_rpc_response_data(response=response,
                                            method_name=method_name,
-                                           specification=enrico_specification)
+                                           interface=EnricoInterface)
 
 
 def test_bob_rpc_character_control_retrieve(bob_rpc_controller, retrieve_control_request):
@@ -123,4 +119,4 @@ def test_bob_rpc_character_control_retrieve(bob_rpc_controller, retrieve_control
     response = bob_rpc_controller.send(request_data)
     assert validate_json_rpc_response_data(response=response,
                                            method_name=method_name,
-                                           specification=bob_specification)
+                                           interface=BobInterface)

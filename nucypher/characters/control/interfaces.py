@@ -27,7 +27,6 @@ def attach_schema(schema):
     return callable
 
 
-
 class CharacterPublicInterface:
 
     specification = NotImplemented
@@ -55,13 +54,6 @@ class CharacterPublicInterface:
 
 
 class AliceInterface(CharacterPublicInterface):
-
-    specifications = {'create_policy': alice.CreatePolicy(),
-                      'derive_policy_encrypting_key': alice.DerivePolicyEncryptionKey(),
-                      'grant': alice.GrantPolicy(),
-                      'revoke': alice.Revoke(),
-                      'public_keys': alice.PublicKeys(),
-                      'decrypt': alice.Decrypt()}
 
     @attach_schema(alice.CreatePolicy)
     def create_policy(self,
@@ -171,6 +163,7 @@ class AliceInterface(CharacterPublicInterface):
         response = {'cleartexts': plaintexts}
         return response
 
+    @attach_schema(alice.PublicKeys)
     def public_keys(self) -> dict:
         """
         Character control endpoint for getting Alice's public keys.
@@ -182,10 +175,7 @@ class AliceInterface(CharacterPublicInterface):
 
 class BobInterface(CharacterPublicInterface):
 
-    specifications = {'join_policy': bob.JoinPolicy(),
-                      'retrieve': bob.Retrieve(),
-                      'public_keys': bob.PublicKeys()}
-
+    @attach_schema(bob.JoinPolicy)
     def join_policy(self, label: bytes, alice_verifying_key: bytes):
         """
         Character control endpoint for joining a policy on the network.
@@ -194,6 +184,7 @@ class BobInterface(CharacterPublicInterface):
         response = {'policy_encrypting_key': 'OK'}  # FIXME
         return response
 
+    @attach_schema(bob.Retrieve)
     def retrieve(self,
                  label: bytes,
                  policy_encrypting_key: bytes,
@@ -221,6 +212,7 @@ class BobInterface(CharacterPublicInterface):
         response_data = {'cleartexts': plaintexts}
         return response_data
 
+    @attach_schema(bob.PublicKeys)
     def public_keys(self):
         """
         Character control endpoint for getting Bob's encrypting and signing public keys
@@ -233,8 +225,7 @@ class BobInterface(CharacterPublicInterface):
 
 class EnricoInterface(CharacterPublicInterface):
 
-    specifications = {'encrypt_message': enrico.EncryptMessage()}
-
+    @attach_schema(enrico.EncryptMessage)
     def encrypt_message(self, message: str):
         """
         Character control endpoint for encrypting data for a policy and
