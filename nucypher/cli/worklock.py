@@ -29,8 +29,8 @@ from nucypher.cli.painting import paint_receipt_summary, paint_worklock_status, 
 from nucypher.cli.status import group_registry_options
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 
-option_value = click.option('--value', help="Eth value of bid", type=click.INT)
 option_bidder_address = click.option('--bidder-address', help="Bidder's checksum address.", type=EIP55_CHECKSUM_ADDRESS)
+option_allocation_address = click.option('--allocation-address', help="Worklock allocation contract address", type=EIP55_CHECKSUM_ADDRESS)
 
 
 def _setup_emitter(general_config):
@@ -42,13 +42,13 @@ def _setup_emitter(general_config):
 
 class WorkLockOptions:
 
-    __option_name__ = 'staker_options'
+    __option_name__ = 'worklock_options'
 
-    def __init__(self, config_options, staking_address):
-        self.config_options = config_options
-        self.staking_address = staking_address
+    def __init__(self, bidder_address, allocation_address):
+        self.bidder_address = bidder_address
+        self.allocation_address = allocation_address
 
-    def create_agent(self, registry):
+    def create_agent(self, registry_filepath):
         if registry_filepath:
             registry = LocalContractRegistry(filepath=registry_filepath)
         else:
@@ -62,8 +62,8 @@ class WorkLockOptions:
 
 group_worklock_options = group_options(
     WorkLockOptions,
-    bid_value=option_value,
-    bidder_address=option_bidder_address)
+    bidder_address=option_bidder_address,
+    allocation_address=option_allocation_address)
 
 
 @click.group()
@@ -85,12 +85,11 @@ def status(general_config, registry_options):
 
 
 @worklock.command(name='bid')
-@click.option('--value', help="Eth value of bid", type=click.INT)
-@option_config_root
-@group_registry_options
 @option_force
+@group_registry_options
 @group_worklock_options
 @group_general_config
+@click.option('--value', help="Eth value of bid", type=click.INT)
 def bid(general_config, worklock_options, registry_options, force, value, bidder_address):
     emitter = _setup_emitter(general_config)
 
@@ -100,15 +99,15 @@ def bid(general_config, worklock_options, registry_options, force, value, bidder
             raise click.MissingParameter("Missing --value.")
 
     registry = registry_options.get_registry()
-    worklock_agent = worklock_options.create_agent(registry=registry)
+    worklock_agent = worklock_options.create_agent(registry_filepath=registry.filepath)
 
     if not force:
         paint_worklock_participant_notice(emitter=emitter, bidder_address=bidder_address, registry=registry)
         click.confirm(f"Place WorkLock bid of {Web3.fromWei(value, 'ether')} ETH?", abort=True)
-    receipt = worklock_agent.bid(sender_address=bidder_address, value=value)
+    receipt = worklock_agent.bid(bidder_address=bidder_address, value=value)
     emitter.message("Publishing WorkLock Bid...")
 
-    paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
+    paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=worklock_agent.blockchain.client.chain_name)
     return  # Exit
 
 
