@@ -21,6 +21,7 @@ def attach_schema(schema):
 
         @functools.wraps(func)
         def wrapped(*args, **kwargs):
+
             return func(*args, **kwargs)
         return wrapped
 
@@ -28,8 +29,6 @@ def attach_schema(schema):
 
 
 class CharacterPublicInterface:
-
-    specification = NotImplemented
 
     def __init__(self, character=None, *args, **kwargs):
         self.character = character
@@ -39,6 +38,7 @@ class CharacterPublicInterface:
     def connect_cli(cls, action):
 
         schema = getattr(cls, action)._schema
+
         def callable(func):
             c = func
             for f in [f for f in schema.load_fields.values() if f.click]:

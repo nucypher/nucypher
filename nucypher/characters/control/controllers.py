@@ -30,11 +30,10 @@ class CharacterControllerBase(ABC):
     """
     _emitter_class = NotImplemented
 
-    def __init__(self, interface: CharacterPublicInterface):
+    def __init__(self):
 
         # Control Emitter
         self.emitter = self._emitter_class()
-        self.interface = interface
 
     def _perform_action(self, action: str, request: dict) -> dict:
         request = request or {}  # for requests with no input params request can be ''
@@ -55,7 +54,7 @@ class CharacterControlServer(CharacterControllerBase):
 
     def __init__(self,
                  app_name: str,
-                 character_controller: CharacterControllerBase,
+                 interface: CharacterPublicInterface,
                  start_learning: bool = True,
                  crash_on_error: bool = _crash_on_error_default,
                  *args, **kwargs):
@@ -72,9 +71,17 @@ class CharacterControlServer(CharacterControllerBase):
         # Internals
         self._transport = None
 
-        # Hard-wire the character's output flow to the Emitter
-        self._internal_controller = character_controller
-        self._internal_controller.emitter = self.emitter
+        self.interface = interface
+
+        for method_name, method in inspect.getmembers(
+            self.interface,
+            predicate=inspect.ismethod
+        ):
+
+            if hasattr(method, '_schema'):
+                def wrapper(request):
+                    return self.handle_request(method_name, request=request)
+                setattr(self, method.__name__, wrapper)
 
         super().__init__(*args, **kwargs)
 
@@ -85,13 +92,27 @@ class CharacterControlServer(CharacterControllerBase):
         return NotImplemented
 
     @abstractmethod
-    def handle_request(self, interface, control_request, *args, **kwargs):
+    def handle_request(self, method_name, control_request):
         return NotImplemented
 
     @abstractmethod
     def test_client(self):
         return NotImplemented
 
+class CLIController(CharacterControlServer):
+
+    _emitter_class = StdoutEmitter
+
+    def make_control_transport(self):
+        return
+
+    def test_client(self):
+        return
+
+    def handle_request(self, method_name, request):
+        start = maya.now()
+        response = self._perform_action(action=method_name, request=request)
+        return self.emitter.ipc(response=response, request_id=start.epoch, duration=maya.now() - start)
 
 class JSONRPCController(CharacterControlServer):
 
@@ -109,25 +130,6 @@ class JSONRPCController(CharacterControlServer):
         transport = stdio.StandardIO(JSONRPCLineReceiver(rpc_controller=self))
         return transport
 
-    def get_interface(self, name: str) -> Callable:
-
-        # Examine the controller interface
-        interfaces = inspect.getmembers(self._internal_controller,
-                                        predicate=inspect.ismethod)
-
-        # Generate a mapping of the public interfaces
-        interfaces = {i[0]: i[1] for i in interfaces if not i[0].startswith('_')}
-
-        try:
-            interface = interfaces[name]
-        except KeyError:
-            raise self.emitter.MethodNotFound
-
-        return interface
-
-    def handle_server_notification(self, notification_request) -> int:
-        pass
-
     def handle_procedure_call(self, control_request) -> int:
 
         # Validate request and read request metadata
@@ -144,52 +146,6 @@ class JSONRPCController(CharacterControlServer):
         return self.call_interface(method_name=method_name,
                                    request=method_params,
                                    request_id=request_id)
-
-    def validate_request(self, request: dict):
-
-        #
-        # Phase 1 - Metadata
-        #
-
-        required_fields = {'jsonrpc', 'method'}
-        optional_fields = {'id', 'params'}
-        all_fields = required_fields | optional_fields
-
-        try:
-            input_fields = set(request.keys())
-        except AttributeError:
-            raise self.emitter.InvalidRequest
-
-        contains_required_fields = required_fields.issubset(input_fields)
-
-        unique_fields = all_fields - input_fields - optional_fields
-        contains_valid_fields = not bool(unique_fields)
-
-        is_valid = all((contains_required_fields,
-                        contains_valid_fields))
-
-        if not is_valid:
-            raise self.emitter.InvalidRequest
-
-        #
-        # Phase 2 - Content Type
-        #
-
-        method_name = request['method']
-
-        try:
-            int(method_name)  # must not be a number
-        except ValueError:
-            valid_method_name = True
-        else:
-            valid_method_name = False
-
-        is_valid = all((valid_method_name, ))
-
-        if not is_valid:
-            raise self.emitter.InvalidRequest
-
-        return is_valid
 
     def handle_message(self, message: dict, *args, **kwargs) -> int:
         """Handle single JSON RPC message"""
@@ -274,8 +230,6 @@ class WebController(CharacterControlServer):
 
     def make_control_transport(self):
 
-        # Serialize For WSGI <-> Bytes <-> Unicode <-> JSON <-> Hex/B64 <-> Native Requests
-        self._internal_controller.serialize = True
         self._transport = Flask(self.app_name)
 
         # Return FlaskApp decorator
@@ -294,9 +248,7 @@ class WebController(CharacterControlServer):
     def __call__(self, *args, **kwargs):
         return self.handle_request(*args, **kwargs)
 
-    def handle_request(self, interface, control_request, *args, **kwargs) -> Response:
-
-        interface_name = interface.__name__
+    def handle_request(self, method_name, control_request, *args, **kwargs) -> Response:
 
         _400_exceptions = (MissingField,
                            InvalidInputField,
@@ -309,7 +261,7 @@ class WebController(CharacterControlServer):
                 request_body = json.loads(request_body)
             request_body.update(kwargs)
 
-            response = self._perform_action(action=interface.__name__, request=request_body)
+            response = self._perform_action(action=method_name, request=request_body)
 
         #
         # Client Errors

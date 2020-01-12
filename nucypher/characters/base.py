@@ -43,7 +43,7 @@ from umbral.signing import Signature
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
-from nucypher.characters.control.controllers import JSONRPCController
+from nucypher.characters.control.controllers import JSONRPCController, CLIController
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.api import encrypt_and_sign
@@ -116,7 +116,7 @@ class Character(Learner):
 
         #
         # Operating Mode
-
+        self.interface = self._interface_class(character=self)
         if is_me:
             if not known_node_class:
                 # Once in a while, in tests or demos, we init a plain Character who doesn't already know about its node class.
@@ -518,9 +518,17 @@ class Character(Learner):
     def make_rpc_controller(self, crash_on_error: bool = False):
         app_name = bytes(self.stamp).hex()[:6]
         controller = JSONRPCController(app_name=app_name,
-                                       character_controller=self.controller,
                                        crash_on_error=crash_on_error,
-                                       interface=self._interface_class(character=self))
+                                       interface=self.interface)
+
+        self.controller = controller
+        return controller
+
+    def make_cli_controller(self, crash_on_error: bool = False):
+        app_name = bytes(self.stamp).hex()[:6]
+        controller = CLIController(app_name=app_name,
+                                       crash_on_error=crash_on_error,
+                                       interface=self.interface)
 
         self.controller = controller
         return controller

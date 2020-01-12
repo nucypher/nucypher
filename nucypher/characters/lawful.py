@@ -54,6 +54,7 @@ from nucypher.blockchain.eth.token import WorkTracker
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import (
+    CLIController,
     WebController
 )
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
@@ -135,7 +136,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                                             checksum_address=checksum_address)
 
         if is_me and controller:
-            self.controller = self._interface_class(character=self)
+            self.make_cli_controller()
 
         self.log = Logger(self.__class__.__name__)
         self.log.info(self.banner)
@@ -357,7 +358,6 @@ class Alice(Character, BlockchainPolicyAuthor):
     def make_web_controller(drone_alice, crash_on_error: bool = False):
         app_name = bytes(drone_alice.stamp).hex()[:6]
         controller = WebController(app_name=app_name,
-                                   character_controller=drone_alice.controller,
                                    crash_on_error=crash_on_error,
                                    interface=drone_alice._interface_class(character=drone_alice))
         drone_alice.controller = controller
@@ -447,7 +447,7 @@ class Bob(Character):
         Character.__init__(self, known_node_class=Ursula, *args, **kwargs)
 
         if controller:
-            self.controller = self._interface_class(character=self)
+            self.make_cli_controller()
 
         from nucypher.policy.collections import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
@@ -717,7 +717,6 @@ class Bob(Character):
 
         app_name = bytes(drone_bob.stamp).hex()[:6]
         controller = WebController(app_name=app_name,
-                                   character_controller=drone_bob.controller,
                                    crash_on_error=crash_on_error,
                                    interface=drone_bob._interface_class(character=drone_bob))
 
@@ -1309,7 +1308,7 @@ class Enrico(Character):
         super().__init__(*args, **kwargs)
 
         if controller:
-            self.controller = self._interface_class(character=self)
+            self.make_cli_controller()
 
         self.log = Logger(f'{self.__class__.__name__}-{bytes(policy_encrypting_key).hex()[:6]}')
         self.log.info(self.banner.format(policy_encrypting_key))
@@ -1338,7 +1337,6 @@ class Enrico(Character):
 
         app_name = bytes(drone_enrico.stamp).hex()[:6]
         controller = WebController(app_name=app_name,
-                                   character_controller=drone_enrico.controller,
                                    crash_on_error=crash_on_error,
                                    interface=drone_enrico._interface_class(character=drone_enrico))
 
