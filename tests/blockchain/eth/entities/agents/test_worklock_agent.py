@@ -45,7 +45,7 @@ def test_funding_worklock_contract(testerchain, agency, test_registry, token_eco
     assert receipt['status'] == 1
 
 
-def test_bidding_post_funding(testerchain, agency, token_economics, test_registry):
+def test_bidding(testerchain, agency, token_economics, test_registry):
     maximum_deposit_eth = token_economics.maximum_allowed_locked // DEPOSIT_RATE
     minimum_deposit_eth = token_economics.minimum_allowed_locked // DEPOSIT_RATE
 
@@ -67,6 +67,24 @@ def test_bidding_post_funding(testerchain, agency, token_economics, test_registr
     bid_wei = maximum_deposit_eth - 1
     receipt = agent.bid(sender_address=big_bidder, value=bid_wei)
     assert receipt['status'] == 1
+
+
+def test_get_bid(testerchain, agency, token_economics, test_registry):
+    bidder = testerchain.unassigned_accounts[-1]
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    bid = agent.get_bid(bidder)
+    assert bid == 39999999999999999999999
+
+
+def test_cancel_bid(testerchain, agency, token_economics, test_registry):
+    bidder = testerchain.unassigned_accounts[0]
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    receipt = agent.cancel_bid(bidder)
+    assert receipt['status'] == 1
+
+    # Can't cancel twice in a row
+    with pytest.raises((TransactionFailed, ValueError)):
+        _receipt = agent.cancel_bid(bidder)
 
 
 def test_get_remaining_work_before_bidding_ends(testerchain, agency, token_economics, test_registry):
@@ -101,12 +119,7 @@ def test_successful_claim(testerchain, agency, token_economics, test_registry):
     receipt = agent.claim(sender_address=bidder)
     assert receipt
 
+    # Cant claim more than once
+    with pytest.raises(TransactionFailed):
+        _receipt = agent.claim(sender_address=bidder)
 
-def test_get_remaining_work(testerchain, agency, token_economics, test_registry):
-    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    bidder = testerchain.unassigned_accounts[-1]
-    receipt = agent.claim(sender_address=bidder)
-    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    preallocation_address = next_address(testerchain, agent.contract)
-    remaining_work = agent.get_remaining_work(allocation_address=preallocation_address)
-    assert remaining_work

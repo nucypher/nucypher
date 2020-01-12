@@ -54,11 +54,11 @@ def funded_worklock(testerchain, agency, test_registry, token_economics):
                sender_address=testerchain.etherbase_account)
 
 
-# @pytest.fixture(scope='module', autouse=True)
-# def temp_registry(testerchain, test_registry, agency):
-#     # Disable registry fetching, use the mock one instead
-#     InMemoryContractRegistry.download_latest_publication = lambda: registry_filepath
-#     test_registry.commit(filepath=registry_filepath)
+@pytest.fixture(scope='module', autouse=True)
+def temp_registry(testerchain, test_registry, agency):
+    # Disable registry fetching, use the mock one instead
+    InMemoryContractRegistry.download_latest_publication = lambda: registry_filepath
+    test_registry.commit(filepath=registry_filepath, overwrite=True)
 
 
 def test_status(click_runner, testerchain, test_registry, agency):
@@ -78,9 +78,7 @@ def test_bid(click_runner, testerchain, test_registry, agency, token_economics):
     testerchain.time_travel(seconds=90)
 
     bidder = testerchain.unassigned_accounts[-1]
-
     bid_value = to_wei(4, 'ether')
-    smaller_bid = bid_value // 4
 
     command = ('bid',
                '--bidder-address', bidder,
@@ -116,8 +114,6 @@ def test_remaining_work(click_runner, testerchain, test_registry, agency, token_
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
     assert bidder in result.output
-    expected_work = token_economics.maximum_bid * token_economics.worklock_refund_rate
-    assert str(expected_work) in result.output
 
 
 def test_claim(click_runner, testerchain, agency):

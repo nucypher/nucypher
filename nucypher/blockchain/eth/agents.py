@@ -978,6 +978,10 @@ class WorkLockAgent(EthereumContractAgent):
                                                    payload={'value': value})
         return receipt
 
+    def get_bid(self, checksum_address: str) -> int:
+        current_bid = self.contract.functions.workInfo(checksum_address).call()[0]
+        return current_bid
+
     def cancel_bid(self, sender_address: str) -> dict:
         """
         Cancel bid and refund deposited ETH.

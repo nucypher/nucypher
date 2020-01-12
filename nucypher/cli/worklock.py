@@ -80,7 +80,7 @@ def worklock(click_config, action, force, provider_uri, sync, registry_filepath,
                 raise click.MissingParameter("Missing --bidder-address.")
 
         if action == "remaining-work":
-            remaining_work = WORKLOCK_AGENT.get_remaining_work(target_address=bidder_address)
+            remaining_work = WORKLOCK_AGENT.get_remaining_work(allocation_address=bidder_address)
             emitter.message(f"Work Remaining for {bidder_address}: {remaining_work}")
             return  # Exit
 
