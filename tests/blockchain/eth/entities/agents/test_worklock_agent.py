@@ -3,12 +3,7 @@ import rlp
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address, keccak, to_checksum_address
 
-from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency, NucypherTokenAgent
-from nucypher.blockchain.eth.token import NU
-from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
-
-DEPOSIT_RATE = 100
+from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency
 
 
 def next_address(testerchain, worklock):
@@ -25,101 +20,78 @@ def test_create_worklock_agent(testerchain, test_registry, agency, token_economi
     assert agent == same_agent
 
 
-def test_funding_worklock_contract(testerchain, agency, test_registry, token_economics):
-    transacting_power = TransactingPower(account=testerchain.etherbase_account, password=INSECURE_DEVELOPMENT_PASSWORD)
-    transacting_power.activate()
-
-    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-
-    # WorkLock contract is unfunded.
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
-    assert token_agent.get_balance(worklock_agent.contract_address) == 0
-
-    # Funding account has enough tokens to fund the contract.
-    worklock_supply = NU.from_nunits(2 * token_economics.maximum_allowed_locked - 1)
-    assert token_agent.get_balance(testerchain.etherbase_account) > token_economics.maximum_allowed_locked
-
-    # Fund.
-    receipt = worklock_agent.fund(sender_address=testerchain.etherbase_account,
-                                  supply=worklock_supply)
-    assert receipt['status'] == 1
-
-
 def test_bidding(testerchain, agency, token_economics, test_registry):
-    maximum_deposit_eth = token_economics.maximum_allowed_locked // DEPOSIT_RATE
-    minimum_deposit_eth = token_economics.minimum_allowed_locked // DEPOSIT_RATE
+    big_bid = token_economics.maximum_allowed_locked // 100
+    small_bid = token_economics.minimum_allowed_locked // 100
 
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
     # Round 1
     for multiplier, bidder in enumerate(testerchain.unassigned_accounts[:3], start=1):
-        bid = minimum_deposit_eth * multiplier
+        bid = big_bid * multiplier
         receipt = agent.bid(sender_address=bidder, value=bid)
         assert receipt['status'] == 1
 
     # Round 2
     for multiplier, bidder in enumerate(testerchain.unassigned_accounts[:3], start=1):
-        bid = (minimum_deposit_eth * 2) * multiplier
+        bid = (small_bid * 2) * multiplier
         receipt = agent.bid(sender_address=bidder, value=bid)
         assert receipt['status'] == 1
 
-    big_bidder = testerchain.unassigned_accounts[-1]
-    bid_wei = maximum_deposit_eth - 1
-    receipt = agent.bid(sender_address=big_bidder, value=bid_wei)
-    assert receipt['status'] == 1
-
 
 def test_get_bid(testerchain, agency, token_economics, test_registry):
-    bidder = testerchain.unassigned_accounts[-1]
+    big_bid = token_economics.maximum_allowed_locked // 10
+    big_bidder = testerchain.unassigned_accounts[-1]
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    bid = agent.get_bid(bidder)
-    assert bid == 39999999999999999999999
+    receipt = agent.bid(sender_address=big_bidder, value=big_bid)
+    assert receipt['status'] == 1
+    bid = agent.get_bid(big_bidder)
+    assert bid == big_bid
 
 
 def test_cancel_bid(testerchain, agency, token_economics, test_registry):
-    bidder = testerchain.unassigned_accounts[0]
+    bidder = testerchain.unassigned_accounts[1]
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     receipt = agent.cancel_bid(bidder)
     assert receipt['status'] == 1
-
-    # Can't cancel twice in a row
+    # Can't cancel a bid twice in a row
     with pytest.raises((TransactionFailed, ValueError)):
         _receipt = agent.cancel_bid(bidder)
 
 
 def test_get_remaining_work_before_bidding_ends(testerchain, agency, token_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    preallocation_address = next_address(testerchain, agent.contract)
-    remaining = agent.get_remaining_work(allocation_address=preallocation_address)
+    bidder = testerchain.unassigned_accounts[0]
+    remaining = agent.get_remaining_work(bidder_address=bidder)
     assert remaining == 0
 
 
 def test_early_claim(testerchain, agency, token_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    bidder = testerchain.unassigned_accounts[-1]
+    bidder = testerchain.unassigned_accounts[0]
     with pytest.raises(TransactionFailed):
-        receipt = agent.claim(sender_address=bidder)
+        receipt = agent.claim(bidder_address=bidder)
         assert receipt
 
 
-def test_refund_before_bidding_ends(testerchain, agency, token_economics, test_registry):
-    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    bidder = testerchain.unassigned_accounts[-1]
-    allocation_address = next_address(testerchain, agent.contract)
-    with pytest.raises(TransactionFailed):
-        _receipt = agent.refund(sender_address=bidder, allocation_address=allocation_address)
-
-
 def test_successful_claim(testerchain, agency, token_economics, test_registry):
-    # Wait exactly 1 hour + 1 second
-    testerchain.time_travel(seconds=(60*60)+1)
+
+    # Wait until the bidding window closes...
+    testerchain.time_travel(seconds=token_economics.bidding_duration+1)
 
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    bidder = testerchain.unassigned_accounts[-1]
-    receipt = agent.claim(sender_address=bidder)
+    bidder = testerchain.unassigned_accounts[0]
+    receipt = agent.claim(bidder_address=bidder)
     assert receipt
 
     # Cant claim more than once
     with pytest.raises(TransactionFailed):
-        _receipt = agent.claim(sender_address=bidder)
+        _receipt = agent.claim(bidder_address=bidder)
 
+
+def test_lookup_bidders_and_allocations(testerchain, agency, token_economics, test_registry):
+    bidder = testerchain.unassigned_accounts[0]
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    allocation_address = agent.get_allocation_from_bidder(bidder)
+    recovered_bidder = agent.get_bidder_from_allocation(allocation_address)
+    assert recovered_bidder == bidder

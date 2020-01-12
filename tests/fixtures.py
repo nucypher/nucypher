@@ -33,7 +33,7 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 from web3 import Web3
 
-from nucypher.blockchain.economics import TestEconomics
+from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
@@ -44,7 +44,7 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                AdjudicatorDeployer,
                                                StakingInterfaceDeployer,
                                                WorklockDeployer
-                                               )
+)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
@@ -385,9 +385,28 @@ def federated_ursulas(ursula_federated_test_config):
 # Blockchain
 #
 
-@pytest.fixture(scope='session')
-def token_economics():
-    economics = TestEconomics()
+@pytest.fixture(scope='module')
+def token_economics(testerchain):
+
+    # Get current blocktime
+    blockchain = BlockchainInterfaceFactory.get_interface()
+    now = blockchain.w3.eth.getBlock(block_identifier='latest').timestamp
+
+    # Calculate instant start time
+    one_hour_in_seconds = (60 * 60)
+    start_date = now
+    bidding_start_date = start_date
+
+    # Ends in one hour
+    bidding_end_date = start_date + one_hour_in_seconds
+
+    economics = StandardTokenEconomics(
+        worklock_boosting_refund_rate=200,
+        worklock_commitment_duration=60,  # Periods
+        worklock_supply=NU.from_nunits(1_000_000),
+        bidding_start_date=bidding_start_date,
+        bidding_end_date=bidding_end_date
+    )
     return economics
 
 

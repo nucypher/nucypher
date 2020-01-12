@@ -19,11 +19,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from eth_utils import keccak
 
-from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency
+from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.constants import WORKLOCK_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import WorklockDeployer, StakingInterfaceDeployer, AdjudicatorDeployer
+from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import STAKING_ESCROW_DEPLOYMENT_SECRET, INSECURE_DEPLOYMENT_SECRET_HASH, \
-    POLICY_MANAGER_DEPLOYMENT_SECRET
+    POLICY_MANAGER_DEPLOYMENT_SECRET, INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.fixture(scope="module")
@@ -54,7 +55,7 @@ def test_worklock_deployment(worklock_deployer, staking_escrow_deployer, deploym
 
     # deployment steps must match expected number of steps
     steps = worklock_deployer.deployment_steps
-    assert deployment_progress.num_steps == len(steps) == len(deployment_receipts) == 2
+    assert deployment_progress.num_steps == len(steps) == len(deployment_receipts) == 3
 
     # Ensure every step is successful
     for step_title in steps:

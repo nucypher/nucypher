@@ -94,7 +94,7 @@ class BaseContractDeployer:
     @property
     def contract_address(self) -> str:
         if self._contract is CONTRACT_NOT_DEPLOYED:
-            raise self.ContractNotDeployed
+            raise self.ContractNotDeployed(self.contract_name)
         address = self._contract.address  # type: str
         return address
 
@@ -173,7 +173,7 @@ class BaseContractDeployer:
             raise self.ContractDeploymentError(message)
         return True
 
-    def deploy(self, gas_limit: int, progress, **overrides) -> dict:
+    def deploy(self, gas_limit: int = None, progress: int = None, **overrides) -> dict:
         """
         Provides for the setup, deployment, and initialization of ethereum smart contracts.
         Emits the configured blockchain network transactions for single contract instance publication.
@@ -933,7 +933,6 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
                                           contract_abi=self.contract.abi)
 
     def deploy(self,
-               initial_deployment: bool = True,
                gas_limit: int = None,
                use_sidekick: bool = False,
                progress=None) -> dict:
@@ -1069,7 +1068,7 @@ class WorklockDeployer(BaseContractDeployer):
 
     agency = WorkLockAgent
     contract_name = agency.registry_contract_name
-    deployment_steps = ('contract_deployment', 'bond_escrow')
+    deployment_steps = ('contract_deployment', 'bond_escrow', 'fund_worklock')
 
     _upgradeable = False
     __proxy_deployer = NotImplemented
@@ -1082,7 +1081,10 @@ class WorklockDeployer(BaseContractDeployer):
         self.interface_agent = ContractAgency.get_agent(PreallocationEscrowAgent.StakingInterfaceAgent,
                                                         registry=self.registry)
 
-    def deploy(self, initial_deployment: bool = True, gas_limit: int = None, progress=None) -> Dict[str, dict]:
+    def deploy(self,
+               gas_limit: int = None,
+               progress: int = None,
+               fund_now: bool = True) -> Dict[str, dict]:
         self.check_deployment_readiness()
 
         interface_router = self.blockchain.get_proxy_contract(registry=self.registry,
@@ -1099,17 +1101,41 @@ class WorklockDeployer(BaseContractDeployer):
                                                                            self.contract_name,
                                                                            *constructor_args,
                                                                            gas_limit=gas_limit)
+
+        self._contract = worklock_contract
         if progress:
             progress.update(1)
 
         bonding_function = self.staking_agent.contract.functions.setWorkLock(worklock_contract.address)
         bonding_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
                                                            contract_function=bonding_function)
+        if progress:
+            progress.update(1)
 
+        funding_receipt = self.fund(sender_address=self.deployer_address)
         if progress:
             progress.update(1)
 
         # Gather the transaction hashes
-        self.deployment_transactions = {'contract_deployment': deploy_txhash, 'bond_escrow': bonding_receipt}
-        self._contract = worklock_contract
+        self.deployment_transactions = {'contract_deployment': deploy_txhash,
+                                        'bond_escrow': bonding_receipt,
+                                        'fund_worklock': funding_receipt}
         return self.deployment_transactions
+
+    def fund(self, sender_address: str) -> dict:
+        """
+        Convenience method for funding the contract and establishing the
+        total worklock lot value to be auctioned.
+        """
+
+        supply = self.economics.worklock_supply.to_nunits()
+
+        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
+        approve_function = token_agent.contract.functions.approve(self.contract_address, supply)
+        approve_receipt = self.blockchain.send_transaction(contract_function=approve_function,
+                                                           sender_address=sender_address)
+
+        funding_function = self.contract.functions.tokenDeposit(supply)
+        funding_receipt = self.blockchain.send_transaction(contract_function=funding_function,
+                                                           sender_address=sender_address)
+        return funding_receipt

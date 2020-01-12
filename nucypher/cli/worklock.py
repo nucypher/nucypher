@@ -24,7 +24,6 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.characters.banners import WORKLOCK_BANNER
 from nucypher.cli.actions import select_client_account
-from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.painting import paint_receipt_summary, paint_worklock_status, paint_worklock_participant_notice
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, WEI, EXISTING_READABLE_FILE
 
