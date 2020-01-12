@@ -729,6 +729,13 @@ def echo_solidity_version(ctx, param, value):
 
 
 def paint_worklock_status(emitter, registry: BaseContractRegistry):
+    """
+    # TODO: move some of these to agent?
+    * depositRate = tokenSupply / ethSupply
+    * claimedTokens = depositedETH * depositRate
+    * refundRate = depositRate * SLOWING_REFUND / boostingRefund
+    * refundETH = completedWork / refundRate
+    """
     from maya import MayaDT
     WORKLOCK_AGENT = ContractAgency.get_agent(WorkLockAgent, registry=registry)
     blockchain = WORKLOCK_AGENT.blockchain
@@ -742,6 +749,8 @@ def paint_worklock_status(emitter, registry: BaseContractRegistry):
     duration = end - start
     remaining = end - maya.now()
 
+    # TODO: Include calculated refund and deposit rates
+
     payload = f"""
 
 Time
@@ -753,9 +762,12 @@ Time Remaining .... {remaining}
 
 Economics
 ======================================================            
-Refund Rate ....... {WORKLOCK_AGENT.contract.functions.boostingRefund().call()}
-Total Bids ........ {blockchain.client.get_balance(WORKLOCK_AGENT.contract_address)}
-Unclaimed Tokens .... {WORKLOCK_AGENT.contract.functions.unclaimedTokens().call()}
+Boosting Refund .... {WORKLOCK_AGENT.contract.functions.boostingRefund().call()}
+Boosting Refund .... {WORKLOCK_AGENT.contract.functions.boostingRefund().call()}
+
+
+Total Bids ......... {blockchain.client.get_balance(WORKLOCK_AGENT.contract_address)}
+Unclaimed Tokens ... {WORKLOCK_AGENT.contract.functions.unclaimedTokens().call()}
     """
     emitter.message(payload)
     return

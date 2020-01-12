@@ -38,7 +38,8 @@ from nucypher.blockchain.eth.constants import (
 )
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
+from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry, IndividualAllocationRegistry
+from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.crypto.api import sha256_digest
 
@@ -982,6 +983,14 @@ class WorkLockAgent(EthereumContractAgent):
         current_bid = self.contract.functions.workInfo(checksum_address).call()[0]
         return current_bid
 
+    def get_allocation_from_bidder(self, bidder_address: str) -> str:
+        preallocation_address = self.contract.functions.workInfo(bidder_address).call()[2]
+        return preallocation_address
+
+    def get_token_supply(self) -> int:  # TODO: Needs better name
+        supply = self.contract.functions.tokenSupply().call()
+        return supply
+
     def cancel_bid(self, sender_address: str) -> dict:
         """
         Cancel bid and refund deposited ETH.
@@ -991,18 +1000,62 @@ class WorkLockAgent(EthereumContractAgent):
                                                    sender_address=sender_address)
         return receipt
 
+    def _make_preallocation_registry(self, bidder_address: str) -> IndividualAllocationRegistry:
+        preallocation_address = self.get_allocation_from_bidder(bidder_address=bidder_address)
+
+        compiler = SolidityCompiler()
+        # compiler.install_compiler()
+
+        compiled_contracts = compiler.compile()
+        all_contracts = compiled_contracts[PreallocationEscrowAgent.registry_contract_name]
+        contract = all_contracts[0]  # There is only one version
+
+        allocation_registry = IndividualAllocationRegistry(beneficiary_address=bidder_address,
+                                                           contract_address=preallocation_address,
+                                                           contract_abi=contract.abi)
+
+        return allocation_registry
+
+    def get_bidder_from_allocation(self, allocation_address: str) -> str:
+        bidder = self.contract.functions.depositors(allocation_address).call()
+        return bidder
+
+    def available_refund(self, bidder_address: str = None, allocation_address: str = None) -> int:
+        # TODO: move up one layer
+        # TODO: make decorator
+        if bidder_address and allocation_address:
+            raise ValueError("Pass bidder address or allocation address, got both.")
+
+        if bidder_address:
+            allocation_address = self.get_allocation_from_bidder(bidder_address=bidder_address)
+        else:
+            bidder_address = self.get_bidder_from_allocation(allocation_address=allocation_address)
+
+        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+
+        # TODO: Move to agent method
+        total_completed_work = staking_agent.contracts.functions.getCompletedWork(allocation_address)
+        refunded_work = self.contract.functions.workInfo(bidder_address).call()[1]
+        completed_work = total_completed_work - refunded_work
+        refund_eth = self.contract.functions.workToETH(completed_work).call()
+
+        return refund_eth
+
     def claim(self, sender_address: str) -> dict:
         """
         Claim tokens - will be deposited and locked as stake in the StakingEscrow contract.
+        This function produces a new deployment or PreAllocationEscrow for the claimee.
         """
         contract_function = self.contract.functions.claim()
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    sender_address=sender_address)
+
         return receipt
 
     def burn_unclaimed(self, sender_address: str) -> dict:
         """
-        Burn unclaimed tokens.
+        Burn unclaimed tokens -
+        Out of the goodness of your heart - of course the caller must pay for the gas...
         """
         contract_function = self.contract.functions.burnUnclaimed()
         receipt = self.blockchain.send_transaction(contract_function=contract_function,

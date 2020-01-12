@@ -337,6 +337,8 @@ class StandardTokenEconomics(BaseEconomics):
 
 class TestEconomics(StandardTokenEconomics):
 
+    # TODO: Move to fixture as instance of base economics
+
     nickname = 'test-economics'
     description = f'Identical to {StandardTokenEconomics.nickname} with Instant-start one-hour worklock.'
 
@@ -361,10 +363,6 @@ class TestEconomics(StandardTokenEconomics):
         #
 
         self.worklock_supply = self.maximum_allowed_locked
-
-        # TODO: Restore & Move to Standard Economics?
-        # self.maximum_bid = int(self.maximum_allowed_locked // self.worklock_deposit_rate)
-        # self.minimum_bid = int(self.minimum_allowed_locked // self.worklock_deposit_rate)
 
     @property
     def worklock_deployment_parameters(self):
@@ -439,14 +437,14 @@ class EconomicsFactory:
 
         # Worklock
         worklock_parameters = worklock_agent.worklock_parameters()
-        # worklock_supply = worklock_agent.total_supply()  # TODO - Need way to read total supply from contract
+        worklock_supply = worklock_agent.total_supply()
 
         # Aggregate (order-sensitive)
         economics_parameters = (initial_supply,
                                 total_supply,
                                 *staking_parameters,
                                 *slashing_parameters,
-                                NotImplemented,  # TODO: worklock_supply
+                                worklock_supply,
                                 *worklock_parameters)
 
         economics = BaseEconomics(*economics_parameters)

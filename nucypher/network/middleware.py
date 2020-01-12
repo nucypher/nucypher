@@ -14,13 +14,16 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import socket
 import ssl
 
 import requests
 import time
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, EXEMPT_FROM_VERIFICATION
-EXEMPT_FROM_VERIFICATION.bool_value(False)
+
+
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from twisted.logger import Logger
@@ -28,6 +31,9 @@ from umbral.cfrags import CapsuleFrag
 from umbral.signing import Signature
 
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+
+
+EXEMPT_FROM_VERIFICATION.bool_value(False)
 
 
 class UnexpectedResponse(Exception):
@@ -178,8 +184,7 @@ class RestMiddleware:
         response = self.client.post(node_or_sprout=node,
                                     path="consider_arrangement",
                                     data=bytes(arrangement),
-                                    timeout=2,
-                                    )
+                                    timeout=2)
         return response
 
     def enact_policy(self, ursula, kfrag_id, payload):

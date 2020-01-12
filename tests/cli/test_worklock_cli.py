@@ -71,6 +71,9 @@ def test_status(click_runner, testerchain, test_registry, agency):
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
 
+    # TODO: Include status for local bidding addresses
+    # TODO: Eligibility for refund / claim / etc.? - How much redund already dispursed
+
 
 def test_bid(click_runner, testerchain, test_registry, agency, token_economics):
 
