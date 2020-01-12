@@ -116,7 +116,9 @@ class Character(Learner):
 
         #
         # Operating Mode
-        self.interface = self._interface_class(character=self)
+        if hasattr(self, '_interface_class'):  # TODO: have argument about meaning of 'lawful'
+            #                                         and whether maybe only Lawful characters have an interface
+            self.interface = self._interface_class(character=self)
         if is_me:
             if not known_node_class:
                 # Once in a while, in tests or demos, we init a plain Character who doesn't already know about its node class.
