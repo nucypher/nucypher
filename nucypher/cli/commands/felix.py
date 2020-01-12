@@ -77,7 +77,6 @@ class FelixConfigOptions:
                 config_file=config_file)
 
     def generate_config(self, config_root, discovery_port):
-        # FIXME: why isn't port used here?
         return FelixConfiguration.generate(
             password=get_nucypher_password(confirm=True),
             config_root=config_root,

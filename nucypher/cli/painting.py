@@ -756,12 +756,11 @@ Time Remaining .... {remaining}
 Economics
 ======================================================            
 Boosting Refund .... {WORKLOCK_AGENT.contract.functions.boostingRefund().call()}
-Slowing Refund .... {WORKLOCK_AGENT.contract.functions.slowingRefund().call()}
+Slowing Refund .... {WORKLOCK_AGENT.contract.functions.SLOWING_REFUND().call()}
 Refund Rate ....... {WORKLOCK_AGENT.get_refund_rate()}
 Deposit Rate ...... {WORKLOCK_AGENT.get_deposit_rate()}
 
 Total Bids ......... {blockchain.client.get_balance(WORKLOCK_AGENT.contract_address)}
-Claimed Tokens ..... {WORKLOCK_AGENT.get_claimed_tokens()}
 Unclaimed Tokens ... {WORKLOCK_AGENT.get_unclaimed_tokens()}
     """
     emitter.message(payload)
@@ -769,9 +768,12 @@ Unclaimed Tokens ... {WORKLOCK_AGENT.get_unclaimed_tokens()}
 
 
 def paint_worklock_participant_status(emitter):
+    WORKLOCK_AGENT = ContractAgency.get_agent(WorkLockAgent, registry=registry)
+
     message = f"""
 Allocations
 =====================================================
+Claimed Tokens ..... {WORKLOCK_AGENT.get_claimed_tokens()}
 
 """
     emitter.message(message)

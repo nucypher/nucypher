@@ -23,35 +23,16 @@ from nucypher.blockchain.eth.agents import (
     ContractAgency,
     WorkLockAgent
 )
-from nucypher.blockchain.eth.deployers import WorklockDeployer
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.worklock import worklock
-from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
-    INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_IP_ADDRESS,
     select_test_port
 )
 
 registry_filepath = '/tmp/nucypher-test-registry.json'
-
-
-@pytest.fixture(scope="module", autouse=True)
-def funded_worklock(testerchain, agency, test_registry, token_economics):
-
-    # Unlock
-    transacting_power = TransactingPower(account=testerchain.etherbase_account,
-                                         password=INSECURE_DEVELOPMENT_PASSWORD)
-    transacting_power.activate()
-
-    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-
-    # Fund.
-    agent.fund(supply=NU.from_nunits(token_economics.worklock_supply),
-               sender_address=testerchain.etherbase_account)
 
 
 @pytest.fixture(scope='module', autouse=True)
@@ -70,9 +51,6 @@ def test_status(click_runner, testerchain, test_registry, agency):
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
-
-    # TODO: Include status for local bidding addresses
-    # TODO: Eligibility for refund / claim / etc.? - How much redund already dispursed
 
 
 def test_bid(click_runner, testerchain, test_registry, agency, token_economics):

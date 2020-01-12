@@ -60,6 +60,15 @@ option_lock_periods = click.option('--lock-periods', help="Duration of stake in 
 option_worker_address = click.option('--worker-address', help="Address to assign as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
 
 
+def _setup_emitter(general_config):
+    # Banner
+    emitter = general_config.emitter
+    emitter.clear()
+    emitter.banner(StakeHolder.banner)
+
+    return emitter
+
+
 class StakeHolderConfigOptions:
 
     __option_name__ = 'config_options'
@@ -815,11 +824,3 @@ def preallocation(general_config, transacting_staker_options, config_file, actio
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
                               emitter=emitter)
 
-
-def _setup_emitter(general_config):
-    # Banner
-    emitter = general_config.emitter
-    emitter.clear()
-    emitter.banner(StakeHolder.banner)
-
-    return emitter

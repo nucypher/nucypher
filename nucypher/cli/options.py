@@ -117,6 +117,7 @@ def group_options(option_class, **options):
     else:
         option_name = option_class.__option_name__
 
+    @functools.wraps(option_class)
     def _decorator(func):
 
         @functools.wraps(func)
@@ -147,6 +148,7 @@ def wrap_option(handler, **options):
     name = list(options)[0]
     dec = options[name]
 
+    @functools.wraps(handler)
     def _decorator(func):
 
         @functools.wraps(func)

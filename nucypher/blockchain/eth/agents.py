@@ -1067,20 +1067,23 @@ class WorkLockAgent(EthereumContractAgent):
         result = self.contract.functions.getRemainingWork(allocation_address).call()
         return result
 
-    def get_eth_supply(self):
-        supply = self.blockchain.w3.client.get_balance(self.contract_address)
+    def get_eth_supply(self) -> int:
+        supply = self.blockchain.client.get_balance(self.contract_address)
         return supply
 
-    def get_refund_rate(self):
+    def get_refund_rate(self) -> int:
         f = self.contract.functions
         refund_rate = self.get_deposit_rate() * f.SLOWING_REFUND().call() / f.boostingRefund().call()
         return refund_rate
 
-    def get_deposit_rate(self):
-        deposit_rate = self.lot_value / self.get_eth_supply()
+    def get_deposit_rate(self) -> int:
+        try:
+            deposit_rate = self.lot_value // self.get_eth_supply()
+        except ZeroDivisionError:
+            return 0
         return deposit_rate
 
-    def get_unclaimed_tokens(self):
+    def get_unclaimed_tokens(self) -> int:
         tokens = self.contract.functions.unclaimedTokens().call()
         return tokens
 
