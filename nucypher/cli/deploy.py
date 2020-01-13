@@ -460,10 +460,8 @@ def transfer_tokens(general_config, actor_options, target_address, value):
         value = NU.from_tokens(click.prompt(f"Enter value in NU", type=stake_value_range))
 
     click.confirm(f"Transfer {value} from {deployer_address} to {target_address}?", abort=True)
-    receipt = token_agent.transfer(amount=value,
-                                   sender_address=deployer_address,
-                                   target_address=target_address)
-    emitter.echo(f"OK | Receipt: {receipt['transactionHash'].hex()}")
+    receipt = token_agent.transfer(amount=int(value), sender_address=deployer_address, target_address=target_address)
+    paint_receipt_summary(emitter=emitter, receipt=receipt)
 
 
 @deploy.command("transfer-ownership")
