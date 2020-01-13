@@ -767,7 +767,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     def initialize_stake(self,
-                         amount: NU,
+                         amount: NU = None,
                          lock_periods: int = None,
                          expiration: maya.MayaDT = None,
                          entire_balance: bool = False) -> Stake:

@@ -403,7 +403,7 @@ def token_economics(testerchain):
     economics = StandardTokenEconomics(
         worklock_boosting_refund_rate=200,
         worklock_commitment_duration=60*60,  # seconds
-        worklock_supply=NU.from_nunits(1_000_000),
+        worklock_supply=NU.from_tokens(1_000_000),
         bidding_start_date=bidding_start_date,
         bidding_end_date=bidding_end_date
     )

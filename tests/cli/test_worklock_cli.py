@@ -136,15 +136,23 @@ def test_refund(click_runner, testerchain, agency, test_registry, token_economic
     individual_allocation = IndividualAllocationRegistry(beneficiary_address=bidder,
                                                          contract_address=allocation_address)
 
-    # No stake initialization is needed, since claiming worklock tokens.
+    # TODO: No stake initialization is needed, since claiming worklock tokens.
+
     staker = Staker(is_me=True,
                     registry=test_registry,
                     individual_allocation=individual_allocation)
+
+    # Create a new stake with the new allocation
+    new_stake = staker.initialize_stake(entire_balance=True, lock_periods=30)
+    assert new_stake
+
+    # Bond the worker
     receipt = staker.set_worker(worker_address=worker_address)
     assert receipt['status'] == 1
 
     worker = Ursula(is_me=True,
                     registry=test_registry,
+                    checksum_address=allocation_address,  # TODO: Is this correct?
                     worker_address=worker_address,
                     rest_host=MOCK_IP_ADDRESS,
                     rest_port=select_test_port())

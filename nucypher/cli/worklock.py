@@ -159,7 +159,7 @@ def refund(general_config, worklock_options, registry_options, force):
     emitter.message("Submitting WorkLock refund request...")
     registry = registry_options.get_registry(emitter, general_config.debug)
     worklock_agent = worklock_options.create_agent(registry=registry)
-    receipt = worklock_agent.refund(sender_address=worklock_options.bidder_address)
+    receipt = worklock_agent.refund(beneficiary_address=worklock_options.bidder_address)
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=worklock_agent.blockchain.client.chain_name)
     return  # Exit
 

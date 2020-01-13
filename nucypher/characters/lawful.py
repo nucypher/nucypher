@@ -800,7 +800,7 @@ class Ursula(Teacher, Character, Worker):
 
                  # Blockchain
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
-                 checksum_address: str = None,  # Staker address
+                 checksum_address: str = None,  # TODO: Rename to Staker address
                  worker_address: str = None,
                  work_tracker: WorkTracker = None,
                  start_working_now: bool = True,
