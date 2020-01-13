@@ -305,14 +305,20 @@ class ContractAdministrator(NucypherTokenActor):
                                     ignore_deployed=ignore_deployed)
         return receipts
 
-    def retarget_proxy(self, contract_name: str, target_address: str, existing_plaintext_secret: str, new_plaintext_secret: str):
+    def retarget_proxy(self,
+                       contract_name: str,
+                       target_address: str,
+                       existing_plaintext_secret: str,
+                       new_plaintext_secret: str,
+                       just_build_transaction: bool = False):
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
         new_secret_hash = keccak(bytes(new_plaintext_secret, encoding='utf-8'))
-        receipts = deployer.retarget(target_address=target_address,
-                                     existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
-                                     new_secret_hash=new_secret_hash)
-        return receipts
+        result = deployer.retarget(target_address=target_address,
+                                   existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
+                                   new_secret_hash=new_secret_hash,
+                                   just_build_transaction=just_build_transaction)
+        return result
 
     def rollback_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str):
         Deployer = self.__get_deployer(contract_name=contract_name)

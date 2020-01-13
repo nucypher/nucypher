@@ -306,7 +306,8 @@ class UpgradeableContractMixin:
                  existing_secret_plaintext: bytes,
                  new_secret_hash: bytes,
                  gas_limit: int = None,
-                 version: str = "latest"):
+                 just_build_transaction: bool = False
+                 ):
         """
         Directly engage a proxy contract for an existing deployment, executing the proxy's
         upgrade interfaces to verify upgradeability and modify the on-chain contract target.
@@ -315,16 +316,22 @@ class UpgradeableContractMixin:
         if not self._upgradeable:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
 
-        # 1 - Get Bare Contracts
-        existing_bare_contract = self.get_principal_contract(registry=self.registry, provider_uri=self.blockchain.provider_uri)
+        # 1 - Get Proxy Deployer
         proxy_deployer = self.get_proxy_deployer(registry=self.registry, provider_uri=self.blockchain.provider_uri)
 
-        # 2 - Retarget
-        receipt = proxy_deployer.retarget(new_target=target_address,
-                                          existing_secret_plaintext=existing_secret_plaintext,
-                                          new_secret_hash=new_secret_hash,
-                                          gas_limit=gas_limit)
-        return receipt
+        # 2 - Retarget (or build retarget transaction)
+        if just_build_transaction:
+            transaction = proxy_deployer.build_retarget_transaction(new_target=target_address,
+                                                                    existing_secret_plaintext=existing_secret_plaintext,
+                                                                    new_secret_hash=new_secret_hash,
+                                                                    gas_limit=gas_limit)
+            return transaction
+        else:
+            receipt = proxy_deployer.retarget(new_target=target_address,
+                                              existing_secret_plaintext=existing_secret_plaintext,
+                                              new_secret_hash=new_secret_hash,
+                                              gas_limit=gas_limit)
+            return receipt
 
     def upgrade(self,
                 existing_secret_plaintext: bytes,
@@ -342,8 +349,7 @@ class UpgradeableContractMixin:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
         self.check_deployment_readiness(contract_version=contract_version, ignore_deployed=ignore_deployed)
 
-        # 2 - Get Bare Contracts
-        existing_bare_contract = self.get_principal_contract(registry=self.registry, provider_uri=self.blockchain.provider_uri)
+        # 2 - Get Proxy Deployer
         proxy_deployer = self.get_proxy_deployer(registry=self.registry, provider_uri=self.blockchain.provider_uri)
 
         # 3 - Deploy new version
@@ -462,18 +468,37 @@ class DispatcherDeployer(BaseContractDeployer, OwnableContractMixin):
         self.deployment_receipts.update({'deployment': receipt})
         return {self.deployment_steps[0]: receipt}
 
-    @validate_secret
-    def retarget(self, new_target: str, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None) -> dict:
+    def _validate_retarget(self, new_target: str):
         if new_target == self.target_contract.address:
             raise self.ContractDeploymentError(f"{new_target} is already targeted by {self.contract_name}: {self._contract.address}")
         if new_target == self._contract.address:
             raise self.ContractDeploymentError(f"{self.contract_name} {self._contract.address} cannot target itself.")
 
+    @validate_secret
+    def retarget(self,
+                 new_target: str,
+                 existing_secret_plaintext: bytes,
+                 new_secret_hash: bytes,
+                 gas_limit: int = None) -> dict:
+        self._validate_retarget(new_target)
         upgrade_function = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash)
         upgrade_receipt = self.blockchain.send_transaction(contract_function=upgrade_function,
                                                            sender_address=self.deployer_address,
                                                            transaction_gas_limit=gas_limit)
         return upgrade_receipt
+
+    @validate_secret
+    def build_retarget_transaction(self,
+                                   new_target: str,
+                                   existing_secret_plaintext: bytes,
+                                   new_secret_hash: bytes,
+                                   gas_limit: int = None) -> dict:
+        self._validate_retarget(new_target)
+        upgrade_function = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash)
+        unsigned_transaction = self.blockchain.build_transaction(contract_function=upgrade_function,
+                                                                 sender_address=self.deployer_address,
+                                                                 transaction_gas_limit=gas_limit)
+        return unsigned_transaction
 
     @validate_secret
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None) -> dict:
@@ -775,6 +800,9 @@ class StakingInterfaceRouterDeployer(BaseContractDeployer, OwnableContractMixin)
                                                             sender_address=self.deployer_address,
                                                             payload=origin_args)
         return retarget_receipt
+
+    # TODO: Missing build_retarget_transaction() method for upgrades via multisig. Extract common logic between this deployer and DispactherDeployer.
+
 
 
 class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):

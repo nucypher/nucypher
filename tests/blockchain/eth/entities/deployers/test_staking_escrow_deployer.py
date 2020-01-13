@@ -195,6 +195,18 @@ def test_manual_proxy_retargeting(testerchain, test_registry, token_economics):
 
     # Get the latest un-targeted contract from the registry
     latest_deployment = deployer.get_latest_enrollment(registry=test_registry)
+
+    # Build retarget transaction (just for informational purposes)
+    transaction = deployer.retarget(target_address=latest_deployment.address,
+                                    existing_secret_plaintext=old_secret,
+                                    new_secret_hash=new_secret,
+                                    just_build_transaction=True)
+
+    assert transaction['to'] == proxy_deployer.contract.address
+    upgrade_function, _params = proxy_deployer.contract.decode_function_input(transaction['data'])
+    assert upgrade_function.fn_name == proxy_deployer.contract.functions.upgrade.fn_name
+
+    # Retarget, for real
     receipt = deployer.retarget(target_address=latest_deployment.address,
                                 existing_secret_plaintext=old_secret,
                                 new_secret_hash=new_secret)
