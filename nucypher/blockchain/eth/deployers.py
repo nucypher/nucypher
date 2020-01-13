@@ -1139,3 +1139,26 @@ class WorklockDeployer(BaseContractDeployer):
         funding_receipt = self.blockchain.send_transaction(contract_function=funding_function,
                                                            sender_address=sender_address)
         return funding_receipt
+
+
+
+class SeederDeployer(BaseContractDeployer, OwnableContractMixin):
+
+    agency = SeederAgent
+    contract_name = agency.registry_contract_name
+    deployment_steps = ('contract_deployment', )
+
+    _upgradeable = False
+    __proxy_deployer = NotImplemented
+
+    MAX_SEEDS = 10 # TODO: Move to economics?
+
+    def deploy(self, gas_limit: int = None, progress: int = None, **overrides) -> dict:
+        self.check_deployment_readiness()
+        constructor_args = (self.MAX_SEEDS,)
+        seeder_contract, deploy_txhash = self.blockchain.deploy_contract(*constructor_args, gas_limit=gas_limit)
+        self._contract = seeder_contract
+        if progress:
+            progress.update(1)
+        receipts = {'contract_deployment': deploy_txhash}
+        return receipts

@@ -1101,3 +1101,32 @@ class WorkLockAgent(EthereumContractAgent):
 
         parameters = tuple(map(_call_function_by_name, parameter_signatures))
         return parameters
+
+
+class SeederAgent(EthereumContractAgent):
+
+    def enroll(self, sender_address: str, seed_address: str, ip: str, port: int) -> dict:
+        # TODO: Protection for over-enrollment
+        contract_function = self.contract.functions.enroll(seed_address, ip, port)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=sender_address)
+        return receipt
+
+    def refresh(self, sender_address: str, ip: str, port: int) -> dict:
+        contract_function = self.contract.functions.refresh(ip, port)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=sender_address)
+        return receipt
+
+    def get_entries(self) -> int:
+        length = self.contract.functions.getSeedArrayLength().call()
+        return length
+
+    def dump(self) -> list:
+        total = self.get_entries()
+        entries = list()
+        for index in range(total):
+            ip = self.contract.functions.seedArray(index).call()
+            entry = self.contract.functions.seeds(ip).call()
+            entries.append(entry)
+        return entries
