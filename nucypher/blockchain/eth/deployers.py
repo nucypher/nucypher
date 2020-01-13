@@ -410,7 +410,7 @@ class NucypherTokenDeployer(BaseContractDeployer):
     _upgradeable = False
     _ownable = False
 
-    def deploy(self, gas_limit: int = None, progress=None, **overrides) -> dict:
+    def deploy(self, gas_limit: int = None, progress=None, confirmations: int = 0, **overrides) -> dict:
         """
         Deploy and publish the NuCypher Token contract
         to the blockchain network specified in self.blockchain.network.
@@ -427,6 +427,7 @@ class NucypherTokenDeployer(BaseContractDeployer):
                                                                        self.registry,
                                                                        self.contract_name,
                                                                        gas_limit=gas_limit,
+                                                                       confirmations=confirmations,
                                                                        **constructor_kwargs)
         if progress:
             progress.update(1)
@@ -453,14 +454,16 @@ class DispatcherDeployer(BaseContractDeployer, OwnableContractMixin):
                                                                 proxy_name=self.contract_name,
                                                                 registry=self.registry)
 
-    def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None) -> dict:
+    def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None, confirmations: int = 0,) -> dict:
         args = (self.deployer_address,
                 self.registry,
                 self.contract_name,
                 self.target_contract.address,
                 bytes(secret_hash))   # Tux's favorite.
 
-        dispatcher_contract, receipt = self.blockchain.deploy_contract(gas_limit=gas_limit, *args)
+        dispatcher_contract, receipt = self.blockchain.deploy_contract(gas_limit=gas_limit,
+                                                                       confirmations=confirmations,
+                                                                       *args)
         if progress:
             progress.update(1)
 
@@ -537,7 +540,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         if result == self.blockchain.NULL_ADDRESS:
             raise RuntimeError("PolicyManager contract is not initialized.")
 
-    def _deploy_essential(self, contract_version: str, gas_limit: int = None, **overrides):
+    def _deploy_essential(self, contract_version: str, gas_limit: int = None, confirmations: int = 0, **overrides):
         args = self.economics.staking_deployment_parameters
         constructor_kwargs = {
             "_hoursPerPeriod": args[0],
@@ -560,6 +563,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             self.contract_name,
             gas_limit=gas_limit,
             contract_version=contract_version,
+            confirmations=confirmations,
             **constructor_kwargs
         )
 
@@ -572,6 +576,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                progress=None,
                contract_version: str = "latest",
                ignore_deployed: bool = False,
+               confirmations: int = 0,
                **overrides
                ) -> dict:
         """
@@ -604,6 +609,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         # 1 - Deploy #
         the_escrow_contract, deploy_receipt = self._deploy_essential(contract_version=contract_version,
                                                                      gas_limit=gas_limit,
+                                                                     confirmations=confirmations,
                                                                      **overrides)
 
         # This is the end of bare deployment.

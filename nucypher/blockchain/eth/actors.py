@@ -262,6 +262,7 @@ class ContractAdministrator(NucypherTokenActor):
                         bare: bool = False,
                         ignore_deployed: bool = False,
                         progress=None,
+                        confirmations: int = 0,
                         *args, **kwargs,
                         ) -> Tuple[dict, BaseContractDeployer]:
 
@@ -286,9 +287,10 @@ class ContractAdministrator(NucypherTokenActor):
                                        gas_limit=gas_limit,
                                        initial_deployment=is_initial_deployment,
                                        progress=progress,
-                                       ignore_deployed=ignore_deployed)
+                                       ignore_deployed=ignore_deployed,
+                                       confirmations=confirmations)
         else:
-            receipts = deployer.deploy(gas_limit=gas_limit, progress=progress)
+            receipts = deployer.deploy(gas_limit=gas_limit, progress=progress, confirmations=confirmations)
         return receipts, deployer
 
     def upgrade_contract(self,
