@@ -767,13 +767,14 @@ Unclaimed Tokens ... {WORKLOCK_AGENT.get_unclaimed_tokens()}
     return
 
 
-def paint_worklock_participant_status(emitter):
+def paint_worklock_participant_status(emitter, registry, bidder_address):
     WORKLOCK_AGENT = ContractAgency.get_agent(WorkLockAgent, registry=registry)
 
     message = f"""
 Allocations
 =====================================================
-Claimed Tokens ..... {WORKLOCK_AGENT.get_claimed_tokens()}
+Allocation ........... {WORKLOCK_AGENT.get_allocation_from_bidder(bidder_address)}
+Available Refund ..... {WORKLOCK_AGENT.available_refund(bidder_address=bidder_address)}
 
 """
     emitter.message(message)
@@ -811,3 +812,14 @@ Accept worklock terms and node operator obligation?"""
 
     emitter.message(obligation)
     return
+
+
+def paint_worklock_claim(emitter, bidder_address: str, allocation_address: str):
+    message = f"""Successfully claimed WorkLock tokens for {bidder_address}.
+
+***Worklock Allocation Contract {allocation_address}***
+
+To create a new stakeholder run 'nucypher stake init-stakeholder' --provider <URI>
+To bond a worker run 'nucypher stake set-worker' --worker-address <ADDRESS>
+"""
+    emitter.message(message, color='green')

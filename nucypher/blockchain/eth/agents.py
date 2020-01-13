@@ -958,13 +958,13 @@ class WorkLockAgent(EthereumContractAgent):
 
     registry_contract_name = "WorkLock"
 
-    def bid(self, value: int, sender_address: str) -> dict:
+    def bid(self, value: int, bidder_address: str) -> dict:
         """
         Bid for NU tokens with ETH.
         """
         contract_function = self.contract.functions.bid()
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=sender_address,
+                                                   sender_address=bidder_address,
                                                    payload={'value': value})
         return receipt
 
@@ -1005,8 +1005,8 @@ class WorkLockAgent(EthereumContractAgent):
         return allocation_registry
 
     def available_refund(self, bidder_address: str = None, allocation_address: str = None) -> int:
-        if bidder_address and allocation_address:
-            raise ValueError("Pass bidder address or allocation address, got both.")
+        if not (bool(bidder_address) ^ bool(allocation_address)):
+            raise ValueError(f"Pass bidder address or allocation address, got '{bidder_address}' and '{allocation_address}'.")
         if bidder_address:
             allocation_address = self.get_allocation_from_bidder(bidder_address=bidder_address)
         else:
@@ -1060,8 +1060,8 @@ class WorkLockAgent(EthereumContractAgent):
         """
         Get remaining work periods until full refund for the target address.
         """
-        if bidder_address and allocation_address:
-            raise ValueError("Pass bidder address or allocation address, got both.")
+        if not (bool(bidder_address) ^ bool(allocation_address)):
+            raise ValueError(f"Pass bidder address or allocation address, got '{bidder_address}' and '{allocation_address}'.")
         if bidder_address:
             allocation_address = self.get_allocation_from_bidder(bidder_address=bidder_address)
         result = self.contract.functions.getRemainingWork(allocation_address).call()
