@@ -1105,6 +1105,8 @@ class WorkLockAgent(EthereumContractAgent):
 
 class SeederAgent(EthereumContractAgent):
 
+    registry_contract_name = "Seeder"
+
     def enroll(self, sender_address: str, seed_address: str, ip: str, port: int) -> dict:
         # TODO: Protection for over-enrollment
         contract_function = self.contract.functions.enroll(seed_address, ip, port)

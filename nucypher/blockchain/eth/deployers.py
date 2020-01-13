@@ -31,7 +31,10 @@ from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     PreallocationEscrowAgent,
     AdjudicatorAgent,
-    WorkLockAgent, ContractAgency)
+    WorkLockAgent,
+    SeederAgent,
+    ContractAgency
+)
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_secret, validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
@@ -1156,7 +1159,11 @@ class SeederDeployer(BaseContractDeployer, OwnableContractMixin):
     def deploy(self, gas_limit: int = None, progress: int = None, **overrides) -> dict:
         self.check_deployment_readiness()
         constructor_args = (self.MAX_SEEDS,)
-        seeder_contract, deploy_txhash = self.blockchain.deploy_contract(*constructor_args, gas_limit=gas_limit)
+        seeder_contract, deploy_txhash = self.blockchain.deploy_contract(self.deployer_address,
+                                                                         self.registry,
+                                                                         self.contract_name,
+                                                                         *constructor_args,
+                                                                         gas_limit=gas_limit)
         self._contract = seeder_contract
         if progress:
             progress.update(1)

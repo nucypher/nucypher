@@ -162,7 +162,7 @@ def test_refund(click_runner, testerchain, agency, test_registry, token_economic
     assert remaining_work > 0
 
     # Do some work
-    for i in range(3):
+    for i in range(10):
         receipt = worker.confirm_activity()
         assert receipt['status'] == 1
         testerchain.time_travel(periods=1)
@@ -176,10 +176,11 @@ def test_refund(click_runner, testerchain, agency, test_registry, token_economic
                '--force')
 
     # Ensure there is an available refund, then do it.
-    assert worklock_agent.available_refund(bidder_address=bidder) > 0
+    refund = worklock_agent.available_refund(bidder_address=bidder)
+    assert refund > 0
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
-    assert worklock_agent.available_refund(bidder_address=bidder) == 0
+    assert worklock_agent.available_refund(bidder_address=bidder) < refund
 
 
 def test_participant_status(click_runner, testerchain, test_registry, agency):
@@ -194,24 +195,3 @@ def test_participant_status(click_runner, testerchain, test_registry, agency):
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
-
-
-def test_burn_unclaimed_tokens(click_runner, testerchain, test_registry, agency):
-    philanthropist = testerchain.unassigned_accounts[-1]
-
-    # Ensure there are unclaimed tokens to burn
-    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    assert worklock_agent.get_unclaimed_tokens() > 0
-
-    command = ('burn-unclaimed-tokens',
-               '--registry-filepath', registry_filepath,
-               '--checksum-address', philanthropist,
-               '--provider', TEST_PROVIDER_URI,
-               '--poa',
-               '--debug')
-
-    result = click_runner.invoke(worklock, command, catch_exceptions=False)
-    assert result.exit_code == 0
-
-    # No more unclaimed tokens
-    assert worklock_agent.get_unclaimed_tokens() == 0

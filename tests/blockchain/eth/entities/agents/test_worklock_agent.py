@@ -29,13 +29,13 @@ def test_bidding(testerchain, agency, token_economics, test_registry):
     # Round 1
     for multiplier, bidder in enumerate(testerchain.unassigned_accounts[:3], start=1):
         bid = big_bid * multiplier
-        receipt = agent.bid(sender_address=bidder, value=bid)
+        receipt = agent.bid(bidder_address=bidder, value=bid)
         assert receipt['status'] == 1
 
     # Round 2
     for multiplier, bidder in enumerate(testerchain.unassigned_accounts[:3], start=1):
         bid = (small_bid * 2) * multiplier
-        receipt = agent.bid(sender_address=bidder, value=bid)
+        receipt = agent.bid(bidder_address=bidder, value=bid)
         assert receipt['status'] == 1
 
 
@@ -43,7 +43,7 @@ def test_get_bid(testerchain, agency, token_economics, test_registry):
     big_bid = token_economics.maximum_allowed_locked // 10
     big_bidder = testerchain.unassigned_accounts[-1]
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    receipt = agent.bid(sender_address=big_bidder, value=big_bid)
+    receipt = agent.bid(bidder_address=big_bidder, value=big_bid)
     assert receipt['status'] == 1
     bid = agent.get_bid(big_bidder)
     assert bid == big_bid

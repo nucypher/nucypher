@@ -53,7 +53,7 @@ from nucypher.blockchain.eth.deployers import (
     PreallocationEscrowDeployer,
     AdjudicatorDeployer,
     BaseContractDeployer,
-    WorklockDeployer)
+    WorklockDeployer, SeederDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import (
@@ -173,7 +173,7 @@ class ContractAdministrator(NucypherTokenActor):
 
     aux_deployer_classes = (
         WorklockDeployer,
-        # SeederDeployer
+        SeederDeployer
     )
 
     # Used in the automated series, typically.

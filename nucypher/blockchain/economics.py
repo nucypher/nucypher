@@ -46,9 +46,6 @@ class BaseEconomics:
 
     """
 
-    nickname = NotImplemented
-    description = NotImplemented
-
     # Token Denomination
     __token_decimals = 18
     nunits_per_token = 10 ** __token_decimals  # Smallest unit designation
@@ -69,11 +66,19 @@ class BaseEconomics:
     HASH_ALGORITHM_SHA256 = 1
     HASH_ALGORITHM_RIPEMD160 = 2
 
+    # Adjudicator
     __default_hash_algorithm = HASH_ALGORITHM_SHA256
     __default_base_penalty = 100
     __default_penalty_history_coefficient = 10
     __default_percentage_penalty_coefficient = 8
     __default_reward_coefficient = 2
+
+    # Worklock
+    _default_worklock_supply: int = NotImplemented
+    _default_bidding_start_date: int = NotImplemented
+    _default_bidding_end_date: int = NotImplemented
+    _default_worklock_boosting_refund_rate: int = NotImplemented
+    _default_worklock_commitment_duration: int = NotImplemented
 
     def __init__(self,
 
@@ -97,11 +102,11 @@ class BaseEconomics:
                  reward_coefficient: int = __default_reward_coefficient,
 
                  # WorkLock
-                 worklock_supply: int = NotImplemented,
-                 bidding_start_date: int = NotImplemented,
-                 bidding_end_date: int = NotImplemented,
-                 worklock_boosting_refund_rate: int = NotImplemented,
-                 worklock_commitment_duration: int = NotImplemented):
+                 worklock_supply: int = _default_worklock_supply,
+                 bidding_start_date: int = _default_bidding_start_date,
+                 bidding_end_date: int = _default_bidding_end_date,
+                 worklock_boosting_refund_rate: int = _default_worklock_boosting_refund_rate,
+                 worklock_commitment_duration: int = _default_worklock_commitment_duration):
 
         """
         :param initial_supply: Tokens at t=0
@@ -217,7 +222,6 @@ class BaseEconomics:
         5 boostingRefund - Coefficient to boost refund ETH
         6 lockingDuration - Duration of tokens locking
         """
-
         deployment_parameters = [self.bidding_start_date,
                                  self.bidding_end_date,
                                  self.worklock_boosting_refund_rate,
@@ -256,9 +260,6 @@ class StandardTokenEconomics(BaseEconomics):
     <https://github.com/nucypher/mining-paper/blob/master/mining-paper.pdf>
 
     """
-
-    nickname = 'standard-economics'
-    description = 'The same old economics you are used to.'
 
     # Decimal
     _precision = 28
