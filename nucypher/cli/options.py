@@ -1,5 +1,23 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 from collections import namedtuple
 import functools
+import os
 
 import click
 
@@ -56,7 +74,7 @@ def option_discovery_port(default=None):
         default=default)
 
 
-def option_label(required:bool = False):
+def option_label(required: bool = False):
     return click.option(
         '--label',
         help="The label for a policy",
@@ -64,7 +82,7 @@ def option_label(required:bool = False):
         required=required)
 
 
-def option_message_kit(required:bool = False):
+def option_message_kit(required: bool = False):
     return click.option(
         '--message-kit',
         help="The message kit unicode string encoded in base64",
@@ -72,7 +90,7 @@ def option_message_kit(required:bool = False):
         required=required)
 
 
-def option_policy_encrypting_key(required:bool = False):
+def option_policy_encrypting_key(required: bool = False):
     return click.option(
         '--policy-encrypting-key',
         help="Encrypting Public Key for Policy as hexadecimal string",
@@ -80,7 +98,7 @@ def option_policy_encrypting_key(required:bool = False):
         required=required)
 
 
-def option_provider_uri(default=None, required:bool = False):
+def option_provider_uri(default=os.environ.get("NUCYPHER_PROVIDER_URI"), required: bool = False):
     return click.option(
         '--provider', 'provider_uri',
         help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'",
@@ -157,5 +175,6 @@ def process_middleware(mock_networking):
         middleware = RestMiddleware()
 
     return 'middleware', middleware
+
 
 option_middleware = wrap_option(process_middleware, mock_networking=_option_middleware)

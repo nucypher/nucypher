@@ -166,7 +166,7 @@ class ActorOptions:
 
 group_actor_options = group_options(
     ActorOptions,
-    provider_uri=option_provider_uri(required=True),
+    provider_uri=option_provider_uri(),
     contract_name=click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING),
     poa=option_poa,
     force=option_force,

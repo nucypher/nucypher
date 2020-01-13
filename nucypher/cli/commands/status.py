@@ -83,7 +83,7 @@ class RegistryOptions:
 
 group_registry_options = group_options(
     RegistryOptions,
-    provider_uri=option_provider_uri(default="auto://"),
+    provider_uri=option_provider_uri(),
     geth=option_geth,
     poa=option_poa,
     light=option_light,
