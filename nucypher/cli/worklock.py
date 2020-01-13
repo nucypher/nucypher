@@ -22,10 +22,15 @@ from web3 import Web3
 from nucypher.blockchain.eth.agents import ContractAgency, WorkLockAgent
 from nucypher.characters.banners import WORKLOCK_BANNER
 from nucypher.cli.actions import select_client_account
-from nucypher.cli.common_options import option_force, option_config_root, group_options
+from nucypher.cli.common_options import option_force, group_options
 from nucypher.cli.config import group_general_config
-from nucypher.cli.painting import paint_receipt_summary, paint_worklock_status, paint_worklock_participant_notice, \
-    paint_worklock_participant_status, paint_worklock_claim
+from nucypher.cli.painting import (
+    paint_receipt_summary,
+    paint_worklock_status,
+    paint_worklock_participant_notice,
+    paint_worklock_participant_status,
+    paint_worklock_claim
+)
 from nucypher.cli.status import group_registry_options
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 
@@ -137,7 +142,7 @@ def remaining_work(general_config, worklock_options, registry_options):
     emitter = _setup_emitter(general_config)
     registry = registry_options.get_registry(emitter, general_config.debug)
     worklock_agent = worklock_options.create_agent(registry=registry)
-    _remaining_work = worklock_agent.get_remaining_work(allocation_address=worklock_options.bidder_address)
+    _remaining_work = worklock_agent.get_remaining_work(bidder_address=worklock_options.bidder_address)
     emitter.message(f"Work Remaining for {worklock_options.bidder_address}: {_remaining_work}")
     return  # Exit
 

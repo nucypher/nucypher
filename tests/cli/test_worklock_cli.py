@@ -102,6 +102,11 @@ def test_claim(click_runner, testerchain, agency, token_economics):
 def test_remaining_work(click_runner, testerchain, test_registry, agency, token_economics):
     bidder = testerchain.unassigned_accounts[-1]
 
+    # Ensure there is remaining work one layer below
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    remaining_work = worklock_agent.get_remaining_work(bidder_address=bidder)
+    assert remaining_work > 0
+
     command = ('remaining-work',
                '--bidder-address', bidder,
                '--registry-filepath', registry_filepath,
@@ -111,12 +116,16 @@ def test_remaining_work(click_runner, testerchain, test_registry, agency, token_
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
+
+    # Ensure were displaying the bidder address and remaining work in the output
     assert bidder in result.output
+    assert str(remaining_work) in result.output
 
 
 def test_refund(click_runner, testerchain, agency, test_registry, token_economics):
 
     bidder = testerchain.unassigned_accounts[-1]
+    worker_address = testerchain.unassigned_accounts[-2]
 
     #
     # WorkLock Staker-Worker
@@ -129,20 +138,25 @@ def test_refund(click_runner, testerchain, agency, test_registry, token_economic
 
     # No stake initialization is needed, since claiming worklock tokens.
     staker = Staker(is_me=True,
-                    checksum_address=bidder,
                     registry=test_registry,
                     individual_allocation=individual_allocation)
-    staker.set_worker(worker_address=bidder)
+    receipt = staker.set_worker(worker_address=worker_address)
+    assert receipt['status'] == 1
 
     worker = Ursula(is_me=True,
                     registry=test_registry,
-                    checksum_address=bidder,
-                    worker_address=bidder,
+                    worker_address=worker_address,
                     rest_host=MOCK_IP_ADDRESS,
                     rest_port=select_test_port())
 
-    for i in range(10):
-        worker.confirm_activity()
+    # Ensure there is work to do
+    remaining_work = worklock_agent.get_remaining_work(bidder_address=bidder)
+    assert remaining_work > 0
+
+    # Do some work
+    for i in range(3):
+        receipt = worker.confirm_activity()
+        assert receipt['status'] == 1
         testerchain.time_travel(periods=1)
 
     command = ('refund',
@@ -153,8 +167,11 @@ def test_refund(click_runner, testerchain, agency, test_registry, token_economic
                '--debug',
                '--force')
 
+    # Ensure there is an available refund, then do it.
+    assert worklock_agent.available_refund(bidder_address=bidder) > 0
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
+    assert worklock_agent.available_refund(bidder_address=bidder) == 0
 
 
 def test_participant_status(click_runner, testerchain, test_registry, agency):
@@ -176,7 +193,7 @@ def test_burn_unclaimed_tokens(click_runner, testerchain, test_registry, agency)
 
     # Ensure there are unclaimed tokens to burn
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    assert worklock_agent.get_unclaimed_tokens()
+    assert worklock_agent.get_unclaimed_tokens() > 0
 
     command = ('burn-unclaimed-tokens',
                '--registry-filepath', registry_filepath,
