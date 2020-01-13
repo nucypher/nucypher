@@ -1,10 +1,20 @@
 import os
+from unittest import mock
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, \
     MOCK_IP_ADDRESS, MOCK_CUSTOM_INSTALLATION_PATH, TEMPORARY_DOMAIN
 from nucypher.cli.actions import SUCCESSFUL_DESTRUCTION
+
+
+@mock.patch('nucypher.config.characters.AliceConfiguration.default_filepath', return_value='/non/existent/file')
+def test_missing_configuration_file(default_filepath_mock, click_runner):
+    cmd_args = ('alice', 'run')
+    result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
+    assert result.exit_code != 0
+    assert default_filepath_mock.called
+    assert "run: 'nucypher alice init'" in result.output
 
 
 def test_initialize_alice_defaults(click_runner, mocker):

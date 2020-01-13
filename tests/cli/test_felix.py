@@ -1,4 +1,5 @@
 import os
+from unittest import mock
 
 import pytest
 import pytest_twisted
@@ -30,6 +31,15 @@ def mock_local_registry_reads(testerchain, test_registry):
         yield
     finally:
         LocalContractRegistry.read = READ_FUNCTION
+
+
+@mock.patch('nucypher.config.characters.FelixConfiguration.default_filepath', return_value='/non/existent/file')
+def test_missing_configuration_file(default_filepath_mock, click_runner):
+    cmd_args = ('felix', 'view')
+    result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
+    assert result.exit_code != 0
+    assert default_filepath_mock.called
+    assert "run: 'nucypher felix init'" in result.output
 
 
 @pytest_twisted.inlineCallbacks

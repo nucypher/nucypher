@@ -15,8 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-import functools
-
 import click
 from web3 import Web3
 
@@ -84,6 +82,7 @@ class StakeHolderConfigOptions:
         except FileNotFoundError:
             return actions.handle_missing_configuration_file(
                 character_config_class=StakeHolderConfiguration,
+                init_command_hint=f"{stake.name} {init_stakeholder.name}",
                 config_file=config_file)
 
     def generate_config(self, config_root):

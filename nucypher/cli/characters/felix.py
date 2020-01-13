@@ -77,9 +77,9 @@ class FelixConfigOptions:
 
             return felix_config
         except FileNotFoundError:
-            emitter.echo(f"No Felix configuration file found at {config_file}. "
-                         f"Check the filepath or run 'nucypher felix init' to create a new system configuration.")
-            raise click.Abort
+            return actions.handle_missing_configuration_file(
+                character_config_class=FelixConfiguration,
+                config_file=config_file)
 
     def generate_config(self, config_root, discovery_port):
         # FIXME: why isn't port used here?
