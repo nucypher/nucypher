@@ -9,3 +9,6 @@ class InvalidInputField(SpecificationError):
 
 class InvalidOutputField(SpecificationError):
     """Response data does not match the output specification"""
+
+class MethodNotFound(SpecificationError):
+    """Response data does not match the output specification"""

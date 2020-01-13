@@ -13,7 +13,7 @@ from twisted.logger import Logger
 
 from nucypher.characters.control.emitters import StdoutEmitter, WebEmitter, JSONRPCStdoutEmitter
 from nucypher.characters.control.interfaces import CharacterPublicInterface
-from nucypher.characters.control.specifications.exceptions import MissingField, InvalidInputField, SpecificationError
+from nucypher.characters.control.specifications.exceptions import MissingField, InvalidInputField, SpecificationError, MethodNotFound
 from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.utilities.controllers import JSONRPCTestClient
 
@@ -37,7 +37,7 @@ class CharacterControllerBase(ABC):
 
     def _perform_action(self, action: str, request: dict) -> dict:
         request = request or {}  # for requests with no input params request can be ''
-        method = getattr(self.interface, action)
+        method = getattr(self.interface, action, None)
         serializer = method._schema
         params = serializer.load(request)
 
@@ -79,17 +79,21 @@ class CharacterControlServer(CharacterControllerBase):
                 return self.handle_request(name, request=request)
             setattr(self, name, wrapper)
 
-        for method_name, method in inspect.getmembers(
-            self.interface,
-            predicate=inspect.ismethod
-        ):
-
-            if hasattr(method, '_schema'):
-                set_method(method_name)
+        for method_name in self._get_interfaces().keys():
+            set_method(method_name)
 
         super().__init__(*args, **kwargs)
 
         self.log = Logger(app_name)
+
+    def _get_interfaces(self):
+        return {
+            name: method for name, method in
+            inspect.getmembers(
+                self.interface,
+                predicate=inspect.ismethod)
+            if hasattr(method, '_schema')
+        }
 
     @abstractmethod
     def make_control_transport(self):
@@ -147,6 +151,8 @@ class JSONRPCController(CharacterControlServer):
         # Read the interface's signature metadata
         method_name = control_request['method']
         method_params = control_request.get('params', dict())  # optional
+        if method_name not in self._get_interfaces():
+            raise self.emitter.MethodNotFound('No method called {method_name}')
 
         return self.call_interface(method_name=method_name,
                                    request=method_params,
@@ -258,13 +264,17 @@ class WebController(CharacterControlServer):
         _400_exceptions = (MissingField,
                            InvalidInputField,
                            TypeError,
-                           JSONDecodeError)
+                           JSONDecodeError,
+                           MethodNotFound)
 
         try:
             request_body = control_request.data or dict()
             if request_body:
                 request_body = json.loads(request_body)
             request_body.update(kwargs)
+
+            if method_name not in self._get_interfaces():
+                raise MethodNotFound('No method called {method_name}')
 
             response = self._perform_action(action=method_name, request=request_body)
 
