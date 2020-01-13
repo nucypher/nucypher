@@ -13,7 +13,7 @@ from twisted.logger import Logger
 
 from nucypher.characters.control.emitters import StdoutEmitter, WebEmitter, JSONRPCStdoutEmitter
 from nucypher.characters.control.interfaces import CharacterPublicInterface
-from nucypher.characters.control.specifications.exceptions import MissingField, InvalidInputField, SpecificationError, MethodNotFound
+from nucypher.characters.control.specifications.exceptions import MissingField, InvalidInputField, SpecificationError
 from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.utilities.controllers import JSONRPCTestClient
 
@@ -75,7 +75,8 @@ class CharacterControlServer(CharacterControllerBase):
 
         def set_method(name):
 
-            def wrapper(request=None):
+            def wrapper(request=None, **kwargs):
+                request = request or kwargs
                 return self.handle_request(name, request=request)
             setattr(self, name, wrapper)
 
@@ -106,6 +107,7 @@ class CharacterControlServer(CharacterControllerBase):
     @abstractmethod
     def test_client(self):
         return NotImplemented
+
 
 class CLIController(CharacterControlServer):
 
@@ -152,7 +154,7 @@ class JSONRPCController(CharacterControlServer):
         method_name = control_request['method']
         method_params = control_request.get('params', dict())  # optional
         if method_name not in self._get_interfaces():
-            raise self.emitter.MethodNotFound('No method called {method_name}')
+            raise self.emitter.MethodNotFound(f'No method called {method_name}')
 
         return self.call_interface(method_name=method_name,
                                    request=method_params,
@@ -265,7 +267,7 @@ class WebController(CharacterControlServer):
                            InvalidInputField,
                            TypeError,
                            JSONDecodeError,
-                           MethodNotFound)
+                           self.emitter.MethodNotFound)
 
         try:
             request_body = control_request.data or dict()
@@ -274,7 +276,7 @@ class WebController(CharacterControlServer):
             request_body.update(kwargs)
 
             if method_name not in self._get_interfaces():
-                raise MethodNotFound('No method called {method_name}')
+                raise self.emitter.MethodNotFound(f'No method called {method_name}')
 
             response = self._perform_action(action=method_name, request=request_body)
 

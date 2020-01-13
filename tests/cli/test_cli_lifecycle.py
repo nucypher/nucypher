@@ -250,7 +250,6 @@ def _cli_lifecycle(click_runner,
 
         encrypt_result = click_runner.invoke(nucypher_cli, enrico_args, catch_exceptions=False, env=envvars)
         assert encrypt_result.exit_code == 0
-
         encrypt_result = json.loads(encrypt_result.output)
         encrypted_message = encrypt_result['result']['message_kit']    # type: str
 
