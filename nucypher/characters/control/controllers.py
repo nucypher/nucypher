@@ -73,15 +73,19 @@ class CharacterControlServer(CharacterControllerBase):
 
         self.interface = interface
 
+        def set_method(name):
+
+            def wrapper(request=None):
+                return self.handle_request(name, request=request)
+            setattr(self, name, wrapper)
+
         for method_name, method in inspect.getmembers(
             self.interface,
             predicate=inspect.ismethod
         ):
 
             if hasattr(method, '_schema'):
-                def wrapper(request):
-                    return self.handle_request(method_name, request=request)
-                setattr(self, method.__name__, wrapper)
+                set_method(method_name)
 
         super().__init__(*args, **kwargs)
 
@@ -113,6 +117,7 @@ class CLIController(CharacterControlServer):
         start = maya.now()
         response = self._perform_action(action=method_name, request=request)
         return self.emitter.ipc(response=response, request_id=start.epoch, duration=maya.now() - start)
+
 
 class JSONRPCController(CharacterControlServer):
 
@@ -304,5 +309,5 @@ class WebController(CharacterControlServer):
         # Send to WebEmitter
         #
         else:
-            self.log.debug(f"{interface_name} [200 - OK]")
+            self.log.debug(f"{method_name} [200 - OK]")
             return self.emitter.respond(response=response)
