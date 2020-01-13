@@ -13,6 +13,8 @@ from nucypher.blockchain.eth.agents import (
     PreallocationEscrowAgent,
     PolicyManagerAgent,
     AdjudicatorAgent,
+    EthereumContractAgent,
+    MultiSigAgent,
     ContractAgency
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -70,7 +72,7 @@ def test_nucypher_deploy_contracts(click_runner,
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    # Ensure there is a report on each contract except PreallocationEscrow
+    # Ensure there is a report on each primary contract
     contract_names = tuple(a.contract_name for a in ContractAdministrator.primary_deployer_classes)
     for registry_name in contract_names:
         assert registry_name in result.output

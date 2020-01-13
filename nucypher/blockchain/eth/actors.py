@@ -651,9 +651,9 @@ class MultiSigActor(NucypherTokenActor):
 
 class Trustee(MultiSigActor):
     """
-    A member of a the MultiSigBoard given the power and
-    obligation to execute the authorized transaction on
-    behalf of the board executives.
+    A member of a MultiSigBoard given the power and
+    obligation to execute an authorized transaction on
+    behalf of the board of executives.
     """
 
     class NoAuthorizations(RuntimeError):
@@ -663,18 +663,16 @@ class Trustee(MultiSigActor):
         super().__init__(*args, **kwargs)
         self.authorizations = dict()
 
-    @property
-    def current_nonce(self) -> int:
-        # TODO: Move to clients
-        w3 = self.multisig_agent.blockchain.client.w3
-        nonce = w3.eth.getTransactionCount(self.checksum_address)
-        return nonce
+    def add_authorization(self, authorization):
+        self.authorizations[authorization.trustee_address] = authorization
 
     def combine_authorizations(self) -> Tuple[List[bytes], ...]:
         if not self.authorizations:
             raise self.NoAuthorizations
+
         all_v, all_r, all_s = list(), list(), list()
-        for authorization in self.authorizations.items():
+        # Authorizations (i.e., signatures) must be provided in increasing order by signing address
+        for trustee_address, authorization in sorted(self.authorizations.items()):
             v, r, s = authorization.get_components()
             all_v.append(v)
             all_r.append(r)

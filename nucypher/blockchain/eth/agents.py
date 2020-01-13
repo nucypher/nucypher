@@ -1128,13 +1128,19 @@ class MultiSigAgent(EthereumContractAgent):
 
     Vector = List[str]
 
+    @property
+    def nonce(self) -> int:
+        nonce = self.contract.functions.nonce().call()
+        return nonce
+
     def get_owners(self) -> Tuple[str]:
         result = self.contract.functions.owners().call()
         return tuple(result)
 
-    def get_threshold(self) -> int:
-        result = self.contract.functions.required().call()
-        return result
+    @property
+    def threshold(self) -> int:
+        threshold = self.contract.functions.required().call()
+        return threshold
 
     @validate_checksum_address
     def is_owner(self, checksum_address: str) -> bool:
@@ -1158,7 +1164,7 @@ class MultiSigAgent(EthereumContractAgent):
                                       trustee_address: str,
                                       target_address: str,
                                       value: int,
-                                      data: dict,
+                                      data: bytes,
                                       nonce: int
                                       ) -> bytes:
         transaction_hash = self.contract.functions.getUnsignedTransactionHash(
