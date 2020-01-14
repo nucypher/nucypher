@@ -61,9 +61,3 @@ contract StakingEscrowForWorkLockMock {
     }
 
 }
-
-
-/**
-* @notice Contract for using in WorkLock tests
-**/
-contract StakingInterfaceMock {}
