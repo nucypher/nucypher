@@ -36,7 +36,7 @@ from nucypher.blockchain.eth.agents import (
     MultiSigAgent,
     ContractAgency
 )
-from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME
+from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, STAKING_INTERFACE_ROUTER_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_secret, validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -381,10 +381,6 @@ class UpgradeableContractMixin:
         if not self._upgradeable:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
 
-        existing_bare_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                      contract_name=self.contract_name,
-                                                                      proxy_name=self._proxy_deployer.contract_name,
-                                                                      use_proxy_address=False)
         proxy_deployer = self.get_proxy_deployer(registry=self.registry, provider_uri=self.blockchain.provider_uri)
         rollback_receipt = proxy_deployer.rollback(existing_secret_plaintext=existing_secret_plaintext,
                                                    new_secret_hash=new_secret_hash,
@@ -435,41 +431,36 @@ class NucypherTokenDeployer(BaseContractDeployer):
         return {self.deployment_steps[0]: deployment_receipt}
 
 
-class DispatcherDeployer(BaseContractDeployer, OwnableContractMixin):
-    """
-    Ethereum smart contract that acts as a proxy to another ethereum contract,
-    used as a means of "dispatching" the correct version of the contract to the client
-    """
+class ProxyContractDeployer(BaseContractDeployer):
 
-    contract_name = DISPATCHER_CONTRACT_NAME
-    deployment_steps = ('contract_deployment', )
+    contract_name = NotImplemented
+    deployment_steps = ('contract_deployment',)
     _upgradeable = False
     _secret_length = 32
 
     def __init__(self, target_contract: Contract, bare: bool = False, *args, **kwargs):
-        super().__init__(*args, **kwargs)
         self.target_contract = target_contract
+        super().__init__(*args, **kwargs)
         if bare:
-            self._contract = self.blockchain.get_proxy_contract(target_address=self.target_contract.address,
-                                                                proxy_name=self.contract_name,
-                                                                registry=self.registry)
+            self._contract = self.blockchain.get_proxy_contract(registry=self.registry,
+                                                                target_address=self.target_contract.address,
+                                                                proxy_name=self.contract_name)
 
     def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None, confirmations: int = 0,) -> dict:
-        args = (self.deployer_address,
-                self.registry,
-                self.contract_name,
-                self.target_contract.address,
-                bytes(secret_hash))   # Tux's favorite.
-
-        dispatcher_contract, receipt = self.blockchain.deploy_contract(gas_limit=gas_limit,
-                                                                       confirmations=confirmations,
-                                                                       *args)
+        constructor_args = (self.target_contract.address, bytes(secret_hash))
+        proxy_contract, receipt = self.blockchain.deploy_contract(self.deployer_address,
+                                                                  self.registry,
+                                                                  self.contract_name,
+                                                                  *constructor_args,
+                                                                  gas_limit=gas_limit,
+                                                                  confirmations=confirmations)
         if progress:
             progress.update(1)
 
-        self._contract = dispatcher_contract
-        self.deployment_receipts.update({'deployment': receipt})
-        return {self.deployment_steps[0]: receipt}
+        self._contract = proxy_contract
+        receipts = {self.deployment_steps[0]: receipt}
+        self.deployment_receipts.update(receipts)
+        return receipts
 
     def _validate_retarget(self, new_target: str):
         if new_target == self.target_contract.address:
@@ -514,6 +505,15 @@ class DispatcherDeployer(BaseContractDeployer, OwnableContractMixin):
                                                             sender_address=self.deployer_address,
                                                             payload=origin_args)
         return rollback_receipt
+
+
+class DispatcherDeployer(OwnableContractMixin, ProxyContractDeployer):
+    """
+    Ethereum smart contract that acts as a proxy to another ethereum contract,
+    used as a means of "dispatching" the correct version of the contract to the client
+    """
+
+    contract_name = DISPATCHER_CONTRACT_NAME
 
 
 class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):
@@ -765,50 +765,13 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         return deployment_receipts
 
 
-class StakingInterfaceRouterDeployer(BaseContractDeployer, OwnableContractMixin):
+class StakingInterfaceRouterDeployer(OwnableContractMixin, ProxyContractDeployer):
 
     contract_name = 'StakingInterfaceRouter'
-    deployment_steps = ('contract_deployment', )
 
-    def __init__(self, target_contract: Contract, bare: bool = False, *args, **kwargs):
-        self.target_contract = target_contract
-        super().__init__(*args, **kwargs)
-        if bare:
-            self._contract = self.blockchain.get_proxy_contract(registry=self.registry,
-                                                                target_address=self.target_contract.address,
-                                                                proxy_name=self.contract_name)
-
-    def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None) -> dict:
-        router_args = (self.target_contract.address, secret_hash)
-        router_contract, receipt = self.blockchain.deploy_contract(self.deployer_address,
-                                                                   self.registry,
-                                                                   self.contract_name,
-                                                                   *router_args,
-                                                                   gas_limit=gas_limit)
-        if progress:
-            progress.update(1)
-
-        self._contract = router_contract
-        return {self.deployment_steps[0]: receipt}
-
-    @validate_secret
-    def retarget(self, new_target: str, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
-        if new_target == self.target_contract.address:
-            raise self.ContractDeploymentError(f"{new_target} is already targeted by {self.contract_name}: {self._contract.address}")
-        if new_target == self._contract.address:
-            raise self.ContractDeploymentError(f"{self.contract_name} {self._contract.address} cannot target itself.")
-
-        origin_args = {}  # TODO: Gas management - #842
-        if gas_limit:
-            origin_args.update({'gas': gas_limit})
-        retarget_function = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash)
-        retarget_receipt = self.blockchain.send_transaction(contract_function=retarget_function,
-                                                            sender_address=self.deployer_address,
-                                                            payload=origin_args)
-        return retarget_receipt
-
-    # TODO: Missing build_retarget_transaction() method for upgrades via multisig. Extract common logic between this deployer and DispactherDeployer.
-
+    # Overwrites rollback method from ProxyContractDeployer since StakingInterfaceRouter doesn't support rollback
+    def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None) -> dict:
+        raise NotImplementedError
 
 
 class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
