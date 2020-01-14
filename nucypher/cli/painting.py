@@ -327,7 +327,36 @@ Registry  ................ {registry.filepath}
         message = f"\nStakingInterface is not enrolled in {registry.filepath}"
         emitter.echo(message, color='yellow')
 
-    return
+
+def paint_multisig_contract_info(emitter, multisig_agent, token_agent):
+
+    sep = '-' * 45
+    emitter.echo(sep)
+
+    blockchain = multisig_agent.blockchain
+    registry = multisig_agent.registry
+
+    contract_payload = f"""
+
+* Web3 Provider
+====================================================================
+
+Provider URI ............. {blockchain.provider_uri}
+Registry  ................ {registry.filepath}
+
+* MultiSig Contract Information
+=====================================================================
+
+{multisig_agent.contract_name} ................. {multisig_agent.contract_address}
+    ~ Ethers ............. {Web3.fromWei(blockchain.client.get_balance(multisig_agent.contract_address), 'ether')} ETH
+    ~ Tokens ............. {NU.from_nunits(token_agent.get_balance(multisig_agent.contract_address))}"""
+    emitter.echo(contract_payload)
+
+    emitter.echo(f"Nonce .................... {multisig_agent.nonce}")
+    emitter.echo(f"Threshold: ............... {multisig_agent.threshold}")
+    emitter.echo(f"Owners:")
+    for i, owner in enumerate(multisig_agent.owners):
+        emitter.echo(f"[{i}] {owner}")
 
 
 def paint_staged_stake(emitter,

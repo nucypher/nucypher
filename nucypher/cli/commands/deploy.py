@@ -21,7 +21,7 @@ import os
 import click
 
 from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency, MultiSigAgent
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
@@ -48,11 +48,14 @@ from nucypher.cli.options import (
 )
 from nucypher.cli.config import group_general_config
 from nucypher.cli.painting import (
+    echo_solidity_version,
     paint_staged_deployment,
     paint_deployment_delay,
     paint_contract_deployment,
     paint_deployer_contract_inspection,
-    paint_receipt_summary, echo_solidity_version)
+    paint_receipt_summary,
+    paint_multisig_contract_info
+)
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
@@ -488,6 +491,36 @@ def transfer_tokens(general_config, actor_options, target_address, value):
     click.confirm(f"Transfer {value} from {deployer_address} to {target_address}?", abort=True)
     receipt = token_agent.transfer(amount=int(value), sender_address=deployer_address, target_address=target_address)
     paint_receipt_summary(emitter=emitter, receipt=receipt)
+
+
+@deploy.command(name='multisig')
+@group_general_config
+@group_actor_options
+@click.argument('action', type=click.Choice(['inspect', 'sign', 'execute']))  # TODO: Is this wanting to be a separate command?
+def multisig(general_config, actor_options, action):
+    """
+    Perform operations via a MultiSig contract
+    """
+    # Init
+    emitter = general_config.emitter
+    _ensure_config_root(actor_options.config_root)
+    deployer_interface = _initialize_blockchain(actor_options.poa, actor_options.provider_uri, emitter)
+    local_registry = establish_deployer_registry(emitter=emitter,
+                                                 use_existing_registry=True,
+                                                 )
+
+    # Warnings
+    # _pre_launch_warnings(emitter, etherscan, hw_wallet)
+
+    multisig_agent = MultiSigAgent(registry=local_registry)
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=local_registry)
+
+    if action == 'inspect':
+        paint_multisig_contract_info(emitter, multisig_agent, token_agent)
+    elif action == 'sign':
+        pass  # TODO
+    elif action == 'execute':
+        pass  # TODO
 
 
 @deploy.command("transfer-ownership")
