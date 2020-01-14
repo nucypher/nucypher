@@ -61,7 +61,7 @@ contract WorkLock {
     * @param _startBidDate Timestamp when bidding starts
     * @param _endBidDate Timestamp when bidding will end
     * @param _boostingRefund Coefficient to boost refund ETH
-    * @param _stakingPeriods Amount of periods during which tokens will be locked while claiming
+    * @param _stakingPeriods Amount of periods during which tokens will be locked after claiming
     */
     constructor(
         NuCypherToken _token,
