@@ -22,7 +22,7 @@ from web3 import Web3
 from nucypher.blockchain.eth.agents import ContractAgency, WorkLockAgent
 from nucypher.characters.banners import WORKLOCK_BANNER
 from nucypher.cli.actions import select_client_account
-from nucypher.cli.common_options import option_force, group_options
+from nucypher.cli.common_options import option_force, group_options, option_checksum_address
 from nucypher.cli.config import group_general_config
 from nucypher.cli.painting import (
     paint_receipt_summary,
@@ -34,8 +34,13 @@ from nucypher.cli.painting import (
 from nucypher.cli.status import group_registry_options
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 
-option_bidder_address = click.option('--bidder-address', help="Bidder's checksum address.", type=EIP55_CHECKSUM_ADDRESS)
-option_allocation_address = click.option('--allocation-address', help="Worklock allocation contract address", type=EIP55_CHECKSUM_ADDRESS)
+option_bidder_address = click.option('--bidder-address',
+                                     help="Bidder's checksum address.",
+                                     type=EIP55_CHECKSUM_ADDRESS)
+
+option_allocation_address = click.option('--allocation-address',
+                                         help="Worklock allocation contract address",
+                                         type=EIP55_CHECKSUM_ADDRESS)
 
 
 def _setup_emitter(general_config):
@@ -95,21 +100,38 @@ def status(general_config, registry_options, worklock_options):
 @click.option('--value', help="Eth value of bid", type=click.INT)
 def bid(general_config, worklock_options, registry_options, force, value):
     emitter = _setup_emitter(general_config)
-
     if not value:
         value = int(Web3.fromWei(click.prompt("Enter bid amount in ETH", type=click.FloatRange(min=0)), 'wei'))
         if force:
             raise click.MissingParameter("Missing --value.")
-
+    if not worklock_options.bidder_address:
+        worklock_options.bidder_address = select_client_account(emitter=emitter,
+                                                                provider_uri=general_config.provider_uri)
     registry = registry_options.get_registry(emitter, general_config.debug)
     worklock_agent = worklock_options.create_agent(registry=registry)
 
     if not force:
         paint_worklock_participant_notice(emitter=emitter, bidder_address=worklock_options.bidder_address, registry=registry)
         click.confirm(f"Place WorkLock bid of {Web3.fromWei(value, 'ether')} ETH?", abort=True)
+
     receipt = worklock_agent.bid(bidder_address=worklock_options.bidder_address, value=value)
     emitter.message("Publishing WorkLock Bid...")
+    paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=worklock_agent.blockchain.client.chain_name)
+    return  # Exit
 
+
+@worklock.command(name='cancel-bid')
+@group_registry_options
+@group_worklock_options
+@group_general_config
+def burn_unclaimed_tokens(general_config, registry_options, worklock_options):
+    emitter = _setup_emitter(general_config)
+    if not worklock_options.bidder_address:
+        worklock_options.bidder_address = select_client_account(emitter=emitter,
+                                                                provider_uri=general_config.provider_uri)
+    registry = registry_options.get_registry(emitter, general_config.debug)
+    worklock_agent = worklock_options.create_agent(registry=registry)
+    receipt = worklock_agent.cancel_bid(bidder_address=worklock_options.bidder_address)
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=worklock_agent.blockchain.client.chain_name)
     return  # Exit
 
@@ -121,6 +143,9 @@ def bid(general_config, worklock_options, registry_options, force, value):
 @group_general_config
 def claim(general_config, worklock_options, registry_options, force):
     emitter = _setup_emitter(general_config)
+    if not worklock_options.bidder_address:
+        worklock_options.bidder_address = select_client_account(emitter=emitter,
+                                                                provider_uri=general_config.provider_uri)
     if not force:
         emitter.message("Note: Claiming WorkLock NU tokens will initialize a new stake.", color='blue')
         click.confirm(f"Continue worklock claim for bidder {worklock_options.bidder_address}?", abort=True)
@@ -140,6 +165,9 @@ def claim(general_config, worklock_options, registry_options, force):
 @group_general_config
 def remaining_work(general_config, worklock_options, registry_options):
     emitter = _setup_emitter(general_config)
+    if not worklock_options.bidder_address:
+        worklock_options.bidder_address = select_client_account(emitter=emitter,
+                                                                provider_uri=general_config.provider_uri)
     registry = registry_options.get_registry(emitter, general_config.debug)
     worklock_agent = worklock_options.create_agent(registry=registry)
     _remaining_work = worklock_agent.get_remaining_work(bidder_address=worklock_options.bidder_address)
@@ -154,6 +182,9 @@ def remaining_work(general_config, worklock_options, registry_options):
 @group_general_config
 def refund(general_config, worklock_options, registry_options, force):
     emitter = _setup_emitter(general_config)
+    if not worklock_options.bidder_address:
+        worklock_options.bidder_address = select_client_account(emitter=emitter,
+                                                                provider_uri=general_config.provider_uri)
     if not force:
         click.confirm(f"Collect ETH refund for bidder {worklock_options.bidder_address}?", abort=True)
     emitter.message("Submitting WorkLock refund request...")
@@ -168,7 +199,7 @@ def refund(general_config, worklock_options, registry_options, force):
 @group_registry_options
 @group_worklock_options
 @group_general_config
-@click.option('--checksum-address', help="Bidder's checksum address.", type=EIP55_CHECKSUM_ADDRESS)
+@option_checksum_address
 def burn_unclaimed_tokens(general_config, registry_options, worklock_options, checksum_address):
     emitter = _setup_emitter(general_config)
     registry = registry_options.get_registry(emitter, general_config.debug)

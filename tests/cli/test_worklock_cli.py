@@ -58,28 +58,44 @@ def test_bid(click_runner, testerchain, test_registry, agency, token_economics):
     # Wait until biding window starts
     testerchain.time_travel(seconds=90)
 
-    bidder = testerchain.unassigned_accounts[-1]
     bid_value = to_wei(4, 'ether')
+    base_command = ('bid',
+                    '--value', bid_value,
+                    '--registry-filepath', registry_filepath,
+                    '--provider', TEST_PROVIDER_URI,
+                    '--poa',
+                    '--debug',
+                    '--force')
 
-    command = ('bid',
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    total_bids = 0
+    # Multiple bidders
+    for bidder in testerchain.unassigned_accounts[:3]:
+        pre_bid_balance = testerchain.client.get_balance(bidder)
+
+        command = (*base_command, '--bidder-address', bidder)
+        result = click_runner.invoke(worklock, command, catch_exceptions=False)
+        assert result.exit_code == 0
+
+        post_bid_balance = testerchain.client.get_balance(bidder)
+        difference = pre_bid_balance - post_bid_balance
+        assert difference >= bid_value
+
+        total_bids += bid_value
+        assert testerchain.client.get_balance(worklock_agent.contract_address) == total_bids
+
+
+def test_cancel_bid(click_runner, testerchain, test_registry, agency, token_economics):
+    bidder = testerchain.unassigned_accounts[0]
+    command = ('cancel-bid',
                '--bidder-address', bidder,
-               '--value', bid_value,
                '--registry-filepath', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
                '--poa',
-               '--debug',
-               '--force')
+               '--debug')
 
-    pre_bid_balance = testerchain.client.get_balance(bidder)
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
-
-    post_bid_balance = testerchain.client.get_balance(bidder)
-    difference = pre_bid_balance - post_bid_balance
-    assert difference >= bid_value
-
-    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    assert testerchain.client.get_balance(worklock_agent.contract_address) == bid_value
 
 
 def test_claim(click_runner, testerchain, agency, token_economics):
@@ -87,7 +103,7 @@ def test_claim(click_runner, testerchain, agency, token_economics):
     # Wait until the end of the bidding period
     testerchain.time_travel(token_economics.bidding_duration+2)
 
-    bidder = testerchain.unassigned_accounts[-1]
+    bidder = testerchain.unassigned_accounts[1]
     command = ('claim',
                '--bidder-address', bidder,
                '--registry-filepath', registry_filepath,
@@ -100,7 +116,7 @@ def test_claim(click_runner, testerchain, agency, token_economics):
 
 
 def test_remaining_work(click_runner, testerchain, test_registry, agency, token_economics):
-    bidder = testerchain.unassigned_accounts[-1]
+    bidder = testerchain.unassigned_accounts[1]
 
     # Ensure there is remaining work one layer below
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
@@ -124,8 +140,8 @@ def test_remaining_work(click_runner, testerchain, test_registry, agency, token_
 
 def test_refund(click_runner, testerchain, agency, test_registry, token_economics):
 
-    bidder = testerchain.unassigned_accounts[-1]
-    worker_address = testerchain.unassigned_accounts[-2]
+    bidder = testerchain.unassigned_accounts[1]
+    worker_address = testerchain.unassigned_accounts[-1]
 
     #
     # WorkLock Staker-Worker
@@ -135,8 +151,6 @@ def test_refund(click_runner, testerchain, agency, test_registry, token_economic
     allocation_address = worklock_agent.get_allocation_from_bidder(bidder_address=bidder)
     individual_allocation = IndividualAllocationRegistry(beneficiary_address=bidder,
                                                          contract_address=allocation_address)
-
-    # TODO: No stake initialization is needed, since claiming worklock tokens.
 
     staker = Staker(is_me=True,
                     registry=test_registry,
@@ -152,7 +166,7 @@ def test_refund(click_runner, testerchain, agency, test_registry, token_economic
 
     worker = Ursula(is_me=True,
                     registry=test_registry,
-                    checksum_address=allocation_address,  # TODO: Is this correct?
+                    checksum_address=allocation_address,
                     worker_address=worker_address,
                     rest_host=MOCK_IP_ADDRESS,
                     rest_port=select_test_port())
@@ -162,7 +176,7 @@ def test_refund(click_runner, testerchain, agency, test_registry, token_economic
     assert remaining_work > 0
 
     # Do some work
-    for i in range(10):
+    for i in range(3):
         receipt = worker.confirm_activity()
         assert receipt['status'] == 1
         testerchain.time_travel(periods=1)
@@ -183,8 +197,8 @@ def test_refund(click_runner, testerchain, agency, test_registry, token_economic
     assert worklock_agent.available_refund(bidder_address=bidder) < refund
 
 
-def test_participant_status(click_runner, testerchain, test_registry, agency):
-    bidder = testerchain.unassigned_accounts[-1]
+def test_participant_status(click_runner, testerchain, test_registry, agency, token_economics):
+    bidder = testerchain.unassigned_accounts[1]
 
     command = ('status',
                '--registry-filepath', registry_filepath,
@@ -195,3 +209,37 @@ def test_participant_status(click_runner, testerchain, test_registry, agency):
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
+
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+
+    # Bidder-specific data is displayed
+    assert bidder in result.output
+    assert str(worklock_agent.get_remaining_work(bidder_address=bidder)) in result.output
+    assert str(worklock_agent.available_refund(bidder_address=bidder)) in result.output
+
+    # Worklock economics are displayed
+    assert str(token_economics.worklock_boosting_refund_rate) in result.output
+    assert str(token_economics.worklock_supply) in result.output
+
+
+@pytest.mark.skip(reason='To Be Implemented')
+def test_burn_unclaimed_tokens(click_runner, testerchain, test_registry, agency):
+    # Wait until biding window starts
+    testerchain.time_travel(periods=10)
+
+    philanthropist = testerchain.unassigned_accounts[4]
+    command = ('burn-unclaimed-tokens',
+               '--registry-filepath', registry_filepath,
+               '--checksum-address', philanthropist,
+               '--provider', TEST_PROVIDER_URI,
+               '--poa',
+               '--debug')
+
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+
+    # There are unclaimed tokens
+    assert worklock_agent.get_unclaimed_tokens() > 0
+    result = click_runner.invoke(worklock, command, catch_exceptions=False)
+    assert result.exit_code == 0
+    # No more unclaimed tokens
+    assert worklock_agent.get_unclaimed_tokens() == 0

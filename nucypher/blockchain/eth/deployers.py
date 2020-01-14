@@ -225,6 +225,10 @@ class OwnableContractMixin:
 
             receipts['proxy'] = proxy_receipt
 
+        else:
+            existing_bare_contract = self.blockchain.get_contract_by_name(contract_name=self.contract_name,
+                                                                          registry=self.registry)
+
         #
         # Upgrade Principal
         #
@@ -1072,9 +1076,7 @@ class WorklockDeployer(BaseContractDeployer):
     agency = WorkLockAgent
     contract_name = agency.registry_contract_name
     deployment_steps = ('contract_deployment', 'bond_escrow', 'fund_worklock')
-
     _upgradeable = False
-    __proxy_deployer = NotImplemented
 
     def __init__(self, *args, **kwargs):
 
@@ -1084,11 +1086,7 @@ class WorklockDeployer(BaseContractDeployer):
         self.interface_agent = ContractAgency.get_agent(PreallocationEscrowAgent.StakingInterfaceAgent,
                                                         registry=self.registry)
 
-    def deploy(self,
-               gas_limit: int = None,
-               progress: int = None,
-               fund_now: bool = True) -> Dict[str, dict]:
-        self.check_deployment_readiness()
+    def _deploy_essential(self, gas_limit: int = None, **overrides):
 
         interface_router = self.blockchain.get_proxy_contract(registry=self.registry,
                                                               target_address=self.interface_agent.contract_address,
@@ -1099,28 +1097,37 @@ class WorklockDeployer(BaseContractDeployer):
                             interface_router.address,
                             *self.economics.worklock_deployment_parameters)
 
-        worklock_contract, deploy_txhash = self.blockchain.deploy_contract(self.deployer_address,
-                                                                           self.registry,
-                                                                           self.contract_name,
-                                                                           *constructor_args,
-                                                                           gas_limit=gas_limit)
+        worklock_contract, receipt = self.blockchain.deploy_contract(self.deployer_address,
+                                                                     self.registry,
+                                                                     self.contract_name,
+                                                                     *constructor_args,
+                                                                     gas_limit=gas_limit)
 
         self._contract = worklock_contract
+        return worklock_contract, receipt
+
+    def deploy(self, gas_limit: int = None, progress: int = None) -> Dict[str, dict]:
+        self.check_deployment_readiness()
+
+        # Essential
+        worklock_contract, deployment_receipt = self._deploy_essential(gas_limit=gas_limit)
         if progress:
             progress.update(1)
 
+        # Bonding
         bonding_function = self.staking_agent.contract.functions.setWorkLock(worklock_contract.address)
         bonding_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
                                                            contract_function=bonding_function)
         if progress:
             progress.update(1)
 
+        # Funding
         funding_receipt = self.fund(sender_address=self.deployer_address)
         if progress:
             progress.update(1)
 
         # Gather the transaction hashes
-        self.deployment_transactions = {'contract_deployment': deploy_txhash,
+        self.deployment_transactions = {'contract_deployment': deployment_receipt,
                                         'bond_escrow': bonding_receipt,
                                         'fund_worklock': funding_receipt}
         return self.deployment_transactions
@@ -1130,7 +1137,6 @@ class WorklockDeployer(BaseContractDeployer):
         Convenience method for funding the contract and establishing the
         total worklock lot value to be auctioned.
         """
-
         supply = self.economics.worklock_supply.to_nunits()
 
         token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
@@ -1150,9 +1156,7 @@ class SeederDeployer(BaseContractDeployer, OwnableContractMixin):
     agency = SeederAgent
     contract_name = agency.registry_contract_name
     deployment_steps = ('contract_deployment', )
-
     _upgradeable = False
-    __proxy_deployer = NotImplemented
 
     MAX_SEEDS = 10 # TODO: Move to economics?
 

@@ -153,8 +153,10 @@ class ContractAdministrator(NucypherTokenActor):
     __interface_class = BlockchainDeployerInterface
 
     #
-    # Deployer classes sorted by deployment dependency order.
+    # Deployer Registry
     #
+
+    # Note: Deployer classes are sorted by deployment dependency order.
 
     standard_deployer_classes = (
         NucypherTokenDeployer,
@@ -176,10 +178,16 @@ class ContractAdministrator(NucypherTokenActor):
         SeederDeployer
     )
 
-    # Used in the automated series, typically.
+    # For ownership relinquishment series.
+    ownable_deployer_classes = (*dispatched_upgradeable_deployer_classes,
+                                # SeederDeployer
+                                )
+
+    # Used in the automated deployment series.
     primary_deployer_classes = (*standard_deployer_classes,
                                 *upgradeable_deployer_classes)
 
+    # Comprehensive collection.
     all_deployer_classes = (*primary_deployer_classes,
                             *aux_deployer_classes)
 
@@ -1104,7 +1112,7 @@ class Worker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def confirm_activity(self) -> str:
+    def confirm_activity(self) -> dict:
         """For each period that the worker confirms activity, the staker is rewarded"""
         receipt = self.staking_agent.confirm_activity(worker_address=self.__worker_address)
         return receipt

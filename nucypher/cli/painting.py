@@ -730,15 +730,15 @@ def echo_solidity_version(ctx, param, value):
 
 def paint_worklock_status(emitter, registry: BaseContractRegistry):
     from maya import MayaDT
-    WORKLOCK_AGENT = ContractAgency.get_agent(WorkLockAgent, registry=registry)
-    blockchain = WORKLOCK_AGENT.blockchain
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)
+    blockchain = worklock_agent.blockchain
 
     # Agency
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
 
     # Time
-    start = MayaDT(WORKLOCK_AGENT.contract.functions.startBidDate().call())
-    end = MayaDT(WORKLOCK_AGENT.contract.functions.endBidDate().call())
+    start = MayaDT(worklock_agent.contract.functions.startBidDate().call())
+    end = MayaDT(worklock_agent.contract.functions.endBidDate().call())
     duration = end - start
     remaining = end - maya.now()
 
@@ -755,13 +755,14 @@ Time Remaining .... {remaining}
 
 Economics
 ======================================================            
-Boosting Refund .... {WORKLOCK_AGENT.contract.functions.boostingRefund().call()}
-Slowing Refund .... {WORKLOCK_AGENT.contract.functions.SLOWING_REFUND().call()}
-Refund Rate ....... {WORKLOCK_AGENT.get_refund_rate()}
-Deposit Rate ...... {WORKLOCK_AGENT.get_deposit_rate()}
+ETH Pool .......... {blockchain.client.get_balance(worklock_agent.contract_address)}
+Lot Size .......... {NU.from_nunits(worklock_agent.lot_value)} 
+Unclaimed Tokens .. {worklock_agent.get_unclaimed_tokens()}
 
-Total Bids ......... {blockchain.client.get_balance(WORKLOCK_AGENT.contract_address)}
-Unclaimed Tokens ... {WORKLOCK_AGENT.get_unclaimed_tokens()}
+Boosting Refund ... {worklock_agent.contract.functions.boostingRefund().call()}
+Slowing Refund .... {worklock_agent.contract.functions.SLOWING_REFUND().call()}
+Refund Rate ....... {worklock_agent.get_refund_rate()}
+Deposit Rate ...... {worklock_agent.get_deposit_rate()}
     """
     emitter.message(payload)
     return
@@ -773,9 +774,10 @@ def paint_worklock_participant_status(emitter, registry, bidder_address):
     message = f"""
 Allocations
 =====================================================
-Allocation ........... {WORKLOCK_AGENT.get_allocation_from_bidder(bidder_address)}
+Bidder ............... {bidder_address}
+Allocation Contract... {WORKLOCK_AGENT.get_allocation_from_bidder(bidder_address)}
 Available Refund ..... {WORKLOCK_AGENT.available_refund(bidder_address=bidder_address)}
-
+Remaining Work ....... {WORKLOCK_AGENT.get_remaining_work(bidder_address=bidder_address)}
 """
     emitter.message(message)
     return
