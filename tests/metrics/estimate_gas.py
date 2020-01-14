@@ -31,7 +31,7 @@ from unittest.mock import Mock
 from twisted.logger import globalLogPublisher, Logger, jsonFileLogObserver, ILogObserver
 from zope.interface import provider
 
-from nucypher.blockchain.economics import StandardStandardTokenEconomics
+from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent, AdjudicatorAgent
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.policy.policies import Policy

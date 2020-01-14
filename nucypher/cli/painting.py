@@ -817,11 +817,20 @@ Accept worklock terms and node operator obligation?"""
 
 
 def paint_worklock_claim(emitter, bidder_address: str, allocation_address: str):
-    message = f"""Successfully claimed WorkLock tokens for {bidder_address}.
+    message = f"""
 
-***Worklock Allocation Contract {allocation_address}***
+Successfully claimed WorkLock tokens for {bidder_address}.
+***New Allocation Contract Deployed at {allocation_address}***
 
-To create a new stakeholder run 'nucypher stake init-stakeholder' --provider <URI>
-To bond a worker run 'nucypher stake set-worker' --worker-address <ADDRESS>
+Next Steps for Worklock Winners
+===============================
+
+See the nucypher official documentation for a comprehensive guide!
+
+Create a stake with your allocation contract: 
+'nucypher stake create --provider <URI> --staking-address {allocation_address} --beneficiary-address {bidder_address}'
+
+Bond a worker to your stake: 'nucypher stake set-worker --worker-address <WORKER ADDRESS>'
+
 """
     emitter.message(message, color='green')
