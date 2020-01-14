@@ -33,7 +33,7 @@ from nucypher.cli.actions import (
     confirm_enable_restaking,
     confirm_enable_winding_down
 )
-from nucypher.cli.common_options import (
+from nucypher.cli.options import (
     group_options,
     option_config_file,
     option_config_root,
@@ -555,12 +555,13 @@ def divide(general_config, transacting_staker_options, config_file, force, value
     """
     Create a new stake from part of an existing one.
     """
-    emitter = _setup_emitter(general_config)
 
+    # Setup
+    emitter = _setup_emitter(general_config)
     STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
     blockchain = transacting_staker_options.get_blockchain()
-
     economics = STAKEHOLDER.economics
+    action_period = STAKEHOLDER.staking_agent.get_current_period()
 
     client_account, staking_address = handle_client_account_for_staking(
         emitter=emitter,
@@ -594,8 +595,6 @@ def divide(general_config, transacting_staker_options, config_file, force, value
         value = click.prompt(f"Enter target value ({min_allowed_locked} - {str(max_divide_value)})",
                              type=stake_value_range)
     value = NU(value, 'NU')
-
-    action_period = STAKEHOLDER.staking_agent.get_current_period()
 
     # Duration
     if not lock_periods:

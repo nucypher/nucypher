@@ -1,4 +1,3 @@
-import functools
 import os
 
 import click
@@ -7,7 +6,8 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from nucypher.characters.banners import FELIX_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import get_nucypher_password, unlock_nucypher_keyring
-from nucypher.cli.common_options import (
+from nucypher.cli.config import group_general_config
+from nucypher.cli.options import (
     group_options,
     option_checksum_address,
     option_config_file,
@@ -25,15 +25,12 @@ from nucypher.cli.common_options import (
     option_provider_uri,
     option_registry_filepath,
     option_teacher_uri,
-    )
-from nucypher.cli.config import group_general_config
-from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
+)
+from nucypher.cli.types import NETWORK_PORT
 from nucypher.config.characters import FelixConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
-
-option_port = click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT,
-                  default=FelixConfiguration.DEFAULT_REST_PORT)
+option_port = click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_REST_PORT)
 
 
 class FelixConfigOptions:

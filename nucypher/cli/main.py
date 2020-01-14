@@ -19,8 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 
-from nucypher.cli import status
-from nucypher.cli.characters import ursula, alice, bob, enrico, felix, stake
+from nucypher.cli.commands import ursula, alice, bob, enrico, felix, stake, status
 from nucypher.cli.painting import echo_version
 
 

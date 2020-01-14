@@ -1,4 +1,3 @@
-import functools
 import json
 
 import click
@@ -6,7 +5,8 @@ import click
 from nucypher.characters.banners import BOB_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import get_nucypher_password, select_client_account
-from nucypher.cli.common_options import (
+from nucypher.cli.config import group_general_config
+from nucypher.cli.options import (
     group_options,
     option_checksum_address,
     option_config_file,
@@ -26,11 +26,8 @@ from nucypher.cli.common_options import (
     option_provider_uri,
     option_registry_filepath,
     option_teacher_uri,
-    )
-from nucypher.cli.config import group_general_config
-from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
+)
 from nucypher.config.characters import BobConfiguration
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 

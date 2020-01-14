@@ -6,7 +6,8 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.cli import actions, painting, types
 from nucypher.cli.actions import get_nucypher_password, select_client_account, get_client_password
-from nucypher.cli.common_options import (
+from nucypher.cli.config import group_general_config
+from nucypher.cli.options import (
     group_options,
     option_config_file,
     option_config_root,
@@ -30,19 +31,20 @@ from nucypher.cli.common_options import (
     option_provider_uri,
     option_registry_filepath,
     option_teacher_uri,
-    )
-from nucypher.cli.config import group_general_config
-from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
+)
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
-
 option_bob_verifying_key = click.option(
-    '--bob-verifying-key', help="Bob's verifying key as a hexadecimal string", type=click.STRING,
-    required=True)
-option_pay_with = click.option(
-    '--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
+    '--bob-verifying-key',
+    help="Bob's verifying key as a hexadecimal string",
+    type=click.STRING,
+    required=True
+)
+
+option_pay_with = click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 
 
 class AliceConfigOptions:

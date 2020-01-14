@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-import functools
 import json
 
 import click
@@ -31,7 +30,8 @@ from nucypher.cli.actions import (
     select_client_account,
     get_client_password
 )
-from nucypher.cli.common_options import (
+from nucypher.cli.config import group_general_config
+from nucypher.cli.options import (
     group_options,
     option_config_file,
     option_config_root,
@@ -48,13 +48,11 @@ from nucypher.cli.common_options import (
     option_provider_uri,
     option_registry_filepath,
     option_teacher_uri,
-    )
-from nucypher.cli.config import group_general_config
+)
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
-    NETWORK_PORT,
-    EXISTING_READABLE_FILE
+    NETWORK_PORT
 )
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.keyring import NucypherKeyring
