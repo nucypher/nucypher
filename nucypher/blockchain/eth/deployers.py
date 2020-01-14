@@ -1094,7 +1094,6 @@ class WorklockDeployer(BaseContractDeployer):
         # Deploy
         constructor_args = (self.token_agent.contract_address,
                             self.staking_agent.contract_address,
-                            interface_router.address,
                             *self.economics.worklock_deployment_parameters)
 
         worklock_contract, receipt = self.blockchain.deploy_contract(self.deployer_address,

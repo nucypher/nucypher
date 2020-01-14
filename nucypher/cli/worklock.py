@@ -38,10 +38,6 @@ option_bidder_address = click.option('--bidder-address',
                                      help="Bidder's checksum address.",
                                      type=EIP55_CHECKSUM_ADDRESS)
 
-option_allocation_address = click.option('--allocation-address',
-                                         help="Worklock allocation contract address",
-                                         type=EIP55_CHECKSUM_ADDRESS)
-
 
 def _setup_emitter(general_config):
     emitter = general_config.emitter
@@ -54,9 +50,8 @@ class WorkLockOptions:
 
     __option_name__ = 'worklock_options'
 
-    def __init__(self, bidder_address, allocation_address):
+    def __init__(self, bidder_address: str):
         self.bidder_address = bidder_address
-        self.allocation_address = allocation_address
 
     def create_agent(self, registry):
         agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)
@@ -65,8 +60,7 @@ class WorkLockOptions:
 
 group_worklock_options = group_options(
     WorkLockOptions,
-    bidder_address=option_bidder_address,
-    allocation_address=option_allocation_address)
+    bidder_address=option_bidder_address)
 
 
 @click.group()
@@ -154,8 +148,7 @@ def claim(general_config, worklock_options, registry_options, force):
     worklock_agent = worklock_options.create_agent(registry=registry)
     receipt = worklock_agent.claim(bidder_address=worklock_options.bidder_address)
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=worklock_agent.blockchain.client.chain_name)
-    allocation_address = worklock_agent.get_allocation_from_bidder(bidder_address=worklock_options.bidder_address)
-    paint_worklock_claim(emitter, bidder_address=worklock_options.bidder_address, allocation_address=allocation_address)
+    paint_worklock_claim(emitter, bidder_address=worklock_options.bidder_address)
     return  # Exit
 
 
@@ -190,7 +183,7 @@ def refund(general_config, worklock_options, registry_options, force):
     emitter.message("Submitting WorkLock refund request...")
     registry = registry_options.get_registry(emitter, general_config.debug)
     worklock_agent = worklock_options.create_agent(registry=registry)
-    receipt = worklock_agent.refund(beneficiary_address=worklock_options.bidder_address)
+    receipt = worklock_agent.refund(bidder_address=worklock_options.bidder_address)
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=worklock_agent.blockchain.client.chain_name)
     return  # Exit
 

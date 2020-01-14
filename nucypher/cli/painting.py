@@ -775,7 +775,6 @@ def paint_worklock_participant_status(emitter, registry, bidder_address):
 Allocations
 =====================================================
 Bidder ............... {bidder_address}
-Allocation Contract... {WORKLOCK_AGENT.get_allocation_from_bidder(bidder_address)}
 Available Refund ..... {WORKLOCK_AGENT.available_refund(bidder_address=bidder_address)}
 Remaining Work ....... {WORKLOCK_AGENT.get_remaining_work(bidder_address=bidder_address)}
 """
@@ -816,11 +815,10 @@ Accept worklock terms and node operator obligation?"""
     return
 
 
-def paint_worklock_claim(emitter, bidder_address: str, allocation_address: str):
+def paint_worklock_claim(emitter, bidder_address: str):
     message = f"""
 
 Successfully claimed WorkLock tokens for {bidder_address}.
-***New Allocation Contract Deployed at {allocation_address}***
 
 Next Steps for Worklock Winners
 ===============================
@@ -828,7 +826,7 @@ Next Steps for Worklock Winners
 See the nucypher official documentation for a comprehensive guide!
 
 Create a stake with your allocation contract: 
-'nucypher stake create --provider <URI> --staking-address {allocation_address} --beneficiary-address {bidder_address}'
+'nucypher stake create --provider <URI> --staking-address {bidder_address}'
 
 Bond a worker to your stake: 'nucypher stake set-worker --worker-address <WORKER ADDRESS>'
 

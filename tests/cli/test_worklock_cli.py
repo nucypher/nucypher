@@ -148,17 +148,12 @@ def test_refund(click_runner, testerchain, agency, test_registry, token_economic
     #
 
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    allocation_address = worklock_agent.get_allocation_from_bidder(bidder_address=bidder)
-    individual_allocation = IndividualAllocationRegistry(beneficiary_address=bidder,
-                                                         contract_address=allocation_address)
 
-    staker = Staker(is_me=True,
-                    registry=test_registry,
-                    individual_allocation=individual_allocation)
+    staker = Staker(is_me=True, checksum_address=bidder, registry=test_registry)
 
     # Create a new stake with the new allocation
-    new_stake = staker.initialize_stake(entire_balance=True, lock_periods=30)
-    assert new_stake
+    # new_stake = staker.initialize_stake(entire_balance=True, lock_periods=30)
+    # assert new_stake
 
     # Bond the worker
     receipt = staker.set_worker(worker_address=worker_address)
@@ -166,7 +161,7 @@ def test_refund(click_runner, testerchain, agency, test_registry, token_economic
 
     worker = Ursula(is_me=True,
                     registry=test_registry,
-                    checksum_address=allocation_address,
+                    checksum_address=bidder,
                     worker_address=worker_address,
                     rest_host=MOCK_IP_ADDRESS,
                     rest_port=select_test_port())

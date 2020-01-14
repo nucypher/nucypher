@@ -59,11 +59,11 @@ def test_cancel_bid(testerchain, agency, token_economics, test_registry):
         _receipt = agent.cancel_bid(bidder)
 
 
-def test_get_remaining_work_before_bidding_ends(testerchain, agency, token_economics, test_registry):
+def test_get_remaining_work(testerchain, agency, token_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     bidder = testerchain.unassigned_accounts[0]
     remaining = agent.get_remaining_work(bidder_address=bidder)
-    assert remaining == 0
+    assert remaining == 35905203136136849607983
 
 
 def test_early_claim(testerchain, agency, token_economics, test_registry):
@@ -87,11 +87,3 @@ def test_successful_claim(testerchain, agency, token_economics, test_registry):
     # Cant claim more than once
     with pytest.raises(TransactionFailed):
         _receipt = agent.claim(bidder_address=bidder)
-
-
-def test_lookup_bidders_and_allocations(testerchain, agency, token_economics, test_registry):
-    bidder = testerchain.unassigned_accounts[0]
-    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    allocation_address = agent.get_allocation_from_bidder(bidder)
-    recovered_bidder = agent.get_bidder_from_allocation(allocation_address)
-    assert recovered_bidder == bidder

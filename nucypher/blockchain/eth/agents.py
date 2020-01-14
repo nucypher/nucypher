@@ -38,7 +38,7 @@ from nucypher.blockchain.eth.constants import (
 )
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry, IndividualAllocationRegistry
+from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
 from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.crypto.api import sha256_digest
 
@@ -613,8 +613,8 @@ class StakingEscrowAgent(EthereumContractAgent):
             result = missing_confirmations
         return result
 
-    def get_completed_work(self, allocation_address: str):
-        total_completed_work = self.contract.functions.getCompletedWork(allocation_address).call()
+    def get_completed_work(self, bidder_address: str):
+        total_completed_work = self.contract.functions.getCompletedWork(bidder_address).call()
         return total_completed_work
 
 
@@ -958,27 +958,55 @@ class WorkLockAgent(EthereumContractAgent):
 
     registry_contract_name = "WorkLock"
 
+    #
+    # Transactions
+    #
+
     def bid(self, value: int, bidder_address: str) -> dict:
-        """
-        Bid for NU tokens with ETH.
-        """
+        """Bid for NU tokens with ETH."""
         contract_function = self.contract.functions.bid()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=bidder_address,
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=bidder_address,
                                                    payload={'value': value})
         return receipt
+
+    def cancel_bid(self, bidder_address: str) -> dict:
+        """Cancel bid and refund deposited ETH."""
+        contract_function = self.contract.functions.cancelBid()
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=bidder_address)
+        return receipt
+
+    def claim(self, bidder_address: str) -> dict:
+        """
+        Claim tokens - will be deposited and locked as stake in the StakingEscrow contract.
+        This function produces a new deployment or PreAllocationEscrow for the claimee.
+        """
+        contract_function = self.contract.functions.claim()
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=bidder_address)
+
+        return receipt
+
+    def burn_unclaimed(self, sender_address: str) -> dict:
+        """
+        Burn unclaimed tokens - Out of the goodness of your heart...
+        of course the caller must pay for the transaction gas.
+        """
+        contract_function = self.contract.functions.burnUnclaimed()
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
+        return receipt
+
+    def refund(self, bidder_address: str) -> dict:
+        """Refund ETH for completed work."""
+        contract_function = self.contract.functions.refund()
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=bidder_address)
+        return receipt
+
+    #
+    # Calls
+    #
 
     def get_bid(self, checksum_address: str) -> int:
         current_bid = self.contract.functions.workInfo(checksum_address).call()[0]
         return current_bid
-
-    def get_allocation_from_bidder(self, bidder_address: str) -> str:
-        allocation_address = self.contract.functions.workInfo(bidder_address).call()[2]
-        return allocation_address
-
-    def get_bidder_from_allocation(self, allocation_address: str) -> str:
-        bidder = self.contract.functions.depositors(allocation_address).call()
-        return bidder
 
     @property
     def lot_value(self) -> int:
@@ -989,82 +1017,17 @@ class WorkLockAgent(EthereumContractAgent):
         supply = self.contract.functions.tokenSupply().call()
         return supply
 
-    def cancel_bid(self, bidder_address: str) -> dict:
-        """
-        Cancel bid and refund deposited ETH.
-        """
-        contract_function = self.contract.functions.cancelBid()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=bidder_address)
-        return receipt
-
-    def _make_allocation_registry(self, bidder_address: str) -> IndividualAllocationRegistry:
-        preallocation_address = self.get_allocation_from_bidder(bidder_address=bidder_address)
-        allocation_registry = IndividualAllocationRegistry(beneficiary_address=bidder_address,
-                                                           contract_address=preallocation_address)
-        return allocation_registry
-
-    def available_refund(self, bidder_address: str = None, allocation_address: str = None) -> int:
-        if not (bool(bidder_address) ^ bool(allocation_address)):
-            raise ValueError(f"Pass bidder address or allocation address, got '{bidder_address}' and '{allocation_address}'.")
-        if bidder_address:
-            allocation_address = self.get_allocation_from_bidder(bidder_address=bidder_address)
-        else:
-            bidder_address = self.get_bidder_from_allocation(allocation_address=allocation_address)
-
+    def available_refund(self, bidder_address: str) -> int:
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
-
-        # Calculate
-        total_completed_work = staking_agent.get_completed_work(allocation_address=allocation_address)
+        total_completed_work = staking_agent.get_completed_work(bidder_address=bidder_address)
         refunded_work = self.contract.functions.workInfo(bidder_address).call()[1]
         completed_work = total_completed_work - refunded_work
         refund_eth = self.contract.functions.workToETH(completed_work).call()
-
         return refund_eth
 
-    def claim(self, bidder_address: str) -> dict:
-        """
-        Claim tokens - will be deposited and locked as stake in the StakingEscrow contract.
-        This function produces a new deployment or PreAllocationEscrow for the claimee.
-        """
-        contract_function = self.contract.functions.claim()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=bidder_address)
-
-        return receipt
-
-    def burn_unclaimed(self, sender_address: str) -> dict:
-        """
-        Burn unclaimed tokens -
-        Out of the goodness of your heart - of course the caller must pay for the gas...
-        """
-        contract_function = self.contract.functions.burnUnclaimed()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=sender_address)
-        return receipt
-
-    def refund(self, beneficiary_address: str, allocation_address: str = None) -> dict:
-        """
-        Refund ETH for completed work to the beneficiary address (must be the owner of the allocation).
-        """
-        if not allocation_address:
-            allocation_address = self.get_allocation_from_bidder(bidder_address=beneficiary_address)
-            if allocation_address == BlockchainInterface.NULL_ADDRESS:
-                raise ValueError(f"Unable to locate allocation for {beneficiary_address}")
-        contract_function = self.contract.functions.refund(allocation_address)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=beneficiary_address)
-        return receipt
-
-    def get_remaining_work(self, bidder_address: str = None, allocation_address: str = None) -> int:
-        """
-        Get remaining work periods until full refund for the target address.
-        """
-        if not (bool(bidder_address) ^ bool(allocation_address)):
-            raise ValueError(f"Pass bidder address or allocation address, got '{bidder_address}' and '{allocation_address}'.")
-        if bidder_address:
-            allocation_address = self.get_allocation_from_bidder(bidder_address=bidder_address)
-        result = self.contract.functions.getRemainingWork(allocation_address).call()
+    def get_remaining_work(self, bidder_address: str) -> int:
+        """Get remaining work periods until full refund for the target address."""
+        result = self.contract.functions.getRemainingWork(bidder_address).call()
         return result
 
     def get_eth_supply(self) -> int:
@@ -1073,7 +1036,9 @@ class WorkLockAgent(EthereumContractAgent):
 
     def get_refund_rate(self) -> int:
         f = self.contract.functions
-        refund_rate = self.get_deposit_rate() * f.SLOWING_REFUND().call() / f.boostingRefund().call()
+        slowing_refund = f.SLOWING_REFUND().call()
+        boosting_refund = f.boostingRefund().call()
+        refund_rate = self.get_deposit_rate() * slowing_refund / boosting_refund
         return refund_rate
 
     def get_deposit_rate(self) -> int:
@@ -1093,7 +1058,7 @@ class WorkLockAgent(EthereumContractAgent):
             'startBidDate',
             'endBidDate',
             'boostingRefund',
-            'lockingDuration',
+            'stakingPeriods',
         )
 
         def _call_function_by_name(name: str):
