@@ -89,8 +89,8 @@ class StakeHolderConfigOptions:
 
         if self.provider_uri is None:
             raise click.BadOptionUsage(
-                option_name="--provider-uri",
-                message="--provider-uri must be specified to create a new stakeholder")
+                option_name="--provider",
+                message="--provider must be specified to create a new stakeholder")
 
         return StakeHolderConfiguration.generate(
             config_root=config_root,
