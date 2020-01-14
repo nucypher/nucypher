@@ -636,6 +636,71 @@ def divide(general_config, transacting_staker_options, config_file, force, value
     painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER.stakes)
 
 
+@stake.command()
+@group_transacting_staker_options
+@option_config_file
+@option_force
+@option_lock_periods
+@click.option('--index', help="The staker-specific stake index to prolong", type=click.INT)
+@group_general_config
+def prolong(general_config, transacting_staker_options, config_file, force, lock_periods, index):
+    """Prolong an existing stake's duration."""
+
+    # Setup
+    emitter = _setup_emitter(general_config)
+    STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
+    action_period = STAKEHOLDER.staking_agent.get_current_period()
+    blockchain = transacting_staker_options.get_blockchain()
+    economics = STAKEHOLDER.economics
+
+    # Handle account selection
+    client_account, staking_address = handle_client_account_for_staking(
+        emitter=emitter,
+        stakeholder=STAKEHOLDER,
+        staking_address=transacting_staker_options.staker_options.staking_address,
+        individual_allocation=STAKEHOLDER.individual_allocation,
+        force=force)
+
+    # Handle stake update and selection
+    if transacting_staker_options.staker_options.staking_address and index is not None:  # 0 is valid.
+        STAKEHOLDER.stakes = StakeList(registry=STAKEHOLDER.registry,
+                                       checksum_address=transacting_staker_options.staker_options.staking_address)
+        STAKEHOLDER.stakes.refresh()
+        current_stake = STAKEHOLDER.stakes[index]
+    else:
+        current_stake = select_stake(stakeholder=STAKEHOLDER, emitter=emitter)
+
+    #
+    # Prolong
+    #
+
+    # Interactive
+    if not lock_periods:
+        stake_extension_range = click.IntRange(min=1, max=economics.maximum_allowed_locked, clamp=False)
+        max_extension = economics.maximum_allowed_locked - current_stake.periods_remaining
+        lock_periods = click.prompt(f"Enter number of periods to extend (1-{max_extension})", type=stake_extension_range)
+    if not force:
+        click.confirm(f"Publish stake extension of {lock_periods} period(s) to the blockchain?", abort=True)
+    password = transacting_staker_options.get_password(blockchain, client_account)
+
+    # Non-interactive: Consistency check to prevent the above agreement from going stale.
+    last_second_current_period = STAKEHOLDER.staking_agent.get_current_period()
+    if action_period != last_second_current_period:
+        emitter.echo("Current period advanced before transaction was broadcasted. Please try again.", red='red')
+        raise click.Abort
+
+    # Authenticate and Execute
+    STAKEHOLDER.assimilate(checksum_address=current_stake.staker_address, password=password)
+    emitter.echo("Broadcasting Stake Extension...", color='yellow')
+    receipt = STAKEHOLDER.prolong_stake(stake_index=current_stake.index, additional_periods=lock_periods)
+
+    # Report
+    emitter.echo('Successfully Prolonged Stake', color='green', verbosity=1)
+    paint_receipt_summary(emitter=emitter, receipt=receipt, chain_name=blockchain.client.chain_name)
+    painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER.stakes)
+    return  # Exit
+
+
 @stake.command('collect-reward')
 @group_transacting_staker_options
 @option_config_file

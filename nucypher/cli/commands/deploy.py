@@ -36,7 +36,7 @@ from nucypher.cli.actions import (
     confirm_deployment,
     establish_deployer_registry
 )
-from nucypher.cli.common_options import (
+from nucypher.cli.options import (
     group_options,
     option_config_root,
     option_etherscan,
@@ -44,7 +44,7 @@ from nucypher.cli.common_options import (
     option_hw_wallet,
     option_poa,
     option_provider_uri,
-    )
+)
 from nucypher.cli.config import group_general_config
 from nucypher.cli.painting import (
     paint_staged_deployment,

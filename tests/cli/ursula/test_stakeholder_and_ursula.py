@@ -173,6 +173,38 @@ def test_staker_divide_stakes(click_runner,
     assert str(NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens()) in result.output
 
 
+def test_stake_prolong(click_runner,
+                       testerchain,
+                       test_registry,
+                       manual_staker,
+                       manual_worker,
+                       stakeholder_configuration_file_location):
+
+    prolong_args = ('stake', 'prolong',
+                    '--config-file', stakeholder_configuration_file_location,
+                    '--index', 0,
+                    '--lock-periods', 1,
+                    '--staking-address', manual_staker,
+                    '--force')
+
+    staker = Staker(is_me=True, checksum_address=manual_staker, registry=test_registry)
+    staker.stakes.refresh()
+    stake = staker.stakes[0]
+    old_termination = stake.final_locked_period
+
+    user_input = INSECURE_DEVELOPMENT_PASSWORD
+    result = click_runner.invoke(nucypher_cli,
+                                 prolong_args,
+                                 input=user_input,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+
+    # Ensure Integration with Stakes
+    stake.sync()
+    new_termination = stake.final_locked_period
+    assert new_termination == old_termination + 1
+
+
 def test_stake_set_worker(click_runner,
                           testerchain,
                           test_registry,
@@ -194,7 +226,6 @@ def test_stake_set_worker(click_runner,
     assert result.exit_code == 0
 
     staker = Staker(is_me=True, checksum_address=manual_staker, registry=test_registry)
-
     assert staker.worker_address == manual_worker
 
 

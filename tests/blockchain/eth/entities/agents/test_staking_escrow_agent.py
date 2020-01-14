@@ -232,14 +232,14 @@ def test_prolong_stake(agency, testerchain, test_registry):
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
     stakes = list(staking_agent.get_all_stakes(staker_address=staker_account))
-    original_termination = stakes[1]
+    original_termination = stakes[0][1]
 
-    receipt = staking_agent.prolong_stake(staker_account=staker_account, stake_index=0, periods=1)
+    receipt = staking_agent.prolong_stake(staker_address=staker_account, stake_index=0, periods=1)
     assert receipt['status'] == 1
 
     # Ensure stake was extended by one period.
     stakes = list(staking_agent.get_all_stakes(staker_address=staker_account))
-    new_termination = stakes[1]
+    new_termination = stakes[0][1]
     assert new_termination == original_termination + 1
 
 

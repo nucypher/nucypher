@@ -113,10 +113,6 @@ def test_run_felix(click_runner,
         web_app = felix.make_web_app()
         test_client = web_app.test_client()
 
-        # Load the landing page
-        response = test_client.get('/')
-        assert response.status_code == 200
-
         # Register a new recipient
         response = test_client.post('/register', data={'address': testerchain.client.accounts[-1]})
         assert response.status_code == 200
