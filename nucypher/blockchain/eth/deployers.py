@@ -1176,8 +1176,19 @@ class MultiSigDeployer(BaseContractDeployer):
     agency = MultiSigAgent
     contract_name = agency.registry_contract_name
     deployment_steps = ('contract_deployment', )
+    _upgradeable = False
+
+    MAX_OWNER_COUNT = 50  # Hard-coded limit in MultiSig contract
 
     def _deploy_essential(self, threshold: int, owners: List[str], gas_limit: int = None):
+        if not (0 < threshold <= len(owners) <= self.MAX_OWNER_COUNT):
+            raise ValueError(f"Parameters threshold={threshold} and len(owners)={len(owners)} don't satisfy inequality "
+                             f"0 < threshold <= len(owners) <= {self.MAX_OWNER_COUNT}")
+        if BlockchainDeployerInterface.NULL_ADDRESS in owners:
+            raise ValueError("The null address is not allowed as an owner")
+        if len(owners) != len(set(owners)):
+            raise ValueError("Can't use the same owner address more than once")
+
         constructor_args = (threshold, owners)
 
         multisig_contract, deploy_receipt = self.blockchain.deploy_contract(self.deployer_address,
@@ -1187,7 +1198,7 @@ class MultiSigDeployer(BaseContractDeployer):
                                                                             gas_limit=gas_limit)
         return multisig_contract, deploy_receipt
 
-    def deploy(self, gas_limit: int, progress=None, *args, **kwargs) -> dict:
+    def deploy(self, gas_limit: int = None, progress=None, *args, **kwargs) -> dict:
         self.check_deployment_readiness()
 
         multisig_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit, *args, **kwargs)
@@ -1197,7 +1208,7 @@ class MultiSigDeployer(BaseContractDeployer):
             progress.update(1)
 
         # Gather the transaction receipts
-        self.deployment_receipts.update({'deployment': deploy_receipt})
+        self.deployment_receipts.update({self.deployment_steps[0]: deploy_receipt})
         self._contract = multisig_contract
-        return deploy_receipt
+        return self.deployment_receipts
 

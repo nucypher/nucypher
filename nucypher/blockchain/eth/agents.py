@@ -22,6 +22,7 @@ from typing import Generator, List, Tuple, Union
 import math
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
 from eth_utils.address import to_checksum_address
+from eth_tester.exceptions import TransactionFailed
 from twisted.logger import Logger
 from web3.contract import Contract
 
@@ -34,6 +35,7 @@ from nucypher.blockchain.eth.constants import (
     STAKING_INTERFACE_ROUTER_CONTRACT_NAME,
     ADJUDICATOR_CONTRACT_NAME,
     NUCYPHER_TOKEN_CONTRACT_NAME,
+    MULTISIG_CONTRACT_NAME,
     ETH_ADDRESS_BYTE_LENGTH
 )
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -1126,6 +1128,8 @@ class SeederAgent(EthereumContractAgent):
 
 class MultiSigAgent(EthereumContractAgent):
 
+    registry_contract_name = MULTISIG_CONTRACT_NAME
+
     Vector = List[str]
 
     @property
@@ -1133,9 +1137,24 @@ class MultiSigAgent(EthereumContractAgent):
         nonce = self.contract.functions.nonce().call()
         return nonce
 
-    def get_owners(self) -> Tuple[str]:
-        result = self.contract.functions.owners().call()
-        return tuple(result)
+    def get_owner(self, index: int) -> str:
+        owner = self.contract.functions.owners(index).call()
+        return owner
+
+    @property
+    def owners(self) -> Tuple[str]:
+        i = 0
+        owners = list()
+        array_is_within_bounds = True
+        while array_is_within_bounds:
+            try:
+                owner = self.get_owner(i)
+            except (TransactionFailed, ValueError):
+                array_is_within_bounds = False
+            else:
+                owners.append(owner)
+                i += 1
+        return tuple(owners)
 
     @property
     def threshold(self) -> int:
@@ -1167,13 +1186,13 @@ class MultiSigAgent(EthereumContractAgent):
                                       data: bytes,
                                       nonce: int
                                       ) -> bytes:
-        transaction_hash = self.contract.functions.getUnsignedTransactionHash(
-            trustee_address,
-            target_address,
-            value,
-            data,
-            nonce
-        ).call()
+        transaction_args = (trustee_address,
+                            target_address,
+                            value,
+                            data,
+                            nonce)
+
+        transaction_hash = self.contract.functions.getUnsignedTransactionHash(*transaction_args).call()
         return transaction_hash
 
     def execute(self,
