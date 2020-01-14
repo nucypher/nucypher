@@ -355,8 +355,14 @@ class StakingEscrowAgent(EthereumContractAgent):
         return receipt
 
     @validate_checksum_address
-    def divide_stake(self, staker_address: str, stake_index: int, target_value: int, periods: int):
+    def divide_stake(self, staker_address: str, stake_index: int, target_value: int, periods: int) -> dict:
         contract_function = self.contract.functions.divideStake(stake_index, target_value, periods)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        return receipt
+
+    @validate_checksum_address
+    def prolong_stake(self, staker_address: str, stake_index: int, periods: int) -> dict:
+        contract_function = self.contract.functions.prolongStake(stake_index, periods)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
