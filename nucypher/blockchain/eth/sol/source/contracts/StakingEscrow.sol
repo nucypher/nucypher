@@ -34,7 +34,7 @@ contract WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v2.1.2|
+* @dev |v2.2.1|
 */
 contract StakingEscrow is Issuer {
     using AdditionalMath for uint256;
@@ -57,6 +57,7 @@ contract StakingEscrow is Issuer {
     event ReStakeLocked(address indexed staker, uint16 lockUntilPeriod);
     event WorkerSet(address indexed staker, address indexed worker, uint16 indexed startPeriod);
     event WorkMeasurementSet(address indexed staker, bool measureWork);
+    event WindDownSet(address indexed staker, bool windDown);
 
     struct SubStakeInfo {
         uint16 firstPeriod;
@@ -92,8 +93,8 @@ contract StakingEscrow is Issuer {
         uint16 lastActivePeriod;
         bool measureWork;
         uint256 completedWork;
+        bool windDown; // this slot has 31 bytes to store additional value
 
-        uint256 reservedSlot1;
         uint256 reservedSlot2;
         uint256 reservedSlot3;
         uint256 reservedSlot4;
@@ -494,6 +495,20 @@ contract StakingEscrow is Issuer {
     }
 
     /**
+    * @notice Set `windDown` parameter.
+    * If true then stakes duration will be decreasing in each period with `confirmActivity()`
+    * @param _windDown Value for parameter
+    */
+    function setWindDown(bool _windDown) public onlyStaker {
+        StakerInfo storage info = stakerInfo[msg.sender];
+        if (info.windDown == _windDown) {
+            return;
+        }
+        info.windDown = _windDown;
+        emit WindDownSet(msg.sender, _windDown);
+    }
+
+    /**
     * @notice Implementation of the receiveApproval(address,uint256,address,bytes) method
     * (see NuCypherToken contract). Deposit all tokens that were approved to transfer
     * @param _from Staker
@@ -746,15 +761,7 @@ contract StakingEscrow is Issuer {
             info.confirmedPeriod2 = nextPeriod;
         }
 
-        for (uint256 index = 0; index < info.subStakes.length; index++) {
-            SubStakeInfo storage subStake = info.subStakes[index];
-            if (subStake.lastPeriod == 0 && subStake.periods > 0) {
-                subStake.periods--;
-                if (subStake.periods == 0) {
-                    subStake.lastPeriod = nextPeriod;
-                }
-            }
-        }
+        decreaseSubStakesDuration(info, nextPeriod);
 
         // staker was inactive for several periods
         if (lastActivePeriod < currentPeriod) {
@@ -762,6 +769,25 @@ contract StakingEscrow is Issuer {
         }
         policyManager.setDefaultRewardDelta(staker, nextPeriod);
         emit ActivityConfirmed(staker, nextPeriod, lockedTokens);
+    }
+
+    /**
+    * @notice Decrease sub-stakes duration if `windDown` is enabled
+    */
+    function decreaseSubStakesDuration(StakerInfo storage _info, uint16 _nextPeriod) internal {
+        if (!_info.windDown) {
+            return;
+        }
+        for (uint256 index = 0; index < _info.subStakes.length; index++) {
+            SubStakeInfo storage subStake = _info.subStakes[index];
+            if (subStake.lastPeriod != 0 || subStake.periods == 0) {
+                continue;
+            }
+            subStake.periods--;
+            if (subStake.periods == 0) {
+                subStake.lastPeriod = _nextPeriod;
+            }
+        }
     }
 
     /**
@@ -1258,7 +1284,8 @@ contract StakingEscrow is Issuer {
             infoToCheck.measureWork == info.measureWork &&
             infoToCheck.completedWork == info.completedWork &&
             infoToCheck.worker == info.worker &&
-            infoToCheck.workerStartPeriod == info.workerStartPeriod);
+            infoToCheck.workerStartPeriod == info.workerStartPeriod &&
+            infoToCheck.windDown == info.windDown);
 
         require(delegateGet(_testTarget, "getPastDowntimeLength(address)", staker) ==
             info.pastDowntime.length);
