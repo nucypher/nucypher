@@ -170,7 +170,7 @@ def test_sample_stakers(agency):
 
 
 def test_get_current_period(agency, testerchain):
-    _token_agent, staking_agent,_policy_agent = agency
+    _token_agent, staking_agent, _policy_agent = agency
     start_period = staking_agent.get_current_period()
     testerchain.time_travel(periods=1)
     end_period = staking_agent.get_current_period()
@@ -313,28 +313,30 @@ def test_winding_down(agency, testerchain, test_registry, token_economics):
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
     assert not staking_agent.is_winding_down(staker_account)
-    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods) != 0
-    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods + 1) == 0
-    staking_agent.confirm_activity(worker_address=worker_account)
     assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods + 1) != 0
     assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods + 2) == 0
+    staking_agent.confirm_activity(worker_address=worker_account)
+    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods + 2) != 0
+    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods + 3) == 0
+
+    # Examine the last periods of sub-stakes
 
     testerchain.time_travel(periods=1)
     receipt = staking_agent.set_winding_down(staker_account, value=True)
     assert receipt['status'] == 1
     assert staking_agent.is_winding_down(staker_account)
-    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods) != 0
-    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods + 1) == 0
+    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods + 1) != 0
+    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods + 2) == 0
     staking_agent.confirm_activity(worker_address=worker_account)
-    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods) != 0
-    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods + 1) == 0
+    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods + 1) != 0
+    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods + 2) == 0
 
     testerchain.time_travel(periods=1)
     receipt = staking_agent.set_winding_down(staker_account, value=False)
     assert receipt['status'] == 1
     assert not staking_agent.is_winding_down(staker_account)
     assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods - 1) != 0
-    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods) == 0
-    staking_agent.confirm_activity(worker_address=worker_account)
-    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods) != 0
     assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods + 1) == 0
+    staking_agent.confirm_activity(worker_address=worker_account)
+    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods + 1) != 0
+    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods + 2) == 0
