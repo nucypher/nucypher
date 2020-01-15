@@ -60,7 +60,7 @@ from nucypher.blockchain.eth.deployers import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.multisig import MultiSigAuthorization
+from nucypher.blockchain.eth.multisig import Authorization
 from nucypher.blockchain.eth.registry import (
     AllocationRegistry,
     BaseContractRegistry,
@@ -666,7 +666,7 @@ class MultiSigActor(NucypherTokenActor):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.multisig_agent = ContractAgency.get_agent(MultiSigAgent, registry=self.registry)
+        self.multisig_agent = ContractAgency.get_agent(MultiSigAgent, registry=self.registry)  # type: MultiSigAgent
 
 
 class Trustee(MultiSigActor):
@@ -714,6 +714,22 @@ class Trustee(MultiSigActor):
         receipt = self.multisig_agent.execute()
         return receipt
 
+    def produce_data_to_sign(self, transaction):
+        data_to_sign = dict(trustee_address=transaction['from'],
+                            target_address=transaction['to'],
+                            value=transaction['value'],
+                            data=transaction['data'],
+                            nonce=self.multisig_agent.nonce)
+
+        unsigned_digest = self.multisig_agent.get_unsigned_transaction_hash(**data_to_sign)
+
+        data_for_multisig_executives = {
+            'parameters': data_to_sign,
+            'digest': unsigned_digest
+        }
+
+        return data_for_multisig_executives
+
 
 class Executive(MultiSigActor):
     """
@@ -725,7 +741,7 @@ class Executive(MultiSigActor):
         signed_hash = blockchain.transacting_power.sign_hash(unsigned_hash=unsigned_hash)
         return signed_hash
 
-    def authorize(self, trustee, contract_function: ContractFunction) -> MultiSigAuthorization:
+    def authorize(self, trustee, contract_function: ContractFunction) -> Authorization:
         try:
             transaction = contract_function.buildTransaction()
         except (TransactionFailed, ValueError):

@@ -136,6 +136,10 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, test_regis
     assert new_enrolled_names == old_enrolled_names + 1
 
 
+
+# TODO: test to validate retargetting via multisig, specifically, building the transaction
+
+
 def test_manual_proxy_retargeting(testerchain, click_runner, test_registry, token_economics):
 
     # A local, alternate filepath registry exists
@@ -172,3 +176,4 @@ def test_manual_proxy_retargeting(testerchain, click_runner, test_registry, toke
     # The proxy target has been updated.
     proxy_deployer = deployer.get_proxy_deployer(registry=local_registry)
     assert proxy_deployer.target_contract.address == untargeted_deployment.address
+

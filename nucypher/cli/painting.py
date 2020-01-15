@@ -359,6 +359,23 @@ Registry  ................ {registry.filepath}
         emitter.echo(f"[{i}] {owner}")
 
 
+def paint_multisig_proposed_transaction(emitter, data_for_multisig_executives):
+    executive_summary = data_for_multisig_executives['parameters']
+    data_to_sign = data_for_multisig_executives['digest']
+
+    info = f"""
+Trustee address: .... {executive_summary['trustee_address']}
+Target address: ..... {executive_summary['target_address']}
+Value: .............. {Web3.fromWei(executive_summary['value'], 'ether')} ETH
+Nonce: .............. {executive_summary['nonce']}
+Raw TX data: ........ {executive_summary['data']}
+Unsigned TX hash: ... {data_to_sign.hex()}
+"""
+    emitter.echo(info)
+
+    # TODO: Show decoded function?
+
+
 def paint_staged_stake(emitter,
                        stakeholder,
                        staking_address,

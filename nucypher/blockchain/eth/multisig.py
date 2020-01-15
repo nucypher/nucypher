@@ -19,7 +19,7 @@ from collections import namedtuple
 from typing import List
 
 
-class MultiSigAuthorization:
+class Authorization:
     """
     An edict issued by an Executive authorizing the execution of a multisig
     transaction by the delegated trustee.
@@ -62,7 +62,7 @@ class MultiSigAuthorization:
         return filepath
 
     @classmethod
-    def from_file(cls, filepath: str = None) -> 'MultiSigAuthorization':
+    def from_file(cls, filepath: str = None) -> 'Authorization':
         with open(filepath, 'rb') as file:
             data = file.read()
             deserialized_data = cls._deserialize(data=data)
@@ -72,7 +72,7 @@ class MultiSigAuthorization:
         return instance
 
 
-class MultiSigBoard:
+class ExecutiveBoard:
     """A collection of Executives plus a Trustee."""
 
     def __init__(self, executives: List['Executive']):

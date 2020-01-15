@@ -20,7 +20,7 @@ import os
 
 import click
 
-from nucypher.blockchain.eth.actors import ContractAdministrator
+from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency, MultiSigAgent
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
@@ -54,7 +54,8 @@ from nucypher.cli.painting import (
     paint_contract_deployment,
     paint_deployer_contract_inspection,
     paint_receipt_summary,
-    paint_multisig_contract_info
+    paint_multisig_contract_info,
+    paint_multisig_proposed_transaction
 )
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -267,16 +268,17 @@ def inspect(general_config, provider_uri, config_root, registry_infile, deployer
 @deploy.command()
 @group_general_config
 @group_actor_options
-@click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
 @option_target_address
 @option_ignore_deployed
-def upgrade(general_config, actor_options, retarget, target_address, ignore_deployed):
+@click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
+@click.option('--multisig', help="Build raw transaction for upgrade via MultiSig ", is_flag=True)
+def upgrade(general_config, actor_options, retarget, target_address, ignore_deployed, multisig):
     """
     Upgrade NuCypher existing proxy contract deployments.
     """
     # Init
     emitter = general_config.emitter
-    ADMINISTRATOR, _, _, _ = actor_options.create_actor(emitter)
+    ADMINISTRATOR, _, _, registry = actor_options.create_actor(emitter)
 
     contract_name = actor_options.contract_name
     if not contract_name:
@@ -285,7 +287,25 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
     existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True)
     new_secret = click.prompt('Enter new contract upgrade secret', hide_input=True, confirmation_prompt=True)
 
-    if retarget:
+    if multisig:
+        if not target_address:
+            raise click.BadArgumentUsage(message="--multisig requires using --target-address.")
+        if not actor_options.force:
+            click.confirm(f"Confirm building a re-target transaction for {contract_name}'s proxy to {target_address}?",
+                          abort=True)
+        transaction = ADMINISTRATOR.retarget_proxy(contract_name=contract_name,
+                                                   target_address=target_address,
+                                                   existing_plaintext_secret=existing_secret,
+                                                   new_plaintext_secret=new_secret,
+                                                   just_build_transaction=True)
+
+        trustee = Trustee(registry=registry, checksum_address=ADMINISTRATOR.deployer_address)
+        data_for_multisig_executives = trustee.produce_data_to_sign(transaction)
+
+        emitter.message(f"Transaction to retarget {contract_name} proxy to {target_address} was built:", color='green')
+        paint_multisig_proposed_transaction(emitter, data_for_multisig_executives)
+
+    elif retarget:
         if not target_address:
             raise click.BadArgumentUsage(message="--target-address is required when using --retarget")
         if not actor_options.force:
@@ -512,7 +532,9 @@ def multisig(general_config, actor_options, action):
     # Warnings
     # _pre_launch_warnings(emitter, etherscan, hw_wallet)
 
-    multisig_agent = MultiSigAgent(registry=local_registry)
+    multisig_agent = ContractAgency.get_agent(MultiSigAgent,
+                                              registry=local_registry,
+                                              provider_uri=actor_options.provider_uri)
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=local_registry)
 
     if action == 'inspect':
