@@ -305,6 +305,13 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
         emitter.message(f"Transaction to retarget {contract_name} proxy to {target_address} was built:", color='green')
         paint_multisig_proposed_transaction(emitter, data_for_multisig_executives)
 
+        # TODO: Move this logic to a better place
+        nonce = data_for_multisig_executives['parameters']['nonce']
+        filepath = f'proposal-{nonce}.json'
+        with open(filepath, 'w') as outfile:
+            json.dump(data_for_multisig_executives, outfile)
+        emitter.echo(f"Saved proposal to {filepath}", color='blue', bold=True)
+
     elif retarget:
         if not target_address:
             raise click.BadArgumentUsage(message="--target-address is required when using --retarget")
@@ -517,14 +524,16 @@ def transfer_tokens(general_config, actor_options, target_address, value):
 @group_general_config
 @group_actor_options
 @click.argument('action', type=click.Choice(['inspect', 'sign', 'execute']))  # TODO: Is this wanting to be a separate command?
-def multisig(general_config, actor_options, action):
+@click.option('--proposal', help="Filepath to a JSON file containing a multisig transaction data",
+              type=EXISTING_READABLE_FILE)
+def multisig(general_config, actor_options, action, proposal):
     """
     Perform operations via a MultiSig contract
     """
     # Init
     emitter = general_config.emitter
     _ensure_config_root(actor_options.config_root)
-    deployer_interface = _initialize_blockchain(actor_options.poa, actor_options.provider_uri, emitter)
+    blockchain = _initialize_blockchain(actor_options.poa, actor_options.provider_uri, emitter)
     local_registry = establish_deployer_registry(emitter=emitter,
                                                  use_existing_registry=True,
                                                  )
@@ -540,7 +549,26 @@ def multisig(general_config, actor_options, action):
     if action == 'inspect':
         paint_multisig_contract_info(emitter, multisig_agent, token_agent)
     elif action == 'sign':
-        pass  # TODO
+        if not proposal:
+            raise ValueError("multisig sign requires the use of --proposal")
+
+        with open(proposal) as json_file:
+            proposal = json.load(json_file)
+
+        executive_summary = proposal['parameters']
+
+        name, version, address, abi = local_registry.search(contract_address=executive_summary['target_address'])
+        # TODO: This assumes that we're always signing proxy retargetting. For the moment is true.
+        proxy_contract = blockchain.client.w3.eth.contract(abi=abi,
+                                                           address=address,
+                                                           version=version,
+                                                           ContractFactoryClass=blockchain._contract_factory)
+        paint_multisig_proposed_transaction(emitter, proposal, proxy_contract)
+
+        click.confirm("Proceed with signing?", abort=True)
+
+        # TODO: Blocked by lack of support to EIP191 - #1566
+
     elif action == 'execute':
         pass  # TODO
 

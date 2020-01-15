@@ -359,21 +359,31 @@ Registry  ................ {registry.filepath}
         emitter.echo(f"[{i}] {owner}")
 
 
-def paint_multisig_proposed_transaction(emitter, data_for_multisig_executives):
+def paint_multisig_proposed_transaction(emitter, data_for_multisig_executives, contract=None):
     executive_summary = data_for_multisig_executives['parameters']
     data_to_sign = data_for_multisig_executives['digest']
+    raw_data = executive_summary['data']
 
     info = f"""
 Trustee address: .... {executive_summary['trustee_address']}
 Target address: ..... {executive_summary['target_address']}
 Value: .............. {Web3.fromWei(executive_summary['value'], 'ether')} ETH
 Nonce: .............. {executive_summary['nonce']}
-Raw TX data: ........ {executive_summary['data']}
-Unsigned TX hash: ... {data_to_sign.hex()}
+Raw TX data: ........ {raw_data}
+Unsigned TX hash: ... {data_to_sign}
 """
     emitter.echo(info)
 
-    # TODO: Show decoded function?
+    if contract:
+        paint_decoded_transaction(emitter, raw_data, contract)
+
+
+def paint_decoded_transaction(emitter, raw_transaction_data, contract):
+    emitter.echo("Decoded transaction:\n")
+    contract_function, params = contract.decode_function_input(raw_transaction_data)
+    emitter.echo(str(contract_function))
+    for param, value in params.items():
+        emitter.echo(f"  {param}={value}")
 
 
 def paint_staged_stake(emitter,

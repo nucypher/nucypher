@@ -725,7 +725,7 @@ class Trustee(MultiSigActor):
 
         data_for_multisig_executives = {
             'parameters': data_to_sign,
-            'digest': unsigned_digest
+            'digest': unsigned_digest.hex()
         }
 
         return data_for_multisig_executives
