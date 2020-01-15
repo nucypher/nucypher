@@ -29,10 +29,10 @@ To become a staker, NU tokens must be transferred to the ``StakingEscrow`` contr
             stake
             ^
             |
-         900|   +-------------+
-            |   |     1st     |  period
-            +---+-------------+--->
-            0   1             5
+         900|   +-------------------+
+            |   |        1st        |   period
+            +---+---+---+---+---+---+---->
+            | 0 | 1 | 2 | 3 | 4 | 5 | 6
 
 
 
@@ -54,27 +54,27 @@ In order to increase the staking reward, as well as the possibility of obtaining
         :proportional:
         :textual:
 
-                 Before             
+                         Before             
 
-            stake                 
-            ^                     
-            |                     
-         900+----------+          
-            |    1st   |  period
-            +----------+--->   
-            0          5          
+            stake
+            ^
+            |
+         900+-----------------------+
+            |          1st          |   period
+            +---+---+---+---+---+---+---->
+            | 0 | 1 | 2 | 3 | 4 | 5 | 6      
 			
 			
 			
-                 After             
+                         After             
 
-            stake                 
-            ^                     
-            |                     
-         900+-------------+        
-            |      1st    |  period
-            +-------------+--->   
-            0             7     
+            stake
+            ^
+            |
+         900+-------------------------------+
+            |              1st              |   period
+            +---+---+---+---+---+---+---+---+---->
+            | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
 			
 			
 Sub-stake division
@@ -96,32 +96,33 @@ If necessary, stakers can extend the locking duration for only a portion of thei
         :proportional:
         :textual:
 
-                 Before             
+                         Before             
 
-            stake                 
-            ^                     
-            |                     
-         900+----------+          
-            |          |  
-            |    1st   |
-            |          |  period 
-            +----------+--->   
-            0          5          
+            stake
+            ^
+            |
+         900+-----------------------+
+            |                       |
+            |          1st          |
+            |                       |   period
+            +---+---+---+---+---+---+---->
+            | 0 | 1 | 2 | 3 | 4 | 5 | 6       
 			
 			
 			
-                 After             
+                         After             
 
-            stake                 
-            ^                     
-            |                     
-         900+----------+       
-            |          |
-            |    1st   |
-         300+----------+--+
-            |      2nd    |  period
-            +-------------+--->   
-            0          5  7     
+            stake
+            ^
+            |
+         900+-----------------------+
+            |                       |
+            |          1st          |
+         300+-----------------------+-------+
+            |              2nd              |   period
+            +---+---+---+---+---+---+---+---+---->
+            | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+   
 
 
 Slashing
@@ -147,17 +148,17 @@ However, when re-staking is enabled (default) then all staking rewards are re-lo
 
     A staker has few sub-stakes and calls ``mint()``. Assume that thus far the 1st and 2nd sub-stakes will produce 50 tokens and 20 tokens respectively in rewards:
 		- Before calling: 
-			* 1st sub-stake = 400 tokens for 10 periods
+			* 1st sub-stake = 400 tokens for 8 periods
 			* 2nd sub-stake = 200 tokens for 2 periods
 			* 3rd sub-stake = 100 tokens locked starting from the next period and locked for 5 periods
 			* 100 tokens in an unlocked state
 		- After calling, if re-staking is disabled:  
-			* 1st sub-stake = 400 tokens for 10 periods
+			* 1st sub-stake = 400 tokens for 8 periods
 			* 2nd sub-stake = 200 tokens for 2 periods
 			* 3rd sub-stake = 100 tokens locked starting from the next period and locked for 5 periods
 			* 170 tokens in an unlocked state
 		- After calling, if re-staking is enabled: 
-			* 1st sub-stake = 450 tokens for 10 periods
+			* 1st sub-stake = 450 tokens for 8 periods
 			* 2nd sub-stake = 220 tokens for 2 periods
 			* 3rd sub-stake = 100 tokens locked starting from the next period and locked for 5 periods
 			* 100 tokens in an unlocked state
@@ -166,41 +167,44 @@ However, when re-staking is enabled (default) then all staking rewards are re-lo
         :proportional:
         :textual:
 
-                 Before             
+                             Before             
 
             stake
             ^
             |
-         700|     +----+
-            |     | 3rd|
-         600+-----+----+
-         500|          +-------------+
-            |    2nd   |     3rd     |
-         400+----------+-------------+----------+
+         700|   +-------+
+            |   |  3rd  |
+         600+---+-------+
+         500|           +-----------+
+            |    2nd    |    3rd    |
+         400+-----------+-----------+-----------+
             |                                   |
-            |               1st                 |   period
-            +-----------------------------------+--->    
-            0     1    2             5          10
+            |                1st                |   period
+            +---+---+---+---+---+---+---+---+---+---->    
+            | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 			
 			
-                 After, re–staking is enabled             
+			
+			
+                         After, re–staking is enabled             
 
             stake
             ^
             |
-         770|     +----+
-            |     | 3rd|
-         670+-----+----+
-            |          |
-         550|    2nd   +-------------+
-            |          |     3rd     |
-         450+----------+-------------+----------+
+         770|   +-------+
+            |   |  3rd  |
+         670+---+-------+
+            |           |
+         550|    2nd    +-----------+
+            |           |    3rd    |
+         450+-----------+-----------+-----------+
             |                                   |
-            |               1st                 |
+            |                1st                |
             |                                   |   period
-            +-----------------------------------+--->    
-            0     1    2             5          10
+            +---+---+---+---+---+---+---+---+---+---->    
+            | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 			
+
 
 Winding down
 ^^^^^^^^^^^^
@@ -212,59 +216,61 @@ A disabled "winding down" parameter (default) guarantees that the worker must ca
 
     A staker has few sub-stakes, worker calls ``сonfirmActivity()`` each period:
 		- Current period: 
-			* 1st sub-stake = 400 tokens for 10 periods
+			* 1st sub-stake = 400 tokens for 8 periods
 			* 2nd sub-stake = 100 tokens locked starting from the next period and locked for 5 periods
 		- Next period, if winding down is disabled:  
-			* 1st sub-stake = 400 tokens for 10 periods
+			* 1st sub-stake = 400 tokens for 8 periods
 			* 2nd sub-stake = 100 tokens locked starting from the current period and locked for 5 future periods
 		- Next period, if winding down is enabled: 
-			* 1st sub-stake = 400 tokens for 9 periods
+			* 1st sub-stake = 400 tokens for 7 periods
 			* 2nd sub-stake = 100 tokens locked starting from the current period and locked for 4 future periods
 
     .. aafig::
         :proportional:
         :textual:
 			
-                 Current period           
+                         Current period           
 
             stake
             ^
             |
-         500|  +---------+
-            |  |   2nd   |
-         400+--+---------+----------+
-            |                       |
-            |         1st           |
-            |                       |   period
-            +-----------------------+--->    
-            0  1         5          10
+         500|   +-------------------+
+            |   |        2nd        |
+         400+---+-------------------+-----------+
+            |                                   |
+            |                1st                |
+            |                                   |   period
+            +---+---+---+---+---+---+---+---+---+---->    
+            | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+		
 			
 			
-                 Next period, winding down is disabled           
+                     Next period, winding down is disabled   
 
             stake
             ^
             |
-         500+------------+
-            |     2nd    |
-         400+------------+----------+
-            |                       |
-            |         1st           |
-            |                       |   period
-            +-----------------------+--->    
-            1            6          11
+         500+-----------------------+
+            |         2nd           |
+         400+-----------------------+-----------+
+            |                                   |
+            |                1st                |
+            |                                   |   period
+            +---+---+---+---+---+---+---+---+---+---->    
+            | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10        
+
 			
 			
-                 Next period, winding down is enabled           
+                     Next period, winding down is enabled     
 
             stake
             ^
             |
-         500+----------+
-            |    2nd   |
-         400+----------+----------+
-            |                     |
-            |         1st         |
-            |                     |     period
-            +---------------------+----->    
-            1          5          10
+         500+-------------------+
+            |        2nd        |
+         400+-------------------+-----------+
+            |                               |
+            |              1st              |
+            |                               |   period
+            +---+---+---+---+---+---+---+---+---->    
+            | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9        
