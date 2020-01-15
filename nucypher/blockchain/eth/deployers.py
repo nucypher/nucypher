@@ -1126,9 +1126,9 @@ class WorklockDeployer(BaseContractDeployer):
             progress.update(1)
 
         # Gather the transaction hashes
-        self.deployment_transactions = {'contract_deployment': deployment_receipt,
-                                        'bond_escrow': bonding_receipt,
-                                        'fund_worklock': funding_receipt}
+        self.deployment_transactions = dict(zip(self.deployment_steps, (deployment_receipt,
+                                                                        bonding_receipt,
+                                                                        funding_receipt)))
         return self.deployment_transactions
 
     def fund(self, sender_address: str) -> dict:
@@ -1149,7 +1149,6 @@ class WorklockDeployer(BaseContractDeployer):
         return funding_receipt
 
 
-
 class SeederDeployer(BaseContractDeployer, OwnableContractMixin):
 
     agency = SeederAgent
@@ -1162,13 +1161,13 @@ class SeederDeployer(BaseContractDeployer, OwnableContractMixin):
     def deploy(self, gas_limit: int = None, progress: int = None, **overrides) -> dict:
         self.check_deployment_readiness()
         constructor_args = (self.MAX_SEEDS,)
-        seeder_contract, deploy_txhash = self.blockchain.deploy_contract(self.deployer_address,
-                                                                         self.registry,
-                                                                         self.contract_name,
-                                                                         *constructor_args,
-                                                                         gas_limit=gas_limit)
+        seeder_contract, receipt = self.blockchain.deploy_contract(self.deployer_address,
+                                                                   self.registry,
+                                                                   self.contract_name,
+                                                                   *constructor_args,
+                                                                   gas_limit=gas_limit)
         self._contract = seeder_contract
         if progress:
             progress.update(1)
-        receipts = {'contract_deployment': deploy_txhash}
+        receipts = {self.deployment_steps[0]: receipt}
         return receipts

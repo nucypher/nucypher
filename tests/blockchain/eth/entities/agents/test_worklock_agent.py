@@ -3,7 +3,7 @@ import rlp
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address, keccak, to_checksum_address
 
-from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency
+from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency, StakingEscrowAgent
 
 
 def next_address(testerchain, worklock):
@@ -52,8 +52,12 @@ def test_get_bid(testerchain, agency, token_economics, test_registry):
 def test_cancel_bid(testerchain, agency, token_economics, test_registry):
     bidder = testerchain.unassigned_accounts[1]
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    receipt = agent.cancel_bid(bidder)
+
+    assert agent.get_bid(bidder)        # Bid
+    receipt = agent.cancel_bid(bidder)  # Cancel
     assert receipt['status'] == 1
+    assert not agent.get_bid(bidder)    # No more bid
+
     # Can't cancel a bid twice in a row
     with pytest.raises((TransactionFailed, ValueError)):
         _receipt = agent.cancel_bid(bidder)
@@ -70,8 +74,7 @@ def test_early_claim(testerchain, agency, token_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     bidder = testerchain.unassigned_accounts[0]
     with pytest.raises(TransactionFailed):
-        receipt = agent.claim(bidder_address=bidder)
-        assert receipt
+        _receipt = agent.claim(bidder_address=bidder)
 
 
 def test_successful_claim(testerchain, agency, token_economics, test_registry):
@@ -80,10 +83,21 @@ def test_successful_claim(testerchain, agency, token_economics, test_registry):
     testerchain.time_travel(seconds=token_economics.bidding_duration+1)
 
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+
     bidder = testerchain.unassigned_accounts[0]
+
+    # Ensure that the bidder is not staking.
+    locked_tokens = staking_agent.get_locked_tokens(staker_address=bidder, periods=10)
+    assert locked_tokens == 0
+
     receipt = agent.claim(bidder_address=bidder)
-    assert receipt
+    assert receipt['status'] == 1
 
     # Cant claim more than once
     with pytest.raises(TransactionFailed):
         _receipt = agent.claim(bidder_address=bidder)
+
+    # Ensure that the claimant is now the holder of a stake.
+    locked_tokens = staking_agent.get_locked_tokens(staker_address=bidder, periods=10)
+    assert locked_tokens == 71810406272273699215965

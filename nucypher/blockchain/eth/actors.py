@@ -53,7 +53,9 @@ from nucypher.blockchain.eth.deployers import (
     PreallocationEscrowDeployer,
     AdjudicatorDeployer,
     BaseContractDeployer,
-    WorklockDeployer, SeederDeployer)
+    WorklockDeployer,
+    SeederDeployer
+)
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import (

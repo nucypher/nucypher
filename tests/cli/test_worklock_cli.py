@@ -92,10 +92,14 @@ def test_cancel_bid(click_runner, testerchain, test_registry, agency, token_econ
                '--registry-filepath', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
                '--poa',
+               '--force',
                '--debug')
 
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    assert agent.get_bid(bidder)        # Bid
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
+    assert not agent.get_bid(bidder)    # No more bid
 
 
 def test_claim(click_runner, testerchain, agency, token_economics):
@@ -149,13 +153,8 @@ def test_refund(click_runner, testerchain, agency, test_registry, token_economic
 
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
+    # Bidder is now STAKER. Bond a worker.
     staker = Staker(is_me=True, checksum_address=bidder, registry=test_registry)
-
-    # Create a new stake with the new allocation
-    # new_stake = staker.initialize_stake(entire_balance=True, lock_periods=30)
-    # assert new_stake
-
-    # Bond the worker
     receipt = staker.set_worker(worker_address=worker_address)
     assert receipt['status'] == 1
 

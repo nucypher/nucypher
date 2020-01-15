@@ -78,10 +78,14 @@ def test_make_agent(worklock_deployer, test_registry):
     assert agent.contract_address == another_worklock_agent.contract_address
 
 
-def test_deployment_parameters(policy_manager_deployer, staking_escrow_deployer, test_registry):
+def test_deployment_parameters(worklock_deployer, test_registry, token_economics):
 
-    escrow_address = policy_manager_deployer.contract.functions.escrow().call()
-    assert staking_escrow_deployer.contract_address == escrow_address
-
-    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    seconds_per_period = worklock_agent.worklock_parameters()[0]
+    # Ensure restoration of deployment parameters
+    agent = worklock_deployer.make_agent()
+    params = agent.worklock_parameters()
+    supply, start, end, boost, locktime = params
+    assert token_economics.worklock_supply == supply
+    assert token_economics.bidding_start_date == start
+    assert token_economics.bidding_end_date == end
+    assert token_economics.worklock_boosting_refund_rate == boost
+    assert token_economics.worklock_commitment_duration == locktime

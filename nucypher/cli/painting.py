@@ -772,9 +772,9 @@ def paint_worklock_participant_status(emitter, registry, bidder_address):
     WORKLOCK_AGENT = ContractAgency.get_agent(WorkLockAgent, registry=registry)
 
     message = f"""
-Allocations
+WorkLock Participant {bidder_address}
 =====================================================
-Bidder ............... {bidder_address}
+Total Bid ............ {WORKLOCK_AGENT.get_bid(checksum_address=bidder_address)}
 Available Refund ..... {WORKLOCK_AGENT.available_refund(bidder_address=bidder_address)}
 Remaining Work ....... {WORKLOCK_AGENT.get_remaining_work(bidder_address=bidder_address)}
 """
@@ -823,7 +823,7 @@ Successfully claimed WorkLock tokens for {bidder_address}.
 Next Steps for Worklock Winners
 ===============================
 
-See the nucypher official documentation for a comprehensive guide!
+See the official nucypher documentation for a comprehensive guide!
 
 Create a stake with your allocation contract: 
 'nucypher stake create --provider <URI> --staking-address {bidder_address}'

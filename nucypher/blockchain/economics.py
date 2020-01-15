@@ -214,13 +214,12 @@ class BaseEconomics:
     def worklock_deployment_parameters(self):
         """
         0 token - Token contract
-        1 escrow -  Escrow contract
-        2 router - Router contract
+        1 escrow -  Staking Escrow contract
         ...
-        3 startBidDate - Timestamp when bidding starts
-        4 endBidDate - Timestamp when bidding will end
-        5 boostingRefund - Coefficient to boost refund ETH
-        6 lockingDuration - Duration of tokens locking
+        2 startBidDate - Timestamp when bidding starts
+        3 endBidDate - Timestamp when bidding will end
+        4 boostingRefund - Coefficient to boost refund ETH
+        5 lockingDuration - Duration of tokens locking
         """
         deployment_parameters = [self.bidding_start_date,
                                  self.bidding_end_date,

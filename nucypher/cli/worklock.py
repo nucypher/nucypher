@@ -71,7 +71,7 @@ def worklock():
     pass
 
 
-@worklock.command(name='status')
+@worklock.command()
 @group_registry_options
 @group_worklock_options
 @group_general_config
@@ -86,7 +86,7 @@ def status(general_config, registry_options, worklock_options):
     return  # Exit
 
 
-@worklock.command(name='bid')
+@worklock.command()
 @option_force
 @group_registry_options
 @group_worklock_options
@@ -95,9 +95,10 @@ def status(general_config, registry_options, worklock_options):
 def bid(general_config, worklock_options, registry_options, force, value):
     emitter = _setup_emitter(general_config)
     if not value:
-        value = int(Web3.fromWei(click.prompt("Enter bid amount in ETH", type=click.FloatRange(min=0)), 'wei'))
         if force:
             raise click.MissingParameter("Missing --value.")
+        value = int(Web3.fromWei(click.prompt("Enter bid amount in ETH", type=click.FloatRange(min=0)), 'wei'))
+
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=general_config.provider_uri)
@@ -114,23 +115,28 @@ def bid(general_config, worklock_options, registry_options, force, value):
     return  # Exit
 
 
-@worklock.command(name='cancel-bid')
+@worklock.command()
+@option_force
 @group_registry_options
 @group_worklock_options
 @group_general_config
-def burn_unclaimed_tokens(general_config, registry_options, worklock_options):
+def cancel_bid(general_config, registry_options, worklock_options, force):
     emitter = _setup_emitter(general_config)
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=general_config.provider_uri)
     registry = registry_options.get_registry(emitter, general_config.debug)
     worklock_agent = worklock_options.create_agent(registry=registry)
+    if not force:
+        value = worklock_agent.get_bid(checksum_address=worklock_options.bidder_address)
+        click.confirm(f"Confirm bid cancellation of {Web3.fromWei(value, 'ether')} ETH"
+                      f" for {worklock_options.bidder_address}?", abort=True)
     receipt = worklock_agent.cancel_bid(bidder_address=worklock_options.bidder_address)
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=worklock_agent.blockchain.client.chain_name)
     return  # Exit
 
 
-@worklock.command(name='claim')
+@worklock.command()
 @option_force
 @group_registry_options
 @group_worklock_options
@@ -152,7 +158,7 @@ def claim(general_config, worklock_options, registry_options, force):
     return  # Exit
 
 
-@worklock.command(name='remaining-work')
+@worklock.command()
 @group_worklock_options
 @group_registry_options
 @group_general_config
@@ -168,7 +174,7 @@ def remaining_work(general_config, worklock_options, registry_options):
     return  # Exit
 
 
-@worklock.command(name='refund')
+@worklock.command()
 @option_force
 @group_registry_options
 @group_worklock_options
@@ -188,7 +194,7 @@ def refund(general_config, worklock_options, registry_options, force):
     return  # Exit
 
 
-@worklock.command(name='burn-unclaimed-tokens')
+@worklock.command()
 @group_registry_options
 @group_worklock_options
 @group_general_config

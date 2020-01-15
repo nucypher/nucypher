@@ -335,7 +335,7 @@ def test_winding_down(agency, testerchain, test_registry, token_economics):
     receipt = staking_agent.set_winding_down(staker_account, value=False)
     assert receipt['status'] == 1
     assert not staking_agent.is_winding_down(staker_account)
-    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods - 1) != 0
+    assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods) != 0
     assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods + 1) == 0
     staking_agent.confirm_activity(worker_address=worker_account)
     assert staking_agent.get_locked_tokens(staker_account, token_economics.minimum_locked_periods + 1) != 0
