@@ -477,7 +477,7 @@ class StakingEscrowAgent(EthereumContractAgent):
     def set_winding_down(self, staker_address: str, value: bool) -> dict:
         """
         Enable wind down for stake.
-        If set to True, then stakes duration will be decreasing in each period with `confirmActivity()`.
+        If set to True, then stakes duration will decrease in each period with `confirmActivity()`.
         """
         contract_function = self.contract.functions.setWindDown(value)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,

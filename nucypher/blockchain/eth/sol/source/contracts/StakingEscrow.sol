@@ -93,7 +93,7 @@ contract StakingEscrow is Issuer {
         uint16 lastActivePeriod;
         bool measureWork;
         uint256 completedWork;
-        bool windDown;
+        bool windDown; // this slot has 31 bytes to store additional value
 
         uint256 reservedSlot2;
         uint256 reservedSlot3;
