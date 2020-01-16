@@ -22,7 +22,7 @@ from web3 import Web3
 from nucypher.blockchain.eth.agents import ContractAgency, WorkLockAgent
 from nucypher.characters.banners import WORKLOCK_BANNER
 from nucypher.cli.actions import select_client_account
-from nucypher.cli.common_options import option_force, group_options, option_checksum_address
+from nucypher.cli.options import option_force, group_options, option_checksum_address
 from nucypher.cli.config import group_general_config
 from nucypher.cli.painting import (
     paint_receipt_summary,
@@ -31,7 +31,7 @@ from nucypher.cli.painting import (
     paint_worklock_participant_status,
     paint_worklock_claim
 )
-from nucypher.cli.status import group_registry_options
+from nucypher.cli.commands.status import group_registry_options
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 
 option_bidder_address = click.option('--bidder-address',

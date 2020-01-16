@@ -23,9 +23,9 @@ from nucypher.blockchain.eth.agents import (
     ContractAgency,
     WorkLockAgent
 )
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, IndividualAllocationRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.characters.lawful import Ursula
-from nucypher.cli.worklock import worklock
+from nucypher.cli.commands.worklock import worklock
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
     MOCK_IP_ADDRESS,
