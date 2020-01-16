@@ -455,6 +455,15 @@ class Stake:
         log.info(f"{staker.checksum_address} Initialized new stake: {amount} tokens for {lock_periods} periods")
         return stake
 
+    def prolong(self, additional_periods: int):
+        self.sync()
+        if self.is_expired:
+            raise self.StakingError(f'Cannot divide an expired stake. Selected stake expired {self.unlock_datetime}.')
+        receipt = self.staking_agent.prolong_stake(staker_address=self.staker_address,
+                                                   stake_index=self.index,
+                                                   periods=additional_periods)
+        return receipt
+
 
 class WorkTracker:
 

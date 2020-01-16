@@ -795,6 +795,42 @@ class Staker(NucypherTokenActor):
 
         return new_stake
 
+    @only_me
+    def prolong_stake(self,
+                      stake_index: int,
+                      additional_periods: int = None,
+                      expiration: maya.MayaDT = None) -> tuple:
+
+        # Calculate duration in periods
+        if additional_periods and expiration:
+            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
+
+        # Update staking cache element
+        stakes = self.stakes
+
+        # Select stake to prolong from local cache
+        try:
+            current_stake = stakes[stake_index]
+        except KeyError:
+            if len(stakes):
+                message = f"Cannot prolong stake - No stake exists with index {stake_index}."
+            else:
+                message = "Cannot prolong stake - There are no active stakes."
+            raise Stake.StakingError(message)
+
+        # Calculate stake duration in periods
+        if expiration:
+            additional_periods = datetime_to_period(datetime=expiration, seconds_per_period=self.economics.seconds_per_period) - current_stake.final_locked_period
+            if additional_periods <= 0:
+                raise Stake.StakingError(f"New expiration {expiration} must be at least 1 period from the "
+                                         f"current stake's end period ({current_stake.final_locked_period}).")
+
+        stake = current_stake.prolong(additional_periods=additional_periods)
+
+        # Update staking cache element
+        self.stakes.refresh()
+        return stake
+
     def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
         """Public facing method for token locking."""
         if self.is_contract:

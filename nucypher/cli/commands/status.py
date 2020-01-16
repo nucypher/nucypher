@@ -16,8 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
-import functools
-
 import click
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency, PolicyManagerAgent
@@ -25,7 +23,8 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.characters.banners import NU_BANNER
 from nucypher.cli.actions import get_provider_process
-from nucypher.cli.common_options import (
+from nucypher.cli.config import group_general_config
+from nucypher.cli.options import (
     group_options,
     option_geth,
     option_light,
@@ -33,10 +32,8 @@ from nucypher.cli.common_options import (
     option_provider_uri,
     option_registry_filepath,
     option_staking_address,
-    )
-from nucypher.cli.config import group_general_config
+)
 from nucypher.cli.painting import paint_contract_status, paint_stakers, paint_locked_tokens_status
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 
 
 class RegistryOptions:
@@ -148,5 +145,4 @@ def _setup_emitter(general_config):
     emitter = general_config.emitter
     emitter.clear()
     emitter.banner(NU_BANNER)
-
     return emitter

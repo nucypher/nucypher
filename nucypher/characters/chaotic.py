@@ -205,11 +205,6 @@ class Felix(Character, NucypherTokenActor):
                         }
                     )
 
-        @rest_app.route("/", methods=['GET'])
-        def home():
-            rendering = render_template(self.TEMPLATE_NAME)
-            return rendering
-
         @rest_app.route("/register", methods=['POST'])
         def register():
             """Handle new recipient registration via POST request."""

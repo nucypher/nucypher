@@ -16,16 +16,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
-
-import functools
 import os
-from distutils.util import strtobool
 
 import click
+from distutils.util import strtobool
 from twisted.logger import Logger
 
 from nucypher.characters.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
-from nucypher.cli.common_options import option_etherscan, group_options
+from nucypher.cli.options import group_options
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
 from nucypher.utilities.logging import GlobalLoggerSettings
 
@@ -52,15 +50,15 @@ class GroupGeneralConfig:
     log_to_file = get_env_bool("NUCYPHER_FILE_LOGS", True)
 
     def __init__(self,
-                    json_ipc,
-                    verbose,
-                    quiet,
-                    no_logs,
-                    console_logs,
-                    file_logs,
-                    sentry_logs,
-                    log_level,
-                    debug):
+                 json_ipc,
+                 verbose,
+                 quiet,
+                 no_logs,
+                 console_logs,
+                 file_logs,
+                 sentry_logs,
+                 log_level,
+                 debug):
 
         self.log = Logger(self.__class__.__name__)
 

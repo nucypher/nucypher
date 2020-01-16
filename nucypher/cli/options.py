@@ -12,14 +12,33 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
-option_checksum_address = click.option(
-    '--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
+# Alphabetical
+option_checksum_address = click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
+option_config_file = click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
+option_config_root = click.option('--config-root', help="Custom configuration directory", type=click.Path())
+option_dev = click.option('--dev', '-d', help="Enable development mode", is_flag=True)
+option_db_filepath = click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
+option_dry_run = click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
+option_etherscan = click.option('--etherscan/--no-etherscan', help="Enable/disable viewing TX in Etherscan")
+option_federated_only = click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=None)
+option_force = click.option('--force', help="Don't ask for confirmation", is_flag=True)
+option_geth = click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
+option_hw_wallet = click.option('--hw-wallet/--no-hw-wallet')
+option_light = click.option('--light', help="Indicate that node is light", is_flag=True)
+option_m = click.option('--m', help="M-Threshold KFrags", type=click.INT)
+option_min_stake = click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
+option_n = click.option('--n', help="N-Total KFrags", type=click.INT)
+option_network = click.option('--network', help="Network Domain Name", type=click.STRING)
+option_poa = click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
+option_registry_filepath = click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+option_staking_address = click.option('--staking-address', help="Address of a NuCypher staker", type=EIP55_CHECKSUM_ADDRESS)
+option_teacher_uri = click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
+_option_middleware = click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True)
 
-option_config_file = click.option(
-    '--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 
-option_config_root = click.option(
-    '--config-root', help="Custom configuration directory", type=click.Path())
+#
+# Alphabetical
+#
 
 def option_controller_port(default=None):
     return click.option(
@@ -28,10 +47,6 @@ def option_controller_port(default=None):
         type=NETWORK_PORT,
         default=default)
 
-option_dev = click.option('--dev', '-d', help="Enable development mode", is_flag=True)
-
-option_db_filepath = click.option(
-    '--db-filepath', help="The database filepath to connect to", type=click.STRING)
 
 def option_discovery_port(default=None):
     return click.option(
@@ -40,22 +55,6 @@ def option_discovery_port(default=None):
         type=NETWORK_PORT,
         default=default)
 
-option_dry_run = click.option(
-    '--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
-
-option_etherscan = click.option(
-    '--etherscan/--no-etherscan', help="Enable/disable viewing TX in Etherscan")
-
-# Defaults to None since it can be overridden by the config file
-option_federated_only = click.option(
-    '--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=None)
-
-option_force = click.option('--force', help="Don't ask for confirmation", is_flag=True)
-
-option_geth = click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-
-# TODO: Make True by default or deprecate - see #1439
-option_hw_wallet = click.option('--hw-wallet/--no-hw-wallet')
 
 def option_label(required:bool = False):
     return click.option(
@@ -64,7 +63,6 @@ def option_label(required:bool = False):
         type=click.STRING,
         required=required)
 
-option_light = click.option('--light', help="Indicate that node is light", is_flag=True)
 
 def option_message_kit(required:bool = False):
     return click.option(
@@ -73,20 +71,6 @@ def option_message_kit(required:bool = False):
         type=click.STRING,
         required=required)
 
-option_m = click.option('--m', help="M-Threshold KFrags", type=click.INT)
-
-option_min_stake = click.option(
-    '--min-stake',
-    help="The minimum stake the teacher must have to be a teacher",
-    type=click.INT,
-    default=0)
-
-option_n = click.option('--n', help="N-Total KFrags", type=click.INT)
-
-option_network = click.option('--network', help="Network Domain Name", type=click.STRING)
-
-# Defaults to None since it can be overridden by the config file
-option_poa = click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
 
 def option_policy_encrypting_key(required:bool = False):
     return click.option(
@@ -94,6 +78,7 @@ def option_policy_encrypting_key(required:bool = False):
         help="Encrypting Public Key for Policy as hexadecimal string",
         type=click.STRING,
         required=required)
+
 
 def option_provider_uri(default=None, required:bool = False):
     return click.option(
@@ -103,20 +88,8 @@ def option_provider_uri(default=None, required:bool = False):
         required=required,
         default=default)
 
-option_registry_filepath = click.option(
-    '--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
-
-option_staking_address = click.option(
-    '--staking-address', help="Address of a NuCypher staker", type=EIP55_CHECKSUM_ADDRESS)
-
-option_teacher_uri = click.option(
-    '--teacher', 'teacher_uri',
-    help="An Ursula URI to start learning from (seednode)",
-    type=click.STRING)
-
 
 def group_options(option_class, **options):
-
     argnames = sorted(list(options.keys()))
     decorators = list(options.values())
 
@@ -179,16 +152,10 @@ def wrap_option(handler, **options):
 
 def process_middleware(mock_networking):
     if mock_networking:
-        # FIXME: is there a way to get an emitter here?
-        #self.emitter.message("WARNING: Mock networking is enabled")
         middleware = MockRestMiddleware()
     else:
         middleware = RestMiddleware()
 
     return 'middleware', middleware
 
-
-option_middleware = wrap_option(
-    process_middleware,
-    mock_networking=click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True),
-    )
+option_middleware = wrap_option(process_middleware, mock_networking=_option_middleware)
