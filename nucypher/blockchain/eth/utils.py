@@ -48,15 +48,7 @@ def datetime_at_period(period: int, seconds_per_period: int, start_of_period: bo
         now = maya.now()
         current_period = datetime_to_period(datetime=now, seconds_per_period=seconds_per_period)
         delta_periods = period - current_period
-
-        # +
-        if delta_periods:
-            target_datetime = now + maya.timedelta(days=delta_periods)
-
-        # -
-        else:
-            target_datetime = now - maya.timedelta(days=delta_periods)
-
+        target_datetime = now + maya.timedelta(seconds=seconds_per_period) * delta_periods
         return target_datetime
 
 
