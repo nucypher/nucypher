@@ -808,7 +808,7 @@ class Staker(NucypherTokenActor):
         # Update staking cache element
         stakes = self.stakes
 
-        # Select stake to divide from local cache
+        # Select stake to prolong from local cache
         try:
             current_stake = stakes[stake_index]
         except KeyError:
