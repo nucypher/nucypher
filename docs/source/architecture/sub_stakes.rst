@@ -1,7 +1,9 @@
 Sub-stakes
 ==========
 
-A staker may extend the unlock period for any number of portions of their total stake. This divides the stake into smaller parts, each with a unique unlock date in the future. Stakers may also acquire and lock new tokens. The total stake is represented as the sum of all the different sub-stakes active in a given cycle (new cycle every 24h), which includes locked sub-stakes, and any sub-stakes that have passed their unlock date, and can be freely withdrawn. Each sub-stake has a beginning and duration (lock time). When a staker confirms activity each day and winding down is enabled, the remaining lock time for relevant sub-stakes is reduced.
+A staker may extend the unlock period for any number of portions of their total stake. This divides the stake into smaller parts, each with a unique unlock date in the future. Stakers may also acquire and lock new tokens. The total stake is represented as the sum of all the different sub-stakes active in a given period (new period every 24h), which includes locked sub-stakes, and any sub-stakes that have passed their unlock date, and can be freely withdrawn. 
+
+Each sub-stake has a starting period and a locking duration. For our terminology, we define "locking duration" to be the required number of times that ``confirmActivity()`` needs to be called so that the sub-stake is registered as locked for the subsequent period. For example, if a sub-stake has a *locking duration of 5 periods* it means that the sub-stake will be locked for periods: 1,2,3,4,5 because ``confirmActivity()`` would be called during periods 0,1,2,3,4 each time confirming activity for the subsequent period (1,2,3,4,5) respectively. Unless the starting period is specified, the sub-stake is considered locked for the 0th (current) period by default. When a staker confirms activity each day and winding down is enabled, the remaining lock time for relevant sub-stakes is reduced.
 
 A sub-stake remains active until it becomes unlocked, and a staker gets the reward for the last period by calling ``mint()`` or ``confirmActivity()`` once the last period is surpassed. Each staker can have no more than 30 active sub-stakes which are stored in an array. All sub-stake changes initially reuse slots of inactive sub-stakes for storage in the array, and if there are none, will instead use empty slots. Therefore, attempting to retrieve data about previous inactive sub-stakes is not guaranteed to be successful since the data could have been overwritten.
 
@@ -20,7 +22,7 @@ To become a staker, NU tokens must be transferred to the ``StakingEscrow`` contr
 **Example:**
 
     A staker deposits 900 tokens:
-        * 1st sub-stake = 900 tokens starting from the next period and locked for 5 periods
+        * 1st sub-stake = 900 tokens starting from the next period and a locking duration of 5 periods
 
     .. aafig::
         :proportional:
@@ -46,9 +48,9 @@ In order to increase the staking reward, as well as the possibility of obtaining
 
     A staker prolongs sub-stake for 2 additional periods up to 7:
 		- Before: 
-			* 1st sub-stake = 900 tokens for 5 periods
+			* 1st sub-stake = 900 tokens with locking duration of 5 periods
 		- After: 
-			* 1st sub-stake = 900 tokens for 7 periods
+			* 1st sub-stake = 900 tokens with locking duration of 7 periods
 
     .. aafig::
         :proportional:
@@ -87,10 +89,10 @@ If necessary, stakers can extend the locking duration for only a portion of thei
 
     A staker divides sub-stake and extends locking time for 300 tokens for 2 additional periods:
 		- Before: 
-			* 1st sub-stake = 900 tokens for 5 periods
+			* 1st sub-stake = 900 tokens with locking duration of 5 periods
 		- After: 
-			* 1st sub-stake = 600 tokens for 5 periods
-			* 2nd sub-stake = 300 tokens for 7 periods
+			* 1st sub-stake = 600 tokens with locking duration of 5 periods
+			* 2nd sub-stake = 300 tokens with locking duration of 7 periods
 
     .. aafig::
         :proportional:
@@ -141,26 +143,26 @@ Re-staking
 ^^^^^^^^^^
 *Used in methods* : ``confirmActivity()``, ``mint()``
 
-When re-staking is turned off, the number of locked tokens in sub-stakes does not change by itself.
-However, when re-staking is enabled (default) then all staking rewards are re-locked as part of each relevant sub-stake (inside ``confirmActivity()`` and/or ``mint()``).  Consequently, each such sub-stake has an increased locked amount (by reward) and the number of sub-stakes remains unchanged.
+When re-staking is disabled, the number of locked tokens in sub-stakes does not change by itself.
+However, when re-staking is enabled (default) then all staking rewards are re-locked as part of each relevant sub-stake (inside ``confirmActivity()`` and/or ``mint()``).  Consequently, each such sub-stake has an increased locked amount (by the accrued staking reward) and the number of sub-stakes remains unchanged.
 
 **Example:**
 
     A staker has few sub-stakes and calls ``mint()``. Assume that thus far the 1st and 2nd sub-stakes will produce 50 tokens and 20 tokens respectively in rewards:
 		- Before calling: 
-			* 1st sub-stake = 400 tokens for 8 periods
-			* 2nd sub-stake = 200 tokens for 2 periods
-			* 3rd sub-stake = 100 tokens locked starting from the next period and locked for 5 periods
+			* 1st sub-stake = 400 tokens with locking duration of 8 periods
+			* 2nd sub-stake = 200 tokens with locking duration of 2 periods
+			* 3rd sub-stake = 100 tokens locked starting from the next period and a locking duration of 5 periods
 			* 100 tokens in an unlocked state
 		- After calling, if re-staking is disabled:  
-			* 1st sub-stake = 400 tokens for 8 periods
-			* 2nd sub-stake = 200 tokens for 2 periods
-			* 3rd sub-stake = 100 tokens locked starting from the next period and locked for 5 periods
+			* 1st sub-stake = 400 tokens with locking duration of 8 periods
+			* 2nd sub-stake = 200 tokens with locking duration of 2 periods
+			* 3rd sub-stake = 100 tokens locked starting from the next period and a locking duration of 5 periods
 			* 170 tokens in an unlocked state
 		- After calling, if re-staking is enabled: 
-			* 1st sub-stake = 450 tokens for 8 periods
-			* 2nd sub-stake = 220 tokens for 2 periods
-			* 3rd sub-stake = 100 tokens locked starting from the next period and locked for 5 periods
+			* 1st sub-stake = 450 tokens with locking duration of 8 periods
+			* 2nd sub-stake = 220 tokens with locking duration of 2 periods
+			* 3rd sub-stake = 100 tokens locked starting from the next period and a locking duration of 5 periods
 			* 100 tokens in an unlocked state
 
     .. aafig::
@@ -210,20 +212,20 @@ Winding down
 ^^^^^^^^^^^^
 *Used in methods* : ``confirmActivity()``
 
-A disabled "winding down" parameter (default) guarantees that the worker must call ``confirmActivity()`` at least N times after the parameter is enabled to unlock the sub-stake, where N is the locking duration of sub-stake. When disabled, the unlock date for each sub-stakes shifts forward by 1 period after each period i.e. the duration continues to remain the same until the parameter is enabled. Once the "winding down" parameter is enabled, each call to ``confirmActivity()`` (no more than once in a period) leads to a reduction of locking duration for each sub-stake, and the unlock date no longer changes.
+An enabled "winding down" parameter means that each call to ``confirmActivity()`` (no more than once in a period) leads to a reduction of the locking duration for each sub-stake. In other words, the sub-stake will unlock after the worker calls ``confirm-activity()`` at least N times (no more than once in a period), where N is the locking duration of sub-stake. When disabled (default), the unlock date for each sub-stakes shifts forward by 1 period after each period. In other words, the duration continues to remain the same until the "winding down" parameter is enabled.
 
 **Example:**
 
     A staker has few sub-stakes, worker calls ``сonfirmActivity()`` each period:
 		- Current period: 
-			* 1st sub-stake = 400 tokens for 8 periods
-			* 2nd sub-stake = 100 tokens locked starting from the next period and locked for 5 periods
+			* 1st sub-stake = 400 tokens with locking duration of 8 periods
+			* 2nd sub-stake = 100 tokens locked starting from the next period and a locking duration of 5 periods
 		- Next period, if winding down is disabled:  
-			* 1st sub-stake = 400 tokens for 8 periods
-			* 2nd sub-stake = 100 tokens locked starting from the current period and locked for 5 future periods
+			* 1st sub-stake = 400 tokens with locking duration of 8 periods
+			* 2nd sub-stake = 100 tokens locked starting from the current period and a locking duration of 5 future periods
 		- Next period, if winding down is enabled: 
-			* 1st sub-stake = 400 tokens for 7 periods
-			* 2nd sub-stake = 100 tokens locked starting from the current period and locked for 4 future periods
+			* 1st sub-stake = 400 tokens with locking duration of 7 periods
+			* 2nd sub-stake = 100 tokens locked starting from the current period and a locking duration of 4 future periods
 
     .. aafig::
         :proportional:

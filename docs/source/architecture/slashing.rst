@@ -23,7 +23,7 @@ The goal of slashing is to reduce the number of tokens that belongs to a staking
 In this case, the main task is not to violate the logic of locking tokens.
 The entire stake consists of:
 
-    * tokens which the staker can withdraw at any moment
+    * unlocked tokens which the staker can withdraw at any moment
     * tokens locked for a specific period
 
 .. _`Sub-stakes`: https://docs.nucypher.com/en/latest/architecture/sub_stakes.html
@@ -117,9 +117,9 @@ Penalty Scenarios:
             stake
             ^
             |
-         600+----------+-------------+
-            |    2nd   |     3rd     |
-         500+----------+-------------+----------+
+         600+-----+------------------+
+            | 2nd |       3rd        |
+         500+-----+------------------+----------+
             |                                   |
             |               1st                 |
             |                                   |   period
