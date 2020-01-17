@@ -32,8 +32,6 @@ from eth_utils import to_checksum_address
 from flask import request, Response
 from twisted.internet import threads
 from twisted.logger import Logger
-
-from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
@@ -52,9 +50,9 @@ from nucypher.blockchain.eth.token import WorkTracker
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import (
-    CLIController,
     WebController
 )
+from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
@@ -667,11 +665,11 @@ class Bob(Character):
                  alice_verifying_key: UmbralPublicKey,
                  label: bytes,
                  enrico: "Enrico" = None,
-                 retain_cfrags: bool=False,
-                 use_attached_cfrags: bool=False,
-                 use_precedent_work_orders: bool=False,
-                 policy_encrypting_key: UmbralPublicKey=None,
-                 treasure_map: Union['TreasureMap', bytes]=None):
+                 retain_cfrags: bool = False,
+                 use_attached_cfrags: bool = False,
+                 use_precedent_work_orders: bool = False,
+                 policy_encrypting_key: UmbralPublicKey = None,
+                 treasure_map: Union['TreasureMap', bytes] = None):
 
         # Try our best to get an UmbralPublicKey from input
         alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
@@ -739,7 +737,8 @@ class Bob(Character):
                         cfrag_in_question = work_order.tasks[capsule].cfrag
                         capsule.attach_cfrag(cfrag_in_question)
                 else:
-                    self.log.warn("Found existing complete WorkOrders, but use_precedent_work_orders is set to False.  To use Bob in 'KMS mode', set retain_cfrags=False as well.")
+                    self.log.warn(
+                        "Found existing complete WorkOrders, but use_precedent_work_orders is set to False.  To use Bob in 'KMS mode', set retain_cfrags=False as well.")
 
         # Part II: Getting the cleartexts.
         cleartexts = []
