@@ -253,6 +253,10 @@ class ContractAdministrator(NucypherTokenActor):
         secrets = dict()
         for deployer in self.upgradeable_deployer_classes:
             secrets[deployer.contract_name] = self.collect_deployment_secret(deployer)
+
+        if len(secrets.values()) != len(set(secrets.values())):  # i.e., if there are duplicated secrets
+            raise ValueError("You can't use the same secret for multiple contracts")
+
         return secrets
 
     def deploy_contract(self,

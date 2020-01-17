@@ -49,8 +49,6 @@ def test_investigator_requests_slashing(testerchain,
                                         mock_transacting_power_activation,
                                         mocker):
 
-    testerchain = testerchain
-
     staker_account = testerchain.staker_account(0)
     worker_account = testerchain.ursula_account(0)
 

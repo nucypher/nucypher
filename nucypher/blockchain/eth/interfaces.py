@@ -543,6 +543,8 @@ class BlockchainInterface:
                         f"There are no Dispatcher records targeting '{contract_name}':{contract_version}")
 
         else:
+            # TODO: use_proxy_address doesnt' work in this case. Should we raise if used?
+
             # NOTE: 0 must be allowed as a valid version number
             if len(target_contract_records) != 1:
                 if enrollment_version is None:

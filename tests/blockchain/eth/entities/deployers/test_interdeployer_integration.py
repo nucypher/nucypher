@@ -33,7 +33,6 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
 def test_deploy_ethereum_contracts(testerchain,
                                    deployment_progress,
                                    test_registry):
-    testerchain = testerchain
 
     origin, *everybody_else = testerchain.client.accounts
 
