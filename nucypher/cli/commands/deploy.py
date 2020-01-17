@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import json
 import os
 
 import click
@@ -330,7 +331,9 @@ def rollback(general_config, actor_options):
 @option_gas
 @option_ignore_deployed
 @click.option('--confirmations', help="Number of required block confirmations", type=click.IntRange(min=0))
-def contracts(general_config, actor_options, bare, gas, ignore_deployed, confirmations):
+@click.option('--parameters', help="Filepath to a JSON file containing additional deployment parameters",
+              type=EXISTING_READABLE_FILE)
+def contracts(general_config, actor_options, bare, gas, ignore_deployed, confirmations, parameters):
     """
     Compile and deploy contracts.
     """
@@ -338,6 +341,11 @@ def contracts(general_config, actor_options, bare, gas, ignore_deployed, confirm
 
     emitter = general_config.emitter
     ADMINISTRATOR, _, deployer_interface, local_registry = actor_options.create_actor(emitter)
+
+    deployment_parameters = {}
+    if parameters:
+        with open(parameters) as json_file:
+            deployment_parameters = json.load(json_file)
 
     #
     # Deploy Single Contract (Amend Registry)
@@ -368,7 +376,9 @@ def contracts(general_config, actor_options, bare, gas, ignore_deployed, confirm
                                                             gas_limit=gas,
                                                             bare=bare,
                                                             ignore_deployed=ignore_deployed,
-                                                            confirmations=confirmations)
+                                                            confirmations=confirmations,
+                                                            deployment_parameters=deployment_parameters
+                                                            )
 
         # Report
         paint_contract_deployment(contract_name=contract_name,

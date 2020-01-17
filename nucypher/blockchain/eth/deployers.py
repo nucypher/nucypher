@@ -690,13 +690,14 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                                                                      contract_name=staking_contract_name,
                                                                      proxy_name=proxy_name)
 
-    def _deploy_essential(self, contract_version: str, gas_limit: int = None) -> tuple:
+    def _deploy_essential(self, contract_version: str, gas_limit: int = None, confirmations: int = 0) -> tuple:
         constructor_kwargs = {"_escrow": self.staking_contract.address}
         policy_manager_contract, deploy_receipt = self.blockchain.deploy_contract(self.deployer_address,
                                                                                   self.registry,
                                                                                   self.contract_name,
                                                                                   gas_limit=gas_limit,
                                                                                   contract_version=contract_version,
+                                                                                  confirmations=confirmations,
                                                                                   **constructor_kwargs)
         return policy_manager_contract, deploy_receipt
 
@@ -706,7 +707,8 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                gas_limit: int = None,
                progress=None,
                contract_version: str = "latest",
-               ignore_deployed: bool = False
+               ignore_deployed: bool = False,
+               confirmations: int = 0,
                ) -> Dict[str, dict]:
 
         if initial_deployment and not secret_hash:
@@ -717,7 +719,8 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
         # Creator deploys the policy manager
         policy_manager_contract, deploy_receipt = self._deploy_essential(contract_version=contract_version,
-                                                                         gas_limit=gas_limit)
+                                                                         gas_limit=gas_limit,
+                                                                         confirmations=confirmations)
 
         # This is the end of bare deployment.
         if not initial_deployment:
@@ -801,7 +804,7 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
                                                                     contract_name=policy_contract_name,
                                                                     proxy_name=policy_proxy_name)
 
-    def _deploy_essential(self, contract_version: str, gas_limit: int = None):
+    def _deploy_essential(self, contract_version: str, gas_limit: int = None, confirmations: int = 0):
         """Note: These parameters are order-sensitive"""
         constructor_args = (self.token_contract.address,
                             self.staking_contract.address,
@@ -812,7 +815,8 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
                                                                        self.contract_name,
                                                                        *constructor_args,
                                                                        gas_limit=gas_limit,
-                                                                       contract_version=contract_version)
+                                                                       contract_version=contract_version,
+                                                                       confirmations=confirmations)
         return contract, deployment_receipt
 
     def deploy(self,
@@ -821,7 +825,8 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
                gas_limit: int = None,
                progress=None,
                contract_version: str = "latest",
-               ignore_deployed: bool = False
+               ignore_deployed: bool = False,
+               confirmations: int = 0,
                ) -> dict:
         """
         Deploys a new StakingInterface contract, and a new StakingInterfaceRouter, targeting the former.
@@ -835,7 +840,8 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
 
         # 1 - StakingInterface
         staking_interface_contract, deployment_receipt = self._deploy_essential(contract_version=contract_version,
-                                                                                gas_limit=gas_limit)
+                                                                                gas_limit=gas_limit,
+                                                                                confirmations=confirmations)
 
         # This is the end of bare deployment.
         if not initial_deployment:
@@ -1180,7 +1186,7 @@ class MultiSigDeployer(BaseContractDeployer):
 
     MAX_OWNER_COUNT = 50  # Hard-coded limit in MultiSig contract
 
-    def _deploy_essential(self, threshold: int, owners: List[str], gas_limit: int = None):
+    def _deploy_essential(self, threshold: int, owners: List[str], gas_limit: int = None, confirmations: int = 0):
         if not (0 < threshold <= len(owners) <= self.MAX_OWNER_COUNT):
             raise ValueError(f"Parameters threshold={threshold} and len(owners)={len(owners)} don't satisfy inequality "
                              f"0 < threshold <= len(owners) <= {self.MAX_OWNER_COUNT}")
@@ -1195,7 +1201,8 @@ class MultiSigDeployer(BaseContractDeployer):
                                                                             self.registry,
                                                                             self.contract_name,
                                                                             *constructor_args,
-                                                                            gas_limit=gas_limit)
+                                                                            gas_limit=gas_limit,
+                                                                            confirmations=confirmations)
         return multisig_contract, deploy_receipt
 
     def deploy(self, gas_limit: int = None, progress=None, *args, **kwargs) -> dict:

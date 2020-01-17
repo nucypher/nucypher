@@ -55,7 +55,8 @@ from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     BaseContractDeployer,
     WorklockDeployer,
-    SeederDeployer
+    SeederDeployer,
+    MultiSigDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -161,6 +162,7 @@ class ContractAdministrator(NucypherTokenActor):
 
     aux_deployer_classes = (
         WorklockDeployer,
+        MultiSigDeployer,
         SeederDeployer
     )
 
@@ -267,8 +269,11 @@ class ContractAdministrator(NucypherTokenActor):
                         ignore_deployed: bool = False,
                         progress=None,
                         confirmations: int = 0,
+                        deployment_parameters: dict = None,
                         *args, **kwargs,
                         ) -> Tuple[dict, BaseContractDeployer]:
+
+        deployment_parameters = deployment_parameters or {}
 
         Deployer = self.__get_deployer(contract_name=contract_name)
         if Deployer is StakingEscrowDeployer:
@@ -294,7 +299,10 @@ class ContractAdministrator(NucypherTokenActor):
                                        ignore_deployed=ignore_deployed,
                                        confirmations=confirmations)
         else:
-            receipts = deployer.deploy(gas_limit=gas_limit, progress=progress, confirmations=confirmations)
+            receipts = deployer.deploy(gas_limit=gas_limit,
+                                       progress=progress,
+                                       confirmations=confirmations,
+                                       **deployment_parameters)
         return receipts, deployer
 
     def upgrade_contract(self,
