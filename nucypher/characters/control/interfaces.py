@@ -1,14 +1,11 @@
 import functools
-import click
-import json
-from collections.abc import Mapping
-
-import maya
+from base64 import b64decode
 from typing import Union
 
-from nucypher.characters.control.specifications import alice, bob, enrico
+import maya
 from umbral.keys import UmbralPublicKey
 
+from nucypher.characters.control.specifications import alice, bob, enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.utils import construct_policy_id
@@ -16,14 +13,13 @@ from nucypher.network.middleware import NotFound
 
 
 def attach_schema(schema):
-
     def callable(func):
         func._schema = schema()
 
         @functools.wraps(func)
         def wrapped(*args, **kwargs):
-
             return func(*args, **kwargs)
+
         return wrapped
 
     return callable
@@ -37,7 +33,6 @@ class CharacterPublicInterface:
 
     @classmethod
     def connect_cli(cls, action):
-
         schema = getattr(cls, action)._schema
 
         def callable(func):
@@ -48,6 +43,7 @@ class CharacterPublicInterface:
             @functools.wraps(func)
             def wrapped(*args, **kwargs):
                 return c(*args, **kwargs)
+
             return wrapped
 
         return callable
@@ -129,9 +125,9 @@ class AliceInterface(CharacterPublicInterface):
             for node_id, attempt in failed_revocations.items():
                 revocation, fail_reason = attempt
                 if fail_reason == NotFound:
-                    del(failed_revocations[node_id])
+                    del (failed_revocations[node_id])
         if len(failed_revocations) <= (policy.n - policy.treasure_map.m + 1):
-            del(self.character.active_policies[policy_id])
+            del (self.character.active_policies[policy_id])
 
         response_data = {'failed_revocations': len(failed_revocations)}
         return response_data
@@ -190,7 +186,7 @@ class BobInterface(CharacterPublicInterface):
                  policy_encrypting_key: bytes,
                  alice_verifying_key: bytes,
                  message_kit: bytes,
-                 treasure_map: Union[bytes, 'TreasureMap'] = None):
+                 treasure_map: Union[bytes, str, 'TreasureMap'] = None):
         """
         Character control endpoint for re-encrypting and decrypting policy data.
         """
@@ -198,7 +194,8 @@ class BobInterface(CharacterPublicInterface):
 
         policy_encrypting_key = UmbralPublicKey.from_bytes(policy_encrypting_key)
         alice_verifying_key = UmbralPublicKey.from_bytes(alice_verifying_key)
-        message_kit = UmbralMessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
+        message_kit = UmbralMessageKit.from_bytes(
+            message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 
         enrico = Enrico.from_public_keys(verifying_key=message_kit.sender_verifying_key,
                                               policy_encrypting_key=policy_encrypting_key,
