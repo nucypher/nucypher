@@ -167,7 +167,7 @@ class Character(Learner):
 
         # Fleet and Blockchain Connection (Everyone)
         if not domains:
-            domains = (CharacterConfiguration.DEFAULT_DOMAIN,)
+            domains = (CharacterConfiguration.DEFAULT_DOMAIN,)  # FIXME: entry point to fix #1496, #1564
 
         #
         # Self-Character

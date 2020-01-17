@@ -85,7 +85,7 @@ from tests.performance_mocks import mock_cert_storage, mock_cert_loading, mock_r
     mock_secret_source, mock_remember_node, mock_verify_node, mock_record_fleet_state, mock_message_verification, \
     mock_keep_learning
 
-CharacterConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
+CharacterConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN  # FIXME: entry point to fix #1496, #1564
 
 test_logger = Logger("test-logger")
 

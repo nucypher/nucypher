@@ -40,6 +40,7 @@ from nucypher.cli.options import (
     option_force,
     option_hw_wallet,
     option_light,
+    option_network,
     option_poa,
     option_provider_uri,
     option_registry_filepath,
@@ -63,11 +64,12 @@ class StakeHolderConfigOptions:
 
     __option_name__ = 'config_options'
 
-    def __init__(self, provider_uri, poa, light, registry_filepath):
+    def __init__(self, provider_uri, poa, light, registry_filepath, network):
         self.provider_uri = provider_uri
         self.poa = poa
         self.light = light
         self.registry_filepath = registry_filepath
+        self.network = network
 
     def create_config(self, emitter, config_file):
         try:
@@ -99,7 +101,9 @@ class StakeHolderConfigOptions:
             poa=self.poa,
             light=self.light,
             sync=False,
-            registry_filepath=self.registry_filepath)
+            registry_filepath=self.registry_filepath,
+            domains={self.network}  # FIXME: entry point to fix #1496, #1564
+        )
 
 
 group_config_options = group_options(
@@ -108,6 +112,7 @@ group_config_options = group_options(
     poa=option_poa,
     light=option_light,
     registry_filepath=option_registry_filepath,
+    network=option_network
     )
 
 
@@ -218,6 +223,7 @@ def stake():
 @option_force
 @group_config_options
 @group_general_config
+@option_network
 def init_stakeholder(general_config, config_root, force, config_options):
     """
     Create a new stakeholder configuration.

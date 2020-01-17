@@ -40,6 +40,7 @@ from nucypher.crypto.powers import CryptoPowerUp, CryptoPower
 from nucypher.network.middleware import RestMiddleware
 
 
+# TODO: Relocate - #1575
 class CharacterConfiguration(BaseConfiguration):
     """
     'Sideways Engagement' of Character classes; a reflection of input parameters.
@@ -49,7 +50,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     CHARACTER_CLASS = NotImplemented
     DEFAULT_CONTROLLER_PORT = NotImplemented
-    DEFAULT_DOMAIN = 'goerli'
+    DEFAULT_DOMAIN = 'goerli'  # FIXME: entry point to fix #1496, #1564
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
     TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
 
@@ -78,7 +79,7 @@ class CharacterConfiguration(BaseConfiguration):
 
                  # Network
                  controller_port: int = None,
-                 domains: Set[str] = None,
+                 domains: Set[str] = None,  # FIXME: Mapping between learning domains and "registry" domains. See #1564
                  interface_signature: Signature = None,
                  network_middleware: RestMiddleware = None,
 
@@ -138,7 +139,7 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Learner
         self.federated_only = federated_only
-        self.domains = domains or {self.DEFAULT_DOMAIN}
+        self.domains = domains or {self.DEFAULT_DOMAIN}  # FIXME: entry point to fix #1496, #1564
         self.learn_on_same_thread = learn_on_same_thread
         self.abort_on_learning_error = abort_on_learning_error
         self.start_learning_now = start_learning_now
@@ -198,7 +199,7 @@ class CharacterConfiguration(BaseConfiguration):
                 # TODO: These two code blocks are untested.
                 if not self.registry_filepath:  # TODO: Registry URI  (goerli://speedynet.json) :-)
                     self.log.info(f"Fetching latest registry from source.")
-                    self.registry = InMemoryContractRegistry.from_latest_publication()
+                    self.registry = InMemoryContractRegistry.from_latest_publication(self.domains[0])  # FIXME: entry point to fix #1496, #1564
                 else:
                     self.registry = LocalContractRegistry(filepath=self.registry_filepath)
                     self.log.info(f"Using local registry ({self.registry}).")

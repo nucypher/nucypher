@@ -94,9 +94,9 @@ class UrsulaConfigOptions:
         self.worker_address = worker_address
         self.federated_only = federated_only
         self.rest_host = rest_host
-        self.rest_port = rest_port # FIXME: not used in generate()
+        self.rest_port = rest_port  # FIXME: not used in generate()
         self.db_filepath = db_filepath
-        self.domains = {network} if network else None
+        self.domains = {network} if network else None  # FIXME: #1496
         self.registry_filepath = registry_filepath
         self.dev = dev
         self.poa = poa
@@ -161,19 +161,19 @@ class UrsulaConfigOptions:
             rest_host = actions.determine_external_ip_address(emitter, force=force)
 
         return UrsulaConfiguration.generate(password=get_nucypher_password(confirm=True),
-                                                     config_root=config_root,
-                                                     rest_host=rest_host,
-                                                     rest_port=self.rest_port,
-                                                     db_filepath=self.db_filepath,
-                                                     domains=self.domains,
-                                                     federated_only=self.federated_only,
-                                                     checksum_address=self.staker_address,
-                                                     worker_address=self.worker_address,
-                                                     registry_filepath=self.registry_filepath,
-                                                     provider_process=self.eth_node,
-                                                     provider_uri=self.provider_uri,
-                                                     poa=self.poa,
-                                                     light=self.light)
+                                            config_root=config_root,
+                                            rest_host=rest_host,
+                                            rest_port=self.rest_port,
+                                            db_filepath=self.db_filepath,
+                                            domains=self.domains,
+                                            federated_only=self.federated_only,
+                                            checksum_address=staker_address,
+                                            worker_address=worker_address,
+                                            registry_filepath=self.registry_filepath,
+                                            provider_process=self.eth_node,
+                                            provider_uri=self.provider_uri,
+                                            poa=self.poa,
+                                            light=self.light)
 
 
 group_config_options = group_options(
@@ -293,7 +293,7 @@ def forget(general_config, config_options, config_file):
     Forget all known nodes.
     """
     emitter = _setup_emitter(general_config, config_options.worker_address)
-    _pre_launch_warnings(emitter, dev=dev, force=None)
+    _pre_launch_warnings(emitter, dev=group_config_options.dev, force=None)
     ursula_config = config_options.create_config(emitter, config_file)
     actions.forget(emitter, configuration=ursula_config)
 
