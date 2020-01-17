@@ -32,9 +32,31 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 
 
-class CanonicalRegistrySource(ABC):
+class NetworksInventory:  # TODO: Rename & relocate. See also #1564
 
-    networks = ('goerli', )  # TODO: Allow other branches to be used - #1496
+    MAINNET = 'mainnet'
+    MIRANDA = 'miranda'
+    FRANCES = 'frances'
+    CASSANDRA = 'cassandra'
+
+    __to_ethereum_chain_id = {  # TODO: what about chain id when testing?
+        MAINNET: 1,  # Ethereum Mainnet
+        MIRANDA: 5,  # Goerli
+        FRANCES: 5,  # Goerli
+        CASSANDRA: 5,  # Goerli
+    }
+
+    networks = tuple(__to_ethereum_chain_id.keys())
+
+    @classmethod
+    def get_ethereum_chain_id(cls, network):
+        try:
+            return cls.__to_ethereum_chain_id[network]
+        except KeyError:
+            return 1337  # TODO: what about chain id when testing?
+
+
+class CanonicalRegistrySource(ABC):
 
     logger = Logger('RegistrySource')
 
@@ -42,9 +64,9 @@ class CanonicalRegistrySource(ABC):
     is_primary = NotImplementedError
 
     def __init__(self, network: str, registry_name: str, *args, **kwargs):
-        if network not in self.networks:
+        if network not in NetworksInventory.networks:
             raise ValueError(f"{self.__class__.__name__} not available for network '{network}'. "
-                             f"Only {self.networks} are allowed.")
+                             f"Only {NetworksInventory.networks} are allowed.")
         self.network = network
         self.registry_name = registry_name
 
@@ -78,7 +100,7 @@ class GithubRegistrySource(CanonicalRegistrySource):
         super().__init__(*args, **kwargs)
 
     def get_publication_endpoint(self) -> str:
-        url = f'{self._BASE_URL}/{self.network}/{self.registry_name}'
+        url = f'{self._BASE_URL}/master/{self.network}/{self.registry_name}'
         return url
 
     def fetch_latest_publication(self) -> Union[str, bytes]:
