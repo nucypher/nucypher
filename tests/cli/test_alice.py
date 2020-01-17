@@ -17,7 +17,7 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
     assert "run: 'nucypher alice init'" in result.output
 
 
-def test_initialize_alice_defaults(click_runner, mocker):
+def test_initialize_alice_defaults(click_runner, mocker, custom_filepath):
     # Mock out filesystem writes
     mocker.patch.object(AliceConfiguration, 'initialize', autospec=True)
     mocker.patch.object(AliceConfiguration, 'to_configuration_file', autospec=True)
@@ -25,6 +25,7 @@ def test_initialize_alice_defaults(click_runner, mocker):
     # Use default alice init args
     init_args = ('alice', 'init',
                  '--network', TEMPORARY_DOMAIN,
+                 '--config-root', custom_filepath,
                  '--federated-only')
 
     user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
