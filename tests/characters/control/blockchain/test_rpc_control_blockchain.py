@@ -1,7 +1,6 @@
 import pytest
 
 from base64 import b64encode
-from nucypher.characters.control.specifications import AliceSpecification, BobSpecification, EnricoSpecification
 from nucypher.policy.collections import TreasureMap
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.characters.lawful import Ursula
@@ -135,9 +134,6 @@ def test_bob_rpc_character_control_retrieve_with_tmap(
     params['treasure_map'] = tmap_64
     request_data = {'method': method_name, 'params': params}
     response = bob_rpc_controller.send(request_data)
-    assert validate_json_rpc_response_data(response=response,
-                                           method_name=method_name,
-                                           specification=bob_specification)
     assert response.data['result']['cleartexts'][0] == 'Welcome to flippering number 1.'
 
     # Make a wrong (empty) treasure map
