@@ -4,18 +4,16 @@
 NuCypher Staking Guide
 =======================
 
-The NuCypher Network status page can be found at https://status.nucypher.network:12500/.
+Participation in staking nucypher is two divided into two primary roles: "Staker" and "Worker":
+The account which holds NU tokens and manages stakes is called a "Staker", and the account
+which participates in the network as an Ursula node is called "Worker". The recommended configuration that
+StakeHolder and Worker have separate Ethereum accounts: Staker controlled by a hardware wallet, and Worker by software wallet.
 
-The account which is actively doing work for the network (i.e., re-encryptions) needs to be a hot
-wallet. However, it doesn't have to be the same account as the one which receives and
-sends NU tokens. The account which holds NU tokens is called
-Staker, and the account which participates in the network as a worker node is
-called `Ursula`, or simply, Worker.
-It is highly recommended that Staker and Worker have separate Ethereum
-accounts: Staker controlled by a hardware wallet, and Worker
-having an address controlled by geth.
+Note: While it is possible to use the same account, It is highly recommended that the
+Staker and Worker have separate Ethereum accounts: Staker controlled by a hardware wallet, and Worker by software.
 
 All staking-related operations done by Staker are performed through the ``nucypher stake`` command:
+=======
 
 .. code:: bash
 
@@ -97,15 +95,14 @@ Most stakers on a NuCypher testnet will complete the following steps:
 Interactive Method
 ------------------
 
-Run an Ethereum node for Staker
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run an Ethereum node for Staking
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Assuming you have ``geth`` installed, let's run a node on Görli testnet.
-On the Staker side, it's ok to run a light node.
+Assuming you have ``geth`` installed, let's run a node on the Görli testnet.
 
 .. code:: bash
 
-    $ geth --goerli --syncmode light
+    $ geth --goerli
 
 If you want to use your hardware wallet, just connect it to your machine. You'll
 see something like this in logs:
@@ -144,7 +141,7 @@ Initialize a new stakeholder
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake init-stakeholder --provider <PROVIDER>  --poa --network <NETWORK_NAME>
+    (nucypher)$ nucypher stake init-stakeholder --provider <PROVIDER> --network <NETWORK_NAME>
 
 If you ran ``geth`` node as above, your ``<PROVIDER>`` is
 ``ipc:///home/<username>/.ethereum/goerli/geth.ipc``

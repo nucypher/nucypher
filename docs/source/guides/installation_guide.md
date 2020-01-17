@@ -14,11 +14,16 @@
 * At least 1 GB of RAM is required for secure password-based key derivation with [scrypt](http://www.tarsnap.com/scrypt.html).
 * We have tested `nucypher` with Windows, Mac OS, and GNU/Linux (GNU/Linux is recommended).
 * If you don’t already have it, install [Python](https://www.python.org/downloads/). As of November 2019, we are working with Python 3.6, 3.7, and 3.8.
-* We also require the following system packages (Linux):
+
+Before installing ``nucypher``, you may need to install necessary developer
+tools and headers, if you don't have them already. In Ubuntu, Debian, Linux Mint
+or similar distros, that is:
 
     - `libffi-dev`
     - `python3-dev`
+    - `python3-pip`
     - `python3-virtualenv`
+    - `build-essential`
 
 ## Standard Installation
 
@@ -29,12 +34,12 @@ We recommend installing `nucypher` with either `pip`, `pipenv`, or `docker`
 
 ### Standard Pip Installation
 
-In order to isolate global system dependencies from nucypher-specific dependencies, we *highly* recommend
-using `python-virtualenv` to install `nucypher` inside a dedicated virtual environment.
-
-For full documentation on virtualenv see: <https://virtualenv.pypa.io/en/latest/>
-
-Here is the recommended procedure for setting up `nucypher` in this fashion:
+    In order to isolate global system dependencies from nucypher-specific dependencies, we *highly* recommend
+    using `python-virtualenv` to install `nucypher` inside a dedicated virtual environment.
+    
+    For full documentation on virtualenv see: <https://virtualenv.pypa.io/en/latest/>
+    
+    Here is the recommended procedure for setting up `nucypher` in this fashion:
 
 1. Create a Virtual Environment
 
@@ -64,11 +69,16 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
 
 3. Verify Installation
 
-    In the console:
+    Before continuing, verify that your ``nucypher`` installation and entry points are functional;
+    Activate your virtual environment (if you haven't already) and run the ``nucypher --help`` command in the console:
 
     ```bash
     nucypher --help
     ```
+
+    You will see a list of possible usage options (``--version``, ``-v``, ``--dev``, etc.) and commands (``status``, ``ursula``).
+    For example, you can use ``nucypher ursula destroy`` to delete all files associated with the node.
+
 
     In Python:
 
