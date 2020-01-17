@@ -13,7 +13,6 @@ from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
     MOCK_IP_ADDRESS,
     MOCK_IP_ADDRESS_2,
-    MOCK_REGISTRY_FILEPATH
 )
 
 
@@ -30,8 +29,7 @@ def test_destroy_with_no_configurations(click_runner, custom_filepath):
 def test_coexisting_configurations(click_runner,
                                    custom_filepath,
                                    testerchain,
-                                   test_registry,
-                                   agency):
+                                   agency_local_registry):
     #
     # Setup
     #
@@ -77,7 +75,7 @@ def test_coexisting_configurations(click_runner,
                        '--network', TEMPORARY_DOMAIN,
                        '--provider', TEST_PROVIDER_URI,
                        '--checksum-address', felix,
-                       '--registry-filepath', MOCK_REGISTRY_FILEPATH,
+                       '--registry-filepath', agency_local_registry.filepath,
                        '--debug')
 
     result = click_runner.invoke(nucypher_cli, felix_init_args, catch_exceptions=False, env=envvars)
@@ -94,7 +92,7 @@ def test_coexisting_configurations(click_runner,
                        '--network', TEMPORARY_DOMAIN,
                        '--provider', TEST_PROVIDER_URI,
                        '--pay-with', alice,
-                       '--registry-filepath', MOCK_REGISTRY_FILEPATH,
+                       '--registry-filepath', agency_local_registry.filepath,
                        '--config-root', custom_filepath)
 
     result = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
@@ -112,7 +110,7 @@ def test_coexisting_configurations(click_runner,
                  '--worker-address', ursula,
                  '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS,
-                 '--registry-filepath', MOCK_REGISTRY_FILEPATH,
+                 '--registry-filepath', agency_local_registry.filepath,
                  '--config-root', custom_filepath)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
@@ -130,7 +128,7 @@ def test_coexisting_configurations(click_runner,
                  '--worker-address', another_ursula,
                  '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS_2,
-                 '--registry-filepath', MOCK_REGISTRY_FILEPATH,
+                 '--registry-filepath', agency_local_registry.filepath,
                  '--provider', TEST_PROVIDER_URI,
                  '--config-root', custom_filepath)
 
@@ -203,7 +201,8 @@ def test_coexisting_configurations(click_runner,
 
 def test_corrupted_configuration(click_runner,
                                  custom_filepath,
-                                 testerchain):
+                                 testerchain,
+                                 agency_local_registry):
     alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
 
     init_args = ('ursula', 'init',
@@ -239,7 +238,7 @@ def test_corrupted_configuration(click_runner,
                  '--worker-address', another_ursula,
                  '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS,
-                 '--registry-filepath', MOCK_REGISTRY_FILEPATH,
+                 '--registry-filepath', agency_local_registry.filepath,
                  '--config-root', custom_filepath)
 
     envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
@@ -256,7 +255,7 @@ def test_corrupted_configuration(click_runner,
         assert field in top_level_config_root
 
     # "Corrupt" the configuration by removing the contract registry
-    os.remove(MOCK_REGISTRY_FILEPATH)
+    os.remove(agency_local_registry.filepath)
 
     # Attempt destruction with invalid configuration (missing registry)
     ursula_file_location = os.path.join(custom_filepath, default_filename)

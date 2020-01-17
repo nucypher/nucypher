@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import datetime
 import json
 import os
 import random
@@ -26,14 +25,17 @@ from twisted.logger import Logger
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency, PreallocationEscrowAgent, NucypherTokenAgent
-from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer
+from nucypher.blockchain.eth.agents import (
+    StakingEscrowAgent,
+    ContractAgency,
+    PreallocationEscrowAgent,
+    NucypherTokenAgent
+)
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeList
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
     INSECURE_DEVELOPMENT_PASSWORD,
@@ -87,21 +89,20 @@ def individual_allocation():
 
 @pytest.fixture(scope='module')
 def preallocation_escrow_agent(beneficiary,
-                               test_registry,
+                               agency_local_registry,
                                mock_allocation_registry,
                                test_registry_source_manager,
                                individual_allocation):
     preallocation_escrow_agent = PreallocationEscrowAgent(beneficiary=beneficiary,
-                                                          registry=test_registry,
+                                                          registry=agency_local_registry,
                                                           allocation_registry=individual_allocation)
     return preallocation_escrow_agent
 
 
 def test_stake_via_contract(click_runner,
                             custom_filepath,
-                            test_registry,
+                            agency_local_registry,
                             mock_allocation_registry,
-                            mock_registry_filepath,
                             testerchain,
                             stakeholder_configuration_file_location,
                             stake_value,
@@ -120,7 +121,7 @@ def test_stake_via_contract(click_runner,
 
     # ... and that the pre-allocation contract has enough tokens
     preallocation_contract_address = preallocation_escrow_agent.principal_contract.address
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=agency_local_registry)
     assert token_agent.get_balance(preallocation_contract_address) >= token_economics.minimum_allowed_locked
 
     # Let's not forget to create a stakeholder
@@ -129,7 +130,7 @@ def test_stake_via_contract(click_runner,
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
                  '--network', TEMPORARY_DOMAIN,
-                 '--registry-filepath', mock_registry_filepath)
+                 '--registry-filepath', agency_local_registry.filepath)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
     assert result.exit_code == 0
@@ -142,7 +143,7 @@ def test_stake_via_contract(click_runner,
     #
 
     # Staking contract has no stakes yet
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
     stakes = list(staking_agent.get_all_stakes(staker_address=preallocation_contract_address))
     assert not stakes
 
@@ -185,7 +186,7 @@ def test_stake_via_contract(click_runner,
 def test_stake_set_worker(click_runner,
                           beneficiary,
                           mock_allocation_registry,
-                          test_registry,
+                          agency_local_registry,
                           manual_worker,
                           individual_allocation,
                           stakeholder_configuration_file_location):
@@ -206,7 +207,7 @@ def test_stake_set_worker(click_runner,
     staker = Staker(is_me=True,
                     checksum_address=beneficiary,
                     individual_allocation=individual_allocation,
-                    registry=test_registry)
+                    registry=agency_local_registry)
 
     assert staker.worker_address == manual_worker
 
@@ -218,13 +219,13 @@ def test_stake_detach_worker(click_runner,
                              preallocation_escrow_agent,
                              mock_allocation_registry,
                              manual_worker,
-                             test_registry,
+                             agency_local_registry,
                              individual_allocation,
                              stakeholder_configuration_file_location):
 
     staker_address = preallocation_escrow_agent.principal_contract.address
 
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
     assert manual_worker == staking_agent.get_worker_from_staker(staker_address=staker_address)
 
     testerchain.time_travel(periods=token_economics.minimum_worker_periods)
@@ -243,7 +244,7 @@ def test_stake_detach_worker(click_runner,
     staker = Staker(is_me=True,
                     checksum_address=beneficiary,
                     individual_allocation=individual_allocation,
-                    registry=test_registry)
+                    registry=agency_local_registry)
 
     assert not staker.worker_address
 
@@ -265,7 +266,7 @@ def test_stake_detach_worker(click_runner,
     staker = Staker(is_me=True,
                     checksum_address=beneficiary,
                     individual_allocation=individual_allocation,
-                    registry=test_registry)
+                    registry=agency_local_registry)
 
     assert staker.worker_address == manual_worker
 
@@ -274,7 +275,7 @@ def test_stake_restake(click_runner,
                        beneficiary,
                        preallocation_escrow_agent,
                        mock_allocation_registry,
-                       test_registry,
+                       agency_local_registry,
                        manual_worker,
                        testerchain,
                        individual_allocation,
@@ -282,7 +283,7 @@ def test_stake_restake(click_runner,
 
     staker = Staker(is_me=True,
                     checksum_address=beneficiary,
-                    registry=test_registry,
+                    registry=agency_local_registry,
                     individual_allocation=individual_allocation)
     assert staker.is_restaking
 
@@ -300,7 +301,7 @@ def test_stake_restake(click_runner,
     assert not staker.is_restaking
     assert "Successfully disabled" in result.output
 
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
     current_period = staking_agent.get_current_period()
     release_period = current_period + 1
     lock_args = ('stake', 'restake',
@@ -345,7 +346,7 @@ def test_stake_restake(click_runner,
 
     staker = Staker(is_me=True,
                     checksum_address=beneficiary,
-                    registry=test_registry,
+                    registry=agency_local_registry,
                     individual_allocation=individual_allocation)
     assert staker.is_restaking
     assert "Successfully enabled" in result.output
@@ -355,7 +356,7 @@ def test_stake_winddown(click_runner,
                         beneficiary,
                         preallocation_escrow_agent,
                         mock_allocation_registry,
-                        test_registry,
+                        agency_local_registry,
                         manual_worker,
                         testerchain,
                         individual_allocation,
@@ -363,9 +364,9 @@ def test_stake_winddown(click_runner,
 
     staker = Staker(is_me=True,
                     checksum_address=beneficiary,
-                    registry=test_registry,
+                    registry=agency_local_registry,
                     individual_allocation=individual_allocation)
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
     assert not staker.is_winding_down
     allocation_contract_address = preallocation_escrow_agent.principal_contract.address
     assert not staking_agent.is_winding_down(allocation_contract_address)
@@ -403,7 +404,7 @@ def test_stake_winddown(click_runner,
 
 def test_ursula_init(click_runner,
                      custom_filepath,
-                     mock_registry_filepath,
+                     agency_local_registry,
                      preallocation_escrow_agent,
                      manual_worker,
                      testerchain):
@@ -415,7 +416,7 @@ def test_ursula_init(click_runner,
                  '--worker-address', manual_worker,
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
-                 '--registry-filepath', mock_registry_filepath,
+                 '--registry-filepath', agency_local_registry.filepath,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', MOCK_URSULA_STARTING_PORT)
 
@@ -465,7 +466,7 @@ def test_ursula_run(click_runner,
 
 def test_collect_rewards_integration(click_runner,
                                      testerchain,
-                                     test_registry,
+                                     agency_local_registry,
                                      stakeholder_configuration_file_location,
                                      blockchain_alice,
                                      blockchain_bob,
@@ -500,18 +501,18 @@ def test_collect_rewards_integration(click_runner,
     worker_address = manual_worker
 
     # The staker is staking.
-    stakes = StakeList(registry=test_registry, checksum_address=staker_address)
+    stakes = StakeList(registry=agency_local_registry, checksum_address=staker_address)
     stakes.refresh()
     assert stakes
 
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
     assert worker_address == staking_agent.get_worker_from_staker(staker_address=staker_address)
 
     ursula_port = select_test_port()
     ursula = Ursula(is_me=True,
                     checksum_address=staker_address,
                     worker_address=worker_address,
-                    registry=test_registry,
+                    registry=agency_local_registry,
                     rest_host='127.0.0.1',
                     rest_port=ursula_port,
                     start_working_now=False,
@@ -628,7 +629,7 @@ def test_collect_rewards_integration(click_runner,
     #
     # Collect Staking Reward
     #
-    token_agent = ContractAgency.get_agent(agent_class=NucypherTokenAgent, registry=test_registry)
+    token_agent = ContractAgency.get_agent(agent_class=NucypherTokenAgent, registry=agency_local_registry)
     balance_before_collecting = token_agent.get_balance(address=staker_address)
 
     collection_args = ('stake', 'collect-reward',
@@ -650,14 +651,14 @@ def test_collect_rewards_integration(click_runner,
 
 def test_withdraw_from_preallocation(click_runner,
                                      testerchain,
-                                     test_registry,
+                                     agency_local_registry,
                                      stakeholder_configuration_file_location,
                                      beneficiary,
                                      preallocation_escrow_agent,
                                      ):
 
     staker_address = preallocation_escrow_agent.principal_contract.address
-    token_agent = ContractAgency.get_agent(agent_class=NucypherTokenAgent, registry=test_registry)
+    token_agent = ContractAgency.get_agent(agent_class=NucypherTokenAgent, registry=agency_local_registry)
     tokens_in_contract = NU.from_nunits(token_agent.get_balance(address=staker_address))
     locked_preallocation = NU.from_nunits(preallocation_escrow_agent.unvested_tokens)
 

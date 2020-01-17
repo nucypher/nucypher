@@ -235,12 +235,11 @@ Stakers population ....... {staking_agent.get_staker_population()}
 def paint_deployer_contract_inspection(emitter, registry, deployer_address) -> None:
 
     blockchain = BlockchainInterfaceFactory.get_interface()
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
 
     sep = '-' * 45
     emitter.echo(sep)
 
-    contract_payload = f"""
+    provider_info = f"""
 
 * Web3 Provider
 ====================================================================
@@ -250,11 +249,22 @@ Registry  ................ {registry.filepath}
 
 * Standard Deployments
 =====================================================================
+"""
+    emitter.echo(provider_info)
+
+    try:
+        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
+        token_contract_info = """
 
 {token_agent.contract_name} ........... {token_agent.contract_address}
     ~ Ethers ............ {Web3.fromWei(blockchain.client.get_balance(token_agent.contract_address), 'ether')} ETH
     ~ Tokens ............ {NU.from_nunits(token_agent.get_balance(token_agent.contract_address))}"""
-    emitter.echo(contract_payload)
+    except BaseContractRegistry.UnknownContract:
+        message = f"\n{NucypherTokenAgent.contract_name} is not enrolled in {registry.filepath}"
+        emitter.echo(message, color='yellow')
+        emitter.echo(sep, nl=False)
+    else:
+        emitter.echo(token_contract_info)
 
     banner = """
 * Proxy-Contract Deployments

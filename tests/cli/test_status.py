@@ -27,23 +27,23 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.commands.status import status
-from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI, MOCK_REGISTRY_FILEPATH
+from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI
 
 
-def test_nucypher_status_network(click_runner, testerchain, test_registry, agency):
+def test_nucypher_status_network(click_runner, testerchain, agency_local_registry):
 
     network_command = ('network',
-                       '--registry-filepath', MOCK_REGISTRY_FILEPATH,
+                       '--registry-filepath', agency_local_registry.filepath,
                        '--provider', TEST_PROVIDER_URI,
                        '--poa')
 
     result = click_runner.invoke(status, network_command, catch_exceptions=False)
     assert result.exit_code == 0
 
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
-    adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=test_registry)
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=agency_local_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
+    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=agency_local_registry)
+    adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=agency_local_registry)
 
     agents = (token_agent, staking_agent, policy_agent, adjudicator_agent)
     for agent in agents:
@@ -54,18 +54,18 @@ def test_nucypher_status_network(click_runner, testerchain, test_registry, agenc
     assert re.search(f"^Current Period \\.+ {staking_agent.get_current_period()}", result.output, re.MULTILINE)
 
 
-def test_nucypher_status_stakers(click_runner, testerchain, test_registry, agency, stakers):
+def test_nucypher_status_stakers(click_runner, agency_local_registry, stakers):
 
     # Get all stakers info
     stakers_command = ('stakers',
-                       '--registry-filepath', MOCK_REGISTRY_FILEPATH,
+                       '--registry-filepath', agency_local_registry.filepath,
                        '--provider', TEST_PROVIDER_URI,
                        '--poa')
 
     result = click_runner.invoke(status, stakers_command, catch_exceptions=False)
     assert result.exit_code == 0
 
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
 
     # TODO: Use regex matching instead of this
     assert re.search(f"^Current period: {staking_agent.get_current_period()}", result.output, re.MULTILINE)
@@ -76,7 +76,7 @@ def test_nucypher_status_stakers(click_runner, testerchain, test_registry, agenc
     some_dude = random.choice(stakers)
     staking_address = some_dude.checksum_address
     stakers_command = ('stakers', '--staking-address', staking_address,
-                       '--registry-filepath', MOCK_REGISTRY_FILEPATH,
+                       '--registry-filepath', agency_local_registry.filepath,
                        '--provider', TEST_PROVIDER_URI,
                        '--poa')
 
@@ -92,9 +92,9 @@ def test_nucypher_status_stakers(click_runner, testerchain, test_registry, agenc
     assert re.search(r"Staked: " + str(round(locked_tokens, 2)), result.output, re.MULTILINE)
 
 
-def test_nucypher_status_locked_tokens(click_runner, testerchain, test_registry, agency, stakers):
+def test_nucypher_status_locked_tokens(click_runner, testerchain, agency_local_registry, stakers):
 
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
     # All workers confirm activity
     for ursula in testerchain.ursulas_accounts:
         staking_agent.confirm_activity(worker_address=ursula)
@@ -102,11 +102,10 @@ def test_nucypher_status_locked_tokens(click_runner, testerchain, test_registry,
 
     periods = 2
     status_command = ('locked-tokens',
-                      '--registry-filepath', MOCK_REGISTRY_FILEPATH,
+                      '--registry-filepath', agency_local_registry.filepath,
                       '--provider', TEST_PROVIDER_URI,
                       '--poa',
                       '--periods', periods)
-    initial_light_parameter = testerchain.is_light
     light_parameter = [False, True]
     for light in light_parameter:
         testerchain.is_light = light

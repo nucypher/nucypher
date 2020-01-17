@@ -17,8 +17,7 @@ from nucypher.config.characters import AliceConfiguration, BobConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.utilities.logging import GlobalLoggerSettings
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, TEMPORARY_DOMAIN, TEST_PROVIDER_URI, \
-    MOCK_REGISTRY_FILEPATH
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, TEMPORARY_DOMAIN, TEST_PROVIDER_URI
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 PLAINTEXT = "I'm bereaved, not a sap!"
@@ -92,21 +91,19 @@ def test_federated_cli_lifecycle(click_runner,
 @pt.inlineCallbacks
 def test_decentralized_cli_lifecycle(click_runner,
                                      testerchain,
-                                     agency,
                                      random_policy_label,
                                      blockchain_ursulas,
                                      custom_filepath,
                                      custom_filepath_2,
-                                     test_registry):
+                                     agency_local_registry):
 
-    registry_filepath = test_registry.commit(filepath=MOCK_REGISTRY_FILEPATH, overwrite=True)
     yield _cli_lifecycle(click_runner,
                          testerchain,
                          random_policy_label,
                          blockchain_ursulas,
                          custom_filepath,
                          custom_filepath_2,
-                         registry_filepath)
+                         agency_local_registry.filepath)
 
 
 def _cli_lifecycle(click_runner,

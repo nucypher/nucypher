@@ -80,8 +80,8 @@ def mock_allocation_infile(testerchain, token_economics):
 
 
 @pytest.fixture(scope='module')
-def mock_allocation_registry(testerchain, test_registry, mock_allocation_infile):
-    admin = ContractAdministrator(registry=test_registry,
+def mock_allocation_registry(testerchain, agency_local_registry, mock_allocation_infile):
+    admin = ContractAdministrator(registry=agency_local_registry,
                                   client_password=INSECURE_DEVELOPMENT_PASSWORD,
                                   deployer_address=testerchain.etherbase_account)
 
@@ -101,7 +101,7 @@ def mock_allocation_registry(testerchain, test_registry, mock_allocation_infile)
 
 
 @pytest.fixture(scope='function')
-def new_local_registry(test_registry):
+def new_local_registry():
     filename = f'{BASE_TEMP_PREFIX}mock-empty-registry-{datetime.now().strftime(DATETIME_FORMAT)}.json'
     registry_filepath = os.path.join(BASE_TEMP_DIR, filename)
     registry = LocalContractRegistry(filepath=registry_filepath)

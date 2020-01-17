@@ -24,7 +24,6 @@ from nucypher.blockchain.eth.sol.compile import SOLIDITY_COMPILER_VERSION
 from nucypher.cli.commands.deploy import deploy
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
-    MOCK_REGISTRY_FILEPATH,
     MOCK_ALLOCATION_REGISTRY_FILEPATH
 )
 
@@ -54,7 +53,8 @@ def test_echo_solidity_version(click_runner):
 
 def test_nucypher_deploy_contracts(click_runner,
                                    token_economics,
-                                   registry_filepath):
+                                   registry_filepath,
+                                   testerchain):
 
     #
     # Main
@@ -268,7 +268,7 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
             registered_names = [r[0] for r in registry_data]
             contract_enrollments = registered_names.count(contract_name)
 
-            assert contract_enrollments > 1, f"New contract is not enrolled in {MOCK_REGISTRY_FILEPATH}"
+            assert contract_enrollments > 1, f"New contract is not enrolled in {registry_filepath}"
             error = f"Incorrect number of records enrolled for {contract_name}. " \
                     f"Expected {expected_contract_enrollments} got {contract_enrollments}."
             assert contract_enrollments == expected_contract_enrollments, error
