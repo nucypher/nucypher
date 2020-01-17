@@ -152,7 +152,7 @@ class BaseContractDeployer:
                                                                              requested_version=contract_version)
 
         rules = [
-            (ignore_deployed or self.is_deployed(contract_version) is not True, 'Contract already deployed'),
+            (ignore_deployed or not self.is_deployed(contract_version), f'Contract {self.contract_name}:{contract_version} already deployed'),
             (self.deployer_address is not None, 'No deployer address set.'),
             (self.deployer_address is not NO_DEPLOYER_CONFIGURED, 'No deployer address set.'),
         ]
@@ -160,7 +160,7 @@ class BaseContractDeployer:
         disqualifications = list()
         for rule_is_satisfied, failure_reason in rules:
             if not rule_is_satisfied:                        # If this rule fails...
-                if fail is True:
+                if fail:
                     raise self.ContractDeploymentError(failure_reason)
                 else:
                     disqualifications.append(failure_reason)   # ... here's why
