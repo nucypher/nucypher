@@ -146,5 +146,5 @@ def test_bob_rpc_character_control_retrieve_with_tmap(
             b'Wrong!')
     tmap_64 = b64encode(bytes(wrong_tmap)).decode()
     params['treasure_map'] = tmap_64
-    with pytest.raises(Ursula.NotEnoughUrsulas):
+    with pytest.raises(TreasureMap.IsDisorienting):
         bob_rpc_controller.send(request_data)
