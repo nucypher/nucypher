@@ -34,7 +34,7 @@ To become a staker, NU tokens must be transferred to the ``StakingEscrow`` contr
          900|   +-------------------+
             |   |        1st        |   period
             +---+---+---+---+---+---+---->
-            | 0 | 1 | 2 | 3 | 4 | 5 | 6
+            + 0 + 1 + 2 + 3 + 4 + 5 + 6
 
 
 
@@ -64,7 +64,7 @@ In order to increase the staking reward, as well as the possibility of obtaining
          900+-----------------------+
             |          1st          |   period
             +---+---+---+---+---+---+---->
-            | 0 | 1 | 2 | 3 | 4 | 5 | 6      
+            + 0 + 1 + 2 + 3 + 4 + 5 + 6      
 			
 			
 			
@@ -76,7 +76,7 @@ In order to increase the staking reward, as well as the possibility of obtaining
          900+-------------------------------+
             |              1st              |   period
             +---+---+---+---+---+---+---+---+---->
-            | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+            + 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8
 			
 			
 Sub-stake division
@@ -108,7 +108,7 @@ If necessary, stakers can extend the locking duration for only a portion of thei
             |          1st          |
             |                       |   period
             +---+---+---+---+---+---+---->
-            | 0 | 1 | 2 | 3 | 4 | 5 | 6       
+            + 0 + 1 + 2 + 3 + 4 + 5 + 6       
 			
 			
 			
@@ -123,7 +123,7 @@ If necessary, stakers can extend the locking duration for only a portion of thei
          300+-----------------------+-------+
             |              2nd              |   period
             +---+---+---+---+---+---+---+---+---->
-            | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+            + 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8
    
 
 
@@ -183,7 +183,7 @@ However, when re-staking is enabled (default) then all staking rewards are re-lo
             |                                   |
             |                1st                |   period
             +---+---+---+---+---+---+---+---+---+---->    
-            | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+            + 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9
 			
 			
 			
@@ -204,7 +204,7 @@ However, when re-staking is enabled (default) then all staking rewards are re-lo
             |                1st                |
             |                                   |   period
             +---+---+---+---+---+---+---+---+---+---->    
-            | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+            + 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9
 			
 
 
@@ -243,7 +243,7 @@ An enabled "winding down" parameter means that each call to ``confirmActivity()`
             |                1st                |
             |                                   |   period
             +---+---+---+---+---+---+---+---+---+---->    
-            | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+            + 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9
 		
 			
 			
@@ -259,7 +259,7 @@ An enabled "winding down" parameter means that each call to ``confirmActivity()`
             |                1st                |
             |                                   |   period
             +---+---+---+---+---+---+---+---+---+---->    
-            | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10        
+            + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10        
 
 			
 			
@@ -275,4 +275,4 @@ An enabled "winding down" parameter means that each call to ``confirmActivity()`
             |              1st              |
             |                               |   period
             +---+---+---+---+---+---+---+---+---->    
-            | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9        
+            + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9        
