@@ -204,7 +204,7 @@ class CharacterConfiguration(BaseConfiguration):
                 # TODO: These two code blocks are untested.
                 if not self.registry_filepath:  # TODO: Registry URI  (goerli://speedynet.json) :-)
                     self.log.info(f"Fetching latest registry from source.")
-                    self.registry = InMemoryContractRegistry.from_latest_publication(self.domains[0])  # FIXME: entry point to fix #1496, #1564
+                    self.registry = InMemoryContractRegistry.from_latest_publication(network=list(self.domains)[0])  # FIXME: entry point to fix #1496, #1564
                 else:
                     self.registry = LocalContractRegistry(filepath=self.registry_filepath)
                     self.log.info(f"Using local registry ({self.registry}).")

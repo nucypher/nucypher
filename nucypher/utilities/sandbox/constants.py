@@ -136,7 +136,7 @@ MOCK_CUSTOM_INSTALLATION_PATH_2 = '/tmp/nucypher-tmp-test-custom-2-{}'.format(ti
 
 MOCK_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}mock-registry-{datetime.now().strftime(DATETIME_FORMAT)}.json')
 
-TEMPORARY_DOMAIN = NetworksInventory.UNKNOWN  # for use with `--dev` node runtimes  # FIXME?
+TEMPORARY_DOMAIN = ":TEMPORARY_DOMAIN:"  # for use with `--dev` node runtimes  # FIXME?
 
 GETH_DEV_URI = f'ipc://{BASE_TEMP_DIR}/geth.ipc'  # Standard IPC path for `geth --dev`
 

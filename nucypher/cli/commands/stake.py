@@ -80,6 +80,7 @@ class StakeHolderConfigOptions:
                 poa=self.poa,
                 light=self.light,
                 sync=False,
+                domains={self.network},  # FIXME: 1496
                 registry_filepath=self.registry_filepath)
 
         except FileNotFoundError:
@@ -94,6 +95,11 @@ class StakeHolderConfigOptions:
             raise click.BadOptionUsage(
                 option_name="--provider",
                 message="--provider must be specified to create a new stakeholder")
+
+        if self.network is None:
+            raise click.BadOptionUsage(
+                option_name="--network",
+                message="--network must be specified to create a new stakeholder")
 
         return StakeHolderConfiguration.generate(
             config_root=config_root,
