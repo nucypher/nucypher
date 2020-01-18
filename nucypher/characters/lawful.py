@@ -443,11 +443,11 @@ class Bob(Character):
         self.log.info(self.banner)
 
     def _pick_treasure_map(self, treasure_map=None, map_id=None):
-        if not treasure_map:
+        if treasure_map is None:
             if map_id:
                 treasure_map = self.treasure_maps[map_id]
             else:
-                raise ValueError("You need to pass either treasure_map or map_id.")
+                 raise ValueError("You need to pass either treasure_map or map_id.")
         elif map_id:
             raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
         return treasure_map
