@@ -52,11 +52,6 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 #
 
 
-@pytest.fixture(autouse=True, scope='module')
-def patch_individual_allocation_fetch_latest_publication(_patch_individual_allocation_fetch_latest_publication):
-    pass
-
-
 @pytest.fixture(scope='module')
 def beneficiary(testerchain, mock_allocation_registry):
     # First, let's be give the beneficiary some cash for TXs

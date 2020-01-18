@@ -20,6 +20,7 @@ import json
 import os
 import random
 import tempfile
+from typing import Union
 
 import maya
 import pytest
@@ -36,6 +37,7 @@ from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
+from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                StakingEscrowDeployer,
                                                PolicyManagerDeployer,
@@ -43,7 +45,15 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                StakingInterfaceDeployer,
                                                PreallocationEscrowDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, GithubRegistrySource
+from nucypher.blockchain.eth.registry import (
+    InMemoryContractRegistry,
+    GithubRegistrySource,
+    RegistrySourceManager,
+    NetworksInventory,
+    BaseContractRegistry,
+    IndividualAllocationRegistry,
+    CanonicalRegistrySource
+)
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob
@@ -501,7 +511,41 @@ def _make_agency(testerchain, test_registry):
 
 
 @pytest.fixture(scope='module')
-def agency(testerchain, test_registry):
+def test_registry_source_manager(testerchain, test_registry):
+
+    class MockRegistrySource(CanonicalRegistrySource):
+        name = "Mock Registry Source"
+        is_primary = False
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            if self.network != TEMPORARY_DOMAIN:
+                raise ValueError(f"Somehow, MockRegistrySource is trying to get a registry for '{self.network}'. "
+                                 f"Only '{TEMPORARY_DOMAIN}' is supported.'")
+            factory = testerchain.get_contract_factory(contract_name=PREALLOCATION_ESCROW_CONTRACT_NAME)
+            preallocation_escrow_abi = factory.abi
+            self.allocation_template = {
+                "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", preallocation_escrow_abi]
+            }
+
+        def get_publication_endpoint(self) -> str:
+            return f":mock-registry-source:/{self.network}/{self.registry_name}"
+
+        def fetch_latest_publication(self) -> Union[str, bytes]:
+            self.logger.debug(f"Reading registry at {self.get_publication_endpoint()}")
+            if self.registry_name == BaseContractRegistry.REGISTRY_NAME:
+                registry_data = test_registry.read()
+            elif self.registry_name == IndividualAllocationRegistry.REGISTRY_NAME:
+                registry_data = self.allocation_template
+            raw_registry_data = json.dumps(registry_data)
+            return raw_registry_data
+
+    RegistrySourceManager._FALLBACK_CHAIN = (MockRegistrySource,)
+    NetworksInventory.networks = (TEMPORARY_DOMAIN,)
+
+
+@pytest.fixture(scope='module')
+def agency(testerchain, test_registry, test_registry_source_manager):
     agents = _make_agency(testerchain=testerchain, test_registry=test_registry)
     yield agents
 
@@ -832,23 +876,6 @@ def get_random_checksum_address():
         return checksum_address
 
     return _get_random_checksum_address
-
-
-@pytest.fixture(scope='module')
-def _patch_individual_allocation_fetch_latest_publication(agency, test_registry):
-    empty_allocation_escrow_deployer = PreallocationEscrowDeployer(registry=test_registry)
-    allocation_contract_abi = empty_allocation_escrow_deployer.get_contract_abi()
-    allocation_template = {
-        "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", allocation_contract_abi]
-    }
-
-    def new_fetch(*args, **kwargs):
-        return json.dumps(allocation_template).encode()
-
-    original_fetch = GithubRegistrySource.fetch_latest_publication
-    GithubRegistrySource.fetch_latest_publication = new_fetch
-    yield
-    GithubRegistrySource.fetch_latest_publication = original_fetch
 
 
 @pytest.fixture(scope='module')
