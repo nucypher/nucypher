@@ -147,7 +147,7 @@ def test_alice_character_control_decrypt(alice_web_controller_test_client,
     assert 'cleartexts' in response_data['result']
 
     response_message = response_data['result']['cleartexts'][0]
-    assert response_message == 'Welcome to flippering number 1.'  # This is the first message - in a test below, we'll show retrieving a second one.
+    assert response_message == 'Welcome to flippering number 1.'
 
     # Send bad data to assert error returns
     response = alice_web_controller_test_client.post('/decrypt', data=json.dumps({'bad': 'input'}))
@@ -192,7 +192,7 @@ def test_bob_web_character_control_retrieve(bob_web_controller_test_client, retr
     assert 'cleartexts' in response_data['result']
 
     response_message = response_data['result']['cleartexts'][0]
-    assert response_message == 'Welcome to flippering number 2.'  # This is the second message - the first is in the test above.
+    assert response_message == 'Welcome to flippering number 1.'
 
     # Send bad data to assert error returns
     response = bob_web_controller_test_client.post(endpoint, data=json.dumps({'bad': 'input'}))
