@@ -111,7 +111,7 @@ def join_control_request(blockchain_bob, enacted_blockchain_policy):
     return method_name, params
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='function')
 def retrieve_control_request(blockchain_bob, enacted_blockchain_policy, capsule_side_channel_blockchain):
     method_name = 'retrieve'
     message_kit, data_source = capsule_side_channel_blockchain()
