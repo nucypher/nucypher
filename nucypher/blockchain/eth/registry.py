@@ -22,7 +22,7 @@ import tempfile
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
 from os.path import dirname, abspath
-from typing import Union, Iterator, List, Dict, Type
+from typing import Union, Iterator, List, Dict, Type, Tuple
 
 import requests
 from constant_sorrow.constants import REGISTRY_COMMITTED, NO_REGISTRY_SOURCE
@@ -99,9 +99,6 @@ class GithubRegistrySource(CanonicalRegistrySource):
     name = "GitHub Registry Source"
     is_primary = True
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def get_publication_endpoint(self) -> str:
         url = f'{self._BASE_URL}/master/{self.network}/{self.registry_name}'
         return url
@@ -151,18 +148,18 @@ class InPackageRegistrySource(CanonicalRegistrySource):
 class RegistrySourceManager:
     logger = Logger('RegistrySource')
 
-    __REMOTE_SOURCES = (
+    _REMOTE_SOURCES = (
         GithubRegistrySource,
         # TODO: Mirror/fallback for contract registry: moar remote sources - #1454
         # NucypherServersRegistrySource,
         # IPFSRegistrySource,
-    )  # type: List[Type[CanonicalRegistrySource]]
+    )  # type: Tuple[Type[CanonicalRegistrySource]]
 
-    __LOCAL_SOURCES = (
+    _LOCAL_SOURCES = (
         InPackageRegistrySource,
-    )  # type: List[Type[CanonicalRegistrySource]]
+    )  # type: Tuple[Type[CanonicalRegistrySource]]
 
-    __FALLBACK_CHAIN = __REMOTE_SOURCES + __LOCAL_SOURCES
+    _FALLBACK_CHAIN = _REMOTE_SOURCES + _LOCAL_SOURCES
 
     class NoSourcesAvailable(Exception):
         pass
@@ -173,14 +170,14 @@ class RegistrySourceManager:
         elif only_primary:
             self.sources = self.get_primary_sources()
         else:
-            self.sources = sources or self.__FALLBACK_CHAIN
+            self.sources = list(sources or self._FALLBACK_CHAIN)
 
     def __getitem__(self, index):
-        return self.__FALLBACK_CHAIN[index]
+        return self.sources
 
     @classmethod
     def get_primary_sources(cls):
-        return [source for source in cls.__FALLBACK_CHAIN if source.is_primary]
+        return [source for source in cls._FALLBACK_CHAIN if source.is_primary]
 
     def fetch_latest_publication(self, registry_class, network: str = NetworksInventory.DEFAULT):  # TODO: see #1496
         """
@@ -190,6 +187,10 @@ class RegistrySourceManager:
         for registry_source_class in self.sources:
             if isinstance(registry_source_class, CanonicalRegistrySource):  # i.e., it's not a class, but an instance
                 registry_source = registry_source_class
+                expected = registry_class.REGISTRY_NAME, network
+                actual = registry_source.registry_name, registry_source.network
+                if actual != expected:
+                    raise ValueError(f"(registry_name, network) should be {expected} but got {actual}")
             else:
                 registry_source = registry_source_class(network=network, registry_name=registry_class.REGISTRY_NAME)
 
@@ -219,7 +220,6 @@ class BaseContractRegistry(ABC):
     """
 
     logger = Logger('ContractRegistry')
-    source_manager = RegistrySourceManager()
 
     _multi_contract = True
     _contract_name = NotImplemented
@@ -286,7 +286,7 @@ class BaseContractRegistry(ABC):
         Get the latest contract registry available from a registry source chain.
         """
         if not source_manager:
-            source_manager = cls.source_manager
+            source_manager = RegistrySourceManager()
 
         registry_data, source = source_manager.fetch_latest_publication(registry_class=cls, network=network)
 
