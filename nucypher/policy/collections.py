@@ -201,8 +201,12 @@ class TreasureMap:
             raise self.InvalidSignature(
                 "This TreasureMap does not contain the correct signature from Alice to Bob.")
         else:
+            m = map_in_the_clear[0]
             self._m = map_in_the_clear[0]
-            self._destinations = dict(self.node_id_splitter.repeat(map_in_the_clear[1:]))
+            if self._m > 0:
+                self._destinations = dict(self.node_id_splitter.repeat(map_in_the_clear[1:]))
+            else:
+                self._destinations = {}
 
     def __eq__(self, other):
         return bytes(self) == bytes(other)
