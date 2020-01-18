@@ -23,7 +23,7 @@ from typing import List, Optional, Tuple
 
 import maya
 import msgpack
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring, BytestringSplittingError
 from constant_sorrow.constants import CFRAG_NOT_RETAINED
 from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
 from cryptography.hazmat.backends.openssl import backend
@@ -59,6 +59,11 @@ class TreasureMap:
     class NowhereToBeFound(NotFound):
         """
         Called when no known nodes have it.
+        """
+
+    class IsDisorienting(NotFound):
+        """
+        Called when an oriented TreasureMap lists fewer than m destinations.
         """
 
     node_id_splitter = BytestringSplitter((to_checksum_address, int(PUBLIC_ADDRESS_LENGTH)), ID_LENGTH)
@@ -201,12 +206,14 @@ class TreasureMap:
             raise self.InvalidSignature(
                 "This TreasureMap does not contain the correct signature from Alice to Bob.")
         else:
-            m = map_in_the_clear[0]
             self._m = map_in_the_clear[0]
-            if self._m > 0:
+            try:
                 self._destinations = dict(self.node_id_splitter.repeat(map_in_the_clear[1:]))
-            else:
+            except BytestringSplittingError:
                 self._destinations = {}
+
+            if len(self._destinations) < self._m or self._m == 0:
+                raise self.IsDisorienting(f"TreasureMap lists only {len(self._destinations)} destination, but requires interaction with {self._m} nodes.")
 
     def __eq__(self, other):
         return bytes(self) == bytes(other)
