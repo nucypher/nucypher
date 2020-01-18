@@ -836,9 +836,9 @@ class Ursula(Teacher, Character, Worker):
             from nucypher.config.node import CharacterConfiguration
             domains = {CharacterConfiguration.DEFAULT_DOMAIN}
 
-        if is_me:
-            # If we're federated only, we assume that all other nodes in our domain are as well.
-            self.set_federated_mode(federated_only)
+        # if is_me:  # TODO: Why set federated mode only when is me == True?
+        # If we're federated only, we assume that all other nodes in our domain are as well.
+        self.set_federated_mode(federated_only)
 
         Character.__init__(self,
                            is_me=is_me,
