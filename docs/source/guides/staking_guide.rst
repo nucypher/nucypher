@@ -140,12 +140,15 @@ Initialize a new stakeholder
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake init-stakeholder --provider <PROVIDER>  --poa
+    (nucypher)$ nucypher stake init-stakeholder --provider <PROVIDER>  --poa --network <NETWORK_NAME>
 
 If you ran ``geth`` node as above, your ``<PROVIDER>`` is
-``ipc:///home/<username>/.ethereum/goerli/geth.ipc``.
+``ipc:///home/<username>/.ethereum/goerli/geth.ipc``
+(on MacOS, ``ipc:///Users/<username>/Library/Ethereum/goerli/geth.ipc``)
 
-(``ipc:///Users/<username>/Library/Ethereum/goerli/geth.ipc`` on MacOS)
+``<NETWORK_NAME>`` is the name of the NuCypher network domain where the staker will participate.
+
+.. note:: If you're participating in NuCypher's incentivized testnet, this name is ``cassandra``.
 
 Please note that you want to use ``--hw-wallet`` if you use a hardware wallet in
 order for ``nucypher`` to not ask you for the password.
