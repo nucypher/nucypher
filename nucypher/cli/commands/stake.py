@@ -244,12 +244,12 @@ def init_stakeholder(general_config, config_root, force, config_options):
     emitter.echo(f"Wrote new stakeholder configuration to {filepath}", color='green')
 
 
-@stake.command()
+@stake.command('list')
 @group_staker_options
 @option_config_file
 @click.option('--all', help="List all stakes, including inactive", is_flag=True)
 @group_general_config
-def list(general_config, staker_options, config_file, all):
+def list_stakes(general_config, staker_options, config_file, all):
     """
     List active stakes for current stakeholder.
     """
