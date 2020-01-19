@@ -2,7 +2,6 @@ import datetime
 import json
 import os
 import shutil
-import sys
 from base64 import b64decode
 from collections import namedtuple
 from json import JSONDecodeError

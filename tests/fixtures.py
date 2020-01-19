@@ -42,12 +42,10 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                StakingEscrowDeployer,
                                                PolicyManagerDeployer,
                                                AdjudicatorDeployer,
-                                               StakingInterfaceDeployer,
-                                               PreallocationEscrowDeployer)
+                                               StakingInterfaceDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
-    GithubRegistrySource,
     RegistrySourceManager,
     NetworksInventory,
     BaseContractRegistry,
@@ -63,7 +61,6 @@ from nucypher.config.characters import (
     BobConfiguration,
     StakeHolderConfiguration
 )
-from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore import keystore
@@ -95,7 +92,6 @@ from tests.performance_mocks import mock_cert_storage, mock_cert_loading, mock_r
     mock_secret_source, mock_remember_node, mock_verify_node, mock_record_fleet_state, mock_message_verification, \
     mock_keep_learning
 
-CharacterConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN  # FIXME: entry point to fix #1496, #1564
 
 test_logger = Logger("test-logger")
 
@@ -143,6 +139,7 @@ def certificates_tempdir():
 @pytest.fixture(scope="module")
 def ursula_federated_test_config():
     ursula_config = UrsulaConfiguration(dev_mode=True,
+                                        domains={TEMPORARY_DOMAIN},
                                         rest_port=MOCK_URSULA_STARTING_PORT,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
@@ -157,6 +154,7 @@ def ursula_federated_test_config():
 @pytest.fixture(scope="module")
 def ursula_decentralized_test_config(test_registry):
     ursula_config = UrsulaConfiguration(dev_mode=True,
+                                        domains={TEMPORARY_DOMAIN},
                                         provider_uri=TEST_PROVIDER_URI,
                                         rest_port=MOCK_URSULA_STARTING_PORT,
                                         start_learning_now=False,
@@ -173,6 +171,7 @@ def ursula_decentralized_test_config(test_registry):
 @pytest.fixture(scope="module")
 def alice_federated_test_config(federated_ursulas):
     config = AliceConfiguration(dev_mode=True,
+                                domains={TEMPORARY_DOMAIN},
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=federated_ursulas,
                                 federated_only=True,
@@ -186,6 +185,7 @@ def alice_federated_test_config(federated_ursulas):
 @pytest.fixture(scope="module")
 def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry):
     config = AliceConfiguration(dev_mode=True,
+                                domains={TEMPORARY_DOMAIN},
                                 provider_uri=TEST_PROVIDER_URI,
                                 checksum_address=testerchain.alice_account,
                                 network_middleware=MockRestMiddleware(),
@@ -201,6 +201,7 @@ def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry)
 @pytest.fixture(scope="module")
 def bob_federated_test_config():
     config = BobConfiguration(dev_mode=True,
+                              domains={TEMPORARY_DOMAIN},
                               network_middleware=MockRestMiddleware(),
                               start_learning_now=False,
                               abort_on_learning_error=True,
@@ -214,6 +215,7 @@ def bob_federated_test_config():
 @pytest.fixture(scope="module")
 def bob_blockchain_test_config(blockchain_ursulas, testerchain, test_registry):
     config = BobConfiguration(dev_mode=True,
+                              domains={TEMPORARY_DOMAIN},
                               provider_uri=TEST_PROVIDER_URI,
                               checksum_address=testerchain.bob_account,
                               network_middleware=MockRestMiddleware(),
@@ -908,6 +910,7 @@ def fleet_of_highperf_mocked_ursulas(ursula_federated_test_config, request):
 @pytest.fixture(scope="module")
 def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas):
     config = AliceConfiguration(dev_mode=True,
+                                domains={TEMPORARY_DOMAIN},
                                 network_middleware=MockRestMiddlewareForLargeFleetTests(),
                                 federated_only=True,
                                 abort_on_learning_error=True,
@@ -922,11 +925,12 @@ def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas):
 @pytest.fixture(scope="module")
 def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
     config = BobConfiguration(dev_mode=True,
-                                network_middleware=MockRestMiddlewareForLargeFleetTests(),
-                                federated_only=True,
-                                abort_on_learning_error=True,
-                                save_metadata=False,
-                                reload_metadata=False)
+                              domains={TEMPORARY_DOMAIN},
+                              network_middleware=MockRestMiddlewareForLargeFleetTests(),
+                              federated_only=True,
+                              abort_on_learning_error=True,
+                              save_metadata=False,
+                              reload_metadata=False)
 
     with mock_cert_storage, mock_verify_node, mock_record_fleet_state:
         bob = config.produce(known_nodes=list(fleet_of_highperf_mocked_ursulas)[:1])

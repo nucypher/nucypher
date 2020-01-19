@@ -859,11 +859,11 @@ class Learner:
             self.log.info("Bad response from teacher {}: {} - {}".format(current_teacher, response, response.content))
             return
 
-
         if not set(self.learning_domains).intersection(set(current_teacher.serving_domains)):
-            _domains = ",".join(current_teacher.serving_domains)
+            teacher_domains = ",".join(current_teacher.serving_domains)
+            learner_domains = ",".join(self.learning_domains)
             self.log.debug(
-                f"{current_teacher} is serving {_domains}, which we aren't learning.")
+                f"{current_teacher} is serving {teacher_domains}, but we are learning {learner_domains}")
             return  # This node is not serving any of our domains.
 
 

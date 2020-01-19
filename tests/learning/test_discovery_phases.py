@@ -56,7 +56,7 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     # doesn't take up all the time.
     _teacher = highperf_mocked_alice.current_teacher_node()
     _teacher_known_nodes_bytestring = _teacher.bytestring_of_known_nodes()
-    _teacher.bytestring_of_known_nodes  =lambda *args, **kwargs: _teacher_known_nodes_bytestring # TODO: Formalize this?  #1537
+    _teacher.bytestring_of_known_nodes = lambda *args, **kwargs: _teacher_known_nodes_bytestring # TODO: Formalize this?  #1537
 
     with mock_cert_storage, mock_cert_loading, mock_verify_node, mock_message_verification, mock_metadata_validation:
         with mock_pubkey_from_bytes(), mock_stamp_call, mock_signature_bytes:

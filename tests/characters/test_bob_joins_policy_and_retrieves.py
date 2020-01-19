@@ -8,7 +8,11 @@ from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.characters.lawful import Enrico
 from nucypher.policy.collections import TreasureMap
-from nucypher.utilities.sandbox.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK, MOCK_POLICY_DEFAULT_M
+from nucypher.utilities.sandbox.constants import (
+    NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+    MOCK_POLICY_DEFAULT_M,
+    TEMPORARY_DOMAIN
+)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
@@ -49,6 +53,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
 
     # Bob becomes
     bob = Bob(federated_only=True,
+              domains={TEMPORARY_DOMAIN},
               start_learning_now=True,
               network_middleware=MockRestMiddleware(),
               abort_on_learning_error=True,
