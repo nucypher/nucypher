@@ -379,8 +379,7 @@ class Learner:
         if save_metadata and node_storage is NO_STORAGE_AVAILIBLE:
             raise ValueError("Cannot save nodes without a configured node storage")
 
-        from nucypher.characters.lawful import Ursula
-        self.node_class = node_class or Ursula  # Teacher # TODO: 'Teacher' has no attribute 'batch_from_bytes'
+        self.node_class = node_class or Teacher  # TODO: 'Teacher' has no attribute 'batch_from_bytes'
         self.node_class.set_cert_storage_function(node_storage.store_node_certificate)  #  TODO: Fix this temporary workaround for on-disk cert storage.
 
         known_nodes = known_nodes or tuple()
