@@ -164,22 +164,26 @@ class TransactingStakerOptions:
     def create_character(self, emitter, config_file):
 
         opts = self.staker_options
+        stakeholder_config = opts.config_options.create_config(emitter, config_file)
 
         # Now let's check whether we're dealing here with a regular staker or a preallocation staker
         is_preallocation_staker = (self.beneficiary_address and opts.staking_address) or self.allocation_filepath
 
         if is_preallocation_staker:
+            network = opts.config_options.network or list(stakeholder_config.domains)[0]  #FIXME: ugly network/domains mapping
             if self.allocation_filepath:
                 if self.beneficiary_address or opts.staking_address:
                     message = "--allocation-filepath is incompatible with --beneficiary-address and --staking-address."
                     raise click.BadOptionUsage(option_name="--allocation-filepath", message=message)
 
                 # This assumes the user has an individual allocation file in disk
-                individual_allocation = IndividualAllocationRegistry.from_allocation_file(self.allocation_filepath)
+                individual_allocation = IndividualAllocationRegistry.from_allocation_file(self.allocation_filepath,
+                                                                                          network=network)
                 initial_address = individual_allocation.beneficiary_address
             elif self.beneficiary_address and opts.staking_address:
                 individual_allocation = IndividualAllocationRegistry(beneficiary_address=self.beneficiary_address,
-                                                                     contract_address=opts.staking_address)
+                                                                     contract_address=opts.staking_address,
+                                                                     network=network)
                 initial_address = self.beneficiary_address
             else:
                 option = "--beneficiary_address" if self.beneficiary_address else "--staking-address"

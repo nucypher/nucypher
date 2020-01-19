@@ -59,6 +59,7 @@ def test_new_stakeholder(click_runner,
                  '--poa',
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
+                 '--network', TEMPORARY_DOMAIN,
                  '--registry-filepath', mock_registry_filepath)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)

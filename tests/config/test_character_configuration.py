@@ -108,7 +108,7 @@ def test_default_character_configuration_preservation(configuration_class, teste
             contents = f.read()
 
         # Restore from JSON file
-        restored_configuration = configuration_class.from_configuration_file(domains={network})
+        restored_configuration = configuration_class.from_configuration_file()
         assert character_config == restored_configuration
 
         # File still exists after reading
