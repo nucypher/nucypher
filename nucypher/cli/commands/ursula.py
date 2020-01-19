@@ -252,8 +252,6 @@ def ursula():
     "Ursula the Untrusted" PRE Re-encryption node management commands.
     """
 
-    pass
-
 
 @ursula.command()
 @group_config_options
@@ -268,6 +266,10 @@ def init(general_config, config_options, force, config_root):
     _pre_launch_warnings(emitter, dev=None, force=force)
     if not config_root:
         config_root = general_config.config_root
+
+    if not config_options.federated_only and not config_options.domains:  # FIXME: Again, weird network/domains mapping. See UrsulaConfigOptions' constructor
+        raise click.BadOptionUsage(option_name="--network",
+                                   message=f"--network is required when creating an Ursula in decentralized mode.")
     ursula_config = config_options.generate_config(emitter, config_root, force)
     painting.paint_new_installation_help(emitter, new_configuration=ursula_config)
 

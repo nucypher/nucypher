@@ -99,6 +99,31 @@ If your installation is non-functional, be sure you have the latest version inst
 3. Configure a new Ursula node
 --------------------------------
 
+Running an Ursula via CLI
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code:: bash
+
+    (nucypher)$ nucypher ursula init --provider <YOUR PROVIDER URI> --poa --staker-address <YOUR STAKER ADDRESS> --network <NETWORK_NAME>
+
+
+Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
+
+    - ``ipc:///home/ubuntu/.ethereum/goerli/geth.ipc`` - Geth Node on Görli testnet running under user ``ubuntu`` (most probably that's what you need).
+    - ``ipc:///tmp/geth.ipc``   - Geth Development Node
+    - ``http://localhost:7545`` - Ganache TestRPC (HTTP-JSON-RPC)
+    - ``ws://0.0.0.0:8080``     - Websocket Provider
+
+``<YOUR STAKER ADDRESS>`` is the address you've staked from when following the :ref:`staking-guide`.
+
+``<NETWORK_NAME>`` is the name of the NuCypher network domain where the node will run.
+
+.. note:: If you're participating in NuCypher's incentivized testnet, this name is ``cassandra``.
+
+
+.. note:: If you're a preallocation user, recall that you're using a contract to stake.
+  Replace ``<YOUR STAKER ADDRESS>`` with the contract address.
+  If you don't know this address, you'll find it in the preallocation file.
 
 Running an Ursula with Docker
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -111,34 +136,11 @@ Assuming geth is running locally on goerli, configure and run an Ursula using po
     export NUCYPHER_WORKER_ETH_PASSWORD=<your eth account password>
 
     # Interactive Ursula-Worker Initialization
-    docker run -it -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -e NUCYPHER_KEYRING_PASSWORD nucypher:latest nucypher ursula init --provider file:///root/.ethereum/goerli/geth.ipc --staker-address <YOUR STAKING ADDRESS>
+    docker run -it -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -e NUCYPHER_KEYRING_PASSWORD nucypher:latest nucypher ursula init --provider file:///root/.ethereum/goerli/geth.ipc --staker-address <YOUR STAKING ADDRESS> --network <NETWORK_NAME>
 
     # Daemonized Ursula
     docker run -d -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD nucypher/nucypher:latest nucypher ursula run --teacher discover.nucypher.network:9151 --provider file:///root/.ethereum/goerli/geth.ipc
 
-``<YOUR STAKING ADDRESS>`` is the address you've staked from when following the :ref:`staking-guide`.
-
-Running an Ursula via CLI
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code:: bash
-
-    (nucypher)$ nucypher ursula init --provider <YOUR PROVIDER URI> --poa --staker-address <YOUR STAKER ADDRESS>
-
-
-Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
-
-    - ``ipc:///home/ubuntu/.ethereum/goerli/geth.ipc`` - Geth Node on Görli testnet running under user ``ubuntu`` (most probably that's what you need).
-    - ``ipc:///tmp/geth.ipc``   - Geth Development Node
-    - ``http://localhost:7545`` - Ganache TestRPC (HTTP-JSON-RPC)
-    - ``ws://0.0.0.0:8080``     - Websocket Provider
-
-``<YOUR STAKER ADDRESS>`` is the address you've staked from when following the
- :ref:`staking-guide`.
-
-.. note:: If you're a preallocation user, recall that you're using a contract to stake.
-  Replace ``<YOUR STAKER ADDRESS>`` with the contract address.
-  If you don't know this address, you'll find it in the preallocation file.
 
 
 3. Create a password when prompted
