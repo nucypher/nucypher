@@ -50,16 +50,11 @@ from nucypher.cli.options import (
     option_teacher_uri,
 )
 from nucypher.cli.processes import UrsulaCommandProtocol
-from nucypher.cli.types import (
-    EIP55_CHECKSUM_ADDRESS,
-    NETWORK_PORT
-)
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.utilities.sandbox.constants import (
-    TEMPORARY_DOMAIN,
-)
+from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 
 class UrsulaConfigOptions:
@@ -145,7 +140,7 @@ class UrsulaConfigOptions:
 
     def generate_config(self, emitter, config_root, force):
 
-        assert not self.dev
+        assert not self.dev  # TODO: Raise instead
 
         staker_address = self.staker_address
         worker_address = self.worker_address
@@ -195,8 +190,7 @@ group_config_options = group_options(
     registry_filepath=option_registry_filepath,
     poa=option_poa,
     light=option_light,
-    dev=option_dev,
-    )
+    dev=option_dev)
 
 
 class UrsulaCharacterOptions:
@@ -243,8 +237,7 @@ group_character_options = group_options(
     config_options=group_config_options,
     lonely=click.option('--lonely', help="Do not connect to seednodes", is_flag=True),
     teacher_uri=option_teacher_uri,
-    min_stake=option_min_stake,
-    )
+    min_stake=option_min_stake)
 
 
 @click.group()
@@ -252,6 +245,7 @@ def ursula():
     """
     "Ursula the Untrusted" PRE Re-encryption node management commands.
     """
+    pass
 
 
 @ursula.command()
@@ -307,44 +301,50 @@ def forget(general_config, config_options, config_file):
 @ursula.command()
 @group_character_options
 @option_config_file
-@click.option('--interactive', '-I', help="Launch command interface after connecting to seednodes.", is_flag=True,
-              default=False)
 @option_dry_run
 @group_general_config
-def run(general_config, character_options, config_file, interactive, dry_run):
+@click.option('--interactive', '-I', help="Run interactively", is_flag=True, default=False)
+@click.option('--metrics', help="Run a prometheus exporter", is_flag=True, default=False)
+@click.option('--metrics-port', help="Prometheus or metrics port", type=NETWORK_PORT)
+def run(general_config, character_options, config_file, interactive, dry_run, metrics, metrics_port):
     """
     Run an "Ursula" node.
     """
+
+    #
+    # Setup
+    #
+
     emitter = _setup_emitter(general_config, character_options.config_options.worker_address)
     _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
-    ursula_config, URSULA = character_options.create_character(emitter, config_file, general_config.json_ipc)
+    ursula_config, URSULA = character_options.create_character(emitter=emitter,
+                                                               config_file=config_file,
+                                                               json_ipc=general_config.json_ipc)
 
-    # GO!
+    #
+    # Additional Services
+    #
+
+    if interactive:
+        stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA, emitter=emitter))
+    if metrics:
+        # Prevent import without prometheus installed
+        from nucypher.utilities.metrics import initialize_prometheus_exporter
+        initialize_prometheus_exporter(ursula=URSULA, port=metrics_port)  # TODO: Integrate with Hendrix TLS Deploy?
+
+    #
+    # Deploy Warnings
+    #
+
+    emitter.message(f"Starting Ursula on {URSULA.rest_interface}", color='green', bold=True)
+    emitter.message(f"Connecting to {','.join(ursula_config.domains)}", color='green', bold=True)
+    emitter.message("Working ~ Keep Ursula Online!", color='blue', bold=True)
+
+    # Run
     try:
-
-        # Ursula Deploy Warnings
-        emitter.message(
-            f"Starting Ursula on {URSULA.rest_interface}",
-            color='green',
-            bold=True)
-
-        emitter.message(
-            f"Connecting to {','.join(ursula_config.domains)}",
-            color='green',
-            bold=True)
-
-        emitter.message(
-            "Working ~ Keep Ursula Online!",
-            color='blue',
-            bold=True)
-
-        if interactive:
-            stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA, emitter=emitter))
-
         if dry_run:
+            # Prevent the cataloging of services, and do not run the reactor
             return  # <-- ABORT - (Last Chance)
-
-        # Run - Step 3
         node_deployer = URSULA.get_deployer()
         node_deployer.addServices()
         node_deployer.catalogServers(node_deployer.hendrix)

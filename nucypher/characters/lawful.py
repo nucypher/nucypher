@@ -45,16 +45,6 @@ from umbral.pre import UmbralCorrectnessError
 from umbral.signing import Signature
 
 import nucypher
-from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker, Staker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent, ContractAgency, \
-    PreallocationEscrowAgent
-from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.blockchain.eth.token import StakeList, WorkTracker, NU
-from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER, STAKEHOLDER_BANNER
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.registry import BaseContractRegistry
