@@ -20,6 +20,7 @@ import json
 import os
 import random
 import tempfile
+from typing import Union
 
 import maya
 import pytest
@@ -36,14 +37,21 @@ from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
+from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                StakingEscrowDeployer,
                                                PolicyManagerDeployer,
                                                AdjudicatorDeployer,
-                                               StakingInterfaceDeployer,
-                                               PreallocationEscrowDeployer)
+                                               StakingInterfaceDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, GithubRegistrySource
+from nucypher.blockchain.eth.registry import (
+    InMemoryContractRegistry,
+    RegistrySourceManager,
+    BaseContractRegistry,
+    IndividualAllocationRegistry,
+    CanonicalRegistrySource
+)
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob
@@ -53,7 +61,6 @@ from nucypher.config.characters import (
     BobConfiguration,
     StakeHolderConfiguration
 )
-from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore import keystore
@@ -85,7 +92,6 @@ from tests.performance_mocks import mock_cert_storage, mock_cert_loading, mock_r
     mock_secret_source, mock_remember_node, mock_verify_node, mock_record_fleet_state, mock_message_verification, \
     mock_keep_learning
 
-CharacterConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
 
 test_logger = Logger("test-logger")
 
@@ -133,6 +139,7 @@ def certificates_tempdir():
 @pytest.fixture(scope="module")
 def ursula_federated_test_config():
     ursula_config = UrsulaConfiguration(dev_mode=True,
+                                        domains={TEMPORARY_DOMAIN},
                                         rest_port=MOCK_URSULA_STARTING_PORT,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
@@ -147,6 +154,7 @@ def ursula_federated_test_config():
 @pytest.fixture(scope="module")
 def ursula_decentralized_test_config(test_registry):
     ursula_config = UrsulaConfiguration(dev_mode=True,
+                                        domains={TEMPORARY_DOMAIN},
                                         provider_uri=TEST_PROVIDER_URI,
                                         rest_port=MOCK_URSULA_STARTING_PORT,
                                         start_learning_now=False,
@@ -163,6 +171,7 @@ def ursula_decentralized_test_config(test_registry):
 @pytest.fixture(scope="module")
 def alice_federated_test_config(federated_ursulas):
     config = AliceConfiguration(dev_mode=True,
+                                domains={TEMPORARY_DOMAIN},
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=federated_ursulas,
                                 federated_only=True,
@@ -176,6 +185,7 @@ def alice_federated_test_config(federated_ursulas):
 @pytest.fixture(scope="module")
 def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry):
     config = AliceConfiguration(dev_mode=True,
+                                domains={TEMPORARY_DOMAIN},
                                 provider_uri=TEST_PROVIDER_URI,
                                 checksum_address=testerchain.alice_account,
                                 network_middleware=MockRestMiddleware(),
@@ -191,6 +201,7 @@ def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry)
 @pytest.fixture(scope="module")
 def bob_federated_test_config():
     config = BobConfiguration(dev_mode=True,
+                              domains={TEMPORARY_DOMAIN},
                               network_middleware=MockRestMiddleware(),
                               start_learning_now=False,
                               abort_on_learning_error=True,
@@ -204,6 +215,7 @@ def bob_federated_test_config():
 @pytest.fixture(scope="module")
 def bob_blockchain_test_config(blockchain_ursulas, testerchain, test_registry):
     config = BobConfiguration(dev_mode=True,
+                              domains={TEMPORARY_DOMAIN},
                               provider_uri=TEST_PROVIDER_URI,
                               checksum_address=testerchain.bob_account,
                               network_middleware=MockRestMiddleware(),
@@ -501,7 +513,41 @@ def _make_agency(testerchain, test_registry):
 
 
 @pytest.fixture(scope='module')
-def agency(testerchain, test_registry):
+def test_registry_source_manager(testerchain, test_registry):
+
+    class MockRegistrySource(CanonicalRegistrySource):
+        name = "Mock Registry Source"
+        is_primary = False
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            if self.network != TEMPORARY_DOMAIN:
+                raise ValueError(f"Somehow, MockRegistrySource is trying to get a registry for '{self.network}'. "
+                                 f"Only '{TEMPORARY_DOMAIN}' is supported.'")
+            factory = testerchain.get_contract_factory(contract_name=PREALLOCATION_ESCROW_CONTRACT_NAME)
+            preallocation_escrow_abi = factory.abi
+            self.allocation_template = {
+                "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", preallocation_escrow_abi]
+            }
+
+        def get_publication_endpoint(self) -> str:
+            return f":mock-registry-source:/{self.network}/{self.registry_name}"
+
+        def fetch_latest_publication(self) -> Union[str, bytes]:
+            self.logger.debug(f"Reading registry at {self.get_publication_endpoint()}")
+            if self.registry_name == BaseContractRegistry.REGISTRY_NAME:
+                registry_data = test_registry.read()
+            elif self.registry_name == IndividualAllocationRegistry.REGISTRY_NAME:
+                registry_data = self.allocation_template
+            raw_registry_data = json.dumps(registry_data)
+            return raw_registry_data
+
+    RegistrySourceManager._FALLBACK_CHAIN = (MockRegistrySource,)
+    NetworksInventory.networks = (TEMPORARY_DOMAIN,)
+
+
+@pytest.fixture(scope='module')
+def agency(testerchain, test_registry, test_registry_source_manager):
     agents = _make_agency(testerchain=testerchain, test_registry=test_registry)
     yield agents
 
@@ -835,23 +881,6 @@ def get_random_checksum_address():
 
 
 @pytest.fixture(scope='module')
-def _patch_individual_allocation_fetch_latest_publication(agency, test_registry):
-    empty_allocation_escrow_deployer = PreallocationEscrowDeployer(registry=test_registry)
-    allocation_contract_abi = empty_allocation_escrow_deployer.get_contract_abi()
-    allocation_template = {
-        "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", allocation_contract_abi]
-    }
-
-    def new_fetch(*args, **kwargs):
-        return json.dumps(allocation_template).encode()
-
-    original_fetch = GithubRegistrySource.fetch_latest_publication
-    GithubRegistrySource.fetch_latest_publication = new_fetch
-    yield
-    GithubRegistrySource.fetch_latest_publication = original_fetch
-
-
-@pytest.fixture(scope='module')
 def mock_transacting_power_activation(testerchain):
     def _mock_transacting_power_activation(password, account):
         testerchain.transacting_power = TransactingPower(password=password, account=account)
@@ -881,6 +910,7 @@ def fleet_of_highperf_mocked_ursulas(ursula_federated_test_config, request):
 @pytest.fixture(scope="module")
 def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas):
     config = AliceConfiguration(dev_mode=True,
+                                domains={TEMPORARY_DOMAIN},
                                 network_middleware=MockRestMiddlewareForLargeFleetTests(),
                                 federated_only=True,
                                 abort_on_learning_error=True,
@@ -895,11 +925,12 @@ def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas):
 @pytest.fixture(scope="module")
 def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
     config = BobConfiguration(dev_mode=True,
-                                network_middleware=MockRestMiddlewareForLargeFleetTests(),
-                                federated_only=True,
-                                abort_on_learning_error=True,
-                                save_metadata=False,
-                                reload_metadata=False)
+                              domains={TEMPORARY_DOMAIN},
+                              network_middleware=MockRestMiddlewareForLargeFleetTests(),
+                              federated_only=True,
+                              abort_on_learning_error=True,
+                              save_metadata=False,
+                              reload_metadata=False)
 
     with mock_cert_storage, mock_verify_node, mock_record_fleet_state:
         bob = config.produce(known_nodes=list(fleet_of_highperf_mocked_ursulas)[:1])

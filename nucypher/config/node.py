@@ -32,7 +32,12 @@ from twisted.logger import Logger
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry, LocalContractRegistry
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    InMemoryContractRegistry,
+    LocalContractRegistry
+)
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
@@ -40,6 +45,7 @@ from nucypher.crypto.powers import CryptoPowerUp, CryptoPower
 from nucypher.network.middleware import RestMiddleware
 
 
+# TODO: Relocate - #1575
 class CharacterConfiguration(BaseConfiguration):
     """
     'Sideways Engagement' of Character classes; a reflection of input parameters.
@@ -49,7 +55,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     CHARACTER_CLASS = NotImplemented
     DEFAULT_CONTROLLER_PORT = NotImplemented
-    DEFAULT_DOMAIN = 'goerli'
+    DEFAULT_DOMAIN = NetworksInventory.DEFAULT
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
     TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
 
@@ -78,7 +84,7 @@ class CharacterConfiguration(BaseConfiguration):
 
                  # Network
                  controller_port: int = None,
-                 domains: Set[str] = None,
+                 domains: Set[str] = None,  # TODO: Mapping between learning domains and "registry" domains - #1580
                  interface_signature: Signature = None,
                  network_middleware: RestMiddleware = None,
 
@@ -198,7 +204,7 @@ class CharacterConfiguration(BaseConfiguration):
                 # TODO: These two code blocks are untested.
                 if not self.registry_filepath:  # TODO: Registry URI  (goerli://speedynet.json) :-)
                     self.log.info(f"Fetching latest registry from source.")
-                    self.registry = InMemoryContractRegistry.from_latest_publication()
+                    self.registry = InMemoryContractRegistry.from_latest_publication(network=list(self.domains)[0])  # TODO: #1580
                 else:
                     self.registry = LocalContractRegistry(filepath=self.registry_filepath)
                     self.log.info(f"Using local registry ({self.registry}).")

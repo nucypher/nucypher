@@ -52,11 +52,6 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 #
 
 
-@pytest.fixture(autouse=True, scope='module')
-def patch_individual_allocation_fetch_latest_publication(_patch_individual_allocation_fetch_latest_publication):
-    pass
-
-
 @pytest.fixture(scope='module')
 def beneficiary(testerchain, mock_allocation_registry):
     # First, let's be give the beneficiary some cash for TXs
@@ -85,8 +80,17 @@ def beneficiary(testerchain, mock_allocation_registry):
 
 
 @pytest.fixture(scope='module')
-def preallocation_escrow_agent(beneficiary, test_registry, mock_allocation_registry):
-    individual_allocation = IndividualAllocationRegistry.from_allocation_file(MOCK_INDIVIDUAL_ALLOCATION_FILEPATH)
+def individual_allocation():
+    return IndividualAllocationRegistry.from_allocation_file(MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
+                                                             network=TEMPORARY_DOMAIN)
+
+
+@pytest.fixture(scope='module')
+def preallocation_escrow_agent(beneficiary,
+                               test_registry,
+                               mock_allocation_registry,
+                               test_registry_source_manager,
+                               individual_allocation):
     preallocation_escrow_agent = PreallocationEscrowAgent(beneficiary=beneficiary,
                                                           registry=test_registry,
                                                           allocation_registry=individual_allocation)
@@ -124,10 +128,14 @@ def test_stake_via_contract(click_runner,
                  '--poa',
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
+                 '--network', TEMPORARY_DOMAIN,
                  '--registry-filepath', mock_registry_filepath)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
     assert result.exit_code == 0
+
+    with open(stakeholder_configuration_file_location) as f:
+        print(f.read())
 
     #
     # The good stuff: Using `nucypher stake create --escrow`
@@ -141,7 +149,7 @@ def test_stake_via_contract(click_runner,
     stake_args = ('stake', 'create',
                   '--config-file', stakeholder_configuration_file_location,
                   '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
-                  '--value', stake_value.to_tokens(),
+                  '--value', str(stake_value.to_tokens()),
                   '--lock-periods', token_economics.minimum_locked_periods,
                   '--force')
 
@@ -179,6 +187,7 @@ def test_stake_set_worker(click_runner,
                           mock_allocation_registry,
                           test_registry,
                           manual_worker,
+                          individual_allocation,
                           stakeholder_configuration_file_location):
 
     init_args = ('stake', 'set-worker',
@@ -194,7 +203,6 @@ def test_stake_set_worker(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    individual_allocation = IndividualAllocationRegistry.from_allocation_file(MOCK_INDIVIDUAL_ALLOCATION_FILEPATH)
     staker = Staker(is_me=True,
                     checksum_address=beneficiary,
                     individual_allocation=individual_allocation,
@@ -211,6 +219,7 @@ def test_stake_detach_worker(click_runner,
                              mock_allocation_registry,
                              manual_worker,
                              test_registry,
+                             individual_allocation,
                              stakeholder_configuration_file_location):
 
     staker_address = preallocation_escrow_agent.principal_contract.address
@@ -231,7 +240,6 @@ def test_stake_detach_worker(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    individual_allocation = IndividualAllocationRegistry.from_allocation_file(MOCK_INDIVIDUAL_ALLOCATION_FILEPATH)
     staker = Staker(is_me=True,
                     checksum_address=beneficiary,
                     individual_allocation=individual_allocation,
@@ -269,9 +277,9 @@ def test_stake_restake(click_runner,
                        test_registry,
                        manual_worker,
                        testerchain,
+                       individual_allocation,
                        stakeholder_configuration_file_location):
 
-    individual_allocation = IndividualAllocationRegistry.from_allocation_file(MOCK_INDIVIDUAL_ALLOCATION_FILEPATH)
     staker = Staker(is_me=True,
                     checksum_address=beneficiary,
                     registry=test_registry,
@@ -344,14 +352,15 @@ def test_stake_restake(click_runner,
 
 
 def test_stake_winddown(click_runner,
-                       beneficiary,
-                       preallocation_escrow_agent,
-                       mock_allocation_registry,
-                       test_registry,
-                       manual_worker,
-                       testerchain,
-                       stakeholder_configuration_file_location):
-    individual_allocation = IndividualAllocationRegistry.from_allocation_file(MOCK_INDIVIDUAL_ALLOCATION_FILEPATH)
+                        beneficiary,
+                        preallocation_escrow_agent,
+                        mock_allocation_registry,
+                        test_registry,
+                        manual_worker,
+                        testerchain,
+                        individual_allocation,
+                        stakeholder_configuration_file_location):
+
     staker = Staker(is_me=True,
                     checksum_address=beneficiary,
                     registry=test_registry,

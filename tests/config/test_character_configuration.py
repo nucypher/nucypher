@@ -34,7 +34,7 @@ all_configurations = tuple(configurations + blockchain_only_configurations)
 @pytest.mark.parametrize("character,configuration", characters_and_configurations)
 def test_federated_development_character_configurations(character, configuration):
 
-    config = configuration(dev_mode=True, federated_only=True)
+    config = configuration(dev_mode=True, federated_only=True, domains={TEMPORARY_DOMAIN})
     assert config.is_me is True
     assert config.dev_mode is True
     assert config.keyring == NO_KEYRING_ATTACHED
@@ -74,10 +74,11 @@ def test_federated_development_character_configurations(character, configuration
 
 
 @pytest.mark.parametrize('configuration_class', all_configurations)
-def test_default_character_configuration_preservation(configuration_class, testerchain):
+def test_default_character_configuration_preservation(configuration_class, testerchain, test_registry_source_manager):
 
     configuration_class.DEFAULT_CONFIG_ROOT = '/tmp'
     fake_address = '0xdeadbeef'
+    network = TEMPORARY_DOMAIN
 
     expected_filename = f'{configuration_class._NAME}.{configuration_class._CONFIG_FILE_EXTENSION}'
     generated_filename = configuration_class.generate_filename()
@@ -90,9 +91,9 @@ def test_default_character_configuration_preservation(configuration_class, teste
 
     if configuration_class == StakeHolderConfiguration:
         # special case for defaults
-        character_config = StakeHolderConfiguration(provider_uri=testerchain.provider_uri)
+        character_config = StakeHolderConfiguration(provider_uri=testerchain.provider_uri, domains={network})
     else:
-        character_config = configuration_class(checksum_address=fake_address)
+        character_config = configuration_class(checksum_address=fake_address, domains={network})
 
     generated_filepath = character_config.generate_filepath()
     assert generated_filepath == expected_filepath

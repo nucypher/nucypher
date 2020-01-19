@@ -18,14 +18,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import json
 import pytest
 
-from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer
+from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import BaseContractRegistry
 from nucypher.blockchain.eth.registry import LocalContractRegistry, IndividualAllocationRegistry
-
-
-@pytest.fixture(autouse=True, scope='module')
-def patch_individual_allocation_fetch_latest_publication(_patch_individual_allocation_fetch_latest_publication):
-    pass
+from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 
 def test_contract_registry(tempfile_path):
@@ -88,14 +84,20 @@ def test_contract_registry(tempfile_path):
         test_registry.search(contract_address=test_addr)
 
 
-def test_individual_allocation_registry(get_random_checksum_address, test_registry, tempfile_path):
-    empty_allocation_escrow_deployer = PreallocationEscrowDeployer(registry=test_registry)
-    allocation_contract_abi = empty_allocation_escrow_deployer.get_contract_abi()
+def test_individual_allocation_registry(get_random_checksum_address,
+                                        test_registry,
+                                        tempfile_path,
+                                        testerchain,
+                                        test_registry_source_manager):
+
+    factory = testerchain.get_contract_factory(contract_name=PREALLOCATION_ESCROW_CONTRACT_NAME)
+    allocation_contract_abi = factory.abi
 
     beneficiary = get_random_checksum_address()
     contract_address = get_random_checksum_address()
     allocation_registry = IndividualAllocationRegistry(beneficiary_address=beneficiary,
-                                                       contract_address=contract_address)
+                                                       contract_address=contract_address,
+                                                       network=TEMPORARY_DOMAIN)
 
     registry_data = allocation_registry.read()
     assert len(registry_data) == 1
@@ -118,6 +120,7 @@ def test_individual_allocation_registry(get_random_checksum_address, test_regist
     with open(tempfile_path, 'w') as outfile:
         json.dump(individual_allocation_file_data, outfile)
 
-    allocation_registry = IndividualAllocationRegistry.from_allocation_file(filepath=tempfile_path)
+    allocation_registry = IndividualAllocationRegistry.from_allocation_file(filepath=tempfile_path,
+                                                                            network=TEMPORARY_DOMAIN)
     assert registry_data == allocation_registry.read()
 

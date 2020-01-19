@@ -40,6 +40,7 @@ from nucypher.cli.options import (
     option_force,
     option_hw_wallet,
     option_light,
+    option_network,
     option_poa,
     option_provider_uri,
     option_registry_filepath,
@@ -63,11 +64,12 @@ class StakeHolderConfigOptions:
 
     __option_name__ = 'config_options'
 
-    def __init__(self, provider_uri, poa, light, registry_filepath):
+    def __init__(self, provider_uri, poa, light, registry_filepath, network):
         self.provider_uri = provider_uri
         self.poa = poa
         self.light = light
         self.registry_filepath = registry_filepath
+        self.network = network
 
     def create_config(self, emitter, config_file):
         try:
@@ -78,6 +80,7 @@ class StakeHolderConfigOptions:
                 poa=self.poa,
                 light=self.light,
                 sync=False,
+                domains={self.network} if self.network else None,  # TODO: #1580
                 registry_filepath=self.registry_filepath)
 
         except FileNotFoundError:
@@ -93,13 +96,20 @@ class StakeHolderConfigOptions:
                 option_name="--provider",
                 message="--provider must be specified to create a new stakeholder")
 
+        if self.network is None:
+            raise click.BadOptionUsage(
+                option_name="--network",
+                message="--network must be specified to create a new stakeholder")
+
         return StakeHolderConfiguration.generate(
             config_root=config_root,
             provider_uri=self.provider_uri,
             poa=self.poa,
             light=self.light,
             sync=False,
-            registry_filepath=self.registry_filepath)
+            registry_filepath=self.registry_filepath,
+            domains={self.network}  # TODO: #1580
+        )
 
 
 group_config_options = group_options(
@@ -108,6 +118,7 @@ group_config_options = group_options(
     poa=option_poa,
     light=option_light,
     registry_filepath=option_registry_filepath,
+    network=option_network
     )
 
 
@@ -153,22 +164,26 @@ class TransactingStakerOptions:
     def create_character(self, emitter, config_file):
 
         opts = self.staker_options
+        stakeholder_config = opts.config_options.create_config(emitter, config_file)
 
         # Now let's check whether we're dealing here with a regular staker or a preallocation staker
         is_preallocation_staker = (self.beneficiary_address and opts.staking_address) or self.allocation_filepath
 
         if is_preallocation_staker:
+            network = opts.config_options.network or list(stakeholder_config.domains)[0]  #FIXME: ugly network/domains mapping
             if self.allocation_filepath:
                 if self.beneficiary_address or opts.staking_address:
                     message = "--allocation-filepath is incompatible with --beneficiary-address and --staking-address."
                     raise click.BadOptionUsage(option_name="--allocation-filepath", message=message)
 
                 # This assumes the user has an individual allocation file in disk
-                individual_allocation = IndividualAllocationRegistry.from_allocation_file(self.allocation_filepath)
+                individual_allocation = IndividualAllocationRegistry.from_allocation_file(self.allocation_filepath,
+                                                                                          network=network)
                 initial_address = individual_allocation.beneficiary_address
             elif self.beneficiary_address and opts.staking_address:
                 individual_allocation = IndividualAllocationRegistry(beneficiary_address=self.beneficiary_address,
-                                                                     contract_address=opts.staking_address)
+                                                                     contract_address=opts.staking_address,
+                                                                     network=network)
                 initial_address = self.beneficiary_address
             else:
                 option = "--beneficiary_address" if self.beneficiary_address else "--staking-address"
@@ -218,6 +233,7 @@ def stake():
 @option_force
 @group_config_options
 @group_general_config
+@option_network
 def init_stakeholder(general_config, config_root, force, config_options):
     """
     Create a new stakeholder configuration.
@@ -228,12 +244,12 @@ def init_stakeholder(general_config, config_root, force, config_options):
     emitter.echo(f"Wrote new stakeholder configuration to {filepath}", color='green')
 
 
-@stake.command()
+@stake.command('list')
 @group_staker_options
 @option_config_file
 @click.option('--all', help="List all stakes, including inactive", is_flag=True)
 @group_general_config
-def list(general_config, staker_options, config_file, all):
+def list_stakes(general_config, staker_options, config_file, all):
     """
     List active stakes for current stakeholder.
     """

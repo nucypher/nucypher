@@ -28,6 +28,7 @@ from nucypher.cli.options import (
     group_options,
     option_geth,
     option_light,
+    option_network,
     option_poa,
     option_provider_uri,
     option_registry_filepath,
@@ -40,12 +41,13 @@ class RegistryOptions:
 
     __option_name__ = 'registry_options'
 
-    def __init__(self, provider_uri, geth, poa, registry_filepath, light):
+    def __init__(self, provider_uri, geth, poa, registry_filepath, light, network):
         self.provider_uri = provider_uri
         self.geth = geth
         self.poa = poa
         self.registry_filepath = registry_filepath
         self.light = light
+        self.network = network
 
     def get_registry(self, emitter, debug):
         try:
@@ -74,7 +76,7 @@ class RegistryOptions:
         if self.registry_filepath:
             registry = LocalContractRegistry(filepath=self.registry_filepath)
         else:
-            registry = InMemoryContractRegistry.from_latest_publication()
+            registry = InMemoryContractRegistry.from_latest_publication(network=self.network)
 
         return registry
 
@@ -86,6 +88,7 @@ group_registry_options = group_options(
     poa=option_poa,
     light=option_light,
     registry_filepath=option_registry_filepath,
+    network=option_network,
     )
 
 

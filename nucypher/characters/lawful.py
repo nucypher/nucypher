@@ -831,7 +831,7 @@ class Ursula(Teacher, Character, Worker):
         if domains is None:
             # TODO: Clean up imports
             from nucypher.config.node import CharacterConfiguration
-            domains = (CharacterConfiguration.DEFAULT_DOMAIN,)
+            domains = {CharacterConfiguration.DEFAULT_DOMAIN}
 
         if is_me:
             # If we're federated only, we assume that all other nodes in our domain are as well.

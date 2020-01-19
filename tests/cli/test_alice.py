@@ -17,7 +17,9 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
     assert "run: 'nucypher alice init'" in result.output
 
 
-def test_initialize_alice_defaults(click_runner, mocker):
+def test_initialize_alice_defaults(click_runner, mocker, custom_filepath, monkeypatch):
+    monkeypatch.delenv("NUCYPHER_KEYRING_PASSWORD", raising=False)
+
     # Mock out filesystem writes
     mocker.patch.object(AliceConfiguration, 'initialize', autospec=True)
     mocker.patch.object(AliceConfiguration, 'to_configuration_file', autospec=True)
@@ -25,6 +27,7 @@ def test_initialize_alice_defaults(click_runner, mocker):
     # Use default alice init args
     init_args = ('alice', 'init',
                  '--network', TEMPORARY_DOMAIN,
+                 '--config-root', custom_filepath,
                  '--federated-only')
 
     user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
@@ -39,7 +42,8 @@ def test_initialize_alice_defaults(click_runner, mocker):
     assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
 
 
-def test_alice_control_starts_with_mocked_keyring(click_runner, mocker):
+def test_alice_control_starts_with_mocked_keyring(click_runner, mocker, monkeypatch):
+    monkeypatch.delenv("NUCYPHER_KEYRING_PASSWORD", raising=False)
 
     class MockKeyring:
         is_unlocked = False
@@ -59,7 +63,8 @@ def test_alice_control_starts_with_mocked_keyring(click_runner, mocker):
     assert result.exit_code == 0, result.exception
 
 
-def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_runner):
+def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_runner, monkeypatch):
+    monkeypatch.delenv("NUCYPHER_KEYRING_PASSWORD", raising=False)
 
     # Use a custom local filepath for configuration
     init_args = ('alice', 'init',

@@ -94,9 +94,9 @@ class UrsulaConfigOptions:
         self.worker_address = worker_address
         self.federated_only = federated_only
         self.rest_host = rest_host
-        self.rest_port = rest_port # FIXME: not used in generate()
+        self.rest_port = rest_port  # FIXME: not used in generate()
         self.db_filepath = db_filepath
-        self.domains = {network} if network else None
+        self.domains = {network} if network else None  # TODO: #1580
         self.registry_filepath = registry_filepath
         self.dev = dev
         self.poa = poa
@@ -154,26 +154,29 @@ class UrsulaConfigOptions:
 
             if not worker_address:
                 prompt = "Select worker account"
-                worker_address = select_client_account(emitter=emitter, prompt=prompt, provider_uri=self.provider_uri)
+                worker_address = select_client_account(emitter=emitter,
+                                                       prompt=prompt,
+                                                       provider_uri=self.provider_uri,
+                                                       show_balances=False)
 
         rest_host = self.rest_host
         if not rest_host:
             rest_host = actions.determine_external_ip_address(emitter, force=force)
 
         return UrsulaConfiguration.generate(password=get_nucypher_password(confirm=True),
-                                                     config_root=config_root,
-                                                     rest_host=rest_host,
-                                                     rest_port=self.rest_port,
-                                                     db_filepath=self.db_filepath,
-                                                     domains=self.domains,
-                                                     federated_only=self.federated_only,
-                                                     checksum_address=self.staker_address,
-                                                     worker_address=self.worker_address,
-                                                     registry_filepath=self.registry_filepath,
-                                                     provider_process=self.eth_node,
-                                                     provider_uri=self.provider_uri,
-                                                     poa=self.poa,
-                                                     light=self.light)
+                                            config_root=config_root,
+                                            rest_host=rest_host,
+                                            rest_port=self.rest_port,
+                                            db_filepath=self.db_filepath,
+                                            domains=self.domains,
+                                            federated_only=self.federated_only,
+                                            checksum_address=staker_address,
+                                            worker_address=worker_address,
+                                            registry_filepath=self.registry_filepath,
+                                            provider_process=self.eth_node,
+                                            provider_uri=self.provider_uri,
+                                            poa=self.poa,
+                                            light=self.light)
 
 
 group_config_options = group_options(
@@ -249,8 +252,6 @@ def ursula():
     "Ursula the Untrusted" PRE Re-encryption node management commands.
     """
 
-    pass
-
 
 @ursula.command()
 @group_config_options
@@ -265,6 +266,10 @@ def init(general_config, config_options, force, config_root):
     _pre_launch_warnings(emitter, dev=None, force=force)
     if not config_root:
         config_root = general_config.config_root
+
+    if not config_options.federated_only and not config_options.domains:  # FIXME: Again, weird network/domains mapping. See UrsulaConfigOptions' constructor
+        raise click.BadOptionUsage(option_name="--network",
+                                   message=f"--network is required when creating an Ursula in decentralized mode.")
     ursula_config = config_options.generate_config(emitter, config_root, force)
     painting.paint_new_installation_help(emitter, new_configuration=ursula_config)
 
@@ -293,7 +298,7 @@ def forget(general_config, config_options, config_file):
     Forget all known nodes.
     """
     emitter = _setup_emitter(general_config, config_options.worker_address)
-    _pre_launch_warnings(emitter, dev=dev, force=None)
+    _pre_launch_warnings(emitter, dev=group_config_options.dev, force=None)
     ursula_config = config_options.create_config(emitter, config_file)
     actions.forget(emitter, configuration=ursula_config)
 

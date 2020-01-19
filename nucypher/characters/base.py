@@ -167,7 +167,7 @@ class Character(Learner):
 
         # Fleet and Blockchain Connection (Everyone)
         if not domains:
-            domains = (CharacterConfiguration.DEFAULT_DOMAIN,)
+            domains = {CharacterConfiguration.DEFAULT_DOMAIN}
 
         #
         # Self-Character
@@ -191,7 +191,7 @@ class Character(Learner):
             #
             self.provider_uri = provider_uri
             if not self.federated_only:
-                self.registry = registry or InMemoryContractRegistry.from_latest_publication()
+                self.registry = registry or InMemoryContractRegistry.from_latest_publication(network=list(domains)[0])  #TODO: #1580
             else:
                 self.registry = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
 

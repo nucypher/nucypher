@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import functools
+
 import os
 
 import click
@@ -24,11 +24,11 @@ from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
-    CanonicalRegistrySource,
     InMemoryContractRegistry,
     RegistrySourceManager,
-    GithubRegistrySource,
+    GithubRegistrySource
 )
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.actions import (
     get_client_password,
@@ -61,7 +61,7 @@ option_registry_infile = click.option('--registry-infile', help="Input path for 
 option_registry_outfile = click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
 option_target_address = click.option('--target-address', help="Address of the target contract", type=EIP55_CHECKSUM_ADDRESS)
 option_gas = click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
-option_network__eth = click.option('--network', help="", type=click.Choice(CanonicalRegistrySource.networks), default='goerli')  # TODO: #1496
+option_network = click.option('--network', help="Name of NuCypher network", type=click.Choice(NetworksInventory.networks))
 
 
 def _pre_launch_warnings(emitter, etherscan, hw_wallet):
@@ -193,7 +193,7 @@ def deploy():
 @group_general_config
 @option_config_root
 @option_registry_outfile
-@option_network__eth
+@option_network
 @option_force
 def download_registry(general_config, config_root, registry_outfile, network, force):
     """
@@ -210,7 +210,7 @@ def download_registry(general_config, config_root, registry_outfile, network, fo
         prompt = f"Fetch and download latest contract registry from {github_source}?"
         click.confirm(prompt, abort=True)
     try:
-        registry = InMemoryContractRegistry.from_latest_publication(source_manager=source_manager)
+        registry = InMemoryContractRegistry.from_latest_publication(source_manager=source_manager, network=network)
     except RegistrySourceManager.NoSourcesAvailable:
         emitter.message("Registry not available.", color="red")
         raise click.Abort

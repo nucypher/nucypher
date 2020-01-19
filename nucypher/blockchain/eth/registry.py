@@ -22,19 +22,18 @@ import tempfile
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
 from os.path import dirname, abspath
-from typing import Union, Iterator, List, Dict, Type
+from typing import Union, Iterator, List, Dict, Type, Tuple
 
 import requests
 from constant_sorrow.constants import REGISTRY_COMMITTED, NO_REGISTRY_SOURCE
 from twisted.logger import Logger
 
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 
 
 class CanonicalRegistrySource(ABC):
-
-    networks = ('goerli', )  # TODO: Allow other branches to be used - #1496
 
     logger = Logger('RegistrySource')
 
@@ -42,9 +41,9 @@ class CanonicalRegistrySource(ABC):
     is_primary = NotImplementedError
 
     def __init__(self, network: str, registry_name: str, *args, **kwargs):
-        if network not in self.networks:
+        if network not in NetworksInventory.networks:
             raise ValueError(f"{self.__class__.__name__} not available for network '{network}'. "
-                             f"Only {self.networks} are allowed.")
+                             f"Valid options are: {list(NetworksInventory.networks)}")
         self.network = network
         self.registry_name = registry_name
 
@@ -74,11 +73,8 @@ class GithubRegistrySource(CanonicalRegistrySource):
     name = "GitHub Registry Source"
     is_primary = True
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def get_publication_endpoint(self) -> str:
-        url = f'{self._BASE_URL}/{self.network}/{self.registry_name}'
+        url = f'{self._BASE_URL}/master/{self.network}/{self.registry_name}'
         return url
 
     def fetch_latest_publication(self) -> Union[str, bytes]:
@@ -126,18 +122,18 @@ class InPackageRegistrySource(CanonicalRegistrySource):
 class RegistrySourceManager:
     logger = Logger('RegistrySource')
 
-    __REMOTE_SOURCES = (
+    _REMOTE_SOURCES = (
         GithubRegistrySource,
         # TODO: Mirror/fallback for contract registry: moar remote sources - #1454
         # NucypherServersRegistrySource,
         # IPFSRegistrySource,
-    )  # type: List[Type[CanonicalRegistrySource]]
+    )  # type: Tuple[Type[CanonicalRegistrySource]]
 
-    __LOCAL_SOURCES = (
+    _LOCAL_SOURCES = (
         InPackageRegistrySource,
-    )  # type: List[Type[CanonicalRegistrySource]]
+    )  # type: Tuple[Type[CanonicalRegistrySource]]
 
-    __FALLBACK_CHAIN = __REMOTE_SOURCES + __LOCAL_SOURCES
+    _FALLBACK_CHAIN = _REMOTE_SOURCES + _LOCAL_SOURCES
 
     class NoSourcesAvailable(Exception):
         pass
@@ -148,16 +144,16 @@ class RegistrySourceManager:
         elif only_primary:
             self.sources = self.get_primary_sources()
         else:
-            self.sources = sources or self.__FALLBACK_CHAIN
+            self.sources = list(sources or self._FALLBACK_CHAIN)
 
     def __getitem__(self, index):
-        return self.__FALLBACK_CHAIN[index]
+        return self.sources
 
     @classmethod
     def get_primary_sources(cls):
-        return [source for source in cls.__FALLBACK_CHAIN if source.is_primary]
+        return [source for source in cls._FALLBACK_CHAIN if source.is_primary]
 
-    def fetch_latest_publication(self, registry_class, network: str = 'goerli'):  # TODO: see #1496
+    def fetch_latest_publication(self, registry_class, network: str = NetworksInventory.DEFAULT):  # TODO: see #1496
         """
         Get the latest contract registry data available from a registry source chain.
         """
@@ -165,6 +161,10 @@ class RegistrySourceManager:
         for registry_source_class in self.sources:
             if isinstance(registry_source_class, CanonicalRegistrySource):  # i.e., it's not a class, but an instance
                 registry_source = registry_source_class
+                expected = registry_class.REGISTRY_NAME, network
+                actual = registry_source.registry_name, registry_source.network
+                if actual != expected:
+                    raise ValueError(f"(registry_name, network) should be {expected} but got {actual}")
             else:
                 registry_source = registry_source_class(network=network, registry_name=registry_class.REGISTRY_NAME)
 
@@ -194,7 +194,6 @@ class BaseContractRegistry(ABC):
     """
 
     logger = Logger('ContractRegistry')
-    source_manager = RegistrySourceManager()
 
     _multi_contract = True
     _contract_name = NotImplemented
@@ -256,12 +255,16 @@ class BaseContractRegistry(ABC):
         raise NotImplementedError
 
     @classmethod
-    def from_latest_publication(cls, *args, source_manager=None, network: str = 'goerli', **kwargs) -> 'BaseContractRegistry':
+    def from_latest_publication(cls,
+                                *args,
+                                source_manager=None,
+                                network: str = NetworksInventory.DEFAULT,
+                                **kwargs) -> 'BaseContractRegistry':
         """
         Get the latest contract registry available from a registry source chain.
         """
         if not source_manager:
-            source_manager = cls.source_manager
+            source_manager = RegistrySourceManager()
 
         registry_data, source = source_manager.fetch_latest_publication(registry_class=cls, network=network)
 
@@ -608,17 +611,19 @@ class IndividualAllocationRegistry(InMemoryAllocationRegistry):
                  beneficiary_address: str,
                  contract_address: str,
                  contract_abi=None,
-                 network: str = 'goerli',  # TODO: See #1496
+                 network: str = NetworksInventory.DEFAULT,  # TODO: See #1496
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.beneficiary_address = beneficiary_address
         self.contract_address = contract_address
 
+        source_manager = RegistrySourceManager()
+
         if not contract_abi:
             # Download individual allocation template to extract contract_abi
-            template_data, self.__source = self.source_manager.fetch_latest_publication(registry_class=self.__class__,
-                                                                                        network=network)
+            template_data, self.__source = source_manager.fetch_latest_publication(registry_class=self.__class__,
+                                                                                   network=network)
             individual_allocation_template = json.loads(template_data)
             if len(individual_allocation_template) != 1:
                 raise self.InvalidRegistry("Individual allocation template must contain a single entry")
