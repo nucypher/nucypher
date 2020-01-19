@@ -210,7 +210,7 @@ def download_registry(general_config, config_root, registry_outfile, network, fo
         prompt = f"Fetch and download latest contract registry from {github_source}?"
         click.confirm(prompt, abort=True)
     try:
-        registry = InMemoryContractRegistry.from_latest_publication(source_manager=source_manager)
+        registry = InMemoryContractRegistry.from_latest_publication(source_manager=source_manager, network=network)
     except RegistrySourceManager.NoSourcesAvailable:
         emitter.message("Registry not available.", color="red")
         raise click.Abort

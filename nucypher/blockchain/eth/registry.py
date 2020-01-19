@@ -39,6 +39,9 @@ class NetworksInventory:  # TODO: Rename & relocate. See also #1564
     FRANCES = 'frances'
     CASSANDRA = 'cassandra'
 
+    UNKNOWN = 'unknown'  # TODO: Is there a better way to signal an unknown network?
+    DEFAULT = UNKNOWN  # TODO: This assumes we DON'T have a default. Is that OK?  - #1496
+
     __to_ethereum_chain_id = {  # TODO: what about chain id when testing?
         MAINNET: 1,  # Ethereum Mainnet
         MIRANDA: 5,  # Goerli
@@ -49,7 +52,7 @@ class NetworksInventory:  # TODO: Rename & relocate. See also #1564
     networks = tuple(__to_ethereum_chain_id.keys())
 
     @classmethod
-    def get_ethereum_chain_id(cls, network):
+    def get_ethereum_chain_id(cls, network):  # TODO: Use this (where?) to make sure we're in the right chain
         try:
             return cls.__to_ethereum_chain_id[network]
         except KeyError:
@@ -179,7 +182,7 @@ class RegistrySourceManager:
     def get_primary_sources(cls):
         return [source for source in cls.__FALLBACK_CHAIN if source.is_primary]
 
-    def fetch_latest_publication(self, registry_class, network: str = 'goerli'):  # TODO: see #1496
+    def fetch_latest_publication(self, registry_class, network: str = NetworksInventory.DEFAULT):  # TODO: see #1496
         """
         Get the latest contract registry data available from a registry source chain.
         """
@@ -278,7 +281,7 @@ class BaseContractRegistry(ABC):
         raise NotImplementedError
 
     @classmethod
-    def from_latest_publication(cls, *args, source_manager=None, network: str = 'goerli', **kwargs) -> 'BaseContractRegistry':
+    def from_latest_publication(cls, *args, source_manager=None, network: str = NetworksInventory.DEFAULT, **kwargs) -> 'BaseContractRegistry':  # FIXME: entry point to fix #1496, #1564
         """
         Get the latest contract registry available from a registry source chain.
         """

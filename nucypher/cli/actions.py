@@ -386,7 +386,8 @@ def select_client_account(emitter,
                           prompt: str = None,
                           default: int = 0,
                           registry=None,
-                          show_balances: bool = True
+                          show_balances: bool = True,
+                          network: str = None
                           ) -> str:
     """
     Note: Setting show_balances to True, causes an eager contract and blockchain connection.
@@ -404,7 +405,7 @@ def select_client_account(emitter,
     token_agent = None
     if show_balances:
         if not registry:
-            registry = InMemoryContractRegistry.from_latest_publication()
+            registry = InMemoryContractRegistry.from_latest_publication(network)
         token_agent = NucypherTokenAgent(registry=registry)
 
     # Real wallet accounts
@@ -463,6 +464,7 @@ def handle_client_account_for_staking(emitter,
             client_account = select_client_account(prompt="Select staking account",
                                                    emitter=emitter,
                                                    registry=stakeholder.registry,
+                                                   network=stakeholder.domains[0],  # FIXME: 1496
                                                    provider_uri=stakeholder.wallet.blockchain.provider_uri)
             staking_address = client_account
 
