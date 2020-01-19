@@ -6,16 +6,16 @@ NuCypher Staking Guide
 
 The NuCypher Network status page can be found at https://status.nucypher.network:12500/.
 
-The account which is actively doing work for the network (re-encryptions) needs to be a hot
+The account which is actively doing work for the network (i.e., re-encryptions) needs to be a hot
 wallet. However, it doesn't have to be the same account as the one which receives and
-sends NU tokens. The account which holds NU tokens is called StakeHolder, or
-Staker, and the account which participates in the network as an Ursula node is
-called Worker.
-It is highly recommended that StakeHolder and Worker have separate Ethereum
-accounts: StakeHolder controlled by a hardware wallet, and Worker
+sends NU tokens. The account which holds NU tokens is called
+Staker, and the account which participates in the network as a worker node is
+called `Ursula`, or simply, Worker.
+It is highly recommended that Staker and Worker have separate Ethereum
+accounts: Staker controlled by a hardware wallet, and Worker
 having an address controlled by geth.
 
-All staking-related operations done by StakeHolder are performed through the ``nucypher stake`` command:
+All staking-related operations done by Staker are performed through the ``nucypher stake`` command:
 
 .. code:: bash
 
@@ -46,6 +46,10 @@ All staking-related operations done by StakeHolder are performed through the ``n
 |  ``divide``          | Create a new stake from part of an existing one                               |
 +----------------------+-------------------------------------------------------------------------------+
 |  ``restake``         | Manage automatic reward re-staking                                            |
++----------------------+-------------------------------------------------------------------------------+
+|  ``prolong``         | Prolong an existing stake's duration                                          |
++----------------------+-------------------------------------------------------------------------------+
+|  ``winddown``        | Manage winding down of stakes                                                 |
 +----------------------+-------------------------------------------------------------------------------+
 
 **Stake Command Options**
@@ -79,9 +83,9 @@ Staking Overview
 -----------------
 
 
-Most stakers on the Goerli testnet will complete the following steps:
+Most stakers on a NuCypher testnet will complete the following steps:
 
-1) Install ``nucypher`` on StakeHolder node (See :doc:`/guides/installation_guide`)
+1) Install ``nucypher`` on Staker node (See :doc:`/guides/installation_guide`)
 2) Install and run Geth, Parity or another ethereum node (can be used with software or hardware Ethereum wallet)
 3) Request testnet tokens by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and type ``.getfunded <YOUR_CHECKSUM_ETH_ADDRESS>`` in the #testnet-faucet channel
 4) Stake tokens (See Below)
@@ -93,11 +97,11 @@ Most stakers on the Goerli testnet will complete the following steps:
 Interactive Method
 ------------------
 
-Run an Ethereum node for Stakeholder
+Run an Ethereum node for Staker
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Assuming you have ``geth`` installed, let's run a node on Görli testnet.
-On StakeHolder side, it's ok to run a light node.
+On the Staker side, it's ok to run a light node.
 
 .. code:: bash
 
