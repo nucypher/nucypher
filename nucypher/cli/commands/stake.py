@@ -80,7 +80,7 @@ class StakeHolderConfigOptions:
                 poa=self.poa,
                 light=self.light,
                 sync=False,
-                domains={self.network} if self.network else None,  # FIXME: 1496
+                domains={self.network} if self.network else None,  # TODO: #1580
                 registry_filepath=self.registry_filepath)
 
         except FileNotFoundError:
@@ -108,7 +108,7 @@ class StakeHolderConfigOptions:
             light=self.light,
             sync=False,
             registry_filepath=self.registry_filepath,
-            domains={self.network}  # FIXME: entry point to fix #1496, #1564
+            domains={self.network}  # TODO: #1580
         )
 
 

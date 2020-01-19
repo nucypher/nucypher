@@ -281,7 +281,11 @@ class BaseContractRegistry(ABC):
         raise NotImplementedError
 
     @classmethod
-    def from_latest_publication(cls, *args, source_manager=None, network: str = NetworksInventory.DEFAULT, **kwargs) -> 'BaseContractRegistry':  # FIXME: entry point to fix #1496, #1564
+    def from_latest_publication(cls,
+                                *args,
+                                source_manager=None,
+                                network: str = NetworksInventory.DEFAULT,
+                                **kwargs) -> 'BaseContractRegistry':
         """
         Get the latest contract registry available from a registry source chain.
         """

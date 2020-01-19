@@ -96,7 +96,7 @@ class UrsulaConfigOptions:
         self.rest_host = rest_host
         self.rest_port = rest_port  # FIXME: not used in generate()
         self.db_filepath = db_filepath
-        self.domains = {network} if network else None  # FIXME: #1496
+        self.domains = {network} if network else None  # TODO: #1580
         self.registry_filepath = registry_filepath
         self.dev = dev
         self.poa = poa
