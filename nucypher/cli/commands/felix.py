@@ -5,7 +5,7 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 from nucypher.characters.banners import FELIX_BANNER
 from nucypher.cli import actions, painting
-from nucypher.cli.actions import get_nucypher_password, unlock_nucypher_keyring
+from nucypher.cli.actions import get_nucypher_password, unlock_nucypher_keyring, get_client_password
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -71,8 +71,6 @@ class FelixConfigOptions:
                 rest_port=self.port,
                 db_filepath=self.db_filepath,
                 poa=self.poa)
-
-            return felix_config
         except FileNotFoundError:
             return actions.handle_missing_configuration_file(
                 character_config_class=FelixConfiguration,
@@ -129,6 +127,9 @@ class FelixCharacterOptions:
                                     character_configuration=felix_config,
                                     password=get_nucypher_password(confirm=False))
 
+            client_password = get_client_password(checksum_address=felix_config.checksum_address,
+                                                  envvar="NUCYPHER_WORKER_ETH_PASSWORD")
+
             # Produce Teacher Ursulas
             teacher_nodes = actions.load_seednodes(emitter,
                                                    teacher_uris=self.teacher_uris,
@@ -138,7 +139,9 @@ class FelixCharacterOptions:
                                                    network_middleware=self.middleware)
 
             # Produce Felix
-            FELIX = felix_config.produce(domains=self.config_options.domains, known_nodes=teacher_nodes)
+            FELIX = felix_config.produce(domains=self.config_options.domains,
+                                         known_nodes=teacher_nodes,
+                                         client_password=client_password)
             FELIX.make_web_app()  # attach web application, but dont start service
 
             return FELIX

@@ -8,7 +8,7 @@ import math
 import maya
 import time
 from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE
-from flask import Flask, render_template, Response
+from flask import Flask, Response
 from hendrix.deploy.base import HendrixDeploy
 from nacl.hash import sha256
 from sqlalchemy import create_engine, or_
@@ -46,12 +46,10 @@ class Felix(Character, NucypherTokenActor):
 
     _default_crypto_powerups = [SigningPower]
 
-    TEMPLATE_NAME = 'felix.html'
-
     # Intervals
-    DISTRIBUTION_INTERVAL = 60  # seconds
+    DISTRIBUTION_INTERVAL = 60        # seconds
     DISBURSEMENT_INTERVAL = 24 * 365  # only distribute tokens to the same address once each YEAR.
-    STAGING_DELAY = 10        # seconds
+    STAGING_DELAY = 10                # seconds
 
     # Disbursement
     BATCH_SIZE = 10                 # transactions
