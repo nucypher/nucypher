@@ -69,7 +69,7 @@ class CanonicalRegistrySource(ABC):
     def __init__(self, network: str, registry_name: str, *args, **kwargs):
         if network not in NetworksInventory.networks:
             raise ValueError(f"{self.__class__.__name__} not available for network '{network}'. "
-                             f"Only {NetworksInventory.networks} are allowed.")
+                             f"Valid options are: {list(NetworksInventory.networks)}")
         self.network = network
         self.registry_name = registry_name
 
@@ -633,17 +633,19 @@ class IndividualAllocationRegistry(InMemoryAllocationRegistry):
                  beneficiary_address: str,
                  contract_address: str,
                  contract_abi=None,
-                 network: str = 'goerli',  # TODO: See #1496
+                 network: str = NetworksInventory.DEFAULT,  # TODO: See #1496
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.beneficiary_address = beneficiary_address
         self.contract_address = contract_address
 
+        source_manager = RegistrySourceManager()
+
         if not contract_abi:
             # Download individual allocation template to extract contract_abi
-            template_data, self.__source = self.source_manager.fetch_latest_publication(registry_class=self.__class__,
-                                                                                        network=network)
+            template_data, self.__source = source_manager.fetch_latest_publication(registry_class=self.__class__,
+                                                                                   network=network)
             individual_allocation_template = json.loads(template_data)
             if len(individual_allocation_template) != 1:
                 raise self.InvalidRegistry("Individual allocation template must contain a single entry")

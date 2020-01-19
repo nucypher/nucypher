@@ -80,7 +80,7 @@ class StakeHolderConfigOptions:
                 poa=self.poa,
                 light=self.light,
                 sync=False,
-                domains={self.network},  # FIXME: 1496
+                domains={self.network} if self.network else None,  # FIXME: 1496
                 registry_filepath=self.registry_filepath)
 
         except FileNotFoundError:
