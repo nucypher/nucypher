@@ -464,7 +464,7 @@ def handle_client_account_for_staking(emitter,
             client_account = select_client_account(prompt="Select staking account",
                                                    emitter=emitter,
                                                    registry=stakeholder.registry,
-                                                   network=stakeholder.domains[0],  # FIXME: 1496
+                                                   network=stakeholder.network,
                                                    provider_uri=stakeholder.wallet.blockchain.provider_uri)
             staking_address = client_account
 
