@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import functools
+
 import os
 
 import click
@@ -26,9 +26,9 @@ from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     InMemoryContractRegistry,
     RegistrySourceManager,
-    GithubRegistrySource,
-    NetworksInventory
+    GithubRegistrySource
 )
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.actions import (
     get_client_password,

@@ -24,11 +24,9 @@ import tempfile
 import time
 from datetime import datetime
 from random import SystemRandom
-from string import digits, ascii_uppercase
 
 from web3 import Web3
 
-from nucypher.blockchain.eth.registry import NetworksInventory
 from nucypher.blockchain.eth.token import NU
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import BASE_DIR
@@ -136,7 +134,7 @@ MOCK_CUSTOM_INSTALLATION_PATH_2 = '/tmp/nucypher-tmp-test-custom-2-{}'.format(ti
 
 MOCK_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}mock-registry-{datetime.now().strftime(DATETIME_FORMAT)}.json')
 
-TEMPORARY_DOMAIN = ":TEMPORARY_DOMAIN:"  # for use with `--dev` node runtimes  # FIXME?
+TEMPORARY_DOMAIN = ":TEMPORARY_DOMAIN:"  # for use with `--dev` node runtimes and tests
 
 GETH_DEV_URI = f'ipc://{BASE_TEMP_DIR}/geth.ipc'  # Standard IPC path for `geth --dev`
 

@@ -35,9 +35,9 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     InMemoryContractRegistry,
-    LocalContractRegistry,
-    NetworksInventory
+    LocalContractRegistry
 )
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage

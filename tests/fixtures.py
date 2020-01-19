@@ -47,11 +47,11 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
     RegistrySourceManager,
-    NetworksInventory,
     BaseContractRegistry,
     IndividualAllocationRegistry,
     CanonicalRegistrySource
 )
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob

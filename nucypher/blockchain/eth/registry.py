@@ -28,35 +28,9 @@ import requests
 from constant_sorrow.constants import REGISTRY_COMMITTED, NO_REGISTRY_SOURCE
 from twisted.logger import Logger
 
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
-
-
-class NetworksInventory:  # TODO: Rename & relocate. See also #1564
-
-    MAINNET = 'mainnet'
-    MIRANDA = 'miranda'
-    FRANCES = 'frances'
-    CASSANDRA = 'cassandra'
-
-    UNKNOWN = 'unknown'  # TODO: Is there a better way to signal an unknown network?
-    DEFAULT = UNKNOWN  # TODO: This assumes we DON'T have a default. Is that OK?  - #1496
-
-    __to_ethereum_chain_id = {  # TODO: what about chain id when testing?
-        MAINNET: 1,  # Ethereum Mainnet
-        MIRANDA: 5,  # Goerli
-        FRANCES: 5,  # Goerli
-        CASSANDRA: 5,  # Goerli
-    }
-
-    networks = tuple(__to_ethereum_chain_id.keys())
-
-    @classmethod
-    def get_ethereum_chain_id(cls, network):  # TODO: Use this (where?) to make sure we're in the right chain
-        try:
-            return cls.__to_ethereum_chain_id[network]
-        except KeyError:
-            return 1337  # TODO: what about chain id when testing?
 
 
 class CanonicalRegistrySource(ABC):

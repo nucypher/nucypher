@@ -115,7 +115,7 @@ class NucypherTokenActor:
             self.checksum_address = checksum_address  # type: str
 
         self.registry = registry
-        if domains:  # FIXME: This is horrible, but I'm forced to do it as StakeHolder config inherits from character config, which has 'domains'
+        if domains:  # StakeHolder config inherits from character config, which has 'domains' - #1580
             self.network = list(domains)[0]
         self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)  # type: NucypherTokenAgent
         self._saved_receipts = list()  # track receipts of transmitted transactions
