@@ -15,9 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-# TODO: Mapping from learning domains to seednodes - follow up of #1496
-
 # Hardcoded bootstrapping teacher nodes keyed by network domain
 TEACHER_NODES = {
-    'goerli': ('https://discover.nucypher.network:9151', )
+    'cassandra': ('https://discover.nucypher.network:9151', )
 }
