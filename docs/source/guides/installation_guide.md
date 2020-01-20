@@ -80,7 +80,7 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
     nucypher --help
     ```
 
-    You will see a list of possible usage options (``--version``, ``-v``, ``--dev``, etc.) and commands (``status``, ``ursula``).
+    You will see a list of possible usage options (``--version``, ``-v``, ``--dev``, etc.) and commands (``status``, ``ursula``, etc.).
     For example, you can use ``nucypher ursula destroy`` to delete all files associated with the node.
 
 

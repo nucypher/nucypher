@@ -19,7 +19,7 @@ Run a local geth node on Görli using volume bindings:
 
     docker run -it -p 30303:30303 -v ~/.ethereum:/root/.ethereum ethereum/client-go --goerli
 
-For alternate geth configuration geth via docker see:
+For alternate geth configuration via docker see:
 `Geth Docker Documentation <https://geth.ethereum.org/docs/install-and-build/installing-geth#run-inside-docker-container>`_.
 
 
@@ -54,7 +54,7 @@ Ursula / Worker Requirements
 A fully synced ethereum node or "provider" is required for the worker to read and write to nucypher's smart contracts.
 
 In order to be a successful Ursula operator, you will need a machine (physical or virtual) which
-can be kept online consistently without interruption and externally accessible via TCP port 9151.
+can be kept online consistently without interruption and is externally accessible via TCP port 9151.
 The well-behaved worker will accept work orders for re-encryption at-will, and be rewarded as a result.
 
 It is assumed that you already have nucypher installed, have initiated a stake, and bonded a worker.

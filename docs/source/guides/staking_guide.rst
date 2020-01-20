@@ -7,7 +7,7 @@ NuCypher Staking Guide
 Participation in staking nucypher is divided into two primary roles: "Staker" and "Worker":
 The account which holds NU tokens and manages stakes is called a "Staker", and the account
 which participates in the network as an Ursula node is called "Worker". The recommended configuration is that
-StakeHolder and Worker have separate Ethereum accounts: Staker controlled by a hardware wallet, and Worker by a software wallet.
+the Staker and Worker have separate Ethereum accounts: Staker controlled by a hardware wallet, and Worker by a software wallet.
 
 Note: While it is possible to use the same account, it is highly recommended that the
 Staker and Worker have separate Ethereum accounts: Staker controlled by a hardware wallet, and Worker by a software wallet.
