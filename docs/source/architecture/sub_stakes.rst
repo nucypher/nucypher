@@ -3,10 +3,22 @@ Sub-stakes
 
 A staker may extend the unlock period for any number of portions of their total stake. This divides the stake into smaller parts, each with a unique unlock date in the future. Stakers may also acquire and lock new tokens. The total stake is represented as the sum of all the different sub-stakes active in a given period (new period every 24h), which includes locked sub-stakes, and any sub-stakes that have passed their unlock date, and can be freely withdrawn. 
 
-Each sub-stake has a starting period and a locking duration. For our terminology, we define "locking duration" to be the required number of times that ``confirmActivity()`` needs to be called so that the sub-stake is registered as locked for the subsequent period. For example, if a sub-stake has a *locking duration of 5 periods* it means that the sub-stake will be locked for periods: 1,2,3,4,5 because ``confirmActivity()`` would be called during periods 0,1,2,3,4 each time confirming activity for the subsequent period (1,2,3,4,5) respectively. Unless the starting period is specified, the sub-stake is considered locked for the 0th (current) period by default. When a staker confirms activity each day and winding down is enabled, the remaining lock time for relevant sub-stakes is reduced.
+Each sub-stake has:
 
-A sub-stake remains active until it becomes unlocked, and a staker gets the reward for the last period by calling ``mint()`` or ``confirmActivity()`` once the last period is surpassed. Each staker can have no more than 30 active sub-stakes which are stored in an array. All sub-stake changes initially reuse slots of inactive sub-stakes for storage in the array, and if there are none, will instead use empty slots. Therefore, attempting to retrieve data about previous inactive sub-stakes is not guaranteed to be successful since the data could have been overwritten.
+    * **Locked amount of tokens**
 
+        The locked amount of tokens is fixed for all applicable periods i.e. it is not possible for a single sub-stake to have a different amount of tokens locked for different periods. To facilitate such a scenario, sub-stakes would need to be divided, see *Sub-stake division* below.
+
+    * **Starting period**
+
+        The period that the sub-stake begins its locking duration.
+
+    * **Locking duration**
+
+        Locking duration is defined to be the required number of times that ``confirmActivity()`` needs to be called so that the sub-stake is registered as locked for the subsequent period. For example, if a sub-stake has a *locking duration of 5 periods* it means that the sub-stake will be locked for periods: 1,2,3,4,5 because ``confirmActivity()`` would be called during periods 0,1,2,3,4 each time confirming activity for the subsequent period (1,2,3,4,5) respectively. Unless the starting period is specified, the sub-stake is considered locked for the 0th (current) period by default.
+
+
+When a staker confirms activity each day and `Winding down`_ is enabled, the remaining lock time for relevant sub-stakes is reduced. A sub-stake remains active until it becomes unlocked, and a staker gets the reward for the last period by calling ``mint()`` or ``confirmActivity()`` once the last period is surpassed. Each staker can have no more than 30 active sub-stakes which are stored in an array. All sub-stake changes initially reuse slots of inactive sub-stakes for storage in the array, and if there are none, will instead use empty slots. Therefore, attempting to retrieve data about previous inactive sub-stakes is not guaranteed to be successful since the data could have been overwritten.
 
 
 Operations that modify the sub-stake array
