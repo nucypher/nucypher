@@ -14,11 +14,20 @@
 * At least 1 GB of RAM is required for secure password-based key derivation with [scrypt](http://www.tarsnap.com/scrypt.html).
 * We have tested `nucypher` with Windows, Mac OS, and GNU/Linux (GNU/Linux is recommended).
 * If you don’t already have it, install [Python](https://www.python.org/downloads/). As of November 2019, we are working with Python 3.6, 3.7, and 3.8.
-* We also require the following system packages (Linux):
 
-    - `libffi-dev`
-    - `python3-dev`
-    - `python3-virtualenv`
+Before installing ``nucypher``, you may need to install necessary developer
+tools and headers, if you don't have them already. In Ubuntu, Debian, Linux Mint
+or similar distros:
+
+    - libffi-dev
+    - python3-dev
+    - python3-pip
+    - python3-virtualenv
+    - build-essential
+        
+Here's a one-liner to install the above packages on linux:
+`sudo apt install python3-dev build-essential libffi-dev python3-pip`
+
 
 ## Standard Installation
 
@@ -64,11 +73,16 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
 
 3. Verify Installation
 
-    In the console:
+    Before continuing, verify that your ``nucypher`` installation and entry points are functional;
+    Activate your virtual environment (if you haven't already) and run the ``nucypher --help`` command in the console:
 
     ```bash
     nucypher --help
     ```
+
+    You will see a list of possible usage options (``--version``, ``-v``, ``--dev``, etc.) and commands (``status``, ``ursula``, etc.).
+    For example, you can use ``nucypher ursula destroy`` to delete all files associated with the node.
+
 
     In Python:
 
@@ -94,13 +108,13 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
     In the console:
 
     ```bash
-    nucypher --help
+    $ nucypher --help
     ```
 
     In Python:
 
     ```python
-    import nucypher
+   import nucypher
     ```
 
 ## Docker Installation
@@ -112,11 +126,27 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
 
   `docker pull nucypher/nucypher:latest`
 
-4. That's it. Now you can run commands like `docker run -v /home/ubuntu:/root/.local/share/ nucypher/nucypher:latest nucypher alice init`
-
-*Note the volume mounts. `-v <path to a directory on your computer>:/root/.local/share/`
-This is important because it allows your Nucypher node to store persistent data as well as commonly access ipc with a locally running geth node.*
-
+4. Run commands:
+ 
+  Create a new StakeHolder configuration:
+ 
+    ```bash
+     docker run -d nucypher/nucypher:latest
+     -v ~/.local/share/nucypher:/root/.local/share/nucypher \ 
+     -v ~/.ethereum/:/root/.ethereum \
+     -p 9151:9151 \
+     nucypher stake init-stakeholder --provider /root/.ethereum/goerli.geth/ipc --network <NETWORK_NAME>
+    ```
+    
+  Run a Worker:
+ 
+    ```bash
+     docker run -d nucypher/nucypher:latest
+     -v ~/.local/share/nucypher:/root/.local/share/nucypher \ 
+     -v ~/.ethereum/:/root/.ethereum \
+     -p 9151:9151 \
+     nucypher ursula run
+    ```
 
 ## Development Installation
 
@@ -211,7 +241,7 @@ From there you can develop, modify code, test as normal.
     User=<YOUR USER>
     Type=simple
     Environment="NUCYPHER_KEYRING_PASSWORD=<YOUR PASSWORD>"
-    ExecStart=<VIRTUALENV PATH>/bin/nucypher ursula run --teacher <SEEDNODE_URI>
+    ExecStart=<VIRTUALENV PATH>/bin/nucypher ursula run
 
     [Install]
     WantedBy=multi-user.target

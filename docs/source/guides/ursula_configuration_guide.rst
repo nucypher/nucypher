@@ -4,40 +4,34 @@
 Ursula Configuration Guide
 ==========================
 
-1. Install geth Ethereum node
-------------------------------
-
-If you want to run a NuCypher node that participates in the decentralized network,
-you need to install it first. The installation procedure for the Ursula (Worker)
-node is exactly the same as for Staker.
-
-You will need a machine (could be a physical computer or a cloud instance) which
-can be externally accessed via a TCP port 9151 (make sure it can be accessed
-from the outside).
-
-You'll need to install and run geth until synced.
+This guide describes the requirements and steps required to run an Ursula (worker).
 
 
-Run geth Using Docker
-~~~~~~~~~~~~~~~~~~~~~~~~
+1. Running an Ethereum node
+----------------------------
 
-Run a local geth node on goerli using volume bindings:
+Run Geth with Docker
+~~~~~~~~~~~~~~~~~~~~~
+
+Run a local geth node on Görli using volume bindings:
 
 .. code:: bash
 
     docker run -it -p 30303:30303 -v ~/.ethereum:/root/.ethereum ethereum/client-go --goerli
 
-For alternate methods of running geth via docker see: `Geth Docker Documentation <https://geth.ethereum.org/docs/install-and-build/installing-geth#run-inside-docker-container>`_.
+For alternate geth configuration via docker see:
+`Geth Docker Documentation <https://geth.ethereum.org/docs/install-and-build/installing-geth#run-inside-docker-container>`_.
 
 
-Run Geth via CLI
-~~~~~~~~~~~~~~~~~
+Run Geth with the CLI
+~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
     $ geth --goerli --nousb
+    ... (geth log output)
 
-You need to create a software-controlled account in geth:
+Create a software-controlled account in geth in another console:
 
 .. code:: bash
 
@@ -46,58 +40,31 @@ You need to create a software-controlled account in geth:
     > eth.accounts[0]
     ["0xc080708026a3a280894365efd51bb64521c45147"]
 
-So, your worker account is ``0xc080708026a3a280894365efd51bb64521c45147`` in
-this case.
+The new account is ``0xc080708026a3a280894365efd51bb64521c45147`` in this case.
 
-Fund this account with Görli testnet ETH! To do it, go to
-https://goerli-faucet.slock.it/.
-
-2. Install NuCypher
---------------------------------
-
-Install ``nucypher`` with ``docker`` (See :doc:`/guides/installation_guide`) or ``pip`` (below).
-
-Standard Pip Install
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Before installing ``nucypher``, you may need to install necessary developer
-tools and headers, if you don't have them already. In Ubuntu, Debian, Linux Mint
-or similar distros, that is:
-
-.. code:: bash
-
-    $ sudo apt install build-essential python3-dev python3-pip
-
-Install ``nucypher`` either by doing ``sudo pip3 install nucypher`` if you have
-a dedicated instance or container, or with a ``virtualenv``:
-
-.. code:: bash
-
-    $ virtualenv -p python3 nucypher
-    $ source nucypher/bin/activate
-    (nu)$ pip3 install nucypher
-
-Before continuing, verify that your ``nucypher`` installation and entry points are functional:
-
-Activate your virtual environment (if you haven't already) and run the ``nucypher --help`` command
-
-.. code:: bash
-
-    $ source nucypher/bin/activate
-    ...
-    (nucypher)$ nucypher --help
+Fund this account with Görli testnet ETH! https://goerli-faucet.slock.it/.
 
 
-You will see a list of possible usage options (``--version``, ``-v``, ``--dev``, etc.) and commands (``status``, ``ursula``).
-For example, you can use ``nucypher ursula destroy`` to delete all files associated with the node.
+2. Configure and Run Ursula
+-----------------------------
 
-If your installation is non-functional, be sure you have the latest version installed, and see the `Installation Guide`_
+Ursula / Worker Requirements
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A fully synced ethereum node or "provider" is required for the worker to read and write to nucypher's smart contracts.
+
+In order to be a successful Ursula operator, you will need a machine (physical or virtual) which
+can be kept online consistently without interruption and is externally accessible via TCP port 9151.
+The well-behaved worker will accept work orders for re-encryption at-will, and be rewarded as a result.
+
+It is assumed that you already have nucypher installed, have initiated a stake, and bonded a worker.
+
+The installation procedure for the Ursula (Worker) node is exactly the same as for Staker.
+See the  `Installation Guide`_ and `Staking_Guide`_ for more details.
 
 .. _Installation Guide: installation_guide.html
+.. _Staking_Guide: staking_guide.html
 
-
-3. Configure a new Ursula node
---------------------------------
 
 Running an Ursula via CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -109,9 +76,9 @@ Running an Ursula via CLI
 
 Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
 
-    - ``ipc:///home/ubuntu/.ethereum/goerli/geth.ipc`` - Geth Node on Görli testnet running under user ``ubuntu`` (most probably that's what you need).
+    - ``ipc:///home/ubuntu/.ethereum/goerli/geth.ipc`` - Geth Node on Görli testnet running with user ``ubuntu`` (default)
     - ``ipc:///tmp/geth.ipc``   - Geth Development Node
-    - ``http://localhost:7545`` - Ganache TestRPC (HTTP-JSON-RPC)
+    - ``http://localhost:8545`` - Geth/Parity RPC-HTTP
     - ``ws://0.0.0.0:8080``     - Websocket Provider
 
 ``<YOUR STAKER ADDRESS>`` is the address you've staked from when following the :ref:`staking-guide`.
@@ -125,26 +92,7 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
   Replace ``<YOUR STAKER ADDRESS>`` with the contract address.
   If you don't know this address, you'll find it in the preallocation file.
 
-Running an Ursula with Docker
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Assuming geth is running locally on goerli, configure and run an Ursula using port and volume bindings:
-
-.. code:: bash
-
-    export NUCYPHER_KEYRING_PASSWORD=<your keyring password>
-    export NUCYPHER_WORKER_ETH_PASSWORD=<your eth account password>
-
-    # Interactive Ursula-Worker Initialization
-    docker run -it -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -e NUCYPHER_KEYRING_PASSWORD nucypher:latest nucypher ursula init --provider file:///root/.ethereum/goerli/geth.ipc --staker-address <YOUR STAKING ADDRESS> --network <NETWORK_NAME>
-
-    # Daemonized Ursula
-    docker run -d -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD nucypher/nucypher:latest nucypher ursula run --teacher discover.nucypher.network:9151 --provider file:///root/.ethereum/goerli/geth.ipc
-
-
-
-3. Create a password when prompted
------------------------------------------
+Create a password when prompted
 
 .. code:: bash
 
@@ -157,16 +105,14 @@ Assuming geth is running locally on goerli, configure and run an Ursula using po
     - Minimum password length is 16 characters
     - Do not use a password that you use anywhere else
 
-5. Connect to a Fleet
-------------------------
+Run the Ursula!
 
 .. code:: bash
 
-    (nucypher)$ nucypher ursula run --teacher discover.nucypher.network:9151 --interactive
+    (nucypher)$ nucypher ursula run --interactive
 
 
-6. Verify Ursula Blockchain Connection (Interactive)
-------------------------------------------------------
+Verify Ursula Blockchain Connection (Interactive)
 
 This will drop your terminal session into the “Ursula Interactive Console” indicated by the ``>>>``.
 Verify that the node setup was successful by running the ``status`` command.
@@ -176,8 +122,7 @@ Verify that the node setup was successful by running the ``status`` command.
     Ursula >>> status
 
 
-7. To view a list of known Ursulas, execute the ``known_nodes`` command
--------------------------------------------------------------------------
+To view a list of known Ursulas, execute the ``known_nodes`` command
 
 .. code:: bash
 
@@ -185,24 +130,33 @@ Verify that the node setup was successful by running the ``status`` command.
 
 
 You can also view your node’s network status webpage by navigating your web browser to ``https://<your-node-ip-address>:9151/status``.
-It's a good idea to ensure that this URL can be accessed publicly: it means that
-your node can be seen by other NuCypher nodes.
+Ensure that this URL can be accessed publicly: it means that your node can be seen by other NuCypher nodes.
 
 .. NOTE::
     Since Ursulas self-sign TLS certificates, you may receive a warning from your web browser.
 
 
-8. To stop your node from the interactive console and return to the terminal session:
----------------------------------------------------------------------------------------
+To stop your node from the interactive console and return to the terminal session:
 
 .. code:: bash
 
     Ursula >>> stop
 
 
-9. Subsequent node restarts do not need the teacher endpoint specified:
--------------------------------------------------------------------------
+Running an Ursula with Docker
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Assuming geth is running locally on goerli, configure and run an Ursula using port and volume bindings:
 
 .. code:: bash
 
-    (nucypher)$ nucypher ursula run
+    export NUCYPHER_KEYRING_PASSWORD=<your keyring password>
+    export NUCYPHER_WORKER_ETH_PASSWORD=<your eth account password>
+
+    # Interactive Ursula-Worker Initialization
+    docker run -it -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -e NUCYPHER_KEYRING_PASSWORD nucypher:latest nucypher ursula init --provider file:///root/.ethereum/goerli/geth.ipc --staker-address <YOUR STAKING ADDRESS> --network <NETWORK_NAME>
+
+    # Daemonized Ursula
+    docker run -d -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD nucypher/nucypher:latest nucypher ursula run 
+
+``<YOUR STAKING ADDRESS>`` is the address you've staked from when following the :ref:`staking-guide`.

@@ -4,16 +4,13 @@
 NuCypher Staking Guide
 =======================
 
-The NuCypher Network status page can be found at https://status.nucypher.network:12500/.
+Participation in staking nucypher is divided into two primary roles: "Staker" and "Worker":
+The account which holds NU tokens and manages stakes is called a "Staker", and the account
+which participates in the network as an Ursula node is called "Worker". The recommended configuration is that
+the Staker and Worker have separate Ethereum accounts: Staker controlled by a hardware wallet, and Worker by a software wallet.
 
-The account which is actively doing work for the network (i.e., re-encryptions) needs to be a hot
-wallet. However, it doesn't have to be the same account as the one which receives and
-sends NU tokens. The account which holds NU tokens is called
-Staker, and the account which participates in the network as a worker node is
-called `Ursula`, or simply, Worker.
-It is highly recommended that Staker and Worker have separate Ethereum
-accounts: Staker controlled by a hardware wallet, and Worker
-having an address controlled by geth.
+Note: While it is possible to use the same account, it is highly recommended that the
+Staker and Worker have separate Ethereum accounts: Staker controlled by a hardware wallet, and Worker by a software wallet.
 
 All staking-related operations done by Staker are performed through the ``nucypher stake`` command:
 
@@ -94,18 +91,15 @@ Most stakers on a NuCypher testnet will complete the following steps:
 7) Optionally, enable re-staking
 8) Configure and run the Worker, and keep it online [:ref:`ursula-config-guide`]!
 
-Interactive Method
-------------------
 
-Run an Ethereum node for Staker
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run an Ethereum node for Staking
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Assuming you have ``geth`` installed, let's run a node on Görli testnet.
-On the Staker side, it's ok to run a light node.
+Assuming you have ``geth`` installed, let's run a node on the Görli testnet.
 
 .. code:: bash
 
-    $ geth --goerli --syncmode light
+    $ geth --goerli
 
 If you want to use your hardware wallet, just connect it to your machine. You'll
 see something like this in logs:
@@ -129,22 +123,26 @@ Whilst running the initialized node:
     > personal.newAccount();
     > eth.accounts
     ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
-    
+
     MacOS:
     $ geth attach /Users/<username>/Library/Ethereum/goerli/geth.ipc
     > personal.newAccount();
     > eth.accounts
     ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
-    
+
 Where ``0x287a817426dd1ae78ea23e9918e2273b6733a43d`` is your newly created
 account address and ``<username>`` is your user.
+
+
+Interactive Method
+------------------
 
 Initialize a new stakeholder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake init-stakeholder --provider <PROVIDER>  --poa --network <NETWORK_NAME>
+    (nucypher)$ nucypher stake init-stakeholder --provider <PROVIDER> --network <NETWORK_NAME>
 
 If you ran ``geth`` node as above, your ``<PROVIDER>`` is
 ``ipc:///home/<username>/.ethereum/goerli/geth.ipc``
@@ -300,6 +298,54 @@ allow **re-staking** to be disabled until the release period begins, even if you
     (nucypher)$ nucypher stake restake --lock-until 12345
 
 No action is needed to release the re-staking lock once the release period begins.
+
+
+Modifying Active Stakes
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Several administrative operations can be performed on active stakes:
+
++----------------------+-------------------------------------------------------------------------------+
+| Action               |  Description                                                                  |
++======================+===============================================================================+
+|  ``divide``          | Create a new stake from part of an existing one                               |
++----------------------+-------------------------------------------------------------------------------+
+|  ``prolong``         | Prolong an existing stake's duration                                          |
++----------------------+-------------------------------------------------------------------------------+
+|  ``winddown``        | Manage winding down of stakes                                                 |
++----------------------+-------------------------------------------------------------------------------+
+
+
+Divide
+******
+
+To divide an existing stake into discrete substakes:
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake divide
+
+
+Prolong
+*******
+
+To prolong an existing stake's duration:
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake prolong
+
+
+Wind Down
+**********
+
+To start winding down an existing stake:
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake winddown
+
+
 
 
 Collect rewards earned by the staker
