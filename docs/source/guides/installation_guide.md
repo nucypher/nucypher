@@ -131,7 +131,7 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
      -v ~/.local/share/nucypher:/root/.local/share/nucypher \ 
      -v ~/.ethereum/:/root/.ethereum \
      -p 9151:9151 \
-     nucypher stakeholder init --provider /root/.ethereum/goerli.geth/ipc
+     nucypher stake init-stakeholder --provider /root/.ethereum/goerli.geth/ipc --network <NETWORK_NAME>
     ```
     
   Run a Worker:

@@ -4,13 +4,13 @@
 NuCypher Staking Guide
 =======================
 
-Participation in staking nucypher is two divided into two primary roles: "Staker" and "Worker":
+Participation in staking nucypher is divided into two primary roles: "Staker" and "Worker":
 The account which holds NU tokens and manages stakes is called a "Staker", and the account
-which participates in the network as an Ursula node is called "Worker". The recommended configuration that
-StakeHolder and Worker have separate Ethereum accounts: Staker controlled by a hardware wallet, and Worker by software wallet.
+which participates in the network as an Ursula node is called "Worker". The recommended configuration is that
+StakeHolder and Worker have separate Ethereum accounts: Staker controlled by a hardware wallet, and Worker by a software wallet.
 
-Note: While it is possible to use the same account, It is highly recommended that the
-Staker and Worker have separate Ethereum accounts: Staker controlled by a hardware wallet, and Worker by software.
+Note: While it is possible to use the same account, it is highly recommended that the
+Staker and Worker have separate Ethereum accounts: Staker controlled by a hardware wallet, and Worker by a software wallet.
 
 All staking-related operations done by Staker are performed through the ``nucypher stake`` command:
 
@@ -339,7 +339,7 @@ To prolong an existing stake's duration:
 Wind Down
 **********
 
-To set the winding down time of an existing stake:
+To start winding down an existing stake:
 
 .. code:: bash
 

@@ -53,9 +53,9 @@ Ursula / Worker Requirements
 
 A fully synced ethereum node or "provider" is required for the worker to read and write to nucypher's smart contracts.
 
-In order to be a successful Ursula operator, You will need a machine (physical or virtual) which
+In order to be a successful Ursula operator, you will need a machine (physical or virtual) which
 can be kept online consistently without interruption and externally accessible via TCP port 9151.
-The well-behaved worker will accepts work orders for re-encryption at-will, and be rewarded as a result.
+The well-behaved worker will accept work orders for re-encryption at-will, and be rewarded as a result.
 
 It is assumed that you already have nucypher installed, have initiated a stake, and bonded a worker.
 
@@ -154,9 +154,9 @@ Assuming geth is running locally on goerli, configure and run an Ursula using po
     export NUCYPHER_WORKER_ETH_PASSWORD=<your eth account password>
 
     # Interactive Ursula-Worker Initialization
-    docker run -it -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -e NUCYPHER_KEYRING_PASSWORD nucypher:latest nucypher ursula init --provider file:///root/.ethereum/goerli/geth.ipc --staker-address <YOUR STAKING ADDRESS>
+    docker run -it -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -e NUCYPHER_KEYRING_PASSWORD nucypher:latest nucypher ursula init --provider file:///root/.ethereum/goerli/geth.ipc --staker-address <YOUR STAKING ADDRESS> --network <NETWORK_NAME>
 
     # Daemonized Ursula
-    docker run -d -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD nucypher/nucypher:latest nucypher ursula run --teacher discover.nucypher.network:9151 --provider file:///root/.ethereum/goerli/geth.ipc
+    docker run -d -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD nucypher/nucypher:latest nucypher ursula run 
 
 ``<YOUR STAKING ADDRESS>`` is the address you've staked from when following the :ref:`staking-guide`.
