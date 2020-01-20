@@ -98,8 +98,7 @@ class Felix(Character, NucypherTokenActor):
         self.db_engine = create_engine(f'sqlite:///{self.db_filepath}', convert_unicode=True)
 
         # Blockchain
-        transacting_power = TransactingPower(password=client_password,
-                                             account=self.checksum_address)
+        transacting_power = TransactingPower(password=client_password, account=self.checksum_address, cache=True)
         self._crypto_power.consume_power_up(transacting_power)
 
         self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
@@ -310,6 +309,10 @@ class Felix(Character, NucypherTokenActor):
 
     def __transfer(self, disbursement: int, recipient_address: str) -> str:
         """Perform a single token transfer transaction from one account to another."""
+
+        # Re-unlock from cache
+        self.blockchain.transacting_power.activate()
+
         self.__disbursement += 1
         receipt = self.token_agent.transfer(amount=disbursement,
                                             target_address=recipient_address,
