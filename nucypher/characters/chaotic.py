@@ -52,11 +52,12 @@ class Felix(Character, NucypherTokenActor):
     STAGING_DELAY = 10                # seconds
 
     # Disbursement
-    BATCH_SIZE = 10                 # transactions
-    MULTIPLIER = Decimal('0.9')     # 10% reduction of previous disbursement is 0.9
-                                    # this is not relevant until the year of time declared above, passes.
+    BATCH_SIZE = 10                      # transactions
+    MULTIPLIER = Decimal('0.9')          # 10% reduction of previous disbursement is 0.9
+                                         # this is not relevant until the year of time declared above, passes.
     MINIMUM_DISBURSEMENT = int(1e18)     # NuNits (1 NU)
     ETHER_AIRDROP_AMOUNT = int(1e17)     # Wei (.1 ether)
+    MAX_INDIVIDUAL_REGISTRATIONS = 3     # Registration Limit
 
     # Node Discovery
     LEARNING_TIMEOUT = 30           # seconds
@@ -227,9 +228,9 @@ class Felix(Character, NucypherTokenActor):
                 with ThreadedSession(self.db_engine) as session:
 
                     existing = Recipient.query.filter_by(address=new_address).all()
-                    if existing:
+                    if len(existing) > self.MAX_INDIVIDUAL_REGISTRATIONS:
                         # Address already exists; Abort
-                        self.log.debug(f"{new_address} is already enrolled.")
+                        self.log.debug(f"{new_address} is already enrolled {self.MAX_INDIVIDUAL_REGISTRATIONS} times - Please use another address.")
                         return Response(response="That address is already enrolled.", status=409)
 
                     # Create the record
