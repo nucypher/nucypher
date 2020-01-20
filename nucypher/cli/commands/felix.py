@@ -130,18 +130,8 @@ class FelixCharacterOptions:
             client_password = get_client_password(checksum_address=felix_config.checksum_address,
                                                   envvar="NUCYPHER_WORKER_ETH_PASSWORD")
 
-            # Produce Teacher Ursulas
-            teacher_nodes = actions.load_seednodes(emitter,
-                                                   teacher_uris=self.teacher_uris,
-                                                   min_stake=self.min_stake,
-                                                   federated_only=felix_config.federated_only,
-                                                   network_domains=felix_config.domains,
-                                                   network_middleware=self.middleware)
-
             # Produce Felix
-            FELIX = felix_config.produce(domains=self.config_options.domains,
-                                         known_nodes=teacher_nodes,
-                                         client_password=client_password)
+            FELIX = felix_config.produce(domains=self.config_options.domains, client_password=client_password)
             FELIX.make_web_app()  # attach web application, but dont start service
 
             return FELIX
