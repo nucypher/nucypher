@@ -19,11 +19,11 @@ Before installing ``nucypher``, you may need to install necessary developer
 tools and headers, if you don't have them already. In Ubuntu, Debian, Linux Mint
 or similar distros, that is:
 
-    - `libffi-dev`
-    - `python3-dev`
-    - `python3-pip`
-    - `python3-virtualenv`
-    - `build-essential`
+    - libffi-dev
+    - python3-dev
+    - python3-pip
+    - python3-virtualenv
+    - build-essential
 
 ## Standard Installation
 
@@ -34,12 +34,12 @@ We recommend installing `nucypher` with either `pip`, `pipenv`, or `docker`
 
 ### Standard Pip Installation
 
-    In order to isolate global system dependencies from nucypher-specific dependencies, we *highly* recommend
-    using `python-virtualenv` to install `nucypher` inside a dedicated virtual environment.
-    
-    For full documentation on virtualenv see: <https://virtualenv.pypa.io/en/latest/>
-    
-    Here is the recommended procedure for setting up `nucypher` in this fashion:
+In order to isolate global system dependencies from nucypher-specific dependencies, we *highly* recommend
+using `python-virtualenv` to install `nucypher` inside a dedicated virtual environment.
+
+For full documentation on virtualenv see: <https://virtualenv.pypa.io/en/latest/>
+
+Here is the recommended procedure for setting up `nucypher` in this fashion:
 
 1. Create a Virtual Environment
 
@@ -104,13 +104,13 @@ We recommend installing `nucypher` with either `pip`, `pipenv`, or `docker`
     In the console:
 
     ```bash
-    nucypher --help
+    $ nucypher --help
     ```
 
     In Python:
 
     ```python
-    import nucypher
+   import nucypher
     ```
 
 ## Docker Installation
@@ -122,11 +122,27 @@ We recommend installing `nucypher` with either `pip`, `pipenv`, or `docker`
 
   `docker pull nucypher/nucypher:latest`
 
-4. That's it. Now you can run commands like `docker run -v /home/ubuntu:/root/.local/share/ nucypher/nucypher:latest nucypher alice init`
-
-*Note the volume mounts. `-v <path to a directory on your computer>:/root/.local/share/`
-This is important because it allows your Nucypher node to store persistent data as well as commonly access ipc with a locally running geth node.*
-
+4. Run commands:
+ 
+  Create a new StakeHolder configuration:
+ 
+    ```bash
+     docker run -d nucypher/nucypher:latest
+     -v ~/.local/share/nucypher:/root/.local/share/nucypher \ 
+     -v ~/.ethereum/:/root/.ethereum \
+     -p 9151:9151 \
+     nucypher stakeholder init --provider /root/.ethereum/goerli.geth/ipc
+    ```
+    
+  Run a Worker:
+ 
+    ```bash
+     docker run -d nucypher/nucypher:latest
+     -v ~/.local/share/nucypher:/root/.local/share/nucypher \ 
+     -v ~/.ethereum/:/root/.ethereum \
+     -p 9151:9151 \
+     nucypher ursula run
+    ```
 
 ## Development Installation
 
@@ -221,7 +237,7 @@ From there you can develop, modify code, test as normal.
     User=<YOUR USER>
     Type=simple
     Environment="NUCYPHER_KEYRING_PASSWORD=<YOUR PASSWORD>"
-    ExecStart=<VIRTUALENV PATH>/bin/nucypher ursula run --teacher <SEEDNODE_URI>
+    ExecStart=<VIRTUALENV PATH>/bin/nucypher ursula run
 
     [Install]
     WantedBy=multi-user.target
