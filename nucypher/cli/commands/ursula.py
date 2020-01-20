@@ -267,7 +267,7 @@ def init(general_config, config_options, force, config_root):
     if not config_root:
         config_root = general_config.config_root
 
-    if not config_options.federated_only and not config_options.domains:  # FIXME: Again, weird network/domains mapping. See UrsulaConfigOptions' constructor
+    if not config_options.federated_only and not config_options.domains:  # TODO: Again, weird network/domains mapping. See UrsulaConfigOptions' constructor. #1580
         raise click.BadOptionUsage(option_name="--network",
                                    message=f"--network is required when creating an Ursula in decentralized mode.")
     ursula_config = config_options.generate_config(emitter, config_root, force)
@@ -298,7 +298,7 @@ def forget(general_config, config_options, config_file):
     Forget all known nodes.
     """
     emitter = _setup_emitter(general_config, config_options.worker_address)
-    _pre_launch_warnings(emitter, dev=group_config_options.dev, force=None)
+    _pre_launch_warnings(emitter, dev=config_options.dev, force=None)
     ursula_config = config_options.create_config(emitter, config_file)
     actions.forget(emitter, configuration=ursula_config)
 
