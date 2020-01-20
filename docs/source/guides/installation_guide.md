@@ -17,13 +17,17 @@
 
 Before installing ``nucypher``, you may need to install necessary developer
 tools and headers, if you don't have them already. In Ubuntu, Debian, Linux Mint
-or similar distros, that is:
+or similar distros:
 
     - libffi-dev
     - python3-dev
     - python3-pip
     - python3-virtualenv
     - build-essential
+        
+Here's a one-liner to install the above packages on linux:
+`sudo apt install python3-dev build-essential libffi-dev python3-pip`
+
 
 ## Standard Installation
 
