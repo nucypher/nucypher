@@ -156,7 +156,7 @@ class Felix(Character, NucypherTokenActor):
             __tablename__ = 'recipient'
 
             id = self.db.Column(self.db.Integer, primary_key=True)
-            address = self.db.Column(self.db.String, unique=True, nullable=False)
+            address = self.db.Column(self.db.String, nullable=False)
             joined = self.db.Column(self.db.DateTime, nullable=False, default=datetime.utcnow)
             total_received = self.db.Column(self.db.String, default='0', nullable=False)
             last_disbursement_amount = self.db.Column(self.db.String, nullable=False, default=0)
