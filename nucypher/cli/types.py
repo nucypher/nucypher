@@ -20,8 +20,7 @@ from ipaddress import ip_address
 import click
 from eth_utils import to_checksum_address
 
-from nucypher.blockchain.economics import StandardTokenEconomics
-from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.networks import NetworksInventory
 
 
 class ChecksumAddress(click.ParamType):
@@ -43,6 +42,11 @@ class IPv4Address(click.ParamType):
             return value
 
 
+# NuCypher
+NETWORK_DOMAIN = click.Choice(choices=NetworksInventory.networks)
+
+# Ethereum
+EIP55_CHECKSUM_ADDRESS = ChecksumAddress()
 WEI = click.IntRange(min=1, clamp=False)  # TODO: Better validation for ether and wei values?
 
 # Filesystem
@@ -52,4 +56,3 @@ EXISTING_READABLE_FILE = click.Path(exists=True, dir_okay=False, file_okay=True,
 # Network
 NETWORK_PORT = click.IntRange(min=0, max=65535, clamp=False)
 IPV4_ADDRESS = IPv4Address()
-EIP55_CHECKSUM_ADDRESS = ChecksumAddress()

@@ -386,7 +386,7 @@ class BlockchainInterface:
             # TODO: #1504 - Handle validation failures for gas limits, invalid fields, etc.
             # Note: Geth raises ValueError in the same condition that pyevm raises ValidationError here.
             # Treat this condition as "Transaction Failed".
-            error = str(e).replace("{", "{{").replace("}", "}}")  # See #724
+            error = str(e).replace("{", "").replace("}", "")  # See #724
             self.log.critical(f"Validation error: {error}")
             raise
         else:
@@ -579,9 +579,6 @@ class BlockchainDeployerInterface(BlockchainInterface):
         return an instantiated deployed contract
         """
 
-        if not is_checksum_address(deployer_address):
-            raise ValueError(f"{deployer_address} is not a valid EIP-55 checksum address.")
-
         #
         # Build the deployment transaction #
         #
@@ -590,7 +587,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         if gas_limit:
             deploy_transaction.update({'gas': gas_limit})
 
-        pprint_args = str(tuple(constructor_args))
+        pprint_args = ', '.join(list(map(str, constructor_args)) + list(f"{k}={v}" for k, v in constructor_kwargs.items()))
         pprint_args = pprint_args.replace("{", "{{").replace("}", "}}")  # See #724
 
         contract_factory = self.get_contract_factory(contract_name=contract_name, version=contract_version)

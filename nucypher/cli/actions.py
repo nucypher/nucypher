@@ -256,7 +256,7 @@ def forget(emitter, configuration):
     """Forget all known nodes via storage"""
     click.confirm("Permanently delete all known node data?", abort=True)
     configuration.forget_nodes()
-    message = "Removed all stored node node metadata and certificates"
+    message = "Removed all stored known nodes metadata and certificates"
     emitter.message(message, color='red')
 
 
