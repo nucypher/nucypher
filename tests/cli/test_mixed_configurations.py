@@ -4,6 +4,7 @@ import pytest
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import FelixConfiguration, UrsulaConfiguration, AliceConfiguration
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.network.nodes import Teacher
 from nucypher.utilities.sandbox.constants import (
@@ -38,7 +39,7 @@ def test_coexisting_configurations(click_runner,
     # Parse node addresses
     alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
 
-    envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD,
+    envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
                'NUCYPHER_FELIX_DB_SECRET': INSECURE_DEVELOPMENT_PASSWORD}
 
     # Future configuration filepaths for assertions...
@@ -215,7 +216,7 @@ def test_corrupted_configuration(click_runner,
                  )
 
     # Fails because password is too short and the command uses incomplete args (needs either -F or blockchain details)
-    envvars = {'NUCYPHER_KEYRING_PASSWORD': ''}
+    envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: ''}
 
     with pytest.raises(NucypherKeyring.AuthenticationFailed):
         result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
@@ -241,7 +242,7 @@ def test_corrupted_configuration(click_runner,
                  '--registry-filepath', MOCK_REGISTRY_FILEPATH,
                  '--config-root', custom_filepath)
 
-    envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD}
+    envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 

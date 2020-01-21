@@ -24,7 +24,7 @@ import pytest
 from nucypher.cli.actions import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import APP_DIR, DEFAULT_CONFIG_ROOT
+from nucypher.config.constants import APP_DIR, DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_KEYRING_PASSWORD
 from nucypher.utilities.sandbox.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH,
@@ -188,7 +188,7 @@ def test_ursula_destroy_configuration(custom_filepath, click_runner):
     result = click_runner.invoke(nucypher_cli, destruction_args,
                                  input='Y\n'.format(INSECURE_DEVELOPMENT_PASSWORD),
                                  catch_exceptions=False,
-                                 env={'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD})
+                                 env={NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD})
 
     # CLI Output
     assert not os.path.isfile(custom_config_filepath), 'Configuration file still exists'

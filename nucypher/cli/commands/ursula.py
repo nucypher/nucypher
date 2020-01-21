@@ -55,6 +55,7 @@ from nucypher.cli.types import (
     NETWORK_PORT
 )
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
@@ -216,7 +217,7 @@ class UrsulaCharacterOptions:
         if not ursula_config.federated_only:
             if not self.config_options.dev and not json_ipc:
                 client_password = get_client_password(checksum_address=ursula_config.worker_address,
-                                                      envvar="NUCYPHER_WORKER_ETH_PASSWORD")
+                                                      envvar=NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD)
 
         try:
             URSULA = actions.make_cli_character(character_config=ursula_config,

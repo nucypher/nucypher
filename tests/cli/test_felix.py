@@ -13,6 +13,7 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.characters.chaotic import Felix
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import FelixConfiguration
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
     TEST_PROVIDER_URI,
@@ -59,7 +60,7 @@ def test_run_felix(click_runner,
     os.environ['NUCYPHER_FELIX_DB_SECRET'] = INSECURE_DEVELOPMENT_PASSWORD
 
     # Test subproc (Click)
-    envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD,
+    envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
                'NUCYPHER_FELIX_DB_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
                'FLASK_DEBUG': '1'}
 

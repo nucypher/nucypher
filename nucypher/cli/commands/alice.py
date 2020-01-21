@@ -52,6 +52,7 @@ from nucypher.cli.options import (
 )
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
+from nucypher.config.constants import NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
@@ -196,9 +197,9 @@ class AliceCharacterOptions:
         eth_password_is_needed = not config.federated_only and not self.hw_wallet and not config.dev_mode
         if eth_password_is_needed:
             if json_ipc:
-                client_password = os.environ.get("NUCYPHER_ALICE_ETH_PASSWORD", NO_PASSWORD)
+                client_password = os.environ.get(NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, NO_PASSWORD)
                 if client_password is NO_PASSWORD:
-                    message = "--json-ipc implies the NUCYPHER_ALICE_ETH_PASSWORD envvar must be set."
+                    message = f"--json-ipc implies the {NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD} envvar must be set."
                     click.BadOptionUsage(option_name='--json-ipc', message=message)
             else:
                 client_password = get_client_password(checksum_address=config.checksum_address)

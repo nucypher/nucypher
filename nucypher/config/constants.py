@@ -26,6 +26,12 @@ import nucypher
 from nucypher import cli
 from nucypher.blockchain.eth import sol
 
+# Environment variables
+NUCYPHER_ENVVAR_KEYRING_PASSWORD = "NUCYPHER_KEYRING_PASSWORD"
+NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD = "NUCYPHER_WORKER_ETH_PASSWORD"
+NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD = "NUCYPHER_ALICE_ETH_PASSWORD"
+NUCYPHER_ENVVAR_PROVIDER_URI = "NUCYPHER_PROVIDER_URI"
+
 
 # Base Filepaths
 BASE_DIR = abspath(dirname(dirname(nucypher.__file__)))
