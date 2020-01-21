@@ -1,7 +1,25 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import json
+import os
 
 import click
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.cli import actions, painting, types
@@ -175,8 +193,14 @@ class AliceCharacterOptions:
         config = self.config_options.create_config(emitter, config_file)
 
         client_password = None
-        if not config.federated_only:
-            if (not self.hw_wallet or not config.dev_mode) and not json_ipc:
+        eth_password_is_needed = not config.federated_only and not self.hw_wallet and not config.dev_mode
+        if eth_password_is_needed:
+            if json_ipc:
+                client_password = os.environ.get("NUCYPHER_ALICE_ETH_PASSWORD", NO_PASSWORD)
+                if client_password is NO_PASSWORD:
+                    message = "--json-ipc implies the NUCYPHER_ALICE_ETH_PASSWORD envvar must be set."
+                    click.BadOptionUsage(option_name='--json-ipc', message=message)
+            else:
                 client_password = get_client_password(checksum_address=config.checksum_address)
 
         try:
