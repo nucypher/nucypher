@@ -12,7 +12,6 @@
 
     - name: "check if the geth.ipc exists (if it does, we skip the next step)"
       become: yes
-      become_user: nucypher
       stat:
         path: "{{geth_dir}}/geth.ipc"
       register: geth_running

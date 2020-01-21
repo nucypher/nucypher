@@ -36,3 +36,4 @@ all:
             # these can be overridden at the instance level if desired
             NUCYPHER_KEYRING_PASSWORD: xxxxxxxxxxxxxxxxxxxxxxxpanda
             NUCYPHER_WORKER_ETH_PASSWORD: yyyyyyyyyyyyyyyyyyyystainpants
+            extra_options: #"--debug]"
