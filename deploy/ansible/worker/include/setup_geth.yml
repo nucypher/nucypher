@@ -10,7 +10,7 @@
         name: ethereum/client-go:latest
         source: pull
 
-    - name: "check if the geth.ipc exists"
+    - name: "check if the geth.ipc exists (if it does, we skip the next step)"
       become: yes
       become_user: nucypher
       stat:
