@@ -1,3 +1,5 @@
+.. _sub-stakes:
+
 Sub-stakes
 ==========
 
@@ -7,7 +9,7 @@ Each sub-stake has:
 
     * **Locked amount of tokens**
 
-        The locked amount of tokens is fixed for all applicable periods i.e. it is not possible for a single sub-stake to have a different amount of tokens locked for different periods. To facilitate such a scenario, sub-stakes would need to be divided, see `Sub-stake division`_.
+        The locked amount of tokens is fixed for all applicable periods, i.e., it is not possible for a single sub-stake to have a different amount of tokens locked for different periods. To facilitate such a scenario, sub-stakes would need to be divided, see `Sub-stake division`_.
 
     * **Starting period**
 
@@ -141,10 +143,7 @@ If necessary, stakers can extend the locking duration for only a portion of thei
 
 Slashing
 ^^^^^^^^
-*See:* `the slashing protocol`_ 
-
-.. _`the slashing protocol`: https://docs.nucypher.com/en/latest/architecture/slashing.html
-
+*See:* :ref:`slashing-protocol` 
 
 
 

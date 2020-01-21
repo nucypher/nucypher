@@ -1,3 +1,5 @@
+.. _slashing-protocol:
+
 The Slashing Protocol
 =====================
 
@@ -19,9 +21,7 @@ TBD (https://github.com/nucypher/nucypher/issues/803)
 How slashing affects stake
 --------------------------
 
-.. _`Sub-stakes`: https://docs.nucypher.com/en/latest/architecture/sub_stakes.html
-
-The goal of slashing is to reduce the number of tokens that belongs to a staking offender. While the reduction of tokens is intended to be punitive, once the tokens have been slashed, the slashing algorithm attempts to preserve the most efficient use of the offenders' remaining tokens based on their existing `Sub-stakes`_. The main task is not to violate the logic of locking tokens.
+Slashing aims to reduce the overall number of tokens that belongs to a staking offender. While the reduction of tokens is intended to be punitive, once the tokens have been slashed, the slashing algorithm attempts to preserve the most efficient use of the offenders' remaining tokens based on their existing :ref:`sub-stakes`. The main goal is to decrease the tokens belonging to the staker while considering how tokens are allocated across different sub-stakes.
 
 An entire stake consists of:
 
@@ -30,7 +30,7 @@ An entire stake consists of:
 
 In terms of how the stake is slashed, unlocked tokens are the first portion of the stake to be slashed. After that, if necessary, locked sub-stakes are decreased in order based on their remaining lock time, beginning with the shortest. The shortest sub-stake is decreased, and if the adjustment of that sub-stake is insufficient to fulfil the required punishment sum, then the next shortest sub-stake is decreased, and so on. Sub-stakes that begin in the next period are checked separately.
 
-Sub-stakes for past periods cannot be slashed, so only the periods from now onward can be slashed. However, by design sub-stakes can't have a starting period that is after the next period, so all future periods after the next period will always have an amount of tokens less than or equal to the next period. The current period still needs to be checked since its stake may be different than the next period. Therefore, only the current period and the next period need to be checked for slashing.
+Sub-stakes for past periods cannot be slashed, so only the periods from the current period onward can be slashed. However, by design sub-stakes can't have a starting period that is after the next period, so all future periods after the next period will always have an amount of tokens less than or equal to the next period. The current period still needs to be checked since its stake may be different than the next period. Therefore, only the current period and the next period need to be checked for slashing.
 
 Overall the slashing algorithm is as follows:
 
@@ -44,8 +44,8 @@ Overall the slashing algorithm is as follows:
 
        Therefore, for any period moving forward the sum of sub-stakes for that period cannot be more than ``max_allowed_stake``.
     b. For the current and next periods ensure that the amount of locked tokens is less than or equal to ``max_allowed_stake``. If not, then reduce the shortest sub-stake to ensure that this occurs; then the next shortest and so on, as necessary for the period.
-    c. Since sub-stakes can extend over multiple periods and can only have a single fixed amount of tokens for all applicable periods (see `Sub-stakes`_), the resulting amount of tokens remaining in a sub-stake after slashing is the minimum amount of tokens it can have across all of its relevant periods. To clarify, suppose that a sub-stake is locked for periods ``n`` and ``n+1``, and the slashing algorithm first determines that the sub-stake can have 10 tokens in period ``n``, but then it can only have 5 tokens in period ``n+1``. In this case, the sub-stake will be slashed to have 5 tokens in both periods ``n`` and ``n+1``.
-    d. The above property of sub-stakes means that there is the possibility that the total amount of locked tokens for a particular period could be reduced to even lower than the ``max_allowed_stake`` when unnecessary. Therefore, the slashing algorithm may create new sub-stakes on the staker's behalf to utilize tokens in the earlier period, when a sub-stake is needed to be reduced to an even lower value because of the next period. In the example above in c), the sub-stake was reduced to 5 tokens because of period ``n+1``, so there are 5 "extra" tokens `(10 - 5)` available in period ``n`` that can still be staked; hence, a new sub-stake with 5 tokens would be created to utilize these tokens in period ``n``. This benefits both the staker, by ensuring that their remaining tokens are efficiently utilized, and the network by maximizing its health.
+    c. Since sub-stakes can extend over multiple periods and can only have a single fixed amount of tokens for all applicable periods (see :ref:`sub-stakes`), the resulting amount of tokens remaining in a sub-stake after slashing is the minimum amount of tokens it can have across all of its relevant periods. To clarify, suppose that a sub-stake is locked for periods ``n`` and ``n+1``, and the slashing algorithm first determines that the sub-stake can have 10 tokens in period ``n``, but then it can only have 5 tokens in period ``n+1``. In this case, the sub-stake will be slashed to have 5 tokens in both periods ``n`` and ``n+1``.
+    d. The above property of sub-stakes means that there is the possibility that the total amount of locked tokens for a particular period could be reduced to even lower than the ``max_allowed_stake``. Therefore, the slashing algorithm may create new sub-stakes on the staker's behalf to utilize tokens in the earlier period, when a sub-stake is needed to be reduced to an even lower value because of the next period. In the example above in c), the sub-stake was reduced to 5 tokens because of period ``n+1``, so there are 5 "extra" tokens `(10 - 5)` available in period ``n`` that can still be staked; hence, a new sub-stake with 5 tokens would be created to utilize these tokens in period ``n``. This benefits both the staker, by ensuring that their remaining tokens are efficiently utilized, and the network by maximizing its health.
 
 
 To reinforce the algorithm, consider the following example stake and different slashing scenarios:
@@ -55,7 +55,7 @@ To reinforce the algorithm, consider the following example stake and different s
     A staker has 1000 tokens:
         * 1st sub-stake = 500 tokens locked for 10 periods
         * 2nd sub-stake = 200 tokens for 2 periods
-        * 3rd sub-stake = 100 tokens locked starting from the next period and locked for 5 periods. The 3rd sub-stake is locked for the next period but has not yet been used as a deposit for "work" - not until the next period begins.
+        * 3rd sub-stake = 100 tokens locked starting from the next period and locked for 5 periods. The 3rd sub-stake is locked for the next period but won't be used as a deposit for "work" until the next period begins.
         * 200 tokens in an unlocked state (still staked, but can be freely withdrawn).
 
     .. aafig::
