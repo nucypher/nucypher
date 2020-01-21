@@ -1,0 +1,19 @@
+- name: "Update Running Ursula"
+  hosts: "{{ nucypher_hosts | default('cassandra') }}"
+  remote_user: "{{default_user}}"
+  tasks:
+    - name: Stop Ursula
+      become: yes
+      become_user: nucypher
+      docker_container:
+        name: ursula
+        state: stopped
+
+    - name: "pull nucypher/nucypher:latest"
+      become: yes
+      docker_image:
+        name: nucypher/nucypher:latest
+        source: pull
+        force_source: yes
+
+- import_playbook: run_nucypher_ursula.yml

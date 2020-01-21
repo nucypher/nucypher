@@ -1,4 +1,4 @@
-- name: "Setup Nucypher"
+- name: "Run Ursula"
   hosts: "{{ nucypher_hosts | default('cassandra') }}"
   remote_user: "{{default_user}}"
   tasks:
