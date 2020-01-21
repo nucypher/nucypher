@@ -27,12 +27,16 @@ from nucypher.cli import actions
 from nucypher.cli.actions import UnknownIPAddress
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
 from nucypher.network.nodes import Teacher
 from nucypher.utilities.sandbox.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_URSULA_STARTING_PORT,
     TEMPORARY_DOMAIN,
-    TEST_PROVIDER_URI, MOCK_IP_ADDRESS, MOCK_REGISTRY_FILEPATH)
+    TEST_PROVIDER_URI,
+    MOCK_IP_ADDRESS,
+    MOCK_REGISTRY_FILEPATH
+)
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 
@@ -140,7 +144,7 @@ def test_persistent_node_storage_integration(click_runner,
                  '--registry-filepath', MOCK_REGISTRY_FILEPATH,
                  )
 
-    envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD}
+    envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 

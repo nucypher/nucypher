@@ -48,7 +48,7 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.token import Stake
 from nucypher.cli import painting
 from nucypher.cli.types import IPV4_ADDRESS
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_KEYRING_PASSWORD
 from nucypher.config.node import CharacterConfiguration
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -91,7 +91,7 @@ def get_client_password(checksum_address: str, envvar: str = '') -> str:
     return client_password
 
 
-def get_nucypher_password(confirm: bool = False, envvar="NUCYPHER_KEYRING_PASSWORD") -> str:
+def get_nucypher_password(confirm: bool = False, envvar=NUCYPHER_ENVVAR_KEYRING_PASSWORD) -> str:
     prompt = f"Enter NuCypher keyring password"
     if confirm:
         from nucypher.config.keyring import NucypherKeyring

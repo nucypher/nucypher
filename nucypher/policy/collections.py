@@ -151,7 +151,7 @@ class TreasureMap:
             raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
         self.destinations[arrangement.ursula.checksum_address] = arrangement.id
 
-    def public_id(self):
+    def public_id(self) -> str:
         """
         We need an ID that Bob can glean from knowledge he already has *and* which Ursula can verify came from Alice.
         Ursula will refuse to propagate this if it she can't prove the payload is signed by Alice's public key,
@@ -206,6 +206,9 @@ class TreasureMap:
 
     def __len__(self):
         return len(self.destinations)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}:{self.public_id()[:6]}"
 
 
 class WorkOrder:

@@ -9,9 +9,6 @@ The account which holds NU tokens and manages stakes is called a "Staker", and t
 which participates in the network as an Ursula node is called "Worker". The recommended configuration is that
 the Staker and Worker have separate Ethereum accounts: Staker controlled by a hardware wallet, and Worker by a software wallet.
 
-Note: While it is possible to use the same account, it is highly recommended that the
-Staker and Worker have separate Ethereum accounts: Staker controlled by a hardware wallet, and Worker by a software wallet.
-
 All staking-related operations done by Staker are performed through the ``nucypher stake`` command:
 
 .. code:: bash
@@ -274,13 +271,8 @@ After this step, you're finished with the Staker, and you can proceed to :ref:`u
 Manage automatic reward re-staking
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-As your Ursula performs work, you can optionally enable the automatic addition of
-all rewards to your existing stake to optimize earnings.  By default this feature is disabled,
-to enable it run:
-
-.. code:: bash
-
-    (nucypher)$ nucypher stake restake --enable
+As your Ursula performs work, all rewards are automatically added to your existing stake to optimize earnings.
+This feature, called `re-staking`, is enabled by default.
 
 To disable re-staking:
 
@@ -288,9 +280,15 @@ To disable re-staking:
 
     (nucypher)$ nucypher stake restake --disable
 
+To enable re-staking again:
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake restake --enable
+
 
 Additionally, you can enable **re-stake locking**, an on-chain commitment to continue re-staking
-until a future period (`release_period`). Once enabled, the `StakingEscrow` contract will not
+until a future period (``release_period``). Once enabled, the `StakingEscrow` contract will not
 allow **re-staking** to be disabled until the release period begins, even if you are the stake owner.
 
 .. code:: bash
@@ -508,6 +506,11 @@ To withdraw the unlocked tokens, you need to retrieve them from the
     (nucypher)$ nucypher stake preallocation --withdraw-tokens --allocation-filepath PATH
 
 
+.. note:: If you're a preallocation user, recall that you're using a contract to stake.
+  Replace ``<YOUR STAKER ADDRESS>`` with the contract address when configuring your node.
+  If you don't know this address, you'll find it in the preallocation file.
+
+
 Inline Method
 --------------
 
@@ -543,7 +546,3 @@ Worker configuration
 ------------------------
 
 See :ref:`ursula-config-guide`.
-
-.. note:: If you're a preallocation user, recall that you're using a contract to stake.
-  Replace ``<YOUR STAKER ADDRESS>`` with the contract address when configuring your node.
-  If you don't know this address, you'll find it in the preallocation file.

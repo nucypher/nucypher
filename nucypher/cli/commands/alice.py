@@ -1,7 +1,25 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import json
+import os
 
 import click
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.cli import actions, painting, types
@@ -34,6 +52,7 @@ from nucypher.cli.options import (
 )
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
+from nucypher.config.constants import NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
@@ -45,6 +64,7 @@ option_bob_verifying_key = click.option(
 )
 
 option_pay_with = click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
+option_rate = click.option('--rate', help="Policy rate per period (in wei)", type=types.WEI)  # TODO: Is wei a sane unit here? Perhaps gwei?
 
 
 class AliceConfigOptions:
@@ -174,8 +194,14 @@ class AliceCharacterOptions:
         config = self.config_options.create_config(emitter, config_file)
 
         client_password = None
-        if not config.federated_only:
-            if (not self.hw_wallet or not config.dev_mode) and not json_ipc:
+        eth_password_is_needed = not config.federated_only and not self.hw_wallet and not config.dev_mode
+        if eth_password_is_needed:
+            if json_ipc:
+                client_password = os.environ.get(NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, NO_PASSWORD)
+                if client_password is NO_PASSWORD:
+                    message = f"--json-ipc implies the {NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD} envvar must be set."
+                    click.BadOptionUsage(option_name='--json-ipc', message=message)
+            else:
                 client_password = get_client_password(checksum_address=config.checksum_address)
 
         try:
@@ -218,7 +244,7 @@ def alice():
 @option_light
 @option_m
 @option_n
-@click.option('--rate', help="Policy rate per period in wei", type=click.FLOAT)
+@option_rate
 @click.option('--duration-periods', help="Policy duration in periods", type=click.FLOAT)
 @group_general_config
 def init(general_config, config_options, config_root, poa, light, m, n, rate, duration_periods):
@@ -326,7 +352,6 @@ def derive_policy_pubkey(general_config, label, character_options, config_file):
     """
     Get a policy public key from a policy label.
     """
-    ### Setup ###
     emitter = _setup_emitter(general_config)
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
     return ALICE.controller.derive_policy_encrypting_key(label=label)
@@ -339,6 +364,7 @@ def derive_policy_pubkey(general_config, label, character_options, config_file):
 @option_label(required=True)
 @option_m
 @option_n
+@option_rate
 @click.option('--expiration', help="Expiration Datetime of a policy", type=click.STRING)  # TODO: click.DateTime()
 @click.option('--value', help="Total policy value (in Wei)", type=types.WEI)
 @group_character_options
@@ -349,7 +375,7 @@ def grant(general_config,
           bob_encrypting_key, bob_verifying_key, label,
 
           # Other
-          m, n, expiration, value,
+          m, n, expiration, value, rate,
 
           # API Options
           character_options, config_file
@@ -357,7 +383,6 @@ def grant(general_config,
     """
     Create and enact an access policy for some Bob.
     """
-    ### Setup ###
     emitter = _setup_emitter(general_config)
 
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
@@ -373,7 +398,7 @@ def grant(general_config,
     }
 
     if not ALICE.federated_only:
-        grant_request.update({'value': value})
+        grant_request.update({'value': value, 'rate': rate})
     return ALICE.controller.grant(request=grant_request)
 
 
@@ -394,7 +419,6 @@ def revoke(general_config,
     """
     Revoke a policy.
     """
-    ### Setup ###
     emitter = _setup_emitter(general_config)
 
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
@@ -421,7 +445,6 @@ def decrypt(general_config,
     """
     Decrypt data encrypted under an Alice's policy public key.
     """
-    ### Setup ###
     emitter = _setup_emitter(general_config)
 
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)

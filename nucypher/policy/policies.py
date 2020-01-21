@@ -1,19 +1,34 @@
-import math
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import random
 from abc import abstractmethod, ABC
 from collections import OrderedDict, deque
-from random import SystemRandom
 from typing import Generator, Set, List
 
 import maya
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG, FEDERATED_POLICY, UNKNOWN_ARRANGEMENTS
+from twisted.logger import Logger
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
-from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Staker
+from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, PolicyManagerAgent
-from nucypher.blockchain.eth.utils import calculate_period_duration
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.api import secure_random, keccak_digest
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
@@ -160,6 +175,8 @@ class Policy(ABC):
     POLICY_ID_LENGTH = 16
     _arrangement_class = NotImplemented
 
+    log = Logger("Policy")
+
     class Rejected(RuntimeError):
         """Too many Ursulas rejected"""
 
@@ -213,6 +230,9 @@ class Policy(ABC):
     def id(self) -> bytes:
         return construct_policy_id(self.label, bytes(self.bob.stamp))
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}:{self.id.hex()[:6]}"
+
     @property
     def accepted_ursulas(self) -> Set[Ursula]:
         return {arrangement.ursula for arrangement in self._accepted_arrangements}
@@ -243,6 +263,7 @@ class Policy(ABC):
             raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
 
         responses = dict()
+        self.log.debug(f"Pushing {self.treasure_map} to all known nodes from {self.alice}")
         for node in self.alice.known_nodes:
             # TODO: # 342 - It's way overkill to push this to every node we know about.  Come up with a system.
 
@@ -255,15 +276,19 @@ class Policy(ABC):
                                                                        map_payload=bytes(self.treasure_map))
             except NodeSeemsToBeDown:
                 # TODO: Introduce good failure mode here if too few nodes receive the map.
+                self.log.debug(f"Failed pushing {self.treasure_map} to unresponsive {node}")
                 continue
 
             if response.status_code == 202:
                 # TODO: #341 - Handle response wherein node already had a copy of this TreasureMap.
                 responses[node] = response
+                self.log.debug(f"{self.treasure_map} succesfully pushed to {node}")
 
             else:
                 # TODO: Do something useful here.
-                raise RuntimeError
+                message = f"Failed pushing {self.treasure_map} to {node}, with status {response.status_code}"
+                self.log.debug(message)
+                raise RuntimeError(message)
 
         return responses
 
@@ -315,7 +340,7 @@ class Policy(ABC):
             # Assuming response is what we hope for.
             self.treasure_map.add_arrangement(arrangement)
 
-        else:  # ...After *all* the policies are enacted
+        else:  # ...After *all* the arrangements are enacted
             # Create Alice's revocation kit
             self.revocation_kit = RevocationKit(self, self.alice.stamp)
             self.alice.add_active_policy(self)
@@ -401,6 +426,7 @@ class Policy(ABC):
             else:
                 # Bucket the arrangements
                 if is_accepted:
+                    self.log.debug(f"Arrangement accepted by {selected_ursula}")
                     self._accepted_arrangements.add(arrangement)
                     accepted = len(self._accepted_arrangements)
                     if accepted == self.n and not consider_everyone:
@@ -411,6 +437,7 @@ class Policy(ABC):
                             self._spare_candidates = set()
                         break
                 else:
+                    self.log.debug(f"Arrangement failed with {selected_ursula}")
                     self._rejected_arrangements.add(arrangement)
 
 

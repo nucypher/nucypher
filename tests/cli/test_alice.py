@@ -3,8 +3,13 @@ from unittest import mock
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, \
-    MOCK_IP_ADDRESS, MOCK_CUSTOM_INSTALLATION_PATH, TEMPORARY_DOMAIN
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
+from nucypher.utilities.sandbox.constants import (
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_IP_ADDRESS,
+    MOCK_CUSTOM_INSTALLATION_PATH,
+    TEMPORARY_DOMAIN
+)
 from nucypher.cli.actions import SUCCESSFUL_DESTRUCTION
 
 
@@ -18,7 +23,7 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
 
 
 def test_initialize_alice_defaults(click_runner, mocker, custom_filepath, monkeypatch):
-    monkeypatch.delenv("NUCYPHER_KEYRING_PASSWORD", raising=False)
+    monkeypatch.delenv(NUCYPHER_ENVVAR_KEYRING_PASSWORD, raising=False)
 
     # Mock out filesystem writes
     mocker.patch.object(AliceConfiguration, 'initialize', autospec=True)
@@ -43,7 +48,7 @@ def test_initialize_alice_defaults(click_runner, mocker, custom_filepath, monkey
 
 
 def test_alice_control_starts_with_mocked_keyring(click_runner, mocker, monkeypatch):
-    monkeypatch.delenv("NUCYPHER_KEYRING_PASSWORD", raising=False)
+    monkeypatch.delenv(NUCYPHER_ENVVAR_KEYRING_PASSWORD, raising=False)
 
     class MockKeyring:
         is_unlocked = False
@@ -64,7 +69,7 @@ def test_alice_control_starts_with_mocked_keyring(click_runner, mocker, monkeypa
 
 
 def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_runner, monkeypatch):
-    monkeypatch.delenv("NUCYPHER_KEYRING_PASSWORD", raising=False)
+    monkeypatch.delenv(NUCYPHER_ENVVAR_KEYRING_PASSWORD, raising=False)
 
     # Use a custom local filepath for configuration
     init_args = ('alice', 'init',
