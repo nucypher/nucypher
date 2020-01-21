@@ -10,7 +10,7 @@
         state: started
         image: nucypher/nucypher:latest
         restart_policy: "unless-stopped"
-        command: "nucypher ursula run --teacher discover.nucypher.network:9151 --poa"
+        command: "nucypher ursula run --teacher discover.nucypher.network:9151 --poa {{extra_options}}"
         volumes:
           - /home/nucypher:/root/.local/share/
         ports:

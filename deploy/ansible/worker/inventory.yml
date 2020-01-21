@@ -4,7 +4,8 @@ all:
       children:
         cassandra:
           children:
-            digitalocean:
+            #### digital ocean uses default user "root" so we have to group these separately
+            digitalocean: # this can be anything... "my_nodes" or "home"
               vars:
                 default_user: "root"
               hosts:
@@ -12,6 +13,8 @@ all:
                   GETH_ACCOUNT: "/Users/macperson/Library/Ethereum/goerli/keystore/UTC--2020-01-21T02-15-18.405738000Z--02e8cbf55e781ad4ca331fe5274be93814d760d0"
                   NUCYPHER_WORKER_ADDRESS: "0x02e8cbf55E781AD4cA331fe5274Be93814D760D0"
                   NUCYPHER_STAKER_ADDRESS: "0xD9b6B55b005f1B23b45a9a4aC9669deFac6dAd67"
+            #### amazon configures new instances with a .pem keypair based auth
+            # so we need this ansible_ssh_private_key_file variable
             amazon:
               vars:
                 ansible_ssh_private_key_file: ~/Downloads/damon-ansible-testing.pem
