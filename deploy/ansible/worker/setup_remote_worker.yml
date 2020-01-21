@@ -1,5 +1,3 @@
-# first modify the contents of worker/inventory.yml to suit you circumstances.
-# then:  ansible-playbook worker/setup_remote_worker.yml -i worker/inventory.yml -l cassandra
 - name: "Setup Remote Worker"
   hosts: "{{ nucypher_hosts | default('cassandra') }}"
   remote_user: "{{default_user}}"
