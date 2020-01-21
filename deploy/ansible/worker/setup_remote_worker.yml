@@ -1,0 +1,11 @@
+# first modify the contents of worker/inventory.yml to suit you circumstances.
+# then:  ansible-playbook worker/setup_remote_worker.yml -i worker/inventory.yml -l cassandra
+- name: "Setup Remote Worker"
+  hosts: "{{ nucypher_hosts | default('cassandra') }}"
+  remote_user: "{{default_user}}"
+
+- import_playbook: include/setup_user.yml
+- import_playbook: include/setup_docker.yml
+- import_playbook: include/setup_geth.yml
+- import_playbook: include/init_nucypher.yml
+- import_playbook: include/run_nucypher_ursula.yml

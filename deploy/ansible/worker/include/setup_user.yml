@@ -1,0 +1,9 @@
+- name: "Setup Nucypher User"
+  hosts: "{{ nucypher_hosts | default('cassandra') }}"
+  remote_user: "{{default_user}}"
+  become: yes
+  tasks:
+    - name: "create nucypher user as {{default_user}}"
+      user:
+        name: nucypher
+

@@ -1,0 +1,44 @@
+- name: "Setup Ethereum"
+  hosts: "{{ nucypher_hosts | default('cassandra') }}"
+  remote_user: "{{default_user}}"
+  tasks:
+    # needs to wait a few seconds if run directly after installing docker
+    - name: "pull ethereum/client-go:latest"
+      become: yes
+      become_user: nucypher
+      docker_image:
+        name: ethereum/client-go:latest
+        source: pull
+
+    - name: "check if the geth.ipc exists"
+      become: yes
+      become_user: nucypher
+      stat:
+        path: "{{geth_dir}}/geth.ipc"
+      register: geth_running
+
+    - name: "run geth until it finishes syncing (time to get up and go for a walk)"
+      when: geth_running.stat.exists == False
+      become: yes
+      become_user: nucypher
+      command: "docker run -v /home/nucypher/geth:/root ethereum/client-go:latest {{geth_options}} --exitwhensynced"
+
+    - name: "run geth {{geth_options}} forever in the background"
+      become: yes
+      become_user: nucypher
+      docker_container:
+        name: geth
+        state: started
+        image: ethereum/client-go:latest
+        restart_policy: "unless-stopped"
+        command: "{{geth_options}}"
+        volumes:
+          - /home/nucypher/geth:/root
+
+    - name: Recursively change ownership of geth directory
+      become: yes
+      file:
+        path: /home/nucypher/geth
+        state: directory
+        recurse: yes
+        owner: nucypher

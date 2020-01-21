@@ -1,0 +1,20 @@
+- name: "Setup Nucypher"
+  hosts: "{{ nucypher_hosts | default('cassandra') }}"
+  remote_user: "{{default_user}}"
+  tasks:
+    - name: "Run Staked Ursula"
+      become: yes
+      become_user: nucypher
+      docker_container:
+        name: ursula
+        state: started
+        image: nucypher/nucypher:latest
+        restart_policy: "unless-stopped"
+        command: "nucypher ursula run --teacher discover.nucypher.network:9151 --poa"
+        volumes:
+          - /home/nucypher:/root/.local/share/
+        ports:
+          - "9151:9151"
+        env:
+          NUCYPHER_KEYRING_PASSWORD: "{{NUCYPHER_KEYRING_PASSWORD}}"
+          NUCYPHER_WORKER_ETH_PASSWORD: "{{NUCYPHER_WORKER_ETH_PASSWORD}}"

@@ -1,0 +1,38 @@
+- name: "Setup Nucypher"
+  hosts: "{{ nucypher_hosts | default('cassandra') }}"
+  remote_user: "{{default_user}}"
+  tasks:
+
+    - name: "pull nucypher/nucypher:latest"
+      become: yes
+      docker_image:
+        name: nucypher/nucypher
+        source: pull
+
+    - name: "copy local geth account"
+      become: yes
+      become_user: nucypher
+      copy:
+        src: "{{GETH_ACCOUNT}}"
+        dest: "{{geth_dir}}/keystore"
+        owner: nucypher
+
+    - name: "check if /home/nucypher/nucypher/ursula.json exists"
+      become: yes
+      become_user: nucypher
+      stat:
+        path: /home/nucypher/nucypher/ursula.json
+      register: ursula_check
+
+    - name: Find my public ip
+      when: ursula_check.stat.exists == False
+      uri:
+        url: http://ifconfig.me/ip
+        return_content: yes
+      register: ip_response
+
+    - name: "init Nucypher Ursula worker"
+      become: yes
+      become_user: nucypher
+      when: ursula_check.stat.exists == False
+      command: "docker run -v /home/nucypher:/root/.local/share/ --env NUCYPHER_KEYRING_PASSWORD={{NUCYPHER_KEYRING_PASSWORD}} -it nucypher/nucypher:latest nucypher ursula init --provider /root/.local/share/geth/.ethereum/goerli/geth.ipc --poa --worker-address {{NUCYPHER_WORKER_ADDRESS}} --staker-address {{NUCYPHER_STAKER_ADDRESS}} --rest-host {{ip_response.content}} --network {{network_name}}"
