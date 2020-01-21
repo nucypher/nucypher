@@ -275,6 +275,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                 self.remember_node(node=handpicked_ursula)
 
         policy = self.create_policy(bob=bob, label=label, **policy_params)
+        self.log.debug(f"Succesfully created {policy} ... ")
 
         #
         # We'll find n Ursulas by default.  It's possible to "play the field" by trying different
@@ -295,10 +296,12 @@ class Alice(Character, BlockchainPolicyAuthor):
                     "know which nodes to use.  Either pass them here or when you make the Policy, "
                     "or run the learning loop on a network with enough Ursulas.".format(policy.n))
 
+        self.log.debug(f"Making arrangements for {policy} ... ")
         policy.make_arrangements(network_middleware=self.network_middleware,
                                  handpicked_ursulas=handpicked_ursulas)
 
         # REST call happens here, as does population of TreasureMap.
+        self.log.debug(f"Enacting {policy} ... ")
         policy.enact(network_middleware=self.network_middleware, publish=publish_treasure_map)
         return policy  # Now with TreasureMap affixed!
 
