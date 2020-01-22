@@ -387,6 +387,14 @@ def grant(general_config,
 
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
 
+    # Input validation
+    if ALICE.federated_only:
+        if any((value, rate)):
+            raise click.BadOptionUsage(option_name="--value, --rate",
+                                       message="Can't use --value or --rate with a federated Alice.")
+    elif not (bool(value) ^ bool(rate)):
+        raise click.BadOptionUsage(option_name="--rate", message="Can't use --value if using --rate")
+
     # Request
     grant_request = {
         'bob_encrypting_key': bob_encrypting_key,

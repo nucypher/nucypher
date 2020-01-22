@@ -133,7 +133,7 @@ class Character(Learner):
         if federated_only:
             if registry or provider_uri:
                 raise ValueError(f"Cannot init federated-only character with {registry or provider_uri}.")
-        self.federated_only = federated_only  # type: bool
+        self.federated_only = bool(federated_only)  # type: bool
 
         #
         # Powers
