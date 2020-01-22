@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "zeppelin/ownership/Ownable.sol";
@@ -10,7 +10,7 @@ import "zeppelin/ownership/Ownable.sol";
 * (see verifyState(address) in Dispatcher). Also contract should implement finishUpgrade(address)
 * if it is using constructor parameters by coping this parameters to the dispatcher storage
 */
-contract Upgradeable is Ownable {
+abstract contract Upgradeable is Ownable {
 
     event StateVerified(address indexed testTarget, address sender);
     event UpgradeFinished(address indexed target, address sender);
@@ -55,7 +55,7 @@ contract Upgradeable is Ownable {
     * @dev Method for verifying storage state.
     * Should check that new target contract returns right storage value
     */
-    function verifyState(address _testTarget) public onlyWhileUpgrading {
+    function verifyState(address _testTarget) public virtual onlyWhileUpgrading {
         emit StateVerified(_testTarget, msg.sender);
     }
 
@@ -63,7 +63,7 @@ contract Upgradeable is Ownable {
     * @dev Copy values from the new target to the current storage
     * @param _target New target contract address
     */
-    function finishUpgrade(address _target) public onlyWhileUpgrading {
+    function finishUpgrade(address _target) public virtual onlyWhileUpgrading {
         emit UpgradeFinished(_target, msg.sender);
     }
 
@@ -74,7 +74,7 @@ contract Upgradeable is Ownable {
     * @param _numberOfArguments Number of used arguments
     * @param _argument1 First method argument
     * @param _argument2 Second method argument
-    * @return Address in memory where the data is located
+    * @return memoryAddress Address in memory where the data is located
     */
     function delegateGetData(
         address _target,
@@ -95,12 +95,12 @@ contract Upgradeable is Ownable {
             if gt(_numberOfArguments, 1) {
                 mstore(add(memoryAddress, 0x24), _argument2)
             }
-            switch delegatecall(gas, _target, memoryAddress, add(0x04, mul(0x20, _numberOfArguments)), 0, 0)
+            switch delegatecall(gas(), _target, memoryAddress, add(0x04, mul(0x20, _numberOfArguments)), 0, 0)
                 case 0 {
                     revert(memoryAddress, 0)
                 }
                 default {
-                    returndatacopy(memoryAddress, 0x0, returndatasize)
+                    returndatacopy(memoryAddress, 0x0, returndatasize())
                 }
         }
     }

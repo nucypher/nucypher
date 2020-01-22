@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "contracts/NuCypherToken.sol";
@@ -13,7 +13,7 @@ import "zeppelin/token/ERC20/SafeERC20.sol";
 * @notice Contract for calculate issued tokens
 * @dev |v1.1.4|
 */
-contract Issuer is Upgradeable {
+abstract contract Issuer is Upgradeable {
     using SafeERC20 for NuCypherToken;
     using SafeMath for uint256;
     using AdditionalMath for uint32;
@@ -116,7 +116,7 @@ contract Issuer is Upgradeable {
     * @param _lockedValue The amount of tokens that were locked by user in specified period.
     * @param _totalLockedValue The amount of tokens that were locked by all users in specified period.
     * @param _allLockedPeriods The max amount of periods during which tokens will be locked after specified period.
-    * @return Amount of minted tokens.
+    * @return amount Amount of minted tokens.
     */
     function mint(
         uint16 _currentPeriod,
@@ -190,7 +190,7 @@ contract Issuer is Upgradeable {
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
-    function verifyState(address _testTarget) public {
+    function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
         require(address(uint160(delegateGet(_testTarget, "token()"))) == address(token));
         require(delegateGet(_testTarget, "miningCoefficient()") == miningCoefficient);
@@ -204,7 +204,7 @@ contract Issuer is Upgradeable {
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
-    function finishUpgrade(address _target) public {
+    function finishUpgrade(address _target) public override virtual {
         super.finishUpgrade(_target);
         Issuer issuer = Issuer(_target);
         totalSupply = issuer.totalSupply();

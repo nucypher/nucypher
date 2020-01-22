@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "contracts/NuCypherToken.sol";
@@ -112,7 +112,9 @@ contract PolicyManagerForStakingContractMock {
         minRewardRate = _minRewardRate;
     }
 
-    function () external payable {}
+    // TODO #1809
+//    receive() external payable {}
+    fallback() external payable {}
 }
 
 
@@ -191,7 +193,9 @@ contract StakingInterfaceMockV2 {
     address public token = address(1);
     address public escrow = address(1);
 
-    function () external payable {
+    // TODO #1809
+//    receive() external payable {}
+    fallback() external payable {
         // can only use with ETH
         require(msg.value > 0);
     }
@@ -240,14 +244,14 @@ contract SimpleStakingContract is AbstractStakingContract, Ownable {
     * @notice Withdraw available amount of tokens to owner
     * @param _value Amount of token to withdraw
     */
-    function withdrawTokens(uint256 _value) public onlyOwner {
+    function withdrawTokens(uint256 _value) public override onlyOwner {
         token.safeTransfer(msg.sender, _value);
     }
 
     /**
     * @notice Withdraw available ETH to the owner
     */
-    function withdrawETH() public onlyOwner {
+    function withdrawETH() public override onlyOwner {
         uint256 balance = address(this).balance;
         require(balance != 0);
         msg.sender.sendValue(balance);
@@ -256,7 +260,7 @@ contract SimpleStakingContract is AbstractStakingContract, Ownable {
     /**
     * @notice Calling fallback function is allowed only for the owner
     */
-    function isFallbackAllowed() public returns (bool) {
+    function isFallbackAllowed() public override returns (bool) {
         return msg.sender == owner();
     }
 

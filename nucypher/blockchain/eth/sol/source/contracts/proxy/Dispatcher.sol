@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "./Upgradeable.sol";
@@ -102,7 +102,7 @@ contract Dispatcher is Upgradeable {
         require(callSuccess);
     }
 
-    function verifyState(address _testTarget) public onlyWhileUpgrading {
+    function verifyState(address _testTarget) public override onlyWhileUpgrading {
         //checks equivalence accessing state through new contract and current storage
         require(address(uint160(delegateGet(_testTarget, "owner()"))) == owner());
         require(address(uint160(delegateGet(_testTarget, "target()"))) == target);
@@ -114,12 +114,12 @@ contract Dispatcher is Upgradeable {
     /**
     * @dev Override function using empty code because no reason to call this function in Dispatcher
     */
-    function finishUpgrade(address) public {}
+    function finishUpgrade(address) public override {}
 
     /**
     * @dev Fallback function send all requests to the target contract
     */
-    function () external payable {
+    fallback() external payable {
         assert(target.isContract());
         // execute requested function from target contract using storage of the dispatcher
         (bool callSuccess,) = target.delegatecall(msg.data);
@@ -128,8 +128,8 @@ contract Dispatcher is Upgradeable {
             // we can use the second return value from `delegatecall` (bytes memory)
             // but it will consume a little more gas
             assembly {
-                returndatacopy(0x0, 0x0, returndatasize)
-                return(0x0, returndatasize)
+                returndatacopy(0x0, 0x0, returndatasize())
+                return(0x0, returndatasize())
             }
         } else {
             revert();

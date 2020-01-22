@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "contracts/Issuer.sol";
@@ -7,7 +7,7 @@ import "contracts/Issuer.sol";
 /**
 * @notice PolicyManager interface
 */
-contract PolicyManagerInterface {
+interface PolicyManagerInterface {
     function register(address _node, uint16 _period) external;
     function updateReward(address _node, uint16 _period) external;
     function escrow() external view returns (address);
@@ -18,7 +18,7 @@ contract PolicyManagerInterface {
 /**
 * @notice Adjudicator interface
 */
-contract AdjudicatorInterface {
+interface AdjudicatorInterface {
     function escrow() external view returns (address);
 }
 
@@ -26,7 +26,7 @@ contract AdjudicatorInterface {
 /**
 * @notice WorkLock interface
 */
-contract WorkLockInterface {
+interface WorkLockInterface {
     function escrow() external view returns (address);
 }
 
@@ -1279,7 +1279,8 @@ contract StakingEscrow is Issuer {
     function getSubStakeInfo(address _staker, uint256 _index)
     // TODO change to structure when ABIEncoderV2 is released (#1501)
 //        public view returns (SubStakeInfo)
-        external view returns (uint16 firstPeriod, uint16 lastPeriod, uint16 periods, uint256 lockedValue)
+        // TODO "virtual" only for tests, probably will be removed after #1512
+        external view virtual returns (uint16 firstPeriod, uint16 lastPeriod, uint16 periods, uint256 lockedValue)
     {
         SubStakeInfo storage info = stakerInfo[_staker].subStakes[_index];
         firstPeriod = info.firstPeriod;
@@ -1349,7 +1350,7 @@ contract StakingEscrow is Issuer {
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
-    function verifyState(address _testTarget) public {
+    function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
         require((delegateGet(_testTarget, "isTestContract()") == 0) == !isTestContract);
         require(uint16(delegateGet(_testTarget, "minWorkerPeriods()")) == minWorkerPeriods);
@@ -1410,7 +1411,7 @@ contract StakingEscrow is Issuer {
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
-    function finishUpgrade(address _target) public {
+    function finishUpgrade(address _target) public override virtual {
         super.finishUpgrade(_target);
         StakingEscrow escrow = StakingEscrow(_target);
         minLockedPeriods = escrow.minLockedPeriods();

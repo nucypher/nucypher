@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "zeppelin/ownership/Ownable.sol";
@@ -45,7 +45,7 @@ contract StakingInterfaceRouter is Ownable {
 * @dev Implement `isFallbackAllowed()` or override fallback function
 * Implement `withdrawTokens(uint256)` and `withdrawETH()` functions
 */
-contract AbstractStakingContract {
+abstract contract AbstractStakingContract {
     using Address for address;
     using Address for address payable;
     using SafeERC20 for NuCypherToken;
@@ -65,22 +65,23 @@ contract AbstractStakingContract {
     /**
     * @dev Checks permission for calling fallback function
     */
-    function isFallbackAllowed() public returns (bool);
+    function isFallbackAllowed() public virtual returns (bool);
 
     /**
     * @dev Withdraw tokens from staking contract
     */
-    function withdrawTokens(uint256 _value) public;
+    function withdrawTokens(uint256 _value) public virtual;
 
     /**
     * @dev Withdraw ETH from staking contract
     */
-    function withdrawETH() public;
+    function withdrawETH() public virtual;
 
     /**
     * @dev Function sends all requests to the target contract
     */
-    function () external payable {
+    // TODO #1809
+    fallback() external payable {
         if (msg.data.length == 0) {
             return;
         }
@@ -95,8 +96,8 @@ contract AbstractStakingContract {
             // we can use the second return value from `delegatecall` (bytes memory)
             // but it will consume a little more gas
             assembly {
-                returndatacopy(0x0, 0x0, returndatasize)
-                return(0x0, returndatasize)
+                returndatacopy(0x0, 0x0, returndatasize())
+                return(0x0, returndatasize())
             }
         } else {
             revert();

@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "zeppelin/token/ERC20/SafeERC20.sol";
@@ -33,20 +33,10 @@ contract PolicyManager is Upgradeable {
         uint64 endTimestamp,
         uint256 numberOfNodes
     );
-    event PolicyRevoked(
-        bytes16 indexed policyId,
-        address indexed sender,
-        uint256 value
-    );
     event ArrangementRevoked(
         bytes16 indexed policyId,
         address indexed sender,
         address indexed node,
-        uint256 value
-    );
-    event Withdrawn(
-        address indexed node,
-        address indexed recipient,
         uint256 value
     );
     event RefundForArrangement(
@@ -55,27 +45,14 @@ contract PolicyManager is Upgradeable {
         address indexed node,
         uint256 value
     );
-    event RefundForPolicy(
-        bytes16 indexed policyId,
-        address indexed sender,
-        uint256 value
-    );
-    event NodeBrokenState(
-        address indexed node,
-        uint16 period
-    );
-    event MinRewardRateSet(
-        address indexed node,
-        uint256 value
-    );
-    event MinRewardRateRangeSet(
-        address indexed sender,
-        // TODO #1501
-        // Range range
-        uint256 min,
-        uint256 defaultValue,
-        uint256 max
-    );
+    event PolicyRevoked(bytes16 indexed policyId, address indexed sender, uint256 value);
+    event RefundForPolicy(bytes16 indexed policyId, address indexed sender, uint256 value);
+    event NodeBrokenState(address indexed node, uint16 period);
+    event MinRewardRateSet(address indexed node, uint256 value);
+    // TODO #1501
+    // Range range
+    event MinRewardRateRangeSet(address indexed sender, uint256 min, uint256 defaultValue, uint256 max);
+    event Withdrawn(address indexed node, address indexed recipient, uint256 value);
 
     struct ArrangementInfo {
         address node;
@@ -636,9 +613,7 @@ contract PolicyManager is Upgradeable {
     * @notice Get number of arrangements in the policy
     * @param _policyId Policy id
     */
-    function getArrangementsLength(bytes16 _policyId)
-        external view returns (uint256)
-    {
+    function getArrangementsLength(bytes16 _policyId) external view returns (uint256) {
         return policies[_policyId].arrangements.length;
     }
 
@@ -648,7 +623,8 @@ contract PolicyManager is Upgradeable {
     * @param _period Period to get reward delta
     */
     function getNodeRewardDelta(address _node, uint16 _period)
-        external view returns (int256)
+        // TODO "virtual" only for tests, probably will be removed after #1512
+        external view virtual returns (int256)
     {
         return nodes[_node].rewardDelta[_period];
     }
@@ -716,7 +692,7 @@ contract PolicyManager is Upgradeable {
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
-    function verifyState(address _testTarget) public {
+    function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
         require(address(delegateGet(_testTarget, "escrow()")) == address(escrow));
         require(uint32(delegateGet(_testTarget, "secondsPerPeriod()")) == secondsPerPeriod);
@@ -756,7 +732,7 @@ contract PolicyManager is Upgradeable {
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
-    function finishUpgrade(address _target) public {
+    function finishUpgrade(address _target) public override virtual {
         super.finishUpgrade(_target);
         PolicyManager policyManager = PolicyManager(_target);
         escrow = policyManager.escrow();

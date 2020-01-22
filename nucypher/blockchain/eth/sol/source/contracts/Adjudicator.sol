@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 import "contracts/lib/ReEncryptionValidator.sol";
 import "contracts/lib/SignatureVerifier.sol";
@@ -187,7 +187,7 @@ contract Adjudicator is Upgradeable {
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
-    function verifyState(address _testTarget) public {
+    function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
         require(address(delegateGet(_testTarget, "escrow()")) == address(escrow));
         require(SignatureVerifier.HashAlgorithm(delegateGet(_testTarget, "hashAlgorithm()")) == hashAlgorithm);
@@ -204,7 +204,7 @@ contract Adjudicator is Upgradeable {
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
-    function finishUpgrade(address _target) public {
+    function finishUpgrade(address _target) public override virtual {
         super.finishUpgrade(_target);
         Adjudicator targetContract = Adjudicator(_target);
         escrow = targetContract.escrow();

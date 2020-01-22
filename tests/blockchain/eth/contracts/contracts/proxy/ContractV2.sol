@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "contracts/proxy/Upgradeable.sol";
@@ -110,7 +110,7 @@ contract ContractV2 is Upgradeable {
         return mappingStructures[_index].arrayValues;
     }
 
-    function verifyState(address _testTarget) public {
+    function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
         require(delegateGet(_testTarget, "storageValue()") == storageValue);
         bytes memory value = delegateGetBytes(_testTarget, "dynamicallySizedValue()");
@@ -190,7 +190,7 @@ contract ContractV2 is Upgradeable {
         }
     }
 
-    function finishUpgrade(address _target) public {
+    function finishUpgrade(address _target) public override {
         super.finishUpgrade(_target);
         storageValueToCheck = ContractV2(_target).storageValueToCheck();
     }

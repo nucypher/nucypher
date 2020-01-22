@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "./ContractV1.sol";
@@ -51,8 +51,8 @@ contract ContractV2BadStorage is Upgradeable {
     mapping (uint256 => Structure2) public mappingStructures;
     uint256 public mappingStructuresLength;
 
-    function verifyState(address) public {}
-    function finishUpgrade(address) public {}
+    function verifyState(address) public override {}
+    function finishUpgrade(address) public override {}
 
 }
 
@@ -62,7 +62,7 @@ contract ContractV2BadStorage is Upgradeable {
 */
 contract ContractV2BadVerifyState is ContractV1(1) {
 
-    function verifyState(address) public {
+    function verifyState(address) public override {
         revert();
     }
 

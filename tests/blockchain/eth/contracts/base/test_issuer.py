@@ -231,7 +231,7 @@ def test_upgrading(testerchain, token, deploy_contract):
 
     # Deploy contract
     contract_library_v1, _ = deploy_contract(
-        contract_name='Issuer',
+        contract_name='IssuerMock',
         _token=token.address,
         _hoursPerPeriod=1,
         _miningCoefficient=1,

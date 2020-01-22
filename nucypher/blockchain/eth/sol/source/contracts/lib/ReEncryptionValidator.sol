@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 import "contracts/lib/UmbralDeserializer.sol";
 import "contracts/lib/SignatureVerifier.sol";
@@ -410,7 +410,7 @@ library ReEncryptionValidator {
     /// @dev Based on the addition formulas from http://www.hyperelliptic.org/EFD/g1p/auto-code/shortw/jacobian-0/addition/add-2001-b.op3
     /// @param P An EC point in affine coordinates
     /// @param Q An EC point in affine coordinates
-    /// @return An EC point in Jacobian coordinates with the sum, represented by an array of 3 uint256
+    /// @return R An EC point in Jacobian coordinates with the sum, represented by an array of 3 uint256
     function addAffineJacobian(
     	uint[2] memory P,
     	uint[2] memory Q
@@ -437,7 +437,7 @@ library ReEncryptionValidator {
 
     /// @notice Point doubling in Jacobian coordinates
     /// @param P An EC point in Jacobian coordinates.
-    /// @return An EC point in Jacobian coordinates
+    /// @return Q An EC point in Jacobian coordinates
     function doubleJacobian(uint[3] memory P) internal pure returns (uint[3] memory Q) {
         uint256 z = P[2];
         if (z == 0)
