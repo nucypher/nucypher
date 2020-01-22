@@ -33,7 +33,8 @@ from nucypher.blockchain.eth.constants import (
     STAKING_INTERFACE_CONTRACT_NAME,
     STAKING_INTERFACE_ROUTER_CONTRACT_NAME,
     ADJUDICATOR_CONTRACT_NAME,
-    NUCYPHER_TOKEN_CONTRACT_NAME
+    NUCYPHER_TOKEN_CONTRACT_NAME,
+    ETH_ADDRESS_BYTE_LENGTH
 )
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
@@ -248,7 +249,7 @@ class StakingEscrowAgent(EthereumContractAgent):
 
         return active_stakers, pending_stakers, missing_stakers
 
-    def get_all_active_stakers(self, periods: int, pagination_size: int = None) -> Tuple[int, list]:
+    def get_all_active_stakers(self, periods: int, pagination_size: int = None) -> Tuple[int, List[str]]:
         """Only stakers which confirmed the current period (in the previous period) are used."""
         if not periods > 0:
             raise ValueError("Period must be > 0")
@@ -271,6 +272,10 @@ class StakingEscrowAgent(EthereumContractAgent):
                 start_index += pagination_size
         else:
             n_tokens, stakers = self.contract.functions.getActiveStakers(periods, 0, 0).call()
+
+        # Sanitize output of getActiveStakers: stakers' addresses are returned as uint256, but we need addresses
+        for i in range(len(stakers)):
+            stakers[i][0] = to_checksum_address(stakers[i][0].to_bytes(ETH_ADDRESS_BYTE_LENGTH, 'big'))
 
         return n_tokens, stakers
 
