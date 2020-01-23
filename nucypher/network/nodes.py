@@ -18,7 +18,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import binascii
 import contextlib
 import random
-import time
 from collections import defaultdict, OrderedDict
 from collections import deque
 from collections import namedtuple
@@ -27,8 +26,7 @@ from typing import Set, Tuple, Union
 
 import maya
 import requests
-from eth_utils import to_checksum_address
-
+import time
 from bytestring_splitter import BytestringSplitter, PartiallyKwargifiedBytes
 from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
 from constant_sorrow import constant_or_bytes
@@ -42,6 +40,7 @@ from constant_sorrow.constants import (
     UNKNOWN_FLEET_STATE
 )
 from cryptography.x509 import Certificate
+from eth_utils import to_checksum_address
 from requests.exceptions import SSLError
 from twisted.internet import reactor, defer
 from twisted.internet import task
@@ -56,7 +55,6 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, verify_eip_191, recover_address_eip_191
-from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import TransactingPower, SigningPower, DecryptingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter
@@ -102,7 +100,7 @@ class FleetStateTracker:
     most_recent_node_change = NO_KNOWN_NODES
     snapshot_splitter = BytestringSplitter(32, 4)
     log = Logger("Learning")
-    state_template = namedtuple("FleetState", ("nickname", "metadata", "icon", "nodes", "updated"))
+    FleetState = namedtuple("FleetState", ("nickname", "metadata", "icon", "nodes", "updated"))
 
     def __init__(self):
         self.additional_nodes_to_track = []
@@ -191,12 +189,11 @@ class FleetStateTracker:
             self.updated = maya.now()
             # For now we store the sorted node list.  Someday we probably spin this out into
             # its own class, FleetState, and use it as the basis for partial updates.
-            new_state = self.state_template(nickname=self.nickname,
-                                            metadata=self.nickname_metadata,
-                                            nodes=sorted_nodes,
-                                            icon=self.icon,
-                                            updated=self.updated,
-                                            )
+            new_state = self.FleetState(nickname=self.nickname,
+                                        metadata=self.nickname_metadata,
+                                        nodes=sorted_nodes,
+                                        icon=self.icon,
+                                        updated=self.updated)
             self.states[checksum] = new_state
             return checksum, new_state
 
@@ -220,15 +217,7 @@ class FleetStateTracker:
         abridged_states = {}
         for k, v in self.states.items():
             abridged_states[k] = self.abridged_state_details(v)
-
         return abridged_states
-
-    def abridged_nodes_dict(self):
-        abridged_nodes = {}
-        for checksum_address, node in self._nodes.items():
-            abridged_nodes[checksum_address] = self.abridged_node_details(node)
-
-        return abridged_nodes
 
     @staticmethod
     def abridged_state_details(state):
@@ -236,7 +225,7 @@ class FleetStateTracker:
                 "symbol": state.metadata[0][1],
                 "color_hex": state.metadata[0][0]['hex'],
                 "color_name": state.metadata[0][0]['color'],
-                "updated": state.updated.rfc2822()
+                "updated": state.updated.rfc2822(),
                 }
 
     @staticmethod
@@ -260,8 +249,7 @@ class FleetStateTracker:
                 "staker_address": node.checksum_address,
                 "timestamp": node.timestamp.iso8601(),
                 "last_seen": last_seen,
-                "fleet_state_icon": fleet_icon,
-                }
+                "fleet_state_icon": fleet_icon}
 
 
 class NodeSprout(PartiallyKwargifiedBytes):
@@ -391,7 +379,8 @@ class Learner:
         if save_metadata and node_storage is NO_STORAGE_AVAILIBLE:
             raise ValueError("Cannot save nodes without a configured node storage")
 
-        self.node_class = node_class or Teacher
+        from nucypher.characters.lawful import Ursula
+        self.node_class = node_class or Ursula  # TODO: 'Teacher' has no attribute 'batch_from_bytes'
         self.node_class.set_cert_storage_function(node_storage.store_node_certificate)  #  TODO: Fix this temporary workaround for on-disk cert storage.
 
         known_nodes = known_nodes or tuple()
@@ -1345,7 +1334,7 @@ class Teacher:
         return self.timestamp.epoch.to_bytes(4, 'big')
 
     #
-    # Nicknames
+    # Nicknames and Metadata
     #
 
     @property
@@ -1376,3 +1365,35 @@ class Teacher:
             second_symbol=self.nickname_metadata[1][1],
             address_first6=self.checksum_address[2:8]
         )
+
+    def abridged_nodes_dict(self):
+        abridged_nodes = {}
+        for checksum_address, node in self._nodes.items():
+            abridged_nodes[checksum_address] = self.abridged_node_details(node)
+
+        return abridged_nodes
+
+    @staticmethod
+    def abridged_node_details(node):
+        node.mature()
+        try:
+            last_seen = node.last_seen.iso8601()
+        except AttributeError:  # TODO: This logic belongs somewhere - anywhere - else.
+            last_seen = str(node.last_seen)  # In case it's the constant NEVER_SEEN
+
+        fleet_icon = node.fleet_state_nickname_metadata
+        if fleet_icon is UNKNOWN_FLEET_STATE:
+            fleet_icon = "?"  # TODO
+        else:
+            fleet_icon = fleet_icon[0][1]
+
+        return {"icon_details": node.nickname_icon_details(),  # TODO: Mix this in better.
+                "rest_url": node.rest_url(),
+                "nickname": node.nickname,
+                "checksum_address": node.worker_address,
+                "staker_address": node.checksum_address,
+                "timestamp": node.timestamp.iso8601(),
+                "last_seen": last_seen,
+                "fleet_state_icon": fleet_icon,
+                }
+

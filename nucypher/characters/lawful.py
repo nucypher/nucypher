@@ -45,16 +45,6 @@ from umbral.pre import UmbralCorrectnessError
 from umbral.signing import Signature
 
 import nucypher
-from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker, Staker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent, ContractAgency, \
-    PreallocationEscrowAgent
-from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.blockchain.eth.token import StakeList, WorkTracker, NU
-from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER, STAKEHOLDER_BANNER
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -844,7 +834,7 @@ class Ursula(Teacher, Character, Worker):
                            is_me=is_me,
                            checksum_address=checksum_address,
                            start_learning_now=False,  # Handled later in this function to avoid race condition
-                           federated_only=self._federated_only_instances,
+                           federated_only=self._federated_only_instances,  # TODO: 'Ursula' object has no attribute '_federated_only_instances' if an is_me Ursula is not inited prior to this moment
                            crypto_power=crypto_power,
                            abort_on_learning_error=abort_on_learning_error,
                            known_nodes=known_nodes,

@@ -17,23 +17,22 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import binascii
 import os
+import sqlite3
 import tempfile
 from abc import abstractmethod, ABC
+from typing import Callable, Tuple, Union, Set, Any
 
 import OpenSSL
-import shutil
-import sqlite3
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
 from eth_utils import is_checksum_address
 from twisted.logger import Logger
-from typing import Callable, Tuple, Union, Set, Any
 
+from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.crypto.api import read_certificate_pseudonym
 
 
@@ -297,7 +296,6 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
         self.init_db_tables()
 
     def __del__(self):
-        super().__del__()
         try:
             self.db_conn.close()
         finally:
@@ -345,10 +343,14 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
             self.db_conn.execute(f"CREATE TABLE {self.NODE_DB_NAME} ({node_db_schema})")
 
     def __write_node_metadata(self, node):
-        from nucypher.network.nodes import FleetStateTracker
-        node_dict = FleetStateTracker.abridged_node_details(node)
-        db_row = (node_dict['staker_address'], node_dict['rest_url'], node_dict['nickname'],
-                  node_dict['timestamp'], node_dict['last_seen'], node_dict['fleet_state_icon'])
+        node.mature()
+        node_dict = node.abridged_node_details(node)
+        db_row = (node_dict['staker_address'],
+                  node_dict['rest_url'],
+                  node_dict['nickname'],
+                  node_dict['timestamp'],
+                  node_dict['last_seen'],
+                  node_dict['fleet_state_icon'])
         with self.db_conn:
             self.db_conn.execute(f'REPLACE INTO {self.NODE_DB_NAME} VALUES(?,?,?,?,?,?)', db_row)
 
@@ -528,11 +530,16 @@ class LocalFileBasedNodeStorage(NodeStorage):
     def clear(self, metadata: bool = True, certificates: bool = True) -> None:
         """Forget all stored nodes and certificates"""
 
-        def __destroy_dir_contents(path):
-            for file in os.listdir(path):
-                file_path = os.path.join(path, file)
-                if os.path.isfile(file_path):
-                    os.unlink(file_path)
+        def __destroy_dir_contents(path) -> None:
+            try:
+                paths_to_remove = os.listdir(path)
+            except FileNotFoundError:
+                return
+            else:
+                for file in paths_to_remove:
+                    file_path = os.path.join(path, file)
+                    if os.path.isfile(file_path):
+                        os.unlink(file_path)
 
         if metadata is True:
             __destroy_dir_contents(self.metadata_dir)
