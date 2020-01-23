@@ -22,6 +22,7 @@ all:
                 ansible_ssh_private_key_file: ~/Downloads/damon-ansible-testing.pem
                 default_user: "ubuntu"  # or root for digital ocean
               hosts:
+                # add a host for each worker/staker
                 cassandra1.mystakednodez.com:
                   GETH_ACCOUNT: "/home/ubuntu/.ethereum/goerli/keystore/UTC--2020-01-21T02-15-33.342507000Z--d9e7eC6f9bB558c739CDdbAD5c38F170F1571077"
                   NUCYPHER_WORKER_ADDRESS: "0xd9e7eC6f9bB558c739CDdbAD5c38F170F1571077"
