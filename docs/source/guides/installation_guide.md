@@ -31,12 +31,15 @@ Here's a one-liner to install the above packages on linux:
 
 ## Standard Installation
 
-We recommend installing `nucypher` with either `pip`, `pipenv`, or `docker`
+`nucypher` can be installed by `pip` or `pipenv`, or run with `docker`.  
+Ensure you have one of those installation tools installed for you system:
 
 * [Pip Documentation](https://pip.pypa.io/en/stable/installing/)
 * [Pipenv Documentation](https://pipenv.readthedocs.io/en/latest/)
+* [Docker](https://docs.docker.com/install/)
 
-### Standard Pip Installation
+
+### Pip Installation
 
 In order to isolate global system dependencies from nucypher-specific dependencies, we *highly* recommend
 using `python-virtualenv` to install `nucypher` inside a dedicated virtual environment.
@@ -90,7 +93,7 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
     import nucypher
     ```
 
-### Standard Pipenv Installation
+### Pipenv Installation
 
 
 1. Install Application code with Pipenv
@@ -128,30 +131,34 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
 
 4. Run commands:
  
-  Create a new StakeHolder configuration:
+ Base command for running nucypher CLI commands with docker:
  
     ```bash
-     docker run -d nucypher/nucypher:latest
-     -v ~/.local/share/nucypher:/root/.local/share/nucypher \ 
-     -v ~/.ethereum/:/root/.ethereum \
-     -p 9151:9151 \
-     nucypher stake init-stakeholder --provider /root/.ethereum/goerli.geth/ipc --network <NETWORK_NAME>
+     docker run -it -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 nucypher/nucypher:latest nucypher <ACTION> <OPTIONS>
     ```
+  
+  A few examples:
     
-  Run a Worker:
+  Display network stats:
  
     ```bash
-     docker run -d nucypher/nucypher:latest
-     -v ~/.local/share/nucypher:/root/.local/share/nucypher \ 
-     -v ~/.ethereum/:/root/.ethereum \
-     -p 9151:9151 \
-     nucypher ursula run
+     docker run -it -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 nucypher/nucypher:latest
+     nucypher status network --provider <PROVIDER URI> --network <NETWORK NAME>
+    ```
+        
+  Running a pre-configured Worker as a daemon:
+ 
+    ```bash
+     docker run -d -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 nucypher/nucypher:latest nucypher ursula run
     ```
 
 ## Development Installation
 
 Additional dependencies and setup steps are required to perform a "developer installation".
-Ensure you have `git` installed ([Git Documentation](https://git-scm.com/doc)).
+You do not need to perform these steps unless you intend to contribute a code or documentation change to 
+the nucypher codebase.
+
+Before continuing, Ensure you have `git` installed ([Git Documentation](https://git-scm.com/doc)).
 
 
 ### Acquire NuCypher Codebase

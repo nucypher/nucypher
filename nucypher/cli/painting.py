@@ -100,7 +100,7 @@ def build_fleet_state_status(ursula) -> str:
 
 def paint_node_status(emitter, ursula, start_time):
     ursula.mature()  # Just to be sure
-    
+
     # Build Learning status line
     learning_status = "Unknown"
     if ursula._learning_task.running:
