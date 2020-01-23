@@ -4,42 +4,34 @@
 NuCypher Staking Guide
 =======================
 
-NuCypher staking operations are divided into two roles:
-
-*Staker* - Controls NU tokens, manages staking, and collects rewards.
-The Staker is a manager of one or more stakes and delegates active network participation to a *Worker* through *bonding*.
-There is a 1:1 relationship between the roles: A Staker controls a single ethereum account and may have multiple Stakes, but only ever has one Worker.
-Stakers can run on a laptop and do not need to remain online since they only need to send stake management transactions.
-Hardware wallets are ideal for stakers since they only need to be unlocked during stake management while
-providing a higher standard of security than software wallets.  In order to stake the staker's account
-needs both NU token as well as enough ether to pay for transaction gas.
-
-*Worker* - (aka "Ursula") Participates in the network by carrying out re-encryption work orders.
-The Worker is the bonded delegate of a Staker and an active network node. Workers must remain online to provide
-uninterrupted re-encryption services on-demand. Each staking account or Staker is bonded to exactly one Worker.
-The worker's ethereum account must remain unlocked to send automated work confirmation
-transactions and have enough ether to pay for transaction gas; However, It is *not* necessary (and potentially risky)
-to hold NU tokens on a worker's account for any reason.
-
+NuCypher staking operations are divided into two roles "Staker" and "Worker" - This Guide is for Stakers.
 
 Staker Overview
------------------
+----------------
+
+*Staker* - Controls NU tokens, manages staking, and collects rewards.
+
+The Staker is a manager of one or more stakes, delegating active network participation to a *Worker* through *bonding*.
+There is a 1:1 relationship between the roles: A Staker controls a single ethereum account and may have multiple Stakes,
+but only ever has one Worker. A fully synced ethereum node is required - The staker's account needs NU tokens to stake
+as well as enough ether to pay for transaction gas. Stakers can run on a laptop and do not need to remain online since
+they only need to perform stake management transactions. Using a hardware wallet is *highly* recommended, they are ideal
+for stakers since only temporarily access to private keys is required during stake management while providing a higher standard
+of security than software wallets.
+
+Staking Procedure:
 
 1) Run an ethereum node on the Staker's machine (geth, parity, etc.)
 2) Install ``nucypher`` on Staking machine (See :doc:`/guides/installation_guide`)
 3) Request testnet tokens by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and type ``.getfunded <YOUR_CHECKSUM_ETH_ADDRESS>`` in the #testnet-faucet channel
 4) Initiate a new StakeHolder and Stake (see below)
-5) Bond a Worker to a Staker
+5) Bond a Worker to a Staker (using the worker's ethereum address)
 6) Optionally, modify stake settings
+7) Run a Worker Node (see :doc:`/guides/ursula_configuration_guide`)
 
-Worker Overview
-----------------
 
-1) Run an ethereum node on the Worker's machine (geth, parity, etc.)
-2) Install ``nucypher`` on Worker node
-3) Initialize a Worker node [:ref:`ursula-config-guide`]
-4) Run the Worker, and keep it online [:ref:`ursula-config-guide`]!
-
+Staking CLI
+------------
 
 All staking-related operations done by Staker are performed through the ``nucypher stake`` command:
 
@@ -105,6 +97,10 @@ All staking-related operations done by Staker are performed through the ``nucyph
 +-------------------------+---------------------------------------------+
 
 
+Staking
+--------
+
+
 Run an Ethereum node for Staking
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -114,8 +110,7 @@ Assuming you have ``geth`` installed, let's run a node on the Görli testnet.
 
     $ geth --goerli
 
-If you want to use your hardware wallet, just connect it to your machine. You'll
-see something like this in logs:
+If you want to use your hardware wallet, just connect it to your machine. You'll see something like this in logs:
 
 .. code:: bash
 
@@ -147,11 +142,11 @@ Where ``0x287a817426dd1ae78ea23e9918e2273b6733a43d`` is your newly created
 account address and ``<username>`` is your user.
 
 
-Interactive Method
-------------------
-
 Initialize a new stakeholder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before continuing with stake initiation and management, A setup step is required to configure nucypher for staking.
+This will create a configuration file (`~/.local/share/nucypher/stakeholder.josn`) containing editable configuration values.
 
 .. code:: bash
 
@@ -165,11 +160,15 @@ If you ran ``geth`` node as above, your ``<PROVIDER>`` is
 
 .. note:: If you're participating in NuCypher's incentivized testnet, this name is ``cassandra``.
 
-Please note that you want to use ``--hw-wallet`` if you use a hardware wallet in
-order for ``nucypher`` to not ask you for the password.
 
 Initialize a new stake
 ~~~~~~~~~~~~~~~~~~~~~~~~
+
+Once you have configured nucypher for staking, you can proceed with stake initiation.
+This operation will transfer an amount of tokens to nucypher's staking escrow contract and lock them for
+the commitment period.
+
+.. note:: Use ``--hw-wallet`` if you are using a hardware wallet to prevent password prompts.
 
 .. code:: bash
 
@@ -228,6 +227,8 @@ If you used a hardware wallet, you will need to confirm two transactions here.
 List existing stakes
 ~~~~~~~~~~~~~~~~~~~~~~~
 
+Once you have created one or more stakes, you can view all active stake for connected wallets:
+
 .. code:: bash
 
     (nucypher)$ nucypher stake list
@@ -244,12 +245,15 @@ If the Worker in the list is shown as ``0x0000``, it means that you haven't yet
 attached a Worker node to your Staker, so you still have to do it!
 
 
-Bond an Ursula to a Staker
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Bonding a Worker
+~~~~~~~~~~~~~~~~~~
 
-After you create an Ethereum node for your staker (see below about the worker),
-you can set the worker. Stakers which don't yet have a worker will be
-highlighted in yellow:
+After initiating a stake, the staker must delegate access to a work address through *bonding*.
+There is a 1:1 relationship between the roles: A Staker may have multiple Stakes but only ever has one Worker at a time.
+
+.. note:: The Worker cannot be changed for a minimum of 2 periods once set.
+
+.. note:: Stakers without a worker bonded will be highlighted in yellow (sometimes called "Detached" or "Headless").
 
 .. code:: bash
 
@@ -269,9 +273,8 @@ highlighted in yellow:
 
     OK!
 
-Please note that the worker's address should be in the format where checksum is encoded
-in the address. However, geth shows addresses in the lower case. You can convert
-the address to checksum format in geth console:
+.. note:: The worker's address must be EIP-55 checksum valid, however, geth shows addresses in the normalized format.
+          You can convert the normalized address to checksum format in geth console:
 
 .. code:: bash
 
@@ -340,7 +343,7 @@ stake's duration is not longer than the maximum. To prolong an existing stake's 
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake prolong
+    (nucypher)$ nucypher stake prolong --hw-wallet
 
 
 Wind Down
@@ -350,13 +353,13 @@ Wind down is *disabled* by default. To start winding down an existing stake:
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake winddown
+    (nucypher)$ nucypher stake winddown --hw-wallet
 
 
 Divide
 ******
 
-Existing stakes can be divided into smaller sub-stakes, with added value and duration. To divide an existing stake:
+Existing stakes can be divided into smaller sub-stakes, with different values and durations. To divide an existing stake:
 
 .. code:: bash
 
@@ -519,7 +522,7 @@ To withdraw the unlocked tokens, you need to retrieve them from the
   If you don't know this address, you'll find it in the preallocation file.
 
 
-Inline Method
+One-Liners
 --------------
 
 Additional command line flags are available for one-line operation:

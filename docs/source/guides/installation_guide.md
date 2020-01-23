@@ -142,14 +142,16 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
   Display network stats:
  
     ```bash
-     docker run -it -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 nucypher/nucypher:latest
-     nucypher status network --provider <PROVIDER URI> --network <NETWORK NAME>
+     docker run -it -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 nucypher/nucypher:latest \
+       nucypher status network --provider <PROVIDER URI> --network <NETWORK NAME>
     ```
         
   Running a pre-configured Worker as a daemon:
  
     ```bash
-     docker run -d -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 nucypher/nucypher:latest nucypher ursula run
+     docker run -d -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 nucypher/nucypher:latest \
+       -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD \
+       nucypher ursula run
     ```
 
 ## Development Installation
@@ -158,7 +160,7 @@ Additional dependencies and setup steps are required to perform a "developer ins
 You do not need to perform these steps unless you intend to contribute a code or documentation change to 
 the nucypher codebase.
 
-Before continuing, Ensure you have `git` installed ([Git Documentation](https://git-scm.com/doc)).
+Before continuing, ensure you have `git` installed ([Git Documentation](https://git-scm.com/doc)).
 
 
 ### Acquire NuCypher Codebase

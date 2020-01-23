@@ -4,11 +4,31 @@
 Ursula Configuration Guide
 ==========================
 
-This guide describes the requirements and steps required to run an Ursula (worker).
+NuCypher staking operations are divided into two roles "Staker" and "Worker" - This Guide is for Workers.
+
+Worker Overview
+----------------
+
+*Worker* - (aka "Ursula") Active network participant, Carries out re-encryption work orders.
+
+The Worker is the bonded delegate of a Staker and an active network node. Workers must remain online to provide
+uninterrupted re-encryption services on-demand. Each staking account or Staker is bonded to exactly one Worker.
+The worker's ethereum account must remain unlocked to send automated work confirmation transactions and have enough
+ether to pay for transaction gas; however, it is *not* necessary (and potentially risky) to hold NU tokens on a worker's
+account for any reason.
+
+Working Procedure:
+
+1) Initiate a new stake ( (see :doc:`/guides/staking_guide`))
+2) Run an ethereum node on the Worker's machine (geth, parity, etc.)
+3) Bond the Worker to a Staker (using the worker address)
+4) Install ``nucypher`` on Worker node
+5) Initialize a Worker node [:ref:`ursula-config-guide`]
+6) Run the Worker, and keep it online [:ref:`ursula-config-guide`]!
 
 
-1. Running an Ethereum node
-----------------------------
+1. Running an Ethereum node for Ursula
+----------------------------------------
 
 Run Geth with Docker
 ~~~~~~~~~~~~~~~~~~~~~
@@ -66,8 +86,8 @@ See the  `Installation Guide`_ and `Staking_Guide`_ for more details.
 .. _Staking_Guide: staking_guide.html
 
 
-Running an Ursula via CLI
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Running an Ursula via CLI (Interactive)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -150,8 +170,8 @@ Assuming geth is running locally on goerli, configure and run an Ursula using po
 
 .. code:: bash
 
-    export NUCYPHER_KEYRING_PASSWORD=<your keyring password>
-    export NUCYPHER_WORKER_ETH_PASSWORD=<your eth account password>
+    export NUCYPHER_KEYRING_PASSWORD=<YOUR KEYRING_PASSWORD>
+    export NUCYPHER_WORKER_ETH_PASSWORD=<YOUR WORKER ETH ACCOUNT PASSWORD>
 
     # Interactive Ursula-Worker Initialization
     docker run -it -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -e NUCYPHER_KEYRING_PASSWORD nucypher:latest nucypher ursula init --provider file:///root/.ethereum/goerli/geth.ipc --staker-address <YOUR STAKING ADDRESS> --network <NETWORK_NAME>
