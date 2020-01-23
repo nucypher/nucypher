@@ -229,8 +229,8 @@ class Felix(Character, NucypherTokenActor):
                     existing = Recipient.query.filter_by(address=new_address).all()
                     if len(existing) > self.MAX_INDIVIDUAL_REGISTRATIONS:
                         # Address already exists; Abort
-                        self.log.debug(f"{new_address} is already enrolled {self.MAX_INDIVIDUAL_REGISTRATIONS} times - Please use another address.")
-                        return Response(response="That address is already enrolled.", status=409)
+                        self.log.debug(f"{new_address} is already enrolled {self.MAX_INDIVIDUAL_REGISTRATIONS} times.")
+                        return Response(response=f"{new_address} requested too many times  -  Please use another address.", status=409)
 
                     # Create the record
                     recipient = Recipient(address=new_address, joined=datetime.now())
