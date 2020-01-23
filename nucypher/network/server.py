@@ -22,7 +22,7 @@ from typing import Tuple
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
-from flask import Flask, Response
+from flask import Flask, Response, jsonify
 from flask import request
 from hendrix.experience import crosstown_traffic
 from jinja2 import Template, TemplateError
@@ -362,10 +362,26 @@ def make_rest_app(
             log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
             assert False
 
-    @rest_app.route('/status')
+    @rest_app.route('/status/json', methods=['GET'])
+    def json_status():
+        states = this_node.known_nodes.abridged_states_dict()
+        known = this_node.known_nodes.abridged_nodes_dict()
+        payload = dict(version=nucypher.__version__,
+                       domains=[str(d) for d in serving_domains],
+                       checksum_address=str(this_node.checksum_address),
+                       states=states,
+                       known_nodes=known)
+        response = jsonify(payload)
+        return response
+
+    @rest_app.route('/status', methods=['GET'])
     def status():
         headers = {"Content-Type": "text/html", "charset": "utf-8"}
         previous_states = list(reversed(this_node.known_nodes.states.values()))[:5]
+
+        # Mature every known node before rendering.
+        for node in this_node.known_nodes:
+            node.mature()
 
         try:
             content = status_template.render(this_node=this_node,
