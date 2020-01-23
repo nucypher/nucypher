@@ -8,9 +8,9 @@
       docker_container:
         name: ursula
         state: started
-        image: nucypher/nucypher:latest
+        image: "{{ nucypher_image | default('nucypher/nucypher:latest') }}"
         restart_policy: "unless-stopped"
-        command: "nucypher ursula run --teacher discover.nucypher.network:9151 --poa {{extra_options}}"
+        command: "nucypher ursula run --teacher discover.nucypher.network:9151 --poa {{nucypher_ursula_run_options | default('')}}"
         volumes:
           - /home/nucypher:/root/.local/share/
         ports:
