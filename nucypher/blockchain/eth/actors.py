@@ -35,7 +35,7 @@ from eth_utils import keccak, is_checksum_address, to_checksum_address
 from twisted.logger import Logger
 from web3 import Web3
 
-from nucypher.blockchain.economics import StandardTokenEconomics, EconomicsFactory
+from nucypher.blockchain.economics import StandardTokenEconomics, EconomicsFactory, BaseEconomics
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
@@ -43,7 +43,7 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
     PreallocationEscrowAgent,
-)
+    WorkLockAgent)
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
@@ -201,7 +201,7 @@ class ContractAdministrator(NucypherTokenActor):
                  deployer_address: str = None,
                  client_password: str = None,
                  staking_escrow_test_mode: bool = False,
-                 economics: StandardTokenEconomics = None):
+                 economics: BaseEconomics = None):
         """
         Note: super() is not called here to avoid setting the token agent.
         TODO: Review this logic ^^ "bare mode".  #1510
@@ -1218,21 +1218,18 @@ class Investigator(NucypherTokenActor):
     anyone can report CFrags.
     """
 
-    def __init__(self,
-                 checksum_address: str,
-                 *args, **kwargs) -> None:
-
+    def __init__(self, checksum_address: str, *args, **kwargs):
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
         self.adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=self.registry)
 
     @save_receipt
-    def request_evaluation(self, evidence):
-        receipt = self.adjudicator_agent.evaluate_cfrag(evidence=evidence,
-                                                        sender_address=self.checksum_address)
+    def request_evaluation(self, evidence) -> dict:
+        receipt = self.adjudicator_agent.evaluate_cfrag(evidence=evidence, sender_address=self.checksum_address)
         return receipt
 
-    def was_this_evidence_evaluated(self, evidence):
-        return self.adjudicator_agent.was_this_evidence_evaluated(evidence=evidence)
+    def was_this_evidence_evaluated(self, evidence) -> dict:
+        receipt = self.adjudicator_agent.was_this_evidence_evaluated(evidence=evidence)
+        return receipt
 
 
 class StakeHolder(Staker):
@@ -1377,3 +1374,44 @@ class StakeHolder(Staker):
         stake = sum(self.staking_agent.owned_tokens(staker_address=account) for account in self.wallet.accounts)
         nu_stake = NU.from_nunits(stake)
         return nu_stake
+
+
+class Bidder(NucypherTokenActor):
+    """WorkLock participant"""
+
+    def __init__(self, checksum_address: str, *args, **kwargs):
+        super().__init__(checksum_address=checksum_address, *args, **kwargs)
+        self.worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=self.registry)
+
+    def place_bid(self, value: float) -> dict:
+        now = maya.now()
+        wei_bid = Web3.toWei(value, 'wei')
+        receipt = self.worklock_agent.bid(checksum_address=self.checksum_address, value=wei_bid)
+        return receipt
+
+    @property
+    def current_bid(self) -> float:
+        bid = self.worklock_agent.get_bid(checksum_address=self.checksum_address)
+        ether_bid = Web3.toWei(bid, 'ether')
+        return ether_bid
+
+    def claim(self) -> dict:
+        receipt = self.worklock_agent.claim(checksum_address=self.checksum_address)
+        return receipt
+
+    def cancel_bid(self) -> dict:
+        receipt = self.worklock_agent.cancel_bid(checksum_address=self.checksum_address)
+        return receipt
+
+    def available_refund(self, bidder_address: str) -> int:
+        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+        total_completed_work = staking_agent.get_completed_work(bidder_address=bidder_address)
+        refunded_work = self.contract.functions.workInfo(bidder_address).call()[1]
+        completed_work = total_completed_work - refunded_work
+        refund_eth = self.contract.functions.workToETH(completed_work).call()
+        return refund_eth
+
+    def refund_deposit(self):
+        """Refund ethers for completed work"""
+        receipt = self.worklock_agent.refund(checksum_address=self.checksum_address)
+        return receipt

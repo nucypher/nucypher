@@ -965,7 +965,8 @@ class WorkLockAgent(EthereumContractAgent):
     def bid(self, value: int, bidder_address: str) -> dict:
         """Bid for NU tokens with ETH."""
         contract_function = self.contract.functions.bid()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=bidder_address,
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=bidder_address,
                                                    payload={'value': value})
         return receipt
 
@@ -1015,14 +1016,6 @@ class WorkLockAgent(EthereumContractAgent):
         """
         supply = self.contract.functions.tokenSupply().call()
         return supply
-
-    def available_refund(self, bidder_address: str) -> int:
-        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
-        total_completed_work = staking_agent.get_completed_work(bidder_address=bidder_address)
-        refunded_work = self.contract.functions.workInfo(bidder_address).call()[1]
-        completed_work = total_completed_work - refunded_work
-        refund_eth = self.contract.functions.workToETH(completed_work).call()
-        return refund_eth
 
     def get_remaining_work(self, bidder_address: str) -> int:
         """Get remaining work periods until full refund for the target address."""
