@@ -23,9 +23,13 @@ all:
                 default_user: "ubuntu"  # or root for digital ocean
               hosts:
                 cassandra1.mystakednodez.com:
-                  GETH_ACCOUNT: "/home/ubuntu/.ethereum/goerli/keystore/UTC--2020-01-21T02-15-33.342507000Z--d9e7ec6f9bb558c739cddbad5c38f170f1571077"
+                  GETH_ACCOUNT: "/home/ubuntu/.ethereum/goerli/keystore/UTC--2020-01-21T02-15-33.342507000Z--d9e7eC6f9bB558c739CDdbAD5c38F170F1571077"
                   NUCYPHER_WORKER_ADDRESS: "0xd9e7eC6f9bB558c739CDdbAD5c38F170F1571077"
                   NUCYPHER_STAKER_ADDRESS: "0x4ffaEAe86c6A6f2C810F048877fbe1FBB2B27606"
+                86.75.30.9:
+                  GETH_ACCOUNT: "/home/ubuntu/.ethereum/goerli/keystore/UTC--2020-01-21T02-15-33.342507000Z--d9e7eC6fddde58c739CDdbAD5c38F170F1571077"
+                  NUCYPHER_WORKER_ADDRESS: "0xd9e7eC6fddde58c739CDdbAD5c38F170F1571077"
+                  NUCYPHER_STAKER_ADDRESS: "0x4ffaEAe8aaee6f2C810F048877fbe1FBB2B27606"
 
           # these variables apply to everything under 'cassandra'
           vars:
