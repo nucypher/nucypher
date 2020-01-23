@@ -530,11 +530,16 @@ class LocalFileBasedNodeStorage(NodeStorage):
     def clear(self, metadata: bool = True, certificates: bool = True) -> None:
         """Forget all stored nodes and certificates"""
 
-        def __destroy_dir_contents(path):
-            for file in os.listdir(path):
-                file_path = os.path.join(path, file)
-                if os.path.isfile(file_path):
-                    os.unlink(file_path)
+        def __destroy_dir_contents(path) -> None:
+            try:
+                paths_to_remove = os.listdir(path)
+            except FileNotFoundError:
+                return
+            else:
+                for file in paths_to_remove:
+                    file_path = os.path.join(path, file)
+                    if os.path.isfile(file_path):
+                        os.unlink(file_path)
 
         if metadata is True:
             __destroy_dir_contents(self.metadata_dir)
