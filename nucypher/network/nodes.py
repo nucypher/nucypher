@@ -241,6 +241,7 @@ class FleetStateTracker:
 
     @staticmethod
     def abridged_node_details(node):
+        node.mature()
         try:
             last_seen = node.last_seen.iso8601()
         except AttributeError:  # TODO: This logic belongs somewhere - anywhere - else.
