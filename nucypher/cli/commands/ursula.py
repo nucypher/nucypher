@@ -304,9 +304,8 @@ def forget(general_config, config_options, config_file):
 @option_dry_run
 @group_general_config
 @click.option('--interactive', '-I', help="Run interactively", is_flag=True, default=False)
-@click.option('--metrics', help="Run a prometheus exporter", is_flag=True, default=False)
-@click.option('--metrics-port', help="Prometheus or metrics port", type=NETWORK_PORT)
-def run(general_config, character_options, config_file, interactive, dry_run, metrics, metrics_port):
+@click.option('--metrics-port', help="Run a Prometheus metrics exporter on specified HTTP port", type=NETWORK_PORT)
+def run(general_config, character_options, config_file, interactive, dry_run, metrics_port):
     """
     Run an "Ursula" node.
     """
@@ -327,7 +326,7 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
 
     if interactive:
         stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA, emitter=emitter))
-    if metrics:
+    if metrics_port:
         # Prevent import without prometheus installed
         from nucypher.utilities.metrics import initialize_prometheus_exporter
         initialize_prometheus_exporter(ursula=URSULA, port=metrics_port)  # TODO: Integrate with Hendrix TLS Deploy?
