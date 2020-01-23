@@ -8,7 +8,7 @@ import math
 import maya
 import time
 from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE
-from flask import Flask, render_template, Response
+from flask import Flask, Response
 from hendrix.deploy.base import HendrixDeploy
 from nacl.hash import sha256
 from sqlalchemy import create_engine, or_
@@ -46,19 +46,18 @@ class Felix(Character, NucypherTokenActor):
 
     _default_crypto_powerups = [SigningPower]
 
-    TEMPLATE_NAME = 'felix.html'
-
     # Intervals
-    DISTRIBUTION_INTERVAL = 60  # seconds
+    DISTRIBUTION_INTERVAL = 60        # seconds
     DISBURSEMENT_INTERVAL = 24 * 365  # only distribute tokens to the same address once each YEAR.
-    STAGING_DELAY = 10        # seconds
+    STAGING_DELAY = 10                # seconds
 
     # Disbursement
-    BATCH_SIZE = 10                 # transactions
-    MULTIPLIER = Decimal('0.9')     # 10% reduction of previous disbursement is 0.9
-                                    # this is not relevant until the year of time declared above, passes.
+    BATCH_SIZE = 10                      # transactions
+    MULTIPLIER = Decimal('0.9')          # 10% reduction of previous disbursement is 0.9
+                                         # this is not relevant until the year of time declared above, passes.
     MINIMUM_DISBURSEMENT = int(1e18)     # NuNits (1 NU)
     ETHER_AIRDROP_AMOUNT = int(1e17)     # Wei (.1 ether)
+    MAX_INDIVIDUAL_REGISTRATIONS = 3     # Registration Limit
 
     # Node Discovery
     LEARNING_TIMEOUT = 30           # seconds
@@ -99,8 +98,7 @@ class Felix(Character, NucypherTokenActor):
         self.db_engine = create_engine(f'sqlite:///{self.db_filepath}', convert_unicode=True)
 
         # Blockchain
-        transacting_power = TransactingPower(password=client_password,
-                                             account=self.checksum_address)
+        transacting_power = TransactingPower(password=client_password, account=self.checksum_address, cache=True)
         self._crypto_power.consume_power_up(transacting_power)
 
         self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
@@ -158,7 +156,7 @@ class Felix(Character, NucypherTokenActor):
             __tablename__ = 'recipient'
 
             id = self.db.Column(self.db.Integer, primary_key=True)
-            address = self.db.Column(self.db.String, unique=True, nullable=False)
+            address = self.db.Column(self.db.String, nullable=False)
             joined = self.db.Column(self.db.DateTime, nullable=False, default=datetime.utcnow)
             total_received = self.db.Column(self.db.String, default='0', nullable=False)
             last_disbursement_amount = self.db.Column(self.db.String, nullable=False, default=0)
@@ -229,10 +227,10 @@ class Felix(Character, NucypherTokenActor):
                 with ThreadedSession(self.db_engine) as session:
 
                     existing = Recipient.query.filter_by(address=new_address).all()
-                    if existing:
+                    if len(existing) > self.MAX_INDIVIDUAL_REGISTRATIONS:
                         # Address already exists; Abort
-                        self.log.debug(f"{new_address} is already enrolled.")
-                        return Response(response="That address is already enrolled.", status=409)
+                        self.log.debug(f"{new_address} is already enrolled {self.MAX_INDIVIDUAL_REGISTRATIONS} times.")
+                        return Response(response=f"{new_address} requested too many times  -  Please use another address.", status=409)
 
                     # Create the record
                     recipient = Recipient(address=new_address, joined=datetime.now())
@@ -311,6 +309,10 @@ class Felix(Character, NucypherTokenActor):
 
     def __transfer(self, disbursement: int, recipient_address: str) -> str:
         """Perform a single token transfer transaction from one account to another."""
+
+        # Re-unlock from cache
+        self.blockchain.transacting_power.activate()
+
         self.__disbursement += 1
         receipt = self.token_agent.transfer(amount=disbursement,
                                             target_address=recipient_address,

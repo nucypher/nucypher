@@ -62,6 +62,7 @@ def test_run_felix(click_runner,
     # Test subproc (Click)
     envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
                'NUCYPHER_FELIX_DB_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
+               'NUCYPHER_WORKER_ETH_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD,
                'FLASK_DEBUG': '1'}
 
     # Felix creates a system configuration
