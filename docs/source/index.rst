@@ -145,6 +145,7 @@ Whitepapers
    architecture/character
    architecture/contracts
    architecture/upgradeable_proxy_contracts
+   architecture/sub_stakes
    architecture/slashing
 
 .. toctree::

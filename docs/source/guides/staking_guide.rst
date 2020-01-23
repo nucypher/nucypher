@@ -318,6 +318,7 @@ Divide
 ******
 
 To divide an existing stake into discrete substakes:
+(for detailed information on sub-stakes see :ref:`sub-stakes`)
 
 .. code:: bash
 
