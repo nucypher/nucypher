@@ -1,6 +1,7 @@
 - name: "Update Running Ursula"
   hosts: "{{ nucypher_hosts | default('cassandra') }}"
   remote_user: "{{default_user}}"
+  gather_facts: no
   tasks:
     - name: Stop Ursula
       become: yes

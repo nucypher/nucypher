@@ -2,6 +2,7 @@
   hosts: "{{ nucypher_hosts | default('cassandra') }}"
   remote_user: "{{default_user}}"
   become: yes
+  gather_facts: no
   tasks:
     - name: Install aptitude using apt
       apt: name=aptitude state=latest update_cache=yes force_apt_get=yes
