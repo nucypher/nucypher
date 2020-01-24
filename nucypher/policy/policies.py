@@ -282,7 +282,7 @@ class Policy(ABC):
             if response.status_code == 202:
                 # TODO: #341 - Handle response wherein node already had a copy of this TreasureMap.
                 responses[node] = response
-                self.log.debug(f"{self.treasure_map} succesfully pushed to {node}")
+                self.log.debug(f"{self.treasure_map} successfully pushed to {node}")
 
             else:
                 # TODO: Do something useful here.
