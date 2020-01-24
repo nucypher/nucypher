@@ -202,7 +202,8 @@ class AliceCharacterOptions:
                     message = f"--json-ipc implies the {NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD} envvar must be set."
                     click.BadOptionUsage(option_name='--json-ipc', message=message)
             else:
-                client_password = get_client_password(checksum_address=config.checksum_address)
+                client_password = get_client_password(checksum_address=config.checksum_address,
+                                                      envvar=NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD)
 
         try:
             ALICE = actions.make_cli_character(character_config=config,
