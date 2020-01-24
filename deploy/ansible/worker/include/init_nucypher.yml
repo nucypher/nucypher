@@ -14,7 +14,7 @@
       become: yes
       become_user: nucypher
       copy:
-        src: "{{GETH_ACCOUNT}}"
+        src: "{{WORKER_ACCT_KEYSTORE_PATH}}"
         dest: "{{geth_dir}}/keystore"
         owner: nucypher
 
