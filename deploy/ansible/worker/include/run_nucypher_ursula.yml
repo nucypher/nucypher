@@ -16,7 +16,6 @@
           - /home/nucypher:/root/.local/share/
         ports:
           - "9151:9151"
-          - "9555:9555"
         env:
           NUCYPHER_KEYRING_PASSWORD: "{{NUCYPHER_KEYRING_PASSWORD}}"
           NUCYPHER_WORKER_ETH_PASSWORD: "{{NUCYPHER_WORKER_ETH_PASSWORD}}"
