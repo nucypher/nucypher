@@ -51,7 +51,6 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.token import Stake
 from nucypher.cli import painting
 from nucypher.cli.types import IPV4_ADDRESS
-from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_KEYRING_PASSWORD
 from nucypher.config.node import CharacterConfiguration
 from nucypher.network.exceptions import NodeSeemsToBeDown

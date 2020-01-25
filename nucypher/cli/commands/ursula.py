@@ -158,6 +158,7 @@ class UrsulaConfigOptions:
 
         rest_host = self.rest_host
         if not rest_host:
+            #TODO: Something less centralized... :-(
             rest_host = actions.determine_external_ip_address(emitter, force=force)
 
         return UrsulaConfiguration.generate(password=get_nucypher_password(confirm=True),
@@ -197,8 +198,7 @@ group_config_options = group_options(
     geth=option_geth,
     provider_uri=option_provider_uri(),
     staker_address=click.option('--staker-address', help="Run on behalf of a specified staking account", type=EIP55_CHECKSUM_ADDRESS),
-    worker_address=click.option('--worker-address', help="Run the worker-ursula with a specified address",
-                  type=EIP55_CHECKSUM_ADDRESS),
+    worker_address=click.option('--worker-address', help="Run the worker-ursula with a specified address", type=EIP55_CHECKSUM_ADDRESS),
     federated_only=option_federated_only,
     rest_host=click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING),
     rest_port=click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT),
@@ -280,8 +280,7 @@ def init(general_config, config_options, force, config_root):
         config_root = general_config.config_root
 
     if not config_options.federated_only and not config_options.domains:  # TODO: Again, weird network/domains mapping. See UrsulaConfigOptions' constructor. #1580
-        raise click.BadOptionUsage(option_name="--network",
-                                   message=f"--network is required when creating an Ursula in decentralized mode.")
+        raise click.BadOptionUsage(option_name="--network", message=f"--network is required when creating an Ursula in decentralized mode.")
     ursula_config = config_options.generate_config(emitter, config_root, force)
     painting.paint_new_installation_help(emitter, new_configuration=ursula_config)
 
