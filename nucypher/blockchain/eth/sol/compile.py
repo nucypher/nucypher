@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import collections
 import os
 import re
-from typing import List, Set, Tuple
+from typing import List, Set
 
 import sys
 from twisted.logger import Logger
@@ -25,13 +25,6 @@ from os.path import abspath, dirname
 
 import itertools
 import shutil
-
-try:
-    from solc import install_solc, compile_files
-    from solc.exceptions import SolcError
-except ImportError:
-    # TODO: Issue #461 and #758 & PR #1480 - Include precompiled ABI; Do not use py-solc in standard installation
-    pass
 
 SourceDirs = collections.namedtuple('SourceDirs', ['root_source_dir',    # type: str
                                                    'other_source_dirs',  # type: Set[str]
@@ -41,17 +34,8 @@ SourceDirs.__new__.__defaults__ = (None,)
 
 class SolidityCompiler:
 
-    __default_compiler_version = 'v0.5.9'
     __default_contract_version = 'v0.0.0'
-    __default_configuration_path = os.path.join(dirname(abspath(__file__)), './compiler.json')
-
-    __default_sol_binary_path = shutil.which('solc')
-    if __default_sol_binary_path is None:
-        __bin_path = os.path.dirname(sys.executable)          # type: str
-        __default_sol_binary_path = os.path.join(__bin_path, 'solc')  # type: str
-
     __default_contract_dir = os.path.join(dirname(abspath(__file__)), 'source')
-    __default_chain_name = 'tester'
 
     __compiled_contracts_dir = 'contracts'
     __zeppelin_library_dir = 'zeppelin'
@@ -67,33 +51,22 @@ class SolidityCompiler:
 
     def __init__(self,
                  solc_binary_path: str = None,
-                 configuration_path: str = None,
-                 chain_name: str = None,
                  source_dirs: List[SourceDirs] = None
                  ) -> None:
         
         self.log = Logger('solidity-compiler')
         # Compiler binary and root solidity source code directory
-        self.__sol_binary_path = solc_binary_path if solc_binary_path is not None else self.__default_sol_binary_path
+        self.__sol_binary_path = solc_binary_path
+        if self.__sol_binary_path is None:
+            self.__sol_binary_path = shutil.which('solc')
+        if self.__sol_binary_path is None:
+            bin_path = os.path.dirname(sys.executable)  # type: str
+            self.__sol_binary_path = os.path.join(bin_path, 'solc')  # type: str
+
         if source_dirs is None or len(source_dirs) == 0:
             self.source_dirs = [SourceDirs(root_source_dir=self.__default_contract_dir)]
         else:
             self.source_dirs = source_dirs
-
-        # JSON config
-        self.__configuration_path = configuration_path if configuration_path is not None else self.__default_configuration_path
-        self._chain_name = chain_name if chain_name is not None else self.__default_chain_name
-
-        # Set the local env's solidity compiler binary
-        os.environ['SOLC_BINARY'] = self.__sol_binary_path
-
-    def install_compiler(self, version: str=None):
-        """
-        Installs the specified solidity compiler version.
-        https://github.com/ethereum/py-solc#installing-the-solc-binary
-        """
-        version = version if version is not None else self.__default_compiler_version
-        return install_solc(version, platform=None)  # TODO: #1478 - Implement or remove this
 
     def compile(self) -> dict:
         interfaces = dict()
@@ -162,6 +135,8 @@ class SolidityCompiler:
         self.log.info("Compiling with import remappings {}".format(", ".join(remappings)))
 
         optimization_runs = self.optimization_runs
+        from solc import compile_files
+        from solc.exceptions import SolcError
         try:
             compiled_sol = compile_files(source_files=source_paths,
                                          import_remappings=remappings,
