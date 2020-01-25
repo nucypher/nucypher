@@ -15,7 +15,7 @@ from nucypher.cli.actions import SUCCESSFUL_DESTRUCTION
 
 @mock.patch('nucypher.config.characters.AliceConfiguration.default_filepath', return_value='/non/existent/file')
 def test_missing_configuration_file(default_filepath_mock, click_runner):
-    cmd_args = ('alice', 'run')
+    cmd_args = ('alice', 'run', '--network', TEMPORARY_DOMAIN)
     result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
     assert result.exit_code != 0
     assert default_filepath_mock.called
@@ -61,7 +61,7 @@ def test_alice_control_starts_with_mocked_keyring(click_runner, mocker, monkeypa
     mocker.patch.object(AliceConfiguration, "attach_keyring", return_value=None)
     good_enough_config = AliceConfiguration(dev_mode=True, federated_only=True, keyring=MockKeyring)
     mocker.patch.object(AliceConfiguration, "from_configuration_file", return_value=good_enough_config)
-    init_args = ('alice', 'run', '-x')
+    init_args = ('alice', 'run', '-x', '--network', TEMPORARY_DOMAIN)
 
     user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input)
@@ -147,10 +147,10 @@ def test_alice_public_keys(click_runner):
     assert "alice_verifying_key" in result.output
 
 
-def test_alice_view_with_preexisting_configuration(click_runner, custom_filepath):
+def test_alice_view_preexisting_configuration(click_runner, custom_filepath):
     custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.generate_filename())
 
-    view_args = ('alice', 'view',
+    view_args = ('alice', 'config',
                  '--config-file', custom_config_filepath)
 
     user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
@@ -163,8 +163,8 @@ def test_alice_view_with_preexisting_configuration(click_runner, custom_filepath
     assert custom_filepath in result.output
 
 
-# Should be the last test since it deletes the configuration file
 def test_alice_destroy(click_runner, custom_filepath):
+    """Should be the last test since it deletes the configuration file"""
     custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.generate_filename())
     destroy_args = ('alice', 'destroy',
                     '--config-file', custom_config_filepath,

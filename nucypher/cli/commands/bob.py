@@ -74,10 +74,10 @@ class BobConfigOptions:
                     character_config_class=BobConfiguration,
                     config_file=config_file)
 
-    def generate_config(self, emitter, config_root, federated_only):
+    def generate_config(self, emitter, config_root):
 
         checksum_address = self.checksum_address
-        if not checksum_address and not federated_only:
+        if not checksum_address and not self.federated_only:
             checksum_address = select_client_account(emitter=emitter,
                                                      provider_uri=self.provider_uri,
                                                      show_balances=False)
@@ -87,7 +87,7 @@ class BobConfigOptions:
             config_root=config_root,
             checksum_address=checksum_address,
             domains=self.domains,
-            federated_only=federated_only,
+            federated_only=self.federated_only,
             registry_filepath=self.registry_filepath,
             provider_uri=self.provider_uri)
 

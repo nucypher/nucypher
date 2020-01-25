@@ -48,7 +48,7 @@ def test_initialize_bob_with_custom_configuration_root(custom_filepath, click_ru
 
     user_input = '{password}\n{password}'.format(password=INSECURE_DEVELOPMENT_PASSWORD, ip=MOCK_IP_ADDRESS)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.exception
 
     # CLI Output
     assert MOCK_CUSTOM_INSTALLATION_PATH in result.output, "Configuration not in system temporary directory"
@@ -77,7 +77,7 @@ def test_bob_control_starts_with_preexisting_configuration(click_runner, custom_
 
     user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.exception
     assert "Bob Verifying Key" in result.output
     assert "Bob Encrypting Key" in result.output
 
@@ -85,13 +85,13 @@ def test_bob_control_starts_with_preexisting_configuration(click_runner, custom_
 def test_bob_view_with_preexisting_configuration(click_runner, custom_filepath):
     custom_config_filepath = os.path.join(custom_filepath, BobConfiguration.generate_filename())
 
-    view_args = ('bob', 'view',
+    view_args = ('bob', 'config',
                  '--config-file', custom_config_filepath)
 
     user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
     result = click_runner.invoke(nucypher_cli, view_args, input=user_input)
 
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.exception
     assert "checksum_address" in result.output
     assert "domains" in result.output
     assert TEMPORARY_DOMAIN in result.output
@@ -116,7 +116,7 @@ def test_bob_destroy(click_runner, custom_filepath):
                     '--force')
 
     result = click_runner.invoke(nucypher_cli, destroy_args, catch_exceptions=False)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.exception
     assert SUCCESSFUL_DESTRUCTION in result.output
     assert not os.path.exists(custom_config_filepath), "Bob config file was deleted"
 

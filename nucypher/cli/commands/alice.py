@@ -22,7 +22,7 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.characters.control.interfaces import AliceInterface
-from nucypher.cli import actions, painting, types
+from nucypher.cli import actions, painting
 from nucypher.cli.actions import get_nucypher_password, select_client_account, get_client_password, \
     get_or_update_configuration
 from nucypher.cli.config import group_general_config
@@ -136,7 +136,8 @@ class AliceConfigOptions:
             except FileNotFoundError:
                 return actions.handle_missing_configuration_file(
                     character_config_class=AliceConfiguration,
-                    config_file=config_file)
+                    config_file=config_file
+                )
 
     def generate_config(self, emitter, config_root):
 
@@ -311,18 +312,17 @@ def destroy(general_config, config_options, config_file, force):
 
 
 @alice.command()
-@group_character_options
 @option_config_file
 @option_controller_port(default=AliceConfiguration.DEFAULT_CONTROLLER_PORT)
 @option_dry_run
 @group_general_config
+@group_character_options
 def run(general_config, character_options, config_file, controller_port, dry_run):
     """
-    Start Alice's controller.
+    Start Alice's web controller.
     """
     emitter = _setup_emitter(general_config)
-    ALICE = character_options.create_character(
-        emitter, config_file, general_config.json_ipc)
+    ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
 
     try:
         # RPC
@@ -382,12 +382,13 @@ def derive_policy_pubkey(general_config, label, character_options, config_file):
 @group_character_options
 @option_config_file
 @group_general_config
+@group_character_options
 def grant(general_config,
           # Other (required)
-          bob_encrypting_key, bob_verifying_key, label,
+          bob_encrypting_key, bob_verifying_key, label, value, rate,
 
           # Other
-          m, n, expiration, value, rate,
+          expiration,
 
           # API Options
           character_options, config_file
@@ -395,6 +396,7 @@ def grant(general_config,
     """
     Create and enact an access policy for some Bob.
     """
+    config_options = character_options.config_options
     emitter = _setup_emitter(general_config)
 
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
@@ -412,8 +414,8 @@ def grant(general_config,
         'bob_encrypting_key': bob_encrypting_key,
         'bob_verifying_key': bob_verifying_key,
         'label': label,
-        'm': m,
-        'n': n,
+        'm': config_options.m,
+        'n': config_options.n,
         'expiration': expiration,
     }
     if not ALICE.federated_only:
