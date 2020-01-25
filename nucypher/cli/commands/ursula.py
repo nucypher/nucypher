@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 import json
+from json import JSONDecodeError
 
 import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
@@ -28,8 +29,8 @@ from nucypher.cli import actions, painting
 from nucypher.cli.actions import (
     get_nucypher_password,
     select_client_account,
-    get_client_password
-)
+    get_client_password,
+    get_or_update_configuration)
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -173,6 +174,22 @@ class UrsulaConfigOptions:
                                             provider_uri=self.provider_uri,
                                             poa=self.poa,
                                             light=self.light)
+
+    def get_updates(self) -> dict:
+        payload = dict(rest_host=self.rest_host,
+                       rest_port=self.rest_port,
+                       db_filepath=self.db_filepath,
+                       domains=self.domains,
+                       federated_only=self.federated_only,
+                       checksum_address=self.staker_address,
+                       worker_address=self.worker_address,
+                       registry_filepath=self.registry_filepath,
+                       provider_uri=self.provider_uri,
+                       poa=self.poa,
+                       light=self.light)
+        # Depends on defaults being set on Configuration classes, filtrates None values
+        updates = {k: v for k, v in payload.items() if v is not None}
+        return updates
 
 
 group_config_options = group_options(
@@ -384,18 +401,17 @@ def save_metadata(general_config, character_options, config_file):
 @group_config_options
 @option_config_file
 @group_general_config
-def view(general_config, config_options, config_file):
+def config(general_config, config_options, config_file):
     """
     View the Ursula node's configuration.
     """
     emitter = _setup_emitter(general_config, config_options.worker_address)
-    _pre_launch_warnings(emitter, dev=config_options.dev, force=None)
-    ursula_config = config_options.create_config(emitter, config_file)
-
-    filepath = config_file or ursula_config.config_file_location
+    filepath = config_file or UrsulaConfiguration.default_filepath()
     emitter.echo(f"Ursula Configuration {filepath} \n {'='*55}")
-    response = UrsulaConfiguration._read_configuration_file(filepath=filepath)
-    return emitter.echo(json.dumps(response, indent=4))
+    return get_or_update_configuration(emitter=emitter,
+                                       config_class=UrsulaConfiguration,
+                                       filepath=filepath,
+                                       config_options=config_options)
 
 
 @ursula.command(name='confirm-activity')

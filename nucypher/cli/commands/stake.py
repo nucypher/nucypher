@@ -18,11 +18,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 from web3 import Web3
 
+from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
 from nucypher.blockchain.eth.token import NU, StakeList
 from nucypher.blockchain.eth.utils import datetime_at_period
-from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.cli import painting, actions
 from nucypher.cli.actions import (
     confirm_staged_stake,
@@ -31,8 +31,9 @@ from nucypher.cli.actions import (
     handle_client_account_for_staking,
     confirm_enable_restaking_lock,
     confirm_enable_restaking,
-    confirm_enable_winding_down
-)
+    confirm_enable_winding_down,
+    get_or_update_configuration)
+from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
     option_config_file,
@@ -45,15 +46,13 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_registry_filepath,
     option_staking_address,
-    )
-from nucypher.cli.config import group_general_config
+)
 from nucypher.cli.painting import paint_receipt_summary
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE
 )
 from nucypher.config.characters import StakeHolderConfiguration
-
 
 option_value = click.option('--value', help="Token value of stake", type=click.INT)
 option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
@@ -119,6 +118,16 @@ class StakeHolderConfigOptions:
             registry_filepath=self.registry_filepath,
             domains={self.network}  # TODO: #1580
         )
+
+    def get_updates(self) -> dict:
+        payload = dict(provider_uri=self.provider_uri,
+                       poa=self.poa,
+                       light=self.light,
+                       registry_filepath=self.registry_filepath,
+                       domains={self.network} if self.network else None)  # TODO: #1580
+        # Depends on defaults being set on Configuration classes, filtrates None values
+        updates = {k: v for k, v in payload.items() if v is not None}
+        return updates
 
 
 group_config_options = group_options(
@@ -251,6 +260,23 @@ def init_stakeholder(general_config, config_root, force, config_options):
     new_stakeholder = config_options.generate_config(config_root)
     filepath = new_stakeholder.to_configuration_file(override=force)
     emitter.echo(f"Wrote new stakeholder configuration to {filepath}", color='green')
+
+
+@stake.command()
+@option_config_file
+@group_general_config
+@group_config_options
+def config(general_config, config_file, config_options):
+    """
+    View existing StakeHolder's configuration.
+    """
+    emitter = _setup_emitter(general_config)
+    configuration_file_location = config_file or StakeHolderConfiguration.default_filepath()
+    emitter.echo(f"StakeHolder Configuration {configuration_file_location} \n {'='*55}")
+    return get_or_update_configuration(emitter=emitter,
+                                       config_class=StakeHolderConfiguration,
+                                       filepath=configuration_file_location,
+                                       config_options=config_options)
 
 
 @stake.command('list')
