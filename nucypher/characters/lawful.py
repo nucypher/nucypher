@@ -265,7 +265,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                 self.remember_node(node=handpicked_ursula)
 
         policy = self.create_policy(bob=bob, label=label, **policy_params)
-        self.log.debug(f"Succesfully created {policy} ... ")
+        self.log.debug(f"Successfully created {policy} ... ")
 
         #
         # We'll find n Ursulas by default.  It's possible to "play the field" by trying different

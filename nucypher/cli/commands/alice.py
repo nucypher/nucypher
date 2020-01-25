@@ -202,7 +202,8 @@ class AliceCharacterOptions:
                     message = f"--json-ipc implies the {NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD} envvar must be set."
                     click.BadOptionUsage(option_name='--json-ipc', message=message)
             else:
-                client_password = get_client_password(checksum_address=config.checksum_address)
+                client_password = get_client_password(checksum_address=config.checksum_address,
+                                                      envvar=NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD)
 
         try:
             ALICE = actions.make_cli_character(character_config=config,
@@ -386,6 +387,14 @@ def grant(general_config,
     emitter = _setup_emitter(general_config)
 
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
+
+    # Input validation
+    if ALICE.federated_only:
+        if any((value, rate)):
+            raise click.BadOptionUsage(option_name="--value, --rate",
+                                       message="Can't use --value or --rate with a federated Alice.")
+    elif not (bool(value) ^ bool(rate)):
+        raise click.BadOptionUsage(option_name="--rate", message="Can't use --value if using --rate")
 
     # Request
     grant_request = {
