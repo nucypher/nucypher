@@ -31,16 +31,9 @@ from nucypher.utilities.sandbox.constants import STAKING_ESCROW_DEPLOYMENT_SECRE
 def worklock_deployer(staking_escrow_deployer,
                       policy_manager_deployer,
                       adjudicator_deployer,
-                      staking_interface_deployer,
                       testerchain,
                       test_registry,
                       token_economics):
-
-    # Set the stage
-    adjudicator_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
-    staking_interface_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
-
-    # Now the worklock itself
     worklock_deployer = WorklockDeployer(registry=test_registry,
                                          economics=token_economics,
                                          deployer_address=testerchain.etherbase_account)

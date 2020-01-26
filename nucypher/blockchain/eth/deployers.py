@@ -1083,14 +1083,8 @@ class WorklockDeployer(BaseContractDeployer):
         super().__init__(*args, **kwargs)
         self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
-        self.interface_agent = ContractAgency.get_agent(PreallocationEscrowAgent.StakingInterfaceAgent,
-                                                        registry=self.registry)
 
-    def _deploy_essential(self, gas_limit: int = None, **overrides):
-
-        interface_router = self.blockchain.get_proxy_contract(registry=self.registry,
-                                                              target_address=self.interface_agent.contract_address,
-                                                              proxy_name=self.interface_agent._proxy_name)
+    def _deploy_essential(self, gas_limit: int = None):
         # Deploy
         constructor_args = (self.token_agent.contract_address,
                             self.staking_agent.contract_address,
