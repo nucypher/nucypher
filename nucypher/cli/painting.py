@@ -451,12 +451,10 @@ See https://docs.nucypher.com/en/latest/guides/staking_guide.html'''
 def paint_stakes(emitter, stakeholder, paint_inactive: bool = False):
     headers = ('Idx', 'Value', 'Remaining', 'Enactment')
     staker_headers = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees')
-    non_staking_accounts = list()
     stakers = stakeholder.get_stakers()
     for staker in stakers:
         if not staker.stakes:
-            # non_staking_accounts.append(staker.checksum_address)
-            continue
+            continue  # TODO: Something with non-staking accounts?
 
         stakes = sorted(staker.stakes, key=lambda s: s.address_index_ordering_key)
         active_stakes = filter(lambda s: s.is_active, stakes)
@@ -468,7 +466,7 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False):
         last_confirmed = staker.staking_agent.get_last_active_period(staker.checksum_address)
         missing = staker.staking_agent.get_missing_confirmations(staker_address=staker.checksum_address)
 
-        staker_data = [f'{missing} confirmations' if missing else f'Confirmed #{last_confirmed}',
+        staker_data = [f'Missing {missing} confirmation{"s" if missing > 1 else ""}' if missing else f'Confirmed #{last_confirmed}',
                        f'{"Yes" if staker.is_restaking else "No"} ({"Locked" if staker.restaking_lock_enabled else "Unlocked"})',
                        "Yes" if bool(staker.is_winding_down) else "No",
                        gwei_fees]
@@ -509,7 +507,9 @@ Staking address: {staking_address}
                        division_message=division_message)
 
 
-def paint_accounts(emitter, balances):
+def paint_accounts(emitter, balances, registry):
+    from nucypher.blockchain.eth.actors import Staker
+
     rows = list()
     max_eth_len, max_nu_len = 0, 0
     for address, balances in sorted(balances.items()):
@@ -519,13 +519,12 @@ def paint_accounts(emitter, balances):
         max_eth_len = max(max_eth_len, len(eth))
         max_nu_len = max(max_nu_len, len(nu))
 
-        rows.append((address, eth, nu))
-
-    header = f'| Account  ------------------------------- | Balances ------------------' \
-             f'\n========================================================================'
-    emitter.echo(header)
-    for address, eth, nu in rows:
-        emitter.echo(f"{address} | {eth:{max_eth_len}} | {nu:{max_nu_len}}")
+        staker = Staker(is_me=True, checksum_address=address, registry=registry)
+        staker.stakes.refresh()
+        is_staking = 'Yes' if bool(staker.stakes) else 'No'
+        rows.append((is_staking, address, eth, nu))
+    headers = ('Staking', 'Account', 'ETH', 'NU')
+    emitter.echo(tabulate.tabulate(rows, headers=headers, tablefmt="fancy_grid"))
 
 
 def paint_receipt_summary(emitter, receipt, chain_name: str = None, transaction_type=None, provider_uri: str = None):
