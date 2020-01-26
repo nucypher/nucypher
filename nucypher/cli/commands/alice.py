@@ -286,7 +286,7 @@ def init(general_config, config_options, config_root):
 @group_config_options
 def config(general_config, config_file, config_options):
     """
-    View existing Alice's configuration.
+    View and optionally update existing Alice's configuration.
     """
     emitter = _setup_emitter(general_config)
     configuration_file_location = config_file or AliceConfiguration.default_filepath()

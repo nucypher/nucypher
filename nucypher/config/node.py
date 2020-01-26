@@ -224,7 +224,7 @@ class CharacterConfiguration(BaseConfiguration):
     def __call__(self, **character_kwargs):
         return self.produce(**character_kwargs)
 
-    def update(self, *args, **kwargs) -> None:
+    def update(self, **kwargs) -> None:
         """
         A facility for updating existing attributes on existing configuration instances.
 

@@ -268,7 +268,7 @@ def init_stakeholder(general_config, config_root, force, config_options):
 @group_config_options
 def config(general_config, config_file, config_options):
     """
-    View existing StakeHolder's configuration.
+    View and optionally update existing StakeHolder's configuration.
     """
     emitter = _setup_emitter(general_config)
     configuration_file_location = config_file or StakeHolderConfiguration.default_filepath()

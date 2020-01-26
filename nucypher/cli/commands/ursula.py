@@ -406,7 +406,7 @@ def save_metadata(general_config, character_options, config_file):
 @group_general_config
 def config(general_config, config_options, config_file):
     """
-    View the Ursula node's configuration.
+    View and optionally update the Ursula node's configuration.
     """
     emitter = _setup_emitter(general_config, config_options.worker_address)
     filepath = config_file or UrsulaConfiguration.default_filepath()

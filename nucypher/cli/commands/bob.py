@@ -203,7 +203,7 @@ def run(general_config, character_options, config_file, controller_port, dry_run
 @group_general_config
 def config(general_config, config_options, config_file):
     """
-    View existing Bob's configuration.
+    View and optionally update existing Bob's configuration.
     """
     emitter = _setup_emitter(general_config)
     bob_config = config_options.create_config(emitter, config_file)
