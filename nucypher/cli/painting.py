@@ -22,6 +22,7 @@ from typing import List
 
 import click
 import maya
+import tabulate
 import time
 from constant_sorrow.constants import NO_KNOWN_NODES
 from web3 import Web3
@@ -38,12 +39,12 @@ from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME, STAK
 from nucypher.blockchain.eth.deployers import DispatcherDeployer, StakingInterfaceRouterDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import datetime_at_period, etherscan_url
 from nucypher.characters.banners import NUCYPHER_BANNER, NU_BANNER
 from nucypher.config.constants import SEEDNODES
 from nucypher.network.nicknames import nickname_from_seed
-from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
 
 
 def echo_version(ctx, param, value):
@@ -447,56 +448,41 @@ See https://docs.nucypher.com/en/latest/guides/staking_guide.html'''
     emitter.echo(next_steps, color='green')
 
 
-def prettify_stake(stake, index: int = None) -> str:
-    start_datetime = stake.start_datetime.local_datetime().strftime("%b %d %H:%M %Z")
-    expiration_datetime = stake.unlock_datetime.local_datetime().strftime("%b %d %H:%M %Z")
-    duration = stake.duration
+def paint_stakes(emitter, stakeholder, paint_inactive: bool = False):
+    headers = ('Idx', 'Value', 'Remaining', 'Enactment')
+    staker_headers = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees')
+    non_staking_accounts = list()
+    stakers = stakeholder.get_stakers()
+    for staker in stakers:
+        if not staker.stakes:
+            # non_staking_accounts.append(staker.checksum_address)
+            continue
 
-    pretty_periods = f'{duration} periods {"." if len(str(duration)) == 2 else ""}'
+        stakes = sorted(staker.stakes, key=lambda s: s.address_index_ordering_key)
+        active_stakes = filter(lambda s: s.is_active, stakes)
+        if not active_stakes:
+            emitter.echo(f"There are no active stakes\n")
 
-    pretty = f'| {index if index is not None else "-"} ' \
-             f'| {stake.staker_address[:6]} ' \
-             f'| {stake.worker_address[:6]} ' \
-             f'| {stake.index} ' \
-             f'| {str(stake.value)} ' \
-             f'| {pretty_periods} ' \
-             f'| {start_datetime} - {expiration_datetime} ' \
+        fees = staker.policy_agent.get_reward_amount(staker.checksum_address)
+        gwei_fees = f"{Web3.fromWei(fees, 'gwei')} Gwei"
+        last_confirmed = staker.staking_agent.get_last_active_period(staker.checksum_address)
+        missing = staker.staking_agent.get_missing_confirmations(staker_address=staker.checksum_address)
 
-    return pretty
+        staker_data = [f'{missing} confirmations' if missing else f'Confirmed #{last_confirmed}',
+                       f'{"Yes" if staker.is_restaking else "No"} ({"Locked" if staker.restaking_lock_enabled else "Unlocked"})',
+                       "Yes" if bool(staker.is_winding_down) else "No",
+                       gwei_fees]
 
+        emitter.echo(f"\nStaker {staker.checksum_address} ════", bold=True, color='red' if missing else 'green')
+        emitter.echo(f"Worker {staker.worker_address} ════")
+        emitter.echo(tabulate.tabulate(zip(staker_headers, staker_data), floatfmt="fancy_grid"))
 
-def paint_stakes(emitter, stakes, paint_inactive: bool = False):
-    header = f'| ~ | Staker | Worker | # | Value    | Duration     | Enactment          '
-    breaky = f'|   | ------ | ------ | - | -------- | ------------ | ----------------------------------------- '
-
-    active_stakes = sorted((stake for stake in stakes if stake.is_active),
-                           key=lambda some_stake: some_stake.address_index_ordering_key)
-    if active_stakes:
-        title = "======================================= Active Stakes =========================================\n"
-        emitter.echo(title)
-        emitter.echo(header, bold=True)
-        emitter.echo(breaky, bold=True)
-
-        for index, stake in enumerate(active_stakes):
-            row = prettify_stake(stake=stake, index=index)
-            row_color = 'yellow' if stake.worker_address == BlockchainInterface.NULL_ADDRESS else 'white'
-            emitter.echo(row, color=row_color)
-        emitter.echo('')  # newline
-
-    if paint_inactive:
-        title = "\n====================================== Inactive Stakes ========================================\n"
-        emitter.echo(title)
-        emitter.echo(header, bold=True)
-        emitter.echo(breaky, bold=True)
-
-        for stake in sorted([s for s in stakes if s not in active_stakes],  # TODO: Code optimization here..?
-                            key=lambda some_stake: some_stake.address_index_ordering_key):
-            row = prettify_stake(stake=stake, index=None)
-            emitter.echo(row, color='red')
-
-        emitter.echo('')  # newline
-    elif not active_stakes:
-        emitter.echo(f"There are no active stakes\n")
+        rows = list()
+        for index, stake in enumerate(stakes):
+            if not stake.is_active and not paint_inactive:
+                continue
+            rows.append(list(stake.describe().values()))
+        emitter.echo(tabulate.tabulate(rows, headers=headers, tablefmt="fancy_grid"))  # newline
 
 
 def paint_staged_stake_division(emitter,

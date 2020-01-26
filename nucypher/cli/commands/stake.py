@@ -264,7 +264,7 @@ def list_stakes(general_config, staker_options, config_file, all):
     """
     emitter = _setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
-    painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER.all_stakes, paint_inactive=all)
+    painting.paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER, paint_inactive=all)
 
 
 @stake.command()
@@ -657,7 +657,7 @@ def divide(general_config, transacting_staker_options, config_file, force, value
                           chain_name=blockchain.client.chain_name)
 
     # Show the resulting stake list
-    painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER.stakes)
+    painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER)
 
 
 @stake.command()
@@ -721,7 +721,7 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
     # Report
     emitter.echo('Successfully Prolonged Stake', color='green', verbosity=1)
     paint_receipt_summary(emitter=emitter, receipt=receipt, chain_name=blockchain.client.chain_name)
-    painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER.stakes)
+    painting.paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER)
     return  # Exit
 
 

@@ -375,7 +375,7 @@ def select_stake(stakeholder, emitter, divisible: bool = False) -> Stake:
             emitter.echo(f"No divisible stakes found.", color='red')
             raise click.Abort
     enumerated_stakes = dict(enumerate(stakes))
-    painting.paint_stakes(stakes=stakes, emitter=emitter)
+    painting.paint_stakes(stakeholder=stakeholder, emitter=emitter)
     choice = click.prompt("Select Stake", type=click.IntRange(min=0, max=len(enumerated_stakes)-1))
     chosen_stake = enumerated_stakes[choice]
     return chosen_stake

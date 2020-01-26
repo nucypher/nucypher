@@ -1485,6 +1485,14 @@ class StakeHolder(Staker):
             stakes.extend(more_stakes)
         return stakes
 
+    def get_stakers(self) -> List[Staker]:
+        stakers = list()
+        for account in self.wallet.accounts:
+            staker = Staker(is_me=True, checksum_address=account, registry=self.registry)
+            staker.stakes.refresh()
+            stakers.append(staker)
+        return stakers
+
     @property
     def total_stake(self) -> NU:
         """
