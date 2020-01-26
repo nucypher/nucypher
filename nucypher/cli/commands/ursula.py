@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 import json
+import os
 from json import JSONDecodeError
 
 import click
@@ -53,7 +54,7 @@ from nucypher.cli.options import (
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
+from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
@@ -158,8 +159,11 @@ class UrsulaConfigOptions:
 
         rest_host = self.rest_host
         if not rest_host:
-            #TODO: Something less centralized... :-(
-            rest_host = actions.determine_external_ip_address(emitter, force=force)
+            rest_host = os.environ.get(NUCYPHER_ENVVAR_WORKER_IP_ADDRESS)
+            if not rest_host:
+                # TODO: Something less centralized... :-(
+                # TODO: Ask Ursulas instead
+                rest_host = actions.determine_external_ip_address(emitter, force=force)
 
         return UrsulaConfiguration.generate(password=get_nucypher_password(confirm=True),
                                             config_root=config_root,
