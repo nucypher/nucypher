@@ -962,48 +962,54 @@ class WorkLockAgent(EthereumContractAgent):
     # Transactions
     #
 
-    def bid(self, value: int, bidder_address: str) -> dict:
+    @validate_checksum_address
+    def bid(self, value: int, checksum_address: str) -> dict:
         """Bid for NU tokens with ETH."""
         contract_function = self.contract.functions.bid()
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=bidder_address,
+                                                   sender_address=checksum_address,
                                                    payload={'value': value})
         return receipt
 
-    def cancel_bid(self, bidder_address: str) -> dict:
+    @validate_checksum_address
+    def cancel_bid(self, checksum_address: str) -> dict:
         """Cancel bid and refund deposited ETH."""
         contract_function = self.contract.functions.cancelBid()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=bidder_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
         return receipt
 
-    def claim(self, bidder_address: str) -> dict:
+    @validate_checksum_address
+    def claim(self, checksum_address: str) -> dict:
         """
         Claim tokens - will be deposited and locked as stake in the StakingEscrow contract.
         """
         contract_function = self.contract.functions.claim()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=bidder_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
 
         return receipt
 
-    def burn_unclaimed(self, sender_address: str) -> dict:
+    @validate_checksum_address
+    def burn_unclaimed(self, checksum_address: str) -> dict:
         """
         Burn unclaimed tokens - Out of the goodness of your heart...
         of course the caller must pay for the transaction gas.
         """
         contract_function = self.contract.functions.burnUnclaimed()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
         return receipt
 
-    def refund(self, bidder_address: str) -> dict:
+    @validate_checksum_address
+    def refund(self, checksum_address: str) -> dict:
         """Refund ETH for completed work."""
         contract_function = self.contract.functions.refund()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=bidder_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
         return receipt
 
     #
     # Calls
     #
 
+    @validate_checksum_address
     def get_bid(self, checksum_address: str) -> int:
         current_bid = self.contract.functions.workInfo(checksum_address).call()[0]
         return current_bid
@@ -1017,9 +1023,10 @@ class WorkLockAgent(EthereumContractAgent):
         supply = self.contract.functions.tokenSupply().call()
         return supply
 
-    def get_remaining_work(self, bidder_address: str) -> int:
+    @validate_checksum_address
+    def get_remaining_work(self, checksum_address: str) -> int:
         """Get remaining work periods until full refund for the target address."""
-        result = self.contract.functions.getRemainingWork(bidder_address).call()
+        result = self.contract.functions.getRemainingWork(checksum_address).call()
         return result
 
     def get_eth_supply(self) -> int:
@@ -1043,6 +1050,16 @@ class WorkLockAgent(EthereumContractAgent):
     def get_unclaimed_tokens(self) -> int:
         tokens = self.contract.functions.unclaimedTokens().call()
         return tokens
+
+    @property
+    def start_date(self) -> int:
+        date = self.contract.functions.startBidDate().call()
+        return date
+
+    @property
+    def end_date(self) -> int:
+        date = self.contract.functions.endBidDate().call()
+        return date
 
     def worklock_parameters(self) -> Tuple:
         parameter_signatures = (

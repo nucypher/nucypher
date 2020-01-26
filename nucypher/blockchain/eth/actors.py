@@ -1379,21 +1379,32 @@ class StakeHolder(Staker):
 class Bidder(NucypherTokenActor):
     """WorkLock participant"""
 
+    class BidingIsClosed(RuntimeError):
+        pass
+
     def __init__(self, checksum_address: str, *args, **kwargs):
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
         self.worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=self.registry)
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
 
-    def place_bid(self, value: float) -> dict:
-        now = maya.now()
-        wei_bid = Web3.toWei(value, 'wei')
-        receipt = self.worklock_agent.bid(checksum_address=self.checksum_address, value=wei_bid)
+    def ensure_bidding_is_open(self):
+        now = maya.now().epoch
+        start = self.worklock_agent.start_date
+        end = self.worklock_agent.end_date
+        if now < start:
+            raise self.BiddingIsClosed(f'Bidding does not open until {maya.MayaDT(start).slang_date()}')
+        if now > end:
+            raise self.BiddingIsClosed(f'Bidding closed at {maya.MayaDT(end).slang_date()}')
+
+    #
+    # Transactions
+    #
+
+    def place_bid(self, value: int) -> dict:
+        # wei_bid = Web3.toWei(value, 'wei')  # TODO: Use this?
+        self.ensure_bidding_is_open()
+        receipt = self.worklock_agent.bid(checksum_address=self.checksum_address, value=value)
         return receipt
-
-    @property
-    def current_bid(self) -> float:
-        bid = self.worklock_agent.get_bid(checksum_address=self.checksum_address)
-        ether_bid = Web3.toWei(bid, 'ether')
-        return ether_bid
 
     def claim(self) -> dict:
         receipt = self.worklock_agent.claim(checksum_address=self.checksum_address)
@@ -1403,15 +1414,41 @@ class Bidder(NucypherTokenActor):
         receipt = self.worklock_agent.cancel_bid(checksum_address=self.checksum_address)
         return receipt
 
-    def available_refund(self, bidder_address: str) -> int:
-        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
-        total_completed_work = staking_agent.get_completed_work(bidder_address=bidder_address)
-        refunded_work = self.contract.functions.workInfo(bidder_address).call()[1]
-        completed_work = total_completed_work - refunded_work
-        refund_eth = self.contract.functions.workToETH(completed_work).call()
-        return refund_eth
-
     def refund_deposit(self):
         """Refund ethers for completed work"""
         receipt = self.worklock_agent.refund(checksum_address=self.checksum_address)
         return receipt
+
+    #
+    # Calls
+    #
+
+    @property
+    def current_bid(self, denomination: str = None) -> float:
+        bid = self.worklock_agent.get_bid(checksum_address=self.checksum_address)
+        ether_bid = Web3.toWei(bid, denomination or 'wei')
+        return ether_bid
+
+    @property
+    def completed_work(self) -> int:
+        work = self.staking_agent.get_completed_work(bidder_address=self.checksum_address)
+        completed_work = work - self.refunded_work
+        return completed_work
+
+    @property
+    def remaining_work(self) -> int:
+        try:
+            work = self.worklock_agent.get_remaining_work(checksum_address=self.checksum_address)
+        except (TransactionFailed, ValueError):
+            return 0
+        return work
+
+    @property
+    def refunded_work(self) -> int:
+        work = self.worklock_agent.contract.functions.workInfo(self.checksum_address).call()[1]
+        return work
+
+    @property
+    def available_refund(self) -> int:
+        refund_eth = self.worklock_agent.contract.functions.workToETH(self.completed_work).call()
+        return refund_eth

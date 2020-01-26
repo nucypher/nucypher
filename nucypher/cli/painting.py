@@ -768,22 +768,21 @@ Deposit Rate ...... {worklock_agent.get_deposit_rate()}
     return
 
 
-def paint_worklock_participant_status(emitter, registry, bidder_address):
-    WORKLOCK_AGENT = ContractAgency.get_agent(WorkLockAgent, registry=registry)
-
+def paint_bidder_status(emitter, bidder):
     message = f"""
-WorkLock Participant {bidder_address}
+WorkLock Participant {bidder.checksum_address}
 =====================================================
-Total Bid ............ {WORKLOCK_AGENT.get_bid(checksum_address=bidder_address)}
-Available Refund ..... {WORKLOCK_AGENT.available_refund(bidder_address=bidder_address)}
-Remaining Work ....... {WORKLOCK_AGENT.get_remaining_work(bidder_address=bidder_address)}
+Total Bid ............ {bidder.current_bid}
+Available Refund ..... {bidder.available_refund}
+Completed Work ....... {bidder.completed_work}
+Remaining Work ....... {bidder.remaining_work}
+Refunded Work ........ {bidder.refunded_work}
 """
     emitter.message(message)
     return
 
 
-def paint_worklock_participant_notice(emitter, bidder_address, registry):
-    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)
+def paint_bidding_notice(emitter, bidder):
 
     obligation = f"""
 * WorkLock Participant Notice *
@@ -794,11 +793,11 @@ def paint_worklock_participant_notice(emitter, bidder_address, registry):
 
 - WorkLock token rewards are claimed in the form of a stake and will be locked for the stake duration.
 
-- WorkLock ETH deposits will be available for refund at a rate of {worklock_agent.economics.worklock_refund_rate} wei per confirmed period.
+- WorkLock ETH deposits will be available for refund at a rate of {bidder.worklock_agent.economics.worklock_refund_rate} wei per confirmed period.
 
 - Once claiming WorkLock tokens, you are obligated to maintain a networked
-  and available Ursula-Worker node bonded to the staker address {bidder_address} for the duration 
-  of the stake(s) ({worklock_agent.economics.worklock_commitment_duration} periods).
+  and available Ursula-Worker node bonded to the staker address {bidder.checksum_address} for the duration 
+  of the stake(s) ({bidder.worklock_agent.economics.worklock_commitment_duration} periods).
 
 - Allow NuCypher network users to carry out uninterrupted re-encryption
   work orders at-will without interference. Failure to keep your node online, 

@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from eth_utils import to_wei
 
-from nucypher.blockchain.eth.actors import Staker
+from nucypher.blockchain.eth.actors import Staker, Bidder
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     WorkLockAgent
@@ -87,6 +87,8 @@ def test_bid(click_runner, testerchain, test_registry, agency, token_economics):
 
 def test_cancel_bid(click_runner, testerchain, test_registry, agency, token_economics):
     bidder = testerchain.unassigned_accounts[0]
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+
     command = ('cancel-bid',
                '--bidder-address', bidder,
                '--registry-filepath', registry_filepath,
@@ -95,8 +97,6 @@ def test_cancel_bid(click_runner, testerchain, test_registry, agency, token_econ
                '--force',
                '--debug')
 
-    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    assert agent.get_bid(bidder)        # Bid
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
     assert not agent.get_bid(bidder)    # No more bid
@@ -124,7 +124,7 @@ def test_remaining_work(click_runner, testerchain, test_registry, agency, token_
 
     # Ensure there is remaining work one layer below
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    remaining_work = worklock_agent.get_remaining_work(bidder_address=bidder)
+    remaining_work = worklock_agent.get_remaining_work(checksum_address=bidder)
     assert remaining_work > 0
 
     command = ('remaining-work',
@@ -166,7 +166,7 @@ def test_refund(click_runner, testerchain, agency, test_registry, token_economic
                     rest_port=select_test_port())
 
     # Ensure there is work to do
-    remaining_work = worklock_agent.get_remaining_work(bidder_address=bidder)
+    remaining_work = worklock_agent.get_remaining_work(checksum_address=bidder)
     assert remaining_work > 0
 
     # Do some work
@@ -183,20 +183,20 @@ def test_refund(click_runner, testerchain, agency, test_registry, token_economic
                '--debug',
                '--force')
 
-    # Ensure there is an available refund, then do it.
-    refund = worklock_agent.available_refund(bidder_address=bidder)
-    assert refund > 0
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
-    assert worklock_agent.available_refund(bidder_address=bidder) < refund
+
+    # Less work to do...
+    new_remaining_work = worklock_agent.get_remaining_work(checksum_address=bidder)
+    assert new_remaining_work < remaining_work
 
 
 def test_participant_status(click_runner, testerchain, test_registry, agency, token_economics):
-    bidder = testerchain.unassigned_accounts[1]
+    bidder = Bidder(checksum_address=testerchain.unassigned_accounts[1], registry=test_registry)
 
     command = ('status',
                '--registry-filepath', registry_filepath,
-               '--bidder-address', bidder,
+               '--bidder-address', bidder.checksum_address,
                '--provider', TEST_PROVIDER_URI,
                '--poa',
                '--debug')
@@ -207,16 +207,16 @@ def test_participant_status(click_runner, testerchain, test_registry, agency, to
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
     # Bidder-specific data is displayed
-    assert bidder in result.output
-    assert str(worklock_agent.get_remaining_work(bidder_address=bidder)) in result.output
-    assert str(worklock_agent.available_refund(bidder_address=bidder)) in result.output
+    assert bidder.checksum_address in result.output
+    assert str(bidder.remaining_work) in result.output
+    assert str(bidder.available_refund) in result.output
 
     # Worklock economics are displayed
     assert str(token_economics.worklock_boosting_refund_rate) in result.output
     assert str(token_economics.worklock_supply) in result.output
 
 
-@pytest.mark.skip(reason='To Be Implemented')
+@pytest.mark.skip()
 def test_burn_unclaimed_tokens(click_runner, testerchain, test_registry, agency):
     # Wait until biding window starts
     testerchain.time_travel(periods=10)
