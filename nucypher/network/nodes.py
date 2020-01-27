@@ -891,7 +891,7 @@ class Learner:
 
             except NodeSeemsToBeDown:
                 self.log.info(f"Verification Failed - "
-                              f"Cannot establish connection to {node}.")
+                              f"Cannot establish connection to {sprout}.")
 
             except sprout.StampNotSigned:
                 self.log.warn(f'Verification Failed - '

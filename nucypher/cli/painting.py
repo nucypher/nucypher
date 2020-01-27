@@ -486,6 +486,24 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
         emitter.echo(tabulate.tabulate(rows, headers=headers, tablefmt="fancy_grid"))  # newline
 
 
+def prettify_stake(stake, index: int = None) -> str:
+    start_datetime = stake.start_datetime.local_datetime().strftime("%b %d %H:%M %Z")
+    expiration_datetime = stake.unlock_datetime.local_datetime().strftime("%b %d %H:%M %Z")
+    duration = stake.duration
+
+    pretty_periods = f'{duration} periods {"." if len(str(duration)) == 2 else ""}'
+
+    pretty = f'| {index if index is not None else "-"} ' \
+             f'| {stake.staker_address[:6]} ' \
+             f'| {stake.worker_address[:6]} ' \
+             f'| {stake.index} ' \
+             f'| {str(stake.value)} ' \
+             f'| {pretty_periods} ' \
+             f'| {start_datetime} - {expiration_datetime} ' \
+
+    return pretty
+
+
 def paint_staged_stake_division(emitter,
                                 stakeholder,
                                 original_stake,
