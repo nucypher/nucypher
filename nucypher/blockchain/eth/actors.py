@@ -222,7 +222,7 @@ class ContractAdministrator(NucypherTokenActor):
     @validate_checksum_address
     def recruit_sidekick(self, sidekick_address: str, sidekick_password: str):
         self.sidekick_power = TransactingPower(account=sidekick_address, password=sidekick_password, cache=True)
-        if self.sidekick_power.device:
+        if self.sidekick_power.is_device:
             raise ValueError("Holy Wallet! Sidekicks can only be SW accounts")
         self.sidekick_address = sidekick_address
 
@@ -1477,10 +1477,13 @@ class StakeHolder(Staker):
 
         def __init__(self,
                      registry: BaseContractRegistry,
-                     checksum_addresses: set = None):
+                     client_addresses: set = None,
+                     keyfiles: List[str] = None):
 
             # Wallet
-            self.__accounts = set()  # Note: Account index is meaningless here
+            self.__keyfiles = keyfiles
+            self.__local_accounts = dict()
+            self.__client_accounts = set()  # Note: Account index is meaningless here
             self.__transacting_powers = dict()
 
             # Blockchain
@@ -1489,24 +1492,34 @@ class StakeHolder(Staker):
             self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
 
             self.__get_accounts()
-            if checksum_addresses:
-                self.__accounts.update(checksum_addresses)
+            if client_addresses:
+                self.__client_accounts.update(client_addresses)
 
         @validate_checksum_address
         def __contains__(self, checksum_address: str) -> bool:
-            return bool(checksum_address in self.__accounts)
+            return bool(checksum_address in self.accounts)
 
         @property
         def active_account(self) -> str:
             return self.blockchain.transacting_power.account
 
         def __get_accounts(self) -> None:
-            accounts = self.blockchain.client.accounts
-            self.__accounts.update(accounts)
+            # chain_name = self.blockchain.client.chain_name.lower()
+            # keystore = f'{os.path.expanduser("~")}/.ethereum/{chain_name}/keystore'
+            # keyfiles = os.listdir(keystore)
+            # for keyfile in keyfiles:
+            for keyfile in self.__keyfiles:
+                try:
+                    account = to_checksum_address(keyfile.split('--')[-1])
+                    self.__local_accounts[account] = keyfile
+                except ValueError:
+                    raise ValueError(f"Key files must be in the geth wallet format; {keyfile} is invalid.")
+            client_accounts = self.blockchain.client.accounts  # Accounts via connected provider
+            self.__client_accounts.update(client_accounts)
 
         @property
         def accounts(self) -> set:
-            return self.__accounts
+            return {*self.__client_accounts, *self.__local_accounts}
 
         @validate_checksum_address
         def activate_account(self, checksum_address: str, password: str = None) -> None:
@@ -1517,7 +1530,8 @@ class StakeHolder(Staker):
             try:
                 transacting_power = self.__transacting_powers[checksum_address]
             except KeyError:
-                transacting_power = TransactingPower(password=password, account=checksum_address)
+                keyfile = self.__local_accounts.get(checksum_address)
+                transacting_power = TransactingPower(password=password, account=checksum_address, keyfile=keyfile)
                 self.__transacting_powers[checksum_address] = transacting_power
             transacting_power.activate(password=password)
 
@@ -1538,6 +1552,7 @@ class StakeHolder(Staker):
                  is_me: bool = True,
                  initial_address: str = None,
                  checksum_addresses: set = None,
+                 keyfiles: List[str] = None,
                  password: str = None,
                  *args, **kwargs):
 
@@ -1547,7 +1562,9 @@ class StakeHolder(Staker):
         self.log = Logger(f"stakeholder")
 
         # Wallet
-        self.wallet = self.StakingWallet(registry=self.registry, checksum_addresses=checksum_addresses)
+        self.wallet = self.StakingWallet(registry=self.registry,
+                                         client_addresses=checksum_addresses,
+                                         keyfiles=keyfiles)
         if initial_address:
             # If an initial address was passed,
             # it is safe to understand that it has already been used at a higher level.
@@ -1568,7 +1585,7 @@ class StakeHolder(Staker):
         if self.individual_allocation:
             if checksum_address != self.individual_allocation.beneficiary_address:
                 raise ValueError(f"Beneficiary {self.individual_allocation.beneficiary_address} in individual "
-                                 f"allocation doesn't match this checksum address ({checksum_address})")
+                                 f"allocation doesnt match this checksum address ({checksum_address})")
             staking_address = self.individual_allocation.contract_address
             self.beneficiary_address = self.individual_allocation.beneficiary_address
             self.preallocation_escrow_agent = PreallocationEscrowAgent(registry=self.registry,

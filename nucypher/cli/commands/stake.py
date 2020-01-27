@@ -150,7 +150,7 @@ class StakerOptions:
         self.config_options = config_options
         self.staking_address = staking_address
 
-    def create_character(self, emitter, config_file, individual_allocation=None, initial_address=None):
+    def create_character(self, emitter, config_file, individual_allocation=None, initial_address=None, keyfiles=None):
         stakeholder_config = self.config_options.create_config(emitter, config_file)
 
         if initial_address is None:
@@ -158,7 +158,9 @@ class StakerOptions:
 
         return stakeholder_config.produce(
             initial_address=initial_address,
-            individual_allocation=individual_allocation)
+            individual_allocation=individual_allocation,
+            keyfiles=keyfiles
+        )
 
     def get_blockchain(self):
         return BlockchainInterfaceFactory.get_interface(provider_uri=self.config_options.provider_uri)  # Eager connection
@@ -175,11 +177,12 @@ class TransactingStakerOptions:
 
     __option_name__ = 'transacting_staker_options'
 
-    def __init__(self, staker_options, hw_wallet, beneficiary_address, allocation_filepath):
+    def __init__(self, staker_options, hw_wallet, beneficiary_address, allocation_filepath, keyfile=None):
         self.staker_options = staker_options
         self.hw_wallet = hw_wallet
         self.beneficiary_address = beneficiary_address
         self.allocation_filepath = allocation_filepath
+        self.keyfile = keyfile
 
     def create_character(self, emitter, config_file):
 
@@ -219,7 +222,9 @@ class TransactingStakerOptions:
             emitter,
             config_file,
             individual_allocation=individual_allocation,
-            initial_address=initial_address)
+            initial_address=initial_address,
+            keyfiles=[self.keyfile]  # TODO: Accept multiple?
+        )
 
     def get_blockchain(self):
         return self.staker_options.get_blockchain()
@@ -237,6 +242,7 @@ group_transacting_staker_options = group_options(
     hw_wallet=option_hw_wallet,
     beneficiary_address=click.option('--beneficiary-address', help="Address of a pre-allocation beneficiary", type=EIP55_CHECKSUM_ADDRESS),
     allocation_filepath=click.option('--allocation-filepath', help="Path to individual allocation file", type=EXISTING_READABLE_FILE),
+    keyfile=click.option('--keyfile', default=None, type=EXISTING_READABLE_FILE)
     )
 
 
@@ -254,12 +260,12 @@ def stake():
 @group_config_options
 @group_general_config
 @option_network
-def init_stakeholder(general_config, config_root, force, config_options):
+def init_stakeholder(general_config, config_root, force, config_options, keyfile):
     """
     Create a new stakeholder configuration.
     """
     emitter = _setup_emitter(general_config)
-    new_stakeholder = config_options.generate_config(config_root)
+    new_stakeholder = config_options.generate_config(config_root, keyfile)
     filepath = new_stakeholder.to_configuration_file(override=force)
     emitter.echo(f"Wrote new stakeholder configuration to {filepath}", color='green')
 
