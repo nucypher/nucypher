@@ -593,7 +593,8 @@ def divide(general_config, transacting_staker_options, config_file, force, value
         stakeholder=STAKEHOLDER,
         staking_address=transacting_staker_options.staker_options.staking_address,
         individual_allocation=STAKEHOLDER.individual_allocation,
-        force=force)
+        force=force
+    )
 
     # Dynamic click types (Economics)
     min_locked = economics.minimum_allowed_locked
@@ -601,13 +602,15 @@ def divide(general_config, transacting_staker_options, config_file, force, value
     stake_extension_range = click.IntRange(min=1, max=economics.maximum_allowed_locked, clamp=False)
 
     if transacting_staker_options.staker_options.staking_address and index is not None:  # 0 is valid.
-        STAKEHOLDER.stakes = StakeList(
-            registry=STAKEHOLDER.registry,
-            checksum_address=transacting_staker_options.staker_options.staking_address)
+        STAKEHOLDER.stakes = StakeList(registry=STAKEHOLDER.registry,
+                                       checksum_address=transacting_staker_options.staker_options.staking_address)
         STAKEHOLDER.stakes.refresh()
         current_stake = STAKEHOLDER.stakes[index]
     else:
-        current_stake = select_stake(stakeholder=STAKEHOLDER, emitter=emitter, divisible=True)
+        current_stake = select_stake(stakeholder=STAKEHOLDER,
+                                     emitter=emitter,
+                                     divisible=True,
+                                     staker_address=client_account)
 
     #
     # Stage Stake
@@ -641,8 +644,7 @@ def divide(general_config, transacting_staker_options, config_file, force, value
     # Consistency check to prevent the above agreement from going stale.
     last_second_current_period = STAKEHOLDER.staking_agent.get_current_period()
     if action_period != last_second_current_period:
-        emitter.echo("Current period advanced before stake division was broadcasted. Please try again.",
-                     red='red')
+        emitter.echo("Current period advanced before stake division was broadcasted. Please try again.", red='red')
         raise click.Abort
 
     # Execute
@@ -657,7 +659,7 @@ def divide(general_config, transacting_staker_options, config_file, force, value
                           chain_name=blockchain.client.chain_name)
 
     # Show the resulting stake list
-    painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER)
+    painting.paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER)
 
 
 @stake.command()

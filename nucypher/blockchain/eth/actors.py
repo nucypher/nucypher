@@ -1485,11 +1485,18 @@ class StakeHolder(Staker):
             stakes.extend(more_stakes)
         return stakes
 
+    @validate_checksum_address
+    def get_staker(self, checksum_address: str):
+        if checksum_address not in self.wallet.accounts:
+            raise ValueError(f"{checksum_address} is not a known client account.")
+        staker = Staker(is_me=True, checksum_address=checksum_address, registry=self.registry)
+        staker.stakes.refresh()
+        return staker
+
     def get_stakers(self) -> List[Staker]:
         stakers = list()
         for account in self.wallet.accounts:
-            staker = Staker(is_me=True, checksum_address=account, registry=self.registry)
-            staker.stakes.refresh()
+            staker = self.get_staker(checksum_address=account)
             stakers.append(staker)
         return stakers
 

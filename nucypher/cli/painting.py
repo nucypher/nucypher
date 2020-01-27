@@ -448,13 +448,16 @@ See https://docs.nucypher.com/en/latest/guides/staking_guide.html'''
     emitter.echo(next_steps, color='green')
 
 
-def paint_stakes(emitter, stakeholder, paint_inactive: bool = False):
+def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_address: str = None):
     headers = ('Idx', 'Value', 'Remaining', 'Enactment')
     staker_headers = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees')
     stakers = stakeholder.get_stakers()
     for staker in stakers:
         if not staker.stakes:
             continue  # TODO: Something with non-staking accounts?
+
+        if staker_address and staker.checksum_address != staker_address:
+            continue
 
         stakes = sorted(staker.stakes, key=lambda s: s.address_index_ordering_key)
         active_stakes = filter(lambda s: s.is_active, stakes)
