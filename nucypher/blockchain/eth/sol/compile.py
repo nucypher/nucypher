@@ -26,6 +26,8 @@ from os.path import abspath, dirname
 import itertools
 import shutil
 
+SOLIDITY_COMPILER_VERSION = '0.5.16'
+
 SourceDirs = collections.namedtuple('SourceDirs', ['root_source_dir',    # type: str
                                                    'other_source_dirs',  # type: Set[str]
                                                    ])
@@ -45,16 +47,30 @@ class SolidityCompiler:
     class CompilerError(Exception):
         pass
 
+    class VersionError(Exception):
+        pass
+
     @classmethod
     def default_contract_dir(cls):
         return cls.__default_contract_dir
 
     def __init__(self,
                  solc_binary_path: str = None,
-                 source_dirs: List[SourceDirs] = None
+                 source_dirs: List[SourceDirs] = None,
+                 ignore_solidity_check: bool = False
                  ) -> None:
         
         self.log = Logger('solidity-compiler')
+        self._set_solc_binary_path(solc_binary_path)
+        if not ignore_solidity_check:
+            self._check_compiler_version()
+
+        if source_dirs is None or len(source_dirs) == 0:
+            self.source_dirs = [SourceDirs(root_source_dir=self.__default_contract_dir)]
+        else:
+            self.source_dirs = source_dirs
+
+    def _set_solc_binary_path(self, solc_binary_path: str):
         # Compiler binary and root solidity source code directory
         self.__sol_binary_path = solc_binary_path
         if self.__sol_binary_path is None:
@@ -63,10 +79,21 @@ class SolidityCompiler:
             bin_path = os.path.dirname(sys.executable)  # type: str
             self.__sol_binary_path = os.path.join(bin_path, 'solc')  # type: str
 
-        if source_dirs is None or len(source_dirs) == 0:
-            self.source_dirs = [SourceDirs(root_source_dir=self.__default_contract_dir)]
-        else:
-            self.source_dirs = source_dirs
+    def _check_compiler_version(self):
+        from solc import get_solc_version_string
+        raw_solc_version_string = get_solc_version_string(solc_binary=self.__sol_binary_path)
+        solc_version_search = re.search(r"""
+             Version:\s          # Beginning of the string
+             (\d+\.\d+\.\d+)     # Capture digits of version
+             \S+                 # Skip other info in version       
+             """, raw_solc_version_string, re.VERBOSE
+                                        )
+        if not solc_version_search:
+            raise SolidityCompiler.VersionError(f"Can't parse solidity version: {raw_solc_version_string}")
+        solc_version = solc_version_search.group(1)
+        if not solc_version == SOLIDITY_COMPILER_VERSION:
+            raise SolidityCompiler.VersionError(f"Solidity version {solc_version} is unsupported. "
+                                                f"Use {SOLIDITY_COMPILER_VERSION} or option to ignore this check")
 
     def compile(self) -> dict:
         interfaces = dict()
@@ -139,6 +166,7 @@ class SolidityCompiler:
         from solc.exceptions import SolcError
         try:
             compiled_sol = compile_files(source_files=source_paths,
+                                         solc_binary=self.__sol_binary_path,
                                          import_remappings=remappings,
                                          allow_paths=root_source_dir,
                                          optimize=True,

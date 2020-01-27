@@ -62,6 +62,8 @@ option_registry_outfile = click.option('--registry-outfile', help="Output path f
 option_target_address = click.option('--target-address', help="Address of the target contract", type=EIP55_CHECKSUM_ADDRESS)
 option_gas = click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
 option_network = click.option('--network', help="Name of NuCypher network", type=click.Choice(NetworksInventory.networks))
+option_ignore_deployed = click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
+option_ignore_solidity = click.option('--ignore-solidity-check', help="Ignore solidity version compatibility check", is_flag=True, default=None)
 
 
 def _pre_launch_warnings(emitter, etherscan, hw_wallet):
@@ -77,10 +79,12 @@ def _pre_launch_warnings(emitter, etherscan, hw_wallet):
                      color='yellow')
 
 
-def _initialize_blockchain(poa, provider_uri, emitter):
+def _initialize_blockchain(poa, provider_uri, emitter, ignore_solidity_check):
     if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
         # Note: For test compatibility.
-        deployer_interface = BlockchainDeployerInterface(provider_uri=provider_uri, poa=poa)
+        deployer_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
+                                                         poa=poa,
+                                                         ignore_solidity_check=ignore_solidity_check)
         BlockchainInterfaceFactory.register_interface(interface=deployer_interface, sync=False,
                                                       emitter=emitter)
     else:
@@ -102,8 +106,8 @@ class ActorOptions:
     __option_name__ = 'actor_options'
 
     def __init__(self, provider_uri, deployer_address, contract_name,
-                registry_infile, registry_outfile, hw_wallet, dev, force, poa, config_root, etherscan,
-                se_test_mode):
+                 registry_infile, registry_outfile, hw_wallet, dev, force, poa, config_root, etherscan,
+                 se_test_mode, ignore_solidity_check):
         self.provider_uri = provider_uri
         self.deployer_address = deployer_address
         self.contract_name = contract_name
@@ -116,11 +120,12 @@ class ActorOptions:
         self.etherscan = etherscan
         self.poa = poa
         self.se_test_mode = se_test_mode
+        self.ignore_solidity_check = ignore_solidity_check
 
     def create_actor(self, emitter):
 
         _ensure_config_root(self.config_root)
-        deployer_interface = _initialize_blockchain(self.poa, self.provider_uri, emitter)
+        deployer_interface = _initialize_blockchain(self.poa, self.provider_uri, emitter, self.ignore_solidity_check)
 
         # Warnings
         _pre_launch_warnings(emitter, self.etherscan, self.hw_wallet)
@@ -178,6 +183,7 @@ group_actor_options = group_options(
     se_test_mode=click.option('--se-test-mode', help="Enable test mode for StakingEscrow in deployment.", is_flag=True),
     config_root=option_config_root,
     etherscan=option_etherscan,
+    ignore_solidity_check=option_ignore_solidity
     )
 
 
@@ -230,14 +236,15 @@ def download_registry(general_config, config_root, registry_outfile, network, fo
 @option_registry_infile
 @option_deployer_address
 @option_poa
-def inspect(general_config, provider_uri, config_root, registry_infile, deployer_address, poa):
+@option_ignore_solidity
+def inspect(general_config, provider_uri, config_root, registry_infile, deployer_address, poa, ignore_solidity_check):
     """
     Echo owner information and bare contract metadata.
     """
     # Init
     emitter = general_config.emitter
     _ensure_config_root(config_root)
-    _initialize_blockchain(poa, provider_uri, emitter)
+    _initialize_blockchain(poa, provider_uri, emitter, ignore_solidity_check)
 
     local_registry = establish_deployer_registry(emitter=emitter,
                                                  registry_infile=registry_infile,
@@ -252,7 +259,7 @@ def inspect(general_config, provider_uri, config_root, registry_infile, deployer
 @group_actor_options
 @click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
 @option_target_address
-@click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
+@option_ignore_deployed
 def upgrade(general_config, actor_options, retarget, target_address, ignore_deployed):
     """
     Upgrade NuCypher existing proxy contract deployments.
@@ -315,7 +322,7 @@ def rollback(general_config, actor_options):
 @group_actor_options
 @click.option('--bare', help="Deploy a contract *only* without any additional operations.", is_flag=True)
 @option_gas
-@click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
+@option_ignore_deployed
 def contracts(general_config, actor_options, bare, gas, ignore_deployed):
     """
     Compile and deploy contracts.
