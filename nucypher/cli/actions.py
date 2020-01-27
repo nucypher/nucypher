@@ -382,7 +382,8 @@ def select_stake(stakeholder, emitter, divisible: bool = False) -> Stake:
 
 
 def select_client_account(emitter,
-                          provider_uri: str,
+                          provider_uri: str = None,
+                          wallet = None,
                           prompt: str = None,
                           default: int = 0,
                           registry=None,
@@ -393,8 +394,11 @@ def select_client_account(emitter,
     Note: Setting show_balances to True, causes an eager contract and blockchain connection.
     """
 
+    if not (provider_uri or wallet):
+        raise ValueError("Provider URI or wallet must be provided to select an account.")
+
     if not provider_uri:
-        raise ValueError("Provider URI must be provided to select a wallet account.")
+        provider_uri = wallet.blockchain.provider_uri
 
     # Lazy connect the blockchain interface
     if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
@@ -408,8 +412,11 @@ def select_client_account(emitter,
             registry = InMemoryContractRegistry.from_latest_publication(network)
         token_agent = NucypherTokenAgent(registry=registry)
 
-    # Real wallet accounts
-    enumerated_accounts = dict(enumerate(blockchain.client.accounts))
+    if wallet:
+        wallet_accounts = wallet.accounts
+    else:
+        wallet_accounts = blockchain.client.accounts
+    enumerated_accounts = dict(enumerate(wallet_accounts))
     if len(enumerated_accounts) < 1:
         emitter.echo("No ETH accounts were found.", color='red', bold=True)
         raise click.Abort()
@@ -465,7 +472,7 @@ def handle_client_account_for_staking(emitter,
                                                    emitter=emitter,
                                                    registry=stakeholder.registry,
                                                    network=stakeholder.network,
-                                                   provider_uri=stakeholder.wallet.blockchain.provider_uri)
+                                                   wallet=stakeholder.wallet)
             staking_address = client_account
 
     return client_account, staking_address
