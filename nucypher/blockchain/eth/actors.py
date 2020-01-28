@@ -36,7 +36,7 @@ from constant_sorrow.constants import (
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak, is_checksum_address, to_checksum_address
 from twisted.logger import Logger
-from web3 import Web3
+from web3 import Web3, IPCProvider
 from web3.contract import ContractFunction
 
 from nucypher.blockchain.economics import StandardTokenEconomics, EconomicsFactory, BaseEconomics
@@ -48,8 +48,11 @@ from nucypher.blockchain.eth.agents import (
     ContractAgency,
     PreallocationEscrowAgent,
     MultiSigAgent,
-    WorkLockAgent)
-from nucypher.blockchain.eth.decorators import validate_checksum_address, only_me, save_receipt
+    WorkLockAgent
+)
+from nucypher.blockchain.eth.clients import ClefClient
+from nucypher.blockchain.eth.decorators import only_me, save_receipt
+from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
@@ -1478,10 +1481,16 @@ class StakeHolder(Staker):
         def __init__(self,
                      registry: BaseContractRegistry,
                      client_addresses: set = None,
-                     keyfiles: List[str] = None):
+                     keyfiles: List[str] = None,
+                     signer=None):
 
-            # Wallet
-            self.__keyfiles = keyfiles
+            if signer:
+               provider = IPCProvider(signer)
+               w3 = Web3(provider=provider)
+               signer = ClefClient(w3=w3)
+
+            self.__signer = signer
+            self.__keyfiles = keyfiles or list()
             self.__local_accounts = dict()
             self.__client_accounts = set()  # Note: Account index is meaningless here
             self.__transacting_powers = dict()
@@ -1504,10 +1513,9 @@ class StakeHolder(Staker):
             return self.blockchain.transacting_power.account
 
         def __get_accounts(self) -> None:
-            # chain_name = self.blockchain.client.chain_name.lower()
-            # keystore = f'{os.path.expanduser("~")}/.ethereum/{chain_name}/keystore'
-            # keyfiles = os.listdir(keystore)
-            # for keyfile in keyfiles:
+            if self.__signer:
+                signer_accounts = self.__signer.accounts()
+                self.__client_accounts.update(signer_accounts)
             for keyfile in self.__keyfiles:
                 try:
                     account = to_checksum_address(keyfile.split('--')[-1])
@@ -1531,7 +1539,10 @@ class StakeHolder(Staker):
                 transacting_power = self.__transacting_powers[checksum_address]
             except KeyError:
                 keyfile = self.__local_accounts.get(checksum_address)
-                transacting_power = TransactingPower(password=password, account=checksum_address, keyfile=keyfile)
+                transacting_power = TransactingPower(password=password,
+                                                     account=checksum_address,
+                                                     client=self.__signer,
+                                                     keyfile=keyfile)
                 self.__transacting_powers[checksum_address] = transacting_power
             transacting_power.activate(password=password)
 
@@ -1553,6 +1564,7 @@ class StakeHolder(Staker):
                  initial_address: str = None,
                  checksum_addresses: set = None,
                  keyfiles: List[str] = None,
+                 signer: str = None,
                  password: str = None,
                  *args, **kwargs):
 
@@ -1564,7 +1576,8 @@ class StakeHolder(Staker):
         # Wallet
         self.wallet = self.StakingWallet(registry=self.registry,
                                          client_addresses=checksum_addresses,
-                                         keyfiles=keyfiles)
+                                         keyfiles=keyfiles,
+                                         signer=signer)
         if initial_address:
             # If an initial address was passed,
             # it is safe to understand that it has already been used at a higher level.

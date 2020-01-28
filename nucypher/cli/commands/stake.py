@@ -150,7 +150,7 @@ class StakerOptions:
         self.config_options = config_options
         self.staking_address = staking_address
 
-    def create_character(self, emitter, config_file, individual_allocation=None, initial_address=None, keyfiles=None):
+    def create_character(self, emitter, config_file, initial_address=None, *args, **kwargs):
         stakeholder_config = self.config_options.create_config(emitter, config_file)
 
         if initial_address is None:
@@ -158,8 +158,7 @@ class StakerOptions:
 
         return stakeholder_config.produce(
             initial_address=initial_address,
-            individual_allocation=individual_allocation,
-            keyfiles=keyfiles
+            *args, **kwargs
         )
 
     def get_blockchain(self):
@@ -177,12 +176,13 @@ class TransactingStakerOptions:
 
     __option_name__ = 'transacting_staker_options'
 
-    def __init__(self, staker_options, hw_wallet, beneficiary_address, allocation_filepath, keyfile=None):
+    def __init__(self, staker_options, hw_wallet, beneficiary_address, allocation_filepath, keyfile, signer):
         self.staker_options = staker_options
         self.hw_wallet = hw_wallet
         self.beneficiary_address = beneficiary_address
         self.allocation_filepath = allocation_filepath
         self.keyfile = keyfile
+        self.signer = signer
 
     def create_character(self, emitter, config_file):
 
@@ -223,7 +223,8 @@ class TransactingStakerOptions:
             config_file,
             individual_allocation=individual_allocation,
             initial_address=initial_address,
-            keyfiles=[self.keyfile]  # TODO: Accept multiple?
+            keyfiles=[self.keyfile] if self.keyfile else None,  # TODO: Accept multiple?,
+            signer=self.signer,
         )
 
     def get_blockchain(self):
@@ -242,8 +243,10 @@ group_transacting_staker_options = group_options(
     hw_wallet=option_hw_wallet,
     beneficiary_address=click.option('--beneficiary-address', help="Address of a pre-allocation beneficiary", type=EIP55_CHECKSUM_ADDRESS),
     allocation_filepath=click.option('--allocation-filepath', help="Path to individual allocation file", type=EXISTING_READABLE_FILE),
-    keyfile=click.option('--keyfile', default=None, type=EXISTING_READABLE_FILE)
-    )
+    keyfile=click.option('--keyfile', default=None, type=EXISTING_READABLE_FILE),
+    signer=click.option('--signer', default=None, type=EXISTING_READABLE_FILE)
+
+)
 
 
 @click.group()

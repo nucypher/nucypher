@@ -116,14 +116,15 @@ class TransactingPower(CryptoPowerUp):
 
     def __init__(self,
                  account: str,
-                 provider_uri: str = None,
+                 client=None,
                  password: str = None,
                  cache: bool = False,
                  keyfile: str = None):
         """
         Instantiates a TransactingPower for the given checksum_address.
         """
-        self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=provider_uri)
+        self.blockchain = BlockchainInterfaceFactory.get_interface()
+        self.__client = client or self.blockchain.client  # injectable signer
         self.__account = account
         self.__password = password
         self.__unlocked = False
@@ -138,7 +139,7 @@ class TransactingPower(CryptoPowerUp):
             return False
         try:
             # TODO: Temporary fix for #1128 and #1385. It's ugly af, but it works. Move somewhere else?
-            wallets = self.blockchain.client.wallets
+            wallets = self.__client.wallets
         except AttributeError:
             return False
         else:
@@ -176,7 +177,7 @@ class TransactingPower(CryptoPowerUp):
         try:
             with open(self.__keyfile) as keyfile:
                 encrypted_key = keyfile.read()
-                private_key = self.blockchain.client.w3.eth.account.decrypt(encrypted_key, password)
+                private_key = self.__client.w3.eth.account.decrypt(encrypted_key, password)
         except FileNotFoundError:
             raise  # TODO
         except Exception:
@@ -195,7 +196,7 @@ class TransactingPower(CryptoPowerUp):
         elif self.is_local:
             self.__key = None
         else:
-            self.blockchain.client.lock_account(address=self.account)
+            self.__client.lock_account(address=self.account)
         self.__unlocked = False
         return self.__unlocked
 
@@ -206,7 +207,7 @@ class TransactingPower(CryptoPowerUp):
         elif self.is_local:
             unlocked = self.__import_keyfile(password=password)
         else:
-            if self.blockchain.client is NO_BLOCKCHAIN_CONNECTION:
+            if self.__client is NO_BLOCKCHAIN_CONNECTION:
                 raise self.NoBlockchainConnection
             unlocked = self.blockchain.client.unlock_account(address=self.account, password=password, duration=duration)
         self.__unlocked = unlocked
@@ -232,7 +233,7 @@ class TransactingPower(CryptoPowerUp):
             signed_transaction = w3.eth.account.sign_transaction(transaction_dict=unsigned_transaction, private_key=self.__key)
             signed_raw_transaction = signed_transaction['rawTransaction']
         else:
-            signed_raw_transaction = self.blockchain.client.sign_transaction(transaction=unsigned_transaction)
+            signed_raw_transaction = self.__client.sign_transaction(transaction=unsigned_transaction)
         return signed_raw_transaction
 
     def __enter__(self):
