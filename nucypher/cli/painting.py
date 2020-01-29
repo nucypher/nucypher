@@ -43,6 +43,7 @@ from nucypher.blockchain.eth.utils import datetime_at_period, etherscan_url
 from nucypher.characters.banners import NUCYPHER_BANNER, NU_BANNER
 from nucypher.config.constants import SEEDNODES
 from nucypher.network.nicknames import nickname_from_seed
+from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
 
 
 def echo_version(ctx, param, value):
@@ -718,3 +719,10 @@ def write_deployed_allocations_to_csv(filepath: str, allocated: list, failed: li
             name = allocation.get('name', 'No name provided')
             row = (beneficiary, name, contract_address)
             writer.writerow(dict(zip(fieldnames, row)))
+
+
+def echo_solidity_version(ctx, param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    click.secho(f"Supported solidity version: {SOLIDITY_COMPILER_VERSION}", bold=True)
+    ctx.exit()

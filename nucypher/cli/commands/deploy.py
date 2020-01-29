@@ -51,7 +51,7 @@ from nucypher.cli.painting import (
     paint_deployment_delay,
     paint_contract_deployment,
     paint_deployer_contract_inspection,
-    paint_receipt_summary)
+    paint_receipt_summary, echo_solidity_version)
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
@@ -188,6 +188,12 @@ group_actor_options = group_options(
 
 
 @click.group()
+@click.option('--solidity-version',
+              help="Echo the supported solidity version.",
+              is_flag=True,
+              callback=echo_solidity_version,
+              expose_value=False,
+              is_eager=True)
 def deploy():
     """
     Manage contract and registry deployment.

@@ -26,7 +26,7 @@ from os.path import abspath, dirname
 import itertools
 import shutil
 
-SOLIDITY_COMPILER_VERSION = '0.5.16'
+from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
 
 SourceDirs = collections.namedtuple('SourceDirs', ['root_source_dir',    # type: str
                                                    'other_source_dirs',  # type: Set[str]
