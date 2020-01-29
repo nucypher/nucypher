@@ -63,7 +63,7 @@ option_target_address = click.option('--target-address', help="Address of the ta
 option_gas = click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
 option_network = click.option('--network', help="Name of NuCypher network", type=click.Choice(NetworksInventory.networks))
 option_ignore_deployed = click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
-option_ignore_solidity = click.option('--ignore-solidity-check', help="Ignore solidity version compatibility check", is_flag=True, default=None)
+option_ignore_solidity_version = click.option('--ignore-solidity-check', help="Ignore solidity version compatibility check", is_flag=True, default=None)
 
 
 def _pre_launch_warnings(emitter, etherscan, hw_wallet):
@@ -183,7 +183,7 @@ group_actor_options = group_options(
     se_test_mode=click.option('--se-test-mode', help="Enable test mode for StakingEscrow in deployment.", is_flag=True),
     config_root=option_config_root,
     etherscan=option_etherscan,
-    ignore_solidity_check=option_ignore_solidity
+    ignore_solidity_check=option_ignore_solidity_version
     )
 
 
@@ -242,7 +242,7 @@ def download_registry(general_config, config_root, registry_outfile, network, fo
 @option_registry_infile
 @option_deployer_address
 @option_poa
-@option_ignore_solidity
+@option_ignore_solidity_version
 def inspect(general_config, provider_uri, config_root, registry_infile, deployer_address, poa, ignore_solidity_check):
     """
     Echo owner information and bare contract metadata.

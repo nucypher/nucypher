@@ -297,12 +297,12 @@ commands:
       - run: sudo chown -R circleci:circleci /usr/local/bin
       - run: sudo chown -R circleci:circleci /usr/local/lib/python3.7/site-packages
       - save_cache:
-          key: pip-v2-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: pip-v3-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
           paths:
             - "~/.local/bin"
             - "~/.local/lib/python3.7/site-packages"
       - save_cache:
-          key: solc-v1-{{ checksum "nucypher/blockchain/eth/sol/__init__.py" }}
+          key: solc-v1-{{ checksum "nucypher/blockchain/eth/sol/__conf__.py" }}
           paths:
             - "/usr/local/bin/solc"
 
@@ -312,9 +312,9 @@ commands:
       - run: sudo chown -R circleci:circleci /usr/local/bin
       - run: sudo chown -R circleci:circleci /usr/local/lib/python3.7/site-packages
       - restore_cache:  # ensure this step occurs *before* installing dependencies
-          key: pip-v2-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: pip-v3-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
       - restore_cache:
-          key: solc-v1-{{ checksum "nucypher/blockchain/eth/sol/__init__.py" }}
+          key: solc-v1-{{ checksum "nucypher/blockchain/eth/sol/__conf__.py" }}
 
   prepare_environment:
     description: "Checkout application code and Attach the Workspace"

@@ -13,7 +13,7 @@ WORKDIR /install
 COPY ./nucypher/__about__.py /install/nucypher/
 COPY README.md /install
 COPY setup.py /install
-COPY ./nucypher/blockchain/eth/sol/__init__.py /install/nucypher/blockchain/eth/sol/__init__.py
+COPY ./nucypher/blockchain/eth/sol/__conf__.py /install/nucypher/blockchain/eth/sol/__conf__.py
 COPY scripts/installation/install_solc.py /install/scripts/installation/
 COPY dev-requirements.txt /install
 COPY requirements.txt /install
