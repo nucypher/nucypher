@@ -12,7 +12,7 @@ def test_create_bidder(testerchain, test_registry, agency, token_economics):
     assert bidder.checksum_address == bidder_address
     assert bidder.registry == test_registry
 
-    assert not bidder.current_bid
+    assert not bidder.get_deposited_eth
     assert not bidder.completed_work
     assert not bidder.remaining_work
     assert not bidder.refunded_work
@@ -23,27 +23,27 @@ def test_bidding(testerchain, agency, token_economics, test_registry):
     big_bid = token_economics.maximum_allowed_locked // 100
     bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
 
-    assert bidder.current_bid == 0
+    assert bidder.get_deposited_eth == 0
     receipt = bidder.place_bid(value=big_bid)
     assert receipt['status'] == 1
-    assert bidder.current_bid == big_bid
+    assert bidder.get_deposited_eth == big_bid
 
     another_bidder_address = testerchain.unassigned_accounts[1]
     another_bid = token_economics.maximum_allowed_locked // 50
     another_bidder = Bidder(checksum_address=another_bidder_address, registry=test_registry)
-    assert another_bidder.current_bid == 0
+    assert another_bidder.get_deposited_eth == 0
     receipt = another_bidder.place_bid(value=another_bid)
     assert receipt['status'] == 1
-    assert another_bidder.current_bid == another_bid
+    assert another_bidder.get_deposited_eth == another_bid
 
 
 def test_cancel_bid(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.unassigned_accounts[1]
     bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
-    assert bidder.current_bid        # Bid
+    assert bidder.get_deposited_eth        # Bid
     receipt = bidder.cancel_bid()    # Cancel
     assert receipt['status'] == 1
-    assert not bidder.current_bid    # No more bid
+    assert not bidder.get_deposited_eth    # No more bid
 
     # Can't cancel a bid twice in a row
     with pytest.raises((TransactionFailed, ValueError)):
@@ -78,7 +78,7 @@ def test_claim(testerchain, agency, token_economics, test_registry):
     with pytest.raises(Bidder.BidderError):
         _receipt = bidder.claim()
 
-    assert bidder.current_bid == 40000000000000000000000
+    assert bidder.get_deposited_eth == 40000000000000000000000
     assert bidder.completed_work == 0
     assert bidder.remaining_work == 500000000000000000000000
     assert bidder.refunded_work == 0

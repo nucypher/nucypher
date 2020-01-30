@@ -1396,7 +1396,7 @@ class Bidder(NucypherTokenActor):
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.economics = EconomicsFactory.get_economics(registry=self.registry)
 
-    def _ensure_bidding_is_open(self):
+    def _ensure_bidding_is_open(self) -> None:
         highest_block = self.worklock_agent.blockchain.w3.eth.getBlock('latest')
         now = highest_block['timestamp']
         start = self.worklock_agent.start_date
@@ -1406,7 +1406,7 @@ class Bidder(NucypherTokenActor):
         if now > end:
             raise self.BiddingIsClosed(f'Bidding closed at {maya.MayaDT(end).slang_date()}')
 
-    def _ensure_bidding_is_closed(self, message: str = None):
+    def _ensure_bidding_is_closed(self, message: str = None) -> None:
         highest_block = self.worklock_agent.blockchain.w3.eth.getBlock('latest')
         now = highest_block['timestamp']
         end = self.worklock_agent.end_date
@@ -1419,7 +1419,6 @@ class Bidder(NucypherTokenActor):
     #
 
     def place_bid(self, value: int) -> dict:
-        # wei_bid = Web3.toWei(value, 'wei')  # TODO: Consider default denomination on this layer
         self._ensure_bidding_is_open()
         receipt = self.worklock_agent.bid(checksum_address=self.checksum_address, value=value)
         return receipt
@@ -1436,7 +1435,7 @@ class Bidder(NucypherTokenActor):
             raise self.BidderError(f"Bidder {self.checksum_address} already placed a claim.")
 
         # Require an active bid
-        if not self.current_bid:
+        if not self.get_deposited_eth:
             raise self.BidderError(f"No claims available for {self.checksum_address}")
 
         # Ensure the claim is at least large enough for min. stake
@@ -1450,20 +1449,20 @@ class Bidder(NucypherTokenActor):
     def cancel_bid(self) -> dict:
 
         # Require an active bid
-        if not self.current_bid:
+        if not self.get_deposited_eth:
             self.BidderError(f"No bids available for {self.checksum_address}")
 
         # Ensure the claim was not already placed
         if self._has_claimed:
-            raise self.BidderError(f"Bidder {self.checksum_address} already claimed reward.")
+            raise self.BidderError(f"Bidder {self.checksum_address} already placed a claim.")
 
         receipt = self.worklock_agent.cancel_bid(checksum_address=self.checksum_address)
         return receipt
 
-    def refund_deposit(self):
+    def refund_deposit(self) -> dict:
         """Refund ethers for completed work"""
-        if self._has_claimed:
-            raise self.BidderError(f"Bidder {self.checksum_address} already claimed reward.")
+        if not self.available_refund:
+            raise self.BidderError(f'There is no refund available for {self.checksum_address}')
         receipt = self.worklock_agent.refund(checksum_address=self.checksum_address)
         return receipt
 
@@ -1472,9 +1471,9 @@ class Bidder(NucypherTokenActor):
     #
 
     @property
-    def current_bid(self, denomination: str = 'wei') -> int:
-        bid = self.worklock_agent.get_bid(checksum_address=self.checksum_address)
-        ether_bid = Web3.toWei(bid, denomination)  # TODO: Consider ether as the default denomination on this layer
+    def get_deposited_eth(self, denomination: str = 'wei') -> int:
+        bid = self.worklock_agent.get_deposited_eth(checksum_address=self.checksum_address)
+        ether_bid = Web3.toWei(bid, denomination)
         return ether_bid
 
     @property
@@ -1492,7 +1491,7 @@ class Bidder(NucypherTokenActor):
     def remaining_work(self) -> int:
         try:
             work = self.worklock_agent.get_remaining_work(checksum_address=self.checksum_address)
-        except (TransactionFailed, ValueError):
+        except (TransactionFailed, ValueError):  # TODO: Is his how we want to handle thid?
             work = 0
         return work
 
@@ -1504,9 +1503,13 @@ class Bidder(NucypherTokenActor):
     @property
     def available_refund(self) -> int:
         refund_eth = self.worklock_agent.get_available_refund(completed_work=self.completed_work)
+        bid = self.get_deposited_eth
+        if refund_eth > bid:
+            # Overachiever: This bidder has worked more than required.
+            refund_eth = bid
         return refund_eth
 
     @property
     def available_claim(self) -> int:
-        tokens = self.worklock_agent.eth_to_tokens(self.current_bid)
+        tokens = self.worklock_agent.eth_to_tokens(self.get_deposited_eth)
         return tokens

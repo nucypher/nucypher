@@ -1028,7 +1028,7 @@ class WorkLockAgent(EthereumContractAgent):
     #
 
     @validate_checksum_address
-    def get_bid(self, checksum_address: str) -> int:
+    def get_deposited_eth(self, checksum_address: str) -> int:
         current_bid = self.contract.functions.workInfo(checksum_address).call()[0]
         return current_bid
 
@@ -1048,7 +1048,7 @@ class WorkLockAgent(EthereumContractAgent):
         return result
 
     def get_eth_supply(self) -> int:
-        supply = self.blockchain.client.get_balance(self.contract_address)
+        supply = self.contract.functions.ethSupply().call()
         return supply
 
     def get_refund_rate(self) -> int:

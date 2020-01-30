@@ -30,13 +30,13 @@ def test_bidding(testerchain, agency, token_economics, test_registry):
         assert receipt['status'] == 1
 
 
-def test_get_bid(testerchain, agency, token_economics, test_registry):
+def test_get_deposited_eth(testerchain, agency, token_economics, test_registry):
     big_bid = token_economics.maximum_allowed_locked // 10
     big_bidder = testerchain.unassigned_accounts[-1]
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     receipt = agent.bid(checksum_address=big_bidder, value=big_bid)
     assert receipt['status'] == 1
-    bid = agent.get_bid(big_bidder)
+    bid = agent.get_deposited_eth(big_bidder)
     assert bid == big_bid
 
 
@@ -44,10 +44,10 @@ def test_cancel_bid(testerchain, agency, token_economics, test_registry):
     bidder = testerchain.unassigned_accounts[1]
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
-    assert agent.get_bid(bidder)        # Bid
+    assert agent.get_deposited_eth(bidder)        # Bid
     receipt = agent.cancel_bid(bidder)  # Cancel
     assert receipt['status'] == 1
-    assert not agent.get_bid(bidder)    # No more bid
+    assert not agent.get_deposited_eth(bidder)    # No more bid
 
     # Can't cancel a bid twice in a row
     with pytest.raises((TransactionFailed, ValueError)):

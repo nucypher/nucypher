@@ -756,6 +756,8 @@ Time Remaining .... {remaining}
 Economics
 ======================================================            
 ETH Pool .......... {blockchain.client.get_balance(worklock_agent.contract_address)}
+ETH Supply ........ {worklock_agent.get_eth_supply()}
+
 Lot Size .......... {NU.from_nunits(worklock_agent.lot_value)} 
 Unclaimed Tokens .. {worklock_agent.get_unclaimed_tokens()}
 
@@ -772,7 +774,7 @@ def paint_bidder_status(emitter, bidder):
     message = f"""
 WorkLock Participant {bidder.checksum_address}
 =====================================================
-Total Bid ............ {bidder.current_bid}
+Total Bid ............ {bidder.get_deposited_eth}
 Available Refund ..... {bidder.available_refund}
 Completed Work ....... {bidder.completed_work}
 Remaining Work ....... {bidder.remaining_work}

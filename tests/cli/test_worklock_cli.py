@@ -99,7 +99,7 @@ def test_cancel_bid(click_runner, testerchain, test_registry, agency, token_econ
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
-    assert not agent.get_bid(bidder)    # No more bid
+    assert not agent.get_deposited_eth(bidder)    # No more bid
 
 
 def test_claim(click_runner, testerchain, agency, token_economics):

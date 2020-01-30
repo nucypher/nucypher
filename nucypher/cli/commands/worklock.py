@@ -123,7 +123,7 @@ def bid(general_config, worklock_options, registry_options, force, value):
                   f"(Total must be worth at least {NU.from_nunits(minimum)})"
         emitter.echo(warning, color='yellow')
     else:
-        message = f'Current bid: {bidder.current_bid} | ' \
+        message = f'Current bid: {bidder.get_deposited_eth} | ' \
                   f'Available Claim: {bidder.available_claim} |' \
                   f'Note that available claim value may fluctuate ' \
                   f'until bidding closes and claims are finalized.'
@@ -146,7 +146,7 @@ def cancel_bid(general_config, registry_options, worklock_options, force):
     registry = registry_options.get_registry(emitter, general_config.debug)
     bidder = worklock_options.create_bidder(registry=registry)
     if not force:
-        value = bidder.current_bid
+        value = bidder.get_deposited_eth
         click.confirm(f"Confirm bid cancellation of {Web3.fromWei(value, 'ether')} ETH"
                       f" for {worklock_options.bidder_address}?", abort=True)
     receipt = bidder.cancel_bid()
