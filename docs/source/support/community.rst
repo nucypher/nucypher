@@ -2,6 +2,7 @@
 Community
 =========
 
+.. image:: ../.static/img/nu_support.png
 
 Bugs & Feature Requests
 -----------------------
