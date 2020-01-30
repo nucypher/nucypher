@@ -249,6 +249,7 @@ From there you can develop, modify code, test as normal.
     [Service]
     User=<YOUR USER>
     Type=simple
+    Environment="NUCYPHER_WORKER_ETH_PASSWORD=<YOUR WORKER ADDRESS PASSWORD>"
     Environment="NUCYPHER_KEYRING_PASSWORD=<YOUR PASSWORD>"
     ExecStart=<VIRTUALENV PATH>/bin/nucypher ursula run
 
@@ -259,6 +260,7 @@ From there you can develop, modify code, test as normal.
     Replace the following values with your own:
 
     * `<YOUR_USER>` - The host system's username to run the process with
+    * `<YOUR WORKER ADDRESS PASSWORD>` - Worker's ETH account password
     * `<YOUR_PASSWORD>` - Ursula's keyring password
     * `<VIRTUALENV_PATH>` - The absolute path to the python virtual environment containing the `nucypher` executable
     * `<SEEDNODE_URI>` - A seednode URI of a node on the network you are connecting to
