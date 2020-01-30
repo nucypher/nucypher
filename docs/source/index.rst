@@ -173,6 +173,14 @@ Whitepapers
 
    glossary
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Support
+
+   support/community
+   support/troubleshooting
+   support/faq
+
 
 Indices and Tables
 ==================
