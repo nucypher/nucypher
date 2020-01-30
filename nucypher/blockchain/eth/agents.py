@@ -1005,6 +1005,24 @@ class WorkLockAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
         return receipt
 
+    @validate_checksum_address
+    def check_claim(self, checksum_address: str) -> bool:
+        has_claimed = self.contract.functions.workInfo(checksum_address).call()[2]
+        return has_claimed
+    
+    #
+    # Internal
+    #
+
+    @validate_checksum_address
+    def get_refunded_work(self, checksum_address: str) -> int:
+        work = self.contract.functions.workInfo(checksum_address).call()[1]
+        return work
+
+    def get_available_refund(self, completed_work: str) -> int:
+        refund_eth = self.contract.functions.workToETH(completed_work).call()
+        return refund_eth
+
     #
     # Calls
     #

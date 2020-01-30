@@ -214,7 +214,6 @@ class ContractAdministrator(NucypherTokenActor):
 
         self.registry = registry
         self.preallocation_escrow_deployers = dict()
-        self.user_escrow_deployers = dict()
         self.deployers = {d.contract_name: d for d in self.all_deployer_classes}
 
         self.deployer_power = TransactingPower(password=client_password, account=deployer_address, cache=True)
@@ -1379,7 +1378,13 @@ class StakeHolder(Staker):
 class Bidder(NucypherTokenActor):
     """WorkLock participant"""
 
-    class BidingIsClosed(RuntimeError):
+    class BidderError(NucypherTokenActor.ActorError):
+        pass
+
+    class BiddingIsOpen(BidderError):
+        pass
+
+    class BidingIsClosed(BidderError):
         pass
 
     def __init__(self, checksum_address: str, *args, **kwargs):
@@ -1387,7 +1392,7 @@ class Bidder(NucypherTokenActor):
         self.worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=self.registry)
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
 
-    def ensure_bidding_is_open(self):
+    def _ensure_bidding_is_open(self):
         now = maya.now().epoch
         start = self.worklock_agent.start_date
         end = self.worklock_agent.end_date
@@ -1396,26 +1401,58 @@ class Bidder(NucypherTokenActor):
         if now > end:
             raise self.BiddingIsClosed(f'Bidding closed at {maya.MayaDT(end).slang_date()}')
 
+    def _ensure_bidding_is_closed(self, message: str = None):
+        now = maya.now().epoch
+        end = self.worklock_agent.end_date
+        if now > end:
+            message = message or f"Bidding does not close until {end}"
+            raise self.BiddingIsOpen(message)
+
     #
     # Transactions
     #
 
     def place_bid(self, value: int) -> dict:
-        # wei_bid = Web3.toWei(value, 'wei')  # TODO: Use this?
-        self.ensure_bidding_is_open()
+        # wei_bid = Web3.toWei(value, 'wei')  # TODO: Consider default denomination on this layer
+        self._ensure_bidding_is_open()
         receipt = self.worklock_agent.bid(checksum_address=self.checksum_address, value=value)
         return receipt
 
     def claim(self) -> dict:
+
+        # Require the Bidding window is closed
+        end = self.worklock_agent.end_date
+        error = f"Claims cannot be placed while the bidding window is still open (closes at {end})."
+        self._ensure_bidding_is_closed(message=error)
+
+        # Ensure the claim was not already placed
+        if not self._has_claimed:
+            raise self.BidderError(f"Bidder {self.checksum_address} already placed a claim.")
+
+        # Require an available refund
+        if not self.available_refund:
+            raise self.BidderError(f"No claims available for {self.checksum_address}")
+
         receipt = self.worklock_agent.claim(checksum_address=self.checksum_address)
         return receipt
 
     def cancel_bid(self) -> dict:
+
+        # Require an active bid
+        if not self.current_bid:
+            self.BidderError(f"No bids available for {self.checksum_address}")
+
+        # Ensure the claim was not already placed
+        if self._has_claimed:
+            raise self.BidderError(f"Bidder {self.checksum_address} already claimed reward.")
+
         receipt = self.worklock_agent.cancel_bid(checksum_address=self.checksum_address)
         return receipt
 
     def refund_deposit(self):
         """Refund ethers for completed work"""
+        if self._has_claimed:
+            raise self.BidderError(f"Bidder {self.checksum_address} already claimed reward.")
         receipt = self.worklock_agent.refund(checksum_address=self.checksum_address)
         return receipt
 
@@ -1426,8 +1463,13 @@ class Bidder(NucypherTokenActor):
     @property
     def current_bid(self, denomination: str = None) -> float:
         bid = self.worklock_agent.get_bid(checksum_address=self.checksum_address)
-        ether_bid = Web3.toWei(bid, denomination or 'wei')
+        ether_bid = Web3.toWei(bid, denomination or 'wei')  # TODO: Consider default denomination on this layer
         return ether_bid
+
+    @property
+    def _has_claimed(self) -> bool:
+        has_claimed = self.worklock_agent.check_claim(self.checksum_address)
+        return has_claimed
 
     @property
     def completed_work(self) -> int:
@@ -1440,15 +1482,15 @@ class Bidder(NucypherTokenActor):
         try:
             work = self.worklock_agent.get_remaining_work(checksum_address=self.checksum_address)
         except (TransactionFailed, ValueError):
-            return 0
+            work = 0
         return work
 
     @property
     def refunded_work(self) -> int:
-        work = self.worklock_agent.contract.functions.workInfo(self.checksum_address).call()[1]
+        work = self.worklock_agent.get_refunded_work(checksum_address=self.checksum_address)
         return work
 
     @property
     def available_refund(self) -> int:
-        refund_eth = self.worklock_agent.contract.functions.workToETH(self.completed_work).call()
+        refund_eth = self.worklock_agent.get_available_refund(completed_work=self.completed_work)
         return refund_eth
