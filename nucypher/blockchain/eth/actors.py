@@ -1393,7 +1393,8 @@ class Bidder(NucypherTokenActor):
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
 
     def _ensure_bidding_is_open(self):
-        now = maya.now().epoch
+        highest_block = self.worklock_agent.blockchain.w3.eth.getBlock('latest')
+        now = highest_block['timestamp']
         start = self.worklock_agent.start_date
         end = self.worklock_agent.end_date
         if now < start:
@@ -1402,9 +1403,10 @@ class Bidder(NucypherTokenActor):
             raise self.BiddingIsClosed(f'Bidding closed at {maya.MayaDT(end).slang_date()}')
 
     def _ensure_bidding_is_closed(self, message: str = None):
-        now = maya.now().epoch
+        highest_block = self.worklock_agent.blockchain.w3.eth.getBlock('latest')
+        now = highest_block['timestamp']
         end = self.worklock_agent.end_date
-        if now > end:
+        if now < end:
             message = message or f"Bidding does not close until {end}"
             raise self.BiddingIsOpen(message)
 
@@ -1426,11 +1428,11 @@ class Bidder(NucypherTokenActor):
         self._ensure_bidding_is_closed(message=error)
 
         # Ensure the claim was not already placed
-        if not self._has_claimed:
+        if self._has_claimed:
             raise self.BidderError(f"Bidder {self.checksum_address} already placed a claim.")
 
         # Require an available refund
-        if not self.available_refund:
+        if not self.current_bid:
             raise self.BidderError(f"No claims available for {self.checksum_address}")
 
         receipt = self.worklock_agent.claim(checksum_address=self.checksum_address)

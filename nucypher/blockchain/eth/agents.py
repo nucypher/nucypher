@@ -1007,7 +1007,7 @@ class WorkLockAgent(EthereumContractAgent):
 
     @validate_checksum_address
     def check_claim(self, checksum_address: str) -> bool:
-        has_claimed = self.contract.functions.workInfo(checksum_address).call()[2]
+        has_claimed = bool(self.contract.functions.workInfo(checksum_address).call()[2])
         return has_claimed
     
     #

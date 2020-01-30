@@ -60,7 +60,7 @@ def test_get_remaining_work(testerchain, agency, token_economics, test_registry)
 def test_claim(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.unassigned_accounts[0]
     bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises(Bidder.BiddingIsOpen):
         _receipt = bidder.claim()
 
     # Wait until the bidding window closes...
@@ -75,7 +75,7 @@ def test_claim(testerchain, agency, token_economics, test_registry):
     assert receipt['status'] == 1
 
     # Cant claim more than once
-    with pytest.raises(TransactionFailed):
+    with pytest.raises(Bidder.BidderError):
         _receipt = bidder.claim()
 
     assert bidder.current_bid == 40000000000000000000000
