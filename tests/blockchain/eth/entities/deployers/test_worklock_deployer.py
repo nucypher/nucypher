@@ -48,7 +48,7 @@ def test_worklock_deployment(worklock_deployer, staking_escrow_deployer, deploym
 
     # deployment steps must match expected number of steps
     steps = worklock_deployer.deployment_steps
-    assert deployment_progress.num_steps == len(steps) == len(deployment_receipts) == 3
+    assert deployment_progress.num_steps == len(steps) == len(deployment_receipts) == 4
 
     # Ensure every step is successful
     for step_title in steps:

@@ -1421,12 +1421,6 @@ class Bidder(NucypherTokenActor):
     def place_bid(self, value: int) -> dict:
         # wei_bid = Web3.toWei(value, 'wei')  # TODO: Consider default denomination on this layer
         self._ensure_bidding_is_open()
-
-        # Ensure the bid is at least large enough for min. stake
-        minimum = self.economics.minimum_allowed_locked
-        if value < minimum:
-            raise ValueError(f"Bid amount must be at least {NU.from_nunits(minimum)}")
-
         receipt = self.worklock_agent.bid(checksum_address=self.checksum_address, value=value)
         return receipt
 
@@ -1441,9 +1435,14 @@ class Bidder(NucypherTokenActor):
         if self._has_claimed:
             raise self.BidderError(f"Bidder {self.checksum_address} already placed a claim.")
 
-        # Require an available refund
+        # Require an active bid
         if not self.current_bid:
             raise self.BidderError(f"No claims available for {self.checksum_address}")
+
+        # Ensure the claim is at least large enough for min. stake
+        minimum = self.economics.minimum_allowed_locked
+        if self.available_claim < minimum:
+            raise ValueError(f"Claim is too small. Claim amount must be worth at least {NU.from_nunits(minimum)})")
 
         receipt = self.worklock_agent.claim(checksum_address=self.checksum_address)
         return receipt
@@ -1473,9 +1472,9 @@ class Bidder(NucypherTokenActor):
     #
 
     @property
-    def current_bid(self, denomination: str = None) -> int:
+    def current_bid(self, denomination: str = 'wei') -> int:
         bid = self.worklock_agent.get_bid(checksum_address=self.checksum_address)
-        ether_bid = Web3.toWei(bid, denomination or 'wei')  # TODO: Consider default denomination on this layer
+        ether_bid = Web3.toWei(bid, denomination)  # TODO: Consider ether as the default denomination on this layer
         return ether_bid
 
     @property
@@ -1506,3 +1505,8 @@ class Bidder(NucypherTokenActor):
     def available_refund(self) -> int:
         refund_eth = self.worklock_agent.get_available_refund(completed_work=self.completed_work)
         return refund_eth
+
+    @property
+    def available_claim(self) -> int:
+        tokens = self.worklock_agent.eth_to_tokens(self.current_bid)
+        return tokens

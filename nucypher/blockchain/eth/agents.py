@@ -1069,6 +1069,18 @@ class WorkLockAgent(EthereumContractAgent):
         tokens = self.contract.functions.unclaimedTokens().call()
         return tokens
 
+    def eth_to_tokens(self, value: int) -> int:
+        tokens = self.contract.functions.ethToTokens(value).call()
+        return tokens
+
+    def eth_to_work(self, value: int) -> int:
+        tokens = self.contract.functions.ethToWork(value).call()
+        return tokens
+
+    def work_to_eth(self, value: int) -> int:
+        tokens = self.contract.functions.workToETH(value).call()
+        return tokens
+
     @property
     def start_date(self) -> int:
         date = self.contract.functions.startBidDate().call()
