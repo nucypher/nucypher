@@ -13,7 +13,8 @@ WORKDIR /install
 COPY ./nucypher/__about__.py /install/nucypher/
 COPY README.md /install
 COPY setup.py /install
-COPY scripts/installation/install_solc.sh /install
+COPY ./nucypher/blockchain/eth/sol/__conf__.py /install/nucypher/blockchain/eth/sol/__conf__.py
+COPY scripts/installation/install_solc.py /install/scripts/installation/
 COPY dev-requirements.txt /install
 COPY requirements.txt /install
 COPY dev/docker/scripts/install/entrypoint.sh /install
@@ -21,10 +22,10 @@ COPY dev/docker/scripts/install/entrypoint.sh /install
 # install reqs and solc
 RUN pip install --upgrade pip
 RUN pip3 install -r /install/dev-requirements.txt --src /usr/local/src
-RUN /install/install_solc.sh
+RUN python3 /install/scripts/installation/install_solc.py
 
 # puts the nucypher executable in bin path
-RUN python /install/setup.py develop
+RUN python3 /install/setup.py develop
 
 # this gets called after volumes are mounted and so can modify the local disk
 CMD ["/install/entrypoint.sh"]

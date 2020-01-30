@@ -18,6 +18,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.registry import LocalContractRegistry
+from nucypher.blockchain.eth.sol.compile import SOLIDITY_COMPILER_VERSION
 from nucypher.cli.commands.deploy import deploy
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
@@ -39,6 +40,13 @@ INSECURE_SECRETS = {v: generate_insecure_secret() for v in range(1, PLANNED_UPGR
 @pytest.fixture(scope="module")
 def registry_filepath(temp_dir_path):
     return os.path.join(temp_dir_path, 'nucypher-test-autodeploy.json')
+
+
+def test_echo_solidity_version(click_runner):
+    version_args = ('--solidity-version', )
+    result = click_runner.invoke(deploy, version_args, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert str(SOLIDITY_COMPILER_VERSION) in result.output, 'Solidity version text was not produced.'
 
 
 def test_nucypher_deploy_contracts(click_runner,

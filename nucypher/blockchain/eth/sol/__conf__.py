@@ -15,4 +15,4 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from nucypher.blockchain.eth.sol.__conf__ import SOLIDITY_COMPILER_VERSION
+SOLIDITY_COMPILER_VERSION = '0.5.16'

@@ -545,9 +545,9 @@ class BlockchainDeployerInterface(BlockchainInterface):
     class DeploymentFailed(RuntimeError):
         pass
 
-    def __init__(self, compiler: SolidityCompiler = None, *args, **kwargs):
+    def __init__(self, compiler: SolidityCompiler = None, ignore_solidity_check: bool = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.compiler = compiler or SolidityCompiler()
+        self.compiler = compiler or SolidityCompiler(ignore_solidity_check=ignore_solidity_check)
 
     def connect(self):
         super().connect()

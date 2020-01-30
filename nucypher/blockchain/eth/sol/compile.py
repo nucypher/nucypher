@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import collections
 import os
 import re
-from typing import List, Set, Tuple
+from typing import List, Set
 
 import sys
 from twisted.logger import Logger
@@ -26,12 +26,7 @@ from os.path import abspath, dirname
 import itertools
 import shutil
 
-try:
-    from solc import install_solc, compile_files
-    from solc.exceptions import SolcError
-except ImportError:
-    # TODO: Issue #461 and #758 & PR #1480 - Include precompiled ABI; Do not use py-solc in standard installation
-    pass
+from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
 
 SourceDirs = collections.namedtuple('SourceDirs', ['root_source_dir',    # type: str
                                                    'other_source_dirs',  # type: Set[str]
@@ -41,17 +36,8 @@ SourceDirs.__new__.__defaults__ = (None,)
 
 class SolidityCompiler:
 
-    __default_compiler_version = 'v0.5.9'
     __default_contract_version = 'v0.0.0'
-    __default_configuration_path = os.path.join(dirname(abspath(__file__)), './compiler.json')
-
-    __default_sol_binary_path = shutil.which('solc')
-    if __default_sol_binary_path is None:
-        __bin_path = os.path.dirname(sys.executable)          # type: str
-        __default_sol_binary_path = os.path.join(__bin_path, 'solc')  # type: str
-
     __default_contract_dir = os.path.join(dirname(abspath(__file__)), 'source')
-    __default_chain_name = 'tester'
 
     __compiled_contracts_dir = 'contracts'
     __zeppelin_library_dir = 'zeppelin'
@@ -61,39 +47,53 @@ class SolidityCompiler:
     class CompilerError(Exception):
         pass
 
+    class VersionError(Exception):
+        pass
+
     @classmethod
     def default_contract_dir(cls):
         return cls.__default_contract_dir
 
     def __init__(self,
                  solc_binary_path: str = None,
-                 configuration_path: str = None,
-                 chain_name: str = None,
-                 source_dirs: List[SourceDirs] = None
+                 source_dirs: List[SourceDirs] = None,
+                 ignore_solidity_check: bool = False
                  ) -> None:
         
         self.log = Logger('solidity-compiler')
-        # Compiler binary and root solidity source code directory
-        self.__sol_binary_path = solc_binary_path if solc_binary_path is not None else self.__default_sol_binary_path
+        self._set_solc_binary_path(solc_binary_path)
+        if not ignore_solidity_check:
+            self._check_compiler_version()
+
         if source_dirs is None or len(source_dirs) == 0:
             self.source_dirs = [SourceDirs(root_source_dir=self.__default_contract_dir)]
         else:
             self.source_dirs = source_dirs
 
-        # JSON config
-        self.__configuration_path = configuration_path if configuration_path is not None else self.__default_configuration_path
-        self._chain_name = chain_name if chain_name is not None else self.__default_chain_name
+    def _set_solc_binary_path(self, solc_binary_path: str):
+        # Compiler binary and root solidity source code directory
+        self.__sol_binary_path = solc_binary_path
+        if self.__sol_binary_path is None:
+            self.__sol_binary_path = shutil.which('solc')
+        if self.__sol_binary_path is None:
+            bin_path = os.path.dirname(sys.executable)  # type: str
+            self.__sol_binary_path = os.path.join(bin_path, 'solc')  # type: str
 
-        # Set the local env's solidity compiler binary
-        os.environ['SOLC_BINARY'] = self.__sol_binary_path
-
-    def install_compiler(self, version: str=None):
-        """
-        Installs the specified solidity compiler version.
-        https://github.com/ethereum/py-solc#installing-the-solc-binary
-        """
-        version = version if version is not None else self.__default_compiler_version
-        return install_solc(version, platform=None)  # TODO: #1478 - Implement or remove this
+    def _check_compiler_version(self):
+        from solc import get_solc_version_string
+        raw_solc_version_string = get_solc_version_string(solc_binary=self.__sol_binary_path)
+        solc_version_search = re.search(r"""
+             Version:\s          # Beginning of the string
+             (\d+\.\d+\.\d+)     # Capture digits of version
+             \S+                 # Skip other info in version       
+             """, raw_solc_version_string, re.VERBOSE
+                                        )
+        if not solc_version_search:
+            raise SolidityCompiler.VersionError(f"Can't parse solidity version: {raw_solc_version_string}")
+        solc_version = solc_version_search.group(1)
+        if not solc_version == SOLIDITY_COMPILER_VERSION:
+            raise SolidityCompiler.VersionError(f"Solidity version {solc_version} is unsupported. "
+                                                f"Use {SOLIDITY_COMPILER_VERSION} or option to ignore this check")
 
     def compile(self) -> dict:
         interfaces = dict()
@@ -162,8 +162,11 @@ class SolidityCompiler:
         self.log.info("Compiling with import remappings {}".format(", ".join(remappings)))
 
         optimization_runs = self.optimization_runs
+        from solc import compile_files
+        from solc.exceptions import SolcError
         try:
             compiled_sol = compile_files(source_files=source_paths,
+                                         solc_binary=self.__sol_binary_path,
                                          import_remappings=remappings,
                                          allow_paths=root_source_dir,
                                          optimize=True,
