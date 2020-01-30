@@ -23,7 +23,7 @@ from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGU
 from web3 import Web3
 from web3.contract import Contract
 
-from nucypher.blockchain.economics import StandardTokenEconomics
+from nucypher.blockchain.economics import StandardTokenEconomics, BaseEconomics
 from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,
     StakingEscrowAgent,
@@ -68,7 +68,7 @@ class BaseContractDeployer:
 
     def __init__(self,
                  registry: BaseContractRegistry,
-                 economics: StandardTokenEconomics = None,
+                 economics: BaseEconomics = None,
                  deployer_address: str = None):
 
         #
@@ -90,7 +90,7 @@ class BaseContractDeployer:
         self.__economics = economics or StandardTokenEconomics()
 
     @property
-    def economics(self) -> StandardTokenEconomics:
+    def economics(self) -> BaseEconomics:
         """Read-only access for economics instance."""
         return self.__economics
 
@@ -1075,7 +1075,7 @@ class WorklockDeployer(BaseContractDeployer):
 
     agency = WorkLockAgent
     contract_name = agency.registry_contract_name
-    deployment_steps = ('contract_deployment', 'bond_escrow', 'fund_worklock')
+    deployment_steps = ('contract_deployment', 'bond_escrow', 'approve_funding', 'fund_worklock')
     _upgradeable = False
 
     def __init__(self, *args, **kwargs):
@@ -1099,7 +1099,7 @@ class WorklockDeployer(BaseContractDeployer):
         self._contract = worklock_contract
         return worklock_contract, receipt
 
-    def deploy(self, gas_limit: int = None, progress: int = None) -> Dict[str, dict]:
+    def deploy(self, gas_limit: int = None, progress=None) -> Dict[str, dict]:
         self.check_deployment_readiness()
 
         # Essential
@@ -1115,17 +1115,16 @@ class WorklockDeployer(BaseContractDeployer):
             progress.update(1)
 
         # Funding
-        funding_receipt = self.fund(sender_address=self.deployer_address)
-        if progress:
-            progress.update(1)
+        approve_receipt, funding_receipt = self.fund(sender_address=self.deployer_address, progress=progress)
 
         # Gather the transaction hashes
-        self.deployment_transactions = dict(zip(self.deployment_steps, (deployment_receipt,
-                                                                        bonding_receipt,
-                                                                        funding_receipt)))
-        return self.deployment_transactions
+        self.deployment_receipts = dict(zip(self.deployment_steps, (deployment_receipt,
+                                                                    bonding_receipt,
+                                                                    approve_receipt,
+                                                                    funding_receipt)))
+        return self.deployment_receipts
 
-    def fund(self, sender_address: str) -> dict:
+    def fund(self, sender_address: str, progress=None) -> Tuple[dict, dict]:
         """
         Convenience method for funding the contract and establishing the
         total worklock lot value to be auctioned.
@@ -1137,10 +1136,17 @@ class WorklockDeployer(BaseContractDeployer):
         approve_receipt = self.blockchain.send_transaction(contract_function=approve_function,
                                                            sender_address=sender_address)
 
+        if progress:
+            progress.update(1)
+
         funding_function = self.contract.functions.tokenDeposit(supply)
         funding_receipt = self.blockchain.send_transaction(contract_function=funding_function,
                                                            sender_address=sender_address)
-        return funding_receipt
+
+        if progress:
+            progress.update(1)
+
+        return approve_receipt, funding_receipt
 
 
 class SeederDeployer(BaseContractDeployer, OwnableContractMixin):
@@ -1150,7 +1156,7 @@ class SeederDeployer(BaseContractDeployer, OwnableContractMixin):
     deployment_steps = ('contract_deployment', )
     _upgradeable = False
 
-    MAX_SEEDS = 10 # TODO: Move to economics?
+    MAX_SEEDS = 10  # TODO: Move to economics?
 
     def deploy(self, gas_limit: int = None, progress: int = None, **overrides) -> dict:
         self.check_deployment_readiness()
@@ -1163,5 +1169,5 @@ class SeederDeployer(BaseContractDeployer, OwnableContractMixin):
         self._contract = seeder_contract
         if progress:
             progress.update(1)
-        receipts = {self.deployment_steps[0]: receipt}
-        return receipts
+        self.deployment_receipts.update({self.deployment_steps[0]: receipt})
+        return self.deployment_receipts

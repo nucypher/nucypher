@@ -1035,8 +1035,8 @@ class WorkLockAgent(EthereumContractAgent):
     @property
     def lot_value(self) -> int:
         """
-        Total number of tokens than can be bid for and awarded in allocation contracts;
-        or the number of NU tokens deposited before the bidding windows begins via tokenDeposit().
+        Total number of tokens than can be bid for and awarded in or the number of NU
+        tokens deposited before the bidding windows begins via tokenDeposit().
         """
         supply = self.contract.functions.tokenSupply().call()
         return supply

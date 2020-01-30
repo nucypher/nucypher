@@ -793,6 +793,9 @@ class Staker(NucypherTokenActor):
         # Value
         if entire_balance and amount:
             raise ValueError("Specify an amount or entire balance, not both")
+        elif not entire_balance and not amount:
+            raise ValueError("Specify an amount or entire balance, got neither")
+
         if entire_balance:
             amount = self.token_balance
         if not self.token_balance >= amount:
@@ -1391,6 +1394,7 @@ class Bidder(NucypherTokenActor):
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
         self.worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=self.registry)
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+        self.economics = EconomicsFactory.get_economics(registry=self.registry)
 
     def _ensure_bidding_is_open(self):
         highest_block = self.worklock_agent.blockchain.w3.eth.getBlock('latest')
@@ -1417,6 +1421,12 @@ class Bidder(NucypherTokenActor):
     def place_bid(self, value: int) -> dict:
         # wei_bid = Web3.toWei(value, 'wei')  # TODO: Consider default denomination on this layer
         self._ensure_bidding_is_open()
+
+        # Ensure the bid is at least large enough for min. stake
+        minimum = self.economics.minimum_allowed_locked
+        if value < minimum:
+            raise ValueError(f"Bid amount must be at least {NU.from_nunits(minimum)}")
+
         receipt = self.worklock_agent.bid(checksum_address=self.checksum_address, value=value)
         return receipt
 
@@ -1463,7 +1473,7 @@ class Bidder(NucypherTokenActor):
     #
 
     @property
-    def current_bid(self, denomination: str = None) -> float:
+    def current_bid(self, denomination: str = None) -> int:
         bid = self.worklock_agent.get_bid(checksum_address=self.checksum_address)
         ether_bid = Web3.toWei(bid, denomination or 'wei')  # TODO: Consider default denomination on this layer
         return ether_bid
