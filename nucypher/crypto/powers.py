@@ -207,9 +207,7 @@ class TransactingPower(CryptoPowerUp):
         elif self.is_local:
             unlocked = self.__import_keyfile(password=password)
         else:
-            if self.__client is NO_BLOCKCHAIN_CONNECTION:
-                raise self.NoBlockchainConnection
-            unlocked = self.blockchain.client.unlock_account(address=self.account, password=password, duration=duration)
+            unlocked = self.__client.unlock_account(address=self.account, password=password, duration=duration)
         self.__unlocked = unlocked
         return self.__unlocked
 
