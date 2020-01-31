@@ -1366,11 +1366,10 @@ class Teacher:
             address_first6=self.checksum_address[2:8]
         )
 
-    def abridged_nodes_dict(self):
+    def abridged_nodes_dict(self) -> dict:
         abridged_nodes = {}
-        for checksum_address, node in self._nodes.items():
+        for checksum_address, node in self.known_nodes._nodes.items():
             abridged_nodes[checksum_address] = self.abridged_node_details(node)
-
         return abridged_nodes
 
     @staticmethod
