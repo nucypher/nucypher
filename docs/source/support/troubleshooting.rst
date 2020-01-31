@@ -25,12 +25,6 @@ For example: if the scheme is ``ipc://`` then the path should be appended as is 
 i.e. **THREE** slashes not two.
 
 
-nucypher.config.base.OldVersion: Configuration file is the wrong version. Expected version 1; Got version UNKNOWN_VERSION
--------------------------------------------------------------------------------------------------------------------------
-
-This is an issue with upgrading from a previous version while still having an older configuration on-disk.
-
-
 Validation error: 'code': -32000, 'message': 'gas required exceeds allowance (8000000) or always failing transaction
 --------------------------------------------------------------------------------------------------------------------
 
@@ -79,8 +73,11 @@ web3.exceptions.BadFunctionCallOutput: Could not transact with/call contract fun
 
 This error usually means your blockchain data is not synced.
 
-If using geth, ensure that geth is fully synced. You can run ``geth --goerli --exitwhensynced`` which causes geth
+If using geth, ensure that geth is fully synced. You can use the ``--exitwhensynced`` flag which causes geth
 to exit once fully synced.
+
+When using parity in light mode, this is raised when the light node cannot satisfy the call/transaction, e.g. not
+enough full nodes are serving requests.
 
 
 ValueError: {'code': -32000, 'message': 'could not decrypt key with given password'}
