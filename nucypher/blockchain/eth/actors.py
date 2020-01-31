@@ -1121,7 +1121,8 @@ class Worker(NucypherTokenActor):
         receipt = self.staking_agent.confirm_activity(worker_address=self.__worker_address)
         return receipt
 
-    def get_missing_confirmations(self, staker_address: str) -> int:
+    def get_missing_confirmations(self) -> int:
+        staker_address = self.checksum_address
         last_confirmed_period = self.staking_agent.get_last_active_period(staker_address)
         current_period = self.staking_agent.get_current_period()
         missing_confirmations = current_period - last_confirmed_period
