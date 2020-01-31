@@ -1,5 +1,5 @@
 import click
-from nucypher.cli import common_options
+from nucypher.cli import options
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.base import BaseSchema
 
@@ -8,7 +8,7 @@ class JoinPolicy(BaseSchema):  #TODO:  this doesn't have a cli implementation
 
     label = fields.Label(
         load_only=True, required=True,
-        click=common_options.option_label(required=True))
+        click=options.option_label(required=True))
     alice_verifying_key = fields.Key(
         load_only=True, required=True,
         click=click.option(
@@ -24,11 +24,11 @@ class JoinPolicy(BaseSchema):  #TODO:  this doesn't have a cli implementation
 class Retrieve(BaseSchema):
     label = fields.Label(
         required=True, load_only=True,
-        click=common_options.option_label(required=True))
+        click=options.option_label(required=True))
     policy_encrypting_key = fields.Key(
         required=True,
         load_only=True,
-        click=common_options.option_policy_encrypting_key(required=True))
+        click=options.option_policy_encrypting_key(required=True))
     alice_verifying_key = fields.Key(
         required=True, load_only=True,
         click=click.option(
@@ -38,7 +38,7 @@ class Retrieve(BaseSchema):
             required=True))
     message_kit = fields.UmbralMessageKit(
         required=True, load_only=True,
-        click=common_options.option_message_kit(required=True))
+        click=options.option_message_kit(required=True))
 
     cleartexts = fields.List(fields.Cleartext(), dump_only=True)
 

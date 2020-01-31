@@ -38,10 +38,8 @@ from nucypher.cli.options import (
     option_force,
     option_geth,
     option_hw_wallet,
-    option_label,
     option_light,
     option_m,
-    option_message_kit,
     option_middleware,
     option_min_stake,
     option_n,
@@ -50,7 +48,7 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_registry_filepath,
     option_teacher_uri,
-)
+    option_rate)
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD
@@ -65,7 +63,6 @@ option_bob_verifying_key = click.option(
 )
 
 option_pay_with = click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-option_rate = click.option('--rate', help="Policy rate per period (in wei)", type=types.WEI)  # TODO: Is wei a sane unit here? Perhaps gwei?
 
 
 class AliceConfigOptions:
@@ -387,7 +384,7 @@ def grant(general_config,
         if any((value, rate)):
             raise click.BadOptionUsage(option_name="--value, --rate",
                                        message="Can't use --value or --rate with a federated Alice.")
-    elif not (bool(value) ^ bool(rate)):
+    if bool(value) and bool(rate):
         raise click.BadOptionUsage(option_name="--rate", message="Can't use --value if using --rate")
 
     # Request
@@ -399,9 +396,11 @@ def grant(general_config,
         'n': n,
         'expiration': expiration,
     }
-
     if not ALICE.federated_only:
-        grant_request.update({'value': value, 'rate': rate})
+        if value:
+            grant_request['value'] = value
+        elif rate:
+            grant_request['rate'] = rate
     return ALICE.controller.grant(request=grant_request)
 
 

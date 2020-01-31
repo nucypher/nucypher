@@ -329,7 +329,8 @@ def _cli_lifecycle(click_runner,
         if federated:
             grant_args += ('--federated-only',)
         else:
-            grant_args += ('--provider', TEST_PROVIDER_URI, '--value', Web3.toWei(9, 'ether'))
+            grant_args += ('--provider', TEST_PROVIDER_URI,
+                           '--value', Web3.toWei(9, 'ether'))
 
         grant_result = click_runner.invoke(nucypher_cli, grant_args, catch_exceptions=False, env=envvars)
         assert grant_result.exit_code == 0

@@ -1,7 +1,8 @@
 import click
-from nucypher.cli import common_options, types
+
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.base import BaseSchema
+from nucypher.cli import options, types
 
 
 class PolicyBaseSchema(BaseSchema):
@@ -19,10 +20,10 @@ class PolicyBaseSchema(BaseSchema):
             '--bob-verifying-key', help="Bob's verifying key as a hexadecimal string"))
     m = fields.M(
         required=True, load_only=True,
-        click=common_options.option_m)
+        click=options.option_m)
     n = fields.N(
         required=True, load_only=True,
-        click=common_options.option_n)
+        click=options.option_n)
     expiration = fields.DateTime(
         required=True, load_only=True,
         click=click.option(
@@ -43,14 +44,20 @@ class CreatePolicy(PolicyBaseSchema):
 
     label = fields.Label(
         required=True,
-        click=common_options.option_label(required=True))
+        click=options.option_label(required=True))
 
 
 class GrantPolicy(PolicyBaseSchema):
 
     label = fields.Label(
         load_only=True, required=True,
-        click=common_options.option_label(required=True))
+        click=options.option_label(required=True))
+
+    rate = fields.Integer(
+        load_only=True,
+        required=False,
+        click=options.option_rate
+    )
 
     # output fields
     treasure_map = fields.TreasureMap(dump_only=True)
@@ -61,7 +68,7 @@ class DerivePolicyEncryptionKey(BaseSchema):
 
     label = fields.Label(
         required=True,
-        click=common_options.option_label(required=True))
+        click=options.option_label(required=True))
 
     # output
     policy_encrypting_key = fields.Key(dump_only=True)
@@ -71,7 +78,7 @@ class Revoke(BaseSchema):
 
     label = fields.Label(
         required=True, load_only=True,
-        click=common_options.option_label(required=True))
+        click=options.option_label(required=True))
     bob_verifying_key = fields.Key(
         required=True, load_only=True,
         click=click.option(
@@ -86,10 +93,10 @@ class Revoke(BaseSchema):
 class Decrypt(BaseSchema):
     label = fields.Label(
         required=True, load_only=True,
-        click=common_options.option_label(required=True))
+        click=options.option_label(required=True))
     message_kit = fields.UmbralMessageKit(
         load_only=True,
-        click=common_options.option_message_kit(required=True))
+        click=options.option_message_kit(required=True))
 
     # output
     cleartexts = fields.List(fields.Cleartext(), dump_only=True)

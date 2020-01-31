@@ -1,5 +1,5 @@
 import click
-from nucypher.cli import common_options
+from nucypher.cli import options
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.base import BaseSchema
 
@@ -15,7 +15,7 @@ class EncryptMessage(BaseSchema):
     policy_encrypting_key = fields.Key(
         required=False,
         load_only=True,
-        click=common_options.option_policy_encrypting_key())
+        click=options.option_policy_encrypting_key())
 
     # output
     message_kit = fields.UmbralMessageKit(dump_only=True)
