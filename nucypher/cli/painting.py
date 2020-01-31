@@ -451,11 +451,19 @@ See https://docs.nucypher.com/en/latest/guides/staking_guide.html'''
 def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_address: str = None):
     headers = ('Idx', 'Value', 'Remaining', 'Enactment')
     staker_headers = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees')
+
     stakers = stakeholder.get_stakers()
+    if not stakers:
+        emitter.echo("No staking accounts found.")
+
+    total_stakers = 0
     for staker in stakers:
         if not staker.stakes:
-            continue  # TODO: Something with non-staking accounts?
+            # This staker has no active stakes.
+            # TODO: Something with non-staking accounts?
+            continue
 
+        # Filter Target
         if staker_address and staker.checksum_address != staker_address:
             continue
 
@@ -481,9 +489,14 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
         rows = list()
         for index, stake in enumerate(stakes):
             if not stake.is_active and not paint_inactive:
+                # This stake is inactive.
                 continue
             rows.append(list(stake.describe().values()))
+        total_stakers += 1
         emitter.echo(tabulate.tabulate(rows, headers=headers, tablefmt="fancy_grid"))  # newline
+
+    if not total_stakers:
+        emitter.echo("No Stakes found", color='red')
 
 
 def prettify_stake(stake, index: int = None) -> str:
