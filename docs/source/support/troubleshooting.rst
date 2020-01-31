@@ -13,7 +13,7 @@ ValueError: {'code': -32000, 'message': 'no suitable peers available'}
 ----------------------------------------------------------------------
 
 This is a geth error and not related to ``nucypher``. You are probably running a light node that needs
-full nodes willing to serve information to it, but no such nodes were found.
+full nodes willing to serve information to it, but no such nodes were found (a frequent problem on the Goerli Ethereum testnet).
 
 
 nucypher.blockchain.eth.interfaces.ConnectionFailed: Connection Failed, is IPC enabled

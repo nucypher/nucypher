@@ -2,10 +2,10 @@
 Frequently Asked Questions
 ==========================
 
-What is the recommended specifications for running a nucypher?
+What are the recommended specifications for running a nucypher node?
 -------------------------------------------------------------------
 
-Worker nodes need to run ``nucypher`` and a local ethereum node, currently on the Goerli network. In total, you will
+Worker nodes need to run ``nucypher`` and a local ethereum node. In total, you will
 require at 4GB for RAM. Nodes also need 24/7 uptime and a static, public IPv4 address.
 
 For ``nucypher`` specific requirements, see `System Requirements and Dependencies <https://docs.nucypher.com/en/latest/guides/installation_guide.html#system-requirements-and-dependencies/>`_.
@@ -30,7 +30,7 @@ Technically, yes, but it is not recommended. The accounts have different securit
 (staker with NU) that performs stake management while the worker is low-value and needs to remain
 unlocked while running (software wallet) since it used by an Ursula node.
 
-You should stake with one address and set the worker to be a different address Subsequently, you can bond
+You should stake with one address and set the worker to be a different address. Subsequently, you can bond
 the worker address to the stake.
 
 
@@ -57,7 +57,7 @@ only need the Standard Installation
 How do I know that my node is setup correctly?
 ----------------------------------------------
 
-This is **ONLY** a heuristic to ensure that your node is running correctly:
+This is **ONLY** a heuristic to ensure that your node is running correctly, it doesn't guarantee your node is setup correctly: 
 
     #. Ensure that your Ursula node is up and running (logs/terminal):
 
@@ -67,7 +67,7 @@ This is **ONLY** a heuristic to ensure that your node is running correctly:
             Connecting to cassandra
             Working ~ Keep Ursula Online!
 
-    #. Ensure that your node uses the correct IP address can be accessed via port 9151 from an outside
+    #. Ensure that your node uses the correct IP address and can be accessed via port 9151 from an outside
        connection eg. cell phone, other computer etc. by navigating to: ``https://<node_ip>:9151/status``
 
     #. Ensure that your worker is bonded with your staker - ``nucypher stake list`` and check that
@@ -77,7 +77,7 @@ This is **ONLY** a heuristic to ensure that your node is running correctly:
 
        If your node is on the status monitor page but:
 
-        a. Does not have a green dot, you should ensure that your Ursula node can confirm activity.
+        a. Does not have a green dot, you should ensure that your Ursula node can confirm activity (hint: does your worker address have ETH to pay gas?).
            Try locally running ``nucypher ursula confirm-activity``
 
         b. Has a *Last Seen* value of ``No Connection to Node`` then there may be connectivity issues with your
