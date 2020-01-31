@@ -46,6 +46,8 @@ from twisted.internet import reactor, defer
 from twisted.internet import task
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
+
+import nucypher
 from umbral.signing import Signature
 
 from nucypher.blockchain.economics import EconomicsFactory
@@ -1351,6 +1353,7 @@ class Teacher:
 
     @staticmethod
     def node_details(node):
+        """Stranger-Safe Details"""
         node.mature()
 
         try:
@@ -1367,22 +1370,24 @@ class Teacher:
         payload = {"icon_details": node.nickname_icon_details(),
                    "rest_url": node.rest_url(),
                    "nickname": node.nickname,
-                   "checksum_address": node.worker_address,
+                   "worker_address": node.worker_address,
                    "staker_address": node.checksum_address,
                    "timestamp": node.timestamp.iso8601(),
                    "last_seen": last_seen,
-                   "fleet_state": str(node.known_nodes.checksum),
-                   "fleet_state_icon": fleet_icon}
+                   "fleet_state": node.fleet_state_checksum or 'unknown',
+                   "fleet_state_icon": fleet_icon,
+                   'version': nucypher.__version__}
         return payload
 
     def abridged_node_details(self) -> dict:
+        """Self-Reporting"""
         payload = self.node_details(node=self)
         states = self.known_nodes.abridged_states_dict()
         known = self.known_nodes_details()
         payload.update({'states': states, 'known_nodes': known})
         if not self.federated_only:
             payload.update({
-                "balances": dict(eth=int(self.eth_balance), nu=int(self.token_balance)),
+                "balances": dict(eth=float(self.eth_balance), nu=float(self.token_balance.to_tokens())),
                 "missing_confirmations": self.get_missing_confirmations(),
                 "last_active_period": self.last_active_period})
         return payload
