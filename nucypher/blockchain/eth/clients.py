@@ -391,10 +391,10 @@ class ClefClient:
     def sign_message(self, account: str, message: bytes) -> str:
         return self.w3.manager.request_blocking("account_signData", [message])
 
-    def unlock_account(self) -> bool:
+    def unlock_account(self, address: str, password: str, duration: int = None) -> bool:
         return True
 
-    def lock_account(self):
+    def lock_account(self, address: str):
         return True
 
 
