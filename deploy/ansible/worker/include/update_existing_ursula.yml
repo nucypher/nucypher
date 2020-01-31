@@ -3,12 +3,6 @@
   remote_user: "{{default_user}}"
   gather_facts: no
   tasks:
-    - name: Stop Ursula
-      become: yes
-      become_user: nucypher
-      docker_container:
-        name: ursula
-        state: stopped
 
     - name: "pull {{ nucypher_image | default('nucypher/nucypher:latest') }}"
       become: yes
@@ -16,5 +10,12 @@
         name: "{{ nucypher_image | default('nucypher/nucypher:latest') }}"
         source: pull
         force_source: yes
+
+    - name: Stop Ursula
+      become: yes
+      become_user: nucypher
+      docker_container:
+        name: ursula
+        state: stopped
 
 - import_playbook: run_nucypher_ursula.yml
