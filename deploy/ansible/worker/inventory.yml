@@ -37,6 +37,7 @@ all:
             network_name: cassandra
             geth_options: "--goerli"
             geth_dir: '/home/nucypher/geth/.ethereum/goerli/'
+            geth_container_datadir: "/root/.ethereum/goerli"
 
             # these can be overridden at the instance level if desired
             NUCYPHER_KEYRING_PASSWORD: xxxxxxxxxxxxxxxxxxxxxxxpanda
