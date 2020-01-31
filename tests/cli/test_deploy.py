@@ -6,14 +6,14 @@ from string import ascii_uppercase, digits
 import pytest
 from eth_utils import to_checksum_address
 
+from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
     PreallocationEscrowAgent,
     PolicyManagerAgent,
     AdjudicatorAgent,
-    ContractAgency,
-    EthereumContractAgent
+    ContractAgency
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
@@ -71,7 +71,7 @@ def test_nucypher_deploy_contracts(click_runner,
     assert result.exit_code == 0
 
     # Ensure there is a report on each contract except PreallocationEscrow
-    contract_names = tuple(a.registry_contract_name for a in EthereumContractAgent.__subclasses__() if a != PreallocationEscrowAgent)
+    contract_names = tuple(a.contract_name for a in ContractAdministrator.primary_deployer_classes)
     for registry_name in contract_names:
         assert registry_name in result.output
 
@@ -119,6 +119,21 @@ def test_nucypher_deploy_contracts(click_runner,
     assert AdjudicatorAgent(registry=registry)
 
 
+def test_deploy_single_contract(click_runner, registry_filepath):
+
+    # Perform the Test
+    command = ['contracts',
+               '--contract-name', 'Seeder',
+               '--registry-infile', registry_filepath,
+               '--provider', TEST_PROVIDER_URI,
+               '--poa',
+               '--debug']
+
+    user_input = '0\n' + 'Y\n'
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+
 def test_transfer_tokens(click_runner, registry_filepath):
     #
     # Setup
@@ -153,7 +168,7 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
     #
 
     # Check the existing state of the registry before the meat and potatoes
-    expected_enrollments = 9
+    expected_enrollments = 10
     with open(registry_filepath, 'r') as file:
         raw_registry_data = file.read()
         registry_data = json.loads(raw_registry_data)

@@ -147,6 +147,7 @@ def wrap_option(handler, **options):
     name = list(options)[0]
     dec = options[name]
 
+    @functools.wraps(handler)
     def _decorator(func):
 
         @functools.wraps(func)

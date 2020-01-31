@@ -23,21 +23,27 @@ from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGU
 from web3 import Web3
 from web3.contract import Contract
 
-from nucypher.blockchain.economics import StandardTokenEconomics
-from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.economics import StandardTokenEconomics, BaseEconomics
 from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,
     StakingEscrowAgent,
     NucypherTokenAgent,
     PolicyManagerAgent,
     PreallocationEscrowAgent,
-    AdjudicatorAgent
+    AdjudicatorAgent,
+    WorkLockAgent,
+    SeederAgent,
+    ContractAgency
 )
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_secret, validate_checksum_address
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory, \
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import (
     VersionedContract
-from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
+)
+from nucypher.blockchain.eth.registry import AllocationRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 
 
 class BaseContractDeployer:
@@ -62,7 +68,7 @@ class BaseContractDeployer:
 
     def __init__(self,
                  registry: BaseContractRegistry,
-                 economics: TokenEconomics = None,
+                 economics: BaseEconomics = None,
                  deployer_address: str = None):
 
         #
@@ -84,14 +90,14 @@ class BaseContractDeployer:
         self.__economics = economics or StandardTokenEconomics()
 
     @property
-    def economics(self) -> TokenEconomics:
+    def economics(self) -> BaseEconomics:
         """Read-only access for economics instance."""
         return self.__economics
 
     @property
     def contract_address(self) -> str:
         if self._contract is CONTRACT_NOT_DEPLOYED:
-            raise self.ContractNotDeployed
+            raise self.ContractNotDeployed(self.contract_name)
         address = self._contract.address  # type: str
         return address
 
@@ -170,7 +176,7 @@ class BaseContractDeployer:
             raise self.ContractDeploymentError(message)
         return True
 
-    def deploy(self, gas_limit: int, progress, **overrides) -> dict:
+    def deploy(self, gas_limit: int = None, progress: int = None, **overrides) -> dict:
         """
         Provides for the setup, deployment, and initialization of ethereum smart contracts.
         Emits the configured blockchain network transactions for single contract instance publication.
@@ -218,6 +224,10 @@ class OwnableContractMixin:
                                                              transaction_gas_limit=transaction_gas_limit)
 
             receipts['proxy'] = proxy_receipt
+
+        else:
+            existing_bare_contract = self.blockchain.get_contract_by_name(contract_name=self.contract_name,
+                                                                          registry=self.registry)
 
         #
         # Upgrade Principal
@@ -930,7 +940,6 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
                                           contract_abi=self.contract.abi)
 
     def deploy(self,
-               initial_deployment: bool = True,
                gas_limit: int = None,
                use_sidekick: bool = False,
                progress=None) -> dict:
@@ -1045,13 +1054,10 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
         adjudicator_contract = wrapped
 
         # Configure the StakingEscrow contract by setting the Adjudicator
-        tx_args = {}
-        if gas_limit:
-            tx_args.update({'gas': gas_limit})
         set_adjudicator_function = self.staking_contract.functions.setAdjudicator(adjudicator_contract.address)
         set_adjudicator_receipt = self.blockchain.send_transaction(contract_function=set_adjudicator_function,
                                                                    sender_address=self.deployer_address,
-                                                                   payload=tx_args)
+                                                                   transaction_gas_limit=gas_limit)
         if progress:
             progress.update(1)
 
@@ -1063,3 +1069,105 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
         self._contract = adjudicator_contract
 
         return deployment_receipts
+
+
+class WorklockDeployer(BaseContractDeployer):
+
+    agency = WorkLockAgent
+    contract_name = agency.registry_contract_name
+    deployment_steps = ('contract_deployment', 'bond_escrow', 'approve_funding', 'fund_worklock')
+    _upgradeable = False
+
+    def __init__(self, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+
+    def _deploy_essential(self, gas_limit: int = None):
+        # Deploy
+        constructor_args = (self.token_agent.contract_address,
+                            self.staking_agent.contract_address,
+                            *self.economics.worklock_deployment_parameters)
+
+        worklock_contract, receipt = self.blockchain.deploy_contract(self.deployer_address,
+                                                                     self.registry,
+                                                                     self.contract_name,
+                                                                     *constructor_args,
+                                                                     gas_limit=gas_limit)
+
+        self._contract = worklock_contract
+        return worklock_contract, receipt
+
+    def deploy(self, gas_limit: int = None, progress=None) -> Dict[str, dict]:
+        self.check_deployment_readiness()
+
+        # Essential
+        worklock_contract, deployment_receipt = self._deploy_essential(gas_limit=gas_limit)
+        if progress:
+            progress.update(1)
+
+        # Bonding
+        bonding_function = self.staking_agent.contract.functions.setWorkLock(worklock_contract.address)
+        bonding_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
+                                                           contract_function=bonding_function)
+        if progress:
+            progress.update(1)
+
+        # Funding
+        approve_receipt, funding_receipt = self.fund(sender_address=self.deployer_address, progress=progress)
+
+        # Gather the transaction hashes
+        self.deployment_receipts = dict(zip(self.deployment_steps, (deployment_receipt,
+                                                                    bonding_receipt,
+                                                                    approve_receipt,
+                                                                    funding_receipt)))
+        return self.deployment_receipts
+
+    def fund(self, sender_address: str, progress=None) -> Tuple[dict, dict]:
+        """
+        Convenience method for funding the contract and establishing the
+        total worklock lot value to be auctioned.
+        """
+        supply = self.economics.worklock_supply.to_nunits()
+
+        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
+        approve_function = token_agent.contract.functions.approve(self.contract_address, supply)
+        approve_receipt = self.blockchain.send_transaction(contract_function=approve_function,
+                                                           sender_address=sender_address)
+
+        if progress:
+            progress.update(1)
+
+        funding_function = self.contract.functions.tokenDeposit(supply)
+        funding_receipt = self.blockchain.send_transaction(contract_function=funding_function,
+                                                           sender_address=sender_address)
+
+        if progress:
+            progress.update(1)
+
+        return approve_receipt, funding_receipt
+
+
+class SeederDeployer(BaseContractDeployer, OwnableContractMixin):
+
+    agency = SeederAgent
+    contract_name = agency.registry_contract_name
+    deployment_steps = ('contract_deployment', )
+    _upgradeable = False
+
+    MAX_SEEDS = 10  # TODO: Move to economics?
+
+    def deploy(self, gas_limit: int = None, progress: int = None, **overrides) -> dict:
+        self.check_deployment_readiness()
+        constructor_args = (self.MAX_SEEDS,)
+        seeder_contract, receipt = self.blockchain.deploy_contract(self.deployer_address,
+                                                                   self.registry,
+                                                                   self.contract_name,
+                                                                   *constructor_args,
+                                                                   gas_limit=gas_limit)
+        self._contract = seeder_contract
+        if progress:
+            progress.update(1)
+        self.deployment_receipts.update({self.deployment_steps[0]: receipt})
+        return self.deployment_receipts

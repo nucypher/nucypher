@@ -146,7 +146,7 @@ def test_manual_proxy_retargeting(testerchain, click_runner, test_registry, toke
                                      economics=token_economics)
     proxy_deployer = deployer.get_proxy_deployer(registry=local_registry)
 
-    # Untargeted enrollment is indeed un targeted by the proxy
+    # Un-targeted enrollment is indeed un targeted by the proxy
     untargeted_deployment = deployer.get_latest_enrollment(registry=local_registry)
     assert proxy_deployer.target_contract.address != untargeted_deployment.address
 

@@ -17,11 +17,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import pytest
-from web3.contract import Contract
 from eth_utils import keccak
+from web3.contract import Contract
 
-from nucypher.blockchain.economics import TokenEconomics
-from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.economics import BaseEconomics
 
 VALUE_FIELD = 0
 
@@ -30,15 +29,15 @@ secret = (123456).to_bytes(32, byteorder='big')
 
 @pytest.fixture()
 def token_economics():
-    economics = TokenEconomics(initial_supply=10 ** 9,
-                               total_supply=2 * 10 ** 9,
-                               staking_coefficient=8 * 10 ** 7,
-                               locked_periods_coefficient=4,
-                               maximum_rewarded_periods=4,
-                               hours_per_period=1,
-                               minimum_locked_periods=2,
-                               minimum_allowed_locked=100,
-                               minimum_worker_periods=1)
+    economics = BaseEconomics(initial_supply=10 ** 9,
+                              total_supply=2 * 10 ** 9,
+                              staking_coefficient=8 * 10 ** 7,
+                              locked_periods_coefficient=4,
+                              maximum_rewarded_periods=4,
+                              hours_per_period=1,
+                              minimum_locked_periods=2,
+                              minimum_allowed_locked=100,
+                              minimum_worker_periods=1)
     return economics
 
 

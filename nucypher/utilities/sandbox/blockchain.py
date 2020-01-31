@@ -17,14 +17,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-from typing import List, Tuple
+from typing import List
+from typing import Tuple
 
 import maya
 from eth_tester.exceptions import TransactionFailed
 from twisted.logger import Logger
 from web3 import Web3
 
-from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics
+from nucypher.blockchain.economics import StandardTokenEconomics, StandardTokenEconomics, BaseEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
@@ -204,9 +205,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
                       f"| epoch {end_timestamp}")
 
     @classmethod
-    def bootstrap_network(cls,
-                          economics: TokenEconomics = None
-                          ) -> Tuple['TesterBlockchain', 'InMemoryContractRegistry']:
+    def bootstrap_network(cls, economics: BaseEconomics = None) -> Tuple['TesterBlockchain', 'InMemoryContractRegistry']:
         """For use with metric testing scripts"""
 
         registry = InMemoryContractRegistry()

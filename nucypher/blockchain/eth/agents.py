@@ -16,10 +16,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import math
 import random
 from typing import Generator, List, Tuple, Union
 
+import math
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
 from eth_utils.address import to_checksum_address
 from twisted.logger import Logger
@@ -613,6 +613,10 @@ class StakingEscrowAgent(EthereumContractAgent):
             result = missing_confirmations
         return result
 
+    def get_completed_work(self, bidder_address: str):
+        total_completed_work = self.contract.functions.getCompletedWork(bidder_address).call()
+        return total_completed_work
+
 
 class PolicyManagerAgent(EthereumContractAgent):
 
@@ -948,3 +952,187 @@ class AdjudicatorAgent(EthereumContractAgent):
 
         staking_parameters = tuple(map(_call_function_by_name, parameter_signatures))
         return staking_parameters
+
+
+class WorkLockAgent(EthereumContractAgent):
+
+    registry_contract_name = "WorkLock"
+
+    #
+    # Transactions
+    #
+
+    @validate_checksum_address
+    def bid(self, value: int, checksum_address: str) -> dict:
+        """Bid for NU tokens with ETH."""
+        contract_function = self.contract.functions.bid()
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=checksum_address,
+                                                   payload={'value': value})
+        return receipt
+
+    @validate_checksum_address
+    def cancel_bid(self, checksum_address: str) -> dict:
+        """Cancel bid and refund deposited ETH."""
+        contract_function = self.contract.functions.cancelBid()
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
+        return receipt
+
+    @validate_checksum_address
+    def claim(self, checksum_address: str) -> dict:
+        """
+        Claim tokens - will be deposited and locked as stake in the StakingEscrow contract.
+        """
+        contract_function = self.contract.functions.claim()
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
+
+        return receipt
+
+    @validate_checksum_address
+    def burn_unclaimed(self, checksum_address: str) -> dict:
+        """
+        Burn unclaimed tokens - Out of the goodness of your heart...
+        of course the caller must pay for the transaction gas.
+        """
+        contract_function = self.contract.functions.burnUnclaimed()
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
+        return receipt
+
+    @validate_checksum_address
+    def refund(self, checksum_address: str) -> dict:
+        """Refund ETH for completed work."""
+        contract_function = self.contract.functions.refund()
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
+        return receipt
+
+    @validate_checksum_address
+    def check_claim(self, checksum_address: str) -> bool:
+        has_claimed = bool(self.contract.functions.workInfo(checksum_address).call()[2])
+        return has_claimed
+    
+    #
+    # Internal
+    #
+
+    @validate_checksum_address
+    def get_refunded_work(self, checksum_address: str) -> int:
+        work = self.contract.functions.workInfo(checksum_address).call()[1]
+        return work
+
+    def get_available_refund(self, completed_work: str) -> int:
+        refund_eth = self.contract.functions.workToETH(completed_work).call()
+        return refund_eth
+
+    #
+    # Calls
+    #
+
+    @validate_checksum_address
+    def get_deposited_eth(self, checksum_address: str) -> int:
+        current_bid = self.contract.functions.workInfo(checksum_address).call()[0]
+        return current_bid
+
+    @property
+    def lot_value(self) -> int:
+        """
+        Total number of tokens than can be bid for and awarded in or the number of NU
+        tokens deposited before the bidding windows begins via tokenDeposit().
+        """
+        supply = self.contract.functions.tokenSupply().call()
+        return supply
+
+    @validate_checksum_address
+    def get_remaining_work(self, checksum_address: str) -> int:
+        """Get remaining work periods until full refund for the target address."""
+        result = self.contract.functions.getRemainingWork(checksum_address).call()
+        return result
+
+    def get_eth_supply(self) -> int:
+        supply = self.contract.functions.ethSupply().call()
+        return supply
+
+    def get_refund_rate(self) -> int:
+        f = self.contract.functions
+        slowing_refund = f.SLOWING_REFUND().call()
+        boosting_refund = f.boostingRefund().call()
+        refund_rate = self.get_deposit_rate() * slowing_refund / boosting_refund
+        return refund_rate
+
+    def get_deposit_rate(self) -> int:
+        try:
+            deposit_rate = self.lot_value // self.get_eth_supply()
+        except ZeroDivisionError:
+            return 0
+        return deposit_rate
+
+    def get_unclaimed_tokens(self) -> int:
+        tokens = self.contract.functions.unclaimedTokens().call()
+        return tokens
+
+    def eth_to_tokens(self, value: int) -> int:
+        tokens = self.contract.functions.ethToTokens(value).call()
+        return tokens
+
+    def eth_to_work(self, value: int) -> int:
+        tokens = self.contract.functions.ethToWork(value).call()
+        return tokens
+
+    def work_to_eth(self, value: int) -> int:
+        tokens = self.contract.functions.workToETH(value).call()
+        return tokens
+
+    @property
+    def start_date(self) -> int:
+        date = self.contract.functions.startBidDate().call()
+        return date
+
+    @property
+    def end_date(self) -> int:
+        date = self.contract.functions.endBidDate().call()
+        return date
+
+    def worklock_parameters(self) -> Tuple:
+        parameter_signatures = (
+            'tokenSupply',
+            'startBidDate',
+            'endBidDate',
+            'boostingRefund',
+            'stakingPeriods',
+        )
+
+        def _call_function_by_name(name: str):
+            return getattr(self.contract.functions, name)().call()
+
+        parameters = tuple(map(_call_function_by_name, parameter_signatures))
+        return parameters
+
+
+class SeederAgent(EthereumContractAgent):
+
+    registry_contract_name = "Seeder"
+
+    def enroll(self, sender_address: str, seed_address: str, ip: str, port: int) -> dict:
+        # TODO: Protection for over-enrollment
+        contract_function = self.contract.functions.enroll(seed_address, ip, port)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=sender_address)
+        return receipt
+
+    def refresh(self, sender_address: str, ip: str, port: int) -> dict:
+        contract_function = self.contract.functions.refresh(ip, port)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=sender_address)
+        return receipt
+
+    def get_entries(self) -> int:
+        length = self.contract.functions.getSeedArrayLength().call()
+        return length
+
+    def dump(self) -> list:
+        total = self.get_entries()
+        entries = list()
+        for index in range(total):
+            ip = self.contract.functions.seedArray(index).call()
+            entry = self.contract.functions.seeds(ip).call()
+            entries.append(entry)
+        return entries

@@ -29,15 +29,6 @@ from nucypher.utilities.sandbox.constants import (POLICY_MANAGER_DEPLOYMENT_SECR
                                                   STAKING_ESCROW_DEPLOYMENT_SECRET)
 
 
-@pytest.fixture(scope="module")
-def policy_manager_deployer(staking_escrow_deployer, testerchain, test_registry):
-    staking_escrow_deployer.deploy(secret_hash=keccak(text=STAKING_ESCROW_DEPLOYMENT_SECRET))
-
-    policy_manager_deployer = PolicyManagerDeployer(registry=test_registry,
-                                                    deployer_address=testerchain.etherbase_account)
-    return policy_manager_deployer
-
-
 def test_policy_manager_deployment(policy_manager_deployer, staking_escrow_deployer, deployment_progress):
 
     assert policy_manager_deployer.contract_name == POLICY_MANAGER_CONTRACT_NAME
