@@ -19,7 +19,7 @@ full nodes willing to serve information to it, but no such nodes were found (a f
 nucypher.blockchain.eth.interfaces.ConnectionFailed: Connection Failed, is IPC enabled
 --------------------------------------------------------------------------------------
 
-It’s possible that the provider URI is incorrect.
+The provider URI may be incorrect.
 
 For example: if the scheme is ``ipc://`` then the path should be appended as is to the end ``ipc:///home/…``
 i.e. **THREE** slashes not two.
@@ -34,7 +34,12 @@ This is an issue with upgrading from a previous version while still having an ol
 Validation error: 'code': -32000, 'message': 'gas required exceeds allowance (8000000) or always failing transaction
 --------------------------------------------------------------------------------------------------------------------
 
-- Ensure that your worker account has (Goerli) ETH in it
+This error can be caused by a variety of reasons. Each time ``require()`` fails to validate a condition in a contract
+without a corresponding check in the ``nucypher`` client itself, this error is raised. Over time, as we update the
+client, this generic error will become extinct.
+
+In the most common case:
+
 - Ensure that your worker is `bonded to a staker <https://docs.nucypher.com/en/latest/guides/staking_guide.html#bond-an-ursula-to-a-staker>`_.
   You can confirm by running ``nucypher stake list`` and check that Worker is set correctly i.e. not ``0x0000``.
 

@@ -3,7 +3,7 @@ Frequently Asked Questions
 ==========================
 
 What are the recommended specifications for running a nucypher node?
--------------------------------------------------------------------
+--------------------------------------------------------------------
 
 Worker nodes need to run ``nucypher`` and a local ethereum node. In total, you will
 require at 4GB for RAM. Nodes also need 24/7 uptime and a static, public IPv4 address.
@@ -20,15 +20,16 @@ The network name is ``cassandra``.
 How long is a period?
 ---------------------
 
-1 period equals 24 hours. Periods begin at midnight UTC time.
+1 period equals 24 hours. Periods begin at midnight UTC.
 
 
 What's the difference between staker address and worker address? Can they be the same?
 --------------------------------------------------------------------------------------
 
-Technically, yes, but it is not recommended. The accounts have different security considerations - the staker address can be a high-value hardware wallet
-(staker with NU) that performs stake management while the worker is low-value and needs to remain
-unlocked while running (software wallet) since it used by an Ursula node.
+Technically, yes, but it is not recommended. The accounts have different security considerations - the staker address
+can be a high-value hardware wallet (staker with NU and ETH) that performs stake management while the worker
+address is low-value and needs to remain unlocked while running (software wallet with ETH) since it
+is used by an Ursula node.
 
 You should stake with one address and set the worker to be a different address. Subsequently, you can bond
 the worker address to the stake.
@@ -54,8 +55,8 @@ it unless you plan to make changes to the codebase. If you are simply staking/ru
 only need the Standard Installation
 
 
-How do I know that my node is setup correctly?
-----------------------------------------------
+How do I know that my node is set up correctly?
+-----------------------------------------------
 
 This is **ONLY** a heuristic to ensure that your node is running correctly, it doesn't guarantee your node is setup correctly: 
 
@@ -71,7 +72,7 @@ This is **ONLY** a heuristic to ensure that your node is running correctly, it d
        connection eg. cell phone, other computer etc. by navigating to: ``https://<node_ip>:9151/status``
 
     #. Ensure that your worker is bonded with your staker - ``nucypher stake list`` and check that
-       Worker is set correctly i.e. not ``0x0000``.
+       *Worker* is set correctly i.e. not ``0x0000``.
 
     #. Ensure that your node is listed on the `Status Monitor Page <https://status.nucypher.network>`_ (this can take a few mins).
 
@@ -114,7 +115,7 @@ node does work and will get rewarded in period 2 for the work performed in perio
 .. note::
 
     `Restaking <https://docs.nucypher.com/en/latest/architecture/sub_stakes.html#re-staking>`_ is enabled by
-    default, and so NU inflation rewards are automatically restaked for you, and will be reflected in
+    default, so NU inflation rewards are automatically restaked for you, and will be reflected in
     the ``Staked`` value of the above command.
 
 
@@ -133,22 +134,6 @@ Can I extend the duration of my existing stake?
 --------------------------------------------------------------
 
 Yes, via the `prolong <https://docs.nucypher.com/en/latest/guides/staking_guide.html#prolong>`_ command.
-
-
-Why is the duration/enactment of my stake longer than the value I used during setup?
-------------------------------------------------------------------------------------
-
-It is probably because `winding down <http://docs.nucypher.com/en/latest/architecture/sub_stakes.html#winding-down>`_
-is disabled (default). If "winding down" is disabled, then the staking duration (``end period - current period``)
-remains the same over time.
-
-You can confirm that ``winding down`` is disabled by running::
-
-    nucypher status stakers
-    >    --provider <your_geth_provider>
-    >    --network cassandra
-    >    --staking-address <your_staker_address>``
-
 
 
 How can I reuse an Ursula that was connected to the previous version of the testnet?
