@@ -373,6 +373,14 @@ def make_rest_app(
                            checksum_address=str(this_node.checksum_address),
                            states=states,
                            known_nodes=known)
+            if not this_node.federated_only:
+                decentralized_payload = dict(
+                    balances=dict(eth=int(this_node.eth_balance), nu=int(this_node.token_balance)),
+                    missing_confirmations=this_node.get_missing_confirmations(),
+                    last_active_period=this_node.last_active_period
+                )
+                payload.update(decentralized_payload)
+
             response = jsonify(payload)
             return response
 
