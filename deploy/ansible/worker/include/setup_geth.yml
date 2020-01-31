@@ -82,7 +82,6 @@
 
     - name: "write new address to file for later use"
       become: yes
-      become_user: nucypher
       when: not account_file.stat.exists and new_geth_account_checksum is not undefined
       copy:
         content: "{{new_geth_account_checksum.stdout}}"
@@ -90,7 +89,6 @@
 
     - name: "write declared worker address to file if it exists"
       become: yes
-      become_user: nucypher
       when: NUCYPHER_WORKER_ADDRESS is not undefined
       copy:
         content: "{{NUCYPHER_WORKER_ADDRESS}}"
@@ -98,7 +96,6 @@
 
     - name: "get account address from file"
       become: yes
-      become_user: nucypher
       command: 'cat {{geth_dir}}account.txt'
       register: active_account
 
