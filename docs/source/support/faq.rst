@@ -27,7 +27,7 @@ What's the difference between staker address and worker address? Can they be the
 --------------------------------------------------------------------------------------
 
 Technically, yes, but it is not recommended. The accounts have different security considerations - the staker address
-can be a high-value hardware wallet (staker with NU and ETH) that performs stake management while the worker
+can be a high-value hardware wallet (with NU and ETH) that performs stake management while the worker
 address is low-value and needs to remain unlocked while running (software wallet with ETH) since it
 is used by an Ursula node.
 
