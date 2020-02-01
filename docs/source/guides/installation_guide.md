@@ -121,38 +121,27 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
     ```
 
 ## Docker Installation
+
 1. Install [Docker](https://docs.docker.com/install/)
-
 2. (Optional) Follow these post install instructions: [https://docs.docker.com/install/linux/linux-postinstall/](https://docs.docker.com/install/linux/linux-postinstall/)
-
 3. Get the latest nucypher image:
 
   `docker pull nucypher/nucypher:latest`
 
-4. Run commands:
+ Any nucypher CLI command can be executed in docker using the following syntax:
  
- Base command for running nucypher CLI commands with docker:
- 
-    ```bash
      docker run -it -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 nucypher/nucypher:latest nucypher <ACTION> <OPTIONS>
-    ```
   
-  A few examples:
+  Examples:
     
   Display network stats:
- 
-    ```bash
-     docker run -it -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 nucypher/nucypher:latest \
-       nucypher status network --provider <PROVIDER URI> --network <NETWORK NAME>
-    ```
+    
+     docker run -it -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 nucypher/nucypher:latest nucypher status network --provider <PROVIDER URI> --network <NETWORK NAME>
+    
         
-  Running a pre-configured Worker as a daemon:
+  Running a pre-configured Worker as a daemon (See [Contribution Guide](/guides/ursula_configuration_guide)):
  
-    ```bash
-     docker run -d -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 nucypher/nucypher:latest \
-       -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD \
-       nucypher ursula run
-    ```
+     docker run -d -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD nucypher/nucypher:latest nucypher ursula run
 
 ## Development Installation
 
