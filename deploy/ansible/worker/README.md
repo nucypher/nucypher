@@ -18,3 +18,9 @@
 updates all your existing nodes to the latest nucypher docker image
 
 1. from `/nucypher/deploy/ansible/` run `ansible-playbook worker/update_remote_workers.yml -i worker/inventory.yml -l cassandra`
+
+
+#### other commands to try 
+
+* `ansible-playbook worker/get_workers_status.yml -i ~/Documents/my_inventory.yml -l cassandra`
+   * prints out some useful information about your nodes
