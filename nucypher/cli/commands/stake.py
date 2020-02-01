@@ -265,12 +265,12 @@ def stake():
 @group_config_options
 @group_general_config
 @option_network
-def init_stakeholder(general_config, config_root, force, config_options, keyfile):
+def init_stakeholder(general_config, config_root, force, config_options):
     """
     Create a new stakeholder configuration.
     """
     emitter = _setup_emitter(general_config)
-    new_stakeholder = config_options.generate_config(config_root, keyfile)
+    new_stakeholder = config_options.generate_config(config_root)
     filepath = new_stakeholder.to_configuration_file(override=force)
     emitter.echo(f"Wrote new stakeholder configuration to {filepath}", color='green')
 
