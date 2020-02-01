@@ -23,5 +23,3 @@
     - name: "wait a few seconds Ursula to startup"
       pause:
         seconds: 15
-
-- import_playbook: check_running_ursula.yml

@@ -1,21 +1,30 @@
-- name: "Tail some logs from running Ursula"
+- name: "Ursula Status"
   hosts: "{{ nucypher_hosts | default('cassandra') }}"
   remote_user: "{{default_user}}"
   gather_facts: no
   tasks:
-    - name: Find my public ip
+    - name: Get public ip
       uri:
         url: http://ifconfig.me/ip
         return_content: yes
       register: ip_response
 
-    - name: "Ursula Status"
+    - name: "Request Ursula Status"
       become: yes
       uri:
         url: "https://{{ip_response.content}}:9151/status/?json=true"
         validate_certs: no
       register: status_data
 
-    - name: print result
+    - name: Print Result
       debug:
-        msg: "{{status_data}}"
+        msg:
+          - "{{status_data.json.nickname}}"
+          - "staker address:        {{status_data.json.staker_address}}"
+          - "worker address:        {{status_data.json.worker_address}}"
+          - "rest url:              https://{{status_data.json.rest_url}}"
+          - "missing_confirmations: {{status_data.json.missing_confirmations}}"
+          - "last active period:    {{status_data.json.last_active_period}}"
+          - "balances:"
+          - "   ETH:                {{status_data.json.balances.eth}}"
+          - "   NU:                 {{status_data.json.balances.nu}}"
