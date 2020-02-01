@@ -22,6 +22,8 @@ from typing import List, Tuple, Optional
 from eth_utils import to_checksum_address
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from hexbytes import HexBytes
+
+from nucypher.blockchain.eth.signers import Signer
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 from web3 import Web3
@@ -108,7 +110,7 @@ class TransactingPower(CryptoPowerUp):
     class NoBlockchainConnection(PowerUpError):
         pass
 
-    class AccountLocked(PowerUpError):
+    class AccountLocked(Signer.AccountLocked, PowerUpError):
         pass
 
     class InvalidSigningRequest(PowerUpError):
@@ -116,129 +118,68 @@ class TransactingPower(CryptoPowerUp):
 
     def __init__(self,
                  account: str,
-                 client=None,
+                 signer: Signer,
                  password: str = None,
-                 cache: bool = False,
-                 keyfile: str = None):
+                 cache: bool = False):
         """
         Instantiates a TransactingPower for the given checksum_address.
         """
-        self.blockchain = BlockchainInterfaceFactory.get_interface()
-        self.__client = client or self.blockchain.client  # injectable signer
+
+        blockchain = BlockchainInterfaceFactory.get_interface()
+        self.__blockchain = blockchain
+
+        self.__signer = signer
         self.__account = account
         self.__password = password
-        self.__unlocked = False
-        self.__activated = False
         self.__cache = cache
-        self.__key = None
-        self.__keyfile = keyfile
-
-    @property
-    def is_device(self):
-        if self.__keyfile is not None:
-            return False
-        try:
-            # TODO: Temporary fix for #1128 and #1385. It's ugly af, but it works. Move somewhere else?
-            wallets = self.__client.wallets
-        except AttributeError:
-            return False
-        else:
-            HW_WALLET_URL_PREFIXES = ('trezor', 'ledger')
-            hw_accounts = [w['accounts'] for w in wallets if w['url'].startswith(HW_WALLET_URL_PREFIXES)]
-            hw_addresses = [to_checksum_address(account['address']) for sublist in hw_accounts for account in sublist]
-            return self.__account in hw_addresses
-
-    @property
-    def is_local(self) -> bool:
-        """Returns True if this transacting power uses a local private key for signing."""
-        return self.__keyfile is not None
-
-    @property
-    def is_active(self) -> bool:
-        """Returns True if the blockchain currently has this transacting power attached."""
-        return self.blockchain.transacting_power == self
-
-    @property
-    def account(self) -> str:
-        return self.__account
-
-    def activate(self, password: str = None):
-        """Be Consumed"""
-        self.unlock_account(password=password)
-        if self.__cache is False:
-            self.__password = None
-        self.blockchain.transacting_power = self
-
-    def __import_keyfile(self, password: str) -> bool:
-        """
-        Import geth formatted key file to the transacting power.
-        WARNING: Do not save the key or password anywhere, especially into a shared source file
-        """
-        try:
-            with open(self.__keyfile) as keyfile:
-                encrypted_key = keyfile.read()
-                private_key = self.__client.w3.eth.account.decrypt(encrypted_key, password)
-        except FileNotFoundError:
-            raise  # TODO
-        except Exception:
-            raise  # TODO
-        else:
-            self.__key = private_key
-            return True
-
-    @property
-    def is_unlocked(self) -> bool:
-        return self.__unlocked
-
-    def lock_account(self):
-        if self.is_device:
-            pass  # TODO: Force Disconnect Devices?
-        elif self.is_local:
-            self.__key = None
-        else:
-            self.__client.lock_account(address=self.account)
-        self.__unlocked = False
-        return self.__unlocked
-
-    def unlock_account(self, password: str = None, duration: int = None):
-        password = password or self.__password
-        if self.is_device:
-            unlocked = True
-        elif self.is_local:
-            unlocked = self.__import_keyfile(password=password)
-        else:
-            unlocked = self.__client.unlock_account(address=self.account, password=password, duration=duration)
-        self.__unlocked = unlocked
-        return self.__unlocked
-
-    def sign_message(self, message: bytes) -> bytes:
-        """
-        Signs the message with the private key of the TransactingPower.
-        """
-        if not self.is_unlocked:
-            raise self.AccountLocked("Failed to unlock account {}".format(self.account))
-        signature = self.blockchain.client.sign_message(account=self.account, message=message)
-        return signature
-
-    def sign_transaction(self, unsigned_transaction: dict) -> HexBytes:
-        """
-        Signs the transaction with the private key of the TransactingPower.
-        """
-        if not self.is_unlocked:
-            raise self.AccountLocked("Failed to unlock account {}".format(self.account))
-        if self.is_local:
-            w3 = self.blockchain.w3
-            signed_transaction = w3.eth.account.sign_transaction(transaction_dict=unsigned_transaction, private_key=self.__key)
-            signed_raw_transaction = signed_transaction['rawTransaction']
-        else:
-            signed_raw_transaction = self.__client.sign_transaction(transaction=unsigned_transaction)
-        return signed_raw_transaction
+        self.__activated = False
 
     def __enter__(self):
         return self.unlock_account()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         return self.lock_account()
+
+    @property
+    def is_active(self, provider_uri: str = None) -> bool:
+        """Returns True if the blockchain currently has this transacting power attached."""
+        return bool(self.__blockchain.transacting_power == self)
+
+    def activate(self, password: str = None):
+        """Be Consumed"""
+        self.unlock_account(password=password)
+        if self.__cache is False:
+            self.__password = None
+        self.__blockchain.transacting_power = self
+
+    @property
+    def account(self) -> str:
+        return self.__account
+
+    @property
+    def is_unlocked(self) -> bool:
+        return self.__signer.is_unlocked
+
+    def lock_account(self):
+        return self.__signer.lock_account(account=self.__account)
+
+    def unlock_account(self, password: str = None, duration: int = None):
+        password = password or self.__password
+        return self.__signer.unlock_account(account=self.__account,
+                                            password=password,
+                                            duration=duration)
+
+    def sign_message(self, message: bytes) -> bytes:
+        """
+        Signs the message with the private key of the TransactingPower.
+        """
+        return self.__signer.sign_message(account=self.__account, message=message)
+
+    def sign_transaction(self, unsigned_transaction: dict) -> HexBytes:
+        """
+        Signs the transaction with the private key of the TransactingPower.
+        """
+        return self.__signer.sign_transaction(account=self.__account, transaction=unsigned_transaction)
 
 
 class KeyPairBasedPower(CryptoPowerUp):
