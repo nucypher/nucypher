@@ -4,6 +4,14 @@
   gather_facts: no
   tasks:
 
+    - name: Recursively change ownership of geth directory
+      become: yes
+      file:
+        path: /home/nucypher/geth
+        state: directory
+        recurse: yes
+        owner: nucypher
+
     - name: "pull {{ nucypher_image | default('nucypher/nucypher:latest') }}"
       become: yes
       docker_image:
@@ -24,7 +32,7 @@
         return_content: yes
       register: ip_response
 
-    - name: "init Nucypher Ursula worker"
+    - name: "init Ursula worker"
       become: yes
       become_user: nucypher
       when: ursula_check.stat.exists == False

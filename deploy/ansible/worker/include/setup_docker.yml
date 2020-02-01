@@ -9,7 +9,7 @@
 
     - name: Install required system packages
       apt: name={{ item }} state=latest update_cache=yes
-      loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common', 'python3-pip', 'virtualenv', 'python3-setuptools']
+      loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common', 'python3-pip', 'virtualenv', 'python3-setuptools', 'acl']
 
     - name: Add Docker GPG apt Key
       apt_key:
@@ -37,6 +37,11 @@
       user:
         name: nucypher
         group: docker
+
+    - name: Ensure Docker has started
+      service:
+        name: docker
+        state: started
 
     - name: "wait a few seconds for the docker daemon to startup (you can ctrl-C this...)"
       pause:

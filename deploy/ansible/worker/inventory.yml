@@ -38,11 +38,12 @@ all:
             geth_options: "--goerli"
             geth_dir: '/home/nucypher/geth/.ethereum/goerli/'
             geth_container_datadir: "/root/.ethereum/goerli"
+            etherscan_domain: goerli.etherscan.io
 
             # these can be overridden at the instance level if desired
             NUCYPHER_KEYRING_PASSWORD: xxxxxxxxxxxxxxxxxxxxxxxpanda
             NUCYPHER_WORKER_ETH_PASSWORD: yyyyyyyyyyyyyyyyyyyystainpants
             #nucypher_ursula_run_options: "--debug"
             #nucypher_ursula_init_options: "--debug"
-            #nucypher_image: #"nucypher/nucypher:v2.0.0-beta.0"
+            # nucypher_image: "nucypher/nucypher:v2.0.0-beta.0"
 

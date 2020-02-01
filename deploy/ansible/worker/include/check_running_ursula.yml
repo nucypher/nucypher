@@ -3,11 +3,19 @@
   remote_user: "{{default_user}}"
   gather_facts: no
   tasks:
-    - name: Show the last bit of the logs
-      register: output
+    - name: Find my public ip
+      uri:
+        url: http://ifconfig.me/ip
+        return_content: yes
+      register: ip_response
+
+    - name: "Ursula Status"
       become: yes
-      become_user: nucypher
-      command: "docker logs ursula"
+      uri:
+        url: "https://{{ip_response.content}}:9151/status/?json=true"
+        validate_certs: no
+      register: status_data
 
     - name: print result
-      debug: var=output.stdout_lines
+      debug:
+        msg: "{{status_data}}"

@@ -18,4 +18,4 @@
         name: ursula
         state: stopped
 
-- import_playbook: run_nucypher_ursula.yml
+- import_playbook: run_ursula.yml
