@@ -60,6 +60,7 @@ from nucypher.config.characters import StakeHolderConfiguration
 option_value = click.option('--value', help="Token value of stake", type=click.INT)
 option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
 option_worker_address = click.option('--worker-address', help="Address to assign as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
+option_signer = click.option('--signer', default=None, type=EXISTING_READABLE_FILE)
 
 
 def _setup_emitter(general_config):
@@ -74,8 +75,9 @@ class StakeHolderConfigOptions:
 
     __option_name__ = 'config_options'
 
-    def __init__(self, provider_uri, poa, light, registry_filepath, network):
+    def __init__(self, provider_uri, poa, light, registry_filepath, network, signer):
         self.provider_uri = provider_uri
+        self.signer = signer
         self.poa = poa
         self.light = light
         self.registry_filepath = registry_filepath
@@ -138,8 +140,10 @@ group_config_options = group_options(
     poa=option_poa,
     light=option_light,
     registry_filepath=option_registry_filepath,
-    network=option_network
-    )
+    network=option_network,
+    signer=option_signer
+
+)
 
 
 class StakerOptions:
@@ -158,6 +162,7 @@ class StakerOptions:
 
         return stakeholder_config.produce(
             initial_address=initial_address,
+            signer=self.config_options.signer,
             *args, **kwargs
         )
 
@@ -176,13 +181,12 @@ class TransactingStakerOptions:
 
     __option_name__ = 'transacting_staker_options'
 
-    def __init__(self, staker_options, hw_wallet, beneficiary_address, allocation_filepath, keyfile, signer):
+    def __init__(self, staker_options, hw_wallet, beneficiary_address, allocation_filepath, keyfile):
         self.staker_options = staker_options
         self.hw_wallet = hw_wallet
         self.beneficiary_address = beneficiary_address
         self.allocation_filepath = allocation_filepath
         self.keyfile = keyfile
-        self.signer = signer
 
     def create_character(self, emitter, config_file):
 
@@ -224,7 +228,6 @@ class TransactingStakerOptions:
             individual_allocation=individual_allocation,
             initial_address=initial_address,
             keyfiles=[self.keyfile] if self.keyfile else None,  # TODO: Accept multiple?,
-            signer=self.signer,
         )
 
     def get_blockchain(self):
@@ -244,7 +247,6 @@ group_transacting_staker_options = group_options(
     beneficiary_address=click.option('--beneficiary-address', help="Address of a pre-allocation beneficiary", type=EIP55_CHECKSUM_ADDRESS),
     allocation_filepath=click.option('--allocation-filepath', help="Path to individual allocation file", type=EXISTING_READABLE_FILE),
     keyfile=click.option('--keyfile', default=None, type=EXISTING_READABLE_FILE),
-    signer=click.option('--signer', default=None, type=EXISTING_READABLE_FILE)
 
 )
 
