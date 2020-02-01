@@ -41,6 +41,6 @@
         state: started
         image: ethereum/client-go:latest
         restart_policy: "unless-stopped"
-        command: "{{geth_options}}"
+        command: "{{geth_options}} --cache 2000"
         volumes:
           - /home/nucypher/geth:/root
