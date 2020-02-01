@@ -50,7 +50,7 @@ from nucypher.blockchain.eth.agents import (
     MultiSigAgent,
     WorkLockAgent
 )
-from nucypher.blockchain.eth.clients import ClefClient
+from nucypher.blockchain.eth.clients import ClefSigner
 from nucypher.blockchain.eth.decorators import only_me, save_receipt
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
@@ -1487,7 +1487,7 @@ class StakeHolder(Staker):
             if signer:
                provider = IPCProvider(signer)
                w3 = Web3(provider=provider)
-               signer = ClefClient(w3=w3)
+               signer = ClefSigner(w3=w3)
 
             self.__signer = signer
             self.__keyfiles = keyfiles or list()

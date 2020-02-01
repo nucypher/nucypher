@@ -9,7 +9,7 @@ from constant_sorrow.constants import NOT_RUNNING, UNKNOWN_DEVELOPMENT_CHAIN_ID
 from cytoolz.dicttoolz import dissoc
 from eth_account import Account
 from eth_account.messages import encode_defunct
-from eth_utils import to_canonical_address, to_normalized_address
+from eth_utils import to_canonical_address, apply_formatters_to_dict, to_normalized_address
 from eth_utils import to_checksum_address
 from geth import LoggingMixin
 from geth.accounts import get_accounts, create_new_account
@@ -128,7 +128,7 @@ class Web3Client:
             cls.ETHEREUM_TESTER: EthereumTesterClient,
 
             # Singers
-            cls.CLEF: ClefClient
+            cls.CLEF: ClefSigner
         }
 
         try:
@@ -139,7 +139,7 @@ class Web3Client:
         except (ValueError, IndexError):
             # check if this is a clef signer  TODO: move this?
             if 'clef' in getattr(w3.provider, 'ipc_path', ''):
-                return ClefClient(w3=w3)
+                return ClefSigner(w3=w3)
             raise ValueError(f"Invalid client version string. Got '{w3.clientVersion}'")
 
         except KeyError:
@@ -363,33 +363,35 @@ class GethClient(Web3Client):
         return self.w3.manager.request_blocking("personal_listWallets", [])
 
 
-class ClefClient:
+class ClefSigner:
 
     def __init__(self, w3):
         self.w3 = w3
         self.log = Logger(self.__class__.__name__)
 
-    def is_connected(self):
-        return True
+    def is_connected(self) -> bool:
+        return True  # TODO: Determine if the socket is reachable
 
     def accounts(self) -> List[str]:
         normalized_addresses = self.w3.manager.request_blocking("account_list", [])
         checksum_addresses = [to_checksum_address(addr) for addr in normalized_addresses]
         return checksum_addresses
 
-    def sign_transaction(self, transaction: dict):
-        # FIXME: SO LAME
-        transaction['value'] = self.w3.toHex(transaction['value'])
-        transaction['gas'] = self.w3.toHex(transaction['gas'])
-        transaction['gasPrice'] = self.w3.toHex(transaction['gasPrice'])
-        transaction['chainId'] = self.w3.toHex(transaction['chainId'])
-        transaction['nonce'] = self.w3.toHex(transaction['nonce'])
-        transaction['from'] = to_normalized_address(transaction['from'])
+    def sign_transaction(self, transaction: dict) -> bytes:
+        formatters = {
+            'nonce': Web3.toHex,
+            'gasPrice': Web3.toHex,
+            'gas': Web3.toHex,
+            'value': Web3.toHex,
+            'chainId': Web3.toHex,
+            'from': to_normalized_address
+        }
+        transaction = apply_formatters_to_dict(formatters, transaction)
         signed = self.w3.manager.request_blocking("account_signTransaction", [transaction])
         return signed.raw
 
     def sign_message(self, account: str, message: bytes) -> str:
-        return self.w3.manager.request_blocking("account_signData", [message])
+        return self.w3.manager.request_blocking("account_signData", [account, message])
 
     def unlock_account(self, address: str, password: str, duration: int = None) -> bool:
         return True
