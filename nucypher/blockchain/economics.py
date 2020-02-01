@@ -373,7 +373,12 @@ class EconomicsFactory:
         token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
         adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=registry)
-        worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)
+
+        worklock_deployed = True
+        try:
+            worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)
+        except registry.UnknownContract:
+            worklock_deployed = False
 
         # Token
         total_supply = token_agent.contract.functions.totalSupply().call()
@@ -390,7 +395,10 @@ class EconomicsFactory:
         slashing_parameters = adjudicator_agent.slashing_parameters()
 
         # Worklock
-        worklock_parameters = worklock_agent.worklock_parameters()
+        if worklock_deployed:
+            worklock_parameters = worklock_agent.worklock_parameters()
+        else:
+            worklock_parameters = list()
 
         # Aggregate (order-sensitive)
         economics_parameters = (initial_supply,
