@@ -44,6 +44,7 @@ from twisted.logger import Logger
 import nucypher
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import WorkTracker
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
@@ -125,10 +126,11 @@ class Alice(Character, BlockchainPolicyAuthor):
                            network_middleware=network_middleware,
                            *args, **kwargs)
 
-        if is_me and not federated_only:
+        if is_me and not federated_only:  # TODO: #289
+            blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=self.provider_uri)
             transacting_power = TransactingPower(account=self.checksum_address,
                                                  password=client_password,
-                                                 provider_uri=self.provider_uri,
+                                                 client=blockchain.client,
                                                  cache=cache_password)
             self._crypto_power.consume_power_up(transacting_power)
             BlockchainPolicyAuthor.__init__(self,
