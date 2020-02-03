@@ -344,7 +344,7 @@ class SQLiteForgetfulNodeStorage(ForgetfulNodeStorage):
 
     def __write_node_metadata(self, node):
         node.mature()
-        node_dict = node.abridged_node_details(node)
+        node_dict = node.abridged_node_details()
         db_row = (node_dict['staker_address'],
                   node_dict['rest_url'],
                   node_dict['nickname'],

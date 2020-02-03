@@ -362,39 +362,32 @@ def make_rest_app(
             log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
             assert False
 
-    @rest_app.route('/status/json', methods=['GET'])
-    def json_status():
-        states = this_node.known_nodes.abridged_states_dict()
-        known = this_node.known_nodes.abridged_nodes_dict()
-        payload = dict(version=nucypher.__version__,
-                       domains=[str(d) for d in serving_domains],
-                       checksum_address=str(this_node.checksum_address),
-                       states=states,
-                       known_nodes=known)
-        response = jsonify(payload)
-        return response
-
-    @rest_app.route('/status', methods=['GET'])
+    @rest_app.route('/status/', methods=['GET'])
     def status():
-        headers = {"Content-Type": "text/html", "charset": "utf-8"}
-        previous_states = list(reversed(this_node.known_nodes.states.values()))[:5]
 
-        # Mature every known node before rendering.
-        for node in this_node.known_nodes:
-            node.mature()
+        if request.args.get('json'):
+            payload = this_node.abridged_node_details()
+            response = jsonify(payload)
+            return response
 
-        try:
-            content = status_template.render(this_node=this_node,
-                                             known_nodes=this_node.known_nodes,
-                                             previous_states=previous_states,
-                                             domains=serving_domains,
-                                             version=nucypher.__version__,
-                                             checksum_address=this_node.checksum_address)
-        except Exception as e:
-            log.debug("Template Rendering Exception: ".format(str(e)))
-            raise TemplateError(str(e)) from e
+        else:
+            headers = {"Content-Type": "text/html", "charset": "utf-8"}
+            previous_states = list(reversed(this_node.known_nodes.states.values()))[:5]
+            # Mature every known node before rendering.
+            for node in this_node.known_nodes:
+                node.mature()
 
-        return Response(response=content, headers=headers)
+            try:
+                content = status_template.render(this_node=this_node,
+                                                 known_nodes=this_node.known_nodes,
+                                                 previous_states=previous_states,
+                                                 domains=serving_domains,
+                                                 version=nucypher.__version__,
+                                                 checksum_address=this_node.checksum_address)
+            except Exception as e:
+                log.debug("Template Rendering Exception: ".format(str(e)))
+                raise TemplateError(str(e)) from e
+            return Response(response=content, headers=headers)
 
     return rest_app, datastore
 

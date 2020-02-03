@@ -599,20 +599,6 @@ class StakingEscrowAgent(EthereumContractAgent):
 
         raise self.NotEnoughStakers('Selection failed after {} attempts'.format(attempts))
 
-    def get_missing_confirmations(self, staker_address: str) -> int:
-        last_confirmed_period = self.get_last_active_period(staker_address)
-        current_period = self.get_current_period()
-        missing_confirmations = current_period - last_confirmed_period
-        if missing_confirmations in (0, -1):
-            result = 0
-        elif missing_confirmations == current_period:  # never confirmed
-            stakes = self.get_all_stakes(staker_address=staker_address)
-            initial_staking_period = min(stakes, key=lambda s: s[0])
-            result = current_period - initial_staking_period
-        else:
-            result = missing_confirmations
-        return result
-
     def get_completed_work(self, bidder_address: str):
         total_completed_work = self.contract.functions.getCompletedWork(bidder_address).call()
         return total_completed_work

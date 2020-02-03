@@ -46,6 +46,8 @@ from twisted.internet import reactor, defer
 from twisted.internet import task
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
+
+import nucypher
 from umbral.signing import Signature
 
 from nucypher.blockchain.economics import EconomicsFactory
@@ -227,29 +229,6 @@ class FleetStateTracker:
                 "color_name": state.metadata[0][0]['color'],
                 "updated": state.updated.rfc2822(),
                 }
-
-    @staticmethod
-    def abridged_node_details(node):
-        node.mature()
-        try:
-            last_seen = node.last_seen.iso8601()
-        except AttributeError:  # TODO: This logic belongs somewhere - anywhere - else.
-            last_seen = str(node.last_seen)  # In case it's the constant NEVER_SEEN
-
-        fleet_icon = node.fleet_state_nickname_metadata
-        if fleet_icon is UNKNOWN_FLEET_STATE:
-            fleet_icon = "?"  # TODO
-        else:
-            fleet_icon = fleet_icon[0][1]
-
-        return {"icon_details": node.nickname_icon_details(),  # TODO: Mix this in better.
-                "rest_url": node.rest_url(),
-                "nickname": node.nickname,
-                "checksum_address": node.worker_address,
-                "staker_address": node.checksum_address,
-                "timestamp": node.timestamp.iso8601(),
-                "last_seen": last_seen,
-                "fleet_state_icon": fleet_icon}
 
 
 class NodeSprout(PartiallyKwargifiedBytes):
@@ -1366,19 +1345,20 @@ class Teacher:
             address_first6=self.checksum_address[2:8]
         )
 
-    def abridged_nodes_dict(self):
+    def known_nodes_details(self) -> dict:
         abridged_nodes = {}
-        for checksum_address, node in self._nodes.items():
-            abridged_nodes[checksum_address] = self.abridged_node_details(node)
-
+        for checksum_address, node in self.known_nodes._nodes.items():
+            abridged_nodes[checksum_address] = self.node_details(node=node)
         return abridged_nodes
 
     @staticmethod
-    def abridged_node_details(node):
+    def node_details(node):
+        """Stranger-Safe Details"""
         node.mature()
+
         try:
             last_seen = node.last_seen.iso8601()
-        except AttributeError:  # TODO: This logic belongs somewhere - anywhere - else.
+        except AttributeError:
             last_seen = str(node.last_seen)  # In case it's the constant NEVER_SEEN
 
         fleet_icon = node.fleet_state_nickname_metadata
@@ -1387,13 +1367,27 @@ class Teacher:
         else:
             fleet_icon = fleet_icon[0][1]
 
-        return {"icon_details": node.nickname_icon_details(),  # TODO: Mix this in better.
-                "rest_url": node.rest_url(),
-                "nickname": node.nickname,
-                "checksum_address": node.worker_address,
-                "staker_address": node.checksum_address,
-                "timestamp": node.timestamp.iso8601(),
-                "last_seen": last_seen,
-                "fleet_state_icon": fleet_icon,
-                }
+        payload = {"icon_details": node.nickname_icon_details(),
+                   "rest_url": node.rest_url(),
+                   "nickname": node.nickname,
+                   "worker_address": node.worker_address,
+                   "staker_address": node.checksum_address,
+                   "timestamp": node.timestamp.iso8601(),
+                   "last_seen": last_seen,
+                   "fleet_state": node.fleet_state_checksum or 'unknown',
+                   "fleet_state_icon": fleet_icon,
+                   'version': nucypher.__version__}
+        return payload
 
+    def abridged_node_details(self) -> dict:
+        """Self-Reporting"""
+        payload = self.node_details(node=self)
+        states = self.known_nodes.abridged_states_dict()
+        known = self.known_nodes_details()
+        payload.update({'states': states, 'known_nodes': known})
+        if not self.federated_only:
+            payload.update({
+                "balances": dict(eth=float(self.eth_balance), nu=float(self.token_balance.to_tokens())),
+                "missing_confirmations": self.get_missing_confirmations(),
+                "last_active_period": self.last_active_period})
+        return payload
