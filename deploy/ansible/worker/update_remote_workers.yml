@@ -1,0 +1,6 @@
+- name: "Update Remote Workers to latest NuCypher, Geth"
+  hosts: "{{ nucypher_hosts | default('cassandra') }}"
+  remote_user: "{{default_user}}"
+
+- import_playbook: include/update_existing_ursula.yml
+- import_playbook: include/check_running_ursula.yml

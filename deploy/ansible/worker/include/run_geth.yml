@@ -1,0 +1,47 @@
+- name: "Sync/Run Geth"
+  hosts: "{{ nucypher_hosts | default('cassandra') }}"
+  remote_user: "{{default_user}}"
+  gather_facts: no
+  tasks:
+    - name: "check if the geth.ipc exists (if it does, we skip syncing steps)"
+      become: yes
+      stat:
+        path: "{{geth_dir}}/geth.ipc"
+      register: geth_running
+
+    - name: "make sure no previously running geth syncs are still running"
+      become: yes
+      docker_container:
+        name: geth-sync
+        state: absent
+      when: geth_running.stat.exists == False
+      ignore_errors: yes
+
+    - name: "run geth until it finishes syncing (time to get up and go for a walk)"
+      become: yes
+      command: "docker run --name geth-sync -v /home/nucypher/geth:/root ethereum/client-go:latest {{geth_options}} --exitwhensynced --ipcdisable"
+      async: 100000
+      poll: 0
+      register: geth_sync_status
+      when: geth_running.stat.exists == False
+
+    - name: 'check if geth is finished syncing...'
+      become: yes
+      until: job_result.finished
+      retries: 10000
+      when: geth_running.stat.exists == False
+      register: job_result
+      async_status:
+        jid: "{{ geth_sync_status['ansible_job_id'] }}"
+
+    - name: "run geth {{geth_options}} forever in the background"
+      become: yes
+      docker_container:
+        name: geth
+        state: started
+        restart: yes
+        image: ethereum/client-go:latest
+        restart_policy: "unless-stopped"
+        command: "{{geth_options}} --cache 2000"
+        volumes:
+          - /home/nucypher/geth:/root
