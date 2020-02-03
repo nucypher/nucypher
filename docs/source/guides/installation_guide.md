@@ -26,7 +26,7 @@ or similar distros:
     - build-essential
         
 Here's a one-liner to install the above packages on linux:
-`sudo apt install python3-dev build-essential libffi-dev python3-pip`
+`sudo apt-get install python3-dev build-essential libffi-dev python3-pip`
 
 
 ## Standard Installation
