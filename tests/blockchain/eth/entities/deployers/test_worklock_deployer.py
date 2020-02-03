@@ -19,18 +19,24 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from eth_utils import keccak
 
+from nucypher.blockchain.economics import StandardTokenEconomics, EconomicsFactory
+from nucypher.blockchain.eth.actors import Staker, Bidder
 from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.constants import WORKLOCK_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import WorklockDeployer, StakingInterfaceDeployer, AdjudicatorDeployer
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import STAKING_ESCROW_DEPLOYMENT_SECRET, INSECURE_DEPLOYMENT_SECRET_HASH, \
     POLICY_MANAGER_DEPLOYMENT_SECRET, INSECURE_DEVELOPMENT_PASSWORD
 
 
+@pytest.fixture(scope='module')
+def baseline_deployment(adjudicator_deployer):
+    adjudicator_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
+
+
 @pytest.fixture(scope="module")
-def worklock_deployer(staking_escrow_deployer,
-                      policy_manager_deployer,
-                      adjudicator_deployer,
+def worklock_deployer(baseline_deployment,
                       testerchain,
                       test_registry,
                       token_economics):
@@ -40,11 +46,24 @@ def worklock_deployer(staking_escrow_deployer,
     return worklock_deployer
 
 
-def test_worklock_deployment(worklock_deployer, staking_escrow_deployer, deployment_progress):
+def test_worklock_deployment(worklock_deployer,
+                             baseline_deployment,
+                             staking_escrow_deployer,
+                             deployment_progress,
+                             test_registry,
+                             testerchain):
 
+    # Ensure nucypher APIs implementing economics are usable without a worklock deployment.
+    economics = EconomicsFactory.retrieve_from_blockchain(registry=test_registry)
+    assert economics.bidding_start_date == NotImplemented
+
+    # Deploy
     assert worklock_deployer.contract_name == WORKLOCK_CONTRACT_NAME
+    deployment_receipts = worklock_deployer.deploy(progress=deployment_progress)    # < ---- DEPLOY
 
-    deployment_receipts = worklock_deployer.deploy(progress=deployment_progress)
+    # Verify economics are updated
+    economics = EconomicsFactory.retrieve_from_blockchain(registry=test_registry)
+    assert economics.bidding_start_date != NotImplemented
 
     # deployment steps must match expected number of steps
     steps = worklock_deployer.deployment_steps
