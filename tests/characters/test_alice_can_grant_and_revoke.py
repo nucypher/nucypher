@@ -15,16 +15,14 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import os
-
 import datetime
+import os
+from unittest.mock import patch
+
 import maya
 import pytest
-
 from umbral.kfrags import KFrag
 
-from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.api import keccak_digest
@@ -32,12 +30,89 @@ from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.policy.collections import Revocation, PolicyCredential
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-from nucypher.utilities.sandbox.policy import MockPolicyCreation
+
+
+@pytest.mark.usefixtures('blockchain_ursulas')
+def test_policy_sinpa(blockchain_alice, blockchain_bob, agency, testerchain):
+    """
+    Making a Policy without paying.
+    """
+
+    # Setup the policy details
+    n = 3
+    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    label = b"this_is_the_path_to_which_access_is_being_granted"
+
+    # Create the Policy, Granting access to Bob
+    policy = blockchain_alice.grant(bob=blockchain_bob,
+                                    label=label,
+                                    m=2,
+                                    n=n,
+                                    rate=int(1e18),  # one ether
+                                    expiration=policy_end_datetime)
+
+    # Check the policy ID
+    policy_id = keccak_digest(policy.label + bytes(policy.bob.stamp))
+    assert policy_id == policy.id
+
+    # The number of accepted arrangements at least the number of Ursulas we're using (n)
+    assert len(policy._accepted_arrangements) >= n
+
+    # The number of actually enacted arrangements is exactly equal to n.
+    assert len(policy._enacted_arrangements) == n
+
+    # Let's look at the enacted arrangements.
+    for kfrag in policy.kfrags:
+        arrangement = policy._enacted_arrangements[kfrag]
+
+        # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
+        retrieved_policy = arrangement.ursula.datastore.get_policy_arrangement(arrangement.id.hex().encode())
+        retrieved_kfrag = KFrag.from_bytes(retrieved_policy.kfrag)
+
+        assert kfrag == retrieved_kfrag
+
+    _token, _staking, policy_agent = agency
+    policy_from_blockchain = policy_agent.fetch_policy(policy_id=bytes(policy.hrac())[:16])
+    assert policy_from_blockchain[0] == blockchain_alice.checksum_address  # Alice payed for the policy
+    assert policy_from_blockchain[2] > 0  # The daily rate for the policy paid by Alice
+
+    #
+    # "Alice hace un sinpa" (https://en.wiktionary.org/wiki/sinpa), or Alice does a dine-and-dash.
+    #
+
+    before_balance = testerchain.client.get_balance(blockchain_alice.checksum_address)
+    label = b"I'm not paying for that"
+
+    # Instead of creating the policy on-chain and paying for it, Alice decides to do nothing.
+    with patch("nucypher.policy.policies.BlockchainPolicy.publish",
+               new=lambda *args, **kwargs: "I said I'm not paying for that"):
+        free_policy = blockchain_alice.grant(bob=blockchain_bob,
+                                             label=label,
+                                             m=2,
+                                             n=n,
+                                             rate=int(1e18),  # one ether
+                                             expiration=policy_end_datetime)
+
+    # Let's look at the enacted arrangements.
+    for kfrag in free_policy.kfrags:
+        arrangement = free_policy._enacted_arrangements[kfrag]
+
+        # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
+        retrieved_policy = arrangement.ursula.datastore.get_policy_arrangement(arrangement.id.hex().encode())
+        retrieved_kfrag = KFrag.from_bytes(retrieved_policy.kfrag)
+
+        assert kfrag == retrieved_kfrag
+
+    # ... and yet, the policy was not paid :(
+    policy_from_blockchain = policy_agent.fetch_policy(policy_id=bytes(free_policy.hrac())[:16])
+    assert policy_from_blockchain[0] == blockchain_alice.checksum_address  # Alice payed for the policy
+    assert policy_from_blockchain[2] > 0  # The daily rate for the policy paid by Alice
+    after_balance = testerchain.client.get_balance(blockchain_alice.checksum_address)
+    assert before_balance > after_balance
 
 
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_decentralized_grant(blockchain_alice, blockchain_bob, agency):
-
     # Setup the policy details
     n = 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
@@ -95,9 +170,9 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, agency):
     deserialized_cred = PolicyCredential.from_json(cred_json)
     assert credential == deserialized_cred
 
+
 @pytest.mark.usefixtures('federated_ursulas')
 def test_federated_grant(federated_alice, federated_bob):
-
     # Setup the policy details
     m, n = 2, 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
@@ -203,7 +278,6 @@ def test_revocation(federated_alice, federated_bob):
 
 
 def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
-
     # Create a non-learning AliceConfiguration
     alice_config = AliceConfiguration(
         config_root=os.path.join(tmpdir, 'nucypher-custom-alice-config'),
