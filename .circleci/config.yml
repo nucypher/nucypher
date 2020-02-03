@@ -620,12 +620,12 @@ jobs:
       - run:
           name: Build Docker Image
           command: |
-            docker build -f deploy/docker/Dockerfile --cache-from=nucypher -t nucypher/nucypher:$CIRCLE_TAG .
+            docker build -f deploy/docker/Dockerfile --cache-from=nucypher -t nucypher/nucypher:circle .
       - run:
           name: Save Docker Image Layer Cache
           command: |
             mkdir -p ~/docker
-            docker save -o ~/docker/nucypher.tar nucypher/nucypher:$CIRCLE_TAG
+            docker save -o ~/docker/nucypher.tar nucypher/nucypher:circle
       - save_cache:
           key: v1-{{ .Branch }}-{{ epoch }}
           paths:
@@ -719,7 +719,7 @@ jobs:
           name: Push Latest NuCypher Docker Image
           command: |
             echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
-            docker nucypher:$CIRCLE_TAG nucypher/nucypher:experimental
+            docker tag nucypher:circle nucypher/nucypher:experimental
             docker push nucypher/nucypher:experimental
 
   publish_docker:
@@ -743,7 +743,8 @@ jobs:
           name: Push Tagged NuCypher Docker Images
           command: |
             echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
-            docker tag nucypher:$CIRCLE_TAG nucypher/nucypher:latest
+            docker tag nucypher:circle nucypher/nucypher:$CIRCLE_TAG
+            docker tag nucypher:circle nucypher/nucypher:latest
             docker push nucypher/nucypher:$CIRCLE_TAG
             docker push nucypher/nucypher:latest
 
