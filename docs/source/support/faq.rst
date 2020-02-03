@@ -6,7 +6,7 @@ What are the recommended specifications for running a nucypher node?
 --------------------------------------------------------------------
 
 Worker nodes need to run ``nucypher`` and a local ethereum node. In total, you will
-require at 4GB for RAM. Nodes also need 24/7 uptime and a static, public IPv4 address.
+require at least 4GB for RAM. Nodes also need 24/7 uptime and a static, public IPv4 address.
 
 For ``nucypher`` specific requirements, see `System Requirements and Dependencies <https://docs.nucypher.com/en/latest/guides/installation_guide.html#system-requirements-and-dependencies/>`_.
 
@@ -24,10 +24,10 @@ How long is a period?
 
 
 Can my Staker and Worker address be the same?
---------------------------------------------------------------------------------------
+---------------------------------------------
 
 Technically, yes, but it is not recommended. The accounts have different security considerations - the staker address
-can be a high-value hardware wallet (with NU and ETH) that performs stake management while the worker
+is high-value and can be a hardware wallet (with NU and ETH) that performs stake management while the worker
 address is low-value and needs to remain unlocked while running (software wallet with ETH) since it
 is used by an Ursula node.
 
@@ -74,15 +74,7 @@ This is **ONLY** a heuristic to ensure that your node is running correctly, it d
     #. Ensure that your worker is bonded with your staker - ``nucypher stake list`` and check that
        *Worker* is set correctly i.e. not ``0x0000``.
 
-    #. Ensure that your node is listed on the `Status Monitor Page <https://status.nucypher.network>`_ (this can take a few mins).
-
-       If your node is on the status monitor page but:
-
-        a. Does not have a green dot, you should ensure that your Ursula node can confirm activity (hint: does your worker address have ETH to pay gas?).
-           Try locally running ``nucypher ursula confirm-activity``
-
-        b. Has a *Last Seen* value of ``No Connection to Node`` then there may be connectivity issues with your
-           node - redo the check in step #2.
+    #. Ensure that your node is listed on the `Status Monitor Page <https://status.nucypher.network>`_ (this can take a few minutes).
 
 
 What's the best way to run Ursula in the background?
@@ -108,13 +100,13 @@ Run::
     >    --network cassandra
     >    --staking-address <your_staker_address>``
 
-Note that a minimum of two periods must elapse before rewards will be delivered to your wallet. For example, say we are in Period 5 when you start staking:
-Period 5: You deposit stake and initiate a worker
-Period 5: Your worker calls ``confirmActivity()`` in order to receive work for the next period
-Period 6: Your worker successfully performs the work 
-Period 7: Your worker receives rewards for the work completed in the previous period
-(which calls ``confirmActivity()`` to receive work for the next period (1)), then in period 1 the Ursula
-node does work and will get rewarded in period 2 for the work performed in period 1.
+Note that a minimum of two periods must elapse before rewards will be delivered to your wallet. For example, say we
+are in Period 5 when you start staking:
+
+- Period 5: You deposit stake and initiate a worker
+- Period 5: Your worker calls ``confirmActivity()`` in order to receive work for the next period
+- Period 6: Your worker successfully performs the work
+- Period 7: Your worker receives rewards for the work completed in the previous period
 
 .. note::
 

@@ -42,13 +42,13 @@ builtins.ValueError: {'code': -32000, 'message': 'insufficient funds for gas * p
 ----------------------------------------------------------------------------------------------
 
 The Ursula node does not have enough (Goerli) ETH to pay for transaction gas. Ensure that your worker address has
-(Goerli) ETH in it.
+(Goerli) ETH.
 
 
 Warning! Error encountered during contract execution [Out of gas]
 -----------------------------------------------------------------
 
-The Ursula node does not have enough (Goerli) ETH to pay for transaction gas; ensure that your worker address has (Goerli) ETH in it.
+The Ursula node does not have enough (Goerli) ETH to pay for transaction gas; ensure that your worker address has (Goerli) ETH.
 
 
 RuntimeError: Click will abort further execution because Python 3 was configured to use ASCII as encoding for the environment
