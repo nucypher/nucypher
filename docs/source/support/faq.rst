@@ -23,7 +23,7 @@ How long is a period?
 1 period equals 24 hours. Periods begin at midnight UTC.
 
 
-What's the difference between staker address and worker address? Can they be the same?
+Can my Staker and Worker address be the same?
 --------------------------------------------------------------------------------------
 
 Technically, yes, but it is not recommended. The accounts have different security considerations - the staker address
@@ -44,7 +44,7 @@ Our guide is intended for Linux - we do not officially support Windows.
 Where is my Ursula config path?
 -------------------------------
 
-On Linux - ``$HOME/.local/share/nucypher/ursula.json``
+On Ubuntu/Debian - ``$HOME/.local/share/nucypher/ursula.json``
 
 
 What is the difference between Standard Installation and Development Installation?
@@ -108,7 +108,11 @@ Run::
     >    --network cassandra
     >    --staking-address <your_staker_address>``
 
-It takes two periods to observe rewards - if you deposit in period 0 and start a worker in the same period
+Note that a minimum of two periods must elapse before rewards will be delivered to your wallet. For example, say we are in Period 5 when you start staking:
+Period 5: You deposit stake and initiate a worker
+Period 5: Your worker calls ``confirmActivity()`` in order to receive work for the next period
+Period 6: Your worker successfully performs the work 
+Period 7: Your worker receives rewards for the work completed in the previous period
 (which calls ``confirmActivity()`` to receive work for the next period (1)), then in period 1 the Ursula
 node does work and will get rewarded in period 2 for the work performed in period 1.
 
@@ -164,5 +168,5 @@ You can usually proceed to the page anyway. If not, try using a different browse
 This all seems too complex for me, can I still participate in some way?
 -----------------------------------------------------------------------
 
-We highly recommend delegating to a staking company rather than doing it yourself, if
+We highly recommend delegating to an experienced staker rather than doing it yourself, if
 you are not super familiar with running nodes for other networks.

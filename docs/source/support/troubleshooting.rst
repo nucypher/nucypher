@@ -27,7 +27,7 @@ i.e. **THREE** slashes not two.
 
 Validation error: 'code': -32000, 'message': 'gas required exceeds allowance (8000000) or always failing transaction
 --------------------------------------------------------------------------------------------------------------------
-
+This is a generic exception thrown by Geth meaning "Transaction Failed".
 This error can be caused by a variety of reasons. Each time ``require()`` fails to validate a condition in a contract
 without a corresponding check in the ``nucypher`` client itself, this error is raised. Over time, as we update the
 client, this generic error will become extinct.
