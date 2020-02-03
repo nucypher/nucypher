@@ -12,7 +12,7 @@ There is an insufficient amount of NU in your staking account.
 ValueError: {'code': -32000, 'message': 'no suitable peers available'}
 ----------------------------------------------------------------------
 
-This is a geth error and not related to ``nucypher``. You are probably running a light node that needs
+This is a Geth error and not related to ``nucypher``. You are probably running a light node that needs
 full nodes willing to serve information to it, but no such nodes were found (a frequent problem on the Goerli Ethereum testnet).
 
 
@@ -73,7 +73,7 @@ web3.exceptions.BadFunctionCallOutput: Could not transact with/call contract fun
 
 This error usually means your blockchain data is not synced.
 
-If using geth, ensure that geth is fully synced. You can use the ``--exitwhensynced`` flag which causes geth
+If using Geth, ensure that Geth is fully synced. You can use the ``--exitwhensynced`` flag which causes Geth
 to exit once fully synced.
 
 When using parity in light mode, this is raised when the light node cannot satisfy the call/transaction, e.g. not
