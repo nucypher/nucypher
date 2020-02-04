@@ -1017,6 +1017,7 @@ class Teacher:
         This is the most mature form, so we do nothing.
         """
 
+    # TODO: Unused method. Remove?
     def save_cert_for_this_stranger_node(stranger, certificate):
         return stranger._cert_store_function(certificate)
 

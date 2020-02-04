@@ -644,7 +644,7 @@ class PolicyManagerAgent(EthereumContractAgent):
                                                                  node_addresses)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    payload=payload,
-                                                   sender_address=author_address)
+                                                   sender_address=author_address)  # TODO: Gas management - #842
         return receipt
 
     def fetch_policy(self, policy_id: str) -> list:

@@ -343,6 +343,9 @@ class Policy(ABC):
         Assign kfrags to ursulas_on_network, and distribute them via REST,
         populating enacted_arrangements
         """
+        # TODO: #121 - Consider tweaking the order of the enactment steps:
+        # first create the policy on chain and then send the kfrags together with the TX receipt
+
         for arrangement in self.__assign_kfrags():
             policy_message_kit = arrangement.encrypt_payload_for_ursula()
 
@@ -626,7 +629,7 @@ class BlockchainPolicy(Policy):
 
         prearranged_ursulas = list(a.ursula.checksum_address for a in self._accepted_arrangements)
 
-        # Transact
+        # Transact  # TODO: Move this logic to BlockchainPolicyActor
         receipt = self.author.policy_agent.create_policy(
                        policy_id=self.hrac()[:16],          # bytes16 _policyID
                        author_address=self.author.checksum_address,
