@@ -194,5 +194,5 @@ def test_staker_manages_winding_down(testerchain,
     assert staker.locked_tokens(base_duration - 1) != 0
     assert staker.locked_tokens(base_duration) == 0
     ursula.confirm_activity()
-    assert staker.locked_tokens(base_duration) != 0
-    assert staker.locked_tokens(base_duration + 1) == 0
+    assert staker.locked_tokens(base_duration - 1) != 0
+    assert staker.locked_tokens(base_duration) == 0

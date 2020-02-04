@@ -229,7 +229,9 @@ contract StakingEscrow is Issuer {
         internal view returns (uint16)
     {
         // if the next period (after current) is confirmed
-        if (_info.confirmedPeriod1 > _currentPeriod || _info.confirmedPeriod2 > _currentPeriod) {
+        if (_info.windDown &&
+            (_info.confirmedPeriod1 > _currentPeriod ||
+            _info.confirmedPeriod2 > _currentPeriod)) {
             return _currentPeriod + 1;
         }
         return _currentPeriod;
@@ -508,7 +510,35 @@ contract StakingEscrow is Issuer {
             return;
         }
         info.windDown = _windDown;
+
+        uint16 currentPeriod = getCurrentPeriod();
+        uint16 nextPeriod = currentPeriod + 1;
         emit WindDownSet(msg.sender, _windDown);
+
+        // duration adjustment if next period is confirmed
+        if (info.confirmedPeriod1 != nextPeriod && info.confirmedPeriod2 != nextPeriod) {
+           return;
+        }
+
+        // adjust sub-stakes duration for the new value of winding down parameter
+        for (uint256 index = 0; index < info.subStakes.length; index++) {
+            SubStakeInfo storage subStake = info.subStakes[index];
+            // sub-stake does not have fixed last period when winding down is disabled
+            if (!_windDown && subStake.lastPeriod == nextPeriod) {
+                subStake.lastPeriod = 0;
+                subStake.periods = 1;
+                continue;
+            }
+            // this sub-stake is no longer affected by winding down parameter
+            if (subStake.lastPeriod != 0 || subStake.periods == 0) {
+                continue;
+            }
+
+            subStake.periods = _windDown ? subStake.periods - 1 : subStake.periods + 1;
+            if (subStake.periods == 0) {
+                subStake.lastPeriod = nextPeriod;
+            }
+        }
     }
 
     /**
@@ -619,14 +649,18 @@ contract StakingEscrow is Issuer {
         uint256 requestedLockedTokens = _value.add(lockedTokens);
         require(requestedLockedTokens <= info.value && requestedLockedTokens <= maxAllowableLockedTokens);
 
-        if (info.confirmedPeriod1 != nextPeriod && info.confirmedPeriod2 != nextPeriod) {
-            saveSubStake(info, nextPeriod, 0, _periods, _value);
-        } else {
-            // next period is confirmed
-            saveSubStake(info, nextPeriod, 0, _periods - 1, _value);
+        uint16 duration = _periods;
+        // next period is confirmed
+        if (info.confirmedPeriod1 == nextPeriod || info.confirmedPeriod2 == nextPeriod) {
+            // if winding down is enabled and next period is confirmed
+            // then sub-stakes duration were decreased
+            if (info.windDown) {
+                duration -= 1;
+            }
             lockedPerPeriod[nextPeriod] += _value;
             emit ActivityConfirmed(_staker, nextPeriod, _value);
         }
+        saveSubStake(info, nextPeriod, 0, duration, _value);
 
         emit Locked(_staker, _value, nextPeriod, _periods);
     }
