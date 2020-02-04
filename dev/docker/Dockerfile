@@ -23,6 +23,7 @@ COPY dev/docker/scripts/install/entrypoint.sh /install
 RUN pip install --upgrade pip
 RUN pip3 install -r /install/dev-requirements.txt --src /usr/local/src
 RUN python3 /install/scripts/installation/install_solc.py
+RUN pip3 install ipdb
 
 # puts the nucypher executable in bin path
 RUN python3 /install/setup.py develop
