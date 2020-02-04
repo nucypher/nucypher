@@ -12,3 +12,5 @@ services:
     image: dev:nucypher
     container_name: nucypher-dev
     working_dir: /code
+    environment:
+      - PYTHONBREAKPOINT=ipdb.set_trace
