@@ -15,9 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from decimal import Decimal
+
 import maya
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
 from eth_utils import is_address, to_checksum_address, is_hex
+from web3 import Web3
 
 
 def epoch_to_period(epoch: int, seconds_per_period: int) -> int:
@@ -85,3 +88,32 @@ def etherscan_url(item, network: str, is_token=False) -> str:
 
     url = f"{domain}/{item_type}/{item}"
     return url
+
+
+def prettify_eth_amount(amount, original_denomination: str = 'wei') -> str:
+    """
+    Converts any ether `amount` in `original_denomination` and finds a suitable representation based on its length.
+    The options in consideration are representing the amount in wei, gwei or ETH.
+    :param amount: Input amount to prettify
+    :param original_denomination: Denomination used by `amount` (by default, wei is assumed)
+    :return: Shortest representation for `amount`, considering wei, gwei and ETH.
+    """
+    try:
+        # First obtain canonical representation in wei. Works for int, float, Decimal and str amounts
+        amount_in_wei = Web3.toWei(Decimal(amount), original_denomination)
+
+        common_denominations = ('wei', 'gwei', 'ether')
+
+        options = [str(Web3.fromWei(amount_in_wei, d)) for d in common_denominations]
+
+        best_option = min(zip(map(len, options), options, common_denominations))
+        _length, pretty_amount, denomination = best_option
+
+        if denomination == 'ether':
+            denomination = 'ETH'
+        pretty_amount += " " + denomination
+
+    except Exception:  # Worst case scenario, we just print the str representation of amount
+        pretty_amount = str(amount)
+
+    return pretty_amount
