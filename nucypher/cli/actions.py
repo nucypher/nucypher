@@ -326,7 +326,6 @@ def make_cli_character(character_config,
     # Handle Keyring
 
     if unlock_keyring:
-        character_config.attach_keyring()
         unlock_nucypher_keyring(emitter,
                                 character_configuration=character_config,
                                 password=get_nucypher_password(confirm=False))

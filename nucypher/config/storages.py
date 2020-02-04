@@ -121,7 +121,6 @@ class NodeStorage(ABC):
             public_pem_bytes = certificate.public_bytes(self.TLS_CERTIFICATE_ENCODING)
             certificate_file.write(public_pem_bytes)
 
-        self.certificate_filepath = certificate_filepath
         self.log.debug(f"Saved TLS certificate for {checksum_address}: {certificate_filepath}")
 
         return certificate_filepath
@@ -225,8 +224,7 @@ class ForgetfulNodeStorage(NodeStorage):
     def store_node_certificate(self, certificate: Certificate):
         checksum_address = read_certificate_pseudonym(certificate=certificate)
         self.__certificates[checksum_address] = certificate
-        self._write_tls_certificate(certificate=certificate)
-        filepath = self.generate_certificate_filepath(checksum_address=checksum_address)
+        filepath = self._write_tls_certificate(certificate=certificate)
         return filepath
 
     def store_node_metadata(self, node, filepath: str = None):
