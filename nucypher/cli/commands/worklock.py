@@ -55,8 +55,8 @@ class WorkLockOptions:
     def __init__(self, bidder_address: str):
         self.bidder_address = bidder_address
 
-    def create_bidder(self, registry):
-        bidder = Bidder(checksum_address=self.bidder_address, registry=registry)
+    def create_bidder(self, registry, password=None):
+        bidder = Bidder(checksum_address=self.bidder_address, registry=registry, client_password=password)
         return bidder
 
 
