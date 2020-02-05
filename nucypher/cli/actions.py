@@ -403,6 +403,7 @@ def select_client_account(emitter,
     """
     Note: Setting show_balances to True, causes an eager contract and blockchain connection.
     """
+    # TODO: Break show_balances into show_eth_balance and show_token_balance
 
     if not provider_uri:
         raise ValueError("Provider URI must be provided to select a wallet account.")
@@ -416,7 +417,7 @@ def select_client_account(emitter,
     token_agent = None
     if show_balances or show_staking:
         if not registry:
-            registry = InMemoryContractRegistry.from_latest_publication(network)
+            registry = InMemoryContractRegistry.from_latest_publication(network=network)
         token_agent = NucypherTokenAgent(registry=registry)
 
     # Real wallet accounts
