@@ -851,7 +851,7 @@ Slowing Refund .... {worklock_agent.contract.functions.SLOWING_REFUND().call()}
 Refund Rate ....... {worklock_agent.get_refund_rate()}
 Deposit Rate ...... {worklock_agent.get_deposit_rate()}
     """
-    emitter.message(payload)
+    emitter.echo(payload)
     return
 
 
@@ -865,7 +865,7 @@ Completed Work ....... {bidder.completed_work}
 Remaining Work ....... {bidder.remaining_work}
 Refunded Work ........ {bidder.refunded_work}
 """
-    emitter.message(message)
+    emitter.echo(message)
     return
 
 
@@ -898,7 +898,7 @@ def paint_bidding_notice(emitter, bidder):
 
 Accept worklock terms and node operator obligation?"""
 
-    emitter.message(obligation)
+    emitter.echo(obligation)
     return
 
 
@@ -918,4 +918,4 @@ Create a stake with your allocation contract:
 Bond a worker to your stake: 'nucypher stake set-worker --worker-address <WORKER ADDRESS>'
 
 """
-    emitter.message(message, color='green')
+    emitter.echo(message, color='green')

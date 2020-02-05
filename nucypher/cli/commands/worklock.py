@@ -165,7 +165,7 @@ def claim(general_config, worklock_options, registry_options, force):
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=general_config.provider_uri)
     if not force:
-        emitter.message("Note: Claiming WorkLock NU tokens will initialize a new stake.", color='blue')
+        emitter.echo("Note: Claiming WorkLock NU tokens will initialize a new stake.", color='blue')
         click.confirm(f"Continue worklock claim for bidder {worklock_options.bidder_address}?", abort=True)
     emitter.message("Submitting Claim...")
     registry = registry_options.get_registry(emitter, general_config.debug)
@@ -187,7 +187,7 @@ def remaining_work(general_config, worklock_options, registry_options):
     registry = registry_options.get_registry(emitter, general_config.debug)
     bidder = worklock_options.create_bidder(registry=registry)
     _remaining_work = bidder.remaining_work
-    emitter.message(f"Work Remaining for {worklock_options.bidder_address}: {_remaining_work}")
+    emitter.echo(f"Work Remaining for {worklock_options.bidder_address}: {_remaining_work}")
     return  # Exit
 
 
