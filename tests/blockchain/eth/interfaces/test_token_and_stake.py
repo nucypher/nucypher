@@ -123,7 +123,8 @@ def test_stake(testerchain, token_economics, agency):
                   value=NU(100, 'NU'),
                   index=0,
                   staking_agent=staking_agent,
-                  economics=token_economics)
+                  economics=token_economics,
+                  validate_now=False)
 
     assert stake.value, 'NU' == NU(100, 'NU')
 
