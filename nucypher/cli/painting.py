@@ -41,7 +41,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainIn
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
 from nucypher.blockchain.eth.token import NU
-from nucypher.blockchain.eth.utils import datetime_at_period, etherscan_url
+from nucypher.blockchain.eth.utils import datetime_at_period, etherscan_url, prettify_eth_amount
 from nucypher.characters.banners import NUCYPHER_BANNER, NU_BANNER
 from nucypher.config.constants import SEEDNODES
 from nucypher.network.nicknames import nickname_from_seed
@@ -880,12 +880,12 @@ def paint_bidding_notice(emitter, bidder):
 
 - WorkLock token rewards are claimed in the form of a stake and will be locked for the stake duration.
 
-- WorkLock ETH deposits will be available for refund at a rate of {bidder.worklock_agent.economics.worklock_refund_rate} 
-  wei per confirmed period - This rate will become frozen on {maya.MayaDT(bidder.worklock_agent.end_date).local_datetime()}.
+- WorkLock ETH deposits will be available for refund at a rate of {prettify_eth_amount(bidder.worklock_agent.get_refund_rate())} 
+  per confirmed period. This rate will become frozen on {maya.MayaDT(bidder.economics.bidding_end_date).local_datetime()}.
 
 - Once claiming WorkLock tokens, you are obligated to maintain a networked
-  and available Ursula-Worker node bonded to the staker address {bidder.checksum_address} for the duration 
-  of the stake(s) ({bidder.worklock_agent.economics.worklock_commitment_duration} periods).
+  and available Ursula-Worker node bonded to the staker address {bidder.checksum_address} for the duration
+  of the stake(s) ({bidder.economics.worklock_commitment_duration} periods).
 
 - Allow NuCypher network users to carry out uninterrupted re-encryption
   work orders at-will without interference. Failure to keep your node online, 
@@ -896,7 +896,7 @@ def paint_bidding_notice(emitter, bidder):
   producing correct re-encryption work orders will result in rewards
   paid out in ethers retro-actively and on-demand.
 
-Accept worklock terms and node operator obligation?"""
+Accept WorkLock terms and node operator obligation?"""  # TODO: Show a special message for first bidder, since there's no refund rate yet?
 
     emitter.echo(obligation)
     return
