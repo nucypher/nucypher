@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 
-from nucypher.cli.commands import ursula, alice, bob, enrico, felix, stake, status
+from nucypher.cli.commands import ursula, alice, bob, enrico, felix, stake, status, worklock
 from nucypher.cli.painting import echo_version
 
 
@@ -66,7 +66,8 @@ ENTRY_POINTS = (
     enrico.enrico,  # Encryptor of Data
     stake.stake,  # Stake Management
     ursula.ursula,  # Untrusted Re-Encryption Proxy
-    felix.felix     # Faucet
+    felix.felix,    # Faucet
+    worklock.worklock  # WorkLock
 )
 
 for entry_point in ENTRY_POINTS:
