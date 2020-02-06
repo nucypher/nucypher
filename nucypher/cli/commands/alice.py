@@ -384,7 +384,7 @@ def grant(general_config,
         if any((value, rate)):
             raise click.BadOptionUsage(option_name="--value, --rate",
                                        message="Can't use --value or --rate with a federated Alice.")
-    if bool(value) and bool(rate):
+    elif not (bool(value) ^ bool(rate)):
         raise click.BadOptionUsage(option_name="--rate", message="Can't use --value if using --rate")
 
     # Request
