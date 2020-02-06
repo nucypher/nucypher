@@ -96,7 +96,6 @@ class AliceInterface(CharacterPublicInterface):
               expiration: maya.MayaDT,
               value: int = None,
               rate: int = None,
-              first_period_reward: int = None,
               ) -> dict:
 
         from nucypher.characters.lawful import Bob
@@ -114,6 +113,7 @@ class AliceInterface(CharacterPublicInterface):
         response_data = {'treasure_map': new_policy.treasure_map,
                          'policy_encrypting_key': new_policy.public_key,
                          'alice_verifying_key': new_policy.alice.stamp}
+
         return response_data
 
     @attach_schema(alice.Revoke)

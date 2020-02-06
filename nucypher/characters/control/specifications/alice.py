@@ -1,5 +1,8 @@
 import click
+from marshmallow import validates_schema
 
+from nucypher.characters.control.specifications.exceptions import (
+    InvalidInputData, InvalidArgumentCombo)
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.base import BaseSchema
 from nucypher.cli import options, types
@@ -36,8 +39,30 @@ class PolicyBaseSchema(BaseSchema):
         load_only=True,
         click=click.option('--value', help="Total policy value (in Wei)", type=types.WEI))
 
+    rate = fields.Wei(
+        load_only=True,
+        required=False,
+        click=options.option_rate
+    )
+
     # output
     policy_encrypting_key = fields.Key(dump_only=True)
+
+    @validates_schema
+    def check_n_gte_m(self, data, **kwargs):
+        # ensure that n is greater than or equal to m
+        if not data['n'] >= data['m']:
+            raise InvalidArgumentCombo("N must be greater than or equal to M")
+
+    @validates_schema
+    def check_rate_or_value_not_both(self, data, **kwargs):
+
+        if (data.get('rate') is not None) and (data.get('value') is not None):
+            raise InvalidArgumentCombo("Choose either rate (per period in duration) OR value (total for duration)")
+
+        # TODO: decide if we should inject config defaults before this validation
+        # if not (data.get('rate', 0) ^ data.get('value', 0)):
+            # raise InvalidArgumentCombo("Either rate or value must be greater than zero.")
 
 
 class CreatePolicy(PolicyBaseSchema):
@@ -52,12 +77,6 @@ class GrantPolicy(PolicyBaseSchema):
     label = fields.Label(
         load_only=True, required=True,
         click=options.option_label(required=True))
-
-    rate = fields.Integer(
-        load_only=True,
-        required=False,
-        click=options.option_rate
-    )
 
     # output fields
     treasure_map = fields.TreasureMap(dump_only=True)

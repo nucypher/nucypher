@@ -11,6 +11,3 @@ class Label(BaseField, fields.Field):
         if isinstance(value, bytes):
             return value
         return value.encode()
-
-    def _validate(self, value):
-        return True

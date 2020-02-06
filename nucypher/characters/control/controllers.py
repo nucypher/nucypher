@@ -13,7 +13,7 @@ from twisted.logger import Logger
 
 from nucypher.characters.control.emitters import StdoutEmitter, WebEmitter, JSONRPCStdoutEmitter
 from nucypher.characters.control.interfaces import CharacterPublicInterface
-from nucypher.characters.control.specifications.exceptions import MissingField, InvalidInputField, SpecificationError
+from nucypher.characters.control.specifications.exceptions import SpecificationError
 from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.utilities.controllers import JSONRPCTestClient
 
@@ -36,10 +36,14 @@ class CharacterControllerBase(ABC):
         self.emitter = self._emitter_class()
 
     def _perform_action(self, action: str, request: dict) -> dict:
+        """
+        This method is where input validation and method invocation
+        happens for all character actions.
+        """
         request = request or {}  # for requests with no input params request can be ''
         method = getattr(self.interface, action, None)
         serializer = method._schema
-        params = serializer.load(request)
+        params = serializer.load(request) # input validation will occur here.
 
         response = method(**params)  # < ---- INLET
 
@@ -263,8 +267,7 @@ class WebController(CharacterControlServer):
 
     def handle_request(self, method_name, control_request, *args, **kwargs) -> Response:
 
-        _400_exceptions = (MissingField,
-                           InvalidInputField,
+        _400_exceptions = (SpecificationError,
                            TypeError,
                            JSONDecodeError,
                            self.emitter.MethodNotFound)

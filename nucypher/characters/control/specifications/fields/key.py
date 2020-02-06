@@ -1,8 +1,7 @@
 from marshmallow import fields
-from marshmallow.exceptions import ValidationError
 from umbral.keys import UmbralPublicKey
 from nucypher.characters.control.specifications.fields.base import BaseField
-
+from nucypher.characters.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
 
 class Key(BaseField, fields.Field):
 
@@ -14,12 +13,11 @@ class Key(BaseField, fields.Field):
             return value
         try:
             return bytes.fromhex(value)
-        except ValueError as e:
-            raise ValidationError(e)
+        except InvalidNativeDataTypes as e:
+            raise InvalidInputData(f"Could not convert input for {self.name} to an Umbral Key: {e}")
 
     def _validate(self, value):
         try:
-            umbral_key = UmbralPublicKey.from_bytes(value)
-            return True
-        except Exception as e:
-            return False
+            UmbralPublicKey.from_bytes(value)
+        except InvalidNativeDataTypes as e:
+            raise InvalidInputData(f"Could not convert input for {self.name} to an Umbral Key: {e}")
