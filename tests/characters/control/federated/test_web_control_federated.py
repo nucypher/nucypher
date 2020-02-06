@@ -7,7 +7,6 @@ import pytest
 from click.testing import CliRunner
 
 import nucypher
-from nucypher.characters.control.serializers import AliceControlJSONSerializer
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.collections import TreasureMap
@@ -83,6 +82,12 @@ def test_alice_web_character_control_grant(alice_web_controller_test_client, gra
     del(params['bob_encrypting_key'])
     response = alice_web_controller_test_client.put(endpoint, data=json.dumps(params))
     assert response.status_code == 400
+
+    # test key validation with a bad key
+    params['bob_encrypting_key'] = '12345'
+    response = alice_web_controller_test_client.put(endpoint, data=json.dumps(params))
+    assert response.status_code == 400
+    assert b'non-hexadecimal number found in fromhex' in response.data
 
 
 def test_alice_character_control_revoke(alice_web_controller_test_client, federated_bob):

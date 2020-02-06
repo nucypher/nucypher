@@ -25,9 +25,7 @@ from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE,
     NETWORK_PORT,
-    )
-from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+    WEI)
 
 
 # Alphabetical
@@ -52,6 +50,9 @@ option_registry_filepath = click.option('--registry-filepath', help="Custom cont
 option_staking_address = click.option('--staking-address', help="Address of a NuCypher staker", type=EIP55_CHECKSUM_ADDRESS)
 option_teacher_uri = click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 _option_middleware = click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True)
+
+# Avoid circular input
+option_rate = click.option('--rate', help="Policy rate per period (in wei)", type=WEI)  # TODO: Is wei a sane unit here? Perhaps gwei?
 
 
 #
@@ -170,6 +171,8 @@ def wrap_option(handler, **options):
 
 
 def process_middleware(mock_networking):
+    from nucypher.network.middleware import RestMiddleware
+    from nucypher.utilities.sandbox.middleware import MockRestMiddleware
     if mock_networking:
         middleware = MockRestMiddleware()
     else:
@@ -178,4 +181,7 @@ def process_middleware(mock_networking):
     return 'middleware', middleware
 
 
-option_middleware = wrap_option(process_middleware, mock_networking=_option_middleware)
+option_middleware = wrap_option(
+    process_middleware,
+    mock_networking=click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True),
+    )

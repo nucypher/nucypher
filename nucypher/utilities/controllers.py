@@ -88,7 +88,6 @@ class JSONRPCTestClient:
     def __init__(self, rpc_controller):
 
         # Divert the emitter flow to the RPC pipe
-        rpc_controller._internal_controller.emitter.sink = self.response_sink
         rpc_controller.emitter.sink = self.response_sink
         self._controller = rpc_controller
 

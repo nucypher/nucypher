@@ -1,59 +1,31 @@
 import functools
+import click
+import json
+from collections.abc import Mapping
 
 import maya
+
+from nucypher.characters.control.specifications import alice, bob, enrico
 from umbral.keys import UmbralPublicKey
 
-from nucypher.characters.control.specifications import AliceSpecification, BobSpecification, EnricoSpecification
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import NotFound
 
 
-def character_control_interface(func):
+def attach_schema(schema):
 
-    # Use server time for internal request IDs
-    received = maya.now()
-    internal_request_id = received.epoch
+    def callable(func):
+        func._schema = schema()
 
-    # noinspection PyPackageRequirements
-    @functools.wraps(func)
-    def wrapped(instance, request=None, request_id: int = None, *args, **kwargs) -> bytes:
+        @functools.wraps(func)
+        def wrapped(*args, **kwargs):
 
-        if request_id is None:
-            request_id = internal_request_id
+            return func(*args, **kwargs)
+        return wrapped
 
-        # Get specification
-        interface_name = func.__name__
-        input_specification, optional_specification, output_specification =\
-            instance.get_specifications(interface_name=interface_name)
-        input_specification = input_specification + optional_specification
-
-        if request and instance.serialize:
-
-            # Serialize request
-            if instance.serialize:
-                request = instance.serializer(data=request, specification=input_specification)
-
-            # Validate request
-            instance.validate_request(request=request, interface_name=interface_name)
-
-        ######################
-        # INTERNAL INTERFACE #
-        response = func(self=instance, request=request, *args, **kwargs)
-        ######################
-
-        # Validate response
-        instance.validate_response(response=response, interface_name=interface_name)
-
-        # Record duration
-        responding = maya.now()
-        duration = responding - received
-
-        # Emit
-        return instance.emitter.ipc(response=response, request_id=request_id, duration=duration)
-
-    return wrapped
+    return callable
 
 
 class CharacterPublicInterface:
@@ -62,13 +34,27 @@ class CharacterPublicInterface:
         self.character = character
         super().__init__(*args, **kwargs)
 
+    @classmethod
+    def connect_cli(cls, action):
 
-class AliceInterface(CharacterPublicInterface, AliceSpecification):
+        schema = getattr(cls, action)._schema
 
-    def __init__(self, alice, *args, **kwargs):
-        self.alice = alice
-        super().__init__(character=alice, *args, **kwargs)
+        def callable(func):
+            c = func
+            for f in [f for f in schema.load_fields.values() if f.click]:
+                c = f.click(c)
 
+            @functools.wraps(func)
+            def wrapped(*args, **kwargs):
+                return c(*args, **kwargs)
+            return wrapped
+
+        return callable
+
+
+class AliceInterface(CharacterPublicInterface):
+
+    @attach_schema(alice.CreatePolicy)
     def create_policy(self,
                       bob_encrypting_key: bytes,
                       bob_verifying_key: bytes,
@@ -94,11 +80,13 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         response_data = {'label': new_policy.label, 'policy_encrypting_key': new_policy.public_key}
         return response_data
 
+    @attach_schema(alice.DerivePolicyEncryptionKey)
     def derive_policy_encrypting_key(self, label: bytes) -> dict:
         policy_encrypting_key = self.character.get_policy_encrypting_key_from_label(label)
         response_data = {'policy_encrypting_key': policy_encrypting_key, 'label': label}
         return response_data
 
+    @attach_schema(alice.GrantPolicy)
     def grant(self,
               bob_encrypting_key: bytes,
               bob_verifying_key: bytes,
@@ -125,8 +113,10 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         response_data = {'treasure_map': new_policy.treasure_map,
                          'policy_encrypting_key': new_policy.public_key,
                          'alice_verifying_key': new_policy.alice.stamp}
+
         return response_data
 
+    @attach_schema(alice.Revoke)
     def revoke(self, label: bytes, bob_verifying_key: bytes) -> dict:
 
         # TODO: Move deeper into characters
@@ -145,6 +135,7 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         response_data = {'failed_revocations': len(failed_revocations)}
         return response_data
 
+    @attach_schema(alice.Decrypt)
     def decrypt(self, label: bytes, message_kit: bytes) -> dict:
         """
         Character control endpoint to allow Alice to decrypt her own data.
@@ -156,44 +147,43 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
         message_kit = UmbralMessageKit.from_bytes(message_kit)
 
-        data_source = Enrico.from_public_keys(
+        enrico = Enrico.from_public_keys(
             verifying_key=message_kit.sender_verifying_key,
             policy_encrypting_key=policy_encrypting_key,
             label=label
         )
 
-        plaintexts = self.alice.decrypt_message_kit(
+        plaintexts = self.character.decrypt_message_kit(
             message_kit=message_kit,
-            data_source=data_source,
+            data_source=enrico,
             label=label
         )
 
         response = {'cleartexts': plaintexts}
         return response
 
+    @attach_schema(alice.PublicKeys)
     def public_keys(self) -> dict:
         """
         Character control endpoint for getting Alice's public keys.
         """
-        verifying_key = self.alice.public_keys(SigningPower)
+        verifying_key = self.character.public_keys(SigningPower)
         response_data = {'alice_verifying_key': verifying_key}
         return response_data
 
 
-class BobInterface(CharacterPublicInterface, BobSpecification):
+class BobInterface(CharacterPublicInterface):
 
-    def __init__(self, bob, *args, **kwargs):
-        self.bob = bob
-        super().__init__(*args, **kwargs)
-
+    @attach_schema(bob.JoinPolicy)
     def join_policy(self, label: bytes, alice_verifying_key: bytes):
         """
         Character control endpoint for joining a policy on the network.
         """
-        self.bob.join_policy(label=label, alice_verifying_key=alice_verifying_key)
-        response = dict()  # {'policy_encrypting_key': ''}  # FIXME
+        self.character.join_policy(label=label, alice_verifying_key=alice_verifying_key)
+        response = {'policy_encrypting_key': 'OK'}  # FIXME
         return response
 
+    @attach_schema(bob.Retrieve)
     def retrieve(self,
                  label: bytes,
                  policy_encrypting_key: bytes,
@@ -208,40 +198,38 @@ class BobInterface(CharacterPublicInterface, BobSpecification):
         alice_verifying_key = UmbralPublicKey.from_bytes(alice_verifying_key)
         message_kit = UmbralMessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 
-        data_source = Enrico.from_public_keys(verifying_key=message_kit.sender_verifying_key,
+        enrico = Enrico.from_public_keys(verifying_key=message_kit.sender_verifying_key,
                                               policy_encrypting_key=policy_encrypting_key,
                                               label=label)
 
-        self.bob.join_policy(label=label, alice_verifying_key=alice_verifying_key)
-        plaintexts = self.bob.retrieve(message_kit=message_kit,
-                                       data_source=data_source,
-                                       alice_verifying_key=alice_verifying_key,
-                                       label=label)
+        self.character.join_policy(label=label, alice_verifying_key=alice_verifying_key)
+        plaintexts = self.character.retrieve(message_kit=message_kit,
+                                             data_source=enrico,
+                                             alice_verifying_key=alice_verifying_key,
+                                             label=label)
 
         response_data = {'cleartexts': plaintexts}
         return response_data
 
+    @attach_schema(bob.PublicKeys)
     def public_keys(self):
         """
         Character control endpoint for getting Bob's encrypting and signing public keys
         """
-        verifying_key = self.bob.public_keys(SigningPower)
-        encrypting_key = self.bob.public_keys(DecryptingPower)
+        verifying_key = self.character.public_keys(SigningPower)
+        encrypting_key = self.character.public_keys(DecryptingPower)
         response_data = {'bob_encrypting_key': encrypting_key, 'bob_verifying_key': verifying_key}
         return response_data
 
 
-class EnricoInterface(CharacterPublicInterface, EnricoSpecification):
+class EnricoInterface(CharacterPublicInterface):
 
-    def __init__(self, enrico, *args, **kwargs):
-        self.enrico = enrico
-        super().__init__(*args, **kwargs)
-
+    @attach_schema(enrico.EncryptMessage)
     def encrypt_message(self, message: str):
         """
         Character control endpoint for encrypting data for a policy and
         receiving the messagekit (and signature) to give to Bob.
         """
-        message_kit, signature = self.enrico.encrypt_message(bytes(message, encoding='utf-8'))
+        message_kit, signature = self.character.encrypt_message(bytes(message, encoding='utf-8'))
         response_data = {'message_kit': message_kit, 'signature': signature}
         return response_data

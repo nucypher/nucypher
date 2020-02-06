@@ -22,6 +22,7 @@ import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 
 from nucypher.characters.banners import ALICE_BANNER
+from nucypher.characters.control.interfaces import AliceInterface
 from nucypher.cli import actions, painting, types
 from nucypher.cli.actions import get_nucypher_password, select_client_account, get_client_password
 from nucypher.cli.config import group_general_config
@@ -37,10 +38,8 @@ from nucypher.cli.options import (
     option_force,
     option_geth,
     option_hw_wallet,
-    option_label,
     option_light,
     option_m,
-    option_message_kit,
     option_middleware,
     option_min_stake,
     option_n,
@@ -49,7 +48,7 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_registry_filepath,
     option_teacher_uri,
-)
+    option_rate)
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD
@@ -64,7 +63,6 @@ option_bob_verifying_key = click.option(
 )
 
 option_pay_with = click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-option_rate = click.option('--rate', help="Policy rate per period (in wei)", type=types.WEI)  # TODO: Is wei a sane unit here? Perhaps gwei?
 
 
 class AliceConfigOptions:
@@ -331,6 +329,7 @@ def run(general_config, character_options, config_file, controller_port, dry_run
 
 
 @alice.command("public-keys")
+@AliceInterface.connect_cli('public_keys')
 @group_character_options
 @option_config_file
 @group_general_config
@@ -345,7 +344,7 @@ def public_keys(general_config, character_options, config_file):
 
 
 @alice.command('derive-policy-pubkey')
-@option_label(required=True)
+@AliceInterface.connect_cli('derive_policy_encrypting_key')
 @group_character_options
 @option_config_file
 @group_general_config
@@ -359,15 +358,7 @@ def derive_policy_pubkey(general_config, label, character_options, config_file):
 
 
 @alice.command()
-@click.option('--bob-encrypting-key', help="Bob's encrypting key as a hexadecimal string", type=click.STRING,
-              required=True)
-@option_bob_verifying_key
-@option_label(required=True)
-@option_m
-@option_n
-@option_rate
-@click.option('--expiration', help="Expiration Datetime of a policy", type=click.STRING)  # TODO: click.DateTime()
-@click.option('--value', help="Total policy value (in Wei)", type=types.WEI)
+@AliceInterface.connect_cli('grant')
 @group_character_options
 @option_config_file
 @group_general_config
@@ -405,15 +396,16 @@ def grant(general_config,
         'n': n,
         'expiration': expiration,
     }
-
     if not ALICE.federated_only:
-        grant_request.update({'value': value, 'rate': rate})
+        if value:
+            grant_request['value'] = value
+        elif rate:
+            grant_request['rate'] = rate
     return ALICE.controller.grant(request=grant_request)
 
 
 @alice.command()
-@option_bob_verifying_key
-@option_label(required=True)
+@AliceInterface.connect_cli('revoke')
 @group_character_options
 @option_config_file
 @group_general_config
@@ -438,8 +430,7 @@ def revoke(general_config,
 
 
 @alice.command()
-@option_label(required=True)
-@option_message_kit(required=True)
+@AliceInterface.connect_cli('decrypt')
 @group_character_options
 @option_config_file
 @group_general_config

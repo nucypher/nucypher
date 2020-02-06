@@ -250,7 +250,6 @@ def _cli_lifecycle(click_runner,
 
         encrypt_result = click_runner.invoke(nucypher_cli, enrico_args, catch_exceptions=False, env=envvars)
         assert encrypt_result.exit_code == 0
-
         encrypt_result = json.loads(encrypt_result.output)
         encrypted_message = encrypt_result['result']['message_kit']    # type: str
 
@@ -330,7 +329,8 @@ def _cli_lifecycle(click_runner,
         if federated:
             grant_args += ('--federated-only',)
         else:
-            grant_args += ('--provider', TEST_PROVIDER_URI, '--value', Web3.toWei(9, 'ether'))
+            grant_args += ('--provider', TEST_PROVIDER_URI,
+                           '--value', Web3.toWei(9, 'ether'))
 
         grant_result = click_runner.invoke(nucypher_cli, grant_args, catch_exceptions=False, env=envvars)
         assert grant_result.exit_code == 0

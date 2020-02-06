@@ -4,25 +4,16 @@ from abc import ABC, abstractmethod
 from json import JSONDecodeError
 from typing import Callable
 
+import maya
 from flask import Response, Flask
 from hendrix.deploy.base import HendrixDeploy
+from marshmallow import Schema
 from twisted.internet import reactor, stdio
 from twisted.logger import Logger
 
 from nucypher.characters.control.emitters import StdoutEmitter, WebEmitter, JSONRPCStdoutEmitter
-from nucypher.characters.control.interfaces import (
-    AliceInterface,
-    character_control_interface,
-    EnricoInterface,
-    BobInterface
-)
-from nucypher.characters.control.serializers import (
-    AliceControlJSONSerializer,
-    BobControlJSONSerializer,
-    EnricoControlJSONSerializer,
-    CharacterControlSerializer
-)
-from nucypher.characters.control.specifications import CharacterSpecification
+from nucypher.characters.control.interfaces import CharacterPublicInterface
+from nucypher.characters.control.specifications.exceptions import SpecificationError
 from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.utilities.controllers import JSONRPCTestClient
 
@@ -37,121 +28,26 @@ class CharacterControllerBase(ABC):
 
     (stdio, http, in-memory python containers, other IPC, or another protocol.)
     """
-
-    _control_serializer_class = NotImplemented
     _emitter_class = NotImplemented
 
-    def __init__(self, control_serializer=None, serialize: bool = False):
-
-        # Control Serializer
-        self.serializer = control_serializer or self._control_serializer_class()
+    def __init__(self):
 
         # Control Emitter
         self.emitter = self._emitter_class()
-        self.emitter.transport_serializer = self.serializer
 
-        # Disables request & response serialization
-        self.serialize = serialize
-
-
-class AliceJSONController(AliceInterface, CharacterControllerBase):
-    """Serialized and validated JSON controller; Implements Alice's public interfaces"""
-
-    _control_serializer_class = AliceControlJSONSerializer
-    _emitter_class = StdoutEmitter
-
-    @character_control_interface
-    def create_policy(self, request):
-        serialized_output = self.serializer.load_create_policy_input(request=request)
-        result = super().create_policy(**serialized_output)
-        response_data = self.serializer.dump_create_policy_output(response=result)
-        return response_data
-
-    @character_control_interface
-    def derive_policy_encrypting_key(self, label: str = None, request=None):
-        if label:
-            label_bytes = label.encode()
-
-        else:
-            label_bytes = request['label'].encode()
-
-        result = super().derive_policy_encrypting_key(label=label_bytes)
-        response_data = self.serializer.dump_derive_policy_encrypting_key_output(response=result)
-        return response_data
-
-    @character_control_interface
-    def grant(self, request):
-        result = super().grant(**self.serializer.parse_grant_input(request=request))
-        response_data = self.serializer.dump_grant_output(response=result)
-        return response_data
-
-    @character_control_interface
-    def revoke(self, request):
-        result = super().revoke(**self.serializer.parse_revoke_input(request=request))
-        response_data = result
-        return response_data
-
-    @character_control_interface
-    def decrypt(self, request: dict):
-        result = super().decrypt(**self.serializer.load_decrypt_input(request=request))
-        response_data = self.serializer.dump_decrypt_output(response=result)
-        return response_data
-
-    @character_control_interface
-    def public_keys(self, request):
+    def _perform_action(self, action: str, request: dict) -> dict:
         """
-        Character control endpoint for getting Bob's encrypting and signing public keys
+        This method is where input validation and method invocation
+        happens for all character actions.
         """
-        result = super().public_keys()
-        response_data = self.serializer.dump_public_keys_output(response=result)
-        return response_data
+        request = request or {}  # for requests with no input params request can be ''
+        method = getattr(self.interface, action, None)
+        serializer = method._schema
+        params = serializer.load(request) # input validation will occur here.
 
+        response = method(**params)  # < ---- INLET
 
-class BobJSONController(BobInterface, CharacterControllerBase):
-    """Serialized and validated JSON controller; Implements Bob's public interfaces"""
-
-    _control_serializer_class = BobControlJSONSerializer
-    _emitter_class = StdoutEmitter
-
-    @character_control_interface
-    def join_policy(self, request):
-        """
-        Character control endpoint for joining a policy on the network.
-        """
-        serialized_output = self.serializer.load_join_policy_input(request=request)
-        _result = super().join_policy(**serialized_output)
-        response = {'policy_encrypting_key': 'OK'}  # FIXME
-        return response
-
-    @character_control_interface
-    def retrieve(self, request):
-        """
-        Character control endpoint for re-encrypting and decrypting policy data.
-        """
-        result = super().retrieve(**self.serializer.load_retrieve_input(request=request))
-        response_data = self.serializer.dump_retrieve_output(response=result)
-        return response_data
-
-    @character_control_interface
-    def public_keys(self, request):
-        """
-        Character control endpoint for getting Bob's encrypting and signing public keys
-        """
-        result = super().public_keys()
-        response_data = self.serializer.dump_public_keys_output(response=result)
-        return response_data
-
-
-class EnricoJSONController(EnricoInterface, CharacterControllerBase):
-    """Serialized and validated JSON controller; Implements Enrico's public interfaces"""
-
-    _control_serializer_class = EnricoControlJSONSerializer
-    _emitter_class = StdoutEmitter
-
-    @character_control_interface
-    def encrypt_message(self, request: str):
-        result = super().encrypt_message(**self.serializer.load_encrypt_message_input(request=request))
-        response_data = self.serializer.dump_encrypt_message_output(response=result)
+        response_data = serializer.dump(response)
         return response_data
 
 
@@ -162,9 +58,10 @@ class CharacterControlServer(CharacterControllerBase):
 
     def __init__(self,
                  app_name: str,
-                 character_controller: CharacterControllerBase,
+                 interface: CharacterPublicInterface,
                  start_learning: bool = True,
-                 crash_on_error: bool = _crash_on_error_default):
+                 crash_on_error: bool = _crash_on_error_default,
+                 *args, **kwargs):
 
         self.app_name = app_name
 
@@ -178,25 +75,58 @@ class CharacterControlServer(CharacterControllerBase):
         # Internals
         self._transport = None
 
-        # Hard-wire the character's output flow to the Emitter
-        self._internal_controller = character_controller
-        self._internal_controller.emitter = self.emitter
+        self.interface = interface
 
-        super().__init__(control_serializer=self._internal_controller.serializer)
+        def set_method(name):
+
+            def wrapper(request=None, **kwargs):
+                request = request or kwargs
+                return self.handle_request(name, request=request)
+            setattr(self, name, wrapper)
+
+        for method_name in self._get_interfaces().keys():
+            set_method(method_name)
+
+        super().__init__(*args, **kwargs)
 
         self.log = Logger(app_name)
+
+    def _get_interfaces(self):
+        return {
+            name: method for name, method in
+            inspect.getmembers(
+                self.interface,
+                predicate=inspect.ismethod)
+            if hasattr(method, '_schema')
+        }
 
     @abstractmethod
     def make_control_transport(self):
         return NotImplemented
 
     @abstractmethod
-    def handle_request(self, interface, control_request, *args, **kwargs):
+    def handle_request(self, method_name, control_request):
         return NotImplemented
 
     @abstractmethod
     def test_client(self):
         return NotImplemented
+
+
+class CLIController(CharacterControlServer):
+
+    _emitter_class = StdoutEmitter
+
+    def make_control_transport(self):
+        return
+
+    def test_client(self):
+        return
+
+    def handle_request(self, method_name, request):
+        start = maya.now()
+        response = self._perform_action(action=method_name, request=request)
+        return self.emitter.ipc(response=response, request_id=start.epoch, duration=maya.now() - start)
 
 
 class JSONRPCController(CharacterControlServer):
@@ -215,26 +145,7 @@ class JSONRPCController(CharacterControlServer):
         transport = stdio.StandardIO(JSONRPCLineReceiver(rpc_controller=self))
         return transport
 
-    def get_interface(self, name: str) -> Callable:
-
-        # Examine the controller interface
-        interfaces = inspect.getmembers(self._internal_controller,
-                                        predicate=inspect.ismethod)
-
-        # Generate a mapping of the public interfaces
-        interfaces = {i[0]: i[1] for i in interfaces if not i[0].startswith('_')}
-
-        try:
-            interface = interfaces[name]
-        except KeyError:
-            raise self.emitter.MethodNotFound
-
-        return interface
-
-    def handle_server_notification(self, notification_request) -> int:
-        pass
-
-    def handle_procedure_call(self, control_request, *args, **kwargs) -> int:
+    def handle_procedure_call(self, control_request) -> int:
 
         # Validate request and read request metadata
         jsonrpc2 = control_request['jsonrpc']
@@ -246,73 +157,25 @@ class JSONRPCController(CharacterControlServer):
         # Read the interface's signature metadata
         method_name = control_request['method']
         method_params = control_request.get('params', dict())  # optional
+        if method_name not in self._get_interfaces():
+            raise self.emitter.MethodNotFound(f'No method called {method_name}')
 
-        # Lookup the public interface
-        interface = self.get_interface(name=method_name)
-
-        # Call the internal interface | pipe to output
-        return interface(request=method_params, request_id=request_id, *args, **kwargs)  # < ------- INLET
-
-    def validate_request(self, request: dict):
-
-        #
-        # Phase 1 - Metadata
-        #
-
-        required_fields = {'jsonrpc', 'method'}
-        optional_fields = {'id', 'params'}
-        all_fields = required_fields | optional_fields
-
-        try:
-            input_fields = set(request.keys())
-        except AttributeError:
-            raise self.emitter.InvalidRequest
-
-        contains_required_fields = required_fields.issubset(input_fields)
-
-        unique_fields = all_fields - input_fields - optional_fields
-        contains_valid_fields = not bool(unique_fields)
-
-        is_valid = all((contains_required_fields,
-                        contains_valid_fields))
-
-        if not is_valid:
-            raise self.emitter.InvalidRequest
-
-        #
-        # Phase 2 - Content Type
-        #
-
-        method_name = request['method']
-
-        try:
-            int(method_name)  # must not be a number
-        except ValueError:
-            valid_method_name = True
-        else:
-            valid_method_name = False
-
-        is_valid = all((valid_method_name, ))
-
-        if not is_valid:
-            raise self.emitter.InvalidRequest
-
-        return is_valid
+        return self.call_interface(method_name=method_name,
+                                   request=method_params,
+                                   request_id=request_id)
 
     def handle_message(self, message: dict, *args, **kwargs) -> int:
         """Handle single JSON RPC message"""
-
-        # Validate incoming message
-        self.validate_request(request=message)
 
         try:
             _request_id = message['id']
 
         except KeyError:  # Notification
-            return self.handle_server_notification(notification_request=message)
-
+            raise self.emitter.InvalidRequest('No request id')
+        except TypeError:
+            raise self.emitter.InvalidRequest(f'Request object not valid: {type(message)}')
         else:             # RPC
-            return self.handle_procedure_call(control_request=message, *args, **kwargs)
+            return self.handle_procedure_call(control_request=message)
 
     def handle_batch(self, control_requests: list) -> int:
 
@@ -350,6 +213,16 @@ class JSONRPCController(CharacterControlServer):
                 raise
             return self.emitter.error(e)
 
+    def call_interface(self, method_name, request, request_id: int = None):
+        received = maya.now()
+        internal_request_id = received.epoch
+        if request_id is None:
+            request_id = internal_request_id
+        response = self._perform_action(action=method_name, request=request)
+        responded = maya.now()
+        duration = responded - received
+        return self.emitter.ipc(response=response, request_id=request_id, duration=duration)
+
 
 class WebController(CharacterControlServer):
     """
@@ -374,8 +247,6 @@ class WebController(CharacterControlServer):
 
     def make_control_transport(self):
 
-        # Serialize For WSGI <-> Bytes <-> Unicode <-> JSON <-> Hex/B64 <-> Native Requests
-        self._internal_controller.serialize = True
         self._transport = Flask(self.app_name)
 
         # Return FlaskApp decorator
@@ -394,15 +265,23 @@ class WebController(CharacterControlServer):
     def __call__(self, *args, **kwargs):
         return self.handle_request(*args, **kwargs)
 
-    def handle_request(self, interface, control_request, *args, **kwargs) -> Response:
+    def handle_request(self, method_name, control_request, *args, **kwargs) -> Response:
 
-        interface_name = interface.__name__
+        _400_exceptions = (SpecificationError,
+                           TypeError,
+                           JSONDecodeError,
+                           self.emitter.MethodNotFound)
 
-        _400_exceptions = (CharacterSpecification.MissingField,
-                           CharacterSpecification.InvalidInputField,
-                           CharacterControlSerializer.SerializerError)
         try:
-            response = interface(request=control_request.data, *args, **kwargs)  # < ------- INLET
+            request_body = control_request.data or dict()
+            if request_body:
+                request_body = json.loads(request_body)
+            request_body.update(kwargs)
+
+            if method_name not in self._get_interfaces():
+                raise self.emitter.MethodNotFound(f'No method called {method_name}')
+
+            response = self._perform_action(action=method_name, request=request_body)
 
         #
         # Client Errors
@@ -418,7 +297,7 @@ class WebController(CharacterControlServer):
         #
         # Server Errors
         #
-        except CharacterSpecification.SpecificationError as e:
+        except SpecificationError as e:
             __exception_code = 500
             if self.crash_on_error:
                 raise
@@ -445,5 +324,5 @@ class WebController(CharacterControlServer):
         # Send to WebEmitter
         #
         else:
-            self.log.debug(f"{interface_name} [200 - OK]")
-            return response
+            self.log.debug(f"{method_name} [200 - OK]")
+            return self.emitter.respond(response=response)

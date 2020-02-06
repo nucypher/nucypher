@@ -78,8 +78,20 @@ def test_alice_web_character_control_grant(alice_web_controller_test_client, gra
     response = alice_web_controller_test_client.put(endpoint, data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
+    bad_params = params.copy()
     # Malform the request
-    del(params['bob_encrypting_key'])
+    del(bad_params['bob_encrypting_key'])
+
+    response = alice_web_controller_test_client.put(endpoint, data=json.dumps(bad_params))
+    assert response.status_code == 400
+
+
+def test_alice_web_character_control_grant_error_messages(alice_web_controller_test_client, grant_control_request):
+    method_name, params = grant_control_request
+    endpoint = f'/{method_name}'
+
+    params['m'] = params['n'] + 1
+
     response = alice_web_controller_test_client.put(endpoint, data=json.dumps(params))
     assert response.status_code == 400
 
