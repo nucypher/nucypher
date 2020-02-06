@@ -4,12 +4,18 @@ from typing import List
 from eth_utils import to_checksum_address, to_normalized_address, apply_formatters_to_dict
 from hexbytes import HexBytes
 from twisted.logger import Logger
-from web3 import Web3
+from web3 import Web3, IPCProvider
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainInterface
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 
 class Signer(ABC):
+    # codex = {
+    #     'clef': ClefSigner,
+    #     'keystore': LocalSigner,
+    #     'trezor': TrezorSigner,
+    #     'web3': Web3Signer,
+    # }
 
     class AccountLocked(RuntimeError):
         pass
@@ -17,6 +23,10 @@ class Signer(ABC):
     def __init__(self):
         self.log = Logger(self.__class__.__name__)
         self.__unlocked = False
+
+    @classmethod
+    def from_signer_uri(cls, uri: str) -> 'Signer':
+        return NotImplemented
 
     @abstractmethod
     def accounts(self) -> List[str]:
@@ -51,6 +61,7 @@ class Web3Signer(Signer):
     def __init__(self, client=None):
         super().__init__()
         if not client:
+            from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
             blockchain = BlockchainInterfaceFactory.get_interface()
             client = blockchain.client
         self.__client = client
@@ -131,7 +142,6 @@ class LocalSigner(Signer):
     def accounts(self) -> List[str]:
         pass  # TODO
 
-
     def unlock_account(self, account: str, password: str, duration: int = None) -> bool:
         unlocked = self.__import_keyfile(password=password)
         self.__unlocked = unlocked
@@ -160,20 +170,22 @@ class LocalSigner(Signer):
 
 class ClefSigner(Signer):
 
-    SIGN_DATA_FOR_VALIDATOR = 'data/validator'  # a.k.a. EIP 191 version 0
+    DEFAULT_IPC_PATH = '~/.clef/clef.ipc'
+
+    SIGN_DATA_FOR_VALIDATOR = 'data/validator'   # a.k.a. EIP 191 version 0
     SIGN_DATA_FOR_CLIQUE = 'application/clique'  # not relevant for us
-    SIGN_DATA_FOR_ECRECOVER = 'text/plain'  # a.k.a. geth's `personal_sign`, EIP-191 version 45 (E)
+    SIGN_DATA_FOR_ECRECOVER = 'text/plain'       # a.k.a. geth's `personal_sign`, EIP-191 version 45 (E)
 
     DEFAULT_CONTENT_TYPE = SIGN_DATA_FOR_ECRECOVER
-
     SIGN_DATA_CONTENT_TYPES = (SIGN_DATA_FOR_VALIDATOR, SIGN_DATA_FOR_CLIQUE, SIGN_DATA_FOR_ECRECOVER)
 
-    def __init__(self, w3):
+    def __init__(self, ipc_path: str = DEFAULT_IPC_PATH):
         super().__init__()
+        w3 = Web3(provider=IPCProvider(ipc_path=ipc_path))  # TODO: Unify with clients or build error handling
         self.w3 = w3
 
     def is_connected(self) -> bool:
-        return True  # TODO: Determine if the socket is reachable
+        return self.w3.isConnected()
 
     def accounts(self) -> List[str]:
         normalized_addresses = self.w3.manager.request_blocking("account_list", [])
@@ -194,7 +206,9 @@ class ClefSigner(Signer):
         return HexBytes(signed.raw)
 
     def sign_message(self, account: str, message: bytes, content_type: str = None, validator_address: str = None, **kwargs) -> str:
-        # See https://github.com/ethereum/go-ethereum/blob/a32a2b933ad6793a2fe4172cd46c5c5906da259a/signer/core/signed_data.go#L185
+        """
+        See https://github.com/ethereum/go-ethereum/blob/a32a2b933ad6793a2fe4172cd46c5c5906da259a/signer/core/signed_data.go#L185
+        """
         if not content_type:
             content_type = self.DEFAULT_CONTENT_TYPE
         elif content_type not in self.SIGN_DATA_CONTENT_TYPES:

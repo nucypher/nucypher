@@ -463,7 +463,7 @@ def _make_testerchain():
 
     # Mock TransactingPower Consumption (Deployer)
     testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=testerchain.etherbase_account)
+                                                     checksum_address=testerchain.etherbase_account)
     testerchain.transacting_power.activate()
     return testerchain
 
@@ -507,7 +507,7 @@ def _make_agency(testerchain, test_registry, token_economics):
 
     # Mock TransactingPower Consumption (Deployer)
     testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     account=testerchain.etherbase_account)
+                                                     checksum_address=testerchain.etherbase_account)
     testerchain.transacting_power.activate()
 
     origin = testerchain.etherbase_account
@@ -629,7 +629,7 @@ def stakers(testerchain, agency, token_economics, test_registry):
 
     # Mock Powerup consumption (Deployer)
     blockchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                    account=blockchain.etherbase_account)
+                                                    checksum_address=blockchain.etherbase_account)
     blockchain.transacting_power.activate()
 
     token_airdrop(origin=blockchain.etherbase_account,
@@ -642,7 +642,7 @@ def stakers(testerchain, agency, token_economics, test_registry):
         staker = Staker(is_me=True, checksum_address=account, registry=test_registry)
 
         # Mock TransactingPower consumption
-        staker.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=account)
+        staker.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, checksum_address=account)
         staker.transacting_power.activate()
 
         amount = MIN_STAKE_FOR_TESTS + random.randrange(BONUS_TOKENS_FOR_TESTS)
@@ -690,7 +690,7 @@ def idle_staker(testerchain, agency):
     idle_staker_account = testerchain.unassigned_accounts[-2]
 
     # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = TransactingPower(account=testerchain.etherbase_account)
+    testerchain.transacting_power = TransactingPower(checksum_address=testerchain.etherbase_account)
 
     token_airdrop(origin=testerchain.etherbase_account,
                   addresses=[idle_staker_account],
@@ -842,7 +842,7 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
     _receipt = testerchain.wait_for_receipt(txhash)
 
     # Mock TransactingPower consumption (Etherbase)
-    transacting_power = TransactingPower(account=testerchain.etherbase_account,
+    transacting_power = TransactingPower(checksum_address=testerchain.etherbase_account,
                                          password=INSECURE_DEVELOPMENT_PASSWORD)
     transacting_power.activate()
 
@@ -942,7 +942,7 @@ def get_random_checksum_address():
 @pytest.fixture(scope='module')
 def mock_transacting_power_activation(testerchain):
     def _mock_transacting_power_activation(password, account):
-        testerchain.transacting_power = TransactingPower(password=password, account=account)
+        testerchain.transacting_power = TransactingPower(password=password, checksum_address=account)
         testerchain.transacting_power.activate()
 
     return _mock_transacting_power_activation

@@ -17,7 +17,7 @@ def test_transacting_power_sign_message(testerchain):
     # Manually create a TransactingPower
     eth_address = testerchain.etherbase_account
     power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                             account=eth_address)
+                             checksum_address=eth_address)
 
     # The default state of the account is locked.
     # Test a signature without unlocking the account
@@ -53,7 +53,7 @@ def test_transacting_power_sign_transaction(testerchain):
 
     eth_address = testerchain.unassigned_accounts[2]
     power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                             account=eth_address)
+                             checksum_address=eth_address)
 
     assert power.is_active is False
     assert power.is_unlocked is False
@@ -98,7 +98,7 @@ def test_transacting_power_sign_transaction(testerchain):
 
     # Tear-Down Test
     power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                             account=testerchain.etherbase_account)
+                             checksum_address=testerchain.etherbase_account)
     power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
 
 
@@ -116,7 +116,7 @@ def test_transacting_power_sign_agent_transaction(testerchain, agency, test_regi
 
     # Sign with Transacting Power
     transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                         account=testerchain.etherbase_account)
+                                         checksum_address=testerchain.etherbase_account)
     transacting_power.activate()
     signed_raw_transaction = transacting_power.sign_transaction(unsigned_transaction)
 

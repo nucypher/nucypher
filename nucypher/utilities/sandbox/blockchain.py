@@ -215,7 +215,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         testerchain = cls(compiler=SolidityCompiler())
         BlockchainInterfaceFactory.register_interface(testerchain)
         power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                 account=testerchain.etherbase_account)
+                                 checksum_address=testerchain.etherbase_account)
         power.activate()
         testerchain.transacting_power = power
 

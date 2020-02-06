@@ -128,7 +128,7 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         if is_me and not federated_only:  # TODO: #289
             blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=self.provider_uri)
-            transacting_power = TransactingPower(account=self.checksum_address,
+            transacting_power = TransactingPower(checksum_address=self.checksum_address,
                                                  password=client_password,
                                                  cache=cache_password,
                                                  signer=blockchain.client)
@@ -971,7 +971,7 @@ class Ursula(Teacher, Character, Worker):
             if not federated_only:
 
                 # Prepare a TransactingPower from worker node's transacting keys
-                self.transacting_power = TransactingPower(account=worker_address, password=client_password, cache=True)
+                self.transacting_power = TransactingPower(checksum_address=worker_address, password=client_password, cache=True)
                 self._crypto_power.consume_power_up(self.transacting_power)
 
                 # Use this power to substantiate the stamp

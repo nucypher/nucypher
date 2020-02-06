@@ -19,16 +19,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
 from typing import List, Tuple, Optional
 
-from eth_utils import to_checksum_address
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from hexbytes import HexBytes
-
-from nucypher.blockchain.eth.signers import Signer
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
-from web3 import Web3
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainInterface
+from nucypher.blockchain.eth.signers import Signer
 from nucypher.datastore import keypairs
 from nucypher.datastore.keypairs import SigningKeypair, DecryptingKeypair
 
@@ -103,21 +100,18 @@ class CryptoPowerUp:
 
 class TransactingPower(CryptoPowerUp):
     """
-    Allows for transacting on a Blockchain via web3 backend.
+    The power to sign ethereum transactions as the custodian of a private key through a signing backend.
     """
+
     not_found_error = NoTransactingPower
 
-    class NoBlockchainConnection(PowerUpError):
-        pass
-
     class AccountLocked(Signer.AccountLocked, PowerUpError):
+        """Raised when signing cannot be performed due to a locked account"""
         pass
 
-    class InvalidSigningRequest(PowerUpError):
-        pass
-
+    @validate_checksum_address
     def __init__(self,
-                 account: str,
+                 checksum_address: str,
                  signer: Signer,
                  password: str = None,
                  cache: bool = False):
@@ -125,12 +119,13 @@ class TransactingPower(CryptoPowerUp):
         Instantiates a TransactingPower for the given checksum_address.
         """
 
-        blockchain = BlockchainInterfaceFactory.get_interface()
-        self.__blockchain = blockchain
-
+        # Auth
         self.__signer = signer
-        self.__account = account
+        self.__account = checksum_address
         self.__password = password
+
+        # Config
+        self.__blockchain = None
         self.__cache = cache
         self.__activated = False
 
@@ -140,17 +135,22 @@ class TransactingPower(CryptoPowerUp):
     def __exit__(self, exc_type, exc_val, exc_tb):
         return self.lock_account()
 
+    #
+    # Properties
+    #
+
     @property
-    def is_active(self, provider_uri: str = None) -> bool:
+    def blockchain(self) -> BlockchainInterface:
+        """Lazy evaluation of existing connection"""
+        if self.__blockchain is None:
+            blockchain = BlockchainInterfaceFactory.get_interface()
+            self.__blockchain = blockchain
+        return self.__blockchain
+
+    @property
+    def is_active(self) -> bool:
         """Returns True if the blockchain currently has this transacting power attached."""
         return bool(self.__blockchain.transacting_power == self)
-
-    def activate(self, password: str = None):
-        """Be Consumed"""
-        self.unlock_account(password=password)
-        if self.__cache is False:
-            self.__password = None
-        self.__blockchain.transacting_power = self
 
     @property
     def account(self) -> str:
@@ -160,25 +160,33 @@ class TransactingPower(CryptoPowerUp):
     def is_unlocked(self) -> bool:
         return self.__signer.is_unlocked
 
+    #
+    # Power
+    #
+
+    def activate(self, password: str = None) -> None:
+        """Called during power consumption"""
+        self.unlock_account(password=password)
+        if self.__cache is False:
+            self.__password = None
+        self.__blockchain.transacting_power = self
+
     def lock_account(self):
         return self.__signer.lock_account(account=self.__account)
 
     def unlock_account(self, password: str = None, duration: int = None):
+        """Unlocks the account with provided or cached password."""
         password = password or self.__password
         return self.__signer.unlock_account(account=self.__account,
                                             password=password,
                                             duration=duration)
 
     def sign_message(self, message: bytes) -> bytes:
-        """
-        Signs the message with the private key of the TransactingPower.
-        """
+        """Signs the message with the private key of the TransactingPower."""
         return self.__signer.sign_message(account=self.__account, message=message)
 
     def sign_transaction(self, unsigned_transaction: dict) -> HexBytes:
-        """
-        Signs the transaction with the private key of the TransactingPower.
-        """
+        """Signs the transaction with the private key of the TransactingPower."""
         return self.__signer.sign_transaction(account=self.__account, transaction=unsigned_transaction)
 
 
@@ -187,10 +195,7 @@ class KeyPairBasedPower(CryptoPowerUp):
     _keypair_class = keypairs.Keypair
     _default_private_key_class = UmbralPrivateKey
 
-    def __init__(self,
-                 public_key: UmbralPublicKey = None,
-                 keypair: keypairs.Keypair = None,
-                 ) -> None:
+    def __init__(self, public_key: UmbralPublicKey = None, keypair: keypairs.Keypair = None):
         if keypair and public_key:
             raise ValueError("Pass keypair or pubkey_bytes (or neither), but not both.")
         elif keypair:

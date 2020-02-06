@@ -91,7 +91,7 @@ def test_invalid_workers_tolerance(testerchain,
     periods = token_economics.minimum_locked_periods
 
     # Mock Powerup consumption (Staker)
-    testerchain.transacting_power = TransactingPower(account=idle_staker.checksum_address)
+    testerchain.transacting_power = TransactingPower(checksum_address=idle_staker.checksum_address)
 
     idle_staker.initialize_stake(amount=amount, lock_periods=periods)
 
@@ -128,7 +128,7 @@ def test_invalid_workers_tolerance(testerchain,
     # She withdraws up to the last penny (well, last nunit, actually).
 
     # Mock Powerup consumption (Staker)
-    testerchain.transacting_power = TransactingPower(account=idle_staker.checksum_address)
+    testerchain.transacting_power = TransactingPower(checksum_address=idle_staker.checksum_address)
     idle_staker.mint()
     testerchain.time_travel(periods=1)
     i_want_it_all = staking_agent.owned_tokens(idle_staker.checksum_address)

@@ -210,7 +210,7 @@ class ContractAdministrator(NucypherTokenActor):
         self.preallocation_escrow_deployers = dict()
         self.deployers = {d.contract_name: d for d in self.all_deployer_classes}
 
-        self.deployer_power = TransactingPower(password=client_password, account=deployer_address, cache=True)
+        self.deployer_power = TransactingPower(password=client_password, checksum_address=deployer_address, cache=True)
         self.transacting_power = self.deployer_power
         self.transacting_power.activate()
         self.staking_escrow_test_mode = staking_escrow_test_mode
@@ -224,7 +224,7 @@ class ContractAdministrator(NucypherTokenActor):
 
     @validate_checksum_address
     def recruit_sidekick(self, sidekick_address: str, sidekick_password: str):
-        self.sidekick_power = TransactingPower(account=sidekick_address, password=sidekick_password, cache=True)
+        self.sidekick_power = TransactingPower(checksum_address=sidekick_address, password=sidekick_password, cache=True)
         if self.sidekick_power.is_device:
             raise ValueError("Holy Wallet! Sidekicks can only be SW accounts")
         self.sidekick_address = sidekick_address
@@ -1540,7 +1540,7 @@ class StakeHolder(Staker):
             except KeyError:
                 keyfile = self.__local_accounts.get(checksum_address)
                 transacting_power = TransactingPower(password=password,
-                                                     account=checksum_address,
+                                                     checksum_address=checksum_address,
                                                      signer=self.__signer,
                                                      keyfile=keyfile)
                 self.__transacting_powers[checksum_address] = transacting_power
