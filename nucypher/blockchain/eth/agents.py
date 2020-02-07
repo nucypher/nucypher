@@ -989,7 +989,6 @@ class WorkLockAgent(EthereumContractAgent):
         """
         contract_function = self.contract.functions.claim()
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
-
         return receipt
 
     @validate_checksum_address

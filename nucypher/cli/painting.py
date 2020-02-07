@@ -902,20 +902,25 @@ Accept WorkLock terms and node operator obligation?"""  # TODO: Show a special m
     return
 
 
-def paint_worklock_claim(emitter, bidder_address: str):
+def paint_worklock_claim(emitter, bidder_address: str, network: str, provider_uri: str):
     message = f"""
 
 Successfully claimed WorkLock tokens for {bidder_address}.
 
+You can check that the stake was created correctly by running:
+
+  nucypher status stakers --staking-address {bidder_address} --network {network} --provider {provider_uri}
+
 Next Steps for Worklock Winners
 ===============================
 
-See the official nucypher documentation for a comprehensive guide!
+Congratulations! You're officially a Staker in the NuCypher network.
 
-Create a stake with your allocation contract: 
-'nucypher stake create --provider <URI> --staking-address {bidder_address}'
+See the official NuCypher documentation for a comprehensive guide on next steps!
 
-Bond a worker to your stake: 'nucypher stake set-worker --worker-address <WORKER ADDRESS>'
+As a first step, you need to bond a worker to your stake by running:
+
+  nucypher stake set-worker --worker-address <WORKER ADDRESS>
 
 """
     emitter.echo(message, color='green')

@@ -187,7 +187,12 @@ def claim(general_config, worklock_options, registry_options, force):
     emitter = _setup_emitter(general_config)
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
-                                                                provider_uri=general_config.provider_uri)
+                                                                provider_uri=registry_options.provider_uri,
+                                                                network=registry_options.network,
+                                                                show_balances=True)
+
+    # TODO: Show amount of tokens to claim
+
     if not force:
         emitter.echo("Note: Claiming WorkLock NU tokens will initialize a new stake.", color='blue')
         click.confirm(f"Continue worklock claim for bidder {worklock_options.bidder_address}?", abort=True)
@@ -196,7 +201,10 @@ def claim(general_config, worklock_options, registry_options, force):
     bidder = worklock_options.create_bidder(registry=registry)
     receipt = bidder.claim()
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
-    paint_worklock_claim(emitter, bidder_address=worklock_options.bidder_address)
+    paint_worklock_claim(emitter=emitter,
+                         bidder_address=worklock_options.bidder_address,
+                         network=registry_options.network,
+                         provider_uri=registry_options.provider_uri)
     return  # Exit
 
 
@@ -207,7 +215,10 @@ def claim(general_config, worklock_options, registry_options, force):
 def remaining_work(general_config, worklock_options, registry_options):
     emitter = _setup_emitter(general_config)
     if not worklock_options.bidder_address:
-        worklock_options.bidder_address = select_client_account(emitter=emitter, provider_uri=general_config.provider_uri)
+        worklock_options.bidder_address = select_client_account(emitter=emitter,
+                                                                provider_uri=registry_options.provider_uri,
+                                                                network=registry_options.network,
+                                                                show_balances=True)
     registry = registry_options.get_registry(emitter, general_config.debug)
     bidder = worklock_options.create_bidder(registry=registry)
     _remaining_work = bidder.remaining_work
@@ -223,7 +234,10 @@ def remaining_work(general_config, worklock_options, registry_options):
 def refund(general_config, worklock_options, registry_options, force):
     emitter = _setup_emitter(general_config)
     if not worklock_options.bidder_address:
-        worklock_options.bidder_address = select_client_account(emitter=emitter, provider_uri=general_config.provider_uri)
+        worklock_options.bidder_address = select_client_account(emitter=emitter,
+                                                                provider_uri=registry_options.provider_uri,
+                                                                network=registry_options.network,
+                                                                show_balances=True)
     if not force:
         click.confirm(f"Collect ETH refund for bidder {worklock_options.bidder_address}?", abort=True)
     emitter.message("Submitting WorkLock refund request...")
@@ -243,7 +257,10 @@ def burn_unclaimed_tokens(general_config, registry_options, checksum_address):
     registry = registry_options.get_registry(emitter, general_config.debug)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)
     if not checksum_address:
-        checksum_address = select_client_account(emitter=emitter, provider_uri=general_config.provider_uri)
+        checksum_address = select_client_account(emitter=emitter,
+                                                 provider_uri=registry_options.provider_uri,
+                                                 network=registry_options.network,
+                                                 show_balances=True)
     receipt = worklock_agent.burn_unclaimed(sender_address=checksum_address)
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=worklock_agent.blockchain.client.chain_name)
     return  # Exit

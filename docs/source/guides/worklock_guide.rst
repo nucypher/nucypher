@@ -60,3 +60,20 @@ You can cancel a bid to WorkLock by running:
 .. code::
 
     (nucypher)$ nucypher worklock cancel-bid --network <NETWORK> --provider <YOUR PROVIDER URI> --poa
+
+
+Claim your stake
+----------------
+
+If your bid was successful, you can claim your tokens as a stake in NuCypher:
+
+.. code::
+
+    (nucypher)$ nucypher worklock claim --network <NETWORK> --provider <YOUR PROVIDER URI> --poa
+
+
+Once claimed, you can check that the stake was created correctly by running:
+
+.. code::
+
+    (nucypher)$ nucypher status stakers --staking-address <YOUR BIDDER ADDRESS> --network {network} --provider <YOUR PROVIDER URI> --poa
