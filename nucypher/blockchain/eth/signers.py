@@ -6,7 +6,7 @@ from hexbytes import HexBytes
 from twisted.logger import Logger
 from web3 import Web3
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainInterface
 
 
 class Signer(ABC):
@@ -39,11 +39,14 @@ class Signer(ABC):
         return NotImplemented
 
     @abstractmethod
-    def sign_message(self, account: str, message: bytes) -> HexBytes:
+    def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
         return NotImplemented
 
 
 class Web3Signer(Signer):
+
+    def accounts(self) -> List[str]:
+        pass  # TODO
 
     def __init__(self, client=None):
         super().__init__()
@@ -81,7 +84,7 @@ class Web3Signer(Signer):
         self.__unlocked = False
         return self.__unlocked
 
-    def sign_message(self, account: str, message: bytes) -> HexBytes:
+    def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
         """
         Signs the message with the private key of the TransactingPower.
         """
@@ -125,6 +128,10 @@ class LocalSigner(Signer):
             self.__key = private_key
             return True
 
+    def accounts(self) -> List[str]:
+        pass  # TODO
+
+
     def unlock_account(self, account: str, password: str, duration: int = None) -> bool:
         unlocked = self.__import_keyfile(password=password)
         self.__unlocked = unlocked
@@ -147,8 +154,19 @@ class LocalSigner(Signer):
         signed_raw_transaction = signed_transaction['rawTransaction']
         return signed_raw_transaction
 
+    def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
+        pass  # TODO
+
 
 class ClefSigner(Signer):
+
+    SIGN_DATA_FOR_VALIDATOR = 'data/validator'  # a.k.a. EIP 191 version 0
+    SIGN_DATA_FOR_CLIQUE = 'application/clique'  # not relevant for us
+    SIGN_DATA_FOR_ECRECOVER = 'text/plain'  # a.k.a. geth's `personal_sign`, EIP-191 version 45 (E)
+
+    DEFAULT_CONTENT_TYPE = SIGN_DATA_FOR_ECRECOVER
+
+    SIGN_DATA_CONTENT_TYPES = (SIGN_DATA_FOR_VALIDATOR, SIGN_DATA_FOR_CLIQUE, SIGN_DATA_FOR_ECRECOVER)
 
     def __init__(self, w3):
         super().__init__()
@@ -175,8 +193,23 @@ class ClefSigner(Signer):
         signed = self.w3.manager.request_blocking("account_signTransaction", [transaction])
         return HexBytes(signed.raw)
 
-    def sign_message(self, account: str, message: bytes) -> str:
-        return self.w3.manager.request_blocking("account_signData", [account, message])
+    def sign_message(self, account: str, message: bytes, content_type: str = None, validator_address: str = None, **kwargs) -> str:
+        # See https://github.com/ethereum/go-ethereum/blob/a32a2b933ad6793a2fe4172cd46c5c5906da259a/signer/core/signed_data.go#L185
+        if not content_type:
+            content_type = self.DEFAULT_CONTENT_TYPE
+        elif content_type not in self.SIGN_DATA_CONTENT_TYPES:
+            raise ValueError(f'{content_type} is not a valid content type. '
+                             f'Valid types are {self.SIGN_DATA_CONTENT_TYPES}')
+        if content_type == self.SIGN_DATA_FOR_VALIDATOR:
+            if not validator_address or validator_address == BlockchainInterface.NULL_ADDRESS:
+                raise ValueError('When using the intended validator type, a validator address is required.')
+            data = [validator_address, message]
+        elif content_type == self.SIGN_DATA_FOR_ECRECOVER:
+            data = message
+        else:
+            raise NotImplementedError
+
+        return self.w3.manager.request_blocking("account_signData", [content_type, account, data])
 
     def unlock_account(self, address: str, password: str, duration: int = None) -> bool:
         return True
