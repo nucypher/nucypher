@@ -51,6 +51,7 @@ from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
     RegistrySourceManager,
     BaseContractRegistry,
+    LocalContractRegistry,
     IndividualAllocationRegistry,
     CanonicalRegistrySource
 )
@@ -71,17 +72,20 @@ from nucypher.policy.collections import IndisputableEvidence, WorkOrder
 from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
+    BASE_TEMP_PREFIX,
+    BASE_TEMP_DIR,
+    DATETIME_FORMAT,
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
     MIN_STAKE_FOR_TESTS,
     BONUS_TOKENS_FOR_TESTS,
     MOCK_POLICY_DEFAULT_M,
     MOCK_URSULA_STARTING_PORT,
+    MOCK_REGISTRY_FILEPATH,
     NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
     TEMPORARY_DOMAIN,
     TEST_PROVIDER_URI,
     INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_REGISTRY_FILEPATH,
     TEST_GAS_LIMIT,
     INSECURE_DEPLOYMENT_SECRET_HASH,
 )
@@ -591,6 +595,15 @@ def agency(testerchain, test_registry, token_economics, test_registry_source_man
     yield agents
 
 
+@pytest.fixture(scope='module')
+def agency_local_registry(testerchain, agency, test_registry):
+    registry = LocalContractRegistry(filepath=MOCK_REGISTRY_FILEPATH)
+    registry.write(test_registry.read())
+    yield registry
+    if os.path.exists(MOCK_REGISTRY_FILEPATH):
+        os.remove(MOCK_REGISTRY_FILEPATH)
+
+
 @pytest.fixture(scope="module")
 def stakers(testerchain, agency, token_economics, test_registry):
     token_agent, _staking_agent, _policy_agent = agency
@@ -828,9 +841,9 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
 
 
 @pytest.fixture(scope="module")
-def stakeholder_configuration(testerchain, mock_registry_filepath):
+def stakeholder_configuration(testerchain, agency_local_registry):
     config = StakeHolderConfiguration(provider_uri=testerchain.provider_uri,
-                                      registry_filepath=mock_registry_filepath)
+                                      registry_filepath=agency_local_registry.filepath)
     return config
 
 
@@ -895,18 +908,6 @@ def deploy_contract(testerchain, test_registry):
                                            **kwargs)
 
     return wrapped
-
-
-@pytest.fixture(scope='module')
-def mock_registry_filepath(testerchain, agency, test_registry):
-    # Fake the source contract registry
-    with open(MOCK_REGISTRY_FILEPATH, 'w') as file:
-        file.write(json.dumps(test_registry.read()))
-
-    yield MOCK_REGISTRY_FILEPATH
-
-    if os.path.isfile(MOCK_REGISTRY_FILEPATH):
-        os.remove(MOCK_REGISTRY_FILEPATH)
 
 
 @pytest.fixture(scope='module')

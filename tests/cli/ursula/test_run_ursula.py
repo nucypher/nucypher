@@ -34,8 +34,7 @@ from nucypher.utilities.sandbox.constants import (
     MOCK_URSULA_STARTING_PORT,
     TEMPORARY_DOMAIN,
     TEST_PROVIDER_URI,
-    MOCK_IP_ADDRESS,
-    MOCK_REGISTRY_FILEPATH
+    MOCK_IP_ADDRESS
 )
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
@@ -128,7 +127,7 @@ def test_persistent_node_storage_integration(click_runner,
                                              custom_filepath,
                                              testerchain,
                                              blockchain_ursulas,
-                                             agency):
+                                             agency_local_registry):
 
     alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
     filename = UrsulaConfiguration.generate_filename()
@@ -141,7 +140,7 @@ def test_persistent_node_storage_integration(click_runner,
                  '--network', TEMPORARY_DOMAIN,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--config-root', custom_filepath,
-                 '--registry-filepath', MOCK_REGISTRY_FILEPATH,
+                 '--registry-filepath', agency_local_registry.filepath,
                  )
 
     envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}

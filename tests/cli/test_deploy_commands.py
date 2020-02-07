@@ -12,7 +12,6 @@ from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.cli.commands.deploy import deploy
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
-    MOCK_REGISTRY_FILEPATH,
     INSECURE_DEVELOPMENT_PASSWORD,
     INSECURE_DEPLOYMENT_SECRET_PLAINTEXT
 )
@@ -20,26 +19,26 @@ from nucypher.utilities.sandbox.constants import (
 ALTERNATE_REGISTRY_FILEPATH = '/tmp/nucypher-test-registry-alternate.json'
 
 
-def test_nucypher_deploy_inspect_no_deployments(click_runner, testerchain):
+def test_nucypher_deploy_inspect_no_deployments(click_runner, testerchain, new_local_registry):
 
     status_command = ('inspect',
                       '--provider', TEST_PROVIDER_URI,
-                      '--registry-infile', MOCK_REGISTRY_FILEPATH,
+                      '--registry-infile', new_local_registry.filepath,
                       '--poa')
 
     result = click_runner.invoke(deploy, status_command, catch_exceptions=False)
     assert result.exit_code == 0
+    assert 'not enrolled' in result.output
 
 
-def test_nucypher_deploy_inspect_fully_deployed(click_runner, testerchain, agency):
+def test_nucypher_deploy_inspect_fully_deployed(click_runner, agency_local_registry):
 
-    local_registry = LocalContractRegistry(filepath=MOCK_REGISTRY_FILEPATH)
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=local_registry)
-    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=local_registry)
-    adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=local_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
+    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=agency_local_registry)
+    adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=agency_local_registry)
 
     status_command = ('inspect',
-                      '--registry-infile', MOCK_REGISTRY_FILEPATH,
+                      '--registry-infile', agency_local_registry.filepath,
                       '--provider', TEST_PROVIDER_URI,
                       '--poa')
 
@@ -52,12 +51,11 @@ def test_nucypher_deploy_inspect_fully_deployed(click_runner, testerchain, agenc
     assert adjudicator_agent.owner in result.output
 
 
-def test_transfer_ownership(click_runner, testerchain, agency, test_registry):
+def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
 
-    local_registry = LocalContractRegistry(filepath=MOCK_REGISTRY_FILEPATH)
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=local_registry)
-    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=local_registry)
-    adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=local_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
+    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=agency_local_registry)
+    adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=agency_local_registry)
 
     assert staking_agent.owner == testerchain.etherbase_account
     assert policy_agent.owner == testerchain.etherbase_account
@@ -66,7 +64,7 @@ def test_transfer_ownership(click_runner, testerchain, agency, test_registry):
     maclane = testerchain.unassigned_accounts[0]
 
     ownership_command = ('transfer-ownership',
-                         '--registry-infile', MOCK_REGISTRY_FILEPATH,
+                         '--registry-infile', agency_local_registry.filepath,
                          '--provider', TEST_PROVIDER_URI,
                          '--target-address', maclane,
                          '--poa')
@@ -90,7 +88,7 @@ def test_transfer_ownership(click_runner, testerchain, agency, test_registry):
     ownership_command = ('transfer-ownership',
                          '--deployer-address', maclane,
                          '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
-                         '--registry-infile', MOCK_REGISTRY_FILEPATH,
+                         '--registry-infile', agency_local_registry.filepath,
                          '--provider', TEST_PROVIDER_URI,
                          '--target-address', michwill,
                          '--poa')
@@ -105,7 +103,7 @@ def test_transfer_ownership(click_runner, testerchain, agency, test_registry):
     assert staking_agent.owner == michwill
 
 
-def test_bare_contract_deployment_to_alternate_registry(click_runner, test_registry):
+def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_local_registry):
 
     if os.path.exists(ALTERNATE_REGISTRY_FILEPATH):
         os.remove(ALTERNATE_REGISTRY_FILEPATH)
@@ -115,7 +113,7 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, test_regis
                '--contract-name', StakingEscrowDeployer.contract_name,
                '--bare',
                '--provider', TEST_PROVIDER_URI,
-               '--registry-infile', MOCK_REGISTRY_FILEPATH,
+               '--registry-infile', agency_local_registry.filepath,
                '--registry-outfile', ALTERNATE_REGISTRY_FILEPATH,
                '--poa',
                '--ignore-deployed')
@@ -125,18 +123,20 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, test_regis
     assert result.exit_code == 0
 
     # Verify alternate registry output
-    assert os.path.exists(MOCK_REGISTRY_FILEPATH)
+    assert os.path.exists(agency_local_registry.filepath)
     assert os.path.exists(ALTERNATE_REGISTRY_FILEPATH)
-    old_registry = LocalContractRegistry(filepath=MOCK_REGISTRY_FILEPATH)
     new_registry = LocalContractRegistry(filepath=ALTERNATE_REGISTRY_FILEPATH)
-    assert old_registry != new_registry
+    assert agency_local_registry != new_registry
 
-    old_enrolled_names = list(old_registry.enrolled_names).count(StakingEscrowDeployer.contract_name)
+    old_enrolled_names = list(agency_local_registry.enrolled_names).count(StakingEscrowDeployer.contract_name)
     new_enrolled_names = list(new_registry.enrolled_names).count(StakingEscrowDeployer.contract_name)
     assert new_enrolled_names == old_enrolled_names + 1
 
 
-def test_manual_proxy_retargeting(testerchain, click_runner, test_registry, token_economics):
+# TODO: test to validate retargetting via multisig, specifically, building the transaction
+
+
+def test_manual_proxy_retargeting(testerchain, click_runner, token_economics):
 
     # A local, alternate filepath registry exists
     assert os.path.exists(ALTERNATE_REGISTRY_FILEPATH)
@@ -172,3 +172,4 @@ def test_manual_proxy_retargeting(testerchain, click_runner, test_registry, toke
     # The proxy target has been updated.
     proxy_deployer = deployer.get_proxy_deployer(registry=local_registry)
     assert proxy_deployer.target_contract.address == untargeted_deployment.address
+

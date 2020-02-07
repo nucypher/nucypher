@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import contextlib
-import glob
+from datetime import datetime
 import json
 import os
 import shutil
@@ -26,15 +26,17 @@ import pytest
 from click.testing import CliRunner
 
 from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.registry import AllocationRegistry, InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import AllocationRegistry, InMemoryContractRegistry, LocalContractRegistry
 from nucypher.config.characters import UrsulaConfiguration, StakeHolderConfiguration
 from nucypher.utilities.sandbox.constants import (
+    BASE_TEMP_DIR,
+    BASE_TEMP_PREFIX,
+    DATETIME_FORMAT,
     MOCK_ALLOCATION_REGISTRY_FILEPATH,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_ALLOCATION_INFILE,
-    MOCK_REGISTRY_FILEPATH,
     ONE_YEAR_IN_SECONDS)
 
 
@@ -78,8 +80,8 @@ def mock_allocation_infile(testerchain, token_economics):
 
 
 @pytest.fixture(scope='module')
-def mock_allocation_registry(testerchain, test_registry, mock_allocation_infile):
-    admin = ContractAdministrator(registry=test_registry,
+def mock_allocation_registry(testerchain, agency_local_registry, mock_allocation_infile):
+    admin = ContractAdministrator(registry=agency_local_registry,
                                   client_password=INSECURE_DEVELOPMENT_PASSWORD,
                                   deployer_address=testerchain.etherbase_account)
 
@@ -98,15 +100,13 @@ def mock_allocation_registry(testerchain, test_registry, mock_allocation_infile)
         os.remove(MOCK_ALLOCATION_REGISTRY_FILEPATH)
 
 
-@pytest.fixture(scope='module', autouse=True)
-def temp_registry(testerchain, test_registry, agency):
-    registry_filepath = MOCK_REGISTRY_FILEPATH
-    # Disable registry fetching, use the mock one instead
-    InMemoryContractRegistry.download_latest_publication = lambda: registry_filepath
-    filepath = test_registry.commit(filepath=registry_filepath, overwrite=True)
-    assert filepath == MOCK_REGISTRY_FILEPATH
-    assert os.path.isfile(MOCK_REGISTRY_FILEPATH)
-    yield registry_filepath
+@pytest.fixture(scope='function')
+def new_local_registry():
+    filename = f'{BASE_TEMP_PREFIX}mock-empty-registry-{datetime.now().strftime(DATETIME_FORMAT)}.json'
+    registry_filepath = os.path.join(BASE_TEMP_DIR, filename)
+    registry = LocalContractRegistry(filepath=registry_filepath)
+    registry.write(InMemoryContractRegistry().read())
+    yield registry
     if os.path.exists(registry_filepath):
         os.remove(registry_filepath)
 

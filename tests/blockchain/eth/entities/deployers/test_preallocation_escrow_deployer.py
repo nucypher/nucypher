@@ -77,7 +77,7 @@ def test_staking_interface_deployer(testerchain, deployment_progress, test_regis
 
 @pytest.mark.slow()
 def test_deploy_multiple_preallocations(testerchain, test_registry):
-    testerchain = testerchain
+
     deployer_account = testerchain.etherbase_account
 
     router = testerchain.get_contract_by_name(registry=test_registry, contract_name=StakingInterfaceRouterDeployer.contract_name)

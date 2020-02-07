@@ -52,7 +52,7 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
 
 def test_new_stakeholder(click_runner,
                          custom_filepath,
-                         mock_registry_filepath,
+                         agency_local_registry,
                          testerchain):
 
     init_args = ('stake', 'init-stakeholder',
@@ -60,7 +60,7 @@ def test_new_stakeholder(click_runner,
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
                  '--network', TEMPORARY_DOMAIN,
-                 '--registry-filepath', mock_registry_filepath)
+                 '--registry-filepath', agency_local_registry.filepath)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
     assert result.exit_code == 0
@@ -80,15 +80,13 @@ def test_new_stakeholder(click_runner,
 def test_stake_init(click_runner,
                     stakeholder_configuration_file_location,
                     stake_value,
-                    mock_registry_filepath,
                     token_economics,
                     testerchain,
-                    test_registry,
-                    agency,
+                    agency_local_registry,
                     manual_staker):
 
     # Staker address has not stakes
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
     stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
     assert not stakes
 
@@ -131,7 +129,7 @@ def test_stake_init(click_runner,
 def test_stake_list(click_runner,
                     stakeholder_configuration_file_location,
                     stake_value,
-                    mock_registry_filepath,
+                    agency_local_registry,
                     testerchain):
 
     stake_args = ('stake', 'list',
@@ -148,7 +146,7 @@ def test_staker_divide_stakes(click_runner,
                               token_economics,
                               manual_staker,
                               testerchain,
-                              test_registry):
+                              agency_local_registry):
 
     divide_args = ('stake', 'divide',
                    '--config-file', stakeholder_configuration_file_location,
@@ -176,7 +174,7 @@ def test_staker_divide_stakes(click_runner,
 
 def test_stake_prolong(click_runner,
                        testerchain,
-                       test_registry,
+                       agency_local_registry,
                        manual_staker,
                        manual_worker,
                        stakeholder_configuration_file_location):
@@ -188,7 +186,7 @@ def test_stake_prolong(click_runner,
                     '--staking-address', manual_staker,
                     '--force')
 
-    staker = Staker(is_me=True, checksum_address=manual_staker, registry=test_registry)
+    staker = Staker(is_me=True, checksum_address=manual_staker, registry=agency_local_registry)
     staker.stakes.refresh()
     stake = staker.stakes[0]
     old_termination = stake.final_locked_period
@@ -208,7 +206,7 @@ def test_stake_prolong(click_runner,
 
 def test_stake_set_worker(click_runner,
                           testerchain,
-                          test_registry,
+                          agency_local_registry,
                           manual_staker,
                           manual_worker,
                           stakeholder_configuration_file_location):
@@ -226,13 +224,13 @@ def test_stake_set_worker(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    staker = Staker(is_me=True, checksum_address=manual_staker, registry=test_registry)
+    staker = Staker(is_me=True, checksum_address=manual_staker, registry=agency_local_registry)
     assert staker.worker_address == manual_worker
 
 
 def test_ursula_init(click_runner,
                      custom_filepath,
-                     mock_registry_filepath,
+                     agency_local_registry,
                      manual_staker,
                      manual_worker,
                      testerchain):
@@ -244,7 +242,7 @@ def test_ursula_init(click_runner,
                  '--worker-address', manual_worker,
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
-                 '--registry-filepath', mock_registry_filepath,
+                 '--registry-filepath', agency_local_registry.filepath,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', MOCK_URSULA_STARTING_PORT)
 
@@ -297,10 +295,10 @@ def test_stake_restake(click_runner,
                        manual_staker,
                        custom_filepath,
                        testerchain,
-                       test_registry,
+                       agency_local_registry,
                        stakeholder_configuration_file_location):
 
-    staker = Staker(is_me=True, checksum_address=manual_staker, registry=test_registry)
+    staker = Staker(is_me=True, checksum_address=manual_staker, registry=agency_local_registry)
     assert staker.is_restaking
 
     restake_args = ('stake', 'restake',
@@ -317,7 +315,7 @@ def test_stake_restake(click_runner,
     assert not staker.is_restaking
     assert "Successfully disabled" in result.output
 
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
     current_period = staking_agent.get_current_period()
     release_period = current_period + 1
     lock_args = ('stake', 'restake',
@@ -364,10 +362,10 @@ def test_stake_winddown(click_runner,
                         manual_staker,
                         custom_filepath,
                         testerchain,
-                        test_registry,
+                        agency_local_registry,
                         stakeholder_configuration_file_location):
 
-    staker = Staker(is_me=True, checksum_address=manual_staker, registry=test_registry)
+    staker = Staker(is_me=True, checksum_address=manual_staker, registry=agency_local_registry)
     assert not staker.is_winding_down
 
     restake_args = ('stake', 'winddown',
@@ -401,7 +399,7 @@ def test_stake_winddown(click_runner,
 
 def test_collect_rewards_integration(click_runner,
                                      testerchain,
-                                     test_registry,
+                                     agency_local_registry,
                                      stakeholder_configuration_file_location,
                                      blockchain_alice,
                                      blockchain_bob,
@@ -420,7 +418,7 @@ def test_collect_rewards_integration(click_runner,
     staker_address = manual_staker
     worker_address = manual_worker
 
-    staker = Staker(is_me=True, checksum_address=staker_address, registry=test_registry)
+    staker = Staker(is_me=True, checksum_address=staker_address, registry=agency_local_registry)
     staker.stakes.refresh()
 
     # The staker is staking.
@@ -432,7 +430,7 @@ def test_collect_rewards_integration(click_runner,
     ursula = Ursula(is_me=True,
                     checksum_address=staker_address,
                     worker_address=worker_address,
-                    registry=test_registry,
+                    registry=agency_local_registry,
                     rest_host='127.0.0.1',
                     rest_port=ursula_port,
                     network_middleware=MockRestMiddleware())
@@ -581,12 +579,12 @@ def test_stake_detach_worker(click_runner,
                              testerchain,
                              manual_staker,
                              manual_worker,
-                             test_registry,
+                             agency_local_registry,
                              stakeholder_configuration_file_location):
 
     staker = Staker(is_me=True,
                     checksum_address=manual_staker,
-                    registry=test_registry)
+                    registry=agency_local_registry)
 
     assert staker.worker_address == manual_worker
 
@@ -604,6 +602,6 @@ def test_stake_detach_worker(click_runner,
 
     staker = Staker(is_me=True,
                     checksum_address=manual_staker,
-                    registry=test_registry)
+                    registry=agency_local_registry)
 
     assert not staker.worker_address

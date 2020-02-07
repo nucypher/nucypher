@@ -15,12 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import json
 import os
 
 import click
 
-from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
+from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency, MultiSigAgent
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
@@ -47,11 +48,15 @@ from nucypher.cli.options import (
 )
 from nucypher.cli.config import group_general_config
 from nucypher.cli.painting import (
+    echo_solidity_version,
     paint_staged_deployment,
     paint_deployment_delay,
     paint_contract_deployment,
     paint_deployer_contract_inspection,
-    paint_receipt_summary, echo_solidity_version)
+    paint_receipt_summary,
+    paint_multisig_contract_info,
+    paint_multisig_proposed_transaction
+)
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
@@ -263,16 +268,17 @@ def inspect(general_config, provider_uri, config_root, registry_infile, deployer
 @deploy.command()
 @group_general_config
 @group_actor_options
-@click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
 @option_target_address
 @option_ignore_deployed
-def upgrade(general_config, actor_options, retarget, target_address, ignore_deployed):
+@click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
+@click.option('--multisig', help="Build raw transaction for upgrade via MultiSig ", is_flag=True)
+def upgrade(general_config, actor_options, retarget, target_address, ignore_deployed, multisig):
     """
     Upgrade NuCypher existing proxy contract deployments.
     """
     # Init
     emitter = general_config.emitter
-    ADMINISTRATOR, _, _, _ = actor_options.create_actor(emitter)
+    ADMINISTRATOR, _, _, registry = actor_options.create_actor(emitter)
 
     contract_name = actor_options.contract_name
     if not contract_name:
@@ -281,7 +287,32 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
     existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True)
     new_secret = click.prompt('Enter new contract upgrade secret', hide_input=True, confirmation_prompt=True)
 
-    if retarget:
+    if multisig:
+        if not target_address:
+            raise click.BadArgumentUsage(message="--multisig requires using --target-address.")
+        if not actor_options.force:
+            click.confirm(f"Confirm building a re-target transaction for {contract_name}'s proxy to {target_address}?",
+                          abort=True)
+        transaction = ADMINISTRATOR.retarget_proxy(contract_name=contract_name,
+                                                   target_address=target_address,
+                                                   existing_plaintext_secret=existing_secret,
+                                                   new_plaintext_secret=new_secret,
+                                                   just_build_transaction=True)
+
+        trustee = Trustee(registry=registry, checksum_address=ADMINISTRATOR.deployer_address)
+        data_for_multisig_executives = trustee.produce_data_to_sign(transaction)
+
+        emitter.message(f"Transaction to retarget {contract_name} proxy to {target_address} was built:", color='green')
+        paint_multisig_proposed_transaction(emitter, data_for_multisig_executives)
+
+        # TODO: Move this logic to a better place
+        nonce = data_for_multisig_executives['parameters']['nonce']
+        filepath = f'proposal-{nonce}.json'
+        with open(filepath, 'w') as outfile:
+            json.dump(data_for_multisig_executives, outfile)
+        emitter.echo(f"Saved proposal to {filepath}", color='blue', bold=True)
+
+    elif retarget:
         if not target_address:
             raise click.BadArgumentUsage(message="--target-address is required when using --retarget")
         if not actor_options.force:
@@ -329,7 +360,10 @@ def rollback(general_config, actor_options):
 @click.option('--bare', help="Deploy a contract *only* without any additional operations.", is_flag=True)
 @option_gas
 @option_ignore_deployed
-def contracts(general_config, actor_options, bare, gas, ignore_deployed):
+@click.option('--confirmations', help="Number of required block confirmations", type=click.IntRange(min=0))
+@click.option('--parameters', help="Filepath to a JSON file containing additional deployment parameters",
+              type=EXISTING_READABLE_FILE)
+def contracts(general_config, actor_options, bare, gas, ignore_deployed, confirmations, parameters):
     """
     Compile and deploy contracts.
     """
@@ -337,6 +371,11 @@ def contracts(general_config, actor_options, bare, gas, ignore_deployed):
 
     emitter = general_config.emitter
     ADMINISTRATOR, _, deployer_interface, local_registry = actor_options.create_actor(emitter)
+
+    deployment_parameters = {}
+    if parameters:
+        with open(parameters) as json_file:
+            deployment_parameters = json.load(json_file)
 
     #
     # Deploy Single Contract (Amend Registry)
@@ -359,13 +398,17 @@ def contracts(general_config, actor_options, bare, gas, ignore_deployed):
                                                             plaintext_secret=secret,
                                                             gas_limit=gas,
                                                             bare=bare,
-                                                            ignore_deployed=ignore_deployed)
+                                                            ignore_deployed=ignore_deployed,
+                                                            confirmations=confirmations)
         else:
             # Non-Upgradeable or Bare
             receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
                                                             gas_limit=gas,
                                                             bare=bare,
-                                                            ignore_deployed=ignore_deployed)
+                                                            ignore_deployed=ignore_deployed,
+                                                            confirmations=confirmations,
+                                                            deployment_parameters=deployment_parameters
+                                                            )
 
         # Report
         paint_contract_deployment(contract_name=contract_name,
@@ -475,6 +518,59 @@ def transfer_tokens(general_config, actor_options, target_address, value):
     click.confirm(f"Transfer {value} from {deployer_address} to {target_address}?", abort=True)
     receipt = token_agent.transfer(amount=int(value), sender_address=deployer_address, target_address=target_address)
     paint_receipt_summary(emitter=emitter, receipt=receipt)
+
+
+@deploy.command(name='multisig')
+@group_general_config
+@group_actor_options
+@click.argument('action', type=click.Choice(['inspect', 'sign', 'execute']))  # TODO: Is this wanting to be a separate command?
+@click.option('--proposal', help="Filepath to a JSON file containing a multisig transaction data",
+              type=EXISTING_READABLE_FILE)
+def multisig(general_config, actor_options, action, proposal):
+    """
+    Perform operations via a MultiSig contract
+    """
+    # Init
+    emitter = general_config.emitter
+    _ensure_config_root(actor_options.config_root)
+    blockchain = _initialize_blockchain(actor_options.poa, actor_options.provider_uri, emitter)
+    local_registry = establish_deployer_registry(emitter=emitter,
+                                                 use_existing_registry=True,
+                                                 )
+
+    # Warnings
+    # _pre_launch_warnings(emitter, etherscan, hw_wallet)
+
+    multisig_agent = ContractAgency.get_agent(MultiSigAgent,
+                                              registry=local_registry,
+                                              provider_uri=actor_options.provider_uri)
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=local_registry)
+
+    if action == 'inspect':
+        paint_multisig_contract_info(emitter, multisig_agent, token_agent)
+    elif action == 'sign':
+        if not proposal:
+            raise ValueError("multisig sign requires the use of --proposal")
+
+        with open(proposal) as json_file:
+            proposal = json.load(json_file)
+
+        executive_summary = proposal['parameters']
+
+        name, version, address, abi = local_registry.search(contract_address=executive_summary['target_address'])
+        # TODO: This assumes that we're always signing proxy retargetting. For the moment is true.
+        proxy_contract = blockchain.client.w3.eth.contract(abi=abi,
+                                                           address=address,
+                                                           version=version,
+                                                           ContractFactoryClass=blockchain._contract_factory)
+        paint_multisig_proposed_transaction(emitter, proposal, proxy_contract)
+
+        click.confirm("Proceed with signing?", abort=True)
+
+        # TODO: Blocked by lack of support to EIP191 - #1566
+
+    elif action == 'execute':
+        pass  # TODO
 
 
 @deploy.command("transfer-ownership")

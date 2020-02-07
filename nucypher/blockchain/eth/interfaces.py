@@ -25,6 +25,7 @@ from typing import Union
 from urllib.parse import urlparse
 
 import click
+import maya
 import requests
 import time
 from constant_sorrow.constants import (
@@ -93,6 +94,9 @@ class BlockchainInterface:
         pass
 
     class UnknownContract(InterfaceError):
+        pass
+
+    class NotEnoughConfirmations(InterfaceError):
         pass
 
     def __init__(self,
@@ -336,15 +340,12 @@ class BlockchainInterface:
             self._provider = provider
 
     @validate_checksum_address
-    def send_transaction(self,
-                         contract_function: ContractFunction,
-                         sender_address: str,
-                         payload: dict = None,
-                         transaction_gas_limit: int = None,
-                         ) -> dict:
-
-        if self.transacting_power is READ_ONLY_INTERFACE:
-            raise self.InterfaceError(str(READ_ONLY_INTERFACE))
+    def build_transaction(self,
+                          contract_function: ContractFunction,
+                          sender_address: str,
+                          payload: dict = None,
+                          transaction_gas_limit: int = None,
+                          ) -> dict:
 
         #
         # Build
@@ -362,16 +363,12 @@ class BlockchainInterface:
         if transaction_gas_limit:
             payload['gas'] = int(transaction_gas_limit)
 
-        # Get interface name
-        deployment = True if isinstance(contract_function, ContractConstructor) else False
-
+        # Get transaction type
+        deployment = isinstance(contract_function, ContractConstructor)
         try:
             transaction_name = contract_function.fn_name.upper()
         except AttributeError:
-            if deployment:
-                transaction_name = 'DEPLOY'
-            else:
-                transaction_name = 'UNKNOWN'
+            transaction_name = 'DEPLOY' if deployment else 'UNKNOWN'
 
         payload_pprint = dict(payload)
         payload_pprint['from'] = to_checksum_address(payload['from'])
@@ -392,13 +389,28 @@ class BlockchainInterface:
             if deployment:
                 self.log.info(f"Deploying contract: {len(unsigned_transaction['data'])} bytes")
 
+        return unsigned_transaction
+
+    def sign_and_broadcast_transaction(self,
+                                       unsigned_transaction,
+                                       transaction_name: str = "",
+                                       confirmations: int = 0
+                                       ) -> dict:
+
+        #
+        # Sign
+        #
+
+        if self.transacting_power is READ_ONLY_INTERFACE:
+            raise self.InterfaceError(str(READ_ONLY_INTERFACE))
+
+        signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction)
+
         #
         # Broadcast
         #
 
-        signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction)
         txhash = self.client.send_raw_transaction(signed_raw_transaction)
-
         try:
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT)
         except TimeExhausted:
@@ -427,6 +439,51 @@ class BlockchainInterface:
                 raise self.InterfaceError(f"Transaction consumed 100% of transaction gas."
                                           f"Full receipt: \n {pprint.pformat(receipt, indent=2)}")
 
+        # Block confirmations
+        if confirmations:
+            start = maya.now()
+            confirmations_so_far = self.get_confirmations(receipt)
+            while confirmations_so_far < confirmations:
+                self.log.info(f"So far, we've only got {confirmations_so_far} confirmations. "
+                              f"Waiting for {confirmations - confirmations_so_far} more.")
+                time.sleep(3)
+                confirmations_so_far = self.get_confirmations(receipt)
+                if (maya.now() - start).seconds > self.TIMEOUT:
+                    raise self.NotEnoughConfirmations
+
+        return receipt
+
+    def get_confirmations(self, receipt: dict) -> int:
+        tx_block_number = receipt.get('blockNumber')
+        latest_block_number = self.w3.eth.blockNumber
+        confirmations = latest_block_number - tx_block_number
+        if confirmations < 0:
+            raise ValueError(f"Can't get number of confirmations for transaction {receipt['transactionHash'].hex()}, "
+                             f"as it seems to come from {-confirmations} blocks in the future...")
+        return confirmations
+
+    @validate_checksum_address
+    def send_transaction(self,
+                         contract_function: ContractFunction,
+                         sender_address: str,
+                         payload: dict = None,
+                         transaction_gas_limit: int = None,
+                         confirmations: int = 0
+                         ) -> dict:
+
+        transaction = self.build_transaction(contract_function=contract_function,
+                                             sender_address=sender_address,
+                                             payload=payload,
+                                             transaction_gas_limit=transaction_gas_limit)
+
+        try:
+            transaction_name = contract_function.fn_name.upper()
+        except AttributeError:
+            transaction_name = 'DEPLOY' if isinstance(contract_function, ContractConstructor) else 'UNKNOWN'
+
+        receipt = self.sign_and_broadcast_transaction(unsigned_transaction=transaction,
+                                                      transaction_name=transaction_name,
+                                                      confirmations=confirmations)
         return receipt
 
     def get_contract_by_name(self,
@@ -486,6 +543,8 @@ class BlockchainInterface:
                         f"There are no Dispatcher records targeting '{contract_name}':{contract_version}")
 
         else:
+            # TODO: use_proxy_address doesnt' work in this case. Should we raise if used?
+
             # NOTE: 0 must be allowed as a valid version number
             if len(target_contract_records) != 1:
                 if enrollment_version is None:
@@ -570,6 +629,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                         *constructor_args,
                         enroll: bool = True,
                         gas_limit: int = None,
+                        confirmations: int = 0,
                         contract_version: str = 'latest',
                         **constructor_kwargs
                         ) -> Tuple[VersionedContract, dict]:
@@ -602,11 +662,8 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
         receipt = self.send_transaction(contract_function=transaction_function,
                                         sender_address=deployer_address,
-                                        payload=deploy_transaction)
-
-        #
-        # Verify deployment success
-        #
+                                        payload=deploy_transaction,
+                                        confirmations=confirmations)
 
         # Success
         address = receipt['contractAddress']

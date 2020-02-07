@@ -1,14 +1,12 @@
 import os
 from unittest import mock
 
-import pytest
 import pytest_twisted
 from nucypher.cli.actions import SUCCESSFUL_DESTRUCTION
 from twisted.internet import threads
 from twisted.internet.task import Clock
 
 from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.chaotic import Felix
 from nucypher.cli.main import nucypher_cli
@@ -19,19 +17,7 @@ from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
-    MOCK_REGISTRY_FILEPATH)
-
-
-@pytest.fixture(scope='module', autouse=True)
-def mock_local_registry_reads(testerchain, test_registry):
-    # Mock live contract registry reads
-    READ_FUNCTION = LocalContractRegistry.read
-    try:
-        # WARNING: Ensure this patch is unmocked!!!
-        LocalContractRegistry.read = lambda *a, **kw: test_registry.read()
-        yield
-    finally:
-        LocalContractRegistry.read = READ_FUNCTION
+)
 
 
 @mock.patch('nucypher.config.characters.FelixConfiguration.default_filepath', return_value='/non/existent/file')
@@ -44,11 +30,7 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
 
 
 @pytest_twisted.inlineCallbacks
-def test_run_felix(click_runner,
-                   testerchain,
-                   test_registry,
-                   agency,
-                   deploy_user_input):
+def test_run_felix(click_runner, testerchain, agency_local_registry, deploy_user_input):
 
     clock = Clock()
     Felix._CLOCK = clock
@@ -68,7 +50,7 @@ def test_run_felix(click_runner,
     # Felix creates a system configuration
     init_args = ('felix', 'init',
                  '--debug',
-                 '--registry-filepath', MOCK_REGISTRY_FILEPATH,
+                 '--registry-filepath', agency_local_registry.filepath,
                  '--checksum-address', testerchain.client.accounts[0],
                  '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
                  '--network', TEMPORARY_DOMAIN,
@@ -105,7 +87,7 @@ def test_run_felix(click_runner,
 
         # Init an equal Felix to the already running one.
         felix_config = FelixConfiguration.from_configuration_file(filepath=configuration_file_location,
-                                                                  registry_filepath=MOCK_REGISTRY_FILEPATH)
+                                                                  registry_filepath=agency_local_registry.filepath)
 
         felix_config.attach_keyring()
         felix_config.keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
@@ -127,7 +109,7 @@ def test_run_felix(click_runner,
     # Record starting ether balance
     recipient = testerchain.client.accounts[-1]
     staker = Staker(checksum_address=recipient,
-                    registry=test_registry,
+                    registry=agency_local_registry,
                     is_me=True)
     original_eth_balance = staker.eth_balance
 
@@ -141,7 +123,7 @@ def test_run_felix(click_runner,
     def confirm_airdrop(_results):
         recipient = testerchain.client.accounts[-1]
         staker = Staker(checksum_address=recipient,
-                        registry=test_registry,
+                        registry=agency_local_registry,
                         is_me=True)
 
         assert staker.token_balance == NU(45000, 'NU')

@@ -13,6 +13,8 @@ from nucypher.blockchain.eth.agents import (
     PreallocationEscrowAgent,
     PolicyManagerAgent,
     AdjudicatorAgent,
+    EthereumContractAgent,
+    MultiSigAgent,
     ContractAgency
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -22,7 +24,6 @@ from nucypher.blockchain.eth.sol.compile import SOLIDITY_COMPILER_VERSION
 from nucypher.cli.commands.deploy import deploy
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
-    MOCK_REGISTRY_FILEPATH,
     MOCK_ALLOCATION_REGISTRY_FILEPATH
 )
 
@@ -34,7 +35,8 @@ def generate_insecure_secret() -> str:
 
 
 PLANNED_UPGRADES = 4
-INSECURE_SECRETS = {v: generate_insecure_secret() for v in range(1, PLANNED_UPGRADES+1)}
+CONTRACTS_TO_UPGRADE = ('StakingEscrow', 'PolicyManager', 'Adjudicator', 'StakingInterface')
+INSECURE_SECRETS = {c: {v + 1: generate_insecure_secret() for v in range(PLANNED_UPGRADES)} for c in CONTRACTS_TO_UPGRADE}
 
 
 @pytest.fixture(scope="module")
@@ -51,7 +53,8 @@ def test_echo_solidity_version(click_runner):
 
 def test_nucypher_deploy_contracts(click_runner,
                                    token_economics,
-                                   registry_filepath):
+                                   registry_filepath,
+                                   testerchain):
 
     #
     # Main
@@ -66,11 +69,14 @@ def test_nucypher_deploy_contracts(click_runner,
                '--poa',
                '--se-test-mode']
 
-    user_input = '0\n' + 'Y\n' + (f'{INSECURE_SECRETS[1]}\n' * 8) + 'DEPLOY'
+    version_1_secrets = (INSECURE_SECRETS[c][1] * 2 for c in CONTRACTS_TO_UPGRADE)
+    secrets_input = ''.join(version_1_secrets)
+
+    user_input = '0\n' + 'Y\n' + secrets_input + 'DEPLOY'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    # Ensure there is a report on each contract except PreallocationEscrow
+    # Ensure there is a report on each primary contract
     contract_names = tuple(a.contract_name for a in ContractAdministrator.primary_deployer_classes)
     for registry_name in contract_names:
         assert registry_name in result.output
@@ -114,8 +120,6 @@ def test_nucypher_deploy_contracts(click_runner,
 
     # and at least the others can be instantiated
     assert PolicyManagerAgent(registry=registry)
-
-    # This agent wasn't instantiated before, so we have to supply the blockchain
     assert AdjudicatorAgent(registry=registry)
 
 
@@ -180,21 +184,7 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
 
     cli_action = 'upgrade'
     base_command = ('--registry-infile', registry_filepath, '--provider', TEST_PROVIDER_URI, '--poa')
-
-    # Generate user inputs
     yes = 'Y\n'  # :-)
-    upgrade_inputs = dict()
-    for version, insecure_secret in INSECURE_SECRETS.items():
-
-        next_version = version + 1
-        old_secret = INSECURE_SECRETS[version]
-        try:
-            new_secret = INSECURE_SECRETS[next_version]
-        except KeyError:
-            continue
-        #             addr-----secret----new deploy secret (2x for confirmation)
-        user_input = '0\n' + yes + old_secret + (new_secret * 2)
-        upgrade_inputs[next_version] = user_input
 
     #
     # Stage Upgrades
@@ -219,7 +209,7 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
                             )  # NOTE: Keep all versions the same in this test (all version 4, for example)
 
     # Each contract starts at version 1
-    version_tracker = {name: 1 for name in contracts_to_upgrade}
+    version_tracker = {name: 1 for name in CONTRACTS_TO_UPGRADE}
 
     #
     # Upgrade Contracts
@@ -252,7 +242,8 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
         # Select upgrade interactive input scenario
         current_version = version_tracker[contract_name]
         new_version = current_version + 1
-        user_input = upgrade_inputs[new_version] + f'Y\n'  # Yes to confirm
+        contract_secrets = INSECURE_SECRETS[contract_name]
+        user_input = '0\n' + yes + contract_secrets[current_version] + (contract_secrets[new_version] * 2) + yes
 
         # Execute upgrade (Meat)
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
@@ -277,7 +268,7 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
             registered_names = [r[0] for r in registry_data]
             contract_enrollments = registered_names.count(contract_name)
 
-            assert contract_enrollments > 1, f"New contract is not enrolled in {MOCK_REGISTRY_FILEPATH}"
+            assert contract_enrollments > 1, f"New contract is not enrolled in {registry_filepath}"
             error = f"Incorrect number of records enrolled for {contract_name}. " \
                     f"Expected {expected_contract_enrollments} got {contract_enrollments}."
             assert contract_enrollments == expected_contract_enrollments, error
@@ -311,14 +302,14 @@ def test_rollback(click_runner, testerchain, registry_filepath):
     yes = 'Y\n'
 
     # Stage Rollbacks
-    old_secret = INSECURE_SECRETS[PLANNED_UPGRADES]
-    rollback_secret = generate_insecure_secret()
-    user_input = '0\n' + yes + old_secret + rollback_secret + rollback_secret
-
     contracts_to_rollback = ('StakingEscrow',  # v4 -> v3
                              'PolicyManager',  # v4 -> v3
                              'Adjudicator',    # v4 -> v3
                              )
+
+    last_secret = {c: INSECURE_SECRETS[c][PLANNED_UPGRADES] for c in contracts_to_rollback}
+    input_secrets = {c: last_secret[c] + generate_insecure_secret() * 2 for c in contracts_to_rollback}
+
     # Execute Rollbacks
     for contract_name in contracts_to_rollback:
 
@@ -328,6 +319,7 @@ def test_rollback(click_runner, testerchain, registry_filepath):
                    '--provider', TEST_PROVIDER_URI,
                    '--poa')
 
+        user_input = '0\n' + yes + input_secrets[contract_name]
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
         assert result.exit_code == 0
 

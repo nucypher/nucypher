@@ -22,7 +22,7 @@ from nucypher.blockchain.eth.interfaces import BaseContractRegistry
 
 
 def test_token_deployer_and_agent(testerchain, deployment_progress, test_registry):
-    testerchain = testerchain
+
     origin = testerchain.etherbase_account
 
     # Trying to get token from blockchain before it's been published fails

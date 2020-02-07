@@ -33,7 +33,7 @@ def test_adjudicator_deployer(testerchain,
                               token_economics,
                               deployment_progress,
                               test_registry):
-    testerchain = testerchain
+
     origin = testerchain.etherbase_account
 
     token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)

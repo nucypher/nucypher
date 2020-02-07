@@ -146,9 +146,9 @@ contract MultiSig {
     }
 
     /**
-    * @notice Allows to change the number of required signings
+    * @notice Allows to change the number of required signatures
     * @dev Transaction has to be sent by `execute` method
-    * @param _required Number of required signings
+    * @param _required Number of required signatures
     */
     function changeRequirement(uint8 _required)
         public

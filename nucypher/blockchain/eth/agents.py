@@ -22,6 +22,7 @@ from typing import Generator, List, Tuple, Union
 import math
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
 from eth_utils.address import to_checksum_address
+from eth_tester.exceptions import TransactionFailed
 from twisted.logger import Logger
 from web3.contract import Contract
 
@@ -34,6 +35,7 @@ from nucypher.blockchain.eth.constants import (
     STAKING_INTERFACE_ROUTER_CONTRACT_NAME,
     ADJUDICATOR_CONTRACT_NAME,
     NUCYPHER_TOKEN_CONTRACT_NAME,
+    MULTISIG_CONTRACT_NAME,
     ETH_ADDRESS_BYTE_LENGTH
 )
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -1122,3 +1124,90 @@ class SeederAgent(EthereumContractAgent):
             entry = self.contract.functions.seeds(ip).call()
             entries.append(entry)
         return entries
+
+
+class MultiSigAgent(EthereumContractAgent):
+
+    registry_contract_name = MULTISIG_CONTRACT_NAME
+
+    Vector = List[str]
+
+    @property
+    def nonce(self) -> int:
+        nonce = self.contract.functions.nonce().call()
+        return nonce
+
+    def get_owner(self, index: int) -> str:
+        owner = self.contract.functions.owners(index).call()
+        return owner
+
+    @property
+    def owners(self) -> Tuple[str]:
+        i = 0
+        owners = list()
+        array_is_within_bounds = True
+        while array_is_within_bounds:
+            try:
+                owner = self.get_owner(i)
+            except (TransactionFailed, ValueError):
+                array_is_within_bounds = False
+            else:
+                owners.append(owner)
+                i += 1
+        return tuple(owners)
+
+    @property
+    def threshold(self) -> int:
+        threshold = self.contract.functions.required().call()
+        return threshold
+
+    @validate_checksum_address
+    def is_owner(self, checksum_address: str) -> bool:
+        result = self.contract.functions.isOwner(checksum_address).call()
+        return result
+
+    def add_owner(self, new_owner_address: str, sender_address: str) -> dict:
+        transaction_function = self.contract.functions.addOwner(new_owner_address)
+        receipt = self.blockchain.send_transaction(contract_function=transaction_function,
+                                                   sender_address=sender_address)
+        return receipt
+
+    @validate_checksum_address
+    def remove_owner(self, checksum_address: str, sender_address: str):
+        transaction_function = self.contract.functions.removeOwner(checksum_address)
+        receipt = self.blockchain.send_transaction(contract_function=transaction_function,
+                                                   sender_address=sender_address)
+        return receipt
+
+    def get_unsigned_transaction_hash(self,
+                                      trustee_address: str,
+                                      target_address: str,
+                                      value: int,
+                                      data: bytes,
+                                      nonce: int
+                                      ) -> bytes:
+        transaction_args = (trustee_address,
+                            target_address,
+                            value,
+                            data,
+                            nonce)
+
+        transaction_hash = self.contract.functions.getUnsignedTransactionHash(*transaction_args).call()
+        return transaction_hash
+
+    def execute(self,
+                v: Vector,
+                r: Vector,
+                s: Vector,
+                transaction_function,
+                value: int,
+                sender_address: str
+                ) -> dict:
+        contract_function = self.contract.functions.execute(v, r, s,
+                                                            transaction_function.address,
+                                                            value,
+                                                            transaction_function.data)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=sender_address)
+        return receipt
+

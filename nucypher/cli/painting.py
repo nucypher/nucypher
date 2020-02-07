@@ -235,12 +235,11 @@ Stakers population ....... {staking_agent.get_staker_population()}
 def paint_deployer_contract_inspection(emitter, registry, deployer_address) -> None:
 
     blockchain = BlockchainInterfaceFactory.get_interface()
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
 
     sep = '-' * 45
     emitter.echo(sep)
 
-    contract_payload = f"""
+    provider_info = f"""
 
 * Web3 Provider
 ====================================================================
@@ -250,11 +249,22 @@ Registry  ................ {registry.filepath}
 
 * Standard Deployments
 =====================================================================
+"""
+    emitter.echo(provider_info)
+
+    try:
+        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
+        token_contract_info = """
 
 {token_agent.contract_name} ........... {token_agent.contract_address}
     ~ Ethers ............ {Web3.fromWei(blockchain.client.get_balance(token_agent.contract_address), 'ether')} ETH
     ~ Tokens ............ {NU.from_nunits(token_agent.get_balance(token_agent.contract_address))}"""
-    emitter.echo(contract_payload)
+    except BaseContractRegistry.UnknownContract:
+        message = f"\n{NucypherTokenAgent.contract_name} is not enrolled in {registry.filepath}"
+        emitter.echo(message, color='yellow')
+        emitter.echo(sep, nl=False)
+    else:
+        emitter.echo(token_contract_info)
 
     banner = """
 * Proxy-Contract Deployments
@@ -327,7 +337,63 @@ Registry  ................ {registry.filepath}
         message = f"\nStakingInterface is not enrolled in {registry.filepath}"
         emitter.echo(message, color='yellow')
 
-    return
+
+def paint_multisig_contract_info(emitter, multisig_agent, token_agent):
+
+    sep = '-' * 45
+    emitter.echo(sep)
+
+    blockchain = multisig_agent.blockchain
+    registry = multisig_agent.registry
+
+    contract_payload = f"""
+
+* Web3 Provider
+====================================================================
+
+Provider URI ............. {blockchain.provider_uri}
+Registry  ................ {registry.filepath}
+
+* MultiSig Contract Information
+=====================================================================
+
+{multisig_agent.contract_name} ................. {multisig_agent.contract_address}
+    ~ Ethers ............. {Web3.fromWei(blockchain.client.get_balance(multisig_agent.contract_address), 'ether')} ETH
+    ~ Tokens ............. {NU.from_nunits(token_agent.get_balance(multisig_agent.contract_address))}"""
+    emitter.echo(contract_payload)
+
+    emitter.echo(f"Nonce .................... {multisig_agent.nonce}")
+    emitter.echo(f"Threshold: ............... {multisig_agent.threshold}")
+    emitter.echo(f"Owners:")
+    for i, owner in enumerate(multisig_agent.owners):
+        emitter.echo(f"[{i}] {owner}")
+
+
+def paint_multisig_proposed_transaction(emitter, data_for_multisig_executives, contract=None):
+    executive_summary = data_for_multisig_executives['parameters']
+    data_to_sign = data_for_multisig_executives['digest']
+    raw_data = executive_summary['data']
+
+    info = f"""
+Trustee address: .... {executive_summary['trustee_address']}
+Target address: ..... {executive_summary['target_address']}
+Value: .............. {Web3.fromWei(executive_summary['value'], 'ether')} ETH
+Nonce: .............. {executive_summary['nonce']}
+Raw TX data: ........ {raw_data}
+Unsigned TX hash: ... {data_to_sign}
+"""
+    emitter.echo(info)
+
+    if contract:
+        paint_decoded_transaction(emitter, raw_data, contract)
+
+
+def paint_decoded_transaction(emitter, raw_transaction_data, contract):
+    emitter.echo("Decoded transaction:\n")
+    contract_function, params = contract.decode_function_input(raw_transaction_data)
+    emitter.echo(str(contract_function))
+    for param, value in params.items():
+        emitter.echo(f"  {param}={value}")
 
 
 def paint_staged_stake(emitter,

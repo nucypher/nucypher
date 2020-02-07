@@ -19,7 +19,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import csv
 import json
 import os
-from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Tuple, List, Dict, Union
@@ -34,6 +33,7 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak, is_checksum_address, to_checksum_address
 from twisted.logger import Logger
 from web3 import Web3
+from web3.contract import ContractFunction
 
 from nucypher.blockchain.economics import StandardTokenEconomics, EconomicsFactory, BaseEconomics
 from nucypher.blockchain.eth.agents import (
@@ -43,8 +43,9 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
     PreallocationEscrowAgent,
+    MultiSigAgent,
     WorkLockAgent)
-from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.decorators import validate_checksum_address, only_me, save_receipt
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
@@ -54,10 +55,12 @@ from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     BaseContractDeployer,
     WorklockDeployer,
-    SeederDeployer
+    SeederDeployer,
+    MultiSigDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.multisig import Authorization
 from nucypher.blockchain.eth.registry import (
     AllocationRegistry,
     BaseContractRegistry,
@@ -75,24 +78,6 @@ from nucypher.cli.painting import (
 )
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
-
-
-def only_me(func):
-    """Decorator to enforce invocation of permissioned actor methods"""
-    def wrapped(actor=None, *args, **kwargs):
-        if not actor.is_me:
-            raise actor.StakerError("You are not {}".format(actor.__class.__.__name__))
-        return func(actor, *args, **kwargs)
-    return wrapped
-
-
-def save_receipt(actor_method):
-    """Decorator to save the receipts of transmitted transactions from actor methods"""
-    def wrapped(self, *args, **kwargs):
-        receipt = actor_method(self, *args, **kwargs)
-        self._saved_receipts.append((datetime.utcnow(), receipt))
-        return receipt
-    return wrapped
 
 
 class NucypherTokenActor:
@@ -177,6 +162,7 @@ class ContractAdministrator(NucypherTokenActor):
 
     aux_deployer_classes = (
         WorklockDeployer,
+        MultiSigDeployer,
         SeederDeployer
     )
 
@@ -269,6 +255,10 @@ class ContractAdministrator(NucypherTokenActor):
         secrets = dict()
         for deployer in self.upgradeable_deployer_classes:
             secrets[deployer.contract_name] = self.collect_deployment_secret(deployer)
+
+        if len(secrets.values()) != len(set(secrets.values())):  # i.e., if there are duplicated secrets
+            raise ValueError("You can't use the same secret for multiple contracts")
+
         return secrets
 
     def deploy_contract(self,
@@ -278,8 +268,12 @@ class ContractAdministrator(NucypherTokenActor):
                         bare: bool = False,
                         ignore_deployed: bool = False,
                         progress=None,
+                        confirmations: int = 0,
+                        deployment_parameters: dict = None,
                         *args, **kwargs,
                         ) -> Tuple[dict, BaseContractDeployer]:
+
+        deployment_parameters = deployment_parameters or {}
 
         Deployer = self.__get_deployer(contract_name=contract_name)
         if Deployer is StakingEscrowDeployer:
@@ -302,9 +296,13 @@ class ContractAdministrator(NucypherTokenActor):
                                        gas_limit=gas_limit,
                                        initial_deployment=is_initial_deployment,
                                        progress=progress,
-                                       ignore_deployed=ignore_deployed)
+                                       ignore_deployed=ignore_deployed,
+                                       confirmations=confirmations)
         else:
-            receipts = deployer.deploy(gas_limit=gas_limit, progress=progress)
+            receipts = deployer.deploy(gas_limit=gas_limit,
+                                       progress=progress,
+                                       confirmations=confirmations,
+                                       **deployment_parameters)
         return receipts, deployer
 
     def upgrade_contract(self,
@@ -321,14 +319,20 @@ class ContractAdministrator(NucypherTokenActor):
                                     ignore_deployed=ignore_deployed)
         return receipts
 
-    def retarget_proxy(self, contract_name: str, target_address: str, existing_plaintext_secret: str, new_plaintext_secret: str):
+    def retarget_proxy(self,
+                       contract_name: str,
+                       target_address: str,
+                       existing_plaintext_secret: str,
+                       new_plaintext_secret: str,
+                       just_build_transaction: bool = False):
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
         new_secret_hash = keccak(bytes(new_plaintext_secret, encoding='utf-8'))
-        receipts = deployer.retarget(target_address=target_address,
-                                     existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
-                                     new_secret_hash=new_secret_hash)
-        return receipts
+        result = deployer.retarget(target_address=target_address,
+                                   existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
+                                   new_secret_hash=new_secret_hash,
+                                   just_build_transaction=just_build_transaction)
+        return result
 
     def rollback_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str):
         Deployer = self.__get_deployer(contract_name=contract_name)
@@ -656,6 +660,104 @@ class ContractAdministrator(NucypherTokenActor):
             data = json.dumps(data, indent=4)
             file.write(data)
         return filepath
+
+
+class MultiSigActor(NucypherTokenActor):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.multisig_agent = ContractAgency.get_agent(MultiSigAgent, registry=self.registry)  # type: MultiSigAgent
+
+
+class Trustee(MultiSigActor):
+    """
+    A member of a MultiSigBoard given the power and
+    obligation to execute an authorized transaction on
+    behalf of the board of executives.
+    """
+
+    class NoAuthorizations(RuntimeError):
+        """Raised when there are zero authorizations."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.authorizations = dict()
+
+    def add_authorization(self, authorization):
+        self.authorizations[authorization.trustee_address] = authorization
+
+    def combine_authorizations(self) -> Tuple[List[bytes], ...]:
+        if not self.authorizations:
+            raise self.NoAuthorizations
+
+        all_v, all_r, all_s = list(), list(), list()
+        # Authorizations (i.e., signatures) must be provided in increasing order by signing address
+        for trustee_address, authorization in sorted(self.authorizations.items()):
+            v, r, s = authorization.get_components()
+            all_v.append(v)
+            all_r.append(r)
+            all_s.append(s)
+
+        # TODO: check for inconsistencies (nonce, etc.)
+        return all_v, all_r, all_s
+
+    def execute(self, contract_function: ContractFunction) -> dict:
+        v, r, s = self.combine_authorizations()
+        receipt = self.multisig_agent.execute(sender_address=self.checksum_address,
+                                              v=v, r=r, s=s,
+                                              transaction_function=contract_function,
+                                              value=None)  # TODO: Design Flaw...
+        return receipt
+
+    def change_threshold(self, new_threshold: int) -> dict:
+        # TODO: Implement Agent method for change threshold for function binding
+        receipt = self.multisig_agent.execute()
+        return receipt
+
+    def produce_data_to_sign(self, transaction):
+        data_to_sign = dict(trustee_address=transaction['from'],
+                            target_address=transaction['to'],
+                            value=transaction['value'],
+                            data=transaction['data'],
+                            nonce=self.multisig_agent.nonce)
+
+        unsigned_digest = self.multisig_agent.get_unsigned_transaction_hash(**data_to_sign)
+
+        data_for_multisig_executives = {
+            'parameters': data_to_sign,
+            'digest': unsigned_digest.hex()
+        }
+
+        return data_for_multisig_executives
+
+
+class Executive(MultiSigActor):
+    """
+    An actor having the power to authorize transaction executions to a delegated trustee.
+    """
+
+    def sign_hash(self, unsigned_hash: bytes) -> bytes:
+        blockchain = self.multisig_agent.blockchain
+        signed_hash = blockchain.transacting_power.sign_hash(unsigned_hash=unsigned_hash)
+        return signed_hash
+
+    def authorize(self, trustee, contract_function: ContractFunction) -> Authorization:
+        try:
+            transaction = contract_function.buildTransaction()
+        except (TransactionFailed, ValueError):
+            # TODO - Handle Validation Failure
+            raise
+        unsigned_transaction_hash = self.multisig_agent.get_unsigned_transaction_hash(
+            trustee_address=trustee.checksum_address,
+            target_address=contract_function.address,
+            value=transaction['value'],
+            data=transaction['data'],
+            nonce=trustee.current_nonce
+        )
+        signed_transaction_hash = self.sign_hash(unsigned_hash=unsigned_transaction_hash)
+        authorization = self.Authorization(trustee_address=trustee.checksum_address,
+                                           signed_transaction_hash=signed_transaction_hash)
+        return authorization
 
 
 class Staker(NucypherTokenActor):
