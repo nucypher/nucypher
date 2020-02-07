@@ -19,7 +19,7 @@ import click
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder
-from nucypher.blockchain.eth.constants import SOLIDITY_MAX_UINT16
+from nucypher.blockchain.eth.constants import MAX_UINT16
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
 from nucypher.blockchain.eth.token import NU, StakeList
@@ -459,7 +459,7 @@ def create(general_config, transacting_staker_options, config_file, force, value
     if not lock_periods:
         min_locktime = STAKEHOLDER.economics.minimum_locked_periods
         default_locktime = STAKEHOLDER.economics.maximum_rewarded_periods
-        max_locktime = SOLIDITY_MAX_UINT16 - STAKEHOLDER.staking_agent.get_current_period()
+        max_locktime = MAX_UINT16 - STAKEHOLDER.staking_agent.get_current_period()
         prompt = f"Enter stake duration ({min_locktime} - {max_locktime})"
         lock_periods = click.prompt(prompt, type=stake_duration_range, default=default_locktime)
 
@@ -653,7 +653,7 @@ def divide(general_config, transacting_staker_options, config_file, force, value
 
     # Duration
     if not lock_periods:
-        max_extension = SOLIDITY_MAX_UINT16 - current_stake.final_locked_period
+        max_extension = MAX_UINT16 - current_stake.final_locked_period
         divide_extension_range = click.IntRange(min=1, max=max_extension, clamp=False)
         extension = click.prompt(f"Enter number of periods to extend (1 - {max_extension})",
                                  type=divide_extension_range)
@@ -732,7 +732,7 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
 
     # Interactive
     if not lock_periods:
-        max_extension = SOLIDITY_MAX_UINT16 - current_stake.final_locked_period
+        max_extension = MAX_UINT16 - current_stake.final_locked_period
         # +1 because current period excluded
         min_extension = economics.minimum_locked_periods - current_stake.periods_remaining + 1
         if min_extension < 1:

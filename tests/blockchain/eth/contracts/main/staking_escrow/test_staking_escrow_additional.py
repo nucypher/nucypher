@@ -848,12 +848,12 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
         assert sub_stake == escrow.functions.getLockedTokens(staker, duration).call(), "Sub-stake is already unlocked"
         assert 0 == escrow.functions.getLockedTokens(staker, duration + 1).call(), "Sub-stake is still locked"
 
-    def check_events(value: bool, length: int):
+    def check_events(wind_down: bool, length: int):
         events = wind_down_log.get_all_entries()
         assert len(events) == length
         event_args = events[-1]['args']
         assert staker == event_args['staker'] == staker
-        assert event_args['windDown'] == value
+        assert event_args['windDown'] == wind_down
 
     tx = token.functions.transfer(staker, 2 * sub_stake).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -891,7 +891,7 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     tx = escrow.functions.setWindDown(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.stakerInfo(staker).call()[WIND_DOWN_FIELD]
-    check_events(value=True, length=1)
+    check_events(wind_down=True, length=1)
 
     # Enabling wind-down will affect duration only after next confirm activity
     check_last_period()
@@ -913,7 +913,7 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     testerchain.wait_for_receipt(tx)
     assert not escrow.functions.stakerInfo(staker).call()[WIND_DOWN_FIELD]
 
-    check_events(value=False, length=2)
+    check_events(wind_down=False, length=2)
 
     check_last_period()
     tx = escrow.functions.confirmActivity().transact({'from': staker})
@@ -927,7 +927,7 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     tx = escrow.functions.setWindDown(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.stakerInfo(staker).call()[WIND_DOWN_FIELD]
-    check_events(value=True, length=3)
+    check_events(wind_down=True, length=3)
 
     check_last_period()
     tx = escrow.functions.confirmActivity().transact({'from': staker})
