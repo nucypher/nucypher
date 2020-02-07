@@ -449,7 +449,7 @@ def select_client_account(emitter,
     emitter.echo(tabulate(rows, headers=headers, showindex='always'))
 
     # Prompt the user for selection, and return
-    prompt = prompt or "Select Account"
+    prompt = prompt or "Select index of account"
     account_range = click.IntRange(min=0, max=len(enumerated_accounts)-1)
     choice = click.prompt(prompt, type=account_range, default=default)
     chosen_account = enumerated_accounts[choice]
@@ -485,7 +485,7 @@ def handle_client_account_for_staking(emitter,
         if staking_address:
             client_account = staking_address
         else:
-            client_account = select_client_account(prompt="Select staking account",
+            client_account = select_client_account(prompt="Select index of staking account",
                                                    emitter=emitter,
                                                    registry=stakeholder.registry,
                                                    network=stakeholder.network,
