@@ -361,6 +361,7 @@ def make_rest_app(
             log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
             assert False
 
+    @rest_app.route('/status/', methods=['GET'])
     def status():
 
         if request.args.get('json'):
