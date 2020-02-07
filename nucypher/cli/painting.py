@@ -475,7 +475,7 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
         fees = staker.policy_agent.get_reward_amount(staker.checksum_address)
         gwei_fees = f"{Web3.fromWei(fees, 'gwei')} Gwei"
         last_confirmed = staker.staking_agent.get_last_active_period(staker.checksum_address)
-        missing = staker.staking_agent.get_missing_confirmations(staker_address=staker.checksum_address)
+        missing = staker.missing_confirmations
 
         staker_data = [f'Missing {missing} confirmation{"s" if missing > 1 else ""}' if missing else f'Confirmed #{last_confirmed}',
                        f'{"Yes" if staker.is_restaking else "No"} ({"Locked" if staker.restaking_lock_enabled else "Unlocked"})',

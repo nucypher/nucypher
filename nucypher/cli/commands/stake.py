@@ -703,7 +703,7 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
     # Interactive
     if not lock_periods:
         stake_extension_range = click.IntRange(min=1, max=economics.maximum_allowed_locked, clamp=False)
-        max_extension = economics.maximum_allowed_locked - current_stake.periods_remaining
+        max_extension = economics.maximum_rewarded_periods - current_stake.periods_remaining
         lock_periods = click.prompt(f"Enter number of periods to extend (1-{max_extension})", type=stake_extension_range)
     if not force:
         click.confirm(f"Publish stake extension of {lock_periods} period(s) to the blockchain?", abort=True)

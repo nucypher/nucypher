@@ -605,6 +605,22 @@ class StakingEscrowAgent(EthereumContractAgent):
         total_completed_work = self.contract.functions.getCompletedWork(bidder_address).call()
         return total_completed_work
 
+    @validate_checksum_address
+    def get_missing_confirmations(self, checksum_address: str) -> int:
+        # TODO: Move this up one layer, since it utilizes a combination of contract API methods.
+        last_confirmed_period = self.get_last_active_period(checksum_address)
+        current_period = self.get_current_period()
+        missing_confirmations = current_period - last_confirmed_period
+        if missing_confirmations in (0, -1):
+            result = 0
+        elif missing_confirmations == current_period:  # never confirmed
+            stakes = list(self.get_all_stakes(staker_address=checksum_address))
+            initial_staking_period = min(stakes, key=lambda s: s[0])[0]
+            result = current_period - initial_staking_period
+        else:
+            result = missing_confirmations
+        return result
+
 
 class PolicyManagerAgent(EthereumContractAgent):
 
