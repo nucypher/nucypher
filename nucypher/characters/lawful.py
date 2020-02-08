@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
 import time
-from base64 import b64encode
+from base64 import b64encode, b64decode
 from collections import OrderedDict
 from functools import partial
 from json.decoder import JSONDecodeError
@@ -679,13 +679,21 @@ class Bob(Character):
 
         hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
         if treasure_map is not None:
+            alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
+            compass = self.make_compass_for_alice(alice)
+
             from nucypher.policy.collections import TreasureMap
 
+            # TODO: This LBYL is ugly and fraught with danger.
             if isinstance(treasure_map, bytes):
                 treasure_map = TreasureMap.from_bytes(treasure_map)
-                alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
-                compass = self.make_compass_for_alice(alice)
-                treasure_map.orient(compass)
+
+            if isinstance(treasure_map, str):
+                tmap_bytes = treasure_map.encode()
+                b64decode(tmap_bytes)
+                treasure_map = TreasureMap.from_bytes(b64decode(tmap_bytes))
+
+            treasure_map.orient(compass)
             _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=treasure_map, block=True)
         else:
             _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
