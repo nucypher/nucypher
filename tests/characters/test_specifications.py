@@ -1,4 +1,4 @@
-from base64 import b64encode
+from base64 import b64encode, b64decode
 
 import pytest
 from marshmallow import validates_schema
@@ -82,7 +82,7 @@ def test_treasuremap_validation(enacted_federated_policy):
     assert isinstance(result['tmap'], bytes)
 
 
-def test_messagekit_validation():
+def test_messagekit_validation(capsule_side_channel):
     """Ensure that our users know exactly what's wrong with their message kit input"""
 
     class MessageKitsOnly(BaseSchema):
@@ -99,13 +99,16 @@ def test_messagekit_validation():
 
     # valid base64 but invalid treasuremap
     with pytest.raises(SpecificationError) as e:
-        MessageKitsOnly().load({'mkit': "VGhpcyBpcyB0b3RhbGx5IG5vdCBhIHRyZWFzdXJlbWFwLg=="})
+        MessageKitsOnly().load({'mkit': "V3da"})
 
     assert "Could not parse mkit" in str(e)
-    assert "Not enough bytes to constitute message types" in str(e)
+    assert "Can't split a message with more bytes than the original splittable." in str(e)
 
     # test a valid messagekit
-    result = MessageKitsOnly().load({'mkit': "ApZrJG9HOoNM7F6YZiiMhjRmWcMWP3rKmNLrsuAwdxh7A1cMPdJ5wppSU3LUgmvbJMiddZzsJKw0iJ1Vn1ax4TsmRqSKyR5NBEescZjTzX8fn7wzfwL0Q/vyIL9XFCi3nHACaNPrLk8yON7fAD/LDndn9BrdBRtM3lEXJ43tesa+v/g7i1uQ7HqAp2SDtQTrqyWQ3oc3xx0+TDN2ASvlYm+yed1/B3EM1I/ItghTsrDegoroVeYQbeTEbbs+PR9OgPyLUoXmDricfc6OdTaYZh4ZviXo6XpTPboQ6tv32pDqmoVY8TkPSmPkq5ZC7dD9SeModP92/A=="})
+    valid_kit = capsule_side_channel.messages[0][0]
+    kit_bytes = bytes(valid_kit)
+    kit_b64 = b64encode(kit_bytes)
+    result = MessageKitsOnly().load({'mkit': kit_b64.decode()})
     assert isinstance(result['mkit'], bytes)
 
 
