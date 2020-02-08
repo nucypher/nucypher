@@ -1,3 +1,5 @@
+from base64 import b64encode
+
 import pytest
 from marshmallow import validates_schema
 import maya
@@ -51,7 +53,7 @@ def test_various_field_validations_by_way_of_alice_grant(federated_bob):
         GrantPolicy().load(data)
 
 
-def test_treasuremap_validation():
+def test_treasuremap_validation(enacted_federated_policy):
     """Tell people exactly what's wrong with their treasuremaps"""
 
     class TreasureMapsOnly(BaseSchema):
@@ -74,7 +76,9 @@ def test_treasuremap_validation():
     assert "Can't split a message with more bytes than the original splittable" in str(e)
 
     # a valid treasuremap for once...
-    result = TreasureMapsOnly().load({'tmap': "dAYjo1M+OWFWXS/EkRGGBUJ6ywgGczmbELGbncfYT1W51k/EBO6y/LwSIeoQcrT/NzE25OXnsnnwOzwoZxT5oE7fhO+HbJPiGTt1Fl4iCvVrwxuJWIk0Nrw9WslSNBzAAAABHAM2ndUrO/67tZnGmF8ca1U8h09k2Qsn3gohnEP2M4aIfwPxG9F2jOqSS7OVoBsNnziS0qdYqMXmPPMnNrUPyR4PfB+9RmvtufpZ1DbbP4MEyxL1qL4xrmNhr6AYSMbnJD6FA3Qb0AGzgLrvTrO7qaWSJ2mxKMyGNnC/FeZhjg4AeuTfuEGEkogqeL/uMTNrl5vG3JwNIXFVsPY3sXR743ZKpP4ypu8HFj8BoqSfxleRmcwbANHQlSdwBd+/NJLcdqQCVuB1UdFDJPCJ3HxvjHIRhxWHTtuQ4L/HIjxTHoRsS/CFwjembIWhqpxqfswnxmKRQ5hCosO6iqK3aRYkDpOQMPwqgkv0diRBx5AC7Fj1nSfuXlpJix8PLxcy"})
+    tmap_bytes = bytes(enacted_federated_policy.treasure_map)
+    tmap_b64 = b64encode(tmap_bytes)
+    result = TreasureMapsOnly().load({'tmap': tmap_b64.decode()})
     assert isinstance(result['tmap'], bytes)
 
 
