@@ -62,6 +62,8 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     arrangement_refund_log = policy_manager.events.RefundForArrangement.createFilter(fromBlock='latest')
     policy_refund_log = policy_manager.events.RefundForPolicy.createFilter(fromBlock='latest')
     warn_log = policy_manager.events.NodeBrokenState.createFilter(fromBlock='latest')
+    min_reward_log = policy_manager.events.MinRewardRateSet.createFilter(fromBlock='latest')
+    reward_range_log = policy_manager.events.MinRewardRateRangeSet.createFilter(fromBlock='latest')
 
     # Only past periods is allowed in register method
     current_period = policy_manager.functions.getCurrentPeriod().call()
@@ -300,13 +302,85 @@ def test_create_revoke(testerchain, escrow, policy_manager):
             .transact({'from': policy_sponsor, 'value': 11})
         testerchain.wait_for_receipt(tx)
 
+    # Can't set minimum reward because range is [0, 0]
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.setMinRewardRate(10).transact({'from': node1})
+        testerchain.wait_for_receipt(tx)
+
+    # Only owner can change range
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.setMinRewardRateRange(10, 20, 30).transact({'from': node1})
+        testerchain.wait_for_receipt(tx)
+    assert policy_manager.functions.minRewardRateRange().call() == [0, 0, 0]
+
+    tx = policy_manager.functions.setMinRewardRate(0).transact({'from': node1})
+    testerchain.wait_for_receipt(tx)
+    assert policy_manager.functions.getMinRewardRate(node1).call() == 0
+    assert len(min_reward_log.get_all_entries()) == 0
+
+    tx = policy_manager.functions.setMinRewardRateRange(0, 0, 0).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert policy_manager.functions.minRewardRateRange().call() == [0, 0, 0]
+
+    events = reward_range_log.get_all_entries()
+    assert len(events) == 1
+    event_args = events[0]['args']
+    assert event_args['sender'] == creator
+    assert event_args['min'] == 0
+    assert event_args['defaultValue'] == 0
+    assert event_args['max'] == 0
+
+    # Can't set range with inconsistent values
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.setMinRewardRateRange(10, 5, 11).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.setMinRewardRateRange(10, 15, 11).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
+    min_rate, default_rate, max_rate = 10, 20, 30
+    tx = policy_manager.functions.setMinRewardRateRange(min_rate, default_rate, max_rate).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert policy_manager.functions.minRewardRateRange().call() == [min_rate, default_rate, max_rate]
+    assert policy_manager.functions.nodes(node1).call()[MIN_REWARD_RATE_FIELD] == 0
+    assert policy_manager.functions.nodes(node2).call()[MIN_REWARD_RATE_FIELD] == 0
+    assert policy_manager.functions.getMinRewardRate(node1).call() == default_rate
+    assert policy_manager.functions.getMinRewardRate(node2).call() == default_rate
+
+    events = reward_range_log.get_all_entries()
+    assert len(events) == 2
+    event_args = events[1]['args']
+    assert event_args['sender'] == creator
+    assert event_args['min'] == min_rate
+    assert event_args['defaultValue'] == default_rate
+    assert event_args['max'] == max_rate
+
+    # Can't set min reward let out of range
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.setMinRewardRate(5).transact({'from': node1})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.setMinRewardRate(35).transact({'from': node1})
+        testerchain.wait_for_receipt(tx)
+
     # Set minimum reward rate for nodes
     tx = policy_manager.functions.setMinRewardRate(10).transact({'from': node1})
     testerchain.wait_for_receipt(tx)
     tx = policy_manager.functions.setMinRewardRate(20).transact({'from': node2})
     testerchain.wait_for_receipt(tx)
-    assert 10 == policy_manager.functions.nodes(node1).call()[MIN_REWARD_RATE_FIELD]
-    assert 20 == policy_manager.functions.nodes(node2).call()[MIN_REWARD_RATE_FIELD]
+    assert policy_manager.functions.nodes(node1).call()[MIN_REWARD_RATE_FIELD] == 10
+    assert policy_manager.functions.nodes(node2).call()[MIN_REWARD_RATE_FIELD] == 20
+    assert policy_manager.functions.getMinRewardRate(node1).call() == 10
+    assert policy_manager.functions.getMinRewardRate(node2).call() == 20
+
+    events = min_reward_log.get_all_entries()
+    assert len(events) == 2
+    event_args = events[0]['args']
+    assert event_args['node'] == node1
+    assert event_args['value'] == 10
+    event_args = events[1]['args']
+    assert event_args['node'] == node2
+    assert event_args['value'] == 20
 
     # Try to create policy with low rate
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
@@ -407,6 +481,44 @@ def test_create_revoke(testerchain, escrow, policy_manager):
 
     assert len(warn_log.get_all_entries()) == 0
 
+    # If min reward rate is outside of the range after changing it - then default value must be returned
+    min_rate, default_rate, max_rate = 11, 15, 19
+    tx = policy_manager.functions.setMinRewardRateRange(min_rate, default_rate, max_rate).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert policy_manager.functions.minRewardRateRange().call() == [min_rate, default_rate, max_rate]
+    assert policy_manager.functions.nodes(node1).call()[MIN_REWARD_RATE_FIELD] == 10
+    assert policy_manager.functions.nodes(node2).call()[MIN_REWARD_RATE_FIELD] == 20
+    assert policy_manager.functions.getMinRewardRate(node1).call() == default_rate
+    assert policy_manager.functions.getMinRewardRate(node2).call() == default_rate
+
+    events = reward_range_log.get_all_entries()
+    assert len(events) == 3
+    event_args = events[2]['args']
+    assert event_args['sender'] == creator
+    assert event_args['min'] == min_rate
+    assert event_args['defaultValue'] == default_rate
+    assert event_args['max'] == max_rate
+
+    # Try to create policy with low rate
+    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    end_timestamp = current_timestamp + 10
+    policy_id_5 = os.urandom(POLICY_ID_LENGTH)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions\
+            .createPolicy(policy_id_5, BlockchainInterface.NULL_ADDRESS, end_timestamp, [node1]) \
+            .transact({'from': policy_sponsor, 'value': default_rate - 1})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions\
+            .createPolicy(policy_id_5, BlockchainInterface.NULL_ADDRESS, end_timestamp, [node2]) \
+            .transact({'from': policy_sponsor, 'value': default_rate - 1})
+        testerchain.wait_for_receipt(tx)
+
+    tx = policy_manager.functions \
+        .createPolicy(policy_id_5, BlockchainInterface.NULL_ADDRESS, end_timestamp, [node1, node2]) \
+        .transact({'from': policy_sponsor, 'value': 2 * default_rate})
+    testerchain.wait_for_receipt(tx)
+
 
 @pytest.mark.slow
 def test_upgrading(testerchain, deploy_contract):
@@ -433,6 +545,8 @@ def test_upgrading(testerchain, deploy_contract):
         abi=contract_library_v2.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
+    tx = contract.functions.setMinRewardRateRange(10, 15, 20).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
 
     # Can't call `finishUpgrade` and `verifyState` methods outside upgrade lifecycle
     with pytest.raises((TransactionFailed, ValueError)):
