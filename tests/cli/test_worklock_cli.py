@@ -34,7 +34,7 @@ from nucypher.utilities.sandbox.constants import (
 )
 
 
-def test_status(click_runner, testerchain, agency_local_registry, token_economics):
+def test_status(click_runner, testerchain, agency_local_registry):
     command = ('status',
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
@@ -43,7 +43,7 @@ def test_status(click_runner, testerchain, agency_local_registry, token_economic
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
 
     assert result.exit_code == 0
-    assert f"Lot Size .......... {NU.from_nunits(token_economics.worklock_supply)}" in result.output
+    assert f"Lot Size .......... {NU.from_tokens(1_000_000)}" in result.output  # TODO: Amount hard-coded in token economics fixture
 
 
 def test_bid(click_runner, testerchain, agency_local_registry, token_economics):
