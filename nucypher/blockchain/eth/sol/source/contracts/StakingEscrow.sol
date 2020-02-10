@@ -49,6 +49,7 @@ contract StakingEscrow is Issuer {
         uint256 newValue,
         uint16 periods
     );
+    event Prolonged(address indexed staker, uint256 value, uint16 lastPeriod, uint16 periods);
     event Withdrawn(address indexed staker, uint256 value);
     event ActivityConfirmed(address indexed staker, uint16 indexed period, uint256 value);
     event Mined(address indexed staker, uint16 indexed period, uint256 value);
@@ -748,6 +749,7 @@ contract StakingEscrow is Issuer {
         require(uint32(lastPeriod - currentPeriod) + _periods >= minLockedPeriods,
             "The extended sub stake must not be less than the minimum value");
         emit Locked(msg.sender, subStake.lockedValue, lastPeriod + 1, _periods);
+        emit Prolonged(msg.sender, subStake.lockedValue, lastPeriod, _periods);
     }
 
     /**
