@@ -217,7 +217,9 @@ class Character(Learner):
             if registry is not None:
                 raise TypeError("Registry cannot be attached to stranger-Characters.")
 
-            self._stamp = StrangerStamp(self.public_keys(SigningPower))
+            verifying_key = self.public_keys(SigningPower)
+            self._stamp = StrangerStamp(verifying_key)
+            self.keyring_root = STRANGER
             self.network_middleware = STRANGER
 
         #

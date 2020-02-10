@@ -15,16 +15,15 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import json
-from base64 import b64encode
+from base64 import b64encode, b64decode
 from collections import OrderedDict
 from functools import partial
 from json.decoder import JSONDecodeError
+from random import shuffle
 from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
-import requests
 import time
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
@@ -39,13 +38,6 @@ from flask import request, Response
 from twisted.internet import threads
 from twisted.logger import Logger
 
-from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
-from umbral import pre
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
-from umbral.pre import UmbralCorrectnessError
-from umbral.signing import Signature
-
 import nucypher
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
@@ -54,9 +46,9 @@ from nucypher.blockchain.eth.token import WorkTracker
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import (
-    CLIController,
     WebController
 )
+from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
@@ -71,6 +63,11 @@ from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher, NodeSprout
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
+from umbral import pre
+from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
+from umbral.pre import UmbralCorrectnessError
+from umbral.signing import Signature
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -441,13 +438,13 @@ class Bob(Character):
             self.make_cli_controller()
 
         from nucypher.policy.collections import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
-        self._saved_work_orders = WorkOrderHistory()
+        self._completed_work_orders = WorkOrderHistory()
 
         self.log = Logger(self.__class__.__name__)
         self.log.info(self.banner)
 
     def _pick_treasure_map(self, treasure_map=None, map_id=None):
-        if not treasure_map:
+        if treasure_map is None:
             if map_id:
                 treasure_map = self.treasure_maps[map_id]
             else:
@@ -565,6 +562,9 @@ class Bob(Character):
                 response = network_middleware.get_treasure_map_from_node(node=node, map_id=map_id)
             except NodeSeemsToBeDown:
                 continue
+            except NotFound:
+                self.log.info(f"Node {node} claimed not to have TreasureMap {map_id}")
+                continue
 
             if response.status_code == 200 and response.content:
                 try:
@@ -582,50 +582,79 @@ class Bob(Character):
 
         return treasure_map
 
-    def generate_work_orders(self, map_id, *capsules, num_ursulas=None, cache=False):
+    def work_orders_for_capsules(self,
+                                 *capsules,
+                                 alice_verifying_key: UmbralPublicKey,
+                                 map_id: str = None,
+                                 treasure_map: 'TreasureMap' = None,
+                                 num_ursulas: int = None,
+                                 ):
+
         from nucypher.policy.collections import WorkOrder  # Prevent circular import
 
-        try:
-            treasure_map_to_use = self.treasure_maps[map_id]
-        except KeyError:
-            raise KeyError(
-                "Bob doesn't have the TreasureMap {}; can't generate work orders.".format(map_id))
+        if treasure_map:
+            map_id = treasure_map.public_id()
+            treasure_map_to_use = treasure_map
+        else:
+            try:
+                treasure_map_to_use = self.treasure_maps[map_id]
+            except KeyError:
+                raise KeyError(
+                    "Bob doesn't have the TreasureMap {}; can't generate work orders.".format(map_id))
 
-        generated_work_orders = OrderedDict()
+        incomplete_work_orders = OrderedDict()
+        complete_work_orders = OrderedDict()
 
         if not treasure_map_to_use:
             raise ValueError(
                 "Bob doesn't have a TreasureMap to match any of these capsules: {}".format(
                     capsules))
 
-        for node_id, arrangement_id in treasure_map_to_use:
-            # TODO: Bob crashes if he hasn't learned about this Ursula #999
-            ursula = self.known_nodes[node_id]
+        random_walk = list(treasure_map_to_use)
+        shuffle(random_walk)  # Mutates list in-place
+        for node_id, arrangement_id in random_walk:
 
             capsules_to_include = []
             for capsule in capsules:
-                if not capsule in self._saved_work_orders[node_id]:
+                try:
+                    precedent_work_order = self._completed_work_orders.most_recent_replete(capsule)[node_id]
+                    self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
+                    complete_work_orders[node_id] = precedent_work_order
+                except KeyError:
+                    # Don't have a precedent completed WorkOrder for this Ursula for this Capsule.  We need to make a new one.
                     capsules_to_include.append(capsule)
 
-            if capsules_to_include:
-                work_order = WorkOrder.construct_by_bob(
-                    arrangement_id, capsules_to_include, ursula, self)
-                generated_work_orders[node_id] = work_order
-                # TODO: Fix this. It's always taking the last capsule
-                if cache:
-                    self._saved_work_orders[node_id][capsule] = work_order
+            # TODO: Bob crashes if he hasn't learned about this Ursula #999
+            ursula = self.known_nodes[node_id]
 
-            if num_ursulas == len(generated_work_orders):
+            if capsules_to_include:
+                work_order = WorkOrder.construct_by_bob(arrangement_id=arrangement_id,
+                                                        alice_verifying=alice_verifying_key,
+                                                        capsules=capsules_to_include,
+                                                        ursula=ursula,
+                                                        bob=self)
+                incomplete_work_orders[node_id] = work_order
+            else:
+                self.log.debug(f"All of these Capsules already have WorkOrders for this node: {node_id}")
+            if num_ursulas == len(incomplete_work_orders):
+                # TODO: Presently, the order here is haphazard .  Do we want to do the complete or incomplete specifically first?
                 break
 
-        return generated_work_orders
+        if incomplete_work_orders == OrderedDict():
+            self.log.warn(
+                "No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.
 
-    def get_reencrypted_cfrags(self, work_order):
-        cfrags = self.network_middleware.reencrypt(work_order)
-        for task in work_order.tasks:
-            # TODO: Maybe just update the work order here instead of setting it anew.
-            work_orders_by_ursula = self._saved_work_orders[work_order.ursula.checksum_address]
-            work_orders_by_ursula[task.capsule] = work_order
+        return incomplete_work_orders, complete_work_orders
+
+    def get_reencrypted_cfrags(self, work_order, retain_cfrags=False):
+        if work_order.completed:
+            raise TypeError(
+                "This WorkOrder is already complete; if you want Ursula to perform additional service, make a new WorkOrder.")
+
+        cfrags_and_signatures = self.network_middleware.reencrypt(work_order)
+        cfrags = work_order.complete(cfrags_and_signatures)
+        self._completed_work_orders.save_work_order(work_order, as_replete=retain_cfrags)
+
         return cfrags
 
     def join_policy(self, label, alice_verifying_key, node_list=None, block=False):
@@ -634,63 +663,152 @@ class Bob(Character):
         treasure_map = self.get_treasure_map(alice_verifying_key, label)
         self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
-    def retrieve(self, message_kit, data_source, alice_verifying_key, label, cache=False):
+    def retrieve(self,
+                 *message_kits: UmbralMessageKit,
+                 alice_verifying_key: UmbralPublicKey,
+                 label: bytes,
+                 enrico: "Enrico" = None,
+                 retain_cfrags: bool = False,
+                 use_attached_cfrags: bool = False,
+                 use_precedent_work_orders: bool = False,
+                 policy_encrypting_key: UmbralPublicKey = None,
+                 treasure_map: Union['TreasureMap', bytes] = None):
+
         # Try our best to get an UmbralPublicKey from input
         alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
 
-        capsule = message_kit.capsule  # TODO: generalize for WorkOrders with more than one capsule
+        # Part I: Assembling the WorkOrders.
+        capsules_to_activate = set(mk.capsule for mk in message_kits)
 
         hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
-        _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
+        if treasure_map is not None:
+            alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
+            compass = self.make_compass_for_alice(alice)
 
-        already_retrieved = len(message_kit.capsule._attached_cfrags) >= m
+            from nucypher.policy.collections import TreasureMap
 
-        if already_retrieved:
-            if cache:
-                must_do_new_retrieval = False
-            else:
-                raise TypeError(
-                    "Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  Not sure what to do.")
+            # TODO: This LBYL is ugly and fraught with danger.
+            if isinstance(treasure_map, bytes):
+                treasure_map = TreasureMap.from_bytes(treasure_map)
+
+            if isinstance(treasure_map, str):
+                tmap_bytes = treasure_map.encode()
+                treasure_map = TreasureMap.from_bytes(b64decode(tmap_bytes))
+
+            treasure_map.orient(compass)
+            _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=treasure_map, block=True)
         else:
-            must_do_new_retrieval = True
+            _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
 
-        capsule.set_correctness_keys(
-            delegating=data_source.policy_pubkey,
-            receiving=self.public_keys(DecryptingPower),
-            verifying=alice_verifying_key)
+        for message in message_kits:
 
+            # Two sanity checks before we get into network activity.
+            # First sanity check: We have some representation of the sender, so that we can later check the signature.
+
+            if message.sender:
+                if enrico and message.sender != enrico:
+                    raise ValueError
+            elif enrico:
+                message.sender = enrico
+            elif message.sender_verifying_key and policy_encrypting_key:
+                # Well, after all, this is all we *really* need.
+                message.sender = Enrico.from_public_keys(verifying_key=message.sender_verifying_key,
+                                                         policy_encrypting_key=policy_encrypting_key)
+            else:
+                raise TypeError
+
+            # Second sanity check: If we're not using attached cfrags, we don't want a Capsule which has them.
+
+            capsule = message.capsule
+
+            if len(capsule) > 0:
+                if not use_attached_cfrags:
+                    raise TypeError(
+                        "Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  In order to retrieve this message, you must set cache=True.  To use Bob in 'KMS mode', use cache=False the first time you retrieve a message.")
+
+            # OK, with the sanity checks behind us, we'll proceed to the WorkOrder assembly.
+            # We'll start by following the treasure map, setting the correctness keys, and attaching cfrags from
+            # WorkOrders that we have already completed in the past.
+
+            capsule.set_correctness_keys(receiving=self.public_keys(DecryptingPower))
+            capsule.set_correctness_keys(verifying=alice_verifying_key)
+
+            new_work_orders, complete_work_orders = self.work_orders_for_capsules(
+                map_id=map_id,
+                treasure_map=treasure_map,
+                alice_verifying_key=alice_verifying_key,
+                *capsules_to_activate)
+
+            self.log.info(f"Found {len(complete_work_orders)} for this Capsule ({capsule}).")
+
+            if complete_work_orders:
+                if use_precedent_work_orders:
+                    for work_order in complete_work_orders.values():
+                        cfrag_in_question = work_order.tasks[capsule].cfrag
+                        capsule.attach_cfrag(cfrag_in_question)
+                else:
+                    self.log.warn(
+                        "Found existing complete WorkOrders, but use_precedent_work_orders is set to False.  To use Bob in 'KMS mode', set retain_cfrags=False as well.")
+
+        # Part II: Getting the cleartexts.
         cleartexts = []
 
-        if must_do_new_retrieval:
-            # TODO: Consider blocking until map is done being followed. #1114
-
-            work_orders = self.generate_work_orders(map_id, capsule, cache=cache)
+        try:
+            # TODO Optimization: Block here (or maybe even later) until map is done being followed (instead of blocking above). #1114
             the_airing_of_grievances = []
 
-            # TODO: Of course, it's possible that we have cached CFrags for one of these and thus need to retrieve for one WorkOrder and not another.
-            for work_order in work_orders.values():
+            for work_order in new_work_orders.values():
+                for capsule in work_order.tasks:
+                    work_order_is_useful = False
+                    if len(capsule) >= m:
+                        capsules_to_activate.discard(capsule)
+                    else:
+                        work_order_is_useful = True
+                        break
+
+                # If all the capsules are now activated, we can stop here.
+                if not capsules_to_activate:
+                    break
+
+                if not work_order_is_useful:
+                    # None of the Capsules for this particular WorkOrder need to be activated.  Move on to the next one.
+                    continue
+
+                # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
                 try:
-                    cfrags = self.get_reencrypted_cfrags(work_order)
-                except requests.exceptions.ConnectTimeout:
+                    self.get_reencrypted_cfrags(work_order, retain_cfrags=retain_cfrags)
+                except NodeSeemsToBeDown as e:
+                    # TODO: What to do here?  Ursula isn't supposed to be down.
+                    self.log.info(
+                        f"Ursula ({work_order.ursula}) seems to be down while trying to complete WorkOrder: {work_order}")
                     continue
                 except NotFound:
                     # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
                     # TODO: What's the thing to do here?  Do we want to track these Ursulas in some way in case they're lying?
+                    self.log.warn(
+                        f"Ursula ({work_order.ursula}) claims not to have the KFrag to complete WorkOrder: {work_order}.  Has accessed been revoked?")
                     continue
 
-                cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule/task
-                try:
-                    message_kit.capsule.attach_cfrag(cfrag)
-                    if len(message_kit.capsule._attached_cfrags) >= m:
-                        break
-                except UmbralCorrectnessError:
-                    task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
-                    from nucypher.policy.collections import IndisputableEvidence
-                    evidence = IndisputableEvidence(task=task, work_order=work_order)
-                    # I got a lot of problems with you people ...
-                    the_airing_of_grievances.append(evidence)
+                for capsule, pre_task in work_order.tasks.items():
+                    try:
+                        capsule.attach_cfrag(pre_task.cfrag)
+                    except UmbralCorrectnessError:
+                        task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
+                        # TODO: WARNING - This block is untested.
+                        from nucypher.policy.collections import IndisputableEvidence
+                        evidence = IndisputableEvidence(task=task, work_order=work_order)
+                        # I got a lot of problems with you people ...
+                        the_airing_of_grievances.append(evidence)
+
+                    if len(capsule) >= m:
+                        capsules_to_activate.discard(capsule)
+
+                # If all the capsules are now activated, we can stop here.
+                if not capsules_to_activate:
+                    break
             else:
-                raise Ursula.NotEnoughUrsulas("Unable to snag m cfrags.")
+                raise Ursula.NotEnoughUrsulas(
+                    "Unable to reach m Ursulas.  See the logs for which Ursulas are down or noncompliant.")
 
             if the_airing_of_grievances:
                 # ... and now you're gonna hear about it!
@@ -699,8 +817,14 @@ class Bob(Character):
                 #  - There maybe enough cfrags to still open the capsule
                 #  - This line is unreachable when NotEnoughUrsulas
 
-        delivered_cleartext = self.verify_from(data_source, message_kit, decrypt=True)
-        cleartexts.append(delivered_cleartext)
+            for message in message_kits:
+                delivered_cleartext = self.verify_from(message.sender, message, decrypt=True)
+                cleartexts.append(delivered_cleartext)
+        finally:
+            if not retain_cfrags:
+                capsule.clear_cfrags()
+                for work_order in new_work_orders.values():
+                    work_order.sanitize()
 
         return cleartexts
 
@@ -997,7 +1121,8 @@ class Ursula(Teacher, Character, Worker):
                       federated_only: bool,
                       *args, **kwargs
                       ):
-        response_data = network_middleware.client.node_information(host, port, certificate_filepath=certificate_filepath)
+        response_data = network_middleware.client.node_information(host, port,
+                                                                   certificate_filepath=certificate_filepath)
 
         stranger_ursula_from_public_keys = cls.from_bytes(response_data,
                                                           *args, **kwargs)
@@ -1251,7 +1376,7 @@ class Ursula(Teacher, Character, Worker):
         with ThreadedSession(self.datastore.engine):
             if not bob:  # All
                 return self.datastore.get_workorders()
-            else:        # Filter
+            else:  # Filter
                 work_orders_from_bob = self.datastore.get_workorders(bob_verifying_key=bytes(bob.stamp))
                 return work_orders_from_bob
 
@@ -1261,7 +1386,6 @@ class Ursula(Teacher, Character, Worker):
         # capsule data for each work order task.
         cfrag_byte_stream = bytes()
         for task in work_order.tasks:
-
             # Ursula signs on top of Bob's signature of each task.
             # Now both are committed to the same task.  See #259.
             reencryption_metadata = bytes(self.stamp(bytes(task.signature)))
@@ -1289,8 +1413,8 @@ class Enrico(Character):
     _interface_class = EnricoInterface
     _default_crypto_powerups = [SigningPower]
 
-    def __init__(self, policy_encrypting_key, controller: bool = True, *args, **kwargs):
-        self.policy_pubkey = policy_encrypting_key
+    def __init__(self, policy_encrypting_key=None, controller: bool = True, *args, **kwargs):
+        self._policy_pubkey = policy_encrypting_key
 
         # Encrico never uses the blockchain, hence federated_only)
         kwargs['federated_only'] = True
@@ -1300,7 +1424,7 @@ class Enrico(Character):
         if controller:
             self.make_cli_controller()
 
-        self.log = Logger(f'{self.__class__.__name__}-{bytes(policy_encrypting_key).hex()[:6]}')
+        self.log = Logger(f'{self.__class__.__name__}-{bytes(self.public_keys(SigningPower)).hex()[:6]}')
         self.log.info(self.banner.format(policy_encrypting_key))
 
     def encrypt_message(self,
@@ -1322,6 +1446,12 @@ class Enrico(Character):
         policy_pubkey_enc = alice.get_policy_encrypting_key_from_label(label)
         return cls(crypto_power_ups={SigningPower: alice.stamp.as_umbral_pubkey()},
                    policy_encrypting_key=policy_pubkey_enc)
+
+    @property
+    def policy_pubkey(self):
+        if not self._policy_pubkey:
+            raise TypeError("This Enrico doesn't know which policy encrypting key he used.  Oh well.")
+        return self._policy_pubkey
 
     def make_web_controller(drone_enrico, crash_on_error: bool = False):
 

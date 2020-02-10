@@ -1,5 +1,9 @@
 import pytest
 
+from base64 import b64encode
+from nucypher.policy.collections import TreasureMap
+from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.characters.lawful import Ursula
 from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
 
 
@@ -120,3 +124,27 @@ def test_bob_rpc_character_control_retrieve(bob_rpc_controller, retrieve_control
     assert validate_json_rpc_response_data(response=response,
                                            method_name=method_name,
                                            interface=BobInterface)
+
+
+def test_bob_rpc_character_control_retrieve_with_tmap(
+        enacted_blockchain_policy, blockchain_bob, blockchain_alice,
+        bob_rpc_controller, retrieve_control_request):
+    tmap_64 = b64encode(bytes(enacted_blockchain_policy.treasure_map)).decode()
+    method_name, params = retrieve_control_request
+    params['treasure_map'] = tmap_64
+    request_data = {'method': method_name, 'params': params}
+    response = bob_rpc_controller.send(request_data)
+    assert response.data['result']['cleartexts'][0] == 'Welcome to flippering number 1.'
+
+    # Make a wrong (empty) treasure map
+
+    wrong_tmap = TreasureMap(m=0)
+    wrong_tmap.prepare_for_publication(
+            blockchain_bob.public_keys(DecryptingPower),
+            blockchain_bob.public_keys(SigningPower),
+            blockchain_alice.stamp,
+            b'Wrong!')
+    tmap_64 = b64encode(bytes(wrong_tmap)).decode()
+    request_data['params']['treasure_map'] = tmap_64
+    with pytest.raises(TreasureMap.IsDisorienting):
+        bob_rpc_controller.send(request_data)

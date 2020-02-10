@@ -14,7 +14,8 @@ from nucypher.policy.collections import TreasureMap
 click_runner = CliRunner()
 
 
-def test_label_whose_b64_representation_is_invalid_utf8(alice_web_controller_test_client, create_policy_control_request):
+def test_label_whose_b64_representation_is_invalid_utf8(alice_web_controller_test_client,
+                                                        create_policy_control_request):
     # In our Discord, user robin#2324 (github username @robin-thomas) reported certain labels
     # break Bob's retrieve endpoint.
     # convo starts here: https://ptb.discordapp.com/channels/411401661714792449/411401661714792451/564353305887637517
@@ -128,7 +129,6 @@ def test_alice_character_control_revoke(alice_web_controller_test_client, blockc
 def test_alice_character_control_decrypt(alice_web_controller_test_client,
                                          enacted_blockchain_policy,
                                          capsule_side_channel_blockchain):
-
     message_kit, data_source = capsule_side_channel_blockchain()
 
     label = enacted_blockchain_policy.label.decode()
@@ -147,13 +147,13 @@ def test_alice_character_control_decrypt(alice_web_controller_test_client,
     assert 'cleartexts' in response_data['result']
 
     response_message = response_data['result']['cleartexts'][0]
-    assert response_message == 'Welcome to flippering number 1.'  # This is the first message - in a test below, we'll show retrieving a second one.
+    assert response_message == 'Welcome to flippering number 1.'
 
     # Send bad data to assert error returns
     response = alice_web_controller_test_client.post('/decrypt', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
-    del(request_data['message_kit'])
+    del (request_data['message_kit'])
     response = alice_web_controller_test_client.put('/decrypt', data=json.dumps(request_data))
     assert response.status_code == 405
 
@@ -176,7 +176,7 @@ def test_bob_character_control_join_policy(bob_web_controller_test_client, enact
     assert response.status_code == 400
 
     # Missing Key results in bad request
-    del(request_data['alice_verifying_key'])
+    del (request_data['alice_verifying_key'])
     response = bob_web_controller_test_client.post('/join_policy', data=json.dumps(request_data))
     assert response.status_code == 400
 
@@ -192,14 +192,25 @@ def test_bob_web_character_control_retrieve(bob_web_controller_test_client, retr
     assert 'cleartexts' in response_data['result']
 
     response_message = response_data['result']['cleartexts'][0]
-    assert response_message == 'Welcome to flippering number 2.'  # This is the second message - the first is in the test above.
+    assert response_message == 'Welcome to flippering number 1.'
 
     # Send bad data to assert error returns
     response = bob_web_controller_test_client.post(endpoint, data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
-    del(params['alice_verifying_key'])
+    del (params['alice_verifying_key'])
     response = bob_web_controller_test_client.put(endpoint, data=json.dumps(params))
+
+
+def test_bob_web_character_control_retrieve_with_tmap(
+        enacted_blockchain_policy, bob_web_controller_test_client, retrieve_control_request):
+    tmap_64 = b64encode(bytes(enacted_blockchain_policy.treasure_map)).decode()
+    method_name, params = retrieve_control_request
+    params['treasure_map'] = tmap_64
+    endpoint = f'/{method_name}'
+
+    response = bob_web_controller_test_client.post(endpoint, data=json.dumps(params))
+    assert response.status_code == 200
 
 
 def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test_client, encrypt_control_request):
@@ -220,7 +231,7 @@ def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test
     response = enrico_web_controller_test_client.post('/encrypt_message', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
-    del(params['message'])
+    del (params['message'])
     response = enrico_web_controller_test_client.post('/encrypt_message', data=params)
     assert response.status_code == 400
 
@@ -232,7 +243,6 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
                                          blockchain_bob,
                                          blockchain_ursulas,
                                          random_policy_label):
-
     random_label = random_policy_label.decode()  # Unicode string
 
     bob_keys_response = bob_web_controller_test_client.get('/public_keys')

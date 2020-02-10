@@ -14,15 +14,16 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
-from bytestring_splitter import BytestringSplitter
-from constant_sorrow import constants
-
+from constant_sorrow.constants import UNKNOWN_SENDER, NOT_SIGNED
+from bytestring_splitter import BytestringKwargifier, VariableLengthBytestring
 from nucypher.crypto.splitters import key_splitter, capsule_splitter
 
 
 class CryptoKit:
+    """
+    A package of discrete items, meant to be sent over the wire or saved to disk (in either case, as bytes),
+    capable of performing a distinct cryptological function.
+    """
     splitter = None
 
     @classmethod
@@ -30,22 +31,24 @@ class CryptoKit:
         if not cls.splitter:
             raise TypeError("This kit doesn't have a splitter defined.")
 
-        return cls.splitter(some_bytes,
-                            return_remainder=cls.return_remainder_when_splitting)
+        splitter = cls.splitter()
+        return splitter(some_bytes)
 
     @classmethod
     def from_bytes(cls, some_bytes):
-        constituents = cls.split_bytes(some_bytes)
-        return cls(*constituents)
+        return cls.split_bytes(some_bytes)
 
 
 class MessageKit(CryptoKit):
+    """
+    All the components needed to transmit and verify an encrypted message.
+    """
 
     def __init__(self,
                  capsule,
                  sender_verifying_key=None,
                  ciphertext=None,
-                 signature=constants.NOT_SIGNED) -> None:
+                 signature=NOT_SIGNED) -> None:
 
         self.ciphertext = ciphertext
         self.capsule = capsule
@@ -61,30 +64,47 @@ class MessageKit(CryptoKit):
         if include_alice_pubkey and self.sender_verifying_key:
             as_bytes += bytes(self.sender_verifying_key)
 
-        as_bytes += self.ciphertext
+        as_bytes += VariableLengthBytestring(self.ciphertext)
         return as_bytes
+
+    @classmethod
+    def splitter(cls, *args, **kwargs):
+        return BytestringKwargifier(cls,
+                                    capsule=capsule_splitter,
+                                    sender_verifying_key=key_splitter,
+                                    ciphertext=VariableLengthBytestring)
 
     @property
     def signature(self):
         return self._signature
 
     def __bytes__(self):
-        return bytes(self.capsule) + self.ciphertext
+        return bytes(self.capsule) + VariableLengthBytestring(self.ciphertext)
 
 
-class UmbralMessageKit(MessageKit):
-
-    return_remainder_when_splitting = True
-    splitter = capsule_splitter + key_splitter
-
-    def __init__(self, *args, **kwargs) -> None:
+class PolicyMessageKit(MessageKit):
+    """
+    A MessageKit which includes sufficient additional information to be retrieved on the NuCypher Network.
+    """
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.policy_pubkey = None
+        self._sender = UNKNOWN_SENDER.bool_value(False)
 
-    @classmethod
-    def from_bytes(cls, some_bytes):
-        capsule, sender_verifying_key, ciphertext = cls.split_bytes(some_bytes)
-        return cls(capsule=capsule, sender_verifying_key=sender_verifying_key, ciphertext=ciphertext)
+    @property
+    def sender(self):
+        return self._sender
+
+    @sender.setter
+    def sender(self, enrico):
+        # Here we set the delegating correctness key to the policy public key (which happens to be composed on enrico, but for which of course he doesn't have the corresponding private key).
+        self.capsule.set_correctness_keys(delegating=enrico.policy_pubkey)
+        self._sender = enrico
+
+    def __bytes__(self):
+        return super().to_bytes(include_alice_pubkey=True)
+
+
+UmbralMessageKit = PolicyMessageKit  # Temporarily, until serialization w/ Enrico's
 
 
 class RevocationKit:

@@ -486,8 +486,8 @@ def test_collect_rewards_integration(click_runner,
         ciphertext, signature = enrico.encrypt_message(message=random_data)
 
         # Decrypt
-        cleartexts = blockchain_bob.retrieve(message_kit=ciphertext,
-                                             data_source=enrico,
+        cleartexts = blockchain_bob.retrieve(ciphertext,
+                                             enrico=enrico,
                                              alice_verifying_key=verifying_key,
                                              label=random_policy_label)
         assert random_data == cleartexts[0]

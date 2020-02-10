@@ -122,7 +122,7 @@ def test_alice_character_control_decrypt(alice_web_controller_test_client,
                                          enacted_federated_policy,
                                          capsule_side_channel):
 
-    message_kit, data_source = capsule_side_channel()
+    message_kit = capsule_side_channel()
 
     label = enacted_federated_policy.label.decode()
     policy_encrypting_key = bytes(enacted_federated_policy.public_key).hex()
@@ -191,8 +191,23 @@ def test_bob_web_character_control_retrieve(bob_web_controller_test_client, retr
     response = bob_web_controller_test_client.post(endpoint, data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
+
+def test_bob_web_character_control_retrieve_again(bob_web_controller_test_client, retrieve_control_request):
+    method_name, params = retrieve_control_request
+    endpoint = f'/{method_name}'
+
+    response = bob_web_controller_test_client.post(endpoint, data=json.dumps(params))
+    assert response.status_code == 200
+
+    response_data = json.loads(response.data)
+    assert 'cleartexts' in response_data['result']
+
+    response_message = response_data['result']['cleartexts'][0]
+    assert response_message == 'Welcome to flippering number 2.'  # We have received exactly the same message again.
+
     del(params['alice_verifying_key'])
-    response = bob_web_controller_test_client.put(endpoint, data=json.dumps(params))
+    response = bob_web_controller_test_client.post(endpoint, data=json.dumps(params))
+    assert response.status_code == 400
 
 
 def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test_client, encrypt_control_request):
