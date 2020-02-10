@@ -63,12 +63,18 @@ class WorkLockOptions:
     def __init__(self, bidder_address: str):
         self.bidder_address = bidder_address
 
-    def create_bidder(self, registry, hw_wallet: bool = False):
+    def __create_bidder(self, registry, transacting: bool = False, hw_wallet: bool = False):
         client_password = None
-        if not hw_wallet:
+        if transacting and not hw_wallet:
             client_password = get_client_password(checksum_address=self.bidder_address)
         bidder = Bidder(checksum_address=self.bidder_address, registry=registry, client_password=client_password)
         return bidder
+
+    def create_bidder(self, registry, hw_wallet: bool = False):
+        return self.__create_bidder(registry, transacting=True, hw_wallet=hw_wallet)
+
+    def create_transactionless_bidder(self, registry):
+        return self.__create_bidder(registry, transacting=False)
 
 
 group_worklock_options = group_options(
@@ -95,7 +101,7 @@ def status(general_config, registry_options, worklock_options):
     registry = registry_options.get_registry(emitter, general_config.debug)
     paint_worklock_status(emitter=emitter, registry=registry)
     if worklock_options.bidder_address:
-        bidder = worklock_options.create_bidder(registry=registry, hw_wallet=True)  # FIXME: Dirty hack for the moment
+        bidder = worklock_options.create_transactionless_bidder(registry=registry)
         paint_bidder_status(emitter=emitter, bidder=bidder)
     return  # Exit
 
@@ -179,10 +185,11 @@ def cancel_bid(general_config, registry_options, worklock_options, force, hw_wal
 
 @worklock.command()
 @option_force
+@option_hw_wallet
 @group_registry_options
 @group_worklock_options
 @group_general_config
-def claim(general_config, worklock_options, registry_options, force):
+def claim(general_config, worklock_options, registry_options, force, hw_wallet):
     """Claim tokens for a successful bid, and start staking them"""
     emitter = _setup_emitter(general_config)
     if not worklock_options.bidder_address:
@@ -198,7 +205,7 @@ def claim(general_config, worklock_options, registry_options, force):
         click.confirm(f"Continue worklock claim for bidder {worklock_options.bidder_address}?", abort=True)
     emitter.message("Submitting Claim...")
     registry = registry_options.get_registry(emitter, general_config.debug)
-    bidder = worklock_options.create_bidder(registry=registry)
+    bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
     receipt = bidder.claim()
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
     paint_worklock_claim(emitter=emitter,
@@ -220,7 +227,7 @@ def remaining_work(general_config, worklock_options, registry_options):
                                                                 network=registry_options.network,
                                                                 show_balances=True)
     registry = registry_options.get_registry(emitter, general_config.debug)
-    bidder = worklock_options.create_bidder(registry=registry)
+    bidder = worklock_options.create_transactionless_bidder(registry=registry)
     _remaining_work = bidder.remaining_work
     emitter.echo(f"Work Remaining for {worklock_options.bidder_address}: {_remaining_work}")
     return  # Exit
@@ -228,10 +235,11 @@ def remaining_work(general_config, worklock_options, registry_options):
 
 @worklock.command()
 @option_force
+@option_hw_wallet
 @group_registry_options
 @group_worklock_options
 @group_general_config
-def refund(general_config, worklock_options, registry_options, force):
+def refund(general_config, worklock_options, registry_options, force, hw_wallet):
     emitter = _setup_emitter(general_config)
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
@@ -242,7 +250,7 @@ def refund(general_config, worklock_options, registry_options, force):
         click.confirm(f"Collect ETH refund for bidder {worklock_options.bidder_address}?", abort=True)
     emitter.message("Submitting WorkLock refund request...")
     registry = registry_options.get_registry(emitter, general_config.debug)
-    bidder = worklock_options.create_bidder(registry=registry)
+    bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
     receipt = bidder.refund_deposit()
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
     return  # Exit
@@ -261,6 +269,7 @@ def burn_unclaimed_tokens(general_config, registry_options, checksum_address):
                                                  provider_uri=registry_options.provider_uri,
                                                  network=registry_options.network,
                                                  show_balances=True)
+    # FIXME: This won't work in real life, it needs TransactingPowers and stuff
     receipt = worklock_agent.burn_unclaimed(sender_address=checksum_address)
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=worklock_agent.blockchain.client.chain_name)
     return  # Exit
