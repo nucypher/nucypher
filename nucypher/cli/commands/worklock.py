@@ -89,6 +89,8 @@ def worklock():
 @group_worklock_options
 @group_general_config
 def status(general_config, registry_options, worklock_options):
+    """Show current WorkLock information"""
+
     emitter = _setup_emitter(general_config)
     registry = registry_options.get_registry(emitter, general_config.debug)
     paint_worklock_status(emitter=emitter, registry=registry)
@@ -107,6 +109,7 @@ def status(general_config, registry_options, worklock_options):
 @click.option('--value', help="ETH value of bid", type=click.STRING)
 def bid(general_config, worklock_options, registry_options,
         force, hw_wallet, value):
+    """Place a bid"""
     emitter = _setup_emitter(general_config)
 
     if not worklock_options.bidder_address:
@@ -155,6 +158,7 @@ def bid(general_config, worklock_options, registry_options,
 @option_force
 @option_hw_wallet
 def cancel_bid(general_config, registry_options, worklock_options, force, hw_wallet):
+    """Cancel your bid"""
     emitter = _setup_emitter(general_config)
     if not worklock_options.bidder_address:  # TODO: Consider bundle this in worklock_options
         worklock_options.bidder_address = select_client_account(emitter=emitter,
@@ -179,6 +183,7 @@ def cancel_bid(general_config, registry_options, worklock_options, force, hw_wal
 @group_worklock_options
 @group_general_config
 def claim(general_config, worklock_options, registry_options, force):
+    """Claim tokens for a successful bid, and start staking them"""
     emitter = _setup_emitter(general_config)
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
