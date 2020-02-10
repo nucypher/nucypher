@@ -448,7 +448,7 @@ class Bob(Character):
             if map_id:
                 treasure_map = self.treasure_maps[map_id]
             else:
-                 raise ValueError("You need to pass either treasure_map or map_id.")
+                raise ValueError("You need to pass either treasure_map or map_id.")
         elif map_id:
             raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
         return treasure_map
@@ -693,7 +693,6 @@ class Bob(Character):
 
             if isinstance(treasure_map, str):
                 tmap_bytes = treasure_map.encode()
-                b64decode(tmap_bytes)
                 treasure_map = TreasureMap.from_bytes(b64decode(tmap_bytes))
 
             treasure_map.orient(compass)
