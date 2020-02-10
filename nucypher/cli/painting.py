@@ -417,10 +417,10 @@ def paint_staged_stake(emitter,
     unlock_datetime_pretty = unlock_datetime.local_datetime().strftime("%b %d %H:%M %Z")
 
     if division_message:
-        emitter.echo(f"\n{'=' * 30} ORIGINAL STAKE {'=' * 28}", bold=True)
+        emitter.echo(f"\n{'═' * 30} ORIGINAL STAKE {'═' * 28}", bold=True)
         emitter.echo(division_message)
 
-    emitter.echo(f"\n{'=' * 30} STAGED STAKE {'=' * 30}", bold=True)
+    emitter.echo(f"\n{'═' * 30} STAGED STAKE {'═' * 30}", bold=True)
 
     emitter.echo(f"""
 Staking address: {staking_address}
@@ -433,7 +433,7 @@ Staking address: {staking_address}
 
     # TODO: periods != Days - Do we inform the user here?
 
-    emitter.echo('=========================================================================', bold=True)
+    emitter.echo('═'*73, bold=True)
 
 
 def paint_staking_confirmation(emitter, staker, new_stake):
@@ -449,7 +449,7 @@ See https://docs.nucypher.com/en/latest/guides/staking_guide.html'''
 
 
 def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_address: str = None):
-    headers = ('Idx', 'Value', 'Remaining', 'Enactment')
+    headers = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination')
     staker_headers = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees')
 
     stakers = stakeholder.get_stakers()

@@ -297,11 +297,14 @@ class Stake:
         return result
 
     def describe(self) -> Dict[str, str]:
-        start_datetime = self.start_datetime.local_datetime().strftime("%b %d %H:%M %Z")
+        start_datetime = self.start_datetime.local_datetime().strftime("%b %d %Y")
+        end_datetime = self.unlock_datetime.local_datetime().strftime("%b %d %Y")
+
         data = dict(index=self.index,
                     value=str(self.value),
                     remaining=self.periods_remaining,
-                    enactment=start_datetime)
+                    enactment=start_datetime,
+                    last_period=end_datetime)
         return data
 
     #

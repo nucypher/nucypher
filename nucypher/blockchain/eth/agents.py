@@ -613,7 +613,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         missing_confirmations = current_period - last_confirmed_period
         if missing_confirmations in (0, -1):
             result = 0
-        elif missing_confirmations == current_period:  # never confirmed
+        elif last_confirmed_period == 0:  # never confirmed
             stakes = list(self.get_all_stakes(staker_address=checksum_address))
             initial_staking_period = min(stakes, key=lambda s: s[0])[0]
             result = current_period - initial_staking_period
