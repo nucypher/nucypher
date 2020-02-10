@@ -19,7 +19,6 @@ import binascii
 import os
 from typing import Tuple
 
-from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
 from flask import Flask, Response, jsonify
@@ -27,8 +26,6 @@ from flask import request
 from hendrix.experience import crosstown_traffic
 from jinja2 import Template, TemplateError
 from twisted.logger import Logger
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
 
 import nucypher
 from nucypher.config.storages import ForgetfulNodeStorage
@@ -42,6 +39,8 @@ from nucypher.keystore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
+from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")

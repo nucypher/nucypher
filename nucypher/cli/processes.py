@@ -56,7 +56,7 @@ class UrsulaCommandProtocol(LineReceiver):
             'status': self.paintStatus,
             'known_nodes': self.paintKnownNodes,
             'fleet_state': self.paintFleetState,
-            'stakes': self.paintStakes,
+            # 'stakes': self.paintStakes,  # TODO
 
             # Blockchain Control
             'confirm_activity': self.confirm_activity,

@@ -264,7 +264,7 @@ def list_stakes(general_config, staker_options, config_file, all):
     """
     emitter = _setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
-    painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER.all_stakes, paint_inactive=all)
+    painting.paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER, paint_inactive=all)
 
 
 @stake.command()
@@ -277,7 +277,7 @@ def accounts(general_config, staker_options, config_file):
     """
     emitter = _setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
-    painting.paint_accounts(emitter=emitter, balances=STAKEHOLDER.wallet.balances)
+    painting.paint_accounts(emitter=emitter, balances=STAKEHOLDER.wallet.balances, registry=STAKEHOLDER.registry)
 
 
 @stake.command('set-worker')
@@ -593,7 +593,8 @@ def divide(general_config, transacting_staker_options, config_file, force, value
         stakeholder=STAKEHOLDER,
         staking_address=transacting_staker_options.staker_options.staking_address,
         individual_allocation=STAKEHOLDER.individual_allocation,
-        force=force)
+        force=force
+    )
 
     # Dynamic click types (Economics)
     min_locked = economics.minimum_allowed_locked
@@ -601,13 +602,15 @@ def divide(general_config, transacting_staker_options, config_file, force, value
     stake_extension_range = click.IntRange(min=1, max=economics.maximum_allowed_locked, clamp=False)
 
     if transacting_staker_options.staker_options.staking_address and index is not None:  # 0 is valid.
-        STAKEHOLDER.stakes = StakeList(
-            registry=STAKEHOLDER.registry,
-            checksum_address=transacting_staker_options.staker_options.staking_address)
+        STAKEHOLDER.stakes = StakeList(registry=STAKEHOLDER.registry,
+                                       checksum_address=transacting_staker_options.staker_options.staking_address)
         STAKEHOLDER.stakes.refresh()
         current_stake = STAKEHOLDER.stakes[index]
     else:
-        current_stake = select_stake(stakeholder=STAKEHOLDER, emitter=emitter, divisible=True)
+        current_stake = select_stake(stakeholder=STAKEHOLDER,
+                                     emitter=emitter,
+                                     divisible=True,
+                                     staker_address=client_account)
 
     #
     # Stage Stake
@@ -641,8 +644,7 @@ def divide(general_config, transacting_staker_options, config_file, force, value
     # Consistency check to prevent the above agreement from going stale.
     last_second_current_period = STAKEHOLDER.staking_agent.get_current_period()
     if action_period != last_second_current_period:
-        emitter.echo("Current period advanced before stake division was broadcasted. Please try again.",
-                     red='red')
+        emitter.echo("Current period advanced before stake division was broadcasted. Please try again.", red='red')
         raise click.Abort
 
     # Execute
@@ -657,7 +659,7 @@ def divide(general_config, transacting_staker_options, config_file, force, value
                           chain_name=blockchain.client.chain_name)
 
     # Show the resulting stake list
-    painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER.stakes)
+    painting.paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER)
 
 
 @stake.command()
@@ -701,7 +703,7 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
     # Interactive
     if not lock_periods:
         stake_extension_range = click.IntRange(min=1, max=economics.maximum_allowed_locked, clamp=False)
-        max_extension = economics.maximum_allowed_locked - current_stake.periods_remaining
+        max_extension = economics.maximum_rewarded_periods - current_stake.periods_remaining
         lock_periods = click.prompt(f"Enter number of periods to extend (1-{max_extension})", type=stake_extension_range)
     if not force:
         click.confirm(f"Publish stake extension of {lock_periods} period(s) to the blockchain?", abort=True)
@@ -721,7 +723,7 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
     # Report
     emitter.echo('Successfully Prolonged Stake', color='green', verbosity=1)
     paint_receipt_summary(emitter=emitter, receipt=receipt, chain_name=blockchain.client.chain_name)
-    painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER.stakes)
+    painting.paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER)
     return  # Exit
 
 

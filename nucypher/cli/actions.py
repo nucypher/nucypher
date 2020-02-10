@@ -32,8 +32,11 @@ from constant_sorrow.constants import (
     UNKNOWN_DEVELOPMENT_CHAIN_ID
 )
 from nacl.exceptions import CryptoError
+from tabulate import tabulate
 from twisted.logger import Logger
+from web3 import Web3
 
+from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -365,17 +368,25 @@ def make_cli_character(character_config,
     return CHARACTER
 
 
-def select_stake(stakeholder, emitter, divisible: bool = False) -> Stake:
-    stakes = stakeholder.all_stakes
+def select_stake(stakeholder, emitter, divisible: bool = False, staker_address: str = None) -> Stake:
+    if staker_address:
+        staker = stakeholder.get_staker(checksum_address=staker_address)
+        stakes = staker.stakes
+    else:
+        stakes = stakeholder.all_stakes
+    if not stakes:
+        emitter.echo(f"No stakes found.", color='red')
+        raise click.Abort
+
     stakes = sorted((stake for stake in stakes if stake.is_active), key=lambda s: s.address_index_ordering_key)
     if divisible:
         emitter.echo("NOTE: Showing divisible stakes only", color='yellow')
-        stakes = list(filter(lambda s: bool(s.value >= stakeholder.economics.minimum_allowed_locked*2), stakes))
+        stakes = list(filter(lambda s: bool(s.value >= stakeholder.economics.minimum_allowed_locked*2), stakes))  # TODO: Move to method on Stake
         if not stakes:
             emitter.echo(f"No divisible stakes found.", color='red')
             raise click.Abort
     enumerated_stakes = dict(enumerate(stakes))
-    painting.paint_stakes(stakes=stakes, emitter=emitter)
+    painting.paint_stakes(stakeholder=stakeholder, emitter=emitter, staker_address=staker_address)
     choice = click.prompt("Select Stake", type=click.IntRange(min=0, max=len(enumerated_stakes)-1))
     chosen_stake = enumerated_stakes[choice]
     return chosen_stake
@@ -387,6 +398,7 @@ def select_client_account(emitter,
                           default: int = 0,
                           registry=None,
                           show_balances: bool = True,
+                          show_staking: bool = False,
                           network: str = None
                           ) -> str:
     """
@@ -403,7 +415,7 @@ def select_client_account(emitter,
 
     # Lazy connect to contracts
     token_agent = None
-    if show_balances:
+    if show_balances or show_staking:
         if not registry:
             registry = InMemoryContractRegistry.from_latest_publication(network)
         token_agent = NucypherTokenAgent(registry=registry)
@@ -415,14 +427,26 @@ def select_client_account(emitter,
         raise click.Abort()
 
     # Display account info
-    header = f'| # | Account  ---------------------------------- | Balance -----' \
-             f'\n================================================================='
-    emitter.echo(header)
+    headers = ['Account']
+    if show_staking:
+        headers.append('Staking')
+    if show_balances:
+        headers.extend(('', ''))
+
+    rows = list()
     for index, account in enumerated_accounts.items():
-        message = f"| {index} | {account} "
+        row = [account]
+        if show_staking:
+            staker = Staker(is_me=True, checksum_address=account, registry=registry)
+            staker.stakes.refresh()
+            is_staking = 'Yes' if bool(staker.stakes) else 'No'
+            row.append(is_staking)
         if show_balances:
-            message += f" | {NU.from_nunits(token_agent.get_balance(address=account))}"
-        emitter.echo(message)
+            token_balance = NU.from_nunits(token_agent.get_balance(address=account))
+            ether_balance = Web3.fromWei(blockchain.client.get_balance(account=account), 'ether')
+            row.extend((token_balance, f'{ether_balance} ETH'))
+        rows.append(row)
+    emitter.echo(tabulate(rows, headers=headers, showindex='always'))
 
     # Prompt the user for selection, and return
     prompt = prompt or "Select Account"
@@ -465,7 +489,9 @@ def handle_client_account_for_staking(emitter,
                                                    emitter=emitter,
                                                    registry=stakeholder.registry,
                                                    network=stakeholder.network,
-                                                   provider_uri=stakeholder.wallet.blockchain.provider_uri)
+                                                   provider_uri=stakeholder.wallet.blockchain.provider_uri,
+                                                   show_balances=True,
+                                                   show_staking=True)
             staking_address = client_account
 
     return client_account, staking_address

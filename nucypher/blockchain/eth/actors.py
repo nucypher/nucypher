@@ -1150,6 +1150,12 @@ class Staker(NucypherTokenActor):
             raise TypeError("This method can only be used when staking via a contract")
         return receipt
 
+    @property
+    def missing_confirmations(self) -> int:
+        staker_address = self.checksum_address
+        missing = self.staking_agent.get_missing_confirmations(checksum_address=staker_address)
+        return missing
+
 
 class Worker(NucypherTokenActor):
     """
@@ -1223,20 +1229,11 @@ class Worker(NucypherTokenActor):
         receipt = self.staking_agent.confirm_activity(worker_address=self.__worker_address)
         return receipt
 
-    def get_missing_confirmations(self) -> int:
+    @property
+    def missing_confirmations(self) -> int:
         staker_address = self.checksum_address
-        last_confirmed_period = self.staking_agent.get_last_active_period(staker_address)
-        current_period = self.staking_agent.get_current_period()
-        missing_confirmations = current_period - last_confirmed_period
-        if missing_confirmations in (0, -1):
-            result = 0
-        elif missing_confirmations == current_period:  # never confirmed
-            stakes = self.staking_agent.get_all_stakes(staker_address=staker_address)
-            initial_staking_period = min(stakes, key=lambda s: s[0])
-            result = current_period - initial_staking_period
-        else:
-            result = missing_confirmations
-        return result
+        missing = self.staking_agent.get_missing_confirmations(checksum_address=staker_address)
+        return missing
 
 
 class BlockchainPolicyAuthor(NucypherTokenActor):
@@ -1484,6 +1481,21 @@ class StakeHolder(Staker):
             more_stakes.refresh()
             stakes.extend(more_stakes)
         return stakes
+
+    @validate_checksum_address
+    def get_staker(self, checksum_address: str):
+        if checksum_address not in self.wallet.accounts:
+            raise ValueError(f"{checksum_address} is not a known client account.")
+        staker = Staker(is_me=True, checksum_address=checksum_address, registry=self.registry)
+        staker.stakes.refresh()
+        return staker
+
+    def get_stakers(self) -> List[Staker]:
+        stakers = list()
+        for account in self.wallet.accounts:
+            staker = self.get_staker(checksum_address=account)
+            stakers.append(staker)
+        return stakers
 
     @property
     def total_stake(self) -> NU:
