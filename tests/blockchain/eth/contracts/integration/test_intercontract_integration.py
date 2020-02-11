@@ -533,6 +533,21 @@ def test_all(testerchain,
     assert 1000 == escrow.functions.getLockedTokens(staker1, 10).call()
     assert 0 == escrow.functions.getLockedTokens(staker1, 11).call()
 
+    # Create first policy
+    # In the same period as staker's deposit
+    policy_id_1 = os.urandom(16)
+    number_of_periods = 5
+    one_period = 60 * 60
+    rate = 200
+    one_node_value = number_of_periods * rate
+    value = 2 * one_node_value
+    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
+    tx = policy_manager.functions.createPolicy(policy_id_1, alice1, end_timestamp, [staker1]) \
+        .transact({'from': alice1, 'value': one_node_value, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    policy_manager_balance = one_node_value
+
     # Wait 1 period and deposit from one more staker
     testerchain.time_travel(hours=1)
     tx = preallocation_escrow_interface_1.functions.depositAsStaker(1000, 10).transact({'from': staker3})
@@ -596,43 +611,43 @@ def test_all(testerchain,
     tx = escrow.functions.confirmActivity().transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
 
-    # Create policies
+    # Create other policies
     policy_id_1 = os.urandom(16)
-    number_of_periods = 5
-    one_period = 60 * 60
-    rate = 200
-    one_node_value = number_of_periods * rate
-    value = 2 * one_node_value
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     tx = policy_manager.functions.createPolicy(policy_id_1, alice1, end_timestamp, [staker1, staker2]) \
         .transact({'from': alice1, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
+    policy_manager_balance += value
 
     policy_id_2 = os.urandom(16)
     tx = policy_manager.functions.createPolicy(
         policy_id_2, alice2, end_timestamp, [staker2, preallocation_escrow_1.address]) \
         .transact({'from': alice1, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
+    policy_manager_balance += value
 
     policy_id_3 = os.urandom(16)
     tx = policy_manager.functions.createPolicy(
         policy_id_3, BlockchainInterface.NULL_ADDRESS, end_timestamp, [staker1, preallocation_escrow_1.address]) \
         .transact({'from': alice2, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
+    policy_manager_balance += value
 
     policy_id_4 = os.urandom(16)
     tx = policy_manager.functions.createPolicy(
         policy_id_4, alice1, end_timestamp, [staker2, preallocation_escrow_1.address]) \
         .transact({'from': alice2, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
+    policy_manager_balance += value
 
     policy_id_5 = os.urandom(16)
     tx = policy_manager.functions.createPolicy(
         policy_id_5, alice1, end_timestamp, [staker1, staker2]) \
         .transact({'from': alice2, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 5 * value == testerchain.client.get_balance(policy_manager.address)
+    policy_manager_balance += value
+    assert testerchain.client.get_balance(policy_manager.address) == policy_manager_balance
 
     # Only Alice can revoke policy
     with pytest.raises((TransactionFailed, ValueError)):
@@ -642,8 +657,10 @@ def test_all(testerchain,
     tx = policy_manager.functions.revokePolicy(policy_id_5).transact({'from': alice1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     two_nodes_rate = 2 * rate
-    assert 4 * value + two_nodes_rate == testerchain.client.get_balance(policy_manager.address)
-    assert alice2_balance + (value - two_nodes_rate) == testerchain.client.get_balance(alice2)
+    refund = value - two_nodes_rate
+    policy_manager_balance -= refund
+    assert testerchain.client.get_balance(policy_manager.address) == policy_manager_balance
+    assert alice2_balance + refund == testerchain.client.get_balance(alice2)
     assert policy_manager.functions.policies(policy_id_5).call()[DISABLED_FIELD]
 
     # Can't revoke again
@@ -657,9 +674,10 @@ def test_all(testerchain,
     alice1_balance = testerchain.client.get_balance(alice1)
     tx = policy_manager.functions.revokeArrangement(policy_id_2, staker2).transact({'from': alice2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    remaining_value = 3 * value + two_nodes_rate + one_node_value + rate
-    assert remaining_value == testerchain.client.get_balance(policy_manager.address)
-    assert alice1_balance + one_node_value - rate == testerchain.client.get_balance(alice1)
+    refund = one_node_value - rate
+    policy_manager_balance -= refund
+    assert testerchain.client.get_balance(policy_manager.address) == policy_manager_balance
+    assert alice1_balance + refund == testerchain.client.get_balance(alice1)
     assert not policy_manager.functions.policies(policy_id_2).call()[DISABLED_FIELD]
 
     # Can't revoke again
