@@ -128,8 +128,12 @@ contract StakingEscrowForPolicyMock {
         return lastActivePeriod;
     }
 
+    function register(address _node, uint16 _period) public {
+        policyManager.register(_node, _period);
+    }
+
     function register(address _node) external {
-        policyManager.register(_node, getCurrentPeriod() - 1);
+        register(_node, getCurrentPeriod() - 1);
     }
 
     function findIndexOfPastDowntime(address, uint16 _period) external view returns (uint256 index) {

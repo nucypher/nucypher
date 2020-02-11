@@ -62,6 +62,25 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     arrangement_refund_log = policy_manager.events.RefundForArrangement.createFilter(fromBlock='latest')
     policy_refund_log = policy_manager.events.RefundForPolicy.createFilter(fromBlock='latest')
 
+    # Only past periods is allowed in register method
+    current_period = policy_manager.functions.getCurrentPeriod().call()
+    node_for_registering = everyone_else[0]
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.register(node_for_registering, current_period).transact()
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.register(node_for_registering, current_period + 1).transact()
+        testerchain.wait_for_receipt(tx)
+
+    tx = escrow.functions.register(node_for_registering, current_period - 1).transact()
+    testerchain.wait_for_receipt(tx)
+    assert 0 < policy_manager.functions.nodes(node_for_registering).call()[LAST_MINED_PERIOD_FIELD]
+
+    # Can't register twice
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.register(node_for_registering, current_period - 2).transact()
+        testerchain.wait_for_receipt(tx)
+
     # Check registered nodes
     assert 0 < policy_manager.functions.nodes(node1).call()[LAST_MINED_PERIOD_FIELD]
     assert 0 < policy_manager.functions.nodes(node2).call()[LAST_MINED_PERIOD_FIELD]

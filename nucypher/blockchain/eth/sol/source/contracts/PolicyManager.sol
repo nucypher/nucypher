@@ -14,7 +14,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 /**
 * @notice Contract holds policy data and locks fees
-* @dev |v2.1.1|
+* @dev |v2.1.2|
 */
 contract PolicyManager is Upgradeable {
     using SafeERC20 for NuCypherToken;
@@ -137,7 +137,7 @@ contract PolicyManager is Upgradeable {
     */
     function register(address _node, uint16 _period) external onlyEscrowContract {
         NodeInfo storage nodeInfo = nodes[_node];
-        require(nodeInfo.lastMinedPeriod == 0);
+        require(nodeInfo.lastMinedPeriod == 0 && _period < getCurrentPeriod());
         nodeInfo.lastMinedPeriod = _period;
     }
 
@@ -189,7 +189,9 @@ contract PolicyManager is Upgradeable {
             address node = _nodes[i];
             require(node != RESERVED_NODE);
             NodeInfo storage nodeInfo = nodes[node];
-            require(nodeInfo.lastMinedPeriod != 0 && policy.rewardRate >= nodeInfo.minRewardRate);
+            require(nodeInfo.lastMinedPeriod != 0 &&
+                nodeInfo.lastMinedPeriod < currentPeriod &&
+                policy.rewardRate >= nodeInfo.minRewardRate);
             // Check default value for rewardDelta
             if (nodeInfo.rewardDelta[currentPeriod] == DEFAULT_REWARD_DELTA) {
                 nodeInfo.rewardDelta[currentPeriod] = int256(policy.rewardRate);

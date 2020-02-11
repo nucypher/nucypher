@@ -480,12 +480,13 @@ def test_refund(testerchain, escrow, policy_manager):
     assert returned == event_args['value']
 
     # Minting is useless after policy is revoked
-    tx = escrow.functions.mint(period + 1, 20).transact({'from': node1})
+    tx = escrow.functions.mint(period + 1, number_of_periods + 1).transact({'from': node1})
     testerchain.wait_for_receipt(tx)
     period += 20
     assert 160 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
 
     # Create policy again to test double call of `refund` with specific conditions
+    testerchain.time_travel(hours=number_of_periods + 2)
     policy_id_4 = os.urandom(POLICY_ID_LENGTH)
     number_of_periods_4 = 3
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
