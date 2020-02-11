@@ -60,6 +60,10 @@ contract PolicyManager is Upgradeable {
         address indexed sender,
         uint256 value
     );
+    event NodeBrokenState(
+        address indexed node,
+        uint16 period
+    );
 
     struct ArrangementInfo {
         address node;
@@ -257,11 +261,24 @@ contract PolicyManager is Upgradeable {
             return;
         }
         for (uint16 i = node.lastMinedPeriod + 1; i <= _period; i++) {
-            if (node.rewardDelta[i] != DEFAULT_REWARD_DELTA) {
-                node.rewardRate = node.rewardRate.addSigned(node.rewardDelta[i]);
+            if (node.rewardDelta[i] == DEFAULT_REWARD_DELTA) {
+                // gas refund
+                node.rewardDelta[i] = 0;
+                continue;
             }
-            // gas refund
-            node.rewardDelta[i] = 0;
+
+            int256 delta = node.rewardDelta[i];
+            // broken state
+            if (delta < 0 && uint256(-delta) > node.rewardRate) {
+                node.rewardDelta[i] += int256(node.rewardRate);
+                node.rewardRate = 0;
+                emit NodeBrokenState(_node, _period);
+            // good state
+            } else {
+                node.rewardRate = node.rewardRate.addSigned(delta);
+                // gas refund
+                node.rewardDelta[i] = 0;
+            }
         }
         node.lastMinedPeriod = _period;
         node.reward += node.rewardRate;

@@ -151,3 +151,18 @@ contract StakingEscrowForPolicyMock {
     }
 
 }
+
+
+/**
+* @notice Helper to prepare broken state
+*/
+contract ExtendedPolicyManager is PolicyManager {
+
+    constructor(StakingEscrow _escrow) public PolicyManager(_escrow) {
+    }
+
+    function setNodeRewardDelta(address _node, uint16 _period, int256 _value) external {
+        NodeInfo storage node = nodes[_node];
+        node.rewardDelta[_period] = _value;
+    }
+}
