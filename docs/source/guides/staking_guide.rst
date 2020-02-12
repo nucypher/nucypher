@@ -439,7 +439,7 @@ policy rewards using the ``--withdraw-address <ETH_ADDRESS>`` flag.
     Block #1245171 | 0x0d8180a69213c240e2bf2045179976d5f18de56a82f17a9d59db54756b6604e4
      See https://goerli.etherscan.io/tx/0xe6d555be43263702b74727ce29dc4bcd6e32019159ccb15120791dfda0975372
 
-You can run ``nuycpher stake accounts`` to verify that your staking compensation
+You can run ``nucypher stake accounts`` to verify that your staking compensation
 is indeed in your wallet. Use your favorite Ethereum wallet (MyCrypto or Metamask
 are suitable) to transfer out the compensation earned (NU tokens or ETH) after
 that.
