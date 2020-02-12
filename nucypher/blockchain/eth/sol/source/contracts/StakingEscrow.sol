@@ -34,7 +34,7 @@ contract WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v2.2.2|
+* @dev |v2.2.3|
 */
 contract StakingEscrow is Issuer {
     using AdditionalMath for uint256;
