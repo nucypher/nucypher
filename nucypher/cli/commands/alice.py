@@ -71,7 +71,7 @@ class AliceConfigOptions:
     __option_name__ = 'config_options'
 
     def __init__(self, dev, network, provider_uri, geth, federated_only, discovery_port,
-                 pay_with, registry_filepath, middleware, poa, light, m, n, rate, duration_periods):
+                 pay_with, registry_filepath, middleware, poa, light, m, n, duration_periods):
 
         if federated_only and geth:
             raise click.BadOptionUsage(
@@ -98,7 +98,6 @@ class AliceConfigOptions:
         self.light = light
         self.m = m
         self.n = n
-        self.rate = rate
         self.duration_periods = duration_periods
 
     def create_config(self, emitter, config_file):
@@ -166,8 +165,7 @@ class AliceConfigOptions:
             light=self.light,
             m=self.m,
             n=self.n,
-            duration_periods=self.duration_periods,
-            rate=self.rate)
+            duration_periods=self.duration_periods)
 
     def get_updates(self) -> dict:
         payload = dict(checksum_address=self.pay_with,
@@ -179,8 +177,7 @@ class AliceConfigOptions:
                        light=self.light,
                        m=self.m,
                        n=self.n,
-                       duration_periods=self.duration_periods,
-                       rate=self.rate)
+                       duration_periods=self.duration_periods)
         # Depends on defaults being set on Configuration classes, filtrates None values
         updates = {k: v for k, v in payload.items() if v is not None}
         return updates
@@ -201,7 +198,6 @@ group_config_options = group_options(
     light=option_light,
     m=option_m,
     n=option_n,
-    rate=option_rate,
     duration_periods=option_duration_periods,
     )
 
@@ -379,7 +375,6 @@ def derive_policy_pubkey(general_config, label, character_options, config_file):
 
 @alice.command()
 @AliceInterface.connect_cli('grant')
-@group_character_options
 @option_config_file
 @group_general_config
 @group_character_options

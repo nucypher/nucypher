@@ -318,7 +318,6 @@ def _cli_lifecycle(click_runner,
                       '--config-file', alice_configuration_file_location,
                       '--m', 2,
                       '--n', 3,
-                      '--rate', Web3.toWei(9, 'gwei'),
                       '--expiration', (maya.now() + datetime.timedelta(days=3)).iso8601(),
                       '--label', random_label,
                       '--bob-encrypting-key', bob_encrypting_key,
@@ -328,7 +327,7 @@ def _cli_lifecycle(click_runner,
             grant_args += ('--federated-only',)
         else:
             grant_args += ('--provider', TEST_PROVIDER_URI,
-                           '--value', Web3.toWei(9, 'ether'))
+                           '--rate', Web3.toWei(9, 'gwei'))
 
         grant_result = click_runner.invoke(nucypher_cli, grant_args, catch_exceptions=False, env=envvars)
         assert grant_result.exit_code == 0
