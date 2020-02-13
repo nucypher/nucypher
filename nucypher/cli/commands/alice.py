@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import json
 import os
 
 import click
@@ -23,8 +22,9 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.characters.control.interfaces import AliceInterface
-from nucypher.cli import actions, painting, types
-from nucypher.cli.actions import get_nucypher_password, select_client_account, get_client_password
+from nucypher.cli import actions, painting
+from nucypher.cli.actions import get_nucypher_password, select_client_account, get_client_password, \
+    get_or_update_configuration
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -63,15 +63,15 @@ option_bob_verifying_key = click.option(
 )
 
 option_pay_with = click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
+option_duration_periods = click.option('--duration-periods', help="Policy duration in periods", type=click.INT)
 
 
 class AliceConfigOptions:
 
     __option_name__ = 'config_options'
 
-    def __init__(
-            self, dev, network, provider_uri, geth, federated_only, discovery_port,
-            pay_with, registry_filepath, middleware):
+    def __init__(self, dev, network, provider_uri, geth, federated_only, discovery_port,
+                 pay_with, registry_filepath, middleware, poa, light, m, n, duration_periods):
 
         if federated_only and geth:
             raise click.BadOptionUsage(
@@ -94,6 +94,11 @@ class AliceConfigOptions:
         self.discovery_port = discovery_port
         self.registry_filepath = registry_filepath
         self.middleware = middleware
+        self.poa = poa
+        self.light = light
+        self.m = m
+        self.n = n
+        self.duration_periods = duration_periods
 
     def create_config(self, emitter, config_file):
 
@@ -130,9 +135,10 @@ class AliceConfigOptions:
             except FileNotFoundError:
                 return actions.handle_missing_configuration_file(
                     character_config_class=AliceConfiguration,
-                    config_file=config_file)
+                    config_file=config_file
+                )
 
-    def generate_config(self, emitter, config_root, poa, light, m, n, duration_periods, rate):
+    def generate_config(self, emitter, config_root):
 
         if self.dev:
             raise click.BadArgumentUsage("Cannot create a persistent development character")
@@ -155,12 +161,26 @@ class AliceConfigOptions:
             provider_uri=self.provider_uri,
             provider_process=self.eth_node,
             registry_filepath=self.registry_filepath,
-            poa=poa,
-            light=light,
-            m=m,
-            n=n,
-            duration_periods=duration_periods,
-            rate=rate)
+            poa=self.poa,
+            light=self.light,
+            m=self.m,
+            n=self.n,
+            duration_periods=self.duration_periods)
+
+    def get_updates(self) -> dict:
+        payload = dict(checksum_address=self.pay_with,
+                       domains=self.domains,
+                       federated_only=self.federated_only,
+                       provider_uri=self.provider_uri,
+                       registry_filepath=self.registry_filepath,
+                       poa=self.poa,
+                       light=self.light,
+                       m=self.m,
+                       n=self.n,
+                       duration_periods=self.duration_periods)
+        # Depends on defaults being set on Configuration classes, filtrates None values
+        updates = {k: v for k, v in payload.items() if v is not None}
+        return updates
 
 
 group_config_options = group_options(
@@ -174,6 +194,11 @@ group_config_options = group_options(
     pay_with=option_pay_with,
     registry_filepath=option_registry_filepath,
     middleware=option_middleware,
+    poa=option_poa,
+    light=option_light,
+    m=option_m,
+    n=option_n,
+    duration_periods=option_duration_periods,
     )
 
 
@@ -239,41 +264,33 @@ def alice():
 @alice.command()
 @group_config_options
 @option_config_root
-@option_poa
-@option_light
-@option_m
-@option_n
-@option_rate
-@click.option('--duration-periods', help="Policy duration in periods", type=click.FLOAT)
 @group_general_config
-def init(general_config, config_options, config_root, poa, light, m, n, rate, duration_periods):
+def init(general_config, config_options, config_root):
     """
     Create a brand new persistent Alice.
     """
-
     emitter = _setup_emitter(general_config)
-
     if not config_root:
         config_root = general_config.config_root
-
-    new_alice_config = config_options.generate_config(
-        emitter, config_root, poa, light, m, n, duration_periods, rate)
-
+    new_alice_config = config_options.generate_config(emitter, config_root)
     painting.paint_new_installation_help(emitter, new_configuration=new_alice_config)
 
 
 @alice.command()
 @option_config_file
 @group_general_config
-def view(general_config, config_file):
+@group_config_options
+def config(general_config, config_file, config_options):
     """
-    View existing Alice's configuration.
+    View and optionally update existing Alice's configuration.
     """
     emitter = _setup_emitter(general_config)
     configuration_file_location = config_file or AliceConfiguration.default_filepath()
-    response = AliceConfiguration._read_configuration_file(filepath=configuration_file_location)
     emitter.echo(f"Alice Configuration {configuration_file_location} \n {'='*55}")
-    return emitter.echo(json.dumps(response, indent=4))
+    return get_or_update_configuration(emitter=emitter,
+                                       config_class=AliceConfiguration,
+                                       filepath=configuration_file_location,
+                                       config_options=config_options)
 
 
 @alice.command()
@@ -291,18 +308,17 @@ def destroy(general_config, config_options, config_file, force):
 
 
 @alice.command()
-@group_character_options
 @option_config_file
 @option_controller_port(default=AliceConfiguration.DEFAULT_CONTROLLER_PORT)
 @option_dry_run
 @group_general_config
+@group_character_options
 def run(general_config, character_options, config_file, controller_port, dry_run):
     """
-    Start Alice's controller.
+    Start Alice's web controller.
     """
     emitter = _setup_emitter(general_config)
-    ALICE = character_options.create_character(
-        emitter, config_file, general_config.json_ipc)
+    ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
 
     try:
         # RPC
@@ -359,15 +375,15 @@ def derive_policy_pubkey(general_config, label, character_options, config_file):
 
 @alice.command()
 @AliceInterface.connect_cli('grant')
-@group_character_options
 @option_config_file
 @group_general_config
+@group_character_options
 def grant(general_config,
           # Other (required)
-          bob_encrypting_key, bob_verifying_key, label,
+          bob_encrypting_key, bob_verifying_key, label, value, rate,
 
           # Other
-          m, n, expiration, value, rate,
+          expiration,
 
           # API Options
           character_options, config_file
@@ -375,6 +391,7 @@ def grant(general_config,
     """
     Create and enact an access policy for some Bob.
     """
+    config_options = character_options.config_options
     emitter = _setup_emitter(general_config)
 
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
@@ -392,8 +409,8 @@ def grant(general_config,
         'bob_encrypting_key': bob_encrypting_key,
         'bob_verifying_key': bob_verifying_key,
         'label': label,
-        'm': m,
-        'n': n,
+        'm': config_options.m,
+        'n': config_options.n,
         'expiration': expiration,
     }
     if not ALICE.federated_only:

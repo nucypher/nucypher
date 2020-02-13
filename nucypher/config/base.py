@@ -243,3 +243,13 @@ class BaseConfiguration(ABC):
             raise cls.OldVersion(f"Configuration file is the wrong version "
                                  f"Expected version {cls.VERSION}; Got version {version}")
         return deserialized_payload
+
+    def update(self, filepath: str = None, modifier: str = None, **updates):
+        for field, value in updates.items():
+            try:
+                getattr(self, field)
+            except AttributeError:
+                raise self.ConfigurationError(f"Cannot update '{field}'. It is an invalid configuration field.")
+            else:
+                setattr(self, field, value)
+        self.to_configuration_file(filepath=filepath, modifier=modifier, override=True)

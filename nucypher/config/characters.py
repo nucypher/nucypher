@@ -157,9 +157,10 @@ class AliceConfiguration(CharacterConfiguration):
         super().__init__(*args, **kwargs)
         self.m = m or self.DEFAULT_M
         self.n = n or self.DEFAULT_N
-        if not self.federated_only:
-            self.rate = rate
-            self.duration_periods = duration_periods
+
+        # if not self.federated_only:  # TODO: why not?
+        self.rate = rate
+        self.duration_periods = duration_periods
 
     def static_payload(self) -> dict:
         payload = dict(m=self.m, n=self.n)

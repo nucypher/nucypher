@@ -16,6 +16,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 import json
+import os
+from json import JSONDecodeError
 
 import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
@@ -28,8 +30,8 @@ from nucypher.cli import actions, painting
 from nucypher.cli.actions import (
     get_nucypher_password,
     select_client_account,
-    get_client_password
-)
+    get_client_password,
+    get_or_update_configuration)
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -52,7 +54,7 @@ from nucypher.cli.options import (
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
+from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
@@ -157,7 +159,11 @@ class UrsulaConfigOptions:
 
         rest_host = self.rest_host
         if not rest_host:
-            rest_host = actions.determine_external_ip_address(emitter, force=force)
+            rest_host = os.environ.get(NUCYPHER_ENVVAR_WORKER_IP_ADDRESS)
+            if not rest_host:
+                # TODO: Something less centralized... :-(
+                # TODO: Ask Ursulas instead
+                rest_host = actions.determine_external_ip_address(emitter, force=force)
 
         return UrsulaConfiguration.generate(password=get_nucypher_password(confirm=True),
                                             config_root=config_root,
@@ -174,14 +180,29 @@ class UrsulaConfigOptions:
                                             poa=self.poa,
                                             light=self.light)
 
+    def get_updates(self) -> dict:
+        payload = dict(rest_host=self.rest_host,
+                       rest_port=self.rest_port,
+                       db_filepath=self.db_filepath,
+                       domains=self.domains,
+                       federated_only=self.federated_only,
+                       checksum_address=self.staker_address,
+                       worker_address=self.worker_address,
+                       registry_filepath=self.registry_filepath,
+                       provider_uri=self.provider_uri,
+                       poa=self.poa,
+                       light=self.light)
+        # Depends on defaults being set on Configuration classes, filtrates None values
+        updates = {k: v for k, v in payload.items() if v is not None}
+        return updates
+
 
 group_config_options = group_options(
     UrsulaConfigOptions,
     geth=option_geth,
     provider_uri=option_provider_uri(),
     staker_address=click.option('--staker-address', help="Run on behalf of a specified staking account", type=EIP55_CHECKSUM_ADDRESS),
-    worker_address=click.option('--worker-address', help="Run the worker-ursula with a specified address",
-                  type=EIP55_CHECKSUM_ADDRESS),
+    worker_address=click.option('--worker-address', help="Run the worker-ursula with a specified address", type=EIP55_CHECKSUM_ADDRESS),
     federated_only=option_federated_only,
     rest_host=click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING),
     rest_port=click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT),
@@ -263,8 +284,7 @@ def init(general_config, config_options, force, config_root):
         config_root = general_config.config_root
 
     if not config_options.federated_only and not config_options.domains:  # TODO: Again, weird network/domains mapping. See UrsulaConfigOptions' constructor. #1580
-        raise click.BadOptionUsage(option_name="--network",
-                                   message=f"--network is required when creating an Ursula in decentralized mode.")
+        raise click.BadOptionUsage(option_name="--network", message=f"--network is required when creating an Ursula in decentralized mode.")
     ursula_config = config_options.generate_config(emitter, config_root, force)
     painting.paint_new_installation_help(emitter, new_configuration=ursula_config)
 
@@ -384,18 +404,17 @@ def save_metadata(general_config, character_options, config_file):
 @group_config_options
 @option_config_file
 @group_general_config
-def view(general_config, config_options, config_file):
+def config(general_config, config_options, config_file):
     """
-    View the Ursula node's configuration.
+    View and optionally update the Ursula node's configuration.
     """
     emitter = _setup_emitter(general_config, config_options.worker_address)
-    _pre_launch_warnings(emitter, dev=config_options.dev, force=None)
-    ursula_config = config_options.create_config(emitter, config_file)
-
-    filepath = config_file or ursula_config.config_file_location
+    filepath = config_file or UrsulaConfiguration.default_filepath()
     emitter.echo(f"Ursula Configuration {filepath} \n {'='*55}")
-    response = UrsulaConfiguration._read_configuration_file(filepath=filepath)
-    return emitter.echo(json.dumps(response, indent=4))
+    return get_or_update_configuration(emitter=emitter,
+                                       config_class=UrsulaConfiguration,
+                                       filepath=filepath,
+                                       config_options=config_options)
 
 
 @ursula.command(name='confirm-activity')

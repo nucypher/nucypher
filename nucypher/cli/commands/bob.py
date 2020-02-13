@@ -4,7 +4,7 @@ import click
 
 from nucypher.characters.banners import BOB_BANNER
 from nucypher.cli import actions, painting
-from nucypher.cli.actions import get_nucypher_password, select_client_account
+from nucypher.cli.actions import get_nucypher_password, select_client_account, get_or_update_configuration
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -36,9 +36,8 @@ class BobConfigOptions:
 
     __option_name__ = 'config_options'
 
-    def __init__(
-            self, provider_uri, network, registry_filepath,
-            checksum_address, discovery_port, dev, middleware):
+    def __init__(self, provider_uri, network, registry_filepath,
+                 checksum_address, discovery_port, dev, middleware, federated_only):
 
         self.provider_uri = provider_uri
         self.domains = {network} if network else None
@@ -47,6 +46,7 @@ class BobConfigOptions:
         self.discovery_port = discovery_port
         self.dev = dev
         self.middleware = middleware
+        self.federated_only = federated_only
 
     def create_config(self, emitter, config_file):
         if self.dev:
@@ -74,10 +74,10 @@ class BobConfigOptions:
                     character_config_class=BobConfiguration,
                     config_file=config_file)
 
-    def generate_config(self, emitter, config_root, federated_only):
+    def generate_config(self, emitter, config_root):
 
         checksum_address = self.checksum_address
-        if not checksum_address and not federated_only:
+        if not checksum_address and not self.federated_only:
             checksum_address = select_client_account(emitter=emitter,
                                                      provider_uri=self.provider_uri,
                                                      show_balances=False)
@@ -87,9 +87,19 @@ class BobConfigOptions:
             config_root=config_root,
             checksum_address=checksum_address,
             domains=self.domains,
-            federated_only=federated_only,
+            federated_only=self.federated_only,
             registry_filepath=self.registry_filepath,
             provider_uri=self.provider_uri)
+
+    def get_updates(self) -> dict:
+        payload = dict(checksum_address=self.checksum_address,
+                       domains=self.domains,
+                       federated_only=self.federated_only,
+                       registry_filepath=self.registry_filepath,
+                       provider_uri=self.provider_uri)
+        # Depends on defaults being set on Configuration classes, filtrates None values
+        updates = {k: v for k, v in payload.items() if v is not None}
+        return updates
 
 
 group_config_options = group_options(
@@ -101,6 +111,7 @@ group_config_options = group_options(
     discovery_port=option_discovery_port(),
     dev=option_dev,
     middleware=option_middleware,
+    federated_only=option_federated_only
     )
 
 
@@ -144,17 +155,14 @@ def bob():
 @option_federated_only
 @option_config_root
 @group_general_config
-def init(general_config, config_options, federated_only, config_root):
+def init(general_config, config_options, config_root):
     """
     Create a brand new persistent Bob.
     """
     emitter = _setup_emitter(general_config)
-
     if not config_root:
         config_root = general_config.config_root
-
-    new_bob_config = config_options.generate_config(emitter, config_root, federated_only)
-
+    new_bob_config = config_options.generate_config(emitter, config_root)
     return painting.paint_new_installation_help(emitter, new_configuration=new_bob_config)
 
 
@@ -193,16 +201,18 @@ def run(general_config, character_options, config_file, controller_port, dry_run
 @option_config_file
 @group_config_options
 @group_general_config
-def view(general_config, config_options, config_file):
+def config(general_config, config_options, config_file):
     """
-    View existing Bob's configuration.
+    View and optionally update existing Bob's configuration.
     """
     emitter = _setup_emitter(general_config)
     bob_config = config_options.create_config(emitter, config_file)
     filepath = config_file or bob_config.config_file_location
     emitter.echo(f"Bob Configuration {filepath} \n {'='*55}")
-    response = BobConfiguration._read_configuration_file(filepath=filepath)
-    return emitter.echo(json.dumps(response, indent=4))
+    return get_or_update_configuration(emitter=emitter,
+                                       config_class=BobConfiguration,
+                                       filepath=filepath,
+                                       config_options=config_options)
 
 
 @bob.command()

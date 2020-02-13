@@ -118,7 +118,7 @@ def test_ursula_view_configuration(custom_filepath, click_runner, nominal_federa
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
-    view_args = ('ursula', 'view', '--config-file', custom_config_filepath)
+    view_args = ('ursula', 'config', '--config-file', custom_config_filepath)
 
     # View the configuration
     result = click_runner.invoke(nucypher_cli, view_args,

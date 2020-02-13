@@ -224,17 +224,13 @@ class CharacterConfiguration(BaseConfiguration):
     def __call__(self, **character_kwargs):
         return self.produce(**character_kwargs)
 
-    def update(self, update_dict: dict) -> None:
+    def update(self, **kwargs) -> None:
         """
         A facility for updating existing attributes on existing configuration instances.
 
         Warning: This method allows mutation and may result in an inconsistent configuration.
         """
-        for field, attr in update_dict.items():
-            if not hasattr(self, field):
-                raise AttributeError(f"Only existing fields can be updated.  Got '{field}'.")
-            else:
-                setattr(self, field, attr)
+        return super().update(modifier=self.checksum_address, filepath=self.config_file_location, **kwargs)
 
     @classmethod
     def generate(cls, password: str, *args, **kwargs):

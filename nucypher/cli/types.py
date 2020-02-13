@@ -28,9 +28,11 @@ class ChecksumAddress(click.ParamType):
 
     def convert(self, value, param, ctx):
         try:
-            return to_checksum_address(value=value)
+            value = to_checksum_address(value=value)
         except ValueError as e:
-            self.fail(str(e))
+            self.fail("Invalid ethereum address")
+        else:
+            return value
 
 
 class IPv4Address(click.ParamType):
@@ -40,7 +42,7 @@ class IPv4Address(click.ParamType):
         try:
             _address = ip_address(value)
         except ValueError as e:
-            self.fail(str(e))
+            self.fail("Invalid IP Address")
         else:
             return value
 

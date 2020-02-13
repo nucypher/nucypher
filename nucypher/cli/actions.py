@@ -584,3 +584,25 @@ def establish_deployer_registry(emitter,
     emitter.message(f"Configured to registry filepath {registry_filepath}")
 
     return registry
+
+
+def get_or_update_configuration(emitter, config_class, filepath: str, config_options):
+
+    try:
+        config = config_class.from_configuration_file(filepath=filepath)
+    except config_class.ConfigurationError:
+        # Issue warning for invalid configuration...
+        emitter.message(f"Invalid Configuration at {filepath}.")
+        try:
+            # ... but try to display it anyways
+            response = config_class._read_configuration_file(filepath=filepath)
+            return emitter.echo(json.dumps(response, indent=4))
+        except JSONDecodeError:
+            # ... sorry
+            return emitter.message(f"Invalid JSON in Configuration File at {filepath}.")
+    else:
+        updates = config_options.get_updates()
+        if updates:
+            emitter.message(f"Updated configuration values: {', '.join(updates)}", color='yellow')
+            config.update(**updates)
+        return emitter.echo(config.serialize())
