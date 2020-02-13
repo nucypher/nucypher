@@ -577,7 +577,7 @@ contract PolicyManager is Upgradeable {
     * @param _policyId Policy id
     */
     function getArrangementsLength(bytes16 _policyId)
-        external returns (uint256)
+        external view returns (uint256)
     {
         return policies[_policyId].arrangements.length;
     }
