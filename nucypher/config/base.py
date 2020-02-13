@@ -249,7 +249,7 @@ class BaseConfiguration(ABC):
             try:
                 getattr(self, field)
             except AttributeError:
-                raise self.ConfigurationError(f"Cannot update '{field}'. It is an invalid configuration field,")
+                raise self.ConfigurationError(f"Cannot update '{field}'. It is an invalid configuration field.")
             else:
                 setattr(self, field, value)
         self.to_configuration_file(filepath=filepath, modifier=modifier, override=True)

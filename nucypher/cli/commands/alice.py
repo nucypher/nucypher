@@ -63,7 +63,7 @@ option_bob_verifying_key = click.option(
 )
 
 option_pay_with = click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-option_duration_periods = click.option('--duration-periods', help="Policy duration in periods", type=click.FLOAT)
+option_duration_periods = click.option('--duration-periods', help="Policy duration in periods", type=click.INT)
 
 
 class AliceConfigOptions:
