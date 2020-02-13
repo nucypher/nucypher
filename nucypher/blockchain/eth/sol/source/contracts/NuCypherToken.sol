@@ -14,10 +14,10 @@ contract NuCypherToken is ERC20, ERC20Detailed('NuCypher', 'NU', 18) {
 
     /**
     * @notice Set amount of tokens
-    * @param _totalSupply Total number of tokens
+    * @param _totalSupplyOfTokens Total number of tokens
     */
-    constructor (uint256 _totalSupply) public {
-        _mint(msg.sender, _totalSupply);
+    constructor (uint256 _totalSupplyOfTokens) public {
+        _mint(msg.sender, _totalSupplyOfTokens);
     }
 
     /**
@@ -26,8 +26,8 @@ contract NuCypherToken is ERC20, ERC20Detailed('NuCypher', 'NU', 18) {
     * @dev call the receiveApproval function on the contract you want to be notified.
     * receiveApproval(address _from, uint256 _value, address _tokenContract, bytes _extraData)
     */
-    function approveAndCall(address _spender, uint256 _value, bytes memory _extraData)
-        public returns (bool success)
+    function approveAndCall(address _spender, uint256 _value, bytes calldata _extraData)
+        external returns (bool success)
     {
         approve(_spender, _value);
         TokenRecipient(_spender).receiveApproval(msg.sender, _value, address(this), _extraData);

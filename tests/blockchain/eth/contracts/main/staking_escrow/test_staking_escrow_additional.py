@@ -843,7 +843,19 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     # Staker deposits some tokens and confirms activity
     sub_stake = token_economics.minimum_allowed_locked
     duration = 10
-    tx = token.functions.transfer(staker, sub_stake).transact({'from': creator})
+
+    def check_last_period():
+        assert sub_stake == escrow.functions.getLockedTokens(staker, duration).call(), "Sub-stake is already unlocked"
+        assert 0 == escrow.functions.getLockedTokens(staker, duration + 1).call(), "Sub-stake is still locked"
+
+    def check_events(wind_down: bool, length: int):
+        events = wind_down_log.get_all_entries()
+        assert len(events) == length
+        event_args = events[-1]['args']
+        assert staker == event_args['staker'] == staker
+        assert event_args['windDown'] == wind_down
+
+    tx = token.functions.transfer(staker, 2 * sub_stake).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = token.functions.approve(escrow.address, sub_stake).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
@@ -855,20 +867,18 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     testerchain.wait_for_receipt(tx)
     assert 0 == escrow.functions.getLockedTokens(staker, 0).call()
     assert sub_stake == escrow.functions.getLockedTokens(staker, 1).call()
-    assert sub_stake == escrow.functions.getLockedTokens(staker, duration).call()
-    assert 0 == escrow.functions.getLockedTokens(staker, duration + 1).call()
+    check_last_period()
 
     # Wind down is false by default, after one period duration will be the same
     tx = escrow.functions.confirmActivity().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert sub_stake == escrow.functions.getLockedTokens(staker, duration + 1).call()
-    assert 0 == escrow.functions.getLockedTokens(staker, duration + 2).call()
-    testerchain.time_travel(hours=1)
-    assert sub_stake == escrow.functions.getLockedTokens(staker, duration).call()
-    assert 0 == escrow.functions.getLockedTokens(staker, duration + 1).call()
+    check_last_period()
 
+    testerchain.time_travel(hours=1)
+    check_last_period()
     tx = escrow.functions.confirmActivity().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
+    check_last_period()
 
     # Set wind-down parameter
     assert not escrow.functions.stakerInfo(staker).call()[WIND_DOWN_FIELD]
@@ -881,26 +891,21 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     tx = escrow.functions.setWindDown(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.stakerInfo(staker).call()[WIND_DOWN_FIELD]
-
-    events = wind_down_log.get_all_entries()
-    assert 1 == len(events)
-    event_args = events[0]['args']
-    assert staker == event_args['staker']
-    assert event_args['windDown']
+    check_events(wind_down=True, length=1)
 
     # Enabling wind-down will affect duration only after next confirm activity
-    assert sub_stake == escrow.functions.getLockedTokens(staker, duration + 1).call()
-    assert 0 == escrow.functions.getLockedTokens(staker, duration + 2).call()
+    check_last_period()
+
     testerchain.time_travel(hours=1)
-    assert sub_stake == escrow.functions.getLockedTokens(staker, duration).call()
-    assert 0 == escrow.functions.getLockedTokens(staker, duration + 1).call()
+    duration -= 1
+    check_last_period()
     tx = escrow.functions.confirmActivity().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert sub_stake == escrow.functions.getLockedTokens(staker, duration).call()
-    assert 0 == escrow.functions.getLockedTokens(staker, duration + 1).call()
+    check_last_period()
+
     testerchain.time_travel(hours=1)
-    assert sub_stake == escrow.functions.getLockedTokens(staker, duration - 1).call()
-    assert 0 == escrow.functions.getLockedTokens(staker, duration).call()
+    duration -= 1
+    check_last_period()
 
     # Turn off wind-down and confirm activity, duration will be the same
     assert escrow.functions.stakerInfo(staker).call()[WIND_DOWN_FIELD]
@@ -908,35 +913,172 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     testerchain.wait_for_receipt(tx)
     assert not escrow.functions.stakerInfo(staker).call()[WIND_DOWN_FIELD]
 
-    events = wind_down_log.get_all_entries()
-    assert 2 == len(events)
-    event_args = events[1]['args']
-    assert staker == event_args['staker']
-    assert not event_args['windDown']
+    check_events(wind_down=False, length=2)
 
+    check_last_period()
     tx = escrow.functions.confirmActivity().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert sub_stake == escrow.functions.getLockedTokens(staker, duration).call()
-    assert 0 == escrow.functions.getLockedTokens(staker, duration + 1).call()
+    check_last_period()
+
     testerchain.time_travel(hours=1)
-    assert sub_stake == escrow.functions.getLockedTokens(staker, duration - 1).call()
-    assert 0 == escrow.functions.getLockedTokens(staker, duration).call()
+    check_last_period()
 
     # Turn on wind-down and confirm activity, duration will be reduced in the next period
     tx = escrow.functions.setWindDown(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.stakerInfo(staker).call()[WIND_DOWN_FIELD]
+    check_events(wind_down=True, length=3)
 
-    events = wind_down_log.get_all_entries()
-    assert 3 == len(events)
-    event_args = events[2]['args']
-    assert staker == event_args['staker']
-    assert event_args['windDown']
+    check_last_period()
+    tx = escrow.functions.confirmActivity().transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+
+    testerchain.time_travel(hours=1)
+    duration -= 1
+    check_last_period()
+
+    # Enabling/disabling winding down doesn't change staking duration in the current period
+    tx = escrow.functions.confirmActivity().transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+
+    tx = escrow.functions.setWindDown(False).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+    tx = escrow.functions.setWindDown(True).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+    tx = escrow.functions.setWindDown(False).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+
+    # Special case: enabling/disabling winding down when next period is the last
+    # Travel to the penultimate period of locking
+    tx = escrow.functions.setWindDown(True).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    for i in range(duration - 1):
+        testerchain.time_travel(hours=1)
+        tx = escrow.functions.confirmActivity().transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+
+    duration = 1
+    check_last_period()
+    tx = escrow.functions.setWindDown(False).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+    tx = escrow.functions.setWindDown(True).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+    tx = escrow.functions.setWindDown(False).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+
+    testerchain.time_travel(hours=1)
+    check_last_period()
+    tx = escrow.functions.setWindDown(True).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+    tx = escrow.functions.setWindDown(False).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
 
     tx = escrow.functions.confirmActivity().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert sub_stake == escrow.functions.getLockedTokens(staker, duration - 1).call()
-    assert 0 == escrow.functions.getLockedTokens(staker, duration).call()
+    check_last_period()
+
+    # Deposit again when winding down is enabled and check the last period
+    duration = 3
+    tx = token.functions.approve(escrow.address, sub_stake).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.deposit(sub_stake, duration).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+
+    def check_first_sub_stake(first_duration: int):
+        assert 2 * sub_stake == escrow.functions.getLockedTokens(staker, first_duration).call(), "Sub-stake is already unlocked"
+        assert sub_stake == escrow.functions.getLockedTokens(staker, first_duration + 1).call(), "Sub-stake is still locked"
+
+    check_last_period()
+    check_first_sub_stake(1)
+
+    # Same test as before but for two sub-stakes:
+    # disabling/enabling winding down doesn't change duration in the current period
+    tx = escrow.functions.setWindDown(True).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+    check_first_sub_stake(1)
+    tx = escrow.functions.setWindDown(False).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+    check_first_sub_stake(1)
+
     testerchain.time_travel(hours=1)
-    assert sub_stake == escrow.functions.getLockedTokens(staker, duration - 2).call()
-    assert 0 == escrow.functions.getLockedTokens(staker, duration - 1).call()
+    check_last_period()
+    check_first_sub_stake(1)
+    tx = escrow.functions.confirmActivity().transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+    check_first_sub_stake(1)
+
+    # Enabling winding down to unlock first sub-stake
+    tx = escrow.functions.setWindDown(True).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+    check_first_sub_stake(1)
+
+    # Switching winding down parameter doesn't affect sub-stake which will end in the current period
+    testerchain.time_travel(hours=1)
+    duration -= 1
+    check_last_period()
+    check_first_sub_stake(0)
+
+    tx = escrow.functions.setWindDown(False).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+    check_first_sub_stake(0)
+    tx = escrow.functions.setWindDown(True).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+    check_first_sub_stake(0)
+
+    tx = escrow.functions.confirmActivity().transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+    check_first_sub_stake(0)
+    tx = escrow.functions.setWindDown(False).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+    check_first_sub_stake(0)
+    tx = escrow.functions.setWindDown(True).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+    check_first_sub_stake(0)
+
+    # Only second sub-stake (which has not yet finished) will be freeze
+    tx = escrow.functions.setWindDown(False).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=1)
+    check_last_period()
+    assert sub_stake == escrow.functions.getLockedTokens(staker, 0).call()
+
+    # Move to the last period
+    tx = escrow.functions.setWindDown(True).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    for i in range(duration):
+        testerchain.time_travel(hours=1)
+        tx = escrow.functions.confirmActivity().transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+
+    # Switching winding down parameter doesn't affect sub-stake which will end in the current period
+    testerchain.time_travel(hours=1)
+    duration = 0
+    check_last_period()
+    tx = escrow.functions.setWindDown(False).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+    tx = escrow.functions.setWindDown(True).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()
+    tx = escrow.functions.setWindDown(False).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    check_last_period()

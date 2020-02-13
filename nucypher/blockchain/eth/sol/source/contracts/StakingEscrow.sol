@@ -10,7 +10,7 @@ import "contracts/Issuer.sol";
 contract PolicyManagerInterface {
     function register(address _node, uint16 _period) external;
     function updateReward(address _node, uint16 _period) external;
-    function escrow() public view returns (address);
+    function escrow() external view returns (address);
     function setDefaultRewardDelta(address _node, uint16 _period) external;
 }
 
@@ -19,7 +19,7 @@ contract PolicyManagerInterface {
 * @notice Adjudicator interface
 */
 contract AdjudicatorInterface {
-    function escrow() public view returns (address);
+    function escrow() external view returns (address);
 }
 
 
@@ -27,14 +27,14 @@ contract AdjudicatorInterface {
 * @notice WorkLock interface
 */
 contract WorkLockInterface {
-    function escrow() public view returns (address);
+    function escrow() external view returns (address);
 }
 
 
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v2.2.2|
+* @dev |v2.2.3|
 */
 contract StakingEscrow is Issuer {
     using AdditionalMath for uint256;
@@ -49,6 +49,7 @@ contract StakingEscrow is Issuer {
         uint256 newValue,
         uint16 periods
     );
+    event Prolonged(address indexed staker, uint256 value, uint16 lastPeriod, uint16 periods);
     event Withdrawn(address indexed staker, uint256 value);
     event ActivityConfirmed(address indexed staker, uint16 indexed period, uint256 value);
     event Mined(address indexed staker, uint16 indexed period, uint256 value);
@@ -229,7 +230,9 @@ contract StakingEscrow is Issuer {
         internal view returns (uint16)
     {
         // if the next period (after current) is confirmed
-        if (_info.confirmedPeriod1 > _currentPeriod || _info.confirmedPeriod2 > _currentPeriod) {
+        if (_info.windDown &&
+            (_info.confirmedPeriod1 > _currentPeriod ||
+            _info.confirmedPeriod2 > _currentPeriod)) {
             return _currentPeriod + 1;
         }
         return _currentPeriod;
@@ -278,6 +281,7 @@ contract StakingEscrow is Issuer {
     function getLockedTokens(StakerInfo storage _info, uint16 _currentPeriod, uint16 _period)
         internal view returns (uint256 lockedValue)
     {
+        lockedValue = 0;
         uint16 startPeriod = getStartPeriod(_info, _currentPeriod);
         for (uint256 i = 0; i < _info.subStakes.length; i++) {
             SubStakeInfo storage subStake = _info.subStakes[i];
@@ -352,6 +356,7 @@ contract StakingEscrow is Issuer {
             endIndex = _startIndex + _maxStakers;
         }
         activeStakers = new uint256[2][](endIndex - _startIndex);
+        allLockedTokens = 0;
 
         uint256 resultIndex = 0;
         uint16 currentPeriod = getCurrentPeriod();
@@ -387,7 +392,7 @@ contract StakingEscrow is Issuer {
     /**
     * @notice Get worker using staker's address
     */
-    function getWorkerFromStaker(address _staker) public view returns (address) {
+    function getWorkerFromStaker(address _staker) external view returns (address) {
         StakerInfo storage info = stakerInfo[_staker];
         // specified address is not a staker
         if (stakerInfo[_staker].subStakes.length == 0) {
@@ -406,7 +411,7 @@ contract StakingEscrow is Issuer {
     /**
     * @notice Get work that completed by the staker
     */
-    function getCompletedWork(address _staker) public view returns (uint256) {
+    function getCompletedWork(address _staker) external view returns (uint256) {
         return stakerInfo[_staker].completedWork;
     }
 
@@ -432,7 +437,7 @@ contract StakingEscrow is Issuer {
     * @param _measureWork Value for `measureWork` parameter
     * @return Work that was previously done
     */
-    function setWorkMeasurement(address _staker, bool _measureWork) public returns (uint256) {
+    function setWorkMeasurement(address _staker, bool _measureWork) external returns (uint256) {
         require(msg.sender == address(workLock));
         StakerInfo storage info = stakerInfo[_staker];
         info.measureWork = _measureWork;
@@ -443,7 +448,7 @@ contract StakingEscrow is Issuer {
     /** @notice Set worker
     * @param _worker Worker address. Must be a real address, not a contract
     */
-    function setWorker(address _worker) public onlyStaker {
+    function setWorker(address _worker) external onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
         require(_worker != info.worker, "Specified worker is already set for this staker");
         uint16 currentPeriod = getCurrentPeriod();
@@ -474,7 +479,7 @@ contract StakingEscrow is Issuer {
     * Only if this parameter is not locked
     * @param _reStake Value for parameter
     */
-    function setReStake(bool _reStake) public isInitialized {
+    function setReStake(bool _reStake) external isInitialized {
         require(!isReStakeLocked(msg.sender));
         StakerInfo storage info = stakerInfo[msg.sender];
         if (info.reStakeDisabled == !_reStake) {
@@ -488,7 +493,7 @@ contract StakingEscrow is Issuer {
     * @notice Lock `reStake` parameter. Only if this parameter is not locked
     * @param _lockReStakeUntilPeriod Can't change `reStake` value until this period
     */
-    function lockReStake(uint16 _lockReStakeUntilPeriod) public isInitialized {
+    function lockReStake(uint16 _lockReStakeUntilPeriod) external isInitialized {
         require(!isReStakeLocked(msg.sender) &&
             _lockReStakeUntilPeriod > getCurrentPeriod());
         stakerInfo[msg.sender].lockReStakeUntilPeriod = _lockReStakeUntilPeriod;
@@ -500,13 +505,41 @@ contract StakingEscrow is Issuer {
     * If true then stakes duration will be decreasing in each period with `confirmActivity()`
     * @param _windDown Value for parameter
     */
-    function setWindDown(bool _windDown) public onlyStaker {
+    function setWindDown(bool _windDown) external onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
         if (info.windDown == _windDown) {
             return;
         }
         info.windDown = _windDown;
+
+        uint16 currentPeriod = getCurrentPeriod();
+        uint16 nextPeriod = currentPeriod + 1;
         emit WindDownSet(msg.sender, _windDown);
+
+        // duration adjustment if next period is confirmed
+        if (info.confirmedPeriod1 != nextPeriod && info.confirmedPeriod2 != nextPeriod) {
+           return;
+        }
+
+        // adjust sub-stakes duration for the new value of winding down parameter
+        for (uint256 index = 0; index < info.subStakes.length; index++) {
+            SubStakeInfo storage subStake = info.subStakes[index];
+            // sub-stake does not have fixed last period when winding down is disabled
+            if (!_windDown && subStake.lastPeriod == nextPeriod) {
+                subStake.lastPeriod = 0;
+                subStake.periods = 1;
+                continue;
+            }
+            // this sub-stake is no longer affected by winding down parameter
+            if (subStake.lastPeriod != 0 || subStake.periods == 0) {
+                continue;
+            }
+
+            subStake.periods = _windDown ? subStake.periods - 1 : subStake.periods + 1;
+            if (subStake.periods == 0) {
+                subStake.lastPeriod = nextPeriod;
+            }
+        }
     }
 
     /**
@@ -617,14 +650,18 @@ contract StakingEscrow is Issuer {
         uint256 requestedLockedTokens = _value.add(lockedTokens);
         require(requestedLockedTokens <= info.value && requestedLockedTokens <= maxAllowableLockedTokens);
 
-        if (info.confirmedPeriod1 != nextPeriod && info.confirmedPeriod2 != nextPeriod) {
-            saveSubStake(info, nextPeriod, 0, _periods, _value);
-        } else {
-            // next period is confirmed
-            saveSubStake(info, nextPeriod, 0, _periods - 1, _value);
+        uint16 duration = _periods;
+        // next period is confirmed
+        if (info.confirmedPeriod1 == nextPeriod || info.confirmedPeriod2 == nextPeriod) {
+            // if winding down is enabled and next period is confirmed
+            // then sub-stakes duration were decreased
+            if (info.windDown) {
+                duration -= 1;
+            }
             lockedPerPeriod[nextPeriod] += _value;
             emit ActivityConfirmed(_staker, nextPeriod, _value);
         }
+        saveSubStake(info, nextPeriod, 0, duration, _value);
 
         emit Locked(_staker, _value, nextPeriod, _periods);
     }
@@ -712,6 +749,7 @@ contract StakingEscrow is Issuer {
         require(uint32(lastPeriod - currentPeriod) + _periods >= minLockedPeriods,
             "The extended sub stake must not be less than the minimum value");
         emit Locked(msg.sender, subStake.lockedValue, lastPeriod + 1, _periods);
+        emit Prolonged(msg.sender, subStake.lockedValue, lastPeriod, _periods);
     }
 
     /**
@@ -871,6 +909,7 @@ contract StakingEscrow is Issuer {
     )
         internal returns (uint256 reward)
     {
+        reward = 0;
         uint16 mintingPeriod = _confirmedPeriodNumber == 1 ? _info.confirmedPeriod1 : _info.confirmedPeriod2;
         for (uint256 i = 0; i < _info.subStakes.length; i++) {
             SubStakeInfo storage subStake =  _info.subStakes[i];
@@ -992,6 +1031,10 @@ contract StakingEscrow is Issuer {
         uint16 minDuration = MAX_UINT16;
         uint16 minLastPeriod = MAX_UINT16;
         shortestSubStakeIndex = MAX_SUB_STAKES;
+        currentLock = 0;
+        nextLock = 0;
+        currentAndNextLock = 0;
+
         for (uint256 i = 0; i < _info.subStakes.length; i++) {
             SubStakeInfo storage subStake = _info.subStakes[i];
             uint16 lastPeriod = getLastPeriodOfSubStake(subStake, _startPeriod);

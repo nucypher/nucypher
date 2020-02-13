@@ -22,7 +22,7 @@ from eth_utils import to_wei
 
 @pytest.fixture()
 def token(testerchain, token_economics, deploy_contract):
-    contract, _ = deploy_contract('NuCypherToken', _totalSupply=token_economics.erc20_total_supply)
+    contract, _ = deploy_contract('NuCypherToken', _totalSupplyOfTokens=token_economics.erc20_total_supply)
     return contract
 
 

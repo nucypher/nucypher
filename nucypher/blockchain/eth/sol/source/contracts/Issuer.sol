@@ -11,7 +11,7 @@ import "zeppelin/token/ERC20/SafeERC20.sol";
 
 /**
 * @notice Contract for calculate issued tokens
-* @dev |v1.1.2|
+* @dev |v1.1.3|
 */
 contract Issuer is Upgradeable {
     using SafeERC20 for NuCypherToken;
@@ -100,7 +100,7 @@ contract Issuer is Upgradeable {
     /**
     * @notice Initialize reserved tokens for reward
     */
-    function initialize(uint256 _reservedReward) public onlyOwner {
+    function initialize(uint256 _reservedReward) external onlyOwner {
         require(currentSupply1 == 0);
         token.safeTransferFrom(msg.sender, address(this), _reservedReward);
         currentMintingPeriod = getCurrentPeriod();
@@ -176,7 +176,7 @@ contract Issuer is Upgradeable {
     * @notice Burn sender's tokens. Amount of tokens will be returned for future minting
     * @param _value Amount to burn
     */
-    function burn(uint256 _value) public {
+    function burn(uint256 _value) external {
         token.safeTransferFrom(msg.sender, address(this), _value);
         unMint(_value);
         emit Burnt(msg.sender, _value);

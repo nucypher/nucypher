@@ -19,6 +19,7 @@ import click
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder
+from nucypher.blockchain.eth.constants import MAX_UINT16
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
 from nucypher.blockchain.eth.token import NU, StakeList
@@ -457,9 +458,10 @@ def create(general_config, transacting_staker_options, config_file, force, value
 
     if not lock_periods:
         min_locktime = STAKEHOLDER.economics.minimum_locked_periods
-        max_locktime = STAKEHOLDER.economics.maximum_rewarded_periods
+        default_locktime = STAKEHOLDER.economics.maximum_rewarded_periods
+        max_locktime = MAX_UINT16 - STAKEHOLDER.staking_agent.get_current_period()
         prompt = f"Enter stake duration ({min_locktime} - {max_locktime})"
-        lock_periods = click.prompt(prompt, type=stake_duration_range, default=max_locktime)
+        lock_periods = click.prompt(prompt, type=stake_duration_range, default=default_locktime)
 
     start_period = STAKEHOLDER.staking_agent.get_current_period() + 1
     unlock_period = start_period + lock_periods
@@ -625,7 +627,6 @@ def divide(general_config, transacting_staker_options, config_file, force, value
     # Dynamic click types (Economics)
     min_locked = economics.minimum_allowed_locked
     stake_value_range = click.FloatRange(min=NU.from_nunits(min_locked).to_tokens(), clamp=False)
-    stake_extension_range = click.IntRange(min=1, max=economics.maximum_allowed_locked, clamp=False)
 
     if transacting_staker_options.staker_options.staking_address and index is not None:  # 0 is valid.
         STAKEHOLDER.stakes = StakeList(registry=STAKEHOLDER.registry,
@@ -652,7 +653,10 @@ def divide(general_config, transacting_staker_options, config_file, force, value
 
     # Duration
     if not lock_periods:
-        extension = click.prompt("Enter number of periods to extend", type=stake_extension_range)
+        max_extension = MAX_UINT16 - current_stake.final_locked_period
+        divide_extension_range = click.IntRange(min=1, max=max_extension, clamp=False)
+        extension = click.prompt(f"Enter number of periods to extend (1 - {max_extension})",
+                                 type=divide_extension_range)
     else:
         extension = lock_periods
 
@@ -728,9 +732,14 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
 
     # Interactive
     if not lock_periods:
-        stake_extension_range = click.IntRange(min=1, max=economics.maximum_allowed_locked, clamp=False)
-        max_extension = economics.maximum_rewarded_periods - current_stake.periods_remaining
-        lock_periods = click.prompt(f"Enter number of periods to extend (1-{max_extension})", type=stake_extension_range)
+        max_extension = MAX_UINT16 - current_stake.final_locked_period
+        # +1 because current period excluded
+        min_extension = economics.minimum_locked_periods - current_stake.periods_remaining + 1
+        if min_extension < 1:
+            min_extension = 1
+        duration_extension_range = click.IntRange(min=min_extension, max=max_extension, clamp=False)
+        lock_periods = click.prompt(f"Enter number of periods to extend ({min_extension}-{max_extension})",
+                                    type=duration_extension_range)
     if not force:
         click.confirm(f"Publish stake extension of {lock_periods} period(s) to the blockchain?", abort=True)
     password = transacting_staker_options.get_password(blockchain, client_account)

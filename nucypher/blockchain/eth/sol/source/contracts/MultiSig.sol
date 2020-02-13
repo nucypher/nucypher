@@ -113,7 +113,7 @@ contract MultiSig {
     * @param _owner Address of new owner
     */
     function addOwner(address _owner)
-        public
+        external
         onlyThisContract
     {
         require(owners.length < MAX_OWNER_COUNT &&
@@ -130,7 +130,7 @@ contract MultiSig {
     * @param _owner Address of owner
     */
     function removeOwner(address _owner)
-        public
+        external
         onlyThisContract
     {
         require(owners.length > required && isOwner[_owner]);
@@ -151,7 +151,7 @@ contract MultiSig {
     * @param _required Number of required signatures
     */
     function changeRequirement(uint8 _required)
-        public
+        external
         onlyThisContract
     {
         require(_required <= owners.length && _required > 0);

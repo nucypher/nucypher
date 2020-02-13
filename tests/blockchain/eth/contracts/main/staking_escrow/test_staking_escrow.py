@@ -38,6 +38,7 @@ def test_staking(testerchain, token, escrow_contract):
     lock_log = escrow.events.Locked.createFilter(fromBlock='latest')
     activity_log = escrow.events.ActivityConfirmed.createFilter(fromBlock='latest')
     divides_log = escrow.events.Divided.createFilter(fromBlock='latest')
+    prolong_log = escrow.events.Prolonged.createFilter(fromBlock='latest')
     withdraw_log = escrow.events.Withdrawn.createFilter(fromBlock='latest')
     wind_down_log = escrow.events.WindDownSet.createFilter(fromBlock='latest')
 
@@ -487,6 +488,14 @@ def test_staking(testerchain, token, escrow_contract):
     assert current_period + 3 == event_args['firstPeriod']
     assert 1 == event_args['periods']
 
+    events = prolong_log.get_all_entries()
+    assert len(events) == 1
+    event_args = events[0]['args']
+    assert ursula2 == event_args['staker']
+    assert 200 == event_args['value']
+    assert current_period + 2 == event_args['lastPeriod']
+    assert 1 == event_args['periods']
+
     # Prolong sub stake that will end in the next period
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
@@ -509,6 +518,14 @@ def test_staking(testerchain, token, escrow_contract):
     assert ursula2 == event_args['staker']
     assert 100 == event_args['value']
     assert current_period + 2 == event_args['firstPeriod']
+    assert 1 == event_args['periods']
+
+    events = prolong_log.get_all_entries()
+    assert len(events) == 2
+    event_args = events[1]['args']
+    assert ursula2 == event_args['staker']
+    assert 100 == event_args['value']
+    assert current_period + 1 == event_args['lastPeriod']
     assert 1 == event_args['periods']
 
     # Can't prolong sub stake that will end in the current period

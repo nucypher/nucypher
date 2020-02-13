@@ -131,7 +131,7 @@ contract WorkLock {
     /**
     * @notice Get remaining work to full refund
     */
-    function getRemainingWork(address _depositor) public view returns (uint256) {
+    function getRemainingWork(address _depositor) external view returns (uint256) {
         WorkInfo storage info = workInfo[_depositor];
         uint256 completedWork = escrow.getCompletedWork(_depositor).sub(info.completedWork);
         uint256 remainingWork = ethToWork(info.depositedETH);
@@ -192,7 +192,7 @@ contract WorkLock {
     /**
     * @notice Refund ETH for the completed work
     */
-    function refund() public returns (uint256 refundETH) {
+    function refund() external returns (uint256 refundETH) {
         WorkInfo storage info = workInfo[msg.sender];
         require(info.depositedETH > 0, "Nothing deposited");
         uint256 currentWork = escrow.getCompletedWork(msg.sender);
@@ -218,7 +218,7 @@ contract WorkLock {
     /**
     * @notice Burn unclaimed tokens
     */
-    function burnUnclaimed() public {
+    function burnUnclaimed() external {
         require(block.timestamp >= endBidDate, "Burning tokens allowed when bidding is over");
         require(unclaimedTokens > 0, "There are no tokens that can be burned");
         token.approve(address(escrow), unclaimedTokens);

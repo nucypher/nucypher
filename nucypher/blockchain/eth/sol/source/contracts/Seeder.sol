@@ -30,7 +30,7 @@ contract Seeder is Ownable {
     * @notice Returns the length of the seed nodes array
     */
     function getSeedArrayLength()
-        public view returns (uint256)
+        external view returns (uint256)
     {
         return seedArray.length;
     }
@@ -40,7 +40,7 @@ contract Seeder is Ownable {
     * @param _ip IPv4 address of the seed node
     * @param _port TCP port of the seed node
     */
-    function enroll(address _seed, string memory _ip, uint16 _port) public onlyOwner {
+    function enroll(address _seed, string calldata _ip, uint16 _port) external onlyOwner {
         seeds[_seed] = SeedInfo(_ip, _port);
 
         uint256 i = 0;
@@ -62,7 +62,7 @@ contract Seeder is Ownable {
     * @param _ip Updated IPv4 address of the existing seed node
     * @param _port Updated TCP port of the existing seed node
     */
-    function refresh(string memory _ip, uint16 _port) public {
+    function refresh(string calldata _ip, uint16 _port) external {
         SeedInfo storage seed = seeds[msg.sender];
         require(seed.port != 0);
         seed.ip = _ip;
