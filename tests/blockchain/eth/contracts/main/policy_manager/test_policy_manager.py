@@ -61,6 +61,26 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     policy_revoked_log = policy_manager.events.PolicyRevoked.createFilter(fromBlock='latest')
     arrangement_refund_log = policy_manager.events.RefundForArrangement.createFilter(fromBlock='latest')
     policy_refund_log = policy_manager.events.RefundForPolicy.createFilter(fromBlock='latest')
+    warn_log = policy_manager.events.NodeBrokenState.createFilter(fromBlock='latest')
+
+    # Only past periods is allowed in register method
+    current_period = policy_manager.functions.getCurrentPeriod().call()
+    node_for_registering = everyone_else[0]
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.register(node_for_registering, current_period).transact()
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.register(node_for_registering, current_period + 1).transact()
+        testerchain.wait_for_receipt(tx)
+
+    tx = escrow.functions.register(node_for_registering, current_period - 1).transact()
+    testerchain.wait_for_receipt(tx)
+    assert 0 < policy_manager.functions.nodes(node_for_registering).call()[LAST_MINED_PERIOD_FIELD]
+
+    # Can't register twice
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.register(node_for_registering, current_period - 2).transact()
+        testerchain.wait_for_receipt(tx)
 
     # Check registered nodes
     assert 0 < policy_manager.functions.nodes(node1).call()[LAST_MINED_PERIOD_FIELD]
@@ -385,6 +405,8 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     events = policy_refund_log.get_all_entries()
     assert 0 == len(events)
 
+    assert len(warn_log.get_all_entries()) == 0
+
 
 @pytest.mark.slow
 def test_upgrading(testerchain, deploy_contract):
@@ -483,3 +505,100 @@ def test_upgrading(testerchain, deploy_contract):
     event_args = events[2]['args']
     assert contract_library_v1.address == event_args['target']
     assert creator == event_args['sender']
+
+
+@pytest.mark.slow
+def test_handling_wrong_state(testerchain, deploy_contract):
+    creator, node1, node2, *everyone_else = testerchain.client.accounts
+
+    # Prepare enhanced version of contract
+    escrow, _ = deploy_contract('StakingEscrowForPolicyMock', 1)
+    policy_manager, _ = deploy_contract('ExtendedPolicyManager', escrow.address)
+    tx = escrow.functions.setPolicyManager(policy_manager.address).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    warn_log = policy_manager.events.NodeBrokenState.createFilter(fromBlock='latest')
+
+    current_period = policy_manager.functions.getCurrentPeriod().call()
+    initial_period = current_period - 1
+    tx = escrow.functions.register(node1, initial_period).transact()
+    testerchain.wait_for_receipt(tx)
+
+    # Prepare broken state, emulates creating policy in the same period as node was registered
+    number_of_periods = 2
+    tx = policy_manager.functions.setNodeRewardDelta(node1, initial_period, 1).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = policy_manager.functions.setNodeRewardDelta(node1, initial_period + number_of_periods, -1).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setDefaultRewardDelta(node1, current_period, 1).transact()
+    testerchain.wait_for_receipt(tx)
+
+    # Emulate confirm activity actions
+    for i in range(1, number_of_periods + 2):
+        testerchain.time_travel(hours=1)
+        current_period = policy_manager.functions.getCurrentPeriod().call()
+        tx = escrow.functions.setDefaultRewardDelta(node1, current_period + 1, 1).transact()
+        testerchain.wait_for_receipt(tx)
+        tx = escrow.functions.mint(current_period - 1, 1).transact({'from': node1})
+        testerchain.wait_for_receipt(tx)
+
+    reward, reward_rate, last_mined_period, _min_reward_rate = policy_manager.functions.nodes(node1).call()
+    assert reward == 0
+    assert reward_rate == 0
+    assert last_mined_period == current_period - 1
+    assert policy_manager.functions.getNodeRewardDelta(node1, initial_period).call() == 1
+    for i in range(1, number_of_periods):
+        assert policy_manager.functions.getNodeRewardDelta(node1, initial_period + i).call() == 0
+    assert policy_manager.functions.getNodeRewardDelta(node1, initial_period + number_of_periods).call() == -1
+
+    events = warn_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert event_args['node'] == node1
+    assert event_args['period'] == initial_period + number_of_periods
+
+    # Same case but with more diverse values
+    current_period = policy_manager.functions.getCurrentPeriod().call()
+    initial_period = current_period - 1
+    tx = escrow.functions.register(node2, initial_period).transact()
+    testerchain.wait_for_receipt(tx)
+    number_of_periods = 5
+    tx = escrow.functions.setDefaultRewardDelta(node2, current_period, 1).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = policy_manager.functions.setNodeRewardDelta(node2, initial_period, 100).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = policy_manager.functions.setNodeRewardDelta(node2, initial_period + number_of_periods, -100).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = policy_manager.functions.setNodeRewardDelta(node2, initial_period + 2, 50).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = policy_manager.functions.setNodeRewardDelta(node2, initial_period + 2 + number_of_periods, -50).transact()
+    testerchain.wait_for_receipt(tx)
+
+    # Emulate confirm activity actions
+    for i in range(1, number_of_periods + 4):
+        testerchain.time_travel(hours=1)
+        current_period = policy_manager.functions.getCurrentPeriod().call()
+        tx = escrow.functions.setDefaultRewardDelta(node2, current_period + 1, 1).transact()
+        testerchain.wait_for_receipt(tx)
+        tx = escrow.functions.mint(current_period - 1, 1).transact({'from': node2})
+        testerchain.wait_for_receipt(tx)
+
+    reward, reward_rate, last_mined_period, _min_reward_rate = policy_manager.functions.nodes(node2).call()
+    assert reward == 50 * (number_of_periods - 2)
+    assert reward_rate == 0
+    assert last_mined_period == current_period - 1
+    assert policy_manager.functions.getNodeRewardDelta(node2, initial_period).call() == 100
+    for i in range(1, number_of_periods - 2):
+        assert policy_manager.functions.getNodeRewardDelta(node2, initial_period + i).call() == 0
+    assert policy_manager.functions.getNodeRewardDelta(node2, initial_period + number_of_periods).call() == -50
+    assert policy_manager.functions.getNodeRewardDelta(node2, initial_period + number_of_periods + 1).call() == 0
+    assert policy_manager.functions.getNodeRewardDelta(node2, initial_period + number_of_periods + 2).call() == -50
+
+    events = warn_log.get_all_entries()
+    assert 3 == len(events)
+    event_args = events[1]['args']
+    assert event_args['node'] == node2
+    assert event_args['period'] == initial_period + number_of_periods
+    event_args = events[2]['args']
+    assert event_args['node'] == node2
+    assert event_args['period'] == initial_period + number_of_periods + 2

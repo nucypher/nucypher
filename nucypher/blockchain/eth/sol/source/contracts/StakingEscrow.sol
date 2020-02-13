@@ -34,7 +34,7 @@ contract WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v2.2.1|
+* @dev |v2.2.2|
 */
 contract StakingEscrow is Issuer {
     using AdditionalMath for uint256;
@@ -583,7 +583,7 @@ contract StakingEscrow is Issuer {
         // initial stake of the staker
         if (info.subStakes.length == 0) {
             stakers.push(_staker);
-            policyManager.register(_staker, getCurrentPeriod());
+            policyManager.register(_staker, getCurrentPeriod() - 1);
         }
         token.safeTransferFrom(_payer, address(this), _value);
         info.value += _value;

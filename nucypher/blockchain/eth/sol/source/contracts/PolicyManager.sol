@@ -14,7 +14,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 /**
 * @notice Contract holds policy data and locks fees
-* @dev |v2.1.1|
+* @dev |v2.1.2|
 */
 contract PolicyManager is Upgradeable {
     using SafeERC20 for NuCypherToken;
@@ -59,6 +59,10 @@ contract PolicyManager is Upgradeable {
         bytes16 indexed policyId,
         address indexed sender,
         uint256 value
+    );
+    event NodeBrokenState(
+        address indexed node,
+        uint16 period
     );
 
     struct ArrangementInfo {
@@ -137,7 +141,7 @@ contract PolicyManager is Upgradeable {
     */
     function register(address _node, uint16 _period) external onlyEscrowContract {
         NodeInfo storage nodeInfo = nodes[_node];
-        require(nodeInfo.lastMinedPeriod == 0);
+        require(nodeInfo.lastMinedPeriod == 0 && _period < getCurrentPeriod());
         nodeInfo.lastMinedPeriod = _period;
     }
 
@@ -189,7 +193,9 @@ contract PolicyManager is Upgradeable {
             address node = _nodes[i];
             require(node != RESERVED_NODE);
             NodeInfo storage nodeInfo = nodes[node];
-            require(nodeInfo.lastMinedPeriod != 0 && policy.rewardRate >= nodeInfo.minRewardRate);
+            require(nodeInfo.lastMinedPeriod != 0 &&
+                nodeInfo.lastMinedPeriod < currentPeriod &&
+                policy.rewardRate >= nodeInfo.minRewardRate);
             // Check default value for rewardDelta
             if (nodeInfo.rewardDelta[currentPeriod] == DEFAULT_REWARD_DELTA) {
                 nodeInfo.rewardDelta[currentPeriod] = int256(policy.rewardRate);
@@ -255,11 +261,24 @@ contract PolicyManager is Upgradeable {
             return;
         }
         for (uint16 i = node.lastMinedPeriod + 1; i <= _period; i++) {
-            if (node.rewardDelta[i] != DEFAULT_REWARD_DELTA) {
-                node.rewardRate = node.rewardRate.addSigned(node.rewardDelta[i]);
+            int256 delta = node.rewardDelta[i];
+            if (delta == DEFAULT_REWARD_DELTA) {
+                // gas refund
+                node.rewardDelta[i] = 0;
+                continue;
             }
-            // gas refund
-            node.rewardDelta[i] = 0;
+
+            // broken state
+            if (delta < 0 && uint256(-delta) > node.rewardRate) {
+                node.rewardDelta[i] += int256(node.rewardRate);
+                node.rewardRate = 0;
+                emit NodeBrokenState(_node, _period);
+            // good state
+            } else {
+                node.rewardRate = node.rewardRate.addSigned(delta);
+                // gas refund
+                node.rewardDelta[i] = 0;
+            }
         }
         node.lastMinedPeriod = _period;
         node.reward += node.rewardRate;

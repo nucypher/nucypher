@@ -50,6 +50,7 @@ def test_reward(testerchain, escrow, policy_manager):
     creator, policy_sponsor, bad_node, node1, node2, node3, *everyone_else = testerchain.client.accounts
     node_balance = testerchain.client.get_balance(node1)
     withdraw_log = policy_manager.events.Withdrawn.createFilter(fromBlock='latest')
+    warn_log = policy_manager.events.NodeBrokenState.createFilter(fromBlock='latest')
 
     # Mint period without policies
     period = escrow.functions.getCurrentPeriod().call()
@@ -163,6 +164,8 @@ def test_reward(testerchain, escrow, policy_manager):
     assert node1 == event_args['recipient']
     assert 200 == event_args['value']
 
+    assert len(warn_log.get_all_entries()) == 0
+
 
 @pytest.mark.slow
 def test_refund(testerchain, escrow, policy_manager):
@@ -174,6 +177,7 @@ def test_refund(testerchain, escrow, policy_manager):
     policy_revoked_log = policy_manager.events.PolicyRevoked.createFilter(fromBlock='latest')
     arrangement_refund_log = policy_manager.events.RefundForArrangement.createFilter(fromBlock='latest')
     policy_refund_log = policy_manager.events.RefundForPolicy.createFilter(fromBlock='latest')
+    warn_log = policy_manager.events.NodeBrokenState.createFilter(fromBlock='latest')
 
     # Create policy
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
@@ -480,12 +484,13 @@ def test_refund(testerchain, escrow, policy_manager):
     assert returned == event_args['value']
 
     # Minting is useless after policy is revoked
-    tx = escrow.functions.mint(period + 1, 20).transact({'from': node1})
+    tx = escrow.functions.mint(period + 1, number_of_periods + 1).transact({'from': node1})
     testerchain.wait_for_receipt(tx)
     period += 20
     assert 160 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
 
     # Create policy again to test double call of `refund` with specific conditions
+    testerchain.time_travel(hours=number_of_periods + 2)
     policy_id_4 = os.urandom(POLICY_ID_LENGTH)
     number_of_periods_4 = 3
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
@@ -542,6 +547,8 @@ def test_refund(testerchain, escrow, policy_manager):
     events = policy_created_log.get_all_entries()
     assert 4 == len(events)
 
+    assert len(warn_log.get_all_entries()) == 0
+
 
 @pytest.mark.slow
 def test_reentrancy(testerchain, escrow, policy_manager, deploy_contract):
@@ -550,6 +557,7 @@ def test_reentrancy(testerchain, escrow, policy_manager, deploy_contract):
     policy_revoked_log = policy_manager.events.PolicyRevoked.createFilter(fromBlock='latest')
     arrangement_refund_log = policy_manager.events.RefundForArrangement.createFilter(fromBlock='latest')
     policy_refund_log = policy_manager.events.RefundForPolicy.createFilter(fromBlock='latest')
+    warn_log = policy_manager.events.NodeBrokenState.createFilter(fromBlock='latest')
 
     reentrancy_contract, _ = deploy_contract('ReentrancyTest')
     contract_address = reentrancy_contract.address
@@ -610,3 +618,5 @@ def test_reentrancy(testerchain, escrow, policy_manager, deploy_contract):
     assert 0 == len(policy_revoked_log.get_all_entries())
     assert 0 == len(arrangement_refund_log.get_all_entries())
     assert 0 == len(policy_refund_log.get_all_entries())
+
+    assert len(warn_log.get_all_entries()) == 0

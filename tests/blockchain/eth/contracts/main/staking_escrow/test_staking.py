@@ -105,8 +105,8 @@ def test_mining(testerchain, token, escrow_contract, token_economics):
     # Check parameters in call of the policy manager mock
     assert 2 == policy_manager.functions.getPeriodsLength(ursula1).call()
     assert 2 == policy_manager.functions.getPeriodsLength(ursula2).call()
-    assert current_period == policy_manager.functions.getPeriod(ursula1, 0).call()
-    assert current_period == policy_manager.functions.getPeriod(ursula2, 0).call()
+    assert current_period - 1 == policy_manager.functions.getPeriod(ursula1, 0).call()
+    assert current_period - 1 == policy_manager.functions.getPeriod(ursula2, 0).call()
     assert current_period + 1 == policy_manager.functions.getPeriod(ursula1, 1).call()
     assert current_period + 1 == policy_manager.functions.getPeriod(ursula2, 1).call()
     # Check downtime parameters

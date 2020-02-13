@@ -128,8 +128,12 @@ contract StakingEscrowForPolicyMock {
         return lastActivePeriod;
     }
 
+    function register(address _node, uint16 _period) public {
+        policyManager.register(_node, _period);
+    }
+
     function register(address _node) external {
-        policyManager.register(_node, getCurrentPeriod() - 1);
+        register(_node, getCurrentPeriod() - 1);
     }
 
     function findIndexOfPastDowntime(address, uint16 _period) external view returns (uint256 index) {
@@ -146,4 +150,19 @@ contract StakingEscrowForPolicyMock {
         }
     }
 
+}
+
+
+/**
+* @notice Helper to prepare broken state
+*/
+contract ExtendedPolicyManager is PolicyManager {
+
+    constructor(StakingEscrow _escrow) public PolicyManager(_escrow) {
+    }
+
+    function setNodeRewardDelta(address _node, uint16 _period, int256 _value) external {
+        NodeInfo storage node = nodes[_node];
+        node.rewardDelta[_period] = _value;
+    }
 }
