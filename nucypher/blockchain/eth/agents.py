@@ -69,6 +69,32 @@ class ContractAgency:
             return agent
 
 
+class Events:  # TODO: Perhaps consider an 'events' namespace. Opinions?
+
+    def __init__(self, contract):
+        self.contract = contract
+        self.names = tuple(e.event_name for e in contract.events)
+
+    def __getattr__(self, event_name):
+        if event_name not in self.names:
+            raise TypeError(f"Event '{event_name}' doesn't exist in this contract. Valid events are {self.names}")
+
+        def wrapper(from_block=None, to_block=None, **argument_filters):
+
+            if not from_block:
+                from_block = 0  # TODO: we can do better. Get contract creation block.
+            if not to_block:
+                to_block = 'latest'
+
+            event_method = getattr(self.contract.events, event_name)
+            event_filter = event_method.createFilter(fromBlock=from_block,
+                                                     toBlock=to_block,
+                                                     argument_filters=argument_filters)
+            yield event_filter.get_all_entries()
+
+        return wrapper
+
+
 class EthereumContractAgent:
     """
     Base class for ethereum contract wrapper types that interact with blockchain contract instances
@@ -104,7 +130,7 @@ class EthereumContractAgent:
                                                             proxy_name=self._proxy_name,
                                                             use_proxy_address=self._forward_address)
         self.__contract = contract
-
+        self.events = Events(contract)
         if not transaction_gas:
             transaction_gas = EthereumContractAgent.DEFAULT_TRANSACTION_GAS_LIMITS
         self.transaction_gas = transaction_gas
