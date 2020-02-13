@@ -255,7 +255,7 @@ Registry  ................ {registry.filepath}
 
     try:
         token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
-        token_contract_info = """
+        token_contract_info = f"""
 
 {token_agent.contract_name} ........... {token_agent.contract_address}
     ~ Ethers ............ {Web3.fromWei(blockchain.client.get_balance(token_agent.contract_address), 'ether')} ETH
