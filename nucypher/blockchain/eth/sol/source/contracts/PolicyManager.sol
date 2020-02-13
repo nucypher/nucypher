@@ -261,13 +261,13 @@ contract PolicyManager is Upgradeable {
             return;
         }
         for (uint16 i = node.lastMinedPeriod + 1; i <= _period; i++) {
-            if (node.rewardDelta[i] == DEFAULT_REWARD_DELTA) {
+            int256 delta = node.rewardDelta[i];
+            if (delta == DEFAULT_REWARD_DELTA) {
                 // gas refund
                 node.rewardDelta[i] = 0;
                 continue;
             }
 
-            int256 delta = node.rewardDelta[i];
             // broken state
             if (delta < 0 && uint256(-delta) > node.rewardRate) {
                 node.rewardDelta[i] += int256(node.rewardRate);
