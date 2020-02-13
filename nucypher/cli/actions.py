@@ -326,7 +326,6 @@ def make_cli_character(character_config,
     # Handle Keyring
 
     if unlock_keyring:
-        character_config.attach_keyring()
         unlock_nucypher_keyring(emitter,
                                 character_configuration=character_config,
                                 password=get_nucypher_password(confirm=False))
@@ -404,6 +403,7 @@ def select_client_account(emitter,
     """
     Note: Setting show_balances to True, causes an eager contract and blockchain connection.
     """
+    # TODO: Break show_balances into show_eth_balance and show_token_balance
 
     if not provider_uri:
         raise ValueError("Provider URI must be provided to select a wallet account.")
@@ -417,7 +417,7 @@ def select_client_account(emitter,
     token_agent = None
     if show_balances or show_staking:
         if not registry:
-            registry = InMemoryContractRegistry.from_latest_publication(network)
+            registry = InMemoryContractRegistry.from_latest_publication(network=network)
         token_agent = NucypherTokenAgent(registry=registry)
 
     # Real wallet accounts
@@ -449,12 +449,12 @@ def select_client_account(emitter,
     emitter.echo(tabulate(rows, headers=headers, showindex='always'))
 
     # Prompt the user for selection, and return
-    prompt = prompt or "Select Account"
+    prompt = prompt or "Select index of account"
     account_range = click.IntRange(min=0, max=len(enumerated_accounts)-1)
     choice = click.prompt(prompt, type=account_range, default=default)
     chosen_account = enumerated_accounts[choice]
 
-    emitter.echo(f"Selected {choice}:{chosen_account}", color='blue')
+    emitter.echo(f"Selected {choice}: {chosen_account}", color='blue')
     return chosen_account
 
 
@@ -485,7 +485,7 @@ def handle_client_account_for_staking(emitter,
         if staking_address:
             client_account = staking_address
         else:
-            client_account = select_client_account(prompt="Select staking account",
+            client_account = select_client_account(prompt="Select index of staking account",
                                                    emitter=emitter,
                                                    registry=stakeholder.registry,
                                                    network=stakeholder.network,

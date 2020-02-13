@@ -58,7 +58,7 @@ class MockPolicy(Policy):
                                       ursula=ursula,
                                       arrangement=arrangement)
 
-
+# TODO: Remove. Seems unused
 class MockPolicyCreation:
     """
     Simple mock logic to avoid repeated hammering of blockchain policies.

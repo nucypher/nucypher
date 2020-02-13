@@ -23,9 +23,11 @@ from nucypher.blockchain.eth.agents import (
     ContractAgency,
     WorkLockAgent
 )
+from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.commands.worklock import worklock
 from nucypher.utilities.sandbox.constants import (
+    INSECURE_DEVELOPMENT_PASSWORD,
     TEST_PROVIDER_URI,
     MOCK_IP_ADDRESS,
     select_test_port
@@ -36,11 +38,12 @@ def test_status(click_runner, testerchain, agency_local_registry):
     command = ('status',
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa',
-               '--debug')
+               '--poa',)
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
+
     assert result.exit_code == 0
+    assert f"Lot Size .......... {NU.from_tokens(1_000_000)}" in result.output  # TODO: Amount hard-coded in token economics fixture
 
 
 def test_bid(click_runner, testerchain, agency_local_registry, token_economics):
@@ -48,13 +51,12 @@ def test_bid(click_runner, testerchain, agency_local_registry, token_economics):
     # Wait until biding window starts
     testerchain.time_travel(seconds=90)
 
-    bid_value = to_wei(4, 'ether')
+    bid_eth_value = 4
     base_command = ('bid',
-                    '--value', bid_value,
+                    '--value', bid_eth_value,
                     '--registry-filepath', agency_local_registry.filepath,
                     '--provider', TEST_PROVIDER_URI,
                     '--poa',
-                    '--debug',
                     '--force')
 
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
@@ -62,16 +64,18 @@ def test_bid(click_runner, testerchain, agency_local_registry, token_economics):
     # Multiple bidders
     for bidder in testerchain.unassigned_accounts[:3]:
         pre_bid_balance = testerchain.client.get_balance(bidder)
+        assert pre_bid_balance > to_wei(bid_eth_value, 'ether')
 
         command = (*base_command, '--bidder-address', bidder)
-        result = click_runner.invoke(worklock, command, catch_exceptions=False)
+        user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + 'Y\n'
+        result = click_runner.invoke(worklock, command, input=user_input, catch_exceptions=False)
         assert result.exit_code == 0
 
         post_bid_balance = testerchain.client.get_balance(bidder)
         difference = pre_bid_balance - post_bid_balance
-        assert difference >= bid_value
+        assert difference >= to_wei(bid_eth_value, 'ether')
 
-        total_bids += bid_value
+        total_bids += to_wei(bid_eth_value, 'ether')
         assert testerchain.client.get_balance(worklock_agent.contract_address) == total_bids
 
 
@@ -84,10 +88,10 @@ def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_econ
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
                '--poa',
-               '--force',
-               '--debug')
+               '--force')
 
-    result = click_runner.invoke(worklock, command, catch_exceptions=False)
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + 'Y\n'
+    result = click_runner.invoke(worklock, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     assert not agent.get_deposited_eth(bidder)    # No more bid
 
@@ -105,8 +109,11 @@ def test_claim(click_runner, testerchain, agency_local_registry, token_economics
                '--poa',
                '--force')
 
-    result = click_runner.invoke(worklock, command, catch_exceptions=False)
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + 'Y\n'
+    result = click_runner.invoke(worklock, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
+
+    # TODO: Check successful new stake in StakingEscrow
 
 
 def test_remaining_work(click_runner, testerchain, agency_local_registry, token_economics):
@@ -121,8 +128,7 @@ def test_remaining_work(click_runner, testerchain, agency_local_registry, token_
                '--bidder-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa',
-               '--debug')
+               '--poa')
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
@@ -170,10 +176,10 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
                '--poa',
-               '--debug',
                '--force')
 
-    result = click_runner.invoke(worklock, command, catch_exceptions=False)
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + 'Y\n'
+    result = click_runner.invoke(worklock, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
     # Less work to do...
@@ -188,8 +194,7 @@ def test_participant_status(click_runner, testerchain, agency_local_registry, to
                '--registry-filepath', agency_local_registry.filepath,
                '--bidder-address', bidder.checksum_address,
                '--provider', TEST_PROVIDER_URI,
-               '--poa',
-               '--debug')
+               '--poa')
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
@@ -216,8 +221,7 @@ def test_burn_unclaimed_tokens(click_runner, testerchain, agency_local_registry)
                '--registry-filepath', agency_local_registry,
                '--checksum-address', philanthropist,
                '--provider', TEST_PROVIDER_URI,
-               '--poa',
-               '--debug')
+               '--poa')
 
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
 

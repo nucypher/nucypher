@@ -84,6 +84,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                  # Ownership
                  checksum_address: str = None,
                  client_password: str = None,
+                 cache_password: bool = False,
 
                  # Ursulas
                  m: int = None,
@@ -124,7 +125,8 @@ class Alice(Character, BlockchainPolicyAuthor):
         if is_me and not federated_only:  # TODO: #289
             transacting_power = TransactingPower(account=self.checksum_address,
                                                  password=client_password,
-                                                 provider_uri=self.provider_uri)
+                                                 provider_uri=self.provider_uri,
+                                                 cache=cache_password)
             self._crypto_power.consume_power_up(transacting_power)
             BlockchainPolicyAuthor.__init__(self,
                                             registry=self.registry,

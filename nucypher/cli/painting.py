@@ -41,7 +41,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainIn
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
 from nucypher.blockchain.eth.token import NU
-from nucypher.blockchain.eth.utils import datetime_at_period, etherscan_url
+from nucypher.blockchain.eth.utils import datetime_at_period, etherscan_url, prettify_eth_amount
 from nucypher.characters.banners import NUCYPHER_BANNER, NU_BANNER
 from nucypher.config.constants import SEEDNODES
 from nucypher.network.nicknames import nickname_from_seed
@@ -255,7 +255,7 @@ Registry  ................ {registry.filepath}
 
     try:
         token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
-        token_contract_info = """
+        token_contract_info = f"""
 
 {token_agent.contract_name} ........... {token_agent.contract_address}
     ~ Ethers ............ {Web3.fromWei(blockchain.client.get_balance(token_agent.contract_address), 'ether')} ETH
@@ -851,7 +851,7 @@ Slowing Refund .... {worklock_agent.contract.functions.SLOWING_REFUND().call()}
 Refund Rate ....... {worklock_agent.get_refund_rate()}
 Deposit Rate ...... {worklock_agent.get_deposit_rate()}
     """
-    emitter.message(payload)
+    emitter.echo(payload)
     return
 
 
@@ -865,7 +865,7 @@ Completed Work ....... {bidder.completed_work}
 Remaining Work ....... {bidder.remaining_work}
 Refunded Work ........ {bidder.refunded_work}
 """
-    emitter.message(message)
+    emitter.echo(message)
     return
 
 
@@ -880,12 +880,12 @@ def paint_bidding_notice(emitter, bidder):
 
 - WorkLock token rewards are claimed in the form of a stake and will be locked for the stake duration.
 
-- WorkLock ETH deposits will be available for refund at a rate of {bidder.worklock_agent.economics.worklock_refund_rate} 
-  wei per confirmed period - This rate will become frozen on {maya.MayaDT(bidder.worklock_agent.end_date).local_datetime()}.
+- WorkLock ETH deposits will be available for refund at a rate of {prettify_eth_amount(bidder.worklock_agent.get_refund_rate())} 
+  per confirmed period. This rate will become frozen on {maya.MayaDT(bidder.economics.bidding_end_date).local_datetime()}.
 
 - Once claiming WorkLock tokens, you are obligated to maintain a networked
-  and available Ursula-Worker node bonded to the staker address {bidder.checksum_address} for the duration 
-  of the stake(s) ({bidder.worklock_agent.economics.worklock_commitment_duration} periods).
+  and available Ursula-Worker node bonded to the staker address {bidder.checksum_address} for the duration
+  of the stake(s) ({bidder.economics.worklock_commitment_duration} periods).
 
 - Allow NuCypher network users to carry out uninterrupted re-encryption
   work orders at-will without interference. Failure to keep your node online, 
@@ -896,26 +896,31 @@ def paint_bidding_notice(emitter, bidder):
   producing correct re-encryption work orders will result in rewards
   paid out in ethers retro-actively and on-demand.
 
-Accept worklock terms and node operator obligation?"""
+Accept WorkLock terms and node operator obligation?"""  # TODO: Show a special message for first bidder, since there's no refund rate yet?
 
-    emitter.message(obligation)
+    emitter.echo(obligation)
     return
 
 
-def paint_worklock_claim(emitter, bidder_address: str):
+def paint_worklock_claim(emitter, bidder_address: str, network: str, provider_uri: str):
     message = f"""
 
 Successfully claimed WorkLock tokens for {bidder_address}.
 
+You can check that the stake was created correctly by running:
+
+  nucypher status stakers --staking-address {bidder_address} --network {network} --provider {provider_uri}
+
 Next Steps for Worklock Winners
 ===============================
 
-See the official nucypher documentation for a comprehensive guide!
+Congratulations! You're officially a Staker in the NuCypher network.
 
-Create a stake with your allocation contract: 
-'nucypher stake create --provider <URI> --staking-address {bidder_address}'
+See the official NuCypher documentation for a comprehensive guide on next steps!
 
-Bond a worker to your stake: 'nucypher stake set-worker --worker-address <WORKER ADDRESS>'
+As a first step, you need to bond a worker to your stake by running:
+
+  nucypher stake set-worker --worker-address <WORKER ADDRESS>
 
 """
-    emitter.message(message, color='green')
+    emitter.echo(message, color='green')

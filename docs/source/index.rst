@@ -127,6 +127,7 @@ Whitepapers
    guides/staking_guide
    guides/ursula_configuration_guide
    guides/cli_guide
+   guides/worklock_guide
    guides/character_control_guide
    guides/contribution_guide
 
