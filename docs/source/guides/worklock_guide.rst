@@ -28,14 +28,14 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
 Show current WorkLock information
 ---------------------------------
 
-You can obtain information of current state of WorkLock by running:
+You can obtain information about the current state of WorkLock by running:
 
 .. code::
 
     (nucypher)$ nucypher worklock status --network <NETWORK> --provider <YOUR PROVIDER URI> --poa
 
 
-If you want to see detailed information of your current bid, you can also introduce your bidder address with the ``--bidder-address`` flag:
+If you want to see detailed information about your current bid, you can specify your bidder address with the ``--bidder-address`` flag:
 
 .. code::
 
@@ -72,7 +72,7 @@ If your bid was successful, you can claim your tokens as a stake in NuCypher:
     (nucypher)$ nucypher worklock claim --network <NETWORK> --provider <YOUR PROVIDER URI> --poa
 
 
-Once claimed, you can check that the stake was created correctly by running:
+Once claimed, you can check that the stake was created successfully by running:
 
 .. code::
 

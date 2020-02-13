@@ -1519,6 +1519,7 @@ class Bidder(NucypherTokenActor):
     class BidingIsClosed(BidderError):
         pass
 
+    @validate_checksum_address
     def __init__(self, checksum_address: str, client_password: str = None, *args, **kwargs):
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
         self.worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=self.registry)
