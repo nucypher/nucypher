@@ -67,14 +67,14 @@ class CanonicalRegistrySource(ABC):
 
 class GithubRegistrySource(CanonicalRegistrySource):
 
-    _PUBLICATION_REPO = "nucypher/ethereum-contract-registry"
+    _PUBLICATION_REPO = "nucypher/nucypher"
     _BASE_URL = f'https://raw.githubusercontent.com/{_PUBLICATION_REPO}'
 
     name = "GitHub Registry Source"
     is_primary = True
 
     def get_publication_endpoint(self) -> str:
-        url = f'{self._BASE_URL}/master/{self.network}/{self.registry_name}'
+        url = f'{self._BASE_URL}/master/registries/{self.network}/{self.registry_name}'
         return url
 
     def fetch_latest_publication(self) -> Union[str, bytes]:
