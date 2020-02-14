@@ -19,6 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import csv
 import json
 import os
+import time
 from decimal import Decimal
 from pathlib import Path
 from typing import Tuple, List, Dict, Union
@@ -1194,26 +1195,32 @@ class Worker(NucypherTokenActor):
 
         # Workers cannot be started without being assigned a stake first.
         if is_me:
+            if check_active_worker:
+                self._checksum_address = self.block_until_bonded(worker_address, self.registry)
             self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
             self.stakes.refresh()
-            if check_active_worker and not len(self.stakes):
-                raise self.DetachedWorker(f"{self.__worker_address} is not bonded to {self.checksum_address}.")
 
             self.work_tracker = work_tracker or WorkTracker(worker=self)
             if start_working_now:
                 self.work_tracker.start(act_now=False)
 
     @staticmethod
-    def worker_is_bonded(worker_address: str, registry: 'BaseContractRegistry') -> bool:
+    def block_until_bonded(worker_address: str,
+                           registry: 'BaseContractRegistry',
+                           poll_rate: int = 10) -> str:
         """
-        Checks that the Worker's bonded staking address isn't a null address
-        and returns a boolean.
+        Polls the staking_agent and blocks until the staking address is not
+        a null address for the given worker_address.
+        Once the worker is bonded, it returns the staker address.
         """
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent,
                                                  registry=registry)
 
         staking_addr = staking_agent.get_staker_from_worker(worker_address)
-        return staking_addr != BlockchainInterface.NULL_ADDRESS
+        while staking_addr == BlockchainInterface.NULL_ADDRESS:
+            time.sleep(poll_rate)
+            staking_addr = staking_agent.get_staker_from_worker(worker_address)
+        return staking_addr
 
     @property
     def eth_balance(self) -> Decimal:

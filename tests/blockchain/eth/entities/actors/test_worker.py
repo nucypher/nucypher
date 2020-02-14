@@ -32,14 +32,8 @@ def test_worker_auto_confirmations(testerchain,
     clock = Clock()
     WorkTracker.CLOCK = clock
 
-    # Check that the worker is unbonded
-    assert not Worker.worker_is_bonded(worker_address, test_registry)
-
     # Bond the Worker and Staker
     staker.set_worker(worker_address=worker_address)
-
-    # Ensure the worker is now bonded
-    assert Worker.worker_is_bonded(worker_address, test_registry)
 
     # Make the Worker
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
