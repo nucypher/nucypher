@@ -29,7 +29,7 @@ from constant_sorrow.constants import REGISTRY_COMMITTED, NO_REGISTRY_SOURCE
 from twisted.logger import Logger
 
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.config.constants import BASE_DIR, DEFAULT_CONFIG_ROOT
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 
 
@@ -97,14 +97,13 @@ class GithubRegistrySource(CanonicalRegistrySource):
 
 
 class InPackageRegistrySource(CanonicalRegistrySource):
-    _HERE = os.path.abspath(os.path.dirname(__file__))
-    _BASE_DIR = os.path.join(_HERE, "contract_registry")
+    _REGISTRY_DIR = os.path.join(BASE_DIR, "registries")
 
     name = "In-Package Registry Source"
     is_primary = False
 
     def get_publication_endpoint(self) -> str:
-        filepath = str(os.path.join(self._BASE_DIR, self.network, self.registry_name))
+        filepath = str(os.path.join(self._REGISTRY_DIR, self.network, self.registry_name))
         return filepath
 
     def fetch_latest_publication(self) -> Union[str, bytes]:
