@@ -21,17 +21,20 @@ import os
 
 import click
 
+from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE,
     NETWORK_PORT,
-    WEI)
+    WEI
+)
 
 
 # Alphabetical
 option_checksum_address = click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 option_config_file = click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 option_config_root = click.option('--config-root', help="Custom configuration directory", type=click.Path())
+option_contract_name = click.option('--contract-name', help="Specify a single contract by name", type=click.Choice(NUCYPHER_CONTRACT_NAMES))
 option_dev = click.option('--dev', '-d', help="Enable development mode", is_flag=True)
 option_db_filepath = click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
 option_dry_run = click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
