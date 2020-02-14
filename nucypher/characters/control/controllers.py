@@ -11,7 +11,7 @@ from marshmallow import Schema
 from twisted.internet import reactor, stdio
 from twisted.logger import Logger
 
-from nucypher.characters.control.emitters import StdoutEmitter, WebEmitter, JSONRPCStdoutEmitter
+from nucypher.characters.control.emitters import StdoutEmitter, WebEmitter, JSONRPCStdoutEmitter, JSONStdoutEmitter
 from nucypher.characters.control.interfaces import CharacterPublicInterface
 from nucypher.characters.control.specifications.exceptions import SpecificationError
 from nucypher.cli.processes import JSONRPCLineReceiver
@@ -326,3 +326,18 @@ class WebController(CharacterControlServer):
         else:
             self.log.debug(f"{method_name} [200 - OK]")
             return self.emitter.respond(response=response)
+
+class STDIOController(CharacterControlServer):
+
+    _emitter_class = STDIOJsonEmitter
+
+    def make_control_transport(self):
+        return
+
+    def test_client(self):
+        return
+
+    def handle_request(self, method_name, request):
+        start = maya.now()
+        response = self._perform_action(action=method_name, request=request)
+        return self.emitter.ipc(response=response, request_id=start.epoch, duration=maya.now() - start)
