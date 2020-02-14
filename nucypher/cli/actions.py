@@ -21,6 +21,7 @@ import json
 import os
 import shutil
 from json import JSONDecodeError
+import time
 from typing import List, Tuple, Dict, Set, Optional
 
 import click
@@ -213,6 +214,21 @@ def get_external_ip_from_centralized_source() -> str:
         return ip_request.text
     raise UnknownIPAddress(f"There was an error determining the IP address automatically. "
                            f"(status code {ip_request.status_code})")
+
+
+def block_until_worker_is_bonded(emitter,
+                                 worker: 'Worker',
+                                 poll_rate: int = 300):
+    """
+    Checks that the specified worker is bonded. If the worker is not bonded,
+    then this call blocks until it is. The call checks the blockchain every
+    five minutes by default via `poll_rate`.
+    """
+    while not worker.worker_is_bonded(worker.learning_domains[0], worker.registry):
+        emitter.message(f"There is no stake bonded to this worker! Will check again in {poll_rate} seconds...", color='yellow', bold=True)
+        time.sleep(poll_rate)
+    emitter.message("Wworker is bonded!", color='green', bold=True)
+
 
 
 def determine_external_ip_address(emitter, force: bool = False) -> str:
