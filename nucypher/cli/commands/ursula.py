@@ -15,9 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-import json
 import os
-from json import JSONDecodeError
 
 import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
@@ -235,6 +233,7 @@ class UrsulaCharacterOptions:
                                                       envvar=NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD)
 
         try:
+            emitter.message("Waiting for bonded worker...", color="yellow", bold=True)
             URSULA = actions.make_cli_character(character_config=ursula_config,
                                                 emitter=emitter,
                                                 min_stake=self.min_stake,
@@ -244,6 +243,7 @@ class UrsulaCharacterOptions:
                                                 client_password=client_password,
                                                 load_preferred_teachers=load_seednodes and not self.lonely,
                                                 start_learning_now=load_seednodes)
+            emitter.message(f"Worker is bonded to {URSULA.checksum_address}!", color='green', bold=True)
 
             return ursula_config, URSULA
 
@@ -336,9 +336,10 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
 
     emitter = _setup_emitter(general_config, character_options.config_options.worker_address)
     _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
-    ursula_config, URSULA = character_options.create_character(emitter=emitter,
-                                                               config_file=config_file,
-                                                               json_ipc=general_config.json_ipc)
+    ursula_config, URSULA = character_options.create_character(
+            emitter=emitter,
+            config_file=config_file,
+            json_ipc=general_config.json_ipc)
 
     #
     # Additional Services
