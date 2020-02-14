@@ -15,11 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
+import importlib
+import math
 import random
 from typing import Generator, List, Tuple, Union
 
-import math
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
 from eth_utils.address import to_checksum_address
 from eth_tester.exceptions import TransactionFailed
@@ -67,6 +67,22 @@ class ContractAgency:
             cls.__agents[registry_id] = cls.__agents.get(registry_id, dict())
             cls.__agents[registry_id][agent_class] = agent
             return agent
+
+    @classmethod
+    def get_agent_by_contract_name(cls,
+                                   contract_name: str,
+                                   registry: BaseContractRegistry,
+                                   provider_uri: str = None,
+                                   ) -> 'EthereumContractAgent':
+
+        if contract_name == NUCYPHER_TOKEN_CONTRACT_NAME:  # TODO: Perhaps rename NucypherTokenAgent
+            contract_name = "NucypherToken"
+
+        agent_name = f"{contract_name}Agent"
+        agents_module = importlib.import_module("nucypher.blockchain.eth.agents")  # TODO: Is there a programmatic way to get the module?
+        agent_class = getattr(agents_module, agent_name)
+        agent = cls.get_agent(agent_class=agent_class, registry=registry, provider_uri=provider_uri)
+        return agent
 
 
 class Events:  # TODO: Perhaps consider an 'events' namespace. Opinions?
