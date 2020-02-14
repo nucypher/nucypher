@@ -1203,6 +1203,18 @@ class Worker(NucypherTokenActor):
             if start_working_now:
                 self.work_tracker.start(act_now=False)
 
+    @staticmethod
+    def worker_is_bonded(worker_address: str, registry: 'BaseContractRegistry') -> bool:
+        """
+        Checks that the Worker's bonded staking address isn't a null address
+        and returns a boolean.
+        """
+        staking_agent = ContractAgency.get_agent(StakingEscrowAgent,
+                                                 registry=registry)
+
+        staking_addr = staking_agent.get_staker_from_worker(worker_address)
+        return staking_addr != BlockchainInterface.NULL_ADDRESS
+
     @property
     def eth_balance(self) -> Decimal:
         """Return this workers's current ETH balance"""
