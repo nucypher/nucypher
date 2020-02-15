@@ -96,10 +96,6 @@ class Arrangement:
         return self.alice.encrypt_for(self.ursula, self.payload())[0]
 
     def payload(self):
-        # TODO #127 - Ship the expiration again?
-        # Or some other way of alerting Ursula to
-        # recall her previous dialogue regarding this Arrangement.
-        # Update: We'll probably have her store the Arrangement by hrac.  See #127.
         return bytes(self.kfrag)
 
     @abstractmethod
@@ -157,6 +153,10 @@ class BlockchainArrangement(Arrangement):
         self.revoke_transaction = txhash
         self.is_revoked = True
         return txhash
+
+    def payload(self):
+        partial_payload = super().payload()
+        return bytes(self.publish_transaction) + partial_payload
 
 
 class Policy(ABC):
