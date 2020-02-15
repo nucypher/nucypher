@@ -19,8 +19,9 @@ import binascii
 import os
 from typing import Tuple
 
+from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
-from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
+from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES, NO_BLOCKCHAIN_CONNECTION
 from flask import Flask, Response, jsonify
 from flask import request
 from hendrix.experience import crosstown_traffic
@@ -230,6 +231,20 @@ def make_rest_app(
             # TODO: Perhaps we log this?
             return Response(status_code=400)
 
+        if not this_node.federated_only:
+            # This splitter probably belongs somewhere canonical.
+            transaction_splitter = BytestringSplitter(32)
+            tx, cleartext = transaction_splitter(cleartext, return_remainder=True)
+
+            receipt = this_node.policy_agent.blockchain.wait_for_receipt(tx)
+            this_node.policy_agent.contract.abi  # This is a thing
+            maybe_policy_created_event = this_node.policy_agent.contract.events.PolicyCreated().processReceipt(receipt)
+
+            # TODO: We'd love for this part to be impossible.  #1274
+            policy_id_bytes = maybe_policy_created_event[0]['args']['policyId']
+            this_node_has_been_arranged = this_node.checksum_address in (a[0] for a in this_node.policy_agent.fetch_policy_arrangements(policy_id_bytes))
+        else:
+            tx = NO_BLOCKCHAIN_CONNECTION  # TODO: constant?
         kfrag = KFrag.from_bytes(cleartext)
 
         if not kfrag.verify(signing_pubkey=alices_verifying_key):
