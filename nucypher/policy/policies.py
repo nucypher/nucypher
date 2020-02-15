@@ -333,15 +333,12 @@ class Policy(ABC):
         Assign kfrags to ursulas_on_network, and distribute them via REST,
         populating enacted_arrangements
         """
-        # TODO: #121 - Consider tweaking the order of the enactment steps:
-        # first create the policy on chain and then send the kfrags together with the TX receipt
-
         for arrangement in self.__assign_kfrags():
-            policy_message_kit = arrangement.encrypt_payload_for_ursula()
+            arrangement_message_kit = arrangement.encrypt_payload_for_ursula()
 
             response = network_middleware.enact_policy(arrangement.ursula,
                                                        arrangement.id,
-                                                       policy_message_kit.to_bytes())
+                                                       arrangement_message_kit.to_bytes())
 
             if not response:
                 pass  # TODO: Parse response for confirmation.
@@ -355,7 +352,7 @@ class Policy(ABC):
             self.alice.add_active_policy(self)
 
             if publish is True:
-                return self.publish(network_middleware=network_middleware)
+                return self.publish_treasure_map(network_middleware=network_middleware)
 
     def consider_arrangement(self, network_middleware, ursula, arrangement) -> bool:
         negotiation_response = network_middleware.consider_arrangement(arrangement=arrangement)
