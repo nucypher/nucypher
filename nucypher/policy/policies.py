@@ -630,8 +630,10 @@ class BlockchainPolicy(Policy):
         self.publish_transaction = receipt['transactionHash']
         self.is_published = True  # TODO: For real: TX / Swarm confirmations needed?
 
-        # Call super publish (currently publishes TMap)
-        super().publish(network_middleware=self.alice.network_middleware)
+        # Not in love with this block here, but I want 121 closed.
+        for arrangement in self._accepted_arrangements:
+            arrangement.publish_transaction = self.publish_transaction
+
         return receipt
 
     def make_arrangement(self, ursula: Ursula, *args, **kwargs):
@@ -641,3 +643,12 @@ class BlockchainPolicy(Policy):
                                        rate=self.rate,
                                        duration_periods=self.duration_periods,
                                        *args, **kwargs)
+
+    def enact(self, network_middleware, publish=True) -> dict:
+        """
+        Assign kfrags to ursulas_on_network, and distribute them via REST,
+        populating enacted_arrangements
+        """
+        if publish is True:
+            self.publish_to_blockchain()
+        return super().enact(network_middleware, publish)
