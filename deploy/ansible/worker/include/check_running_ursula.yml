@@ -20,6 +20,7 @@
       debug:
         msg:
           - "{{status_data.json.nickname}}"
+          - "nucypher version:      {{status_data.json.version}}"
           - "staker address:        {{status_data.json.staker_address}}"
           - "worker address:        {{status_data.json.worker_address}}"
           - "rest url:              https://{{status_data.json.rest_url}}"

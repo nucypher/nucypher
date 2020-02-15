@@ -18,4 +18,11 @@
         name: ursula
         state: stopped
 
+    - name: Stop Geth
+      become: yes
+      docker_container:
+        name: geth
+        state: stopped
+
+- import_playbook: run_geth.yml
 - import_playbook: run_ursula.yml
