@@ -5,7 +5,7 @@ from nucypher.crypto.kits import UmbralMessageKit as UmbralMessageKitClass
 from nucypher.characters.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
 
 
-class UmbralMessageKit(BaseField, fields.Field):
+class UmbralMessageKit(BaseField, fields.String):
 
     def _serialize(self, value: UmbralMessageKitClass, attr, obj, **kwargs):
         return b64encode(value.to_bytes()).decode()

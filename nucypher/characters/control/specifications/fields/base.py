@@ -1,9 +1,8 @@
 import click
 
-
 class BaseField:
 
-    click_type = click.STRING
+    type_hint = ("string", None)
 
     def __init__(self, *args, **kwargs):
         self.click = kwargs.pop('click', None)

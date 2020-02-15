@@ -1,10 +1,10 @@
 import functools
-from base64 import b64decode
 from typing import Union
+import inspect
 
 import maya
 from umbral.keys import UmbralPublicKey
-
+import nucypher
 from nucypher.characters.control.specifications import alice, bob, enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
@@ -30,6 +30,12 @@ class CharacterPublicInterface:
         self.character = character
         super().__init__(*args, **kwargs)
 
+        self.schema_spec = {
+            name: method._schema.as_options_dict()
+            for name, method in self._get_interfaces().items()
+        }
+
+
     @classmethod
     def connect_cli(cls, action):
         schema = getattr(cls, action)._schema
@@ -46,6 +52,15 @@ class CharacterPublicInterface:
             return wrapped
 
         return callable
+
+    def _get_interfaces(self):
+        return {
+            name: method for name, method in
+            inspect.getmembers(
+                self,
+                predicate=inspect.ismethod)
+            if hasattr(method, '_schema')
+        }
 
 
 class AliceInterface(CharacterPublicInterface):
@@ -234,3 +249,12 @@ class EnricoInterface(CharacterPublicInterface):
         message_kit, signature = self.character.encrypt_message(bytes(message, encoding='utf-8'))
         response_data = {'message_kit': message_kit, 'signature': signature}
         return response_data
+
+    encrypt = encrypt_message
+
+
+PUBLIC_INTERFACES = {
+    'alice': AliceInterface,
+    'bob': BobInterface,
+    'enrico': EnricoInterface
+}

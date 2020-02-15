@@ -1,3 +1,4 @@
+from marshmallow.fields import *
 from nucypher.characters.control.specifications.fields.key import *
 from nucypher.characters.control.specifications.fields.treasuremap import *
 from nucypher.characters.control.specifications.fields.messagekit import *

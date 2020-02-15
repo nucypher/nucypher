@@ -1,17 +1,13 @@
-import inspect
 import json
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
-from typing import Callable
-
 import maya
 from flask import Response, Flask
 from hendrix.deploy.base import HendrixDeploy
-from marshmallow import Schema
 from twisted.internet import reactor, stdio
 from twisted.logger import Logger
 
-from nucypher.characters.control.emitters import StdoutEmitter, WebEmitter, JSONRPCStdoutEmitter, JSONStdoutEmitter
+from nucypher.characters.control.emitters import StdoutEmitter, WebEmitter, JSONRPCStdoutEmitter
 from nucypher.characters.control.interfaces import CharacterPublicInterface
 from nucypher.characters.control.specifications.exceptions import SpecificationError
 from nucypher.cli.processes import JSONRPCLineReceiver
@@ -84,21 +80,12 @@ class CharacterControlServer(CharacterControllerBase):
                 return self.handle_request(name, request=request)
             setattr(self, name, wrapper)
 
-        for method_name in self._get_interfaces().keys():
+        for method_name in self.interface._get_interfaces().keys():
             set_method(method_name)
 
         super().__init__(*args, **kwargs)
 
         self.log = Logger(app_name)
-
-    def _get_interfaces(self):
-        return {
-            name: method for name, method in
-            inspect.getmembers(
-                self.interface,
-                predicate=inspect.ismethod)
-            if hasattr(method, '_schema')
-        }
 
     @abstractmethod
     def make_control_transport(self):
@@ -157,7 +144,7 @@ class JSONRPCController(CharacterControlServer):
         # Read the interface's signature metadata
         method_name = control_request['method']
         method_params = control_request.get('params', dict())  # optional
-        if method_name not in self._get_interfaces():
+        if method_name not in self.interface._get_interfaces():
             raise self.emitter.MethodNotFound(f'No method called {method_name}')
 
         return self.call_interface(method_name=method_name,
@@ -278,7 +265,7 @@ class WebController(CharacterControlServer):
                 request_body = json.loads(request_body)
             request_body.update(kwargs)
 
-            if method_name not in self._get_interfaces():
+            if method_name not in self.interface._get_interfaces():
                 raise self.emitter.MethodNotFound(f'No method called {method_name}')
 
             response = self._perform_action(action=method_name, request=request_body)
@@ -326,18 +313,3 @@ class WebController(CharacterControlServer):
         else:
             self.log.debug(f"{method_name} [200 - OK]")
             return self.emitter.respond(response=response)
-
-class STDIOController(CharacterControlServer):
-
-    _emitter_class = STDIOJsonEmitter
-
-    def make_control_transport(self):
-        return
-
-    def test_client(self):
-        return
-
-    def handle_request(self, method_name, request):
-        start = maya.now()
-        response = self._perform_action(action=method_name, request=request)
-        return self.emitter.ipc(response=response, request_id=start.epoch, duration=maya.now() - start)

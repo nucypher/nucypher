@@ -12,6 +12,7 @@ class PolicyBaseSchema(BaseSchema):
 
     bob_encrypting_key = fields.Key(
         required=True, load_only=True,
+
         click=click.option(
             '--bob-encrypting-key',
             help="Bob's encrypting key as a hexadecimal string",

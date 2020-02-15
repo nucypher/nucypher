@@ -3,7 +3,9 @@ import maya
 from nucypher.characters.control.specifications.fields.base import BaseField
 
 
-class DateTime(BaseField, fields.Field):
+class DateTime(BaseField, fields.DateTime):
+
+    type_hint = ("string", "date-time")
 
     def _serialize(self, value, attr, obj, **kwargs):
         return value.iso8601()

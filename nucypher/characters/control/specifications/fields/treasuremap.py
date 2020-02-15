@@ -8,7 +8,7 @@ from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 
 
-class TreasureMap(BaseField, fields.Field):
+class TreasureMap(BaseField, fields.String):
 
     def _serialize(self, value, attr, obj, **kwargs):
         return b64encode(bytes(value)).decode()

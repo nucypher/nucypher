@@ -1,9 +1,11 @@
-from marshmallow import fields
+from marshmallow import fields, validate
 from umbral.keys import UmbralPublicKey
 from nucypher.characters.control.specifications.fields.base import BaseField
 from nucypher.characters.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
 
-class Key(BaseField, fields.Field):
+class Key(BaseField, fields.String):
+
+    validators = [validate.Length(min=32, max=32)]
 
     def _serialize(self, value, attr, obj, **kwargs):
         return bytes(value).hex()
