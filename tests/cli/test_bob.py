@@ -161,8 +161,8 @@ def test_bob_retrieves_twice_via_cli(click_runner,
                      '--config-file', bob_configuration_file_location,
                      '--message-kit', message_kit_b64_bytes,
                      '--label', label,
-                     '--policy-encrypting-key', federated_alice.get_policy_encrypting_key_from_label(label).hex(),
-                     '--alice-verifying-key', federated_alice.public_keys(SigningPower).hex()
+                     '--policy-encrypting-key', bytes(federated_alice.get_policy_encrypting_key_from_label(label)).hex(),
+                     '--alice-verifying-key', bytes(federated_alice.public_keys(SigningPower)).hex()
                      )
 
     from nucypher.cli import actions
@@ -177,7 +177,6 @@ def test_bob_retrieves_twice_via_cli(click_runner,
         this_fuckin_guy.remember_node(somebody_else)
         this_fuckin_guy.controller.emitter = JSONRPCStdoutEmitter()
         return this_fuckin_guy
-
 
     _old_make_character_function = actions.make_cli_character
     try:
