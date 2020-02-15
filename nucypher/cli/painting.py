@@ -36,7 +36,7 @@ from nucypher.blockchain.eth.agents import (
     PreallocationEscrowAgent,
     WorkLockAgent)
 from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME
-from nucypher.blockchain.eth.deployers import DispatcherDeployer, StakingInterfaceRouterDeployer
+from nucypher.blockchain.eth.deployers import DispatcherDeployer, StakingInterfaceRouterDeployer, PolicyManagerDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
@@ -287,7 +287,7 @@ Registry  ................ {registry.filepath}
 
             agent = contract_deployer_class.agency(registry=registry, contract=bare_contract)
 
-            proxy_payload = f"""
+            range_payload = f"""
 {agent.contract_name} .... {bare_contract.address}
     ~ Owner .............. {bare_contract.functions.owner().call()}
     ~ Ethers ............. {Web3.fromWei(blockchain.client.get_balance(bare_contract.address), 'ether')} ETH
@@ -297,7 +297,7 @@ Registry  ................ {registry.filepath}
         ~ Target ......... {dispatcher_deployer.contract.functions.target().call()}
         ~ Ethers ......... {Web3.fromWei(blockchain.client.get_balance(dispatcher_deployer.contract_address), 'ether')} ETH
         ~ Tokens ......... {NU.from_nunits(token_agent.get_balance(dispatcher_deployer.contract_address))}"""
-            emitter.echo(proxy_payload)
+            emitter.echo(range_payload)
             emitter.echo(sep, nl=False)
 
         except BaseContractRegistry.UnknownContract:
@@ -337,6 +337,25 @@ Registry  ................ {registry.filepath}
     except BaseContractRegistry.UnknownContract:
         message = f"\nStakingInterface is not enrolled in {registry.filepath}"
         emitter.echo(message, color='yellow')
+
+    try:
+        policy_manager = blockchain.get_contract_by_name(contract_name=PolicyManagerDeployer.contract_name,
+                                                         proxy_name=DispatcherDeployer.contract_name,
+                                                         registry=registry)
+        minimum, default, maximum = policy_manager.functions.minRewardRateRange().call()
+
+        range_payload = f"""
+Range for minimum reward rate:
+    ~ Minimum ............ {prettify_eth_amount(minimum)}
+    ~ Default ............ {prettify_eth_amount(default)}
+    ~ Maximum ............ {prettify_eth_amount(maximum)}"""
+        emitter.echo(range_payload)
+        emitter.echo(sep, nl=False)
+
+    except BaseContractRegistry.UnknownContract:
+        message = f"\n{PolicyManagerDeployer.contract_name} is not enrolled in {registry.filepath}"
+        emitter.echo(message, color='yellow')
+        emitter.echo(sep, nl=False)
 
 
 def paint_multisig_contract_info(emitter, multisig_agent, token_agent):

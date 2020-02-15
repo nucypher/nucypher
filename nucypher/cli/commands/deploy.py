@@ -58,7 +58,7 @@ from nucypher.cli.painting import (
     paint_multisig_contract_info,
     paint_multisig_proposed_transaction
 )
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE, WEI
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
@@ -605,3 +605,26 @@ def transfer_ownership(general_config, actor_options, target_address, gas):
     else:
         receipts = ADMINISTRATOR.relinquish_ownership(new_owner=target_address, transaction_gas_limit=gas)
         emitter.ipc(receipts, request_id=0, duration=0)  # TODO: #1216
+
+
+@deploy.command("set-range")
+@group_general_config
+@group_actor_options
+@click.option('--minimum', help="Minimum value for range (in wei)", type=WEI)
+@click.option('--default', help="Default value for range (in wei)", type=WEI)
+@click.option('--maximum', help="Maximum value for range (in wei)", type=WEI)
+def set_range(general_config, actor_options, minimum, default, maximum):
+    """
+    Set minimum reward range in policy manager contract.
+    """
+    emitter = general_config.emitter
+    ADMINISTRATOR, _, _, _ = actor_options.create_actor(emitter)
+
+    if not minimum:
+        minimum = click.prompt("Enter new minimum value for range", type=WEI)
+    if not default:
+        default = click.prompt("Enter new default value for range", type=WEI(min=minimum))
+    if not maximum:
+        maximum = click.prompt("Enter new maximum value for range", type=WEI(min=default))
+
+    ADMINISTRATOR.set_min_reward_rate_range(minimum=minimum, default=default, maximum=maximum, emitter=emitter)

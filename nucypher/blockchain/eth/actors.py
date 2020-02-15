@@ -661,6 +661,27 @@ class ContractAdministrator(NucypherTokenActor):
             file.write(data)
         return filepath
 
+    def set_min_reward_rate_range(self,
+                                  minimum: int,
+                                  default: int,
+                                  maximum: int,
+                                  emitter: StdoutEmitter = None,
+                                  transaction_gas_limit: int = None) -> dict:
+
+        policy_manager_deployer = PolicyManagerDeployer(registry=self.registry,
+                                                        deployer_address=self.deployer_address,
+                                                        economics=self.economics)
+        receipt = policy_manager_deployer.set_min_reward_rate_range(minimum=minimum,
+                                                                    default=default,
+                                                                    maximum=maximum,
+                                                                    gas_limit=transaction_gas_limit)
+
+        if emitter:
+            emitter.echo(f"The minimum reward rate was limited to the range [{minimum}, {maximum}] "
+                         f"with the default value {default}")
+
+        return receipt
+
 
 class MultiSigActor(NucypherTokenActor):
 

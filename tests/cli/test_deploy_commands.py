@@ -31,6 +31,29 @@ def test_nucypher_deploy_inspect_no_deployments(click_runner, testerchain, new_l
     assert 'not enrolled' in result.output
 
 
+def test_set_range(click_runner, testerchain, agency_local_registry):
+
+    minimum, default, maximum = 10, 20, 30
+    status_command = ('set-range',
+                      '--provider', TEST_PROVIDER_URI,
+                      '--registry-infile', agency_local_registry.filepath,
+                      '--poa',
+                      '--minimum', minimum,
+                      '--default', default,
+                      '--maximum', maximum)
+
+    account_index = '0\n'
+    yes = 'Y\n'
+    user_input = account_index + yes + yes
+    result = click_runner.invoke(deploy,
+                                 status_command,
+                                 input=user_input,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+    assert f"range [{minimum}, {maximum}]" in result.output
+    assert f"default value {default}" in result.output
+
+
 def test_nucypher_deploy_inspect_fully_deployed(click_runner, agency_local_registry):
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
@@ -49,6 +72,12 @@ def test_nucypher_deploy_inspect_fully_deployed(click_runner, agency_local_regis
     assert staking_agent.owner in result.output
     assert policy_agent.owner in result.output
     assert adjudicator_agent.owner in result.output
+
+    minimum, default, maximum = 10, 20, 30
+    assert 'Range' in result.output
+    assert f"{minimum} wei" in result.output
+    assert f"{default} wei" in result.output
+    assert f"{maximum} wei" in result.output
 
 
 def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
