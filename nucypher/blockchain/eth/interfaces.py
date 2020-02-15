@@ -827,10 +827,11 @@ class BlockchainInterfaceFactory:
                            interface: BlockchainInterface,
                            sync: bool = False,
                            emitter=None,
+                           force: bool = False,
                            ) -> None:
 
         provider_uri = interface.provider_uri
-        if provider_uri in cls._interfaces:
+        if (provider_uri in cls._interfaces) and not force:
             raise cls.InterfaceAlreadyInitialized(f"A connection already exists for {provider_uri}. "
                                                   "Use .get_interface instead.")
         cached = cls.CachedInterface(interface=interface, sync=sync, emitter=emitter)
