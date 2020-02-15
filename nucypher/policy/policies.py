@@ -292,16 +292,6 @@ class Policy(ABC):
 
         return responses
 
-    def publish(self, network_middleware: RestMiddleware) -> dict:
-        """
-        Spread word of this Policy far and wide.
-
-        Base publication method for spreading news of the policy.
-        If this is a blockchain policy, this includes writing to
-        PolicyManager contract storage.
-        """
-        return self.publish_treasure_map(network_middleware=network_middleware)
-
     def credential(self, with_treasure_map=True):
         """
         Creates a PolicyCredential for portable access to the policy via
@@ -625,7 +615,7 @@ class BlockchainPolicy(Policy):
         found_ursulas = self.__find_ursulas(sampled_addresses, quantity)
         return found_ursulas
 
-    def publish(self, **kwargs) -> dict:
+    def publish_to_blockchain(self) -> dict:
 
         prearranged_ursulas = list(a.ursula.checksum_address for a in self._accepted_arrangements)
 
