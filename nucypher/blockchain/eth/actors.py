@@ -1163,6 +1163,9 @@ class Worker(NucypherTokenActor):
     Ursula baseclass for blockchain operations, practically carrying a pickaxe.
     """
 
+    BONDING_TIMEOUT = None  # (None or 0) == indefinite
+    BONDING_POLL_RATE = 10
+
     class WorkerError(NucypherTokenActor.ActorError):
         pass
 
@@ -1204,22 +1207,33 @@ class Worker(NucypherTokenActor):
             if start_working_now:
                 self.work_tracker.start(act_now=False)
 
-    @staticmethod
-    def block_until_bonded(worker_address: str,
+    @classmethod
+    def block_until_bonded(cls,
+                           worker_address: str,
                            registry: 'BaseContractRegistry',
-                           poll_rate: int = 10) -> str:
+                           poll_rate: int = None,
+                           timeout: int = None) -> str:
         """
         Polls the staking_agent and blocks until the staking address is not
         a null address for the given worker_address.
         Once the worker is bonded, it returns the staker address.
         """
+        timeout = timeout or cls.BONDING_TIMEOUT
+        poll_rate = poll_rate or cls.BONDING_POLL_RATE
+
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent,
                                                  registry=registry)
 
         staking_addr = staking_agent.get_staker_from_worker(worker_address)
+        start = maya.now()
         while staking_addr == BlockchainInterface.NULL_ADDRESS:
             time.sleep(poll_rate)
             staking_addr = staking_agent.get_staker_from_worker(worker_address)
+            if timeout:
+                now = maya.now()
+                delta = now - start
+                if delta.total_seconds() >= timeout:
+                    raise cls.DetachedWorker(f"Worker {worker_address} not bonded after {timeout} seconds.")
         return staking_addr
 
     @property
