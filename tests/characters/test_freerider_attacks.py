@@ -24,8 +24,7 @@ from nucypher.characters.unlawful import Amonia
 from nucypher.keystore.db.models import PolicyArrangement
 
 
-@pytest.mark.usefixtures('blockchain_ursulas')
-def test_policy_simple_sinpa(blockchain_alice, blockchain_bob, agency, testerchain):
+def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bob, agency, testerchain):
     """
     Making a Policy without paying.
     """
@@ -36,12 +35,17 @@ def test_policy_simple_sinpa(blockchain_alice, blockchain_bob, agency, testercha
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
     with pytest.raises(amonia.NotEnoughNodes):
-        amonia.grant_without_paying(bob=blockchain_bob,
-                                    label=label,
-                                    m=2,
-                                    n=n,
-                                    rate=int(1e18),  # one ether
-                                    expiration=policy_end_datetime)
+        _bupkiss_policy = amonia.grant_without_paying(bob=blockchain_bob,
+                                                      label=label,
+                                                      m=2,
+                                                      n=n,
+                                                      rate=int(1e18),  # one ether
+                                                      expiration=policy_end_datetime)
+
+    for ursula in blockchain_ursulas:
+        # Reset the Ursula for the next test.
+        ursula.suspicious_activities_witnessed['freeriders'] = []
+        ursula.datastore._session_on_init_thread.query(PolicyArrangement).delete()
 
 
 def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, blockchain_alice, blockchain_bob, agency,
@@ -53,7 +57,7 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, block
     # Setup the policy details
     n = 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
-    label = b"this_is_the_path_to_which_access_is_being_granted"
+    label = b"another_path"
 
     bupkiss_policy = amonia.circumvent_safegaurds_and_grant_without_paying(bob=blockchain_bob,
                                                                            label=label,
@@ -63,9 +67,56 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, block
                                                                            expiration=policy_end_datetime)
 
     for ursula in blockchain_ursulas:
-        # Even though the grant executed without error, no Ursula saved a KFrag.
+        # Even though the grant executed without error...
         all_arrangements = ursula.datastore._session_on_init_thread.query(PolicyArrangement).all()
         if all_arrangements:
-            assert len(all_arrangements) == 1  # Just the single arrangement has been considered.
-            arrangement = all_arrangements[0]
-            assert arrangement.kfrag is None
+            arrangement = all_arrangements[0]  # ...and Ursula did save the Arrangement after considering it...
+            assert arrangement.kfrag is None  # ...Ursula did *not* save a KFrag and will not service this Policy.
+
+            # Additionally, Ursula logged Amonia as a freerider:
+            freeriders = ursula.suspicious_activities_witnessed['freeriders']
+            assert len(freeriders) == 1
+            assert freeriders[0] == amonia
+
+            # Reset the Ursula for the next test.
+            ursula.suspicious_activities_witnessed['freeriders'] = []
+            ursula.datastore._session_on_init_thread.query(PolicyArrangement).delete()
+
+
+def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchain_bob, blockchain_ursulas,
+                                                     ursula_decentralized_test_config,
+                                                     testerchain):
+    amonia = Amonia.from_lawful_alice(blockchain_alice)
+    target_ursulas = blockchain_ursulas[0], blockchain_ursulas[1], blockchain_ursulas[2]
+    flunkies = [blockchain_ursulas[5], blockchain_ursulas[6], blockchain_ursulas[7]]
+
+    # Setup the policy details
+    n = 3
+    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    label = b"back_and_forth_forever"
+
+    bupkiss_policy = amonia.grant_while_paying_the_wrong_nodes(ursulas_to_trick_into_working_for_free=target_ursulas,
+                                                               ursulas_to_pay_instead=flunkies,
+                                                               bob=blockchain_bob,
+                                                               label=label,
+                                                               m=2,
+                                                               n=n,
+                                                               rate=int(1e18),  # one ether
+                                                               expiration=policy_end_datetime)
+
+    # Same exact set of assertions as the last test:
+    for ursula in blockchain_ursulas:
+        # Even though the grant executed without error...
+        all_arrangements = ursula.datastore._session_on_init_thread.query(PolicyArrangement).all()
+        if all_arrangements:
+            arrangement = all_arrangements[0]  # ...and Ursula did save the Arrangement after considering it...
+            assert arrangement.kfrag is None  # ...Ursula did *not* save a KFrag and will not service this Policy.
+
+            # Additionally, Ursula logged Amonia as a freerider:
+            freeriders = ursula.suspicious_activities_witnessed['freeriders']
+            assert len(freeriders) == 1
+            assert freeriders[0] == amonia
+
+            # Reset the Ursula for the next test.
+            ursula.suspicious_activities_witnessed['freeriders'] = []
+            ursula.datastore._session_on_init_thread.query(PolicyArrangement).delete()
