@@ -105,10 +105,28 @@ class Amonia(Alice):
         def what_do_you_mean_you_dont_tip(policy, *args, **kwargs):
             policy.publish_transaction = b"He convinced me, gimme back my $"
         with patch("nucypher.policy.policies.BlockchainPolicy.publish_to_blockchain", what_do_you_mean_you_dont_tip):
-            super().grant(*args, **kwargs)
+           return super().grant(*args, **kwargs)
+
+    def circumvent_safegaurds_and_grant_without_paying(self, *args, **kwargs):
+        """
+        I am not Alice, and I needn't abide by her sensibilities or raise her Exceptions.
+
+        Can I grant for free if I change the client code to my liking?
+        """
+        def enact_without_tabulating_responses(policy, network_middleware, *args, **kwargs):
+            for arrangement in policy._Policy__assign_kfrags():
+                arrangement_message_kit = arrangement.encrypt_payload_for_ursula()
+                try:
+                    network_middleware.enact_policy(arrangement.ursula,
+                                                    arrangement.id,
+                                                    arrangement_message_kit.to_bytes())
+                except Exception as e:
+                    # I don't care what went wrong - I will keep trying to ram arrangements through.
+                    continue
+        with patch("nucypher.policy.policies.Policy.enact", enact_without_tabulating_responses):
+            return self.grant_without_paying(*args, **kwargs)
 
     def grant_while_paying_the_wrong_nodes(self, *args, **kwargs):
         """
         Instead of paying the nodes with whom I've made
         """
-        pass
