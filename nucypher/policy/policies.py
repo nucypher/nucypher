@@ -643,10 +643,6 @@ class BlockchainPolicy(Policy):
         self.publish_transaction = receipt['transactionHash']
         self.is_published = True  # TODO: For real: TX / Swarm confirmations needed?
 
-        # Not in love with this block here, but I want 121 closed.
-        for arrangement in self._accepted_arrangements:
-            arrangement.publish_transaction = self.publish_transaction
-
         return receipt
 
     def make_arrangement(self, ursula: Ursula, *args, **kwargs):
@@ -664,4 +660,9 @@ class BlockchainPolicy(Policy):
         """
         if publish is True:
             self.publish_to_blockchain()
+
+            # Not in love with this block here, but I want 121 closed.
+            for arrangement in self._accepted_arrangements:
+                arrangement.publish_transaction = self.publish_transaction
+
         return super().enact(network_middleware, publish)
