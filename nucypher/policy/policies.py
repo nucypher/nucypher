@@ -350,6 +350,14 @@ class Policy(ABC):
             self.treasure_map.add_arrangement(arrangement)
 
         else:
+            # OK, let's check: if two or more Ursulas claimed we didn't pay,
+            # we need to re-evaulate our situation here.
+            arrangement_statuses = [a.status for a in self._accepted_arrangements]
+            number_of_claims_of_freeloading = sum(status==402 for status in arrangement_statuses)
+
+            if number_of_claims_of_freeloading > 2:
+                raise self.alice.NotEnoughNodes  # TODO: Clean this up and enable re-tries.
+
             self.treasure_map.check_for_sufficient_destinations()
 
             # TODO: Leave a note to try any failures later.
