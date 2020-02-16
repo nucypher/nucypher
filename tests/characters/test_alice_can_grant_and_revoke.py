@@ -23,60 +23,12 @@ import pytest
 from umbral.kfrags import KFrag
 
 from nucypher.characters.lawful import Bob, Enrico
-from nucypher.characters.unlawful import Amonia
 from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower, DecryptingPower
-from nucypher.keystore.db.models import PolicyArrangement
 from nucypher.policy.collections import Revocation, PolicyCredential
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-
-
-@pytest.mark.usefixtures('blockchain_ursulas')
-def test_policy_simple_sinpa(blockchain_alice, blockchain_bob, agency, testerchain):
-    """
-    Making a Policy without paying.
-    """
-    amonia = Amonia.from_lawful_alice(blockchain_alice)
-    # Setup the policy details
-    n = 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
-    label = b"this_is_the_path_to_which_access_is_being_granted"
-
-    with pytest.raises(amonia.NotEnoughNodes):
-        amonia.grant_without_paying(bob=blockchain_bob,
-                                    label=label,
-                                    m=2,
-                                    n=n,
-                                    rate=int(1e18),  # one ether
-                                    expiration=policy_end_datetime)
-
-
-def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, blockchain_alice, blockchain_bob, agency, testerchain):
-    """
-    This time we won't rely on the tabulation in Alice's enact to catch the problem.
-    """
-    amonia = Amonia.from_lawful_alice(blockchain_alice)
-    # Setup the policy details
-    n = 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
-    label = b"this_is_the_path_to_which_access_is_being_granted"
-
-    bupkiss_policy = amonia.circumvent_safegaurds_and_grant_without_paying(bob=blockchain_bob,
-                                                          label=label,
-                                                          m=2,
-                                                          n=n,
-                                                          rate=int(1e18),  # one ether
-                                                          expiration=policy_end_datetime)
-
-    for ursula in blockchain_ursulas:
-        # Even though the grant executed without error, no Ursula saved a KFrag.
-        all_arrangements = ursula.datastore._session_on_init_thread.query(PolicyArrangement).all()
-        if all_arrangements:
-            assert len(all_arrangements) == 1  # Just the single arrangement has been considered.
-            arrangement = all_arrangements[0]
-            assert arrangement.kfrag is None
 
 
 @pytest.mark.usefixtures('blockchain_ursulas')
