@@ -151,7 +151,8 @@ class RestMiddleware:
             self.status = status
 
     class NotFound(UnexpectedResponse):
-        pass
+        def __init__(self, message):
+            super().__init__(message, 404)
 
     def __init__(self, registry=None):
         self.client = self._client_class()
