@@ -98,6 +98,18 @@ class Amonia(Alice):
         alice_clone.__class__ = cls
         return alice_clone
 
+    @staticmethod
+    def enact_without_tabulating_responses(policy, network_middleware, *_args, **_kwargs):
+        for arrangement in policy._Policy__assign_kfrags():
+            arrangement_message_kit = arrangement.encrypt_payload_for_ursula()
+            try:
+                network_middleware.enact_policy(arrangement.ursula,
+                                                arrangement.id,
+                                                arrangement_message_kit.to_bytes())
+            except Exception as e:
+                # I don't care what went wrong - I will keep trying to ram arrangements through.
+                continue
+
     def grant_without_paying(self, *args, **kwargs):
         """
         I take what I want for free.
@@ -113,17 +125,7 @@ class Amonia(Alice):
 
         Can I grant for free if I change the client code to my liking?
         """
-        def enact_without_tabulating_responses(policy, network_middleware, *args, **kwargs):
-            for arrangement in policy._Policy__assign_kfrags():
-                arrangement_message_kit = arrangement.encrypt_payload_for_ursula()
-                try:
-                    network_middleware.enact_policy(arrangement.ursula,
-                                                    arrangement.id,
-                                                    arrangement_message_kit.to_bytes())
-                except Exception as e:
-                    # I don't care what went wrong - I will keep trying to ram arrangements through.
-                    continue
-        with patch("nucypher.policy.policies.Policy.enact", enact_without_tabulating_responses):
+        with patch("nucypher.policy.policies.Policy.enact", self.enact_without_tabulating_responses):
             return self.grant_without_paying(*args, **kwargs)
 
     def grant_while_paying_the_wrong_nodes(self, *args, **kwargs):
