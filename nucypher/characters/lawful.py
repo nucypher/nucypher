@@ -58,7 +58,7 @@ from nucypher.crypto.signing import InvalidSignature
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.exceptions import NodeSeemsToBeDown
-from nucypher.network.middleware import RestMiddleware, UnexpectedResponse, NotFound
+from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher, NodeSprout
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri

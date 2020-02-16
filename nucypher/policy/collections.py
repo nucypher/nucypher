@@ -44,7 +44,7 @@ from nucypher.crypto.splitters import key_splitter, capsule_splitter
 from nucypher.crypto.utils import (canonical_address_from_umbral_key,
                                    get_coordinates_as_bytes,
                                    get_signature_recovery_value)
-from nucypher.network.middleware import NotFound
+from nucypher.network.middleware import RestMiddleware
 
 
 class TreasureMap:
@@ -56,14 +56,15 @@ class TreasureMap:
                                   (UmbralMessageKit, VariableLengthBytestring)
                                   )
 
-    class NowhereToBeFound(NotFound):
+    class NowhereToBeFound(RestMiddleware.NotFound):
         """
         Called when no known nodes have it.
         """
 
-    class IsDisorienting(NotFound):
+    class IsDisorienting(Bob.NotEnoughNodes):
         """
-        Called when an oriented TreasureMap lists fewer than m destinations.
+        Called when an oriented TreasureMap lists fewer than m destinations, which
+        leaves Bob disoriented.
         """
 
     node_id_splitter = BytestringSplitter((to_checksum_address, int(PUBLIC_ADDRESS_LENGTH)), ID_LENGTH)
