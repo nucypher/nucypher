@@ -198,6 +198,7 @@ def make_rest_app(
         from nucypher.policy.policies import Arrangement
         arrangement = Arrangement.from_bytes(request.data)
 
+        # TODO: Look at the expiration and figure out if we're even staking that long.  1701
         with ThreadedSession(db_engine) as session:
             new_policy_arrangement = datastore.add_policy_arrangement(
                 arrangement.expiration.datetime(),
@@ -205,8 +206,8 @@ def make_rest_app(
                 alice_verifying_key=arrangement.alice.stamp,
                 session=session,
             )
-        # TODO: Make the rest of this logic actually work - do something here
-        # to decide if this Arrangement is worth accepting.
+        # TODO: Fine, we'll add the arrangement here, but if we never hear from Alice again to enact it,
+        # we need to prune it at some point.  #1700
 
         headers = {'Content-Type': 'application/octet-stream'}
         # TODO: Make this a legit response #234.
@@ -311,6 +312,7 @@ def make_rest_app(
             return Response(response=arrangement_id, status=404)
 
         # Get KFrag
+        # TODO: Yeah, well, what if this arrangement hasn't been enacted?  1702
         kfrag = KFrag.from_bytes(arrangement.kfrag)
 
         # Get Work Order
