@@ -242,13 +242,18 @@ def make_rest_app(
                 receipt = this_node.policy_agent.blockchain.wait_for_receipt(tx, timeout=this_node.synchronous_query_timeout)
             except TimeExhausted:
                 # Alice didn't pay.  Return response with that weird status code.
+                this_node.suspicious_activities_witnessed['freeriders'].append(alice)
                 return Response(status=402)
 
             maybe_policy_created_event = this_node.policy_agent.contract.events.PolicyCreated().processReceipt(receipt)
 
             # TODO: We'd love for this part to be impossible.  #1274
             policy_id_bytes = maybe_policy_created_event[0]['args']['policyId']
-            this_node_has_been_arranged = this_node.checksum_address in (a[0] for a in this_node.policy_agent.fetch_policy_arrangements(policy_id_bytes))
+            arranged_addresses = [a[0] for a in this_node.policy_agent.fetch_policy_arrangements(policy_id_bytes)]
+            this_node_has_been_arranged = this_node.checksum_address in arranged_addresses
+            if not this_node_has_been_arranged:
+                this_node.suspicious_activities_witnessed['freeriders'].append(alice)
+                return Response(status=402)
         else:
             tx = NO_BLOCKCHAIN_CONNECTION  # TODO: constant?
         kfrag = KFrag.from_bytes(cleartext)
