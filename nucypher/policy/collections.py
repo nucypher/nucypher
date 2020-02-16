@@ -212,9 +212,11 @@ class TreasureMap:
                 self._destinations = dict(self.node_id_splitter.repeat(map_in_the_clear[1:]))
             except BytestringSplittingError:
                 self._destinations = {}
+            self.check_for_sufficient_destinations()
 
-            if len(self._destinations) < self._m or self._m == 0:
-                raise self.IsDisorienting(f"TreasureMap lists only {len(self._destinations)} destination, but requires interaction with {self._m} nodes.")
+    def check_for_sufficient_destinations(self):
+        if len(self._destinations) < self._m or self._m == 0:
+            raise self.IsDisorienting(f"TreasureMap lists only {len(self._destinations)} destination, but requires interaction with {self._m} nodes.")
 
     def __eq__(self, other):
         return bytes(self) == bytes(other)
