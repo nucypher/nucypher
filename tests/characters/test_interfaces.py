@@ -1,11 +1,34 @@
-from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
+from nucypher.characters.control.interfaces import PUBLIC_INTERFACES
 
 
-def test_AliceInterface(federated_alice):
+"""
+Test that the various methods of compiling schema info yield identical
+and compatible results
+"""
 
-    interface = federated_alice._interface_class(federated_alice)
 
-    # test custom field attrs
-    assert interface.schema_spec['grant']['properties']['bob_encrypting_key']['type'] == 'string'
-    assert interface.schema_spec['grant']['properties']['bob_encrypting_key']['format'] == 'key'
-    assert interface.schema_spec['grant']['properties']['expiration']['format'] == 'date-iso8601'
+def test_specified_interfaces(federated_alice):
+
+    alice = federated_alice._interface_class(federated_alice)
+    assert alice.schema_spec['grant']['properties']['bob_encrypting_key']['type'] == 'string'
+    assert alice.schema_spec['grant']['properties']['bob_encrypting_key']['format'] == 'key'
+    assert alice.schema_spec['grant']['properties']['expiration']['format'] == 'date-iso8601'
+
+    bob = PUBLIC_INTERFACES['bob']()
+    assert bob.schema_spec['retrieve']['properties']['label']['type'] == 'string'
+    assert bob.schema_spec['retrieve']['properties']['message_kit']['type'] == 'string'
+    assert bob.schema_spec['retrieve']['properties']['message_kit']['format'] == 'base64'
+
+
+def test_adhoc_interfaces():
+
+    staker = PUBLIC_INTERFACES['staker']()
+    assert staker.schema_spec['accounts']['properties']['staking_address']['type'] == 'string'
+    assert staker.schema_spec['accounts']['properties']['staking_address']['format'] == 'checksum_address'
+
+    assert 'winddown' in staker.schema_spec
+    assert staker.schema_spec['winddown']['properties']['beneficiary_address']['type'] == 'string'
+    assert staker.schema_spec['winddown']['properties']['beneficiary_address']['format'] == 'checksum_address'
+
+    ursula = PUBLIC_INTERFACES['ursula']()
+    assert ursula.schema_spec['config']['properties']['poa']['type'] == 'boolean'

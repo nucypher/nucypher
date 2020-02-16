@@ -4,8 +4,8 @@ import inspect
 
 import maya
 from umbral.keys import UmbralPublicKey
-import nucypher
 from nucypher.characters.control.specifications import alice, bob, enrico
+from nucypher.characters.control.specifications.constants import DEFAULT_FIELD_MAPPING
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.utils import construct_policy_id
@@ -34,7 +34,6 @@ class CharacterPublicInterface:
             name: method._schema.as_options_dict()
             for name, method in self._get_interfaces().items()
         }
-
 
     @classmethod
     def connect_cli(cls, action):
@@ -253,8 +252,80 @@ class EnricoInterface(CharacterPublicInterface):
     encrypt = encrypt_message
 
 
+class AdHocJSONInterface:
+    """
+    An interface class meant to provide some reasonable standardized method and param
+    specification info to json consuming applications for our CLI only commands.
+    """
+
+    @staticmethod
+    def _parse_param(param):
+        # should return something like: {'type': 'string', 'format': 'key'},
+        custom_type = DEFAULT_FIELD_MAPPING.get(param.type)
+        return {
+            'type': custom_type[0] if custom_type else param.type.name,
+            'format': custom_type[1] if custom_type else None,
+        }
+
+    @staticmethod
+    def _parse_command(ctx, cmd):
+        # simply formatting command data in JSONAPI form
+        return {
+            "properties": {
+                param.name: AdHocJSONInterface._parse_param(param)
+                for param in cmd.get_params(ctx)
+            }
+        }
+
+    @property
+    def schema_spec(self):
+        """
+        Outputs a list of the available commands and their parameters, generally conforming
+        to the JSONAPI spec, and mostly matching the output of the same method on the
+        decendants of the CharacterPublicInterface class above
+        """
+        if not getattr(self, '_schema_spec', None):
+            from nucypher.cli.main import nucypher_cli
+            self._schema_spec = {}
+            ctx = nucypher_cli.make_context('name', ['something'])
+            cli_root = nucypher_cli.get_command(ctx, self.entrypoint)
+            for o in cli_root.list_commands(ctx):
+                self._schema_spec[o] = AdHocJSONInterface._parse_command(ctx, cli_root.get_command(ctx, o))
+        return self._schema_spec
+
+
+class StakerInterface(AdHocJSONInterface):
+
+    entrypoint = 'stake'
+
+
+class WorklockInterface(AdHocJSONInterface):
+
+    entrypoint = 'worklock'
+
+
+class FelixInterface(AdHocJSONInterface):
+
+    entrypoint = 'felix'
+
+
+class StatusInterface(AdHocJSONInterface):
+
+    entrypoint = 'status'
+
+
+class UrsulaInterface(AdHocJSONInterface):
+
+    entrypoint = 'ursula'
+
+
 PUBLIC_INTERFACES = {
     'alice': AliceInterface,
     'bob': BobInterface,
-    'enrico': EnricoInterface
+    'enrico': EnricoInterface,
+    'staker': StakerInterface,
+    'worklock': WorklockInterface,
+    'status': StatusInterface,
+    'ursula': UrsulaInterface,
+    'felix': FelixInterface,
 }
