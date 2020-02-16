@@ -33,8 +33,7 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_policy_sinpa(blockchain_alice, blockchain_bob, agency, testerchain,
-                      capsule_side_channel_blockchain):
+def test_policy_sinpa(blockchain_alice, blockchain_bob, agency, testerchain):
     """
     Making a Policy without paying.
     """
