@@ -79,7 +79,7 @@ class Vladimir(Ursula):
         try:
             password = INSECURE_DEVELOPMENT_PASSWORD
             blockchain.w3.provider.ethereum_tester.add_account(cls.fraud_key, password=password)
-        except (ValidationError, ):
+        except (ValidationError,):
             # check if Vlad's key is already on the keyring...
             if cls.fraud_address in blockchain.client.accounts:
                 return True
@@ -92,6 +92,7 @@ class Amonia(Alice):
     """
     Separated at birth, Alice's sister is lighter than air and has a pungent smell.
     """
+
     @classmethod
     def from_lawful_alice(cls, alice):
         alice_clone = copy(alice)
@@ -114,10 +115,12 @@ class Amonia(Alice):
         """
         I take what I want for free.
         """
+
         def what_do_you_mean_you_dont_tip(policy, *args, **kwargs):
             policy.publish_transaction = b"He convinced me, gimme back my $"
+
         with patch("nucypher.policy.policies.BlockchainPolicy.publish_to_blockchain", what_do_you_mean_you_dont_tip):
-           return super().grant(*args, **kwargs)
+            return super().grant(*args, **kwargs)
 
     def circumvent_safegaurds_and_grant_without_paying(self, *args, **kwargs):
         """
@@ -128,7 +131,33 @@ class Amonia(Alice):
         with patch("nucypher.policy.policies.Policy.enact", self.enact_without_tabulating_responses):
             return self.grant_without_paying(*args, **kwargs)
 
-    def grant_while_paying_the_wrong_nodes(self, *args, **kwargs):
+    def grant_while_paying_the_wrong_nodes(self,
+                                           ursulas_to_trick_into_working_for_free,
+                                           ursulas_to_pay_instead,
+                                           *args, **kwargs):
         """
-        Instead of paying the nodes with whom I've made
+        Instead of paying the nodes with whom I've made Arrangements,
+        I'll pay my flunkies instead.  Since this is a valid transaction and creates
+        an on-chain Policy using PolicyManager, I'm hoping Ursula won't notice.
         """
+
+        def publish_wrong_payee_address_to_blockchain(policy, *args, **kwargs):
+            receipt = policy.author.policy_agent.create_policy(
+                policy_id=policy.hrac()[:16],  # bytes16 _policyID
+                author_address=policy.author.checksum_address,
+                value=policy.value,
+                end_timestamp=policy.expiration.epoch,  # uint16 _numberOfPeriods
+                node_addresses=[f.checksum_address for f in ursulas_to_pay_instead]  # address[] memory _nodes
+            )
+
+            # Capture Response
+            policy.receipt = receipt
+            policy.publish_transaction = receipt['transactionHash']
+            policy.is_published = True
+
+            return receipt
+
+        with patch("nucypher.policy.policies.BlockchainPolicy.publish_to_blockchain",
+                   publish_wrong_payee_address_to_blockchain):
+            with patch("nucypher.policy.policies.Policy.enact", self.enact_without_tabulating_responses):
+                return super().grant(handpicked_ursulas=ursulas_to_trick_into_working_for_free, *args, **kwargs)
