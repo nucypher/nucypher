@@ -353,7 +353,13 @@ class Policy(ABC):
             # Assuming response is what we hope for.
             self.treasure_map.add_arrangement(arrangement)
 
-        else:  # ...After *all* the arrangements are enacted
+        else:
+            self.treasure_map.check_for_sufficient_destinations()
+
+            # TODO: Leave a note to try any failures later.
+            pass
+
+            # ...After *all* the arrangements are enacted
             # Create Alice's revocation kit
             self.revocation_kit = RevocationKit(self, self.alice.stamp)
             self.alice.add_active_policy(self)
