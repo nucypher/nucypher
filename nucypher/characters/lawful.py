@@ -987,7 +987,9 @@ class Ursula(Teacher, Character, Worker):
             # Ephemeral Self-Ursula
             #
             if is_me:
-                self.suspicious_activities_witnessed = {'vladimirs': [], 'bad_treasure_maps': []}
+                self.suspicious_activities_witnessed = {'vladimirs': [],
+                                                        'bad_treasure_maps': [],
+                                                        'freeriders': []}
 
                 #
                 # REST Server (Ephemeral Self-Ursula)
