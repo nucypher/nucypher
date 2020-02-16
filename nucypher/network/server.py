@@ -236,8 +236,12 @@ def make_rest_app(
             transaction_splitter = BytestringSplitter(32)
             tx, cleartext = transaction_splitter(cleartext, return_remainder=True)
 
-            receipt = this_node.policy_agent.blockchain.wait_for_receipt(tx)
-            this_node.policy_agent.contract.abi  # This is a thing
+            try:
+                receipt = this_node.policy_agent.blockchain.wait_for_receipt(tx, timeout=this_node.synchronous_query_timeout)
+            except:
+                # Alice didn't pay.  Return response with that weird status code.
+                return Response(status=402)
+
             maybe_policy_created_event = this_node.policy_agent.contract.events.PolicyCreated().processReceipt(receipt)
 
             # TODO: We'd love for this part to be impossible.  #1274

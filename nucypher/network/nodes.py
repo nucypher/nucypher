@@ -943,6 +943,7 @@ class Teacher:
     TEACHER_VERSION = LEARNING_LOOP_VERSION
     _interface_info_splitter = (int, 4, {'byteorder': 'big'})
     log = Logger("teacher")
+    synchronous_query_timeout = 20  # How long to wait during REST endpoints for blockchain queries to resolve
     __DEFAULT_MIN_SEED_STAKE = 0
 
     def __init__(self,
