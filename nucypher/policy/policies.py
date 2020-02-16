@@ -72,6 +72,7 @@ class Arrangement:
             self.id = secure_random(self.ID_LENGTH)
         self.expiration = expiration
         self.alice = alice
+        self.status = None
 
         """
         These will normally not be set if Alice is drawing up this arrangement - she hasn't assigned a kfrag yet
@@ -341,14 +342,9 @@ class Policy(ABC):
                                                            arrangement.id,
                                                            arrangement_message_kit.to_bytes())
             except network_middleware.UnexpectedResponse as e:
-                if e.status == 402:
-                    # Ursula is claiming Alice hasn't paid.
-                    continue  # TODO
-                else:
-                    continue  # TODO
-
-            if not response:
-                pass  # TODO: Parse response for confirmation.
+                arrangement.status = e.status
+            else:
+                arrangement.status = response.status_code
 
             # Assuming response is what we hope for.
             self.treasure_map.add_arrangement(arrangement)
