@@ -14,9 +14,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from copy import copy
+from unittest.mock import patch
+
 from eth_tester.exceptions import ValidationError
 
-from nucypher.characters.lawful import Ursula
+from nucypher.characters.lawful import Ursula, Alice
 from nucypher.crypto.powers import CryptoPower, SigningPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_URSULA_DB_FILEPATH
 from nucypher.utilities.sandbox.middleware import EvilMiddleWare
@@ -83,3 +86,20 @@ class Vladimir(Ursula):
             else:
                 raise
         return True
+
+
+class Amonia(Alice):
+    """
+    Separated at birth, Alice's sister is lighter than air and has a pungent smell.
+    """
+    @classmethod
+    def from_lawful_alice(cls, alice):
+        alice_clone = copy(alice)
+        alice_clone.__class__ = cls
+        return alice_clone
+
+    def grant_without_paying(self, *args, **kwargs):
+        def what_do_you_mean_you_dont_tip(policy, *args, **kwargs):
+            policy.publish_transaction = b"He convinced me, gimme back my $"
+        with patch("nucypher.policy.policies.BlockchainPolicy.publish_to_blockchain", what_do_you_mean_you_dont_tip):
+            super().grant(*args, **kwargs)
