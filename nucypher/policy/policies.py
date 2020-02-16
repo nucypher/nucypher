@@ -336,9 +336,16 @@ class Policy(ABC):
         for arrangement in self.__assign_kfrags():
             arrangement_message_kit = arrangement.encrypt_payload_for_ursula()
 
-            response = network_middleware.enact_policy(arrangement.ursula,
-                                                       arrangement.id,
-                                                       arrangement_message_kit.to_bytes())
+            try:
+                response = network_middleware.enact_policy(arrangement.ursula,
+                                                           arrangement.id,
+                                                           arrangement_message_kit.to_bytes())
+            except network_middleware.UnexpectedResponse as e:
+                if e.status == 402:
+                    # Ursula is claiming Alice hasn't paid.
+                    continue  # TODO
+                else:
+                    continue  # TODO
 
             if not response:
                 pass  # TODO: Parse response for confirmation.
