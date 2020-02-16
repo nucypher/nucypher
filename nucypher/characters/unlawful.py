@@ -99,7 +99,16 @@ class Amonia(Alice):
         return alice_clone
 
     def grant_without_paying(self, *args, **kwargs):
+        """
+        I take what I want for free.
+        """
         def what_do_you_mean_you_dont_tip(policy, *args, **kwargs):
             policy.publish_transaction = b"He convinced me, gimme back my $"
         with patch("nucypher.policy.policies.BlockchainPolicy.publish_to_blockchain", what_do_you_mean_you_dont_tip):
             super().grant(*args, **kwargs)
+
+    def grant_while_paying_the_wrong_nodes(self, *args, **kwargs):
+        """
+        Instead of paying the nodes with whom I've made
+        """
+        pass
