@@ -27,6 +27,7 @@ from flask import request
 from hendrix.experience import crosstown_traffic
 from jinja2 import Template, TemplateError
 from twisted.logger import Logger
+from web3.exceptions import TimeExhausted
 
 import nucypher
 from nucypher.config.storages import ForgetfulNodeStorage
@@ -238,7 +239,7 @@ def make_rest_app(
 
             try:
                 receipt = this_node.policy_agent.blockchain.wait_for_receipt(tx, timeout=this_node.synchronous_query_timeout)
-            except:
+            except TimeExhausted:
                 # Alice didn't pay.  Return response with that weird status code.
                 return Response(status=402)
 
