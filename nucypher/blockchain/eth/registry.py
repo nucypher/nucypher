@@ -67,14 +67,14 @@ class CanonicalRegistrySource(ABC):
 
 class GithubRegistrySource(CanonicalRegistrySource):
 
-    _PUBLICATION_REPO = "nucypher/ethereum-contract-registry"
+    _PUBLICATION_REPO = "nucypher/nucypher"
     _BASE_URL = f'https://raw.githubusercontent.com/{_PUBLICATION_REPO}'
 
     name = "GitHub Registry Source"
     is_primary = True
 
     def get_publication_endpoint(self) -> str:
-        url = f'{self._BASE_URL}/master/{self.network}/{self.registry_name}'
+        url = f'{self._BASE_URL}/master/nucypher/blockchain/eth/contract_registry/{self.network}/{self.registry_name}'
         return url
 
     def fetch_latest_publication(self) -> Union[str, bytes]:
@@ -98,13 +98,13 @@ class GithubRegistrySource(CanonicalRegistrySource):
 
 class InPackageRegistrySource(CanonicalRegistrySource):
     _HERE = os.path.abspath(os.path.dirname(__file__))
-    _BASE_DIR = os.path.join(_HERE, "contract_registry")
+    _REGISTRY_DIR = os.path.join(_HERE, "contract_registry")
 
     name = "In-Package Registry Source"
     is_primary = False
 
     def get_publication_endpoint(self) -> str:
-        filepath = str(os.path.join(self._BASE_DIR, self.network, self.registry_name))
+        filepath = str(os.path.join(self._REGISTRY_DIR, self.network, self.registry_name))
         return filepath
 
     def fetch_latest_publication(self) -> Union[str, bytes]:
