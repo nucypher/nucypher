@@ -652,6 +652,17 @@ class PolicyManagerAgent(EthereumContractAgent):
         blockchain_record = self.contract.functions.policies(policy_id).call()
         return blockchain_record
 
+    def fetch_policy_from_txid(self, txid, timeout=600):
+        receipt = self.blockchain.wait_for_receipt(txid, timeout=timeout)
+        policy_created_event = self.contract.events.PolicyCreated().processReceipt(receipt)
+        return policy_created_event
+
+    def fetch_arrangements_from_policy_txid(self, txid, timeout=600):
+        policy_created_event = self.fetch_policy_from_txid(txid, timeout)
+        policy_id_bytes = policy_created_event[0]['args']['policyId']
+        arrangements = self.fetch_policy_arrangements(policy_id_bytes)
+        return arrangements
+
     @validate_checksum_address
     def revoke_policy(self, policy_id: bytes, author_address: str):
         """Revoke by arrangement ID; Only the policy's author_address can revoke the policy."""
