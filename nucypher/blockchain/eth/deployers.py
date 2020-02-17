@@ -1133,7 +1133,7 @@ class WorklockDeployer(BaseContractDeployer):
         Convenience method for funding the contract and establishing the
         total worklock lot value to be auctioned.
         """
-        supply = self.economics.worklock_supply.to_nunits()
+        supply = int(self.economics.worklock_supply)
 
         token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
         approve_function = token_agent.contract.functions.approve(self.contract_address, supply)
