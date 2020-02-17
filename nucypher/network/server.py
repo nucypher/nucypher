@@ -239,17 +239,16 @@ def make_rest_app(
             tx, cleartext = transaction_splitter(cleartext, return_remainder=True)
 
             try:
-                receipt = this_node.policy_agent.blockchain.wait_for_receipt(tx, timeout=this_node.synchronous_query_timeout)
+                # Get all of the arrangements and verify that we'll be paid.
+                # TODO: We'd love for this part to be impossible to reduce the risk of collusion.  #1274
+                arrangements = this_node.policy_agent.fetch_arrangements_from_policy_txid(tx, timeout=20)
             except TimeExhausted:
                 # Alice didn't pay.  Return response with that weird status code.
                 this_node.suspicious_activities_witnessed['freeriders'].append((alice, f"No transaction matching {tx}."))
                 return Response(status=402)
+            else:
+                arranged_addresses = [a[0] for a in arrangements]
 
-            maybe_policy_created_event = this_node.policy_agent.contract.events.PolicyCreated().processReceipt(receipt)
-
-            # TODO: We'd love for this part to be impossible.  #1274
-            policy_id_bytes = maybe_policy_created_event[0]['args']['policyId']
-            arranged_addresses = [a[0] for a in this_node.policy_agent.fetch_policy_arrangements(policy_id_bytes)]
             this_node_has_been_arranged = this_node.checksum_address in arranged_addresses
             if not this_node_has_been_arranged:
                 this_node.suspicious_activities_witnessed['freeriders'].append((alice, f"The tranaction {tx} does not list me as a Worker - it lists {arranged_addresses}."))

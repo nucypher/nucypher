@@ -76,7 +76,7 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, block
             # Additionally, Ursula logged Amonia as a freerider:
             freeriders = ursula.suspicious_activities_witnessed['freeriders']
             assert len(freeriders) == 1
-            assert freeriders[0] == amonia
+            assert freeriders[0][0] == amonia
 
             # Reset the Ursula for the next test.
             ursula.suspicious_activities_witnessed['freeriders'] = []
@@ -115,7 +115,7 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchai
             # Additionally, Ursula logged Amonia as a freerider:
             freeriders = ursula.suspicious_activities_witnessed['freeriders']
             assert len(freeriders) == 1
-            assert freeriders[0] == amonia
+            assert freeriders[0][0] == amonia
 
             # Reset the Ursula for the next test.
             ursula.suspicious_activities_witnessed['freeriders'] = []
