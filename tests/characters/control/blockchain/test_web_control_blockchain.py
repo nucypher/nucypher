@@ -129,7 +129,7 @@ def test_alice_character_control_revoke(alice_web_controller_test_client, blockc
 def test_alice_character_control_decrypt(alice_web_controller_test_client,
                                          enacted_blockchain_policy,
                                          capsule_side_channel_blockchain):
-    message_kit, data_source = capsule_side_channel_blockchain()
+    message_kit = capsule_side_channel_blockchain()
 
     label = enacted_blockchain_policy.label.decode()
     # policy_encrypting_key = bytes(enacted_blockchain_policy.public_key).hex()

@@ -146,8 +146,8 @@ class RestMiddleware:
     _client_class = NucypherMiddlewareClient
 
     class UnexpectedResponse(Exception):
-        def __init__(self, status, *args, **kwargs):
-            super().__init__(*args, **kwargs)
+        def __init__(self, message, status, *args, **kwargs):
+            super().__init__(message, *args, **kwargs)
             self.status = status
 
     class NotFound(UnexpectedResponse):
