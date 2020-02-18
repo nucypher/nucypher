@@ -1309,6 +1309,11 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         self.rate = rate
         self.duration_periods = duration_periods
 
+    @property
+    def default_rate(self):
+        _minimum, default, _maximum = self.policy_agent.get_min_reward_rate_range()
+        return default
+
     def generate_policy_parameters(self,
                                    number_of_ursulas: int = None,
                                    duration_periods: int = None,
