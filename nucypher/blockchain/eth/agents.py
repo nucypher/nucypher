@@ -91,9 +91,14 @@ class Events:  # TODO: Perhaps consider an 'events' namespace. Opinions?
         self.contract = contract
         self.names = tuple(e.event_name for e in contract.events)
 
-    def __getattr__(self, event_name):
+    def __get_web3_event_by_name(self, event_name):
         if event_name not in self.names:
             raise TypeError(f"Event '{event_name}' doesn't exist in this contract. Valid events are {self.names}")
+        event_method = getattr(self.contract.events, event_name)
+        return event_method
+
+    def __getitem__(self, event_name: str):
+        event_method = self.__get_web3_event_by_name(event_name)
 
         def wrapper(from_block=None, to_block=None, **argument_filters):
 
@@ -102,13 +107,20 @@ class Events:  # TODO: Perhaps consider an 'events' namespace. Opinions?
             if not to_block:
                 to_block = 'latest'
 
-            event_method = getattr(self.contract.events, event_name)
             event_filter = event_method.createFilter(fromBlock=from_block,
                                                      toBlock=to_block,
                                                      argument_filters=argument_filters)
-            yield event_filter.get_all_entries()
-
+            entries = event_filter.get_all_entries()
+            for entry in entries:
+                yield entry
         return wrapper
+
+    def __getattr__(self, event_name: str):
+        return self[event_name]
+
+    def __iter__(self):
+        for event_name in self.names:
+            yield self[event_name]
 
 
 class EthereumContractAgent:

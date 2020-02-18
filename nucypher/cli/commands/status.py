@@ -200,16 +200,10 @@ def events(general_config, registry_options, contract_name, from_block, to_block
         names = agent.events.names if not event_name else [event_name]
         for name in names:
             emitter.echo(f"{name}:", bold=True, color='yellow')
-            event_method = agent.contract.events[name]
-            event_filter = event_method.createFilter(fromBlock=from_block, toBlock=to_block)
-            for e in event_filter.get_all_entries():
-                event_str = ", ".join(f"{k}: {v}" for k, v in e['args'].items())
+            event_method = agent.events[name]
+            for event in event_method(from_block=from_block, to_block=to_block):
+                event_str = ", ".join(f"{k}: {v}" for k, v in event['args'].items())
                 emitter.echo(f"  - {event_str}")
-
-        # event_method = agent.events[event_name]
-        # for event in list(event_method())[:10]:
-        #     for e in event:
-        #         emitter.echo(f"  - {dict(e['args'])}")
 
 
 def _setup_emitter(general_config):
