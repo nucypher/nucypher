@@ -652,16 +652,12 @@ class PolicyManagerAgent(EthereumContractAgent):
         blockchain_record = self.contract.functions.policies(policy_id).call()
         return blockchain_record
 
-    def fetch_policy_from_txid(self, txid, timeout=600):
-        receipt = self.blockchain.wait_for_receipt(txid, timeout=timeout)
-        policy_created_event = self.contract.events.PolicyCreated().processReceipt(receipt)
-        return policy_created_event
-
-    def fetch_arrangements_from_policy_txid(self, txid, timeout=600):
-        policy_created_event = self.fetch_policy_from_txid(txid, timeout)
-        policy_id_bytes = policy_created_event[0]['args']['policyId']
-        arrangements = self.fetch_policy_arrangements(policy_id_bytes)
-        return arrangements
+    def fetch_arrangement_addresses_from_policy_txid(self, txhash, timeout=600):
+        # TODO: Won't it be great when this is impossible?  #1274
+        _receipt = self.blockchain.wait_for_receipt(txhash, timeout=timeout)
+        transaction = self.blockchain.client.w3.eth.getTransaction(txhash)
+        _signature, parameters = self.contract.decode_function_input(transaction.data)
+        return parameters['_nodes']
 
     @validate_checksum_address
     def revoke_policy(self, policy_id: bytes, author_address: str):

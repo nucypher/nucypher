@@ -241,13 +241,11 @@ def make_rest_app(
             try:
                 # Get all of the arrangements and verify that we'll be paid.
                 # TODO: We'd love for this part to be impossible to reduce the risk of collusion.  #1274
-                arrangements = this_node.policy_agent.fetch_arrangements_from_policy_txid(tx, timeout=20)
+                arranged_addresses = this_node.policy_agent.fetch_arrangement_addresses_from_policy_txid(tx, timeout=this_node.synchronous_query_timeout)
             except TimeExhausted:
                 # Alice didn't pay.  Return response with that weird status code.
                 this_node.suspicious_activities_witnessed['freeriders'].append((alice, f"No transaction matching {tx}."))
                 return Response(status=402)
-            else:
-                arranged_addresses = [a[0] for a in arrangements]
 
             this_node_has_been_arranged = this_node.checksum_address in arranged_addresses
             if not this_node_has_been_arranged:
