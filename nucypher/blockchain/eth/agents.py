@@ -39,6 +39,7 @@ from nucypher.blockchain.eth.constants import (
     ETH_ADDRESS_BYTE_LENGTH
 )
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.events import ContractEvents
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
 from nucypher.blockchain.eth.utils import epoch_to_period
@@ -85,44 +86,6 @@ class ContractAgency:
         return agent
 
 
-class Events:  # TODO: Perhaps consider an 'events' namespace. Opinions?
-
-    def __init__(self, contract):
-        self.contract = contract
-        self.names = tuple(e.event_name for e in contract.events)
-
-    def __get_web3_event_by_name(self, event_name):
-        if event_name not in self.names:
-            raise TypeError(f"Event '{event_name}' doesn't exist in this contract. Valid events are {self.names}")
-        event_method = getattr(self.contract.events, event_name)
-        return event_method
-
-    def __getitem__(self, event_name: str):
-        event_method = self.__get_web3_event_by_name(event_name)
-
-        def wrapper(from_block=None, to_block=None, **argument_filters):
-
-            if not from_block:
-                from_block = 0  # TODO: we can do better. Get contract creation block.
-            if not to_block:
-                to_block = 'latest'
-
-            event_filter = event_method.createFilter(fromBlock=from_block,
-                                                     toBlock=to_block,
-                                                     argument_filters=argument_filters)
-            entries = event_filter.get_all_entries()
-            for entry in entries:
-                yield entry
-        return wrapper
-
-    def __getattr__(self, event_name: str):
-        return self[event_name]
-
-    def __iter__(self):
-        for event_name in self.names:
-            yield self[event_name]
-
-
 class EthereumContractAgent:
     """
     Base class for ethereum contract wrapper types that interact with blockchain contract instances
@@ -158,7 +121,7 @@ class EthereumContractAgent:
                                                             proxy_name=self._proxy_name,
                                                             use_proxy_address=self._forward_address)
         self.__contract = contract
-        self.events = Events(contract)
+        self.events = ContractEvents(contract)
         if not transaction_gas:
             transaction_gas = EthereumContractAgent.DEFAULT_TRANSACTION_GAS_LIMITS
         self.transaction_gas = transaction_gas

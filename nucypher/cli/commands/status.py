@@ -201,9 +201,8 @@ def events(general_config, registry_options, contract_name, from_block, to_block
         for name in names:
             emitter.echo(f"{name}:", bold=True, color='yellow')
             event_method = agent.events[name]
-            for event in event_method(from_block=from_block, to_block=to_block):
-                event_str = ", ".join(f"{k}: {v}" for k, v in event['args'].items())
-                emitter.echo(f"  - {event_str}")
+            for event_record in event_method(from_block=from_block, to_block=to_block):
+                emitter.echo(f"  - {event_record}")
 
 
 def _setup_emitter(general_config):
