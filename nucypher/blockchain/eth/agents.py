@@ -36,6 +36,7 @@ from nucypher.blockchain.eth.constants import (
     ADJUDICATOR_CONTRACT_NAME,
     NUCYPHER_TOKEN_CONTRACT_NAME,
     MULTISIG_CONTRACT_NAME,
+    SEEDER_CONTRACT_NAME,
     ETH_ADDRESS_BYTE_LENGTH
 )
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -1129,7 +1130,7 @@ class WorkLockAgent(EthereumContractAgent):
 
 class SeederAgent(EthereumContractAgent):
 
-    registry_contract_name = "Seeder"
+    registry_contract_name = SEEDER_CONTRACT_NAME
 
     def enroll(self, sender_address: str, seed_address: str, ip: str, port: int) -> dict:
         # TODO: Protection for over-enrollment
