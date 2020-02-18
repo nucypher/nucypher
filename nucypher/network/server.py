@@ -251,7 +251,7 @@ def make_rest_app(
 
             this_node_has_been_arranged = this_node.checksum_address in arranged_addresses
             if not this_node_has_been_arranged:
-                this_node.suspicious_activities_witnessed['freeriders'].append((alice, f"The tranaction {tx} does not list me as a Worker - it lists {arranged_addresses}."))
+                this_node.suspicious_activities_witnessed['freeriders'].append((alice, f"The transaction {tx} does not list me as a Worker - it lists {arranged_addresses}."))
                 return Response(status=402)
         else:
             _tx = NO_BLOCKCHAIN_CONNECTION

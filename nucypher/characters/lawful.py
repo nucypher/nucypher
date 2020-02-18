@@ -580,7 +580,7 @@ class Bob(Character):
         else:
             # TODO: Work out what to do in this scenario -
             #       if Bob can't get the TreasureMap, he needs to rest on the learning mutex or something.
-            raise TreasureMap.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but nonw had map {map_id} ")
+            raise TreasureMap.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_id} ")
 
         return treasure_map
 
