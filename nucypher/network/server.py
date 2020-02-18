@@ -236,7 +236,7 @@ def make_rest_app(
         if not this_node.federated_only:
             # This splitter probably belongs somewhere canonical.
             transaction_splitter = BytestringSplitter(32)
-            tx, cleartext = transaction_splitter(cleartext, return_remainder=True)
+            tx, kfrag_bytes = transaction_splitter(cleartext, return_remainder=True)
 
             try:
                 # Get all of the arrangements and verify that we'll be paid.
@@ -254,8 +254,9 @@ def make_rest_app(
                 this_node.suspicious_activities_witnessed['freeriders'].append((alice, f"The tranaction {tx} does not list me as a Worker - it lists {arranged_addresses}."))
                 return Response(status=402)
         else:
-            tx = NO_BLOCKCHAIN_CONNECTION  # TODO: constant?
-        kfrag = KFrag.from_bytes(cleartext)
+            _tx = NO_BLOCKCHAIN_CONNECTION
+            kfrag_bytes = cleartext
+        kfrag = KFrag.from_bytes(kfrag_bytes)
 
         if not kfrag.verify(signing_pubkey=alices_verifying_key):
             raise InvalidSignature("{} is invalid".format(kfrag))
