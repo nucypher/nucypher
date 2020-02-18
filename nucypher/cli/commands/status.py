@@ -34,6 +34,7 @@ from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
     option_contract_name,
+    option_event_name,
     option_geth,
     option_light,
     option_network,
@@ -156,9 +157,9 @@ def locked_tokens(general_config, registry_options, periods):
 @group_registry_options
 @group_general_config
 @option_contract_name
+@option_event_name
 @click.option('--from-block', help="Collect events from this block number", type=click.INT)
 @click.option('--to-block', help="Collect events until this block number", type=click.INT)
-@click.option('--event-name', help="Specify an event by name", type=click.STRING)
 # TODO: Add options for number of periods in the past (default current period), or range of blocks
 # TODO: Add way to input additional event filters? (e.g., staker, etc)
 def events(general_config, registry_options, contract_name, from_block, to_block, event_name):
