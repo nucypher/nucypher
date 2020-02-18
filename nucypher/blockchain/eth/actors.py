@@ -1177,6 +1177,31 @@ class Staker(NucypherTokenActor):
         missing = self.staking_agent.get_missing_confirmations(checksum_address=staker_address)
         return missing
 
+    @only_me
+    @save_receipt
+    def set_min_reward_rate(self, min_rate: int) -> Tuple[str, str]:
+        """Public facing method for setting min reward rate."""
+        minimum, _default, maximum = self.policy_agent.get_min_reward_rate_range()
+        if min_rate < minimum or min_rate > maximum:
+            raise ValueError(f"Min reward rate must be within range [{minimum}, {maximum}]")
+        if self.is_contract:
+            receipt = self.preallocation_escrow_agent.set_min_reward_rate(min_rate=min_rate)
+        else:
+            receipt = self.policy_agent.set_min_reward_rate(staker_address=self.checksum_address, min_rate=min_rate)
+        return receipt
+
+    @property
+    def min_reward_rate(self) -> int:
+        staker_address = self.checksum_address
+        min_rate = self.policy_agent.get_min_reward_rate(staker_address)
+        return min_rate
+
+    @property
+    def raw_min_reward_rate(self) -> int:
+        staker_address = self.checksum_address
+        min_rate = self.policy_agent.get_raw_min_reward_rate(staker_address)
+        return min_rate
+
 
 class Worker(NucypherTokenActor):
     """

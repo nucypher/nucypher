@@ -54,14 +54,14 @@ def test_rapid_deployment(token_economics, test_registry, tmpdir):
     blockchain.transacting_power.activate()
     deployer_address = blockchain.etherbase_account
 
-    deployer = ContractAdministrator(deployer_address=deployer_address,
-                                     registry=test_registry)
+    administrator = ContractAdministrator(deployer_address=deployer_address,
+                                          registry=test_registry)
 
     secrets = dict()
-    for deployer_class in deployer.upgradeable_deployer_classes:
+    for deployer_class in administrator.upgradeable_deployer_classes:
         secrets[deployer_class.contract_name] = INSECURE_DEVELOPMENT_PASSWORD
 
-    deployer.deploy_network_contracts(secrets=secrets, emitter=StdoutEmitter())
+    administrator.deploy_network_contracts(secrets=secrets, emitter=StdoutEmitter())
 
     all_yall = blockchain.unassigned_accounts
 
@@ -90,7 +90,10 @@ def test_rapid_deployment(token_economics, test_registry, tmpdir):
         random_allocation = {'beneficiary_address': beneficiary_address, 'amount': amount, 'duration_seconds': duration}
         allocation_data.append(random_allocation)
 
-    deployer.deploy_beneficiary_contracts(allocations=allocation_data,
-                                          allocation_registry=allocation_registry,
-                                          output_dir=tmpdir,
-                                          interactive=False)
+    administrator.deploy_beneficiary_contracts(allocations=allocation_data,
+                                               allocation_registry=allocation_registry,
+                                               output_dir=tmpdir,
+                                               interactive=False)
+
+    minimum, default, maximum = 10, 20, 30
+    administrator.set_min_reward_rate_range(minimum, default, maximum)

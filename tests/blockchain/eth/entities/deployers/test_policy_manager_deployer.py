@@ -27,6 +27,7 @@ from nucypher.blockchain.eth.deployers import (
 )
 from nucypher.utilities.sandbox.constants import (POLICY_MANAGER_DEPLOYMENT_SECRET,
                                                   STAKING_ESCROW_DEPLOYMENT_SECRET)
+from tests.fixtures import MIN_REWARD_RATE_RANGE
 
 
 def test_policy_manager_deployment(policy_manager_deployer, staking_escrow_deployer, deployment_progress):
@@ -163,3 +164,13 @@ def test_rollback(testerchain, test_registry):
     new_target = policy_manager_agent.contract.functions.target().call()
     assert new_target != current_target
     assert new_target == old_target
+
+
+def test_set_reward_range(policy_manager_deployer, test_registry):
+    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)  # type: PolicyManagerAgent
+    assert policy_agent.get_min_reward_rate_range() == (0, 0, 0)
+
+    minimum, default, maximum = 10, 20, 30
+    receipt = policy_manager_deployer.set_min_reward_rate_range(minimum, default, maximum)
+    assert receipt['status'] == 1
+    assert policy_agent.get_min_reward_rate_range() == (minimum, default, maximum)
