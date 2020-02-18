@@ -20,7 +20,11 @@ import click
 import maya
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency, PolicyManagerAgent
-from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME, POLICY_MANAGER_CONTRACT_NAME
+from nucypher.blockchain.eth.constants import (
+    STAKING_ESCROW_CONTRACT_NAME,
+    POLICY_MANAGER_CONTRACT_NAME,
+    AVERAGE_BLOCK_TIME_IN_SECONDS
+)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
@@ -162,6 +166,8 @@ def events(general_config, registry_options, contract_name, from_block, to_block
     Show events associated to NuCypher contracts
     """
     emitter = _setup_emitter(general_config)
+    registry = registry_options.get_registry(emitter, general_config.debug)
+    blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=registry_options.provider_uri)
 
     if not contract_name:
         if event_name:
@@ -170,12 +176,9 @@ def events(general_config, registry_options, contract_name, from_block, to_block
     else:
         contract_names = [contract_name]
 
-    registry = registry_options.get_registry(emitter, general_config.debug)
-
     if from_block is None:
-        # Sketch of logic for getting the approximate block height of current period start
-        AVERAGE_BLOCK_TIME = 14
-        blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=registry_options.provider_uri)
+        # Sketch of logic for getting the approximate block height of current period start,
+        # so by default, this command only shows events of the current period
         last_block = blockchain.client.w3.eth.blockNumber
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
         current_period = staking_agent.get_current_period()
@@ -183,7 +186,7 @@ def events(general_config, registry_options, contract_name, from_block, to_block
                                                   seconds_per_period=staking_agent.staking_parameters()[0],
                                                   start_of_period=True)
         seconds_from_midnight = int((maya.now() - current_period_start).total_seconds())
-        blocks_from_midnight = seconds_from_midnight // AVERAGE_BLOCK_TIME
+        blocks_from_midnight = seconds_from_midnight // AVERAGE_BLOCK_TIME_IN_SECONDS
 
         from_block = last_block - blocks_from_midnight
 

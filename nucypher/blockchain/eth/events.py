@@ -15,16 +15,22 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+
 
 class EventRecord:
-    def __init__(self, event: dict, blockchain=None):
+    def __init__(self, event: dict):
         self.raw_event = dict(event)
         self.args = dict(event['args'])
         self.block_number = event['blockNumber']
-        self.timestamp = None
-        if blockchain:
-            self.timestamp = blockchain.client.w3.eth.getBlock(self.block_number)['timestamp'],
         self.transaction_hash = event['transactionHash'].hex()
+
+        try:
+            blockchain = BlockchainInterfaceFactory.get_interface()
+        except BlockchainInterfaceFactory.NoRegisteredInterfaces:
+            self.timestamp = None
+        else:
+            self.timestamp = blockchain.client.w3.eth.getBlock(self.block_number)['timestamp'],
 
     def __repr__(self):
         pairs_to_show = dict(self.args.items())
