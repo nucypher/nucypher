@@ -19,13 +19,15 @@ import binascii
 import os
 from typing import Tuple
 
+from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
-from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
+from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES, NO_BLOCKCHAIN_CONNECTION
 from flask import Flask, Response, jsonify
 from flask import request
 from hendrix.experience import crosstown_traffic
 from jinja2 import Template, TemplateError
 from twisted.logger import Logger
+from web3.exceptions import TimeExhausted
 
 import nucypher
 from nucypher.config.storages import ForgetfulNodeStorage
@@ -196,6 +198,7 @@ def make_rest_app(
         from nucypher.policy.policies import Arrangement
         arrangement = Arrangement.from_bytes(request.data)
 
+        # TODO: Look at the expiration and figure out if we're even staking that long.  1701
         with ThreadedSession(db_engine) as session:
             new_policy_arrangement = datastore.add_policy_arrangement(
                 arrangement.expiration.datetime(),
@@ -203,8 +206,8 @@ def make_rest_app(
                 alice_verifying_key=arrangement.alice.stamp,
                 session=session,
             )
-        # TODO: Make the rest of this logic actually work - do something here
-        # to decide if this Arrangement is worth accepting.
+        # TODO: Fine, we'll add the arrangement here, but if we never hear from Alice again to enact it,
+        # we need to prune it at some point.  #1700
 
         headers = {'Content-Type': 'application/octet-stream'}
         # TODO: Make this a legit response #234.
@@ -230,7 +233,28 @@ def make_rest_app(
             # TODO: Perhaps we log this?
             return Response(status_code=400)
 
-        kfrag = KFrag.from_bytes(cleartext)
+        if not this_node.federated_only:
+            # This splitter probably belongs somewhere canonical.
+            transaction_splitter = BytestringSplitter(32)
+            tx, kfrag_bytes = transaction_splitter(cleartext, return_remainder=True)
+
+            try:
+                # Get all of the arrangements and verify that we'll be paid.
+                # TODO: We'd love for this part to be impossible to reduce the risk of collusion.  #1274
+                arranged_addresses = this_node.policy_agent.fetch_arrangement_addresses_from_policy_txid(tx, timeout=this_node.synchronous_query_timeout)
+            except TimeExhausted:
+                # Alice didn't pay.  Return response with that weird status code.
+                this_node.suspicious_activities_witnessed['freeriders'].append((alice, f"No transaction matching {tx}."))
+                return Response(status=402)
+
+            this_node_has_been_arranged = this_node.checksum_address in arranged_addresses
+            if not this_node_has_been_arranged:
+                this_node.suspicious_activities_witnessed['freeriders'].append((alice, f"The transaction {tx} does not list me as a Worker - it lists {arranged_addresses}."))
+                return Response(status=402)
+        else:
+            _tx = NO_BLOCKCHAIN_CONNECTION
+            kfrag_bytes = cleartext
+        kfrag = KFrag.from_bytes(kfrag_bytes)
 
         if not kfrag.verify(signing_pubkey=alices_verifying_key):
             raise InvalidSignature("{} is invalid".format(kfrag))
@@ -291,6 +315,7 @@ def make_rest_app(
             return Response(response=arrangement_id, status=404)
 
         # Get KFrag
+        # TODO: Yeah, well, what if this arrangement hasn't been enacted?  1702
         kfrag = KFrag.from_bytes(arrangement.kfrag)
 
         # Get Work Order

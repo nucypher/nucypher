@@ -72,6 +72,7 @@ class Arrangement:
             self.id = secure_random(self.ID_LENGTH)
         self.expiration = expiration
         self.alice = alice
+        self.status = None
 
         """
         These will normally not be set if Alice is drawing up this arrangement - she hasn't assigned a kfrag yet
@@ -96,10 +97,6 @@ class Arrangement:
         return self.alice.encrypt_for(self.ursula, self.payload())[0]
 
     def payload(self):
-        # TODO #127 - Ship the expiration again?
-        # Or some other way of alerting Ursula to
-        # recall her previous dialogue regarding this Arrangement.
-        # Update: We'll probably have her store the Arrangement by hrac.  See #127.
         return bytes(self.kfrag)
 
     @abstractmethod
@@ -157,6 +154,10 @@ class BlockchainArrangement(Arrangement):
         self.revoke_transaction = txhash
         self.is_revoked = True
         return txhash
+
+    def payload(self):
+        partial_payload = super().payload()
+        return bytes(self.publish_transaction) + partial_payload
 
 
 class Policy(ABC):
@@ -292,16 +293,6 @@ class Policy(ABC):
 
         return responses
 
-    def publish(self, network_middleware: RestMiddleware) -> dict:
-        """
-        Spread word of this Policy far and wide.
-
-        Base publication method for spreading news of the policy.
-        If this is a blockchain policy, this includes writing to
-        PolicyManager contract storage.
-        """
-        return self.publish_treasure_map(network_middleware=network_middleware)
-
     def credential(self, with_treasure_map=True):
         """
         Creates a PolicyCredential for portable access to the policy via
@@ -343,29 +334,42 @@ class Policy(ABC):
         Assign kfrags to ursulas_on_network, and distribute them via REST,
         populating enacted_arrangements
         """
-        # TODO: #121 - Consider tweaking the order of the enactment steps:
-        # first create the policy on chain and then send the kfrags together with the TX receipt
-
         for arrangement in self.__assign_kfrags():
-            policy_message_kit = arrangement.encrypt_payload_for_ursula()
+            arrangement_message_kit = arrangement.encrypt_payload_for_ursula()
 
-            response = network_middleware.enact_policy(arrangement.ursula,
-                                                       arrangement.id,
-                                                       policy_message_kit.to_bytes())
-
-            if not response:
-                pass  # TODO: Parse response for confirmation.
+            try:
+                response = network_middleware.enact_policy(arrangement.ursula,
+                                                           arrangement.id,
+                                                           arrangement_message_kit.to_bytes())
+            except network_middleware.UnexpectedResponse as e:
+                arrangement.status = e.status
+            else:
+                arrangement.status = response.status_code
 
             # Assuming response is what we hope for.
             self.treasure_map.add_arrangement(arrangement)
 
-        else:  # ...After *all* the arrangements are enacted
+        else:
+            # OK, let's check: if two or more Ursulas claimed we didn't pay,
+            # we need to re-evaulate our situation here.
+            arrangement_statuses = [a.status for a in self._accepted_arrangements]
+            number_of_claims_of_freeloading = sum(status==402 for status in arrangement_statuses)
+
+            if number_of_claims_of_freeloading > 2:
+                raise self.alice.NotEnoughNodes  # TODO: Clean this up and enable re-tries.
+
+            self.treasure_map.check_for_sufficient_destinations()
+
+            # TODO: Leave a note to try any failures later.
+            pass
+
+            # ...After *all* the arrangements are enacted
             # Create Alice's revocation kit
             self.revocation_kit = RevocationKit(self, self.alice.stamp)
             self.alice.add_active_policy(self)
 
             if publish is True:
-                return self.publish(network_middleware=network_middleware)
+                return self.publish_treasure_map(network_middleware=network_middleware)
 
     def consider_arrangement(self, network_middleware, ursula, arrangement) -> bool:
         negotiation_response = network_middleware.consider_arrangement(arrangement=arrangement)
@@ -625,7 +629,7 @@ class BlockchainPolicy(Policy):
         found_ursulas = self.__find_ursulas(sampled_addresses, quantity)
         return found_ursulas
 
-    def publish(self, **kwargs) -> dict:
+    def publish_to_blockchain(self) -> dict:
 
         prearranged_ursulas = list(a.ursula.checksum_address for a in self._accepted_arrangements)
 
@@ -643,8 +647,6 @@ class BlockchainPolicy(Policy):
         self.publish_transaction = receipt['transactionHash']
         self.is_published = True  # TODO: For real: TX / Swarm confirmations needed?
 
-        # Call super publish (currently publishes TMap)
-        super().publish(network_middleware=self.alice.network_middleware)
         return receipt
 
     def make_arrangement(self, ursula: Ursula, *args, **kwargs):
@@ -654,3 +656,17 @@ class BlockchainPolicy(Policy):
                                        rate=self.rate,
                                        duration_periods=self.duration_periods,
                                        *args, **kwargs)
+
+    def enact(self, network_middleware, publish=True) -> dict:
+        """
+        Assign kfrags to ursulas_on_network, and distribute them via REST,
+        populating enacted_arrangements
+        """
+        if publish is True:
+            self.publish_to_blockchain()
+
+            # Not in love with this block here, but I want 121 closed.
+            for arrangement in self._accepted_arrangements:
+                arrangement.publish_transaction = self.publish_transaction
+
+        return super().enact(network_middleware, publish)

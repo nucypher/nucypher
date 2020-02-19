@@ -9,7 +9,6 @@ from nucypher.characters.control.specifications import alice, bob, enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.utils import construct_policy_id
-from nucypher.network.middleware import NotFound
 
 
 def attach_schema(schema):

@@ -44,7 +44,7 @@ from nucypher.crypto.splitters import key_splitter, capsule_splitter
 from nucypher.crypto.utils import (canonical_address_from_umbral_key,
                                    get_coordinates_as_bytes,
                                    get_signature_recovery_value)
-from nucypher.network.middleware import NotFound
+from nucypher.network.middleware import RestMiddleware
 
 
 class TreasureMap:
@@ -56,14 +56,15 @@ class TreasureMap:
                                   (UmbralMessageKit, VariableLengthBytestring)
                                   )
 
-    class NowhereToBeFound(NotFound):
+    class NowhereToBeFound(RestMiddleware.NotFound):
         """
         Called when no known nodes have it.
         """
 
-    class IsDisorienting(NotFound):
+    class IsDisorienting(Bob.NotEnoughNodes):
         """
-        Called when an oriented TreasureMap lists fewer than m destinations.
+        Called when an oriented TreasureMap lists fewer than m destinations, which
+        leaves Bob disoriented.
         """
 
     node_id_splitter = BytestringSplitter((to_checksum_address, int(PUBLIC_ADDRESS_LENGTH)), ID_LENGTH)
@@ -211,9 +212,11 @@ class TreasureMap:
                 self._destinations = dict(self.node_id_splitter.repeat(map_in_the_clear[1:]))
             except BytestringSplittingError:
                 self._destinations = {}
+            self.check_for_sufficient_destinations()
 
-            if len(self._destinations) < self._m or self._m == 0:
-                raise self.IsDisorienting(f"TreasureMap lists only {len(self._destinations)} destination, but requires interaction with {self._m} nodes.")
+    def check_for_sufficient_destinations(self):
+        if len(self._destinations) < self._m or self._m == 0:
+            raise self.IsDisorienting(f"TreasureMap lists only {len(self._destinations)} destination, but requires interaction with {self._m} nodes.")
 
     def __eq__(self, other):
         return bytes(self) == bytes(other)

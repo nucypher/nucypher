@@ -31,7 +31,7 @@ from nucypher.policy.policies import Arrangement, Policy
 class MockArrangement(Arrangement):
     _arrangements = OrderedDict()
 
-    def publish(self) -> None:
+    def publish_treasure_map(self) -> None:
         self._arrangements[self.id()] = self
 
     def revoke(self):

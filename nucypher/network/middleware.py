@@ -36,14 +36,6 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 EXEMPT_FROM_VERIFICATION.bool_value(False)
 
 
-class UnexpectedResponse(Exception):
-    pass
-
-
-class NotFound(UnexpectedResponse):
-    pass
-
-
 class NucypherMiddlewareClient:
     library = requests
     timeout = 1.2
@@ -133,10 +125,10 @@ class NucypherMiddlewareClient:
             if cleaned_response.status_code >= 300:
                 if cleaned_response.status_code == 404:
                     m = f"While trying to {method_name} {args} ({kwargs}), server 404'd.  Response: {cleaned_response.content}"
-                    raise NotFound(m)
+                    raise RestMiddleware.NotFound(m)
                 else:
                     m = f"Unexpected response while trying to {method_name} {args},{kwargs}: {cleaned_response.status_code} {cleaned_response.content}"
-                    raise UnexpectedResponse(m)
+                    raise RestMiddleware.UnexpectedResponse(m, status=cleaned_response.status_code)
             return cleaned_response
 
         return method_wrapper
@@ -152,6 +144,15 @@ class RestMiddleware:
     log = Logger()
 
     _client_class = NucypherMiddlewareClient
+
+    class UnexpectedResponse(Exception):
+        def __init__(self, message, status, *args, **kwargs):
+            super().__init__(message, *args, **kwargs)
+            self.status = status
+
+    class NotFound(UnexpectedResponse):
+        def __init__(self, *args, **kwargs):
+            super().__init__(status=404, *args, **kwargs)
 
     def __init__(self, registry=None):
         self.client = self._client_class()
@@ -192,7 +193,7 @@ class RestMiddleware:
                                     path=f'kFrag/{kfrag_id.hex()}',
                                     data=payload,
                                     timeout=2)
-        return True, ursula.stamp.as_umbral_pubkey()
+        return response
 
     def reencrypt(self, work_order):
         ursula_rest_response = self.send_work_order_payload_to_ursula(work_order)

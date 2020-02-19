@@ -58,7 +58,7 @@ from nucypher.crypto.signing import InvalidSignature
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.exceptions import NodeSeemsToBeDown
-from nucypher.network.middleware import RestMiddleware, UnexpectedResponse, NotFound
+from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher, NodeSprout
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
@@ -323,10 +323,10 @@ class Alice(Character, BlockchainPolicyAuthor):
                 revocation = policy.revocation_kit[node_id]
                 try:
                     response = self.network_middleware.revoke_arrangement(ursula, revocation)
-                except NotFound:
-                    failed_revocations[node_id] = (revocation, NotFound)
-                except UnexpectedResponse:
-                    failed_revocations[node_id] = (revocation, UnexpectedResponse)
+                except self.network_middleware.NotFound:
+                    failed_revocations[node_id] = (revocation, self.network_middleware.NotFound)
+                except self.network_middleware.UnexpectedResponse:
+                    failed_revocations[node_id] = (revocation, self.network_middleware.UnexpectedResponse)
                 else:
                     if response.status_code != 200:
                         raise self.ActorError(f"Failed to revoke {policy.id} with status code {response.status_code}")
@@ -564,7 +564,7 @@ class Bob(Character):
                 response = network_middleware.get_treasure_map_from_node(node=node, map_id=map_id)
             except NodeSeemsToBeDown:
                 continue
-            except NotFound:
+            except network_middleware.NotFound:
                 self.log.info(f"Node {node} claimed not to have TreasureMap {map_id}")
                 continue
 
@@ -580,7 +580,7 @@ class Bob(Character):
         else:
             # TODO: Work out what to do in this scenario -
             #       if Bob can't get the TreasureMap, he needs to rest on the learning mutex or something.
-            raise TreasureMap.NowhereToBeFound
+            raise TreasureMap.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_id} ")
 
         return treasure_map
 
@@ -784,7 +784,7 @@ class Bob(Character):
                     self.log.info(
                         f"Ursula ({work_order.ursula}) seems to be down while trying to complete WorkOrder: {work_order}")
                     continue
-                except NotFound:
+                except self.network_middleware.NotFound:
                     # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
                     # TODO: What's the thing to do here?  Do we want to track these Ursulas in some way in case they're lying?
                     self.log.warn(
@@ -987,7 +987,9 @@ class Ursula(Teacher, Character, Worker):
             # Ephemeral Self-Ursula
             #
             if is_me:
-                self.suspicious_activities_witnessed = {'vladimirs': [], 'bad_treasure_maps': []}
+                self.suspicious_activities_witnessed = {'vladimirs': [],
+                                                        'bad_treasure_maps': [],
+                                                        'freeriders': []}
 
                 #
                 # REST Server (Ephemeral Self-Ursula)

@@ -1185,6 +1185,9 @@ class Worker(NucypherTokenActor):
         # Agency
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
 
+        # Someday, when we have Workers for tasks other than PRE, this might instead be composed on Ursula.
+        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
+
         # Stakes
         self.__start_time = WORKER_NOT_RUNNING
         self.__uptime_period = WORKER_NOT_RUNNING
