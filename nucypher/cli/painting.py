@@ -875,26 +875,27 @@ def paint_bidding_notice(emitter, bidder):
 * WorkLock Participant Notice *
 -------------------------------
 
-- By participating in NuCypher's WorkLock you are committing to operating a staking NuCypher
-  node after the bidding window closes.
+- By participating in NuCypher's WorkLock you are committing to operating a staking
+  NuCypher node after the bidding window closes.
 
-- WorkLock token rewards are claimed in the form of a stake and will be locked for the stake duration.
+- WorkLock token rewards are claimed in the form of a stake and will be locked for
+  the stake duration.
 
 - WorkLock ETH deposits will be available for refund at a rate of {prettify_eth_amount(bidder.worklock_agent.get_refund_rate())} 
   per confirmed period. This rate will become frozen on {maya.MayaDT(bidder.economics.bidding_end_date).local_datetime()}.
 
-- Once claiming WorkLock tokens, you are obligated to maintain a networked
-  and available Ursula-Worker node bonded to the staker address {bidder.checksum_address} for the duration
-  of the stake(s) ({bidder.economics.worklock_commitment_duration} periods).
+- Once claiming WorkLock tokens, you are obligated to maintain a networked and available
+  Ursula-Worker node bonded to the staker address {bidder.checksum_address}
+  for the duration of the stake(s) ({bidder.economics.worklock_commitment_duration} periods).
 
-- Allow NuCypher network users to carry out uninterrupted re-encryption
-  work orders at-will without interference. Failure to keep your node online, 
-  or violation of re-encryption work orders will result in the loss of staked tokens as
-  described in the NuCypher slashing protocol.
+- Allow NuCypher network users to carry out uninterrupted re-encryption work orders
+  at-will without interference. Failure to keep your node online, or violation of
+  re-encryption work orders will result in the loss of staked tokens as described
+  in the NuCypher slashing protocol.
 
-- Keeping your Ursula node online during the staking period and successfully
-  producing correct re-encryption work orders will result in rewards
-  paid out in ethers retro-actively and on-demand.
+- Keeping your Ursula node online during the staking period and correctly servicing
+  re-encryption work orders will result in rewards paid out in ethers retro-actively
+  and on-demand.
 
 Accept WorkLock terms and node operator obligation?"""  # TODO: Show a special message for first bidder, since there's no refund rate yet?
 
@@ -911,7 +912,7 @@ You can check that the stake was created correctly by running:
 
   nucypher status stakers --staking-address {bidder_address} --network {network} --provider {provider_uri}
 
-Next Steps for Worklock Winners
+Next Steps for WorkLock Winners
 ===============================
 
 Congratulations! You're officially a Staker in the NuCypher network.
