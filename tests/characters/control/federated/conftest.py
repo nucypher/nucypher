@@ -125,7 +125,7 @@ def retrieve_control_request(federated_bob, enacted_federated_policy, capsule_si
 
 @pytest.fixture(scope='module')
 def encrypt_control_request():
-    method_name = 'encrypt_message'
+    method_name = 'encrypt'
     params = {
         'message': b64encode(b"The admiration I had for your work has completely evaporated!").decode(),
     }

@@ -483,7 +483,7 @@ def test_collect_rewards_integration(click_runner,
 
         # Encrypt
         random_data = os.urandom(random.randrange(20, 100))
-        ciphertext, signature = enrico.encrypt_message(message=random_data)
+        ciphertext, signature = enrico.encrypt(message=random_data)
 
         # Decrypt
         cleartexts = blockchain_bob.retrieve(ciphertext,

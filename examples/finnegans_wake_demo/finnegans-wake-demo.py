@@ -127,7 +127,7 @@ for counter, plaintext in enumerate(finnegans_wake):
     # single passage from James Joyce's Finnegan's Wake.
     # The matter of whether encryption makes the passage more or less readable
     # is left to the reader to determine.
-    single_passage_ciphertext, _signature = enrico.encrypt_message(plaintext)
+    single_passage_ciphertext, _signature = enrico.encrypt(plaintext)
     data_source_public_key = bytes(enrico.stamp)
     del enrico
 

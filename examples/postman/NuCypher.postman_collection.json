@@ -45,7 +45,7 @@
 			"response": []
 		},
 		{
-			"name": "Enrico/encrypt_message",
+			"name": "Enrico/encrypt",
 			"event": [{
 				"listen": "test",
 				"script": {
@@ -72,13 +72,13 @@
 					"raw": "{\n\t\"message\":\"NuVault Rocks\"\n}"
 				},
 				"url": {
-					"raw": "{{base_uri}}:{{enrico_port}}/encrypt_message",
+					"raw": "{{base_uri}}:{{enrico_port}}/encrypt",
 					"host": [
 						"{{base_uri}}"
 					],
 					"port": "{{enrico_port}}",
 					"path": [
-						"encrypt_message"
+						"encrypt"
 					]
 				}
 			},

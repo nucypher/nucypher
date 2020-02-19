@@ -210,7 +210,7 @@ def test_bob_web_character_control_retrieve_again(bob_web_controller_test_client
     assert response.status_code == 400
 
 
-def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test_client, encrypt_control_request):
+def test_enrico_web_character_control_encrypt(enrico_web_controller_test_client, encrypt_control_request):
     method_name, params = encrypt_control_request
     endpoint = f'/{method_name}'
 
@@ -225,11 +225,11 @@ def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test
     assert UmbralMessageKit.from_bytes(b64decode(response_data['result']['message_kit']))
 
     # Send bad data to assert error return
-    response = enrico_web_controller_test_client.post('/encrypt_message', data=json.dumps({'bad': 'input'}))
+    response = enrico_web_controller_test_client.post('/encrypt', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
     del(params['message'])
-    response = enrico_web_controller_test_client.post('/encrypt_message', data=params)
+    response = enrico_web_controller_test_client.post('/encrypt', data=params)
     assert response.status_code == 400
 
 
@@ -290,7 +290,7 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
         'message': b64encode(bytes(plaintext, encoding='utf-8')).decode(),
     }
 
-    response = enrico_web_controller_from_alice.post('/encrypt_message', data=json.dumps(enrico_request_data))
+    response = enrico_web_controller_from_alice.post('/encrypt', data=json.dumps(enrico_request_data))
     assert response.status_code == 200
 
     enrico_response_data = json.loads(response.data)

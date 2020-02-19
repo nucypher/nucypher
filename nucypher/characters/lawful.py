@@ -1427,7 +1427,7 @@ class Enrico(Character):
         self.log = Logger(f'{self.__class__.__name__}-{bytes(self.public_keys(SigningPower)).hex()[:6]}')
         self.log.info(self.banner.format(policy_encrypting_key))
 
-    def encrypt_message(self,
+    def encrypt(self,
                         message: bytes
                         ) -> Tuple[UmbralMessageKit, Signature]:
         message_kit, signature = encrypt_and_sign(self.policy_pubkey,
@@ -1469,8 +1469,8 @@ class Enrico(Character):
         # Character Control HTTP Endpoints
         #
 
-        @enrico_control.route('/encrypt_message', methods=['POST'])
-        def encrypt_message():
+        @enrico_control.route('/encrypt', methods=['POST'])
+        def encrypt():
             """
             Character control endpoint for encrypting data for a policy and
             receiving the messagekit (and signature) to give to Bob.
@@ -1482,7 +1482,7 @@ class Enrico(Character):
                 return Response(str(e), status=400)
 
             # Encrypt
-            message_kit, signature = drone_enrico.encrypt_message(bytes(message, encoding='utf-8'))
+            message_kit, signature = drone_enrico.encrypt(bytes(message, encoding='utf-8'))
 
             response_data = {
                 'result': {

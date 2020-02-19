@@ -313,7 +313,7 @@ def capsule_side_channel(enacted_federated_policy):
 
         def __call__(self):
             message = "Welcome to flippering number {}.".format(len(self.messages)).encode()
-            message_kit, _signature = self.enrico.encrypt_message(message)
+            message_kit, _signature = self.enrico.encrypt(message)
             self.messages.append((message_kit, self.enrico))
             if self.plaintext_passthrough:
                 self.plaintexts.append(message)
@@ -337,8 +337,8 @@ def capsule_side_channel_blockchain(enacted_blockchain_policy):
 
         def __call__(self):
             message = "Welcome to flippering number {}.".format(len(self.messages)).encode()
-            message_kit, _signature = self.enrico.encrypt_message(message)
-            self.messages.append((message_kit, self.enrico))
+            message_kit, _signature = self.enrico.encrypt(message)
+            self.messages.append((message_kit, enrico))
             if self.plaintext_passthrough:
                 self.plaintexts.append(message)
             return message_kit

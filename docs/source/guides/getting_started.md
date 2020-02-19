@@ -25,14 +25,14 @@ The NuCypher network does not store or handle an application's data; instead - i
 Management of encrypted secrets and public keys tends to be highly domain-specific - The surrounding architecture
 will vary greatly depending on the throughput, sensitivity, and sharing cadence of application secrets.
 In all cases, NuCypher must be integrated with a storage and transport layer in order to function properly.
-Along with the transport of ciphertexts, a nucypher application also needs to include channels for Alice and Bob 
+Along with the transport of ciphertexts, a nucypher application also needs to include channels for Alice and Bob
 to discover each other's public keys, and provide policy encrypting information to Bob and Enrico.
- 
+
 ##### Side Channel Application Data
   - Secrets:
     - Message Kits - Encrypted Messages, or "Ciphertexts"
   - Identities:
-    - Alice Verifying Key - Public key used for verifying Alice 
+    - Alice Verifying Key - Public key used for verifying Alice
     - Bob Encrypting Key - Public key used to encrypt for Bob
     - Bob Verifying Key - Public key used to verify Bob
   - Policies:
@@ -43,10 +43,10 @@ to discover each other's public keys, and provide policy encrypting information 
 
 Operation of a decentralized NuCypher character [`Alice`, `Bob`, `Ursula`] requires
 a connection to an Ethereum node and wallet to interact with smart
-contracts (<https://docs.nucypher.com/en/latest/architecture/contracts.html>). 
+contracts (<https://docs.nucypher.com/en/latest/architecture/contracts.html>).
 
 For general background information about choosing a node technology and operation,
-see <https://web3py.readthedocs.io/en/stable/node.html>. 
+see <https://web3py.readthedocs.io/en/stable/node.html>.
 
 In this guide, a local Geth node connected to the Goerli Testnet is used.
 For detailed information on using the geth CLI and Javascript console,
@@ -64,7 +64,7 @@ To run a Goerli-connected Geth node in *light* syncing mode:
 $ geth --goerli --syncmode light
 ```
 
-Note that using `--syncmode light` is not 100% stable but can be a life savior when using 
+Note that using `--syncmode light` is not 100% stable but can be a life savior when using
 a mobile connection (or congested hackathon wifi...).
 
 Connect to the Geth Console to test your ethereum node's IPC:
@@ -74,7 +74,7 @@ $ geth attach ~/.ethereum/goerli/geth.ipc
 
 ### Wallets
 
-To list available accounts on your geth node (Hardware wallet addresses will also be listed here 
+To list available accounts on your geth node (Hardware wallet addresses will also be listed here
 if one is attached to the system hardware):
 
 ```bash
@@ -93,7 +93,7 @@ $ geth attach ~/.ethereum/goerli/geth.ipc
 ```
 
 Note that the Geth console does not return EIP-55 compliant checksum addresses, and instead will output
-the *lowercase* version of the address.  Since Nucypher requires EIP-55 checksum addresses, you will need 
+the *lowercase* version of the address.  Since Nucypher requires EIP-55 checksum addresses, you will need
 to convert your address to checksum format:
 
 ```javascript
@@ -107,7 +107,7 @@ to convert your address to checksum format:
 
 Nucypher uses the ethereum node's IPC-File to communicate, specified by `provider_uri`.
 By default in ubuntu, the path is `~/.ethereum/goerli/geth.ipc` - This path
-will also be logged to the geth-running console on startup. 
+will also be logged to the geth-running console on startup.
 
 ### Connecting Nucypher to an Ethereum Provider
 
@@ -118,7 +118,7 @@ BlockchainInterfaceFactory.initialize_interface(provider_uri='~/.ethereum/goerli
 
 ### Ursula: Untrusted Re-Encryption Proxies
 
-When initializing an `Alice`, `Bob`, or `Ursula`, an initial "Stranger-`Ursula`" is needed to perform 
+When initializing an `Alice`, `Bob`, or `Ursula`, an initial "Stranger-`Ursula`" is needed to perform
 the role of a `Teacher`, or "seednode":
 
 ```python
@@ -170,7 +170,7 @@ alice = Alice(keyring=keyring, known_nodes=[ursula], provider_uri='~/.ethereum/g
 alice.start_learning_loop(now=True)
 ```
 
-Alice needs to know about Bob in order to grant access by acquiring Bob's public key's through 
+Alice needs to know about Bob in order to grant access by acquiring Bob's public key's through
 the application side channel:
 
 ```python
@@ -204,7 +204,7 @@ policy_encrypting_key = policy.public_key
 
 ### Setup Enrico
 
-First, A `policy_encrypting_key` must be retrieved from the application side channel, then 
+First, A `policy_encrypting_key` must be retrieved from the application side channel, then
 to encrypt a secret using Enrico:
 
 ### Encrypt
@@ -213,7 +213,7 @@ to encrypt a secret using Enrico:
 from nucypher.characters.lawful import Enrico
 
 enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
-ciphertext, signature = enrico.encrypt_message(message=b'Peace at dawn.')
+ciphertext, signature = enrico.encrypt(message=b'Peace at dawn.')
 ```
 
 The ciphertext can then be sent to Bob via the application side channel.

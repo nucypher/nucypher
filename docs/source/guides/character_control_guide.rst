@@ -158,15 +158,15 @@ For more details on these arguments, see the nucypher documentation on the ``Bob
 Enrico (DataSource)
 -------------------
 
-encrypt_message
+encrypt
 ~~~~~~~~~~~~~~~
 
-This endpoint controls the ``Enrico.encrypt_message`` method.
+This endpoint controls the ``Enrico.encrypt`` method.
 
-- URL: ``/encrypt_message``
+- URL: ``/encrypt``
 - HTTP Method: ``POST``
 - Required arguments:
     - ``message`` -- encoded as base64
 - Returns: ``message_kit`` and ``signature`` encoded as base64
 
-For more details on these arguments, see the nucypher documentation on the ``Enrico.encrypt_message`` Python API method.
+For more details on these arguments, see the nucypher documentation on the ``Enrico.encrypt`` Python API method.

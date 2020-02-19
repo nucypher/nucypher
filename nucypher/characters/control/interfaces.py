@@ -241,12 +241,12 @@ class BobInterface(CharacterPublicInterface):
 class EnricoInterface(CharacterPublicInterface):
 
     @attach_schema(enrico.EncryptMessage)
-    def encrypt_message(self, message: str):
+    def encrypt(self, message: str):
         """
         Character control endpoint for encrypting data for a policy and
         receiving the messagekit (and signature) to give to Bob.
         """
-        message_kit, signature = self.character.encrypt_message(bytes(message, encoding='utf-8'))
+        message_kit, signature = self.character.encrypt(bytes(message, encoding='utf-8'))
         response_data = {'message_kit': message_kit, 'signature': signature}
         return response_data
 

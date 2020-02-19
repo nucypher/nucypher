@@ -63,7 +63,7 @@ def test_bob_rpc_character_control_join_policy(bob_rpc_controller, join_control_
     assert 'jsonrpc' in response.data
 
 
-def test_enrico_rpc_character_control_encrypt_message(enrico_rpc_controller_test_client, encrypt_control_request):
+def test_enrico_rpc_character_control_encrypt(enrico_rpc_controller_test_client, encrypt_control_request):
     method_name, params = encrypt_control_request
     request_data = {'method': method_name, 'params': params}
     response = enrico_rpc_controller_test_client.send(request_data)
