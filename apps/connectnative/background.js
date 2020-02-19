@@ -3,29 +3,36 @@
 const nucypher = browser.runtime.connectNative('nucypher')
 var password
 
-nucypher.onMessage.addListener((response) => {
+// browser interaction
+const ports = {
+  'panel-messages': null,
+  'content-messages': null
+}
+
+const STDIOReturnMessageHandler = (response) => {
   /*
     routes stdio responses from the NuCypher CLI to the
     right places.
   */
-
-  let route = response.route
   console.log(response)
+  console.log(ports)
+  const route = response.route
   if (ports['panel-messages']) {
     ports['panel-messages'].postMessage({
       route: route,
       data: response
     })
   }
-  if(ports['content-messages']) {
+
+  if (ports['content-messages']) {
     ports['content-messages'].postMessage({
       route: route,
       data: response
     })
   }
-})
+}
 
-function NucypherExecute (request) {
+const ExecuteSTDIOCommand = (request) => {
   if (request.character === 'undefined') {
     delete request.character
   }
@@ -41,19 +48,19 @@ function NucypherExecute (request) {
   }
 }
 
-function NucypherOptions(request) {
+
+function NucypherOptions (request) {
   request.options = true
-  request.keyring_password = password
   nucypher.postMessage(request)
 }
 
-function getPassword(request) {
+function getPassword (request) {
   ports['panel-messages'].postMessage({
     route: 'need-password'
   })
 }
 
-function setPassword(data) {
+function setPassword (data) {
   password = data
   if (ports['content-messages']) {
     ports['content-messages'].postMessage({
@@ -63,17 +70,10 @@ function setPassword(data) {
   }
 }
 
-// browser interaction
-var ports = {
-  'panel-messages': null,
-  'content-messages': null,
-}
-
 function Dispatcher (message) {
   const callbacks = {
-    execute: NucypherExecute,
+    execute: ExecuteSTDIOCommand,
     options: NucypherOptions,
-    'need-password': getPassword,
     setPassword: setPassword
   }
   if (callbacks[message.route] !== undefined) {
@@ -81,13 +81,15 @@ function Dispatcher (message) {
   }
 }
 
-function connected (p) {
+function onConnected (p) {
   ports[p.name] = p
   ports[p.name].onMessage.addListener(Dispatcher)
 }
-browser.runtime.onConnect.addListener(connected)
 
-//panel interaction
+browser.runtime.onConnect.addListener(onConnected)
+nucypher.onMessage.addListener(STDIOReturnMessageHandler)
+
+// create the UI panel
 browser.browserAction.onClicked.addListener(() => {
   popupWindow = browser.windows.create(
     {
