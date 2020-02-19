@@ -240,7 +240,7 @@ class BobInterface(CharacterPublicInterface):
 
 class EnricoInterface(CharacterPublicInterface):
 
-    @attach_schema(enrico.EncryptMessage, name='encrypt')
+    @attach_schema(enrico.EncryptMessage)
     def encrypt_message(self, message: str):
         """
         Character control endpoint for encrypting data for a policy and

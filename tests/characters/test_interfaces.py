@@ -19,6 +19,10 @@ def test_specified_interfaces(federated_alice):
     assert bob.schema_spec['retrieve']['properties']['message_kit']['type'] == 'string'
     assert bob.schema_spec['retrieve']['properties']['message_kit']['format'] == 'base64'
 
+    enrico = PUBLIC_INTERFACES['enrico']()
+    assert enrico.schema_spec['encrypt']['properties']['message']['type'] == 'string'
+    assert enrico.schema_spec['encrypt']['properties']['message']['format'] == 'textfield'
+
 
 def test_adhoc_interfaces():
 
@@ -32,3 +36,6 @@ def test_adhoc_interfaces():
 
     ursula = PUBLIC_INTERFACES['ursula']()
     assert ursula.schema_spec['config']['properties']['poa']['type'] == 'boolean'
+
+    staker = PUBLIC_INTERFACES['alice']()
+    assert 'debug' not in ursula.schema_spec['config']['properties']

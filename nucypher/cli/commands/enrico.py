@@ -46,7 +46,7 @@ def run(general_config, policy_encrypting_key, dry_run, http_port):
 
 
 @enrico.command()
-@EnricoInterface.connect_cli('encrypt_message')
+@EnricoInterface.connect_cli('encrypt')
 @group_general_config
 def encrypt(general_config, policy_encrypting_key, message):
     """
@@ -61,7 +61,7 @@ def encrypt(general_config, policy_encrypting_key, message):
 
     # Request
     encryption_request = {'message': message}
-    response = ENRICO.controller.encrypt_message(request=encryption_request)
+    response = ENRICO.controller.encrypt(request=encryption_request)
     return response
 
 

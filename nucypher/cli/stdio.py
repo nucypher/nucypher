@@ -36,6 +36,7 @@ def send_message(message):
     sys.stdout.buffer.write(message['length'])
     sys.stdout.buffer.write(message['content'])
     sys.stdout.buffer.flush()
+    logging.debug('success')
 
 
 click_runner = CliRunner()  # TODO: Make Proper
@@ -46,7 +47,7 @@ try:
         request = get_message()  # < -------- REQUEST FROM BROWSER
 
         logging.debug(f"incoming data: {request}")
-        action = request['action']
+        action = request.get('action')
         character = request.get('character', '')
 
         options_request = request.pop('options', False)
@@ -55,15 +56,14 @@ try:
             logging.debug("options request")
             interface = PUBLIC_INTERFACES.get(character)
             schema = interface().schema_spec
-            logging.debug(schema)
             output = {
                 "input": request,
-                "route": f"{character}.options",
+                "route": "options",
                 "result": schema,
             }
             final_message = encode_message(output)
             logging.debug(f"Sending to the browser: {final_message}")
-            send_message(final_message)  # < ---- RESPONSE TO BROWSER
+            send_message(encode_message(output))  # < ---- RESPONSE TO BROWSER
 
         else:
             params = []
@@ -73,8 +73,6 @@ try:
             route_key = '.'.join(params)
             #  if there is no password, the process will just hang
             #  so lets deal with that now.
-
-
             try:
                 NUCYPHER_KEYRING_PASSWORD = request['keyring_password']
             except KeyError:
@@ -88,7 +86,7 @@ try:
             else:
                 params.append('--json-ipc')
 
-                for param, value in request['args'].items():
+                for param, value in request.get('args', {}).items():
                     param = param.replace("_", "-")
                     if value is True:
                         params.append(f"--{param}")
@@ -99,10 +97,10 @@ try:
                 environ = {'NUCYPHER_KEYRING_PASSWORD': NUCYPHER_KEYRING_PASSWORD}
                 result = None
                 try:
+                    logging.debug(params)
                     logging.debug(f"calling nucypher with params: {' '.join(params)}")
                     nc_result = click_runner.invoke(nucypher_cli, params, catch_exceptions=True, env=environ)
                     logging.debug(f"result is: {nc_result.output}")
-                    result = nc_result.output
                 except BadParameter as e:
                     logging.debug(f"NuCypher CLI error ==== \n {'.'.join(dir(e).keys())}")
 
@@ -114,12 +112,17 @@ try:
                     logging.debug(f"NuCypher CLI error ==== \n {'.'.join(dir(e).keys())}")
                 ####
 
+                if nc_result.exit_code == 0:
+                    result = {"result": nc_result.output}
+                else:
+                    result = {"error": str(nc_result.exception)}
+
                 del request['keyring_password']
                 output = {
                     "input": request,
                     "route": route_key,
-                    "result": result,
                 }
+                output.update(result)
                 final_message = encode_message(output)
                 logging.debug(f"Sending to the browser: {final_message}")
                 send_message(final_message)  # < ---- RESPONSE TO BROWSER
@@ -128,4 +131,4 @@ except Exception:
     exc_type, exc_value, exc_traceback = sys.exc_info()
     lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
     err = ''.join('\n' + line for line in lines)  # Log it or whatever here
-    logging.debug(f"ERROR ============= \n {err}")
+    logging.error(f"ERROR ============= \n {err}")
