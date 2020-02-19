@@ -240,7 +240,7 @@ class RestMiddleware:
                            nodes_i_need=None,
                            fleet_checksum=None):
         if nodes_i_need:
-            # TODO: This needs to actually do something.
+            # TODO: This needs to actually do something.  NRN
             # Include node_ids in the request; if the teacher node doesn't know about the
             # nodes matching these ids, then it will ask other nodes.
             pass

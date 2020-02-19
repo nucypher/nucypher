@@ -359,11 +359,11 @@ class Learner:
             raise ValueError("Cannot save nodes without a configured node storage")
 
         from nucypher.characters.lawful import Ursula
-        self.node_class = node_class or Ursula  # TODO: 'Teacher' has no attribute 'batch_from_bytes'
-        self.node_class.set_cert_storage_function(node_storage.store_node_certificate)  #  TODO: Fix this temporary workaround for on-disk cert storage.
+        self.node_class = node_class or Ursula
+        self.node_class.set_cert_storage_function(node_storage.store_node_certificate)  #  TODO: Fix this temporary workaround for on-disk cert storage.  #1481
 
         known_nodes = known_nodes or tuple()
-        self.unresponsive_startup_nodes = list()  # TODO: Buckets - Attempt to use these again later
+        self.unresponsive_startup_nodes = list()  # TODO: Buckets - Attempt to use these again later  #567
         for node in known_nodes:
             try:
                 self.remember_node(node, eager=True)
@@ -420,7 +420,7 @@ class Learner:
 
         if not self.known_nodes:
             self.log.warn("No seednodes were available after {} attempts".format(retry_attempts))
-            # TODO: Need some actual logic here for situation with no seed nodes (ie, maybe try again much later)
+            # TODO: Need some actual logic here for situation with no seed nodes (ie, maybe try again much later)  567
 
     def read_nodes_from_storage(self) -> None:
         stored_nodes = self.node_storage.all(federated_only=self.federated_only)  # TODO: #466
@@ -444,7 +444,7 @@ class Learner:
             return False
 
         # First, determine if this is an outdated representation of an already known node.
-        # TODO: #1032
+        # TODO: #1032 or, since it's closed and will never re-opened, i am the :=
         with suppress(KeyError):
             already_known_node = self.known_nodes[node.checksum_address]
             if not node.timestamp > already_known_node.timestamp:
@@ -466,7 +466,7 @@ class Learner:
                     node.mature()
                     stranger_certificate = node.certificate
                 else:
-                    # TODO: Well, why?  What about eagerness, popping listeners, etc?  We not doing that stuff?
+                    # TODO: Well, why?  What about eagerness, popping listeners, etc?  We not doing that stuff? NRN
                     return node
             except Exception as e:
                 # Whoops, we got an Alice, Bob, or something totally wrong...
@@ -486,18 +486,20 @@ class Learner:
                                  network_middleware_client=self.network_middleware.client,
                                  registry=self.registry)  # composed on character subclass, determines operating mode
             except SSLError:
-                # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
+                # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?  567
                 return False
 
             except NodeSeemsToBeDown:
                 self.log.info("No Response while trying to verify node {}|{}".format(node.rest_interface, node))
-                # TODO: Bucket this node as "ghost" or something: somebody else knows about it, but we can't get to it.
+                # TODO: Bucket this node as "ghost" or something: somebody else knows about it, but we can't get to it.  567
                 return False
 
             except node.NotStaking:
-                # TODO: Bucket this node as inactive, and potentially safe to forget.
+                # TODO: Bucket this node as inactive, and potentially safe to forget.  567
                 self.log.info(f'Staker:Worker {node.checksum_address}:{node.worker_address} is not actively staking, skipping.')
                 return False
+
+            # TODO: What about InvalidNode?  (for that matter, any SuspiciousActivity)  1714, 567 too really
 
         listeners = self._learning_listeners.pop(node.checksum_address, tuple())
 
@@ -557,10 +559,10 @@ class Learner:
             self.log.critical("Unhandled error during node learning.  Attempting graceful crash.")
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
-            cleaned_traceback = failure.getTraceback().replace('{', '').replace('}', '')  # FIXME: Amazing.
+            cleaned_traceback = failure.getTraceback().replace('{', '').replace('}', '')  # FIXME: Amazing.  724
             self.log.warn("Unhandled error during node learning: {}".format(cleaned_traceback))
             if not self._learning_task.running:
-                self.start_learning_loop()  # TODO: Consider a single entry point for this with more elegant pause and unpause.
+                self.start_learning_loop()  # TODO: Consider a single entry point for this with more elegant pause and unpause.  NRN
 
     def _crash_gracefully(self, failure=None):
         """
@@ -569,7 +571,7 @@ class Learner:
         """
         self._crashed = failure
         failure.raiseException()
-        # TODO: We don't actually have checksum_address at this level - maybe only Characters can crash gracefully :-)
+        # TODO: We don't actually have checksum_address at this level - maybe only Characters can crash gracefully :-)  1711
         self.log.critical("{} crashed with {}".format(self.checksum_address, failure))
 
     def select_teacher_nodes(self):
@@ -622,14 +624,14 @@ class Learner:
         """
         Continually learn about new nodes.
         """
-        # TODO: Allow the user to set eagerness?
+        # TODO: Allow the user to set eagerness?  1712
         self.learn_from_teacher_node(eager=False)
 
     def learn_about_specific_nodes(self, addresses: Set):
         self._node_ids_to_learn_about_immediately.update(addresses)  # hmmmm
         self.learn_about_nodes_now()
 
-    # TODO: Dehydrate these next two methods.
+    # TODO: Dehydrate these next two methods.  NRN
 
     def block_until_number_of_known_nodes_is(self,
                                              number_of_nodes_to_know: int,
@@ -652,7 +654,7 @@ class Learner:
                 try:
                     self.learn_from_teacher_node(eager=eager)
                 except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-                    # TODO: Even this "same thread" logic can be done off the main thread.
+                    # TODO: Even this "same thread" logic can be done off the main thread.  NRN
                     self.log.warn("Teacher was unreachable.  No good way to handle this on the main thread.")
 
             # The rest of the fucking owl
@@ -710,7 +712,7 @@ class Learner:
         Takes a list of new nodes, adjusts learning accordingly.
 
         Currently, simply slows down learning loop when no new nodes have been discovered in a while.
-        TODO: Do other important things - scrub, bucket, etc.
+        TODO: Do other important things - scrub, bucket, etc.  567
         """
         if node_list:
             self._rounds_without_new_nodes = 0
@@ -744,7 +746,7 @@ class Learner:
             except KeyError:
                 raise NotImplementedError
         # Scenario 2: We don't know about this node, but a nearby node does.
-        # TODO: Build a concurrent pool of lookups here.
+        # TODO: Build a concurrent pool of lookups here.  NRN
 
         # Scenario 3: We don't know about this node, and neither does our friend.
 
@@ -850,7 +852,7 @@ class Learner:
         try:
             self.verify_from(current_teacher, node_payload, signature=signature)
         except current_teacher.InvalidSignature:
-            # TODO: What to do if the teacher improperly signed the node payload?
+            # TODO: What to do if the teacher improperly signed the node payload?  1713
             raise
 
         # End edge case handling.
@@ -859,10 +861,9 @@ class Learner:
             return_remainder=True)
 
         current_teacher.last_seen = maya.now()
-        # TODO: This is weird - let's get a stranger FleetState going.
+        # TODO: This is weird - let's get a stranger FleetState going.  NRN
         checksum = fleet_state_checksum_bytes.hex()
 
-        # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
         if constant_or_bytes(node_payload) is FLEET_STATES_MATCH:
             current_teacher.update_snapshot(checksum=checksum,
                                             updated=maya.MayaDT(
@@ -877,7 +878,7 @@ class Learner:
         sprouts = self.node_class.batch_from_bytes(node_payload)
         remembered = []
         for sprout in sprouts:
-            fail_fast = True  # TODO
+            fail_fast = True  # TODO  NRN
             try:
                 node_or_false = self.remember_node(sprout,
                                                    record_fleet_state=False,
@@ -1017,11 +1018,6 @@ class Teacher:
         """
         This is the most mature form, so we do nothing.
         """
-
-    # TODO: Unused method. Remove?
-    def save_cert_for_this_stranger_node(stranger, certificate):
-        return stranger._cert_store_function(certificate)
-
     @classmethod
     def set_federated_mode(cls, federated_only: bool):
         cls._federated_only_instances = federated_only
@@ -1062,7 +1058,7 @@ class Teacher:
         TODO: We update the simple snapshot here, but of course if we're dealing
               with an instance that is also a Learner, it has
               its own notion of its FleetState, so we probably
-              need a reckoning of sorts here to manage that.  In time.
+              need a reckoning of sorts here to manage that.  In time.  NRN
 
         :param checksum:
         :param updated:
@@ -1119,7 +1115,7 @@ class Teacher:
         try:
             economics = EconomicsFactory.get_economics(registry=registry)
         except Exception:
-            raise  # TODO: Get StandardEconomics
+            raise  # TODO: Get StandardEconomics  NRN
 
         min_stake = economics.minimum_allowed_locked
 
@@ -1229,8 +1225,6 @@ class Teacher:
 
         sprout = self.internal_splitter(node_bytes, partial=True)
 
-        # TODO: #589 - check timestamp here.
-
         verifying_keys_match = sprout['verifying_key'] == self.public_keys(SigningPower)
         encrypting_keys_match = sprout['encrypting_key'] == self.public_keys(DecryptingPower)
         addresses_match = sprout['public_address'] == self.canonical_public_address
@@ -1258,7 +1252,7 @@ class Teacher:
     def worker_address(self):
         if not self.__worker_address and not self.federated_only:
             if self.decentralized_identity_evidence is NOT_SIGNED:
-                raise self.StampNotSigned  # TODO: Find a better exception
+                raise self.StampNotSigned  # TODO: Find a better exception  NRN
             self.__worker_address = recover_address_eip_191(message=bytes(self.stamp),
                                                             signature=self.decentralized_identity_evidence)
         return self.__worker_address
@@ -1342,7 +1336,7 @@ class Teacher:
         return dict(
             node_class=self.__class__.__name__,
             version=self.TEACHER_VERSION,
-            first_color=self.nickname_metadata[0][0]['hex'],  # TODO: These index lookups are awful.
+            first_color=self.nickname_metadata[0][0]['hex'],  # TODO: These index lookups are awful.  NRN
             first_symbol=self.nickname_metadata[0][1],
             second_color=self.nickname_metadata[1][0]['hex'],
             second_symbol=self.nickname_metadata[1][1],
@@ -1367,7 +1361,7 @@ class Teacher:
 
         fleet_icon = node.fleet_state_nickname_metadata
         if fleet_icon is UNKNOWN_FLEET_STATE:
-            fleet_icon = "?"  # TODO
+            fleet_icon = "?"  # TODO  NRN, MN
         else:
             fleet_icon = fleet_icon[0][1]
 
