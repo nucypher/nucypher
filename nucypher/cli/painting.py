@@ -287,7 +287,7 @@ Registry  ................ {registry.filepath}
 
             agent = contract_deployer_class.agency(registry=registry, contract=bare_contract)
 
-            range_payload = f"""
+            proxy_payload = f"""
 {agent.contract_name} .... {bare_contract.address}
     ~ Owner .............. {bare_contract.functions.owner().call()}
     ~ Ethers ............. {Web3.fromWei(blockchain.client.get_balance(bare_contract.address), 'ether')} ETH
@@ -297,7 +297,7 @@ Registry  ................ {registry.filepath}
         ~ Target ......... {dispatcher_deployer.contract.functions.target().call()}
         ~ Ethers ......... {Web3.fromWei(blockchain.client.get_balance(dispatcher_deployer.contract_address), 'ether')} ETH
         ~ Tokens ......... {NU.from_nunits(token_agent.get_balance(dispatcher_deployer.contract_address))}"""
-            emitter.echo(range_payload)
+            emitter.echo(proxy_payload)
             emitter.echo(sep, nl=False)
 
         except BaseContractRegistry.UnknownContract:

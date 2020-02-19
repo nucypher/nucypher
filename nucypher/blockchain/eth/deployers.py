@@ -775,8 +775,8 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                                   confirmations: int = 0) -> dict:
 
         if minimum > default or default > maximum:
-            raise ValueError(f"Minimum {minimum} must be less than default {default} "
-                             f"and default value must be less than maximum {maximum}.")
+            raise ValueError(f"Default rate ({default}) must satisfy the condition: "
+                             f"minimum ({minimum}) <= default ({default}) <= maximum ({maximum})")
 
         policy_manager = self.blockchain.get_contract_by_name(registry=self.registry,
                                                               contract_name=self.contract_name,
@@ -784,7 +784,7 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
         tx_args = {}
         if gas_limit:
-            tx_args.update({'gas': gas_limit})
+            tx_args.update({'gas': gas_limit})  # TODO: Gas management - 842
         set_range_function = policy_manager.functions.setMinRewardRateRange(minimum, default, maximum)
         set_range_receipt = self.blockchain.send_transaction(contract_function=set_range_function,
                                                              sender_address=self.deployer_address,

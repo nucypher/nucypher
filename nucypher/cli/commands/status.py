@@ -215,7 +215,7 @@ def events(general_config, registry_options, contract_name, from_block, to_block
 @group_general_config
 def reward_range(general_config, registry_options):
     """
-    Show information about range of min reward rate.
+    Show information about the allowed range for min reward rate.
     """
     emitter = _setup_emitter(general_config)
     registry = registry_options.get_registry(emitter, general_config.debug)

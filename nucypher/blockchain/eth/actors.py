@@ -665,7 +665,6 @@ class ContractAdministrator(NucypherTokenActor):
                                   minimum: int,
                                   default: int,
                                   maximum: int,
-                                  emitter: StdoutEmitter = None,
                                   transaction_gas_limit: int = None) -> dict:
 
         policy_manager_deployer = PolicyManagerDeployer(registry=self.registry,
@@ -675,11 +674,6 @@ class ContractAdministrator(NucypherTokenActor):
                                                                     default=default,
                                                                     maximum=maximum,
                                                                     gas_limit=transaction_gas_limit)
-
-        if emitter:
-            emitter.echo(f"The minimum reward rate was limited to the range [{minimum}, {maximum}] "
-                         f"with the default value {default}")
-
         return receipt
 
 
@@ -1183,7 +1177,7 @@ class Staker(NucypherTokenActor):
         """Public facing method for setting min reward rate."""
         minimum, _default, maximum = self.policy_agent.get_min_reward_rate_range()
         if min_rate < minimum or min_rate > maximum:
-            raise ValueError(f"Min reward rate must be within range [{minimum}, {maximum}]")
+            raise ValueError(f"Min reward rate  {min_rate} must be within range [{minimum}, {maximum}]")
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.set_min_reward_rate(min_rate=min_rate)
         else:
@@ -1192,12 +1186,17 @@ class Staker(NucypherTokenActor):
 
     @property
     def min_reward_rate(self) -> int:
+        """Minimum acceptable reward rate"""
         staker_address = self.checksum_address
         min_rate = self.policy_agent.get_min_reward_rate(staker_address)
         return min_rate
 
     @property
     def raw_min_reward_rate(self) -> int:
+        """Minimum acceptable reward rate set by staker.
+        This's not applicable if this rate out of global range.
+        In that case default value will be used instead of raw value (see `min_reward_rate`)"""
+
         staker_address = self.checksum_address
         min_rate = self.policy_agent.get_raw_min_reward_rate(staker_address)
         return min_rate
@@ -1329,7 +1328,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
             raise ValueError("Policy end time must be specified as 'expiration' or 'duration_periods', got neither.")
 
         # Merge injected and default params.
-        rate = rate or self.rate
+        rate = rate or self.rate  # TODO conflict with CLI default value, see #1709
         duration_periods = duration_periods or self.duration_periods
 
         # Calculate duration in periods and expiration datetime
