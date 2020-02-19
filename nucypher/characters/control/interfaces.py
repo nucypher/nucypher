@@ -11,9 +11,10 @@ from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.utils import construct_policy_id
 
 
-def attach_schema(schema):
+def attach_schema(schema, name=None):
     def callable(func):
         func._schema = schema()
+        func._name = name or func.__name__
 
         @functools.wraps(func)
         def wrapped(*args, **kwargs):
@@ -54,7 +55,7 @@ class CharacterPublicInterface:
 
     def _get_interfaces(self):
         return {
-            name: method for name, method in
+            getattr(method, '_name', None) or name: method for name, method in
             inspect.getmembers(
                 self,
                 predicate=inspect.ismethod)
@@ -239,7 +240,7 @@ class BobInterface(CharacterPublicInterface):
 
 class EnricoInterface(CharacterPublicInterface):
 
-    @attach_schema(enrico.EncryptMessage)
+    @attach_schema(enrico.EncryptMessage, name='encrypt')
     def encrypt_message(self, message: str):
         """
         Character control endpoint for encrypting data for a policy and
@@ -248,8 +249,6 @@ class EnricoInterface(CharacterPublicInterface):
         message_kit, signature = self.character.encrypt_message(bytes(message, encoding='utf-8'))
         response_data = {'message_kit': message_kit, 'signature': signature}
         return response_data
-
-    encrypt = encrypt_message
 
 
 class AdHocJSONInterface:
@@ -262,10 +261,15 @@ class AdHocJSONInterface:
     def _parse_param(param):
         # should return something like: {'type': 'string', 'format': 'key'},
         custom_type = DEFAULT_FIELD_MAPPING.get(param.type)
-        return {
+        output = {
             'type': custom_type[0] if custom_type else param.type.name,
             'format': custom_type[1] if custom_type else None,
         }
+        if param.type.name == 'choice':
+            output['choices'] = param.type.choices
+
+        return output
+
 
     @staticmethod
     def _parse_command(ctx, cmd):
@@ -273,7 +277,7 @@ class AdHocJSONInterface:
         return {
             "properties": {
                 param.name: AdHocJSONInterface._parse_param(param)
-                for param in cmd.get_params(ctx)
+                for param in cmd.params
             }
         }
 

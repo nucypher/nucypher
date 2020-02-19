@@ -106,7 +106,7 @@ class JSONStdoutEmitter(StdoutEmitter):
 
         return serialized_response
 
-    def __write(self, data: dict):
+    def _write(self, data: dict):
         """Outlet"""
 
         serialized_response = self.__serialize(data=data)
@@ -131,7 +131,7 @@ class JSONStdoutEmitter(StdoutEmitter):
             else:
                 raise self.exception_class
 
-        size = self.__write(data=assembled_error)
+        size = self._write(data=assembled_error)
         # self.log.info(f"Error {e.code} | {e.message}")  # TODO: Restore this log message
         return size
 
@@ -204,7 +204,7 @@ class JSONRPCStdoutEmitter(JSONStdoutEmitter):
 
         # Serialize JSON RPC Message
         assembled_response = self.assemble_response(response=response, message_id=request_id)
-        size = self.__write(data=assembled_response)
+        size = self._write(data=assembled_response)
         self.log.info(f"OK | Responded to IPC request #{request_id} with {size} bytes, took {duration}")
         return size
 

@@ -5,8 +5,6 @@ from nucypher.characters.control.specifications.fields.base import BaseField
 
 class Cleartext(BaseField, fields.String):
 
-    type_hint = ("string", None)
-
     def _serialize(self, value, attr, data, **kwargs):
         return value.decode()
 

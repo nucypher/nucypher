@@ -29,6 +29,7 @@ DEFAULT_FIELD_MAPPING = {
     fields.Label: ("string", None),
     fields.UmbralMessageKit: ("string", "base64"),
     fields.TreasureMap: ("string", "base64"),
+    fields.Cleartext: ("string", "textfield"),
 
     # some from click
     EIP55_CHECKSUM_ADDRESS: ("string", EIP55_CHECKSUM_ADDRESS.name),
