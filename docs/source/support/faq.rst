@@ -74,6 +74,13 @@ This is **ONLY** a heuristic to ensure that your node is running correctly, it d
     #. Ensure that your worker is bonded with your staker - ``nucypher stake list`` and check that
        *Worker* is set correctly i.e. not ``0x0000``.
 
+    #. Run the following command and ensure that the various settings are correct::
+
+        nucypher status stakers
+        >    --provider <your_geth_provider>
+        >    --network cassandra
+        >    --staking-address <your_staker_address>
+
     #. Ensure that your node is listed on the `Status Monitor Page <https://status.nucypher.network>`_ (this can take a few minutes).
 
 
@@ -98,7 +105,7 @@ Run::
     nucypher status stakers
     >    --provider <your_geth_provider>
     >    --network cassandra
-    >    --staking-address <your_staker_address>``
+    >    --staking-address <your_staker_address>
 
 Note that a minimum of two periods must elapse before rewards will be delivered to your wallet. For example, say we
 are in Period 5 when you start staking:
@@ -123,7 +130,7 @@ Run::
     nucypher status stakers
     >    --provider <your_geth_provider>
     >    --network cassandra
-    >    --staking-address <your_staker_address>``
+    >    --staking-address <your_staker_address>
 
 
 Can I extend the duration of my existing stake?
@@ -179,7 +186,7 @@ Check when last your node confirmed activity by running::
     nucypher status stakers
     >    --provider <your_geth_provider>
     >    --network cassandra
-    >    --staking-address <your_staker_address>``
+    >    --staking-address <your_staker_address>
 
 If everything looks fine, the status monitor probably just needs some time to connect to the node again to update the
 node's status.

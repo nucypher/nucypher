@@ -89,7 +89,7 @@ Potential reasons:
 
     #. You may be using the wrong password for your ethereum account.
 
-    #. You may be using the wrong ethereum address.
+    #. You may be using the wrong ethereum account.
 
     #. If trying to collect rewards, this is a `known bug <https://github.com/nucypher/nucypher/issues/1657>`_ in our
        code - rerun the command without the ``--staking-address`` option.
