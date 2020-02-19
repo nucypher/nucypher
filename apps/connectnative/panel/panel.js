@@ -67,7 +67,6 @@ function onDecrypt (data) {
 function onOptions (data) {
   clearResults()
   clearCommands()
-  $('.needscommand').show()
   Object.keys(data.result).forEach((name) => {
     let el = $(`<button class="btn-default tm-5 command" route="${data.input.character}.${name}" character="${data.input.character}">${name}</button>`)
       .data(
@@ -78,6 +77,9 @@ function onOptions (data) {
         })
       .click(function (e) {
         clearResults()
+        $('button.command.selected').removeClass('selected')
+        $(this).addClass('selected')
+        $('.needscommand').show()
         populateCommand($(this).data())
       })
     $('#commandpallette').append(el)
@@ -141,17 +143,6 @@ function populateCommand (data) {
   }
 }
 
-// button events
-$('.action').on('click', function () {
-  $('.needscharacter').show()
-  clearResults()
-  bgPort.postMessage({
-    route: 'options',
-    data: {
-      character: $(this).attr('character'),
-    }
-  })
-})
 
 const setPassword = function () {
   password = $('#passwordinput').val()
@@ -159,12 +150,6 @@ const setPassword = function () {
   bgPort.postMessage({route: "setPassword", data: $('#passwordinput').val()})
 }
 
-$('#passwordbutton').on('click', setPassword)
-$('#passwordform').submit((e) => {
-  e.preventDefault()
-  e.stopPropagation()
-  setPassword()
-})
 
 // internal workings
 function fDispatcher (message) {
@@ -175,17 +160,17 @@ function fDispatcher (message) {
     options: onOptions
   }
   if (callbacks[message.route] !== undefined){
-      return callbacks[message.route](message.data)
+    return callbacks[message.route](message.data)
   }
 }
 
 function displayResults (result) {
-    $('#output').append('<div class="alert alert-success" role="alert">Success</div>')
-    var lg = $('<ul class="list-group"></ul>')
-    $('#output').append(lg)
-    $.each(Object.keys(result), function(i, a){
-        lg.append(`<li class="list-group-item"><strong>${a}:</strong> ${result[a]}</li>`)
-    })
+  $('#output').append('<div class="alert alert-success" role="alert">Success</div>')
+  var lg = $('<ul class="list-group"></ul>')
+  $('#output').append(lg)
+  $.each(Object.keys(result), function(i, a){
+    lg.append(`<li class="list-group-item"><strong>${a}:</strong> ${result[a]}</li>`)
+  })
 }
 
 function clearResults () {
@@ -204,6 +189,30 @@ function displayError (result) {
   $('#output').append(lg)
   lg.append(`<li class="list-group-item"><strong>result:</strong> ${result}</li>`)
 }
+
+
+$('#passwordbutton').on('click', setPassword)
+$('#passwordform').submit((e) => {
+  e.preventDefault()
+  e.stopPropagation()
+  setPassword()
+})
+
+
+// button events
+$('.character').on('click', function () {
+  $('a.selected').removeClass('selected')
+  $('.needscommand').hide()
+  $(this).addClass('selected')
+  $('.needscharacter').show()
+  clearResults()
+  bgPort.postMessage({
+    route: 'options',
+    data: {
+      character: $(this).attr('character'),
+    }
+  })
+})
 
 $('#commandform').submit((e) => {
   e.preventDefault()

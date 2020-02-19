@@ -169,6 +169,9 @@ html {
     box-shadow: 0 0 0 rgba(0,0,0,.5);
     background: limegreen;
   }
+  button.command.selected{
+    background: limegreen;
+  }
 
   button:hover:before,
   .button:hover:before,

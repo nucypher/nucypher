@@ -8,13 +8,13 @@
 
 <body>
 <div class="menu-bar top nopassword">
-  <a class="btn-default tm-5 action" route="options" character="alice">Alice</a>
-  <a class="btn-default tm-5 action" route="options" character="bob">Bob</a>
-  <a class="btn-default tm-5 action" route="options" character="enrico">Enrico</a>
-  <a class="btn-default tm-5 action" route="options" character="staker">Staker</a>
-  <a class="btn-default tm-5 action" route="options" character="worklock">Worklock</a>
-  <a class="btn-default tm-5 action" route="options" character="ursula">Ursula</a>
-  <a class="btn-default tm-5 action" route="options" character="felix">Felix</a>
+  <a class="btn-default tm-5 character" route="options" character="alice">Alice</a>
+  <a class="btn-default tm-5 character" route="options" character="bob">Bob</a>
+  <a class="btn-default tm-5 character" route="options" character="enrico">Enrico</a>
+  <a class="btn-default tm-5 character" route="options" character="staker">Staker</a>
+  <a class="btn-default tm-5 character" route="options" character="worklock">Worklock</a>
+  <a class="btn-default tm-5 character" route="options" character="ursula">Ursula</a>
+  <a class="btn-default tm-5 character" route="options" character="felix">Felix</a>
 </div>
 <div id="main">
   <div class="window onlyifpassword nopassword">
@@ -24,10 +24,13 @@
 
       </div>
       <div class="window needscommand">
-        input:
-        <form id="commandform" action="#">
-          <button  id="submitbutton" type="submit">run NuCypher</button>
-        </form>
+        <div class="needscommand">
+          input:
+          <form id="commandform" action="#">
+            <button type="submit"></button>
+          </form>
+          <button id="submitbutton">Go</button>
+        </div>
       </div>
     </div>
     <div class="onlyifpassword nopassword needscommand">
