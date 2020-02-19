@@ -162,3 +162,25 @@ This all seems too complex for me, can I still participate in some way?
 
 We highly recommend delegating to an experienced staker rather than doing it yourself, if
 you are not super familiar with running nodes for other networks.
+
+
+Why is my node is labelled as Idle in the status monitor?
+---------------------------------------------------------
+
+Your node is `Idle` because it has never confirmed activity. Likely, your worker address does not have any
+ETH to use for transaction gas.
+
+
+The status of my node on the status monitor seems incorrect?
+------------------------------------------------------------
+
+Check when last your node confirmed activity by running::
+
+    nucypher status stakers
+    >    --provider <your_geth_provider>
+    >    --network cassandra
+    >    --staking-address <your_staker_address>``
+
+If everything looks fine, the status monitor probably just needs some time to connect to the node again to update the
+node's status.
+
