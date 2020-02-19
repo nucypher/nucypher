@@ -71,7 +71,7 @@ class AliceConfigOptions:
     __option_name__ = 'config_options'
 
     def __init__(self, dev, network, provider_uri, geth, federated_only, discovery_port,
-                 pay_with, registry_filepath, middleware, poa, light, m, n, duration_periods):
+                 pay_with, registry_filepath, middleware):
 
         if federated_only and geth:
             raise click.BadOptionUsage(
@@ -94,11 +94,6 @@ class AliceConfigOptions:
         self.discovery_port = discovery_port
         self.registry_filepath = registry_filepath
         self.middleware = middleware
-        self.poa = poa
-        self.light = light
-        self.m = m
-        self.n = n
-        self.duration_periods = duration_periods
 
     def create_config(self, emitter, config_file):
 
@@ -138,50 +133,6 @@ class AliceConfigOptions:
                     config_file=config_file
                 )
 
-    def generate_config(self, emitter, config_root):
-
-        if self.dev:
-            raise click.BadArgumentUsage("Cannot create a persistent development character")
-
-        if not self.provider_uri and not self.federated_only:
-            raise click.BadOptionUsage(
-                option_name='--provider',
-                message="--provider is required to create a new decentralized alice.")
-
-        pay_with = self.pay_with
-        if not pay_with and not self.federated_only:
-            pay_with = select_client_account(emitter=emitter, provider_uri=self.provider_uri, show_balances=False)
-
-        return AliceConfiguration.generate(
-            password=get_nucypher_password(confirm=True),
-            config_root=config_root,
-            checksum_address=pay_with,
-            domains=self.domains,
-            federated_only=self.federated_only,
-            provider_uri=self.provider_uri,
-            provider_process=self.eth_node,
-            registry_filepath=self.registry_filepath,
-            poa=self.poa,
-            light=self.light,
-            m=self.m,
-            n=self.n,
-            duration_periods=self.duration_periods)
-
-    def get_updates(self) -> dict:
-        payload = dict(checksum_address=self.pay_with,
-                       domains=self.domains,
-                       federated_only=self.federated_only,
-                       provider_uri=self.provider_uri,
-                       registry_filepath=self.registry_filepath,
-                       poa=self.poa,
-                       light=self.light,
-                       m=self.m,
-                       n=self.n,
-                       duration_periods=self.duration_periods)
-        # Depends on defaults being set on Configuration classes, filtrates None values
-        updates = {k: v for k, v in payload.items() if v is not None}
-        return updates
-
 
 group_config_options = group_options(
     AliceConfigOptions,
@@ -194,6 +145,72 @@ group_config_options = group_options(
     pay_with=option_pay_with,
     registry_filepath=option_registry_filepath,
     middleware=option_middleware,
+    )
+
+
+class AliceFullConfigOptions:
+
+    __option_name__ = 'full_config_options'
+
+    def __init__(self, config_options, poa, light, m, n, duration_periods):
+        self.config_options = config_options
+        self.poa = poa
+        self.light = light
+        self.m = m
+        self.n = n
+        self.duration_periods = duration_periods
+
+    def generate_config(self, emitter, config_root):
+
+        opts = self.config_options
+
+        if opts.dev:
+            raise click.BadArgumentUsage("Cannot create a persistent development character")
+
+        if not opts.provider_uri and not opts.federated_only:
+            raise click.BadOptionUsage(
+                option_name='--provider',
+                message="--provider is required to create a new decentralized alice.")
+
+        pay_with = opts.pay_with
+        if not pay_with and not opts.federated_only:
+            pay_with = select_client_account(emitter=emitter, provider_uri=opts.provider_uri, show_balances=False)
+
+        return AliceConfiguration.generate(
+            password=get_nucypher_password(confirm=True),
+            config_root=config_root,
+            checksum_address=pay_with,
+            domains=opts.domains,
+            federated_only=opts.federated_only,
+            provider_uri=opts.provider_uri,
+            provider_process=opts.eth_node,
+            registry_filepath=opts.registry_filepath,
+            poa=self.poa,
+            light=self.light,
+            m=self.m,
+            n=self.n,
+            duration_periods=self.duration_periods)
+
+    def get_updates(self) -> dict:
+        opts = self.config_options
+        payload = dict(checksum_address=opts.pay_with,
+                       domains=opts.domains,
+                       federated_only=opts.federated_only,
+                       provider_uri=opts.provider_uri,
+                       registry_filepath=opts.registry_filepath,
+                       poa=self.poa,
+                       light=self.light,
+                       m=self.m,
+                       n=self.n,
+                       duration_periods=self.duration_periods)
+        # Depends on defaults being set on Configuration classes, filtrates None values
+        updates = {k: v for k, v in payload.items() if v is not None}
+        return updates
+
+
+group_full_config_options = group_options(
+    AliceFullConfigOptions,
+    config_options=group_config_options,
     poa=option_poa,
     light=option_light,
     m=option_m,
@@ -262,25 +279,25 @@ def alice():
 
 
 @alice.command()
-@group_config_options
+@group_full_config_options
 @option_config_root
 @group_general_config
-def init(general_config, config_options, config_root):
+def init(general_config, full_config_options, config_root):
     """
     Create a brand new persistent Alice.
     """
     emitter = _setup_emitter(general_config)
     if not config_root:
         config_root = general_config.config_root
-    new_alice_config = config_options.generate_config(emitter, config_root)
+    new_alice_config = full_config_options.generate_config(emitter, config_root)
     painting.paint_new_installation_help(emitter, new_configuration=new_alice_config)
 
 
 @alice.command()
 @option_config_file
 @group_general_config
-@group_config_options
-def config(general_config, config_file, config_options):
+@group_full_config_options
+def config(general_config, config_file, full_config_options):
     """
     View and optionally update existing Alice's configuration.
     """
@@ -290,7 +307,7 @@ def config(general_config, config_file, config_options):
     return get_or_update_configuration(emitter=emitter,
                                        config_class=AliceConfiguration,
                                        filepath=configuration_file_location,
-                                       config_options=config_options)
+                                       config_options=full_config_options)
 
 
 @alice.command()
@@ -383,7 +400,7 @@ def grant(general_config,
           bob_encrypting_key, bob_verifying_key, label, value, rate,
 
           # Other
-          expiration,
+          expiration, m, n,
 
           # API Options
           character_options, config_file
@@ -409,8 +426,8 @@ def grant(general_config,
         'bob_encrypting_key': bob_encrypting_key,
         'bob_verifying_key': bob_verifying_key,
         'label': label,
-        'm': config_options.m,
-        'n': config_options.n,
+        'm': m,
+        'n': n,
         'expiration': expiration,
     }
     if not ALICE.federated_only:
