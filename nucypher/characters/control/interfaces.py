@@ -47,6 +47,7 @@ class CharacterPublicInterface:
 
             @functools.wraps(func)
             def wrapped(*args, **kwargs):
+                schema.validate(kwargs)
                 return c(*args, **kwargs)
 
             return wrapped

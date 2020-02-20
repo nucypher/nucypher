@@ -84,13 +84,13 @@ try:
                 }
                 send_message(encode_message(output))
             else:
-                params.append('--json-ipc')
-
-                for param, value in request.get('args', {}).items():
+                args = request.get('args', {})
+                logging.debug(f'args: {args}')
+                for param, value in args.items():
                     param = param.replace("_", "-")
                     if value is True:
                         params.append(f"--{param}")
-                    else:
+                    elif value not in [None, ""]:
                         params.extend((f"--{param}", value))
 
                 # INTERNAL INTERFACE
@@ -101,7 +101,7 @@ try:
                     logging.debug(f"calling nucypher with params: {' '.join(params)}")
                     nc_result = click_runner.invoke(nucypher_cli, params, catch_exceptions=True, env=environ)
                     logging.debug(f"result is: {nc_result.output}")
-                except BadParameter as e:
+                except Exception as e:
                     logging.debug(f"NuCypher CLI error ==== \n {'.'.join(dir(e).keys())}")
 
                     exc_type, exc_value, exc_traceback = sys.exc_info()

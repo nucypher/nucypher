@@ -134,9 +134,3 @@ def test_key_validation(federated_bob):
 
     result = BobKeyInputRequirer().load(dict(bobkey=bytes(federated_bob.public_keys(DecryptingPower)).hex()))
     assert isinstance(result['bobkey'], bytes)
-
-# def test_alice_specifications_options_request():
-
-#     breakpoint()
-#     result = GrantPolicy.to_dict()
-#     breakpoint()

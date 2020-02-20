@@ -38,6 +38,7 @@ class PolicyBaseSchema(BaseSchema):
     # optional input
     value = fields.Wei(
         load_only=True,
+        required=False,
         click=click.option('--value', help="Total policy value (in Wei)", type=types.WEI))
 
     rate = fields.Wei(

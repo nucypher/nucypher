@@ -31,9 +31,6 @@ class BaseSchema(Schema, FieldConverterMixin):
 
         unknown = INCLUDE   # pass through any data that isn't defined as a field
 
-    def handle_error(self, error, data, many, **kwargs):
-        raise InvalidInputData(error)
-
     def as_options_dict(self):
         return {
             "type": "object",
