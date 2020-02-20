@@ -95,7 +95,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                  duration_periods: int = None,
 
                  # Middleware
-                 timeout: int = 10,  # seconds  # TODO: configure
+                 timeout: int = 10,  # seconds  # TODO: configure  NRN
                  network_middleware: RestMiddleware = None,
                  controller: bool = True,
 
@@ -122,7 +122,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                            network_middleware=network_middleware,
                            *args, **kwargs)
 
-        if is_me and not federated_only:  # TODO: #289
+        if is_me and not federated_only:
             transacting_power = TransactingPower(account=self.checksum_address,
                                                  password=client_password,
                                                  provider_uri=self.provider_uri,
@@ -271,7 +271,6 @@ class Alice(Character, BlockchainPolicyAuthor):
         # value and expiration combinations on a limited number of Ursulas;
         # Users may decide to inject some market strategies here.
         #
-        # TODO: 289
 
         # If we're federated only, we need to block to make sure we have enough nodes.
         if self.federated_only and len(self.known_nodes) < policy.n:
@@ -314,7 +313,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                 allow_missing=(policy.n - revocation_threshold))
 
         except self.NotEnoughTeachers:
-            raise  # TODO
+            raise  # TODO  NRN
 
         else:
             failed_revocations = dict()
@@ -495,7 +494,7 @@ class Bob(Character):
 
         Otherwise, returns (unknown_nodes, known_nodes).
 
-        # TODO: Check if nodes are up, declare them phantom if not.
+        # TODO: Check if nodes are up, declare them phantom if not.  567
         """
         treasure_map = self._pick_treasure_map(treasure_map, map_id)
 
@@ -535,7 +534,7 @@ class Bob(Character):
         try:
             treasure_map.orient(compass)
         except treasure_map.InvalidSignature:
-            raise  # TODO: Maybe do something here?
+            raise  # TODO: Maybe do something here?  NRN
         else:
             self.treasure_maps[map_id] = treasure_map
 
@@ -572,14 +571,14 @@ class Bob(Character):
                 try:
                     treasure_map = TreasureMap.from_bytes(response.content)
                 except InvalidSignature:
-                    # TODO: What if a node gives a bunk TreasureMap?
+                    # TODO: What if a node gives a bunk TreasureMap?  NRN
                     raise
                 break
             else:
-                continue  # TODO: Actually, handle error case here.
+                continue  # TODO: Actually, handle error case here.  NRN
         else:
             # TODO: Work out what to do in this scenario -
-            #       if Bob can't get the TreasureMap, he needs to rest on the learning mutex or something.
+            #       if Bob can't get the TreasureMap, he needs to rest on the learning mutex or something.  NRN
             raise TreasureMap.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_id} ")
 
         return treasure_map
@@ -639,12 +638,12 @@ class Bob(Character):
             else:
                 self.log.debug(f"All of these Capsules already have WorkOrders for this node: {node_id}")
             if num_ursulas == len(incomplete_work_orders):
-                # TODO: Presently, the order here is haphazard .  Do we want to do the complete or incomplete specifically first?
+                # TODO: Presently, the order here is haphazard .  Do we want to do the complete or incomplete specifically first? NRN
                 break
 
         if incomplete_work_orders == OrderedDict():
             self.log.warn(
-                "No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.
+                "No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.  NRN
 
         return incomplete_work_orders, complete_work_orders
 
@@ -689,7 +688,7 @@ class Bob(Character):
 
             from nucypher.policy.collections import TreasureMap
 
-            # TODO: This LBYL is ugly and fraught with danger.
+            # TODO: This LBYL is ugly and fraught with danger.  NRN
             if isinstance(treasure_map, bytes):
                 treasure_map = TreasureMap.from_bytes(treasure_map)
 
@@ -780,13 +779,13 @@ class Bob(Character):
                 try:
                     self.get_reencrypted_cfrags(work_order, retain_cfrags=retain_cfrags)
                 except NodeSeemsToBeDown as e:
-                    # TODO: What to do here?  Ursula isn't supposed to be down.
+                    # TODO: What to do here?  Ursula isn't supposed to be down.  NRN
                     self.log.info(
                         f"Ursula ({work_order.ursula}) seems to be down while trying to complete WorkOrder: {work_order}")
                     continue
                 except self.network_middleware.NotFound:
                     # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
-                    # TODO: What's the thing to do here?  Do we want to track these Ursulas in some way in case they're lying?
+                    # TODO: What's the thing to do here?  Do we want to track these Ursulas in some way in case they're lying?  567
                     self.log.warn(
                         f"Ursula ({work_order.ursula}) claims not to have the KFrag to complete WorkOrder: {work_order}.  Has accessed been revoked?")
                     continue
@@ -795,7 +794,7 @@ class Bob(Character):
                     try:
                         capsule.attach_cfrag(pre_task.cfrag)
                     except UmbralCorrectnessError:
-                        task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
+                        task = work_order.tasks[0]
                         # TODO: WARNING - This block is untested.
                         from nucypher.policy.collections import IndisputableEvidence
                         evidence = IndisputableEvidence(task=task, work_order=work_order)
@@ -877,8 +876,8 @@ class Ursula(Teacher, Character, Worker):
     banner = URSULA_BANNER
     _alice_class = Alice
 
-    # TODO: Maybe this wants to be a registry, so that, for example,
-    # TLSHostingPower still can enjoy default status, but on a different class
+    # TODO: Maybe this wants to be a registry, so that, for example,  NRN
+    # TLSHostingPower still can enjoy default status, but on a different class  NRN
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
     class NotEnoughUrsulas(Learner.NotEnoughTeachers, StakingEscrowAgent.NotEnoughStakers):
@@ -890,7 +889,6 @@ class Ursula(Teacher, Character, Worker):
     class NotFound(Exception):
         pass
 
-    # TODO: 289
     def __init__(self,
 
                  # Ursula
@@ -940,7 +938,7 @@ class Ursula(Teacher, Character, Worker):
                            is_me=is_me,
                            checksum_address=checksum_address,
                            start_learning_now=False,  # Handled later in this function to avoid race condition
-                           federated_only=self._federated_only_instances,  # TODO: 'Ursula' object has no attribute '_federated_only_instances' if an is_me Ursula is not inited prior to this moment
+                           federated_only=self._federated_only_instances,  # TODO: 'Ursula' object has no attribute '_federated_only_instances' if an is_me Ursula is not inited prior to this moment  NRN
                            crypto_power=crypto_power,
                            abort_on_learning_error=abort_on_learning_error,
                            known_nodes=known_nodes,
@@ -951,9 +949,9 @@ class Ursula(Teacher, Character, Worker):
         #
         # Self-Ursula
         #
-        # TODO: Better handle ephemeral staking self ursula <-- Is this still relevant?
+        # TODO: Better handle ephemeral staking self ursula <-- Is this still relevant?  571
         self.log.debug(f"URSULA worker: {worker_address}, staker {checksum_address}")
-        if is_me is True:  # TODO: #340
+        if is_me is True:  # TODO: #429
             self._stored_treasure_maps = dict()
 
             #
@@ -999,8 +997,6 @@ class Ursula(Teacher, Character, Worker):
                     db_filepath=db_filepath,
                     serving_domains=domains,
                 )
-
-                # TODO: attach status app to rest_app
 
                 #
                 # TLSHostingPower (Ephemeral Self-Ursula)
@@ -1237,7 +1233,7 @@ class Ursula(Teacher, Character, Worker):
             _receiver=cls.from_processed_bytes,
             _partial_receiver=NodeSprout,
             public_address=PUBLIC_ADDRESS_LENGTH,
-            domains=VariableLengthBytestring,  # TODO:  Multiple domains?
+            domains=VariableLengthBytestring,  # TODO:  Multiple domains?  NRN
             timestamp=(int, 4, {'byteorder': 'big'}),
             interface_signature=Signature,
             decentralized_identity_evidence=VariableLengthBytestring,
@@ -1285,7 +1281,7 @@ class Ursula(Teacher, Character, Worker):
     def from_processed_bytes(cls, **processed_objects):
         """
         A convenience method for completing the maturation of a NodeSprout.
-        TODO: Either deprecate or consolidate this logic; it's mostly just workarounds.
+        TODO: Either deprecate or consolidate this logic; it's mostly just workarounds.  NRN
         """
         #### This is kind of a ridiculous workaround and repeated logic from Ursula.from_bytes
         interface_info = processed_objects.pop("rest_interface")
@@ -1437,7 +1433,7 @@ class Enrico(Character):
         message_kit, signature = encrypt_and_sign(self.policy_pubkey,
                                                   plaintext=message,
                                                   signer=self.stamp)
-        message_kit.policy_pubkey = self.policy_pubkey  # TODO: We can probably do better here.
+        message_kit.policy_pubkey = self.policy_pubkey  # TODO: We can probably do better here.  NRN
         return message_kit, signature
 
     @classmethod
@@ -1490,7 +1486,7 @@ class Enrico(Character):
 
             response_data = {
                 'result': {
-                    'message_kit': b64encode(message_kit.to_bytes()).decode(),  # FIXME
+                    'message_kit': b64encode(message_kit.to_bytes()).decode(),  # FIXME, but NRN
                     'signature': b64encode(bytes(signature)).decode(),
                 },
                 'version': str(nucypher.__version__)
