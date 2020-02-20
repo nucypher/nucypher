@@ -32,10 +32,12 @@ This error can be caused by a variety of reasons. Each time ``require()`` fails 
 without a corresponding check in the ``nucypher`` client itself, this error is raised. Over time, as we update the
 client, this generic error will become extinct.
 
-In the most common case:
+In the most common cases:
 
 - Ensure that your worker is `bonded to a staker <https://docs.nucypher.com/en/latest/guides/staking_guide.html#bond-an-ursula-to-a-staker>`_.
-  You can confirm by running ``nucypher stake list`` and check that Worker is set correctly i.e. not ``0x0000``.
+  You can confirm by running ``nucypher stake list`` and check that `Worker` is set correctly i.e. not ``0x0000``.
+- If your worker is configured, ensure that the worker address has (Goerli) ETH and that the correct worker address is
+  provided in the Ursula configuration file being used - the default configuration file is ``~/.local/share/nucypher/ursula.json``
 
 
 builtins.ValueError: {'code': -32000, 'message': 'insufficient funds for gas * price + value'}
@@ -83,4 +85,11 @@ enough full nodes are serving requests.
 ValueError: {'code': -32000, 'message': 'could not decrypt key with given password'}
 ------------------------------------------------------------------------------------
 
-You are using the wrong password for your ethereum account.
+Potential reasons:
+
+    #. You may be using the wrong password for your ethereum account.
+
+    #. You may be using the wrong ethereum account.
+
+    #. If trying to collect rewards, this is a `known bug <https://github.com/nucypher/nucypher/issues/1657>`_ in our
+       code - rerun the command without the ``--staking-address`` option.
