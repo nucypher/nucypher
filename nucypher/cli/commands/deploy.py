@@ -45,6 +45,7 @@ from nucypher.cli.options import (
     option_hw_wallet,
     option_poa,
     option_provider_uri,
+    option_contract_name
 )
 from nucypher.cli.config import group_general_config
 from nucypher.cli.painting import (
@@ -177,7 +178,7 @@ class ActorOptions:
 group_actor_options = group_options(
     ActorOptions,
     provider_uri=option_provider_uri(),
-    contract_name=click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING),
+    contract_name=option_contract_name,
     poa=option_poa,
     force=option_force,
     hw_wallet=option_hw_wallet,

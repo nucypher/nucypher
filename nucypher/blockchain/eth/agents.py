@@ -15,11 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
+import importlib
+import math
 import random
 from typing import Generator, List, Tuple, Union
 
-import math
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
 from eth_utils.address import to_checksum_address
 from eth_tester.exceptions import TransactionFailed
@@ -36,9 +36,11 @@ from nucypher.blockchain.eth.constants import (
     ADJUDICATOR_CONTRACT_NAME,
     NUCYPHER_TOKEN_CONTRACT_NAME,
     MULTISIG_CONTRACT_NAME,
+    SEEDER_CONTRACT_NAME,
     ETH_ADDRESS_BYTE_LENGTH
 )
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.events import ContractEvents
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
 from nucypher.blockchain.eth.utils import epoch_to_period
@@ -67,6 +69,22 @@ class ContractAgency:
             cls.__agents[registry_id] = cls.__agents.get(registry_id, dict())
             cls.__agents[registry_id][agent_class] = agent
             return agent
+
+    @classmethod
+    def get_agent_by_contract_name(cls,
+                                   contract_name: str,
+                                   registry: BaseContractRegistry,
+                                   provider_uri: str = None,
+                                   ) -> 'EthereumContractAgent':
+
+        if contract_name == NUCYPHER_TOKEN_CONTRACT_NAME:  # TODO: Perhaps rename NucypherTokenAgent
+            contract_name = "NucypherToken"
+
+        agent_name = f"{contract_name}Agent"
+        agents_module = importlib.import_module("nucypher.blockchain.eth.agents")  # TODO: Is there a programmatic way to get the module?
+        agent_class = getattr(agents_module, agent_name)
+        agent = cls.get_agent(agent_class=agent_class, registry=registry, provider_uri=provider_uri)
+        return agent
 
 
 class EthereumContractAgent:
@@ -104,7 +122,7 @@ class EthereumContractAgent:
                                                             proxy_name=self._proxy_name,
                                                             use_proxy_address=self._forward_address)
         self.__contract = contract
-
+        self.events = ContractEvents(contract)
         if not transaction_gas:
             transaction_gas = EthereumContractAgent.DEFAULT_TRANSACTION_GAS_LIMITS
         self.transaction_gas = transaction_gas
@@ -1119,7 +1137,7 @@ class WorkLockAgent(EthereumContractAgent):
 
 class SeederAgent(EthereumContractAgent):
 
-    registry_contract_name = "Seeder"
+    registry_contract_name = SEEDER_CONTRACT_NAME
 
     def enroll(self, sender_address: str, seed_address: str, ip: str, port: int) -> dict:
         # TODO: Protection for over-enrollment

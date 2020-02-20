@@ -20,6 +20,7 @@ from web3 import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.constants import MAX_UINT16
+from nucypher.blockchain.eth.events import EventRecord
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
 from nucypher.blockchain.eth.token import NU, StakeList
@@ -39,6 +40,7 @@ from nucypher.cli.options import (
     group_options,
     option_config_file,
     option_config_root,
+    option_event_name,
     option_force,
     option_hw_wallet,
     option_light,
@@ -189,7 +191,7 @@ class TransactingStakerOptions:
         is_preallocation_staker = (self.beneficiary_address and opts.staking_address) or self.allocation_filepath
 
         if is_preallocation_staker:
-            network = opts.config_options.network or list(stakeholder_config.domains)[0]  #FIXME: ugly network/domains mapping
+            network = opts.config_options.network or list(stakeholder_config.domains)[0]  # TODO: 1580 - ugly network/domains mapping
             if self.allocation_filepath:
                 if self.beneficiary_address or opts.staking_address:
                     message = "--allocation-filepath is incompatible with --beneficiary-address and --staking-address."
@@ -861,3 +863,44 @@ def preallocation(general_config, transacting_staker_options, config_file, actio
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
                               emitter=emitter)
 
+
+@stake.command()
+@group_staker_options
+@option_config_file
+@option_event_name
+@group_general_config
+def events(general_config, staker_options, config_file, event_name):
+    """
+    See blockchain events associated to a staker
+    """
+
+    ### Setup ###
+    emitter = _setup_emitter(general_config)
+
+    STAKEHOLDER = staker_options.create_character(emitter, config_file)
+    blockchain = staker_options.get_blockchain()
+
+    _client_account, staking_address = handle_client_account_for_staking(
+        emitter=emitter,
+        stakeholder=STAKEHOLDER,
+        staking_address=staker_options.staking_address,
+        individual_allocation=STAKEHOLDER.individual_allocation,
+        force=True)
+
+    title = f" {STAKEHOLDER.staking_agent.registry_contract_name} Events ".center(40, "-")
+    emitter.echo(f"\n{title}\n", bold=True, color='green')
+    if event_name:
+        events = [STAKEHOLDER.staking_agent.contract.events[event_name]]
+    else:
+        raise click.BadOptionUsage(message="You must specify an event name with --event-name")
+        # TODO: Doesn't work for the moment
+        # event_names = STAKEHOLDER.staking_agent.events.names
+        # events = [STAKEHOLDER.staking_agent.contract.events[e] for e in event_names]
+        # events = [e for e in events if 'staker' in e.argument_names]
+
+    for event in events:
+        emitter.echo(f"{event.event_name}:", bold=True, color='yellow')
+        event_filter = event.createFilter(fromBlock=0, toBlock='latest', argument_filters={'staker': staking_address})
+        entries = event_filter.get_all_entries()
+        for event_record in entries:
+            emitter.echo(f"  - {EventRecord(event_record)}")
