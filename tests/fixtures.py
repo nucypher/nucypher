@@ -454,7 +454,8 @@ def _make_testerchain():
 
     # Create the blockchain
     testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True)
-    BlockchainInterfaceFactory.register_interface(interface=testerchain)
+
+    BlockchainInterfaceFactory.register_interface(interface=testerchain, force=True)
 
     # Mock TransactingPower Consumption (Deployer)
     testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,

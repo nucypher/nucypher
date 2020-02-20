@@ -91,7 +91,8 @@ def _initialize_blockchain(poa, provider_uri, emitter, ignore_solidity_check):
         deployer_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
                                                          poa=poa,
                                                          ignore_solidity_check=ignore_solidity_check)
-        BlockchainInterfaceFactory.register_interface(interface=deployer_interface, sync=False,
+        BlockchainInterfaceFactory.register_interface(interface=deployer_interface,
+                                                      sync=False,
                                                       emitter=emitter)
     else:
         deployer_interface = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
