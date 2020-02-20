@@ -14,8 +14,6 @@ const STDIOReturnMessageHandler = (response) => {
     routes stdio responses from the NuCypher CLI to the
     right places.
   */
-  console.log(response)
-  console.log(ports)
   const route = response.route
   if (ports['panel-messages']) {
     ports['panel-messages'].postMessage({

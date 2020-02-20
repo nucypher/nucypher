@@ -12,16 +12,6 @@ function onStatus (data) {
   }
 }
 
-function onGenericNucypherReturn (data) {
-  console.log(data)
-  try {
-    clearResults()
-    displayResults(JSON.parse(data.result).result)
-  } catch {
-    displayError(data.result)
-  }
-}
-
 function onDecrypt (data) {
   try {
     const results = JSON.parse(data.result).result
@@ -90,17 +80,18 @@ function populateCommand (data) {
 
   $('#commandform').append(`<div><input type="hidden" name="character" value="${data.character}"></input></div>`)
   $('#commandform').append(`<div><input type="hidden" name="action" value="${data.action.replace('_', '-')}"></input></div>`)
+  $('#commandform').append('<div><input type="checkbox" name="args[]json_ipc" id="json_ipcinput"><label for="json_ipcinput">results as json</label></div>')
 
   const ui = {
-    text: '<div ><input type="text"></input></div>',
-    string: '<div ><input type="text"></input></div>',
-    file: '<div ><input type="text" placeholder="a local file path"></input></div>',
-    path: '<div ><input type="text" placeholder="a local file path"></input></div>',
-    integer: '<div ><input min="1" max="100" type="number"></input></div>',
+    text: '<div><input type="text"></input></div>',
+    string: '<div><input type="text"></input></div>',
+    file: '<div><input type="text" placeholder="a local file path"></input></div>',
+    path: '<div><input type="text" placeholder="a local file path"></input></div>',
+    integer: '<div><input type="number"></input></div>',
     boolean: '<div><input type="checkbox"></input></div>',
-    choice: '<div ><select></select></div>',
-    textfield: '<div ><textarea rows="3"></textarea></input></div>',
-    'integer range': '<div ><input min="1" max="100" type="number"></input></div>',
+    choice: '<div><select></select></div>',
+    textfield: '<div><textarea rows="3"></textarea></input></div>',
+    'integer range': '<div><input min="1" max="100" type="number"></input></div>',
   }
   try {
     $.each(Object.keys(data.properties), function (i, o) {
@@ -123,26 +114,30 @@ function populateCommand (data) {
       }
       el.append(`<label for="${name}input">${name}(${type})</label>`)
       $('#commandform').append(el)
-      el.find('input').attr('name', `args[${o}]`).attr('id', `${o}input`)
+      el.find('input, textarea, select').attr('name', `args[${o}]`).attr('id', `${o}input`)
       if (name === 'expiration') {
         el.find('input').attr('value', '2019-08-29T10:07:50Z')
       }
-    })
-
-    $('#submitbutton').attr('disabled', false).on('click', function () {
-      let submitdata = {
-        keyring_password: $('#passwordinput').val(),
-      }
-      submitdata = Object.assign(submitdata, $('#commandform').serializeObject())
-      bgPort.postMessage({ route: 'execute', data: submitdata })
     })
   } catch (err) {
     // json can't be parsed?
     var output = data.result || 'NuCypher returned an empty result.'
     displayError(output)
   }
+  $('#commandform').append($('<button type="submit" id="submitbutton">Go</button>'))
+  $('#commandform').submit((e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    let submitdata = {
+      keyring_password: $('#passwordinput').val(),
+    }
+    const formdata = $('#commandform').serializeObject()
+    Object.keys(formdata).forEach((k) => {
+      submitdata[k] = formdata[k]
+    })
+    bgPort.postMessage({ route: 'execute', data: submitdata })
+  })
 }
-
 
 const setPassword = function () {
   password = $('#passwordinput').val()
@@ -159,24 +154,35 @@ function fDispatcher (message) {
     status: onStatus,
     options: onOptions
   }
-  if (callbacks[message.route] !== undefined){
+  if (callbacks[message.route] !== undefined) {
     return callbacks[message.route](message.data)
+  } else {
+    return displayResults(message)
   }
 }
 
-function displayResults (result) {
-  $('#output').append('<div class="alert alert-success" role="alert">Success</div>')
-  var lg = $('<ul class="list-group"></ul>')
-  $('#output').append(lg)
-  $.each(Object.keys(result), function(i, a){
-    lg.append(`<li class="list-group-item"><strong>${a}:</strong> ${result[a]}</li>`)
-  })
+function displayResults (message) {
+  if (message.data.result) {
+    try {
+      const resultData = JSON.parse(message.data.result)
+      Object.keys(resultData.result).forEach((v) => {
+        $('#output').append(
+          `<div>${v}: ${resultData.result[v]}</div>`
+        )
+      })
+    } catch (err) {
+      $('#output').append(`<pre>${message.data.result}</pre>`)
+    }
+
+  } else if (message.data.error) {
+    $('#output').append(`<pre>${message.data.error}</pre>`)
+  }
 }
 
 function clearResults () {
   $('#commandform').empty()
   $('#submitbutton').off("click")
-  $('#output').empty()
+  // $('#output').empty()
 }
 
 function clearCommands () {
@@ -212,11 +218,6 @@ $('.character').on('click', function () {
       character: $(this).attr('character'),
     }
   })
-})
-
-$('#commandform').submit((e) => {
-  e.preventDefault()
-  e.stopPropagation()
 })
 
 var bgPort = browser.runtime.connect({name: "panel-messages"})
