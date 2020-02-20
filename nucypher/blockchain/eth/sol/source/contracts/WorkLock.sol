@@ -74,12 +74,12 @@ contract WorkLock {
         public
     {
         uint256 totalSupply = _token.totalSupply();
-        require(totalSupply > 0 &&
-            _escrow.secondsPerPeriod() > 0 &&
-            _endBidDate > _startBidDate &&
-            _endBidDate > block.timestamp &&
-            _boostingRefund > 0 &&
-            _stakingPeriods >= _escrow.minLockedPeriods());
+        require(totalSupply > 0 &&                              // token contract is deployed and accessible
+            _escrow.secondsPerPeriod() > 0 &&                   // escrow contract is deployed and accessible
+            _endBidDate > _startBidDate &&                      // bidding period lasts some time
+            _endBidDate > block.timestamp &&                    // there is time to make a bid
+            _boostingRefund > 0 &&                              // boosting coefficient was set
+            _stakingPeriods >= _escrow.minLockedPeriods());     // staking duration is consistent with escrow contract
         // worst case for `ethToWork()` and `workToETH()`,
         // when ethSupply == MAX_ETH_SUPPLY and tokenSupply == totalSupply
         require(MAX_ETH_SUPPLY * totalSupply * SLOWING_REFUND / MAX_ETH_SUPPLY / totalSupply == SLOWING_REFUND &&
@@ -138,15 +138,15 @@ contract WorkLock {
         if (remainingWork <= completedWork) {
             return 0;
         }
-        return remainingWork.sub(completedWork);
+        return remainingWork - completedWork;
     }
 
     /**
     * @notice Bid for tokens by transferring ETH
     */
     function bid() external payable {
-        require(block.timestamp >= startBidDate && block.timestamp <= endBidDate,
-            "Bid is open during a certain period");
+        require(block.timestamp >= startBidDate, "Bidding is not open yet");
+        require(block.timestamp <= endBidDate, "Bidding is already finished");
         WorkInfo storage info = workInfo[msg.sender];
         info.depositedETH = info.depositedETH.add(msg.value);
         ethSupply = ethSupply.add(msg.value);
@@ -163,8 +163,10 @@ contract WorkLock {
         require(!info.claimed, "Tokens are already claimed");
         uint256 refundETH = info.depositedETH;
         info.depositedETH = 0;
+        // if bidding is still open - then ETH supply will be decreased
         if (block.timestamp <= endBidDate) {
             ethSupply = ethSupply.sub(refundETH);
+        // if bidding is over - then discarded tokens will be marked as unclaimed to burn later
         } else {
             unclaimedTokens = unclaimedTokens.add(ethToTokens(refundETH));
         }
