@@ -21,13 +21,15 @@ of security than software wallets.
 
 Staking Procedure:
 
-1) Run an ethereum node on the Staker's machine (geth, parity, etc.)
-2) Install ``nucypher`` on Staking machine (See :doc:`/guides/installation_guide`)
-3) Request testnet tokens by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and type ``.getfunded <YOUR_CHECKSUM_ETH_ADDRESS>`` in the #testnet-faucet channel
-4) Initiate a new StakeHolder and Stake (see below)
-5) Bond a Worker to a Staker (using the worker's ethereum address)
-6) Optionally, modify stake settings
-7) Run a Worker Node (see :doc:`/guides/ursula_configuration_guide`)
+1) Install ``nucypher`` on Staking machine (see :doc:`/guides/installation_guide`)
+2) Run an ethereum node on the Staker's machine eg. geth, parity, etc. (see `Run an Ethereum node for Staking`_)
+3) Create staker's ethereum address (see `Run an Ethereum node for Staking`_)
+4) Request testnet tokens by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and type ``.getfunded <YOUR_STAKER_ETH_ADDRESS>`` in the #testnet-faucet channel
+5) Initiate a new StakeHolder and Stake (see `Initialize a new stakeholder`_)
+6) Create and fund worker's ethereum address with ETH
+7) Bond a Worker to a Staker using the worker's ethereum address (see `Bonding a Worker`_)
+8) Optionally, modify stake settings (see `Modifying Active Stakes`_)
+9) Configure and Run a Worker Node (see :doc:`/guides/ursula_configuration_guide`)
 
 
 Staking CLI
@@ -244,6 +246,7 @@ Once you have created one or more stakes, you can view all active stake for conn
 If the Worker in the list is shown as ``0x0000``, it means that you haven't yet
 attached a Worker node to your Staker, so you still have to do it!
 
+.. _bond-worker:
 
 Bonding a Worker
 ~~~~~~~~~~~~~~~~~~
@@ -306,7 +309,7 @@ Several administrative operations can be performed on active stakes:
 
 
 Manage automatic reward re-staking
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+**********************************
 
 As your Ursula performs work, all rewards are automatically added to your existing stake to optimize earnings.
 This feature, called `re-staking`, is *enabled* by default.
@@ -359,7 +362,11 @@ Wind down is *disabled* by default. To start winding down an existing stake:
 Divide
 ******
 
-Existing stakes can be divided into smaller sub-stakes, with different values and durations. To divide an existing stake:
+Existing stakes can be divided into smaller :ref:`sub-stakes <sub-stakes>`, with different values and durations. Dividing a stake
+allows stakers to accommodate different liquidity needs since sub-stakes can have different durations. Therefore, a
+staker can liquidate a portion of their overall stake at an earlier time.
+
+To divide an existing stake:
 
 .. code:: bash
 
