@@ -51,7 +51,6 @@ option_bidder_address = click.option('--bidder-address',
 
 def _setup_emitter(general_config):
     emitter = general_config.emitter
-    emitter.clear()
     emitter.banner(WORKLOCK_BANNER)
     return emitter
 
@@ -67,7 +66,10 @@ class WorkLockOptions:
         client_password = None
         if transacting and not hw_wallet:
             client_password = get_client_password(checksum_address=self.bidder_address)
-        bidder = Bidder(checksum_address=self.bidder_address, registry=registry, client_password=client_password)
+        bidder = Bidder(checksum_address=self.bidder_address,
+                        registry=registry,
+                        client_password=client_password,
+                        is_transacting=transacting)
         return bidder
 
     def create_bidder(self, registry, hw_wallet: bool = False):
@@ -113,8 +115,7 @@ def status(general_config, registry_options, worklock_options):
 @option_force
 @option_hw_wallet
 @click.option('--value', help="ETH value of bid", type=click.STRING)
-def bid(general_config, worklock_options, registry_options,
-        force, hw_wallet, value):
+def bid(general_config, worklock_options, registry_options, force, hw_wallet, value):
     """Place a bid"""
     emitter = _setup_emitter(general_config)
 

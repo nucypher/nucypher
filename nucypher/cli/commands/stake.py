@@ -65,7 +65,6 @@ option_worker_address = click.option('--worker-address', help="Address to assign
 def _setup_emitter(general_config):
     # Banner
     emitter = general_config.emitter
-    emitter.clear()
     emitter.banner(StakeHolder.banner)
 
     return emitter
