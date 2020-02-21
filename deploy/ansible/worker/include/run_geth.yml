@@ -14,7 +14,7 @@
       docker_container:
         name: geth-sync
         state: absent
-      when: geth_running.stat.exists == False
+      when: geth_running.stat.exists == False and restarting_geth is undefined
       ignore_errors: yes
 
     - name: "run geth until it finishes syncing (time to get up and go for a walk)"
@@ -23,13 +23,13 @@
       async: 100000
       poll: 0
       register: geth_sync_status
-      when: geth_running.stat.exists == False
+      when: geth_running.stat.exists == False and restarting_geth is undefined
 
     - name: 'check if geth is finished syncing...'
       become: yes
       until: job_result.finished
       retries: 10000
-      when: geth_running.stat.exists == False
+      when: geth_running.stat.exists == False and restarting_geth is undefined
       register: job_result
       async_status:
         jid: "{{ geth_sync_status['ansible_job_id'] }}"
