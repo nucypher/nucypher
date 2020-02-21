@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
+import glob
 import os
 
 import click
@@ -22,6 +23,7 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from twisted.internet import stdio
 
 from nucypher.blockchain.economics import EconomicsFactory
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
@@ -52,7 +54,8 @@ from nucypher.cli.options import (
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS
+from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS, APP_DIR, \
+    DEFAULT_CONFIG_ROOT
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
@@ -61,7 +64,7 @@ class UrsulaConfigOptions:
 
     __option_name__ = 'config_options'
 
-    def __init__(self, geth, provider_uri, staker_address, worker_address, federated_only, rest_host,
+    def __init__(self, geth, provider_uri, worker_address, federated_only, rest_host,
             rest_port, db_filepath, network, registry_filepath, dev, poa, light):
 
         if federated_only:
@@ -69,10 +72,6 @@ class UrsulaConfigOptions:
             if geth:
                 raise click.BadOptionUsage(option_name="--geth",
                                            message="--geth cannot be used in federated mode.")
-
-            if staker_address:
-                raise click.BadOptionUsage(option_name='--staker-address',
-                                           message="--staker-address cannot be used in federated mode.")
 
             if registry_filepath:
                 raise click.BadOptionUsage(option_name="--registry-filepath",
@@ -86,7 +85,6 @@ class UrsulaConfigOptions:
 
         self.eth_node = eth_node
         self.provider_uri = provider_uri
-        self.staker_address = staker_address
         self.worker_address = worker_address
         self.federated_only = federated_only
         self.rest_host = rest_host
@@ -109,8 +107,7 @@ class UrsulaConfigOptions:
                 registry_filepath=self.registry_filepath,
                 provider_process=self.eth_node,
                 provider_uri=self.provider_uri,
-                checksum_address=self.staker_address,
-                worker_address=self.worker_address,
+                checksum_address=self.worker_address,
                 federated_only=self.federated_only,
                 rest_host=self.rest_host,
                 rest_port=self.rest_port,
@@ -142,12 +139,8 @@ class UrsulaConfigOptions:
 
         assert not self.dev  # TODO: Raise instead
 
-        staker_address = self.staker_address
         worker_address = self.worker_address
-        if (not staker_address or not worker_address) and not self.federated_only:
-            if not staker_address:
-                staker_address = click.prompt("Enter staker address", type=EIP55_CHECKSUM_ADDRESS)
-
+        if (not worker_address) and not self.federated_only:
             if not worker_address:
                 prompt = "Select worker account"
                 worker_address = select_client_account(emitter=emitter,
@@ -170,7 +163,6 @@ class UrsulaConfigOptions:
                                             db_filepath=self.db_filepath,
                                             domains=self.domains,
                                             federated_only=self.federated_only,
-                                            checksum_address=staker_address,
                                             worker_address=worker_address,
                                             registry_filepath=self.registry_filepath,
                                             provider_process=self.eth_node,
@@ -184,8 +176,7 @@ class UrsulaConfigOptions:
                        db_filepath=self.db_filepath,
                        domains=self.domains,
                        federated_only=self.federated_only,
-                       checksum_address=self.staker_address,
-                       worker_address=self.worker_address,
+                       checksum_address=self.worker_address,
                        registry_filepath=self.registry_filepath,
                        provider_uri=self.provider_uri,
                        poa=self.poa,
@@ -199,7 +190,6 @@ group_config_options = group_options(
     UrsulaConfigOptions,
     geth=option_geth,
     provider_uri=option_provider_uri(),
-    staker_address=click.option('--staker-address', help="Run on behalf of a specified staking account", type=EIP55_CHECKSUM_ADDRESS),
     worker_address=click.option('--worker-address', help="Run the worker-ursula with a specified address", type=EIP55_CHECKSUM_ADDRESS),
     federated_only=option_federated_only,
     rest_host=click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING),
@@ -233,7 +223,6 @@ class UrsulaCharacterOptions:
                                                       envvar=NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD)
 
         try:
-            emitter.message("Waiting for bonded worker...", color="yellow", bold=True)
             URSULA = actions.make_cli_character(character_config=ursula_config,
                                                 emitter=emitter,
                                                 min_stake=self.min_stake,
@@ -243,8 +232,6 @@ class UrsulaCharacterOptions:
                                                 client_password=client_password,
                                                 load_preferred_teachers=load_seednodes and not self.lonely,
                                                 start_learning_now=load_seednodes)
-            emitter.message(f"Worker is bonded to {URSULA.checksum_address}!", color='green', bold=True)
-
             return ursula_config, URSULA
 
         except NucypherKeyring.AuthenticationFailed as e:
@@ -333,9 +320,18 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
     #
     # Setup
     #
-
-    emitter = _setup_emitter(general_config, character_options.config_options.worker_address)
+    worker_address = character_options.config_options.worker_address
+    emitter = _setup_emitter(general_config, worker_address=worker_address)
     _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
+
+    if glob.glob(f'{DEFAULT_CONFIG_ROOT}/ursula-*'):
+        if not config_file and not worker_address:
+            if not worker_address:
+                worker_address = select_client_account(emitter=emitter,
+                                                       network=list(character_options.config_options.domains)[0],
+                                                       provider_uri=character_options.config_options.provider_uri)
+            config_file = os.path.join(DEFAULT_CONFIG_ROOT, UrsulaConfiguration.generate_filename(modifier=worker_address))
+
     ursula_config, URSULA = character_options.create_character(
             emitter=emitter,
             config_file=config_file,

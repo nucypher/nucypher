@@ -45,8 +45,8 @@ class UrsulaConfiguration(CharacterConfiguration):
     DEFAULT_DB_NAME = '{}.db'.format(_NAME)
 
     def __init__(self,
-                 dev_mode: bool = False,
                  worker_address: str = None,
+                 dev_mode: bool = False,
                  db_filepath: str = None,
                  rest_host: str = None,
                  rest_port: int = None,

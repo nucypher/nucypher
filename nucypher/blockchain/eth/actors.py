@@ -1199,7 +1199,7 @@ class Worker(NucypherTokenActor):
         # Workers cannot be started without being assigned a stake first.
         if is_me:
             if check_active_worker:
-                self._checksum_address = self.block_until_bonded(worker_address, self.registry)
+                self._checksum_address = self.block_until_ready(worker_address, self.registry)
             self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
             self.stakes.refresh()
 
@@ -1208,33 +1208,53 @@ class Worker(NucypherTokenActor):
                 self.work_tracker.start(act_now=False)
 
     @classmethod
-    def block_until_bonded(cls,
-                           worker_address: str,
-                           registry: 'BaseContractRegistry',
-                           poll_rate: int = None,
-                           timeout: int = None) -> str:
+    def block_until_ready(cls,
+                          worker_address: str,
+                          registry: 'BaseContractRegistry',
+                          poll_rate: int = None,
+                          timeout: int = None) -> str:
         """
         Polls the staking_agent and blocks until the staking address is not
         a null address for the given worker_address.
         Once the worker is bonded, it returns the staker address.
         """
+
         timeout = timeout or cls.BONDING_TIMEOUT
         poll_rate = poll_rate or cls.BONDING_POLL_RATE
 
-        staking_agent = ContractAgency.get_agent(StakingEscrowAgent,
-                                                 registry=registry)
+        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
+        client = staking_agent.blockchain.client
+        ether_balance = client.get_balance(worker_address)
 
-        staking_addr = staking_agent.get_staker_from_worker(worker_address)
+        staking_address = staking_agent.get_staker_from_worker(worker_address)
         start = maya.now()
-        while staking_addr == BlockchainInterface.NULL_ADDRESS:
-            time.sleep(poll_rate)
-            staking_addr = staking_agent.get_staker_from_worker(worker_address)
+
+        emitter = StdoutEmitter()  # TODO: Make injectable, or embed this logic into Ursula
+        if staking_address == BlockchainInterface.NULL_ADDRESS:
+            emitter.message("Waiting for bonding...", color="yellow")
+        if not ether_balance:
+            emitter.message("Waiting for ETH funding...", color="yellow")
+
+        while True:
+
+            staking_address = staking_agent.get_staker_from_worker(worker_address)
+            ether_balance = client.get_balance(worker_address)
+            if staking_address != BlockchainInterface.NULL_ADDRESS and ether_balance:
+                break
+
+            # Crash
             if timeout:
                 now = maya.now()
                 delta = now - start
                 if delta.total_seconds() >= timeout:
-                    raise cls.DetachedWorker(f"Worker {worker_address} not bonded after {timeout} seconds.")
-        return staking_addr
+                    if staking_address == BlockchainInterface.NULL_ADDRESS:
+                        raise cls.DetachedWorker(f"Worker {worker_address} not bonded after waiting {timeout} seconds.")
+                    elif not ether_balance:
+                        raise RuntimeError(f"Worker {worker_address} has no ether after waiting {timeout} seconds.")
+            time.sleep(poll_rate)
+
+        emitter.message(f"Worker is bonded to {staking_address}!", color='green', bold=True)
+        return staking_address
 
     @property
     def eth_balance(self) -> Decimal:
