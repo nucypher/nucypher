@@ -61,7 +61,6 @@ def validate_checksum_address(func: Callable) -> Callable:
                 actual_type_name = checksum_address.__class__.__name__
                 message = '{} is an invalid type for parameter "{}".'.format(actual_type_name, parameter_name)
                 log.debug(message)
-                breakpoint( )
                 raise TypeError(message)
 
             # Invalid Value

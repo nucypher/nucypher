@@ -1226,27 +1226,37 @@ class Worker(NucypherTokenActor):
         start = maya.now()
         emitter = StdoutEmitter()  # TODO: Make injectable, or embed this logic into Ursula
 
-        counter = 0
+        counter, funded, bonded = 0, False, False
         while True:
+
+            # Read
             staking_address = staking_agent.get_staker_from_worker(worker_address)
             ether_balance = client.get_balance(worker_address)
 
+            # Bonding
             if staking_address == BlockchainInterface.NULL_ADDRESS:
                 if counter % 10 == 0:
                     emitter.message("Waiting for bonding...", color="yellow")
             else:
-                emitter.message(f"Worker is bonded ({staking_address}) and funded ({ether_balance} ETH)!", color='green', bold=True)
+                if not bonded:
+                    bonded = True
+                    emitter.message(f"Worker is bonded to ({staking_address})!", color='green', bold=True)
 
+            # Balance
             if not ether_balance:
                 if counter % 10 == 0:
                     emitter.message("Waiting for ETH funding...", color="yellow")
             else:
-                emitter.message(f"Worker is funded ({ether_balance} ETH)!", color='green', bold=True)
+                if not funded:
+                    funded = True
+                    emitter.message(f"Worker is funded with {Web3.fromWei(ether_balance, 'ether')} ETH)!", color='green', bold=True)
 
+            # Success and Escape
             if staking_address != BlockchainInterface.NULL_ADDRESS and ether_balance:
                 emitter.message(f"Starting services...", color='yellow', bold=True)
                 break
 
+            # Crash
             if timeout:
                 now = maya.now()
                 delta = now - start
@@ -1256,6 +1266,7 @@ class Worker(NucypherTokenActor):
                     elif not ether_balance:
                         raise RuntimeError(f"Worker {worker_address} has no ether after waiting {timeout} seconds.")
 
+            # Increment
             time.sleep(poll_rate)
             counter += 1
 

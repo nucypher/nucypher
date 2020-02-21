@@ -609,7 +609,7 @@ def get_or_update_configuration(emitter, config_class, filepath: str, config_opt
         return emitter.echo(config.serialize())
 
 
-def get_worker_config_file(emitter, config_file, worker_address, provider_uri, network, federated):
+def select_worker_config_file(emitter, config_file, worker_address, provider_uri, network, federated):
 
     config_root = abspath(dirname(config_file)) if config_file else DEFAULT_CONFIG_ROOT
     any_worker_config = glob.glob(UrsulaConfiguration.default_filepath(config_root=config_root))
