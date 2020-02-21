@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-import glob
 import os
 
 import click
@@ -23,7 +22,6 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from twisted.internet import stdio
 
 from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
@@ -31,7 +29,7 @@ from nucypher.cli.actions import (
     get_nucypher_password,
     select_client_account,
     get_client_password,
-    get_or_update_configuration)
+    get_or_update_configuration, get_config_file)
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -54,8 +52,7 @@ from nucypher.cli.options import (
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS, APP_DIR, \
-    DEFAULT_CONFIG_ROOT
+from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
@@ -323,14 +320,11 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
     worker_address = character_options.config_options.worker_address
     emitter = _setup_emitter(general_config, worker_address=worker_address)
     _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
-
-    if glob.glob(f'{DEFAULT_CONFIG_ROOT}/ursula-*'):
-        if not config_file and not worker_address:
-            if not worker_address:
-                worker_address = select_client_account(emitter=emitter,
-                                                       network=list(character_options.config_options.domains)[0],
-                                                       provider_uri=character_options.config_options.provider_uri)
-            config_file = os.path.join(DEFAULT_CONFIG_ROOT, UrsulaConfiguration.generate_filename(modifier=worker_address))
+    config_file = get_config_file(emitter=emitter,
+                                  config_file=config_file,
+                                  worker_address=worker_address,
+                                  network=list(character_options.config_options.domains)[0],
+                                  provider_uri=character_options.config_options.provider_uri)
 
     ursula_config, URSULA = character_options.create_character(
             emitter=emitter,
