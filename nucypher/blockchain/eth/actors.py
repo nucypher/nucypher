@@ -1221,28 +1221,32 @@ class Worker(NucypherTokenActor):
 
         timeout = timeout or cls.BONDING_TIMEOUT
         poll_rate = poll_rate or cls.BONDING_POLL_RATE
-
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
         client = staking_agent.blockchain.client
-        ether_balance = client.get_balance(worker_address)
-
-        staking_address = staking_agent.get_staker_from_worker(worker_address)
         start = maya.now()
-
         emitter = StdoutEmitter()  # TODO: Make injectable, or embed this logic into Ursula
-        if staking_address == BlockchainInterface.NULL_ADDRESS:
-            emitter.message("Waiting for bonding...", color="yellow")
-        if not ether_balance:
-            emitter.message("Waiting for ETH funding...", color="yellow")
 
+        counter = 0
         while True:
-
             staking_address = staking_agent.get_staker_from_worker(worker_address)
             ether_balance = client.get_balance(worker_address)
+
+            if staking_address == BlockchainInterface.NULL_ADDRESS:
+                if counter % 10 == 0:
+                    emitter.message("Waiting for bonding...", color="yellow")
+            else:
+                emitter.message(f"Worker is bonded ({staking_address}) and funded ({ether_balance} ETH)!", color='green', bold=True)
+
+            if not ether_balance:
+                if counter % 10 == 0:
+                    emitter.message("Waiting for ETH funding...", color="yellow")
+            else:
+                emitter.message(f"Worker is funded ({ether_balance} ETH)!", color='green', bold=True)
+
             if staking_address != BlockchainInterface.NULL_ADDRESS and ether_balance:
+                emitter.message(f"Starting services...", color='yellow', bold=True)
                 break
 
-            # Crash
             if timeout:
                 now = maya.now()
                 delta = now - start
@@ -1251,9 +1255,10 @@ class Worker(NucypherTokenActor):
                         raise cls.DetachedWorker(f"Worker {worker_address} not bonded after waiting {timeout} seconds.")
                     elif not ether_balance:
                         raise RuntimeError(f"Worker {worker_address} has no ether after waiting {timeout} seconds.")
-            time.sleep(poll_rate)
 
-        emitter.message(f"Worker is bonded to {staking_address}!", color='green', bold=True)
+            time.sleep(poll_rate)
+            counter += 1
+
         return staking_address
 
     @property
