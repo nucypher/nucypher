@@ -103,7 +103,8 @@ def test_upgradeability(temp_dir_path, token_economics):
                                                       SourceDirs(temp_dir_path)])
 
     # Prepare the blockchain
-    blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm/2', compiler=solidity_compiler)
+    provider_uri = 'tester://pyevm/2'
+    blockchain_interface = BlockchainDeployerInterface(provider_uri=provider_uri, compiler=solidity_compiler)
     blockchain_interface.connect()
     origin = blockchain_interface.client.accounts[0]
     BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)
@@ -120,6 +121,8 @@ def test_upgradeability(temp_dir_path, token_economics):
     test_policy_manager = len(raw_contracts[contract_name]) > 1
 
     if not test_adjudicator and not test_staking_escrow and not test_policy_manager:
+        # Unregister interface
+        del BlockchainInterfaceFactory._interfaces[provider_uri]
         return
 
     # Prepare master version of contracts and upgrade to the latest
@@ -142,3 +145,6 @@ def test_upgradeability(temp_dir_path, token_economics):
         adjudicator_deployer = AdjudicatorDeployer(registry=registry, deployer_address=origin)
         deploy_earliest_contract(blockchain_interface, adjudicator_deployer, secret=ADJUDICATOR_DEPLOYMENT_SECRET)
         upgrade_to_latest_contract(adjudicator_deployer, secret=ADJUDICATOR_DEPLOYMENT_SECRET)
+
+    # Unregister interface
+    del BlockchainInterfaceFactory._interfaces[provider_uri]
