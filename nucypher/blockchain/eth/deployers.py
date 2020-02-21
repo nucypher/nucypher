@@ -19,7 +19,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from collections import OrderedDict
 from typing import Tuple, Dict, List
 
-from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGURED, NO_BENEFICIARY
+from constant_sorrow.constants import (
+    CONTRACT_NOT_DEPLOYED,
+    NO_DEPLOYER_CONFIGURED,
+    NO_BENEFICIARY,
+    BARE,
+    IDLE,
+    FULL
+)
 from web3 import Web3
 from web3.contract import Contract
 
@@ -36,11 +43,11 @@ from nucypher.blockchain.eth.agents import (
     MultiSigAgent,
     ContractAgency
 )
-from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, STAKING_INTERFACE_ROUTER_CONTRACT_NAME
+from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_secret, validate_checksum_address
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.interfaces import (
+    BlockchainDeployerInterface,
+    BlockchainInterfaceFactory,
     VersionedContract
 )
 from nucypher.blockchain.eth.registry import AllocationRegistry
@@ -58,6 +65,8 @@ class BaseContractDeployer:
     _upgradeable = NotImplemented
     _ownable = NotImplemented
     _proxy_deployer = NotImplemented
+
+    can_be_idle = False
 
     class ContractDeploymentError(Exception):
         pass
@@ -493,7 +502,11 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
     agency = StakingEscrowAgent
     contract_name = agency.registry_contract_name
-    deployment_steps = ('contract_deployment', 'dispatcher_deployment', 'approve_reward_transfer', 'initialize')
+
+    can_be_idle = True
+    preparation_steps = ('contract_deployment', 'dispatcher_deployment')
+    activation_steps = ('approve_reward_transfer', 'initialize')
+    deployment_steps = preparation_steps + activation_steps
     _proxy_deployer = DispatcherDeployer
 
     def __init__(self, test_mode: bool = False, *args, **kwargs):
@@ -535,7 +548,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         return the_escrow_contract, deploy_receipt
 
     def deploy(self,
-               initial_deployment: bool = True,
+               deployment_mode=FULL,
                secret_hash: bytes = None,
                gas_limit: int = None,
                progress=None,
@@ -557,7 +570,10 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         Returns transaction receipts in a dict.
         """
 
-        if initial_deployment and not secret_hash:
+        if deployment_mode not in (BARE, IDLE, FULL):
+            raise ValueError(f"Invalid deployment mode ({deployment_mode})")
+
+        if deployment_mode is not BARE and not secret_hash:
             raise ValueError(f"An upgrade secret hash is required to perform an initial"
                              f" deployment series for {self.contract_name}.")
 
@@ -576,10 +592,10 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                                                                      **overrides)
 
         # This is the end of bare deployment.
-        if not initial_deployment:
+        if deployment_mode is BARE:
             self._contract = the_escrow_contract
-            return self._finish_bare_deployment(deployment_receipt=deploy_receipt,
-                                                progress=progress)
+            receipts = self._finish_bare_deployment(deployment_receipt=deploy_receipt, progress=progress)
+            return receipts
 
         if progress:
             progress.update(1)
@@ -603,10 +619,27 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                                                                  target_contract=the_escrow_contract)
 
         # Switch the contract for the wrapped one
-        the_escrow_contract = wrapped_escrow_contract
+        self._contract = wrapped_escrow_contract
 
-        # 3 - Approve transfer the reward supply tokens to StakingEscrow #
-        approve_reward_function = self.token_contract.functions.approve(the_escrow_contract.address,
+        preparation_receipts = dict(zip(self.preparation_steps, (deploy_receipt, dispatcher_deploy_receipt)))
+        self.deployment_receipts = preparation_receipts
+
+        if deployment_mode is IDLE:
+            # This is the end of deployment without activation: the contract is now idle, waiting for activation
+            return preparation_receipts
+        else:  # deployment_mode is FULL
+            activation_receipts = self.activate(gas_limit=gas_limit, progress=progress)
+            self.deployment_receipts.update(activation_receipts)
+            return self.deployment_receipts
+
+    def activate(self, gas_limit: int = None, progress=None):
+
+        origin_args = {}
+        if gas_limit:
+            origin_args.update({'gas': gas_limit})  # TODO: #842 - Gas Management
+
+        # 3 - Approve transferring the reward supply tokens to StakingEscrow #
+        approve_reward_function = self.token_contract.functions.approve(self._contract.address,
                                                                         self.economics.erc20_reward_supply)
 
         # TODO: Confirmations / Successful Transaction Indicator / Events ??  - #1193, #1194
@@ -617,22 +650,15 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             progress.update(1)
 
         # 4 - Initialize the StakingEscrow contract
-        init_function = the_escrow_contract.functions.initialize(self.economics.erc20_reward_supply)
-
+        init_function = self._contract.functions.initialize(self.economics.erc20_reward_supply)
         init_receipt = self.blockchain.send_transaction(contract_function=init_function,
                                                         sender_address=self.deployer_address,
                                                         payload=origin_args)
         if progress:
             progress.update(1)
 
-        # Gather the transaction receipts
-        ordered_receipts = (deploy_receipt, dispatcher_deploy_receipt, approve_reward_receipt, init_receipt)
-        deployment_receipts = dict(zip(self.deployment_steps, ordered_receipts))
-
-        # Set the contract and transaction receipts #
-        self._contract = the_escrow_contract
-        self.deployment_receipts = deployment_receipts
-        return deployment_receipts
+        activation_receipts = dict(zip(self.activation_steps, (approve_reward_receipt, init_receipt)))
+        return activation_receipts
 
 
 class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):

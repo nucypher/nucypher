@@ -28,6 +28,9 @@ import maya
 from constant_sorrow.constants import (
     WORKER_NOT_RUNNING,
     NO_WORKER_ASSIGNED,
+    BARE,
+    IDLE,
+    FULL
 )
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak, is_checksum_address, to_checksum_address
@@ -265,7 +268,7 @@ class ContractAdministrator(NucypherTokenActor):
                         contract_name: str,
                         gas_limit: int = None,
                         plaintext_secret: str = None,
-                        bare: bool = False,
+                        deployment_mode=FULL,
                         ignore_deployed: bool = False,
                         progress=None,
                         confirmations: int = 0,
@@ -286,7 +289,7 @@ class ContractAdministrator(NucypherTokenActor):
 
         self.transacting_power.activate()  # Activate the TransactingPower in case too much time has passed
         if Deployer._upgradeable:
-            is_initial_deployment = not bare
+            is_initial_deployment = deployment_mode != BARE  # i.e., we also deploy a dispatcher
             if is_initial_deployment and not plaintext_secret:
                 raise ValueError("An upgrade secret must be passed to perform initial deployment of a Dispatcher.")
             secret_hash = None
@@ -294,14 +297,16 @@ class ContractAdministrator(NucypherTokenActor):
                 secret_hash = keccak(bytes(plaintext_secret, encoding='utf-8'))
             receipts = deployer.deploy(secret_hash=secret_hash,
                                        gas_limit=gas_limit,
-                                       initial_deployment=is_initial_deployment,
                                        progress=progress,
                                        ignore_deployed=ignore_deployed,
-                                       confirmations=confirmations)
+                                       confirmations=confirmations,
+                                       deployment_mode=deployment_mode,
+                                       **deployment_parameters)
         else:
             receipts = deployer.deploy(gas_limit=gas_limit,
                                        progress=progress,
                                        confirmations=confirmations,
+                                       deployment_mode=deployment_mode,
                                        **deployment_parameters)
         return receipts, deployer
 

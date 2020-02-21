@@ -111,7 +111,7 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_loc
 
     command = ('contracts',
                '--contract-name', StakingEscrowDeployer.contract_name,
-               '--bare',
+               '--mode', 'bare',
                '--provider', TEST_PROVIDER_URI,
                '--registry-infile', agency_local_registry.filepath,
                '--registry-outfile', ALTERNATE_REGISTRY_FILEPATH,
