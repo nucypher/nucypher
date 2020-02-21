@@ -1067,13 +1067,14 @@ class WorkLockAgent(EthereumContractAgent):
         work = self.contract.functions.workInfo(checksum_address).call()[1]
         return work
 
-    def get_available_refund(self, completed_work: str) -> int:
-        refund_eth = self.contract.functions.workToETH(completed_work).call()
-        return refund_eth
-
     #
     # Calls
     #
+
+    @validate_checksum_address
+    def get_available_refund(self, checksum_address: str) -> int:
+        refund_eth = self.contract.functions.getAvailableRefund(checksum_address).call()
+        return refund_eth
 
     @validate_checksum_address
     def get_deposited_eth(self, checksum_address: str) -> int:

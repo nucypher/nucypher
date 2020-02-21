@@ -256,6 +256,7 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     staker1_tokens = 8 * worklock_supply // 10
     assert token.functions.balanceOf(staker1).call() == 0
     staker1_remaining_work = int(-(-8 * worklock_supply * slowing_refund // (boosting_refund * 10)))  # div ceil
+    assert worklock.functions.getAvailableRefund(staker1).call() == 0
     assert worklock.functions.ethToWork(2 * deposit_eth_1).call() == staker1_remaining_work
     assert worklock.functions.workToETH(staker1_remaining_work).call() == 2 * deposit_eth_1
     assert worklock.functions.getRemainingWork(staker1).call() == staker1_remaining_work
@@ -312,6 +313,7 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     assert not worklock.functions.workInfo(staker2).call()[2]
     tx = worklock.functions.claim().transact({'from': staker2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
+    assert worklock.functions.getAvailableRefund(staker2).call() == 0
     assert worklock.functions.workInfo(staker2).call()[2]
     assert worklock.functions.getRemainingWork(staker2).call() == staker2_remaining_work
     assert token.functions.balanceOf(worklock.address).call() == worklock_supply - staker1_tokens - staker2_tokens
@@ -334,6 +336,7 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     tx = escrow.functions.setCompletedWork(staker1, completed_work).transact()
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.getRemainingWork(staker1).call() == remaining_work
+    assert worklock.functions.getAvailableRefund(staker1).call() == deposit_eth_1
 
     tx = worklock.functions.refund().transact({'from': staker1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
@@ -343,6 +346,7 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     assert testerchain.w3.eth.getBalance(worklock.address) == deposit_eth_1 + deposit_eth_2
     _value, measure_work, _completed_work, _periods = escrow.functions.stakerInfo(staker1).call()
     assert measure_work
+    assert worklock.functions.getAvailableRefund(staker1).call() == 0
 
     events = refund_log.get_all_entries()
     assert 1 == len(events)
@@ -357,6 +361,7 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     tx = escrow.functions.setCompletedWork(staker1, completed_work).transact()
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.getRemainingWork(staker1).call() == 0
+    assert worklock.functions.getAvailableRefund(staker1).call() == deposit_eth_1
 
     tx = worklock.functions.refund().transact({'from': staker1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
@@ -366,6 +371,7 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     assert testerchain.w3.eth.getBalance(worklock.address) == deposit_eth_2
     _value, measure_work, _completed_work, _periods = escrow.functions.stakerInfo(staker1).call()
     assert not measure_work
+    assert worklock.functions.getAvailableRefund(staker1).call() == 0
 
     events = refund_log.get_all_entries()
     assert 2 == len(events)

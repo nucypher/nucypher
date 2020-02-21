@@ -1757,11 +1757,7 @@ class Bidder(NucypherTokenActor):
 
     @property
     def available_refund(self) -> int:
-        refund_eth = self.worklock_agent.get_available_refund(completed_work=self.completed_work)
-        bid = self.get_deposited_eth
-        if refund_eth > bid:
-            # Overachiever: This bidder has worked more than required.
-            refund_eth = bid
+        refund_eth = self.worklock_agent.get_available_refund(checksum_address=self.checksum_address)
         return refund_eth
 
     @property

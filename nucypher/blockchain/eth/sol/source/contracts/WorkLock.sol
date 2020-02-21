@@ -131,9 +131,9 @@ contract WorkLock {
     /**
     * @notice Get remaining work to full refund
     */
-    function getRemainingWork(address _depositor) external view returns (uint256) {
-        WorkInfo storage info = workInfo[_depositor];
-        uint256 completedWork = escrow.getCompletedWork(_depositor).sub(info.completedWork);
+    function getRemainingWork(address _bidder) external view returns (uint256) {
+        WorkInfo storage info = workInfo[_bidder];
+        uint256 completedWork = escrow.getCompletedWork(_bidder).sub(info.completedWork);
         uint256 remainingWork = ethToWork(info.depositedETH);
         if (remainingWork <= completedWork) {
             return 0;
@@ -192,25 +192,43 @@ contract WorkLock {
     }
 
     /**
-    * @notice Refund ETH for the completed work
+    * @notice Get available refund for bidder
     */
-    function refund() external returns (uint256 refundETH) {
-        WorkInfo storage info = workInfo[msg.sender];
-        require(info.depositedETH > 0, "Nothing deposited");
-        uint256 currentWork = escrow.getCompletedWork(msg.sender);
+    function getAvailableRefund(address _bidder) public view returns (uint256) {
+        WorkInfo storage info = workInfo[_bidder];
+        // nothing to refund
+        if (info.depositedETH == 0) {
+            return 0;
+        }
 
+        uint256 currentWork = escrow.getCompletedWork(_bidder);
         uint256 completedWork = currentWork.sub(info.completedWork);
-        require(completedWork > 0, "No work that has been completed.");
-        refundETH = workToETH(completedWork);
+        // no work that has been completed since last refund
+        if (completedWork == 0) {
+            return 0;
+        }
 
+        uint256 refundETH = workToETH(completedWork);
         if (refundETH > info.depositedETH) {
             refundETH = info.depositedETH;
         }
+        return refundETH;
+    }
+
+    /**
+    * @notice Refund ETH for the completed work
+    */
+    function refund() external returns (uint256 refundETH) {
+        refundETH = getAvailableRefund(msg.sender);
+        require(refundETH > 0, "Nothing to refund: there is no ETH to refund or no completed work");
+
+        WorkInfo storage info = workInfo[msg.sender];
         if (refundETH == info.depositedETH) {
             escrow.setWorkMeasurement(msg.sender, false);
         }
         info.depositedETH = info.depositedETH.sub(refundETH);
-        completedWork = ethToWork(refundETH);
+        // convert refund back to work to eliminate potential rounding errors
+        uint256 completedWork = ethToWork(refundETH);
 
         info.completedWork = info.completedWork.add(completedWork);
         emit Refund(msg.sender, refundETH, completedWork);
