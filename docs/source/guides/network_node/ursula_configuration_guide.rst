@@ -1,8 +1,8 @@
 .. _ursula-config-guide:
 
-==========================
-Ursula Configuration Guide
-==========================
+===================================
+Worker (Ursula) Configuration Guide
+===================================
 
 NuCypher staking operations are divided into two roles "Staker" and "Worker" - This Guide is for Workers.
 
@@ -21,7 +21,7 @@ Working Procedure:
 
 .. References are needed for links because of the numbers in the section names
 
-1) Ensure that a `Stake` is available (see :doc:`/guides/staking_guide`)
+1) Ensure that a `Stake` is available (see :ref:`staking-guide`)
 2) Run an ethereum node on the Worker's machine eg. geth, parity, etc. (see :ref:`Running an Ethereum node for Ursula <running-worker-eth-node>`)
 3) Install ``nucypher`` on Worker node (see :doc:`/guides/installation_guide`)
 4) Create and fund worker's ethereum address (see :ref:`Fund Worker Account with ETH <fund-worker-account>`)
@@ -182,6 +182,8 @@ To stop your node from the interactive console and return to the terminal sessio
 
     Ursula >>> stop
 
+
+.. _run-ursula-with-docker:
 
 Running an Ursula with Docker
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -34,7 +34,7 @@ client, this generic error will become extinct.
 
 In the most common cases:
 
-- Ensure that your worker is `bonded to a staker <https://docs.nucypher.com/en/latest/guides/staking_guide.html#bond-an-ursula-to-a-staker>`_.
+- Ensure that your worker is :ref:`bonded to a staker <bond-worker>`.
   You can confirm by running ``nucypher stake list`` and check that `Worker` is set correctly i.e. not ``0x0000``.
 - If your worker is configured, ensure that the worker address has (Goerli) ETH and that the correct worker address is
   provided in the Ursula configuration file being used - the default configuration file is ``~/.local/share/nucypher/ursula.json``

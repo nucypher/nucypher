@@ -1,6 +1,6 @@
-================================
-NuCypher Character Control Guide
-================================
+=======================
+Character Control Guide
+=======================
 
 The `Character Control` is a module that contains useful REST-like HTTP endpoints for working with NuCypher characters.
 

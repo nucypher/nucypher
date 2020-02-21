@@ -1,6 +1,6 @@
-==================
-NuCypher CLI Guide
-==================
+=========
+CLI Guide
+=========
 
 Overview
 --------
@@ -11,7 +11,7 @@ Overview
 
 This guide is an example of NuCypher's decentralized network allowing Alice to share a secret
 with Bob using the NuCypher Network via the ``nucypher`` CLI. It is analogous to the ``python`` example
-in :doc:`/guides/getting_started`.
+in :doc:`getting_started`.
 
 To better understand the commands and their options, use the ``--help`` option.
 

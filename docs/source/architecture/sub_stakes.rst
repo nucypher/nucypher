@@ -150,6 +150,8 @@ Slashing
 Flags that affect the sub-stake array
 -------------------------------------
 
+.. _sub-stake-restaking:
+
 Re-staking
 ^^^^^^^^^^
 *Used in methods* : ``confirmActivity()``, ``mint()``

@@ -1,8 +1,8 @@
 .. _staking-guide:
 
-=======================
-NuCypher Staking Guide
-=======================
+==========================
+Staker Configuration Guide
+==========================
 
 NuCypher staking operations are divided into two roles "Staker" and "Worker" - This Guide is for Stakers.
 
@@ -29,7 +29,7 @@ Staking Procedure:
 6) Create and fund worker's ethereum address with ETH
 7) Bond a Worker to a Staker using the worker's ethereum address (see `Bonding a Worker`_)
 8) Optionally, modify stake settings (see `Modifying Active Stakes`_)
-9) Configure and Run a Worker Node (see :doc:`/guides/ursula_configuration_guide`)
+9) Configure and Run a Worker Node (see :ref:`ursula-config-guide`)
 
 
 Staking CLI
@@ -337,6 +337,8 @@ allow **re-staking** to be disabled until the release period begins, even if you
 
 No action is needed to release the re-staking lock once the release period begins.
 
+
+.. _staking-prolong:
 
 Prolong
 *******

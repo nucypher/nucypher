@@ -87,7 +87,7 @@ This is **ONLY** a heuristic to ensure that your node is running correctly, it d
 What's the best way to run Ursula in the background?
 ----------------------------------------------------
 
-Either through `Docker <https://docs.nucypher.com/en/latest/guides/ursula_configuration_guide.html#running-an-ursula-with-docker>`_
+Either through :ref:`Docker <run-ursula-with-docker>`
 or `systemd <https://docs.nucypher.com/en/latest/guides/installation_guide.html#systemd-service-installation>`_.
 
 
@@ -117,7 +117,7 @@ are in Period 5 when you start staking:
 
 .. note::
 
-    `Restaking <https://docs.nucypher.com/en/latest/architecture/sub_stakes.html#re-staking>`_ is enabled by
+    :ref:`Restaking <sub-stake-restaking>` is enabled by
     default, so NU inflation rewards are automatically restaked for you, and will be reflected in
     the ``Staked`` value of the above command.
 
@@ -136,15 +136,15 @@ Run::
 Can I extend the duration of my existing stake?
 --------------------------------------------------------------
 
-Yes, via the `prolong <https://docs.nucypher.com/en/latest/guides/staking_guide.html#prolong>`_ command.
+Yes, via the :ref:`prolong <staking-prolong>` command.
 
 
 How can I reuse an Ursula that was connected to the previous version of the testnet?
 ------------------------------------------------------------------------------------
 
 #. Run ``nucypher ursula destroy`` to destroy the current configuration.
-#. Repeat all of the steps with the new tokens in the `Staking Guide <https://docs.nucypher.com/en/latest/guides/staking_guide.html>`_.
-#. Run ``nucypher ursula init`` per the `Ursula Configuration Guide <https://docs.nucypher.com/en/latest/guides/ursula_configuration_guide.html>`_.
+#. Repeat all of the steps with the new tokens in the :ref:`staking-guide`.
+#. Run ``nucypher ursula init`` per the :ref:`ursula-config-guide`.
 
 
 What is a fleet state?
