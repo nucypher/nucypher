@@ -115,7 +115,7 @@ try:
                 if nc_result.exit_code == 0:
                     result = {"result": nc_result.output}
                 else:
-                    result = {"error": str(nc_result.exception)}
+                    result = {"error": nc_result.output}
 
                 del request['keyring_password']
                 output = {

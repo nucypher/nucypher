@@ -39,7 +39,7 @@ class PolicyBaseSchema(BaseSchema):
     value = fields.Wei(
         load_only=True,
         required=False,
-        click=click.option('--value', help="Total policy value (in Wei)", type=types.WEI))
+        click=click.option('--value', help="Total policy value (in Wei)", type=types.WEI, required=False))
 
     rate = fields.Wei(
         load_only=True,
@@ -65,14 +65,6 @@ class PolicyBaseSchema(BaseSchema):
         # TODO: decide if we should inject config defaults before this validation
         # if not (data.get('rate', 0) ^ data.get('value', 0)):
             # raise InvalidArgumentCombo("Either rate or value must be greater than zero.")
-
-
-class CreatePolicy(PolicyBaseSchema):
-
-    label = fields.Label(
-        required=True,
-        click=options.option_label(required=True))
-
 
 class GrantPolicy(PolicyBaseSchema):
 

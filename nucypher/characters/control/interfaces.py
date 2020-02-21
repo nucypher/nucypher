@@ -66,31 +66,6 @@ class CharacterPublicInterface:
 
 class AliceInterface(CharacterPublicInterface):
 
-    @attach_schema(alice.CreatePolicy)
-    def create_policy(self,
-                      bob_encrypting_key: bytes,
-                      bob_verifying_key: bytes,
-                      label: bytes,
-                      m: int,
-                      n: int,
-                      expiration: maya.MayaDT,
-                      value: int = None
-                      ) -> dict:
-
-        from nucypher.characters.lawful import Bob
-        bob = Bob.from_public_keys(encrypting_key=bob_encrypting_key,
-                                   verifying_key=bob_verifying_key)
-
-        new_policy = self.character.create_policy(
-            bob=bob,
-            label=label,
-            m=m,
-            n=n,
-            expiration=expiration,
-            value=value
-        )
-        response_data = {'label': new_policy.label, 'policy_encrypting_key': new_policy.public_key}
-        return response_data
 
     @attach_schema(alice.DerivePolicyEncryptionKey)
     def derive_policy_encrypting_key(self, label: bytes) -> dict:

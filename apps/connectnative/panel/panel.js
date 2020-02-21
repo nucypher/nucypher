@@ -80,7 +80,7 @@ function populateCommand (data) {
 
   $('#commandform').append(`<div><input type="hidden" name="character" value="${data.character}"></input></div>`)
   $('#commandform').append(`<div><input type="hidden" name="action" value="${data.action.replace('_', '-')}"></input></div>`)
-  $('#commandform').append('<div><input type="checkbox" name="args[]json_ipc" id="json_ipcinput"><label for="json_ipcinput">results as json</label></div>')
+  $('#commandform').append('<div><input type="checkbox" name="args[json_ipc]" id="json_ipcinput"><label for="json_ipcinput">results as json</label></div>')
 
   const ui = {
     text: '<div><input type="text"></input></div>',
@@ -135,6 +135,9 @@ function populateCommand (data) {
     Object.keys(formdata).forEach((k) => {
       submitdata[k] = formdata[k]
     })
+
+    console.log(submitdata)
+
     bgPort.postMessage({ route: 'execute', data: submitdata })
   })
 }
@@ -145,8 +148,6 @@ const setPassword = function () {
   bgPort.postMessage({route: "setPassword", data: $('#passwordinput').val()})
 }
 
-
-// internal workings
 function fDispatcher (message) {
   const callbacks = {
     'bob.retrieve': onDecrypt,
