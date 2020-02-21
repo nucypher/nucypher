@@ -144,10 +144,10 @@ def test_manual_proxy_retargeting(testerchain, click_runner, token_economics):
     deployer = StakingEscrowDeployer(deployer_address=testerchain.etherbase_account,
                                      registry=local_registry,
                                      economics=token_economics)
-    proxy_deployer = deployer.get_proxy_deployer(registry=local_registry)
+    proxy_deployer = deployer.get_proxy_deployer()
 
     # Un-targeted enrollment is indeed un targeted by the proxy
-    untargeted_deployment = deployer.get_latest_enrollment(registry=local_registry)
+    untargeted_deployment = deployer.get_latest_enrollment()
     assert proxy_deployer.target_contract.address != untargeted_deployment.address
 
     # MichWill still owns this proxy.
@@ -170,6 +170,6 @@ def test_manual_proxy_retargeting(testerchain, click_runner, token_economics):
     assert result.exit_code == 0
 
     # The proxy target has been updated.
-    proxy_deployer = deployer.get_proxy_deployer(registry=local_registry)
+    proxy_deployer = deployer.get_proxy_deployer()
     assert proxy_deployer.target_contract.address == untargeted_deployment.address
 
