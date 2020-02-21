@@ -14,7 +14,7 @@ There will be an open contribution period in which anyone can contribute ETH to 
 be escrowed on-chain and at the end of the contribution period, stake-locked NU will be distributed pro rata across
 contributors. If those contributors use that stake-locked NU to run a node, the NU will eventually unlock and their
 escrowed ETH will be returned in full. Alternatively, WorkLock participants can cancel their bid to forgo NU and
-recoup their escrowed ETH.
+recoup their escrowed ETH immediately.
 
 The ``nucypher worklock`` CLI command provides the ability to participate in WorkLock. To better understand the
 commands and their options, use the ``--help`` option.
