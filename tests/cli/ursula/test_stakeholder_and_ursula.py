@@ -238,7 +238,6 @@ def test_ursula_init(click_runner,
     init_args = ('ursula', 'init',
                  '--poa',
                  '--network', TEMPORARY_DOMAIN,
-                 '--staker-address', manual_staker,
                  '--worker-address', manual_worker,
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
@@ -266,7 +265,6 @@ def test_ursula_init(click_runner,
         config_data = json.loads(raw_config_data)
         assert config_data['provider_uri'] == TEST_PROVIDER_URI
         assert config_data['worker_address'] == manual_worker
-        assert config_data['checksum_address'] == manual_staker
         assert TEMPORARY_DOMAIN in config_data['domains']
 
 

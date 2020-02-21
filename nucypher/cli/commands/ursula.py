@@ -29,7 +29,9 @@ from nucypher.cli.actions import (
     get_nucypher_password,
     select_client_account,
     get_client_password,
-    get_or_update_configuration, get_config_file)
+    get_or_update_configuration,
+    get_worker_config_file
+)
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -317,19 +319,24 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
     #
     # Setup
     #
+
     worker_address = character_options.config_options.worker_address
     emitter = _setup_emitter(general_config, worker_address=worker_address)
     _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
-    config_file = get_config_file(emitter=emitter,
-                                  config_file=config_file,
-                                  worker_address=worker_address,
-                                  network=list(character_options.config_options.domains)[0],
-                                  provider_uri=character_options.config_options.provider_uri)
+
+    domains = character_options.config_options.domains
+    config_file = get_worker_config_file(emitter=emitter,
+                                         config_file=config_file,
+                                         worker_address=worker_address,
+                                         network=list(domains)[0] if domains else None,
+                                         provider_uri=character_options.config_options.provider_uri,
+                                         federated=character_options.config_options.federated_only)
 
     ursula_config, URSULA = character_options.create_character(
             emitter=emitter,
             config_file=config_file,
-            json_ipc=general_config.json_ipc)
+            json_ipc=general_config.json_ipc
+    )
 
     #
     # Additional Services
