@@ -2,12 +2,6 @@
 Frequently Asked Questions
 ==========================
 
-Is there a Wiki?
-----------------
-
-Yes - https://github.com/nucypher/wiki/wiki
-
-
 What are the recommended specifications for running a nucypher node?
 --------------------------------------------------------------------
 
