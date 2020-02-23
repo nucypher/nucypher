@@ -137,3 +137,28 @@ def test_stake_in_idle_network(testerchain, token_economics, test_registry):
     periods = token_economics.minimum_locked_periods
     with pytest.raises((TransactionFailed, ValueError)):
         staker.initialize_stake(amount=amount, lock_periods=periods)
+
+
+@pytest.mark.slow()
+def test_activate_network(testerchain, token_economics, test_registry):
+    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry,
+                                                    deployer_address=testerchain.etherbase_account)
+
+    # Let's check we're in the position of activating StakingEscrow
+    assert staking_escrow_deployer.is_deployed()
+    assert not staking_escrow_deployer.is_active
+    assert staking_escrow_deployer.ready_to_activate
+
+    # OK, let's do it!
+    receipts = staking_escrow_deployer.activate()
+    for tx in receipts:
+        assert receipts[tx]['status'] == 1
+
+    # Yay!
+    assert staking_escrow_deployer.is_active
+
+    # Trying to activate now must fail
+    assert not staking_escrow_deployer.ready_to_activate
+    with pytest.raises(StakingEscrowDeployer.ContractDeploymentError):
+        staking_escrow_deployer.activate()
+

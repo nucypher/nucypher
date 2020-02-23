@@ -184,6 +184,18 @@ class BaseContractDeployer:
                                                         enrollment_version='latest')
         return contract
 
+    def _get_deployed_contract(self):
+        if self.contract is None or self.contract is CONTRACT_NOT_DEPLOYED:
+            proxy_name = None
+            if self._proxy_deployer is not NotImplemented:
+                proxy_name = self._proxy_deployer.contract_name
+            deployed_contract = self.blockchain.get_contract_by_name(contract_name=self.contract_name,
+                                                                     registry=self.registry,
+                                                                     proxy_name=proxy_name)
+        else:
+            deployed_contract = self.contract
+        return deployed_contract
+
 
 class OwnableContractMixin:
 
@@ -634,6 +646,10 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
     def activate(self, gas_limit: int = None, progress=None):
 
+        self._contract = self._get_deployed_contract()
+        if not self.ready_to_activate:
+            raise self.ContractDeploymentError(f"This StakingEscrow ({self._contract.address}) cannot be activated")
+
         origin_args = {}
         if gas_limit:
             origin_args.update({'gas': gas_limit})  # TODO: #842 - Gas Management
@@ -659,6 +675,30 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
         activation_receipts = dict(zip(self.activation_steps, (approve_reward_receipt, init_receipt)))
         return activation_receipts
+
+    @property
+    def ready_to_activate(self) -> bool:
+        try:
+            deployed_contract = self._get_deployed_contract()
+        except self.blockchain.UnknownContract:
+            return False
+
+        # TODO: Consider looking for absence of Initialized event - see #1193
+        # This mimics initialization pre-condition in Issuer (StakingEscrow's base contract)
+        current_supply_1 = deployed_contract.functions.currentSupply1().call()
+        return current_supply_1 == 0
+
+    @property
+    def is_active(self) -> bool:
+        try:
+            deployed_contract = self._get_deployed_contract()
+        except self.blockchain.UnknownContract:
+            return False
+
+        # TODO: Consider looking for Initialized event - see #1193
+        # This mimics isInitialized() modifier in Issuer (StakingEscrow's base contract)
+        current_supply_1 = deployed_contract.functions.currentSupply1().call()
+        return current_supply_1 != 0
 
 
 class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):
