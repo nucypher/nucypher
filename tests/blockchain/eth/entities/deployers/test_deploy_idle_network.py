@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 
 import pytest
+from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak
 from constant_sorrow import constants
 
@@ -115,3 +116,24 @@ def test_deploy_idle_network(testerchain, deployment_progress, test_registry):
     assert adjudicator_agent.contract_address == adjudicator_deployer.contract_address
 
 
+@pytest.mark.slow()
+def test_stake_in_idle_network(testerchain, token_economics, test_registry):
+
+    # Let's fund a staker first
+    token_agent = NucypherTokenAgent(registry=test_registry)
+    token_airdrop(origin=testerchain.etherbase_account,
+                  addresses=testerchain.stakers_accounts,
+                  token_agent=token_agent,
+                  amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
+    account = testerchain.stakers_accounts[0]
+    staker = Staker(is_me=True, checksum_address=account, registry=test_registry)
+
+    # Mock TransactingPower consumption
+    staker.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=staker.checksum_address)
+    staker.transacting_power.activate()
+
+    # Since StakingEscrow hasn't been activated yet, trying to deposit must fail
+    amount = token_economics.minimum_allowed_locked
+    periods = token_economics.minimum_locked_periods
+    with pytest.raises((TransactionFailed, ValueError)):
+        staker.initialize_stake(amount=amount, lock_periods=periods)
