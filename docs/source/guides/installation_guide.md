@@ -24,6 +24,7 @@ or similar distros:
     - python3-pip
     - python3-virtualenv
     - build-essential
+    - libssl-dev
         
 Here's a one-liner to install the above packages on linux:
 `sudo apt-get install python3-dev build-essential libffi-dev python3-pip`

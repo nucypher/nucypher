@@ -19,13 +19,19 @@ account for any reason.
 
 Working Procedure:
 
-1) Initiate a new stake ( (see :doc:`/guides/staking_guide`))
-2) Run an ethereum node on the Worker's machine (geth, parity, etc.)
-3) Bond the Worker to a Staker (using the worker address)
-4) Install ``nucypher`` on Worker node
-5) Initialize a Worker node [:ref:`ursula-config-guide`]
-6) Run the Worker, and keep it online [:ref:`ursula-config-guide`]!
+.. References are needed for links because of the numbers in the section names
 
+1) Ensure that a `Stake` is available (see :doc:`/guides/staking_guide`)
+2) Run an ethereum node on the Worker's machine eg. geth, parity, etc. (see :ref:`Running an Ethereum node for Ursula <running-worker-eth-node>`)
+3) Install ``nucypher`` on Worker node (see :doc:`/guides/installation_guide`)
+4) Create and fund worker's ethereum address (see :ref:`Fund Worker Account with ETH <fund-worker-account>`)
+5) Bond the Worker to a Staker (see :ref:`bond-worker`)
+6) Configure and run a Worker node (see :ref:`Configure and Run Ursula <configure-run-ursula>`)
+7) Ensure TCP port 9151 is externally accessible (see `Ursula / Worker Requirements`_)
+8) Keep Worker node online!
+
+
+.. _running-worker-eth-node:
 
 1. Running an Ethereum node for Ursula
 ----------------------------------------
@@ -62,11 +68,25 @@ Create a software-controlled account in geth in another console:
 
 The new account is ``0xc080708026a3a280894365efd51bb64521c45147`` in this case.
 
-Fund this account with Görli testnet ETH! https://goerli-faucet.slock.it/.
+
+.. _fund-worker-account:
+
+2. Fund Worker Account with ETH
+-------------------------------
+Ensure that the worker's ethereum account has ETH for transaction gas.
+
+During testnet, this account can be funded with Görli testnet ETH via https://goerli-faucet.slock.it/.
 
 
-2. Configure and Run Ursula
------------------------------
+3. Ensure Worker account is bonded to Staker
+--------------------------------------------
+Ensure that the worker's ethereum account is bonded to the Staker. See :ref:`bond-worker`.
+
+
+.. _configure-run-ursula:
+
+4. Configure and Run Ursula
+---------------------------
 
 Ursula / Worker Requirements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -174,9 +194,9 @@ Assuming geth is running locally on goerli, configure and run an Ursula using po
     export NUCYPHER_WORKER_ETH_PASSWORD=<YOUR WORKER ETH ACCOUNT PASSWORD>
 
     # Interactive Ursula-Worker Initialization
-    docker run -it -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -e NUCYPHER_KEYRING_PASSWORD nucypher:latest nucypher ursula init --provider file:///root/.ethereum/goerli/geth.ipc --staker-address <YOUR STAKING ADDRESS> --network <NETWORK_NAME>
+    docker run -it -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD nucypher/nucypher:latest nucypher ursula init --provider file:///root/.ethereum/goerli/geth.ipc --staker-address <YOUR STAKING ADDRESS> --network <NETWORK_NAME>
 
     # Daemonized Ursula
-    docker run -d -v ~/.ethereum:/root/.ethereum -v ~/.local/share/nucypher:/root/.local/share/nucypher -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD nucypher/nucypher:latest nucypher ursula run 
+    docker run -d -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD nucypher/nucypher:latest nucypher ursula run
 
 ``<YOUR STAKING ADDRESS>`` is the address you've staked from when following the :ref:`staking-guide`.
