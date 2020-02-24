@@ -133,7 +133,7 @@ def bid(general_config, worklock_options, registry_options, force, hw_wallet, va
     if not value:
         if force:
             raise click.MissingParameter("Missing --value.")
-        minimum_bid = bidder.worklock_agent.get_minimum_allowed_bid()
+        minimum_bid = bidder.worklock_agent.minimum_allowed_bid
         value = click.prompt(f"Enter bid amount in ETH (at least {Web3.fromWei(minimum_bid, 'ether')})", type=click.STRING)
     value = int(Web3.toWei(Decimal(value), 'ether'))
 

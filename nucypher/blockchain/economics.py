@@ -77,6 +77,7 @@ class BaseEconomics:
     _default_worklock_supply: int = NotImplemented
     _default_bidding_start_date: int = NotImplemented
     _default_bidding_end_date: int = NotImplemented
+    _default_cancellation_end_date: int = NotImplemented
     _default_worklock_boosting_refund_rate: int = NotImplemented
     _default_worklock_commitment_duration: int = NotImplemented
     _default_worklock_min_allowed_bid: int = NotImplemented
@@ -106,6 +107,7 @@ class BaseEconomics:
                  worklock_supply: int = _default_worklock_supply,
                  bidding_start_date: int = _default_bidding_start_date,
                  bidding_end_date: int = _default_bidding_end_date,
+                 cancellation_end_date: int = _default_cancellation_end_date,
                  worklock_boosting_refund_rate: int = _default_worklock_boosting_refund_rate,
                  worklock_commitment_duration: int = _default_worklock_commitment_duration,
                  worklock_min_allowed_bid: int = _default_worklock_min_allowed_bid):
@@ -135,6 +137,7 @@ class BaseEconomics:
 
         self.bidding_start_date = bidding_start_date
         self.bidding_end_date = bidding_end_date
+        self.cancellation_end_date = cancellation_end_date
         self.worklock_supply = worklock_supply
         self.worklock_boosting_refund_rate = worklock_boosting_refund_rate
         self.worklock_commitment_duration = worklock_commitment_duration
@@ -221,12 +224,14 @@ class BaseEconomics:
         ...
         2 startBidDate - Timestamp when bidding starts
         3 endBidDate - Timestamp when bidding will end
-        4 boostingRefund - Coefficient to boost refund ETH
-        5 stakingPeriods - Duration of tokens locking
-        6 minAllowedBid - Minimum allowed ETH amount for bidding
+        4 endBidDate - Timestamp when cancellation window will end
+        5 boostingRefund - Coefficient to boost refund ETH
+        6 stakingPeriods - Duration of tokens locking
+        7 minAllowedBid - Minimum allowed ETH amount for bidding
         """
         deployment_parameters = [self.bidding_start_date,
                                  self.bidding_end_date,
+                                 self.cancellation_end_date,
                                  self.worklock_boosting_refund_rate,
                                  self.worklock_commitment_duration,
                                  self.worklock_min_allowed_bid]
@@ -236,6 +241,11 @@ class BaseEconomics:
     def bidding_duration(self) -> int:
         """Returns the total bidding window duration in seconds."""
         return self.bidding_end_date - self.bidding_start_date
+
+    @property
+    def cancellation_window_duration(self) -> int:
+        """Returns the total cancellation window duration in seconds."""
+        return self.cancellation_end_date - self.bidding_end_date
 
 
 class StandardTokenEconomics(BaseEconomics):

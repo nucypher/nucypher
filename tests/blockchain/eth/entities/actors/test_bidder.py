@@ -38,6 +38,9 @@ def test_bidding(testerchain, agency, token_economics, test_registry):
 
 
 def test_cancel_bid(testerchain, agency, token_economics, test_registry):
+    # Wait until the bidding window closes...
+    testerchain.time_travel(seconds=token_economics.bidding_duration+1)
+
     bidder_address = testerchain.unassigned_accounts[1]
     bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
     assert bidder.get_deposited_eth        # Bid
@@ -60,11 +63,11 @@ def test_get_remaining_work(testerchain, agency, token_economics, test_registry)
 def test_claim(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.unassigned_accounts[0]
     bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
-    with pytest.raises(Bidder.BiddingIsOpen):
+    with pytest.raises(Bidder.BidderError):
         _receipt = bidder.claim()
 
-    # Wait until the bidding window closes...
-    testerchain.time_travel(seconds=token_economics.bidding_duration+1)
+    # Wait until the cancellation window closes...
+    testerchain.time_travel(seconds=token_economics.cancellation_window_duration+1)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
     # Ensure that the bidder is not staking.
