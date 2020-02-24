@@ -612,19 +612,21 @@ def get_or_update_configuration(emitter, config_class, filepath: str, config_opt
 def select_worker_config_file(emitter, config_file, worker_address, provider_uri, network, federated):
 
     config_root = abspath(dirname(config_file)) if config_file else DEFAULT_CONFIG_ROOT
-    any_worker_config = glob.glob(UrsulaConfiguration.default_filepath(config_root=config_root))
+    worker_config_exists = glob.glob(UrsulaConfiguration.default_filepath(config_root=config_root))
 
-    if not any_worker_config:
+    if not worker_config_exists:
         emitter.message("No Ursula configurations found.  run 'nucypher ursula init' then try again.", color='red')
         raise click.Abort()
 
-    more_than_one_worker_config = glob.glob(f'{config_root}/ursula-0x*.json')
-    if more_than_one_worker_config:
-        if not config_file:
-            if not worker_address and not federated:  # TODO: Support Federated by walking the filesystem
-                worker_address = select_client_account(emitter=emitter,
-                                                       network=network,
-                                                       provider_uri=provider_uri)
-            config_file = os.path.join(DEFAULT_CONFIG_ROOT,
-                                       UrsulaConfiguration.generate_filename(modifier=worker_address))
+    # TODO: Needs Cleanup
+    more_than_one_worker_config_exists = glob.glob(f'{config_root}/ursula-0x*.json')
+    ethereum_account_required = not worker_address and not federated
+
+    if more_than_one_worker_config_exists:
+        if config_file is None:
+            if ethereum_account_required:
+                worker_address = select_client_account(emitter=emitter, network=network, provider_uri=provider_uri)
+            else:
+                pass    # TODO: Support Federated Mode by walking the filesystem
+            config_file = os.path.join(DEFAULT_CONFIG_ROOT, UrsulaConfiguration.generate_filename(modifier=worker_address))
     return config_file
