@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import contextlib
 import os
 
 import pytest
@@ -103,42 +104,49 @@ def test_upgradeability(temp_dir_path, token_economics):
                                                       SourceDirs(temp_dir_path)])
 
     # Prepare the blockchain
-    blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm/2', compiler=solidity_compiler)
-    blockchain_interface.connect()
-    origin = blockchain_interface.client.accounts[0]
-    BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)
-    blockchain_interface.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=origin)
-    blockchain_interface.transacting_power.activate()
+    provider_uri = 'tester://pyevm/2'
+    try:
+        blockchain_interface = BlockchainDeployerInterface(provider_uri=provider_uri, compiler=solidity_compiler)
+        blockchain_interface.connect()
+        origin = blockchain_interface.client.accounts[0]
+        BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)
+        blockchain_interface.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=origin)
+        blockchain_interface.transacting_power.activate()
 
-    # Check contracts with multiple versions
-    raw_contracts = blockchain_interface._raw_contract_cache
-    contract_name = AdjudicatorDeployer.contract_name
-    test_adjudicator = len(raw_contracts[contract_name]) > 1
-    contract_name = StakingEscrowDeployer.contract_name
-    test_staking_escrow = len(raw_contracts[contract_name]) > 1
-    contract_name = PolicyManagerDeployer.contract_name
-    test_policy_manager = len(raw_contracts[contract_name]) > 1
+        # Check contracts with multiple versions
+        raw_contracts = blockchain_interface._raw_contract_cache
+        contract_name = AdjudicatorDeployer.contract_name
+        test_adjudicator = len(raw_contracts[contract_name]) > 1
+        contract_name = StakingEscrowDeployer.contract_name
+        test_staking_escrow = len(raw_contracts[contract_name]) > 1
+        contract_name = PolicyManagerDeployer.contract_name
+        test_policy_manager = len(raw_contracts[contract_name]) > 1
 
-    if not test_adjudicator and not test_staking_escrow and not test_policy_manager:
-        return
+        if not test_adjudicator and not test_staking_escrow and not test_policy_manager:
+            return
 
-    # Prepare master version of contracts and upgrade to the latest
-    registry = InMemoryContractRegistry()
+        # Prepare master version of contracts and upgrade to the latest
+        registry = InMemoryContractRegistry()
 
-    token_deployer = NucypherTokenDeployer(registry=registry, deployer_address=origin)
-    token_deployer.deploy()
+        token_deployer = NucypherTokenDeployer(registry=registry, deployer_address=origin)
+        token_deployer.deploy()
 
-    staking_escrow_deployer = StakingEscrowDeployer(registry=registry, deployer_address=origin)
-    deploy_earliest_contract(blockchain_interface, staking_escrow_deployer, secret=STAKING_ESCROW_DEPLOYMENT_SECRET)
-    if test_staking_escrow:
-        upgrade_to_latest_contract(staking_escrow_deployer, secret=STAKING_ESCROW_DEPLOYMENT_SECRET)
+        staking_escrow_deployer = StakingEscrowDeployer(registry=registry, deployer_address=origin)
+        deploy_earliest_contract(blockchain_interface, staking_escrow_deployer, secret=STAKING_ESCROW_DEPLOYMENT_SECRET)
+        if test_staking_escrow:
+            upgrade_to_latest_contract(staking_escrow_deployer, secret=STAKING_ESCROW_DEPLOYMENT_SECRET)
 
-    if test_policy_manager:
-        policy_manager_deployer = PolicyManagerDeployer(registry=registry, deployer_address=origin)
-        deploy_earliest_contract(blockchain_interface, policy_manager_deployer, secret=POLICY_MANAGER_DEPLOYMENT_SECRET)
-        upgrade_to_latest_contract(policy_manager_deployer, secret=POLICY_MANAGER_DEPLOYMENT_SECRET)
+        if test_policy_manager:
+            policy_manager_deployer = PolicyManagerDeployer(registry=registry, deployer_address=origin)
+            deploy_earliest_contract(blockchain_interface, policy_manager_deployer, secret=POLICY_MANAGER_DEPLOYMENT_SECRET)
+            upgrade_to_latest_contract(policy_manager_deployer, secret=POLICY_MANAGER_DEPLOYMENT_SECRET)
 
-    if test_adjudicator:
-        adjudicator_deployer = AdjudicatorDeployer(registry=registry, deployer_address=origin)
-        deploy_earliest_contract(blockchain_interface, adjudicator_deployer, secret=ADJUDICATOR_DEPLOYMENT_SECRET)
-        upgrade_to_latest_contract(adjudicator_deployer, secret=ADJUDICATOR_DEPLOYMENT_SECRET)
+        if test_adjudicator:
+            adjudicator_deployer = AdjudicatorDeployer(registry=registry, deployer_address=origin)
+            deploy_earliest_contract(blockchain_interface, adjudicator_deployer, secret=ADJUDICATOR_DEPLOYMENT_SECRET)
+            upgrade_to_latest_contract(adjudicator_deployer, secret=ADJUDICATOR_DEPLOYMENT_SECRET)
+
+    finally:
+        # Unregister interface
+        with contextlib.suppress(KeyError):
+            del BlockchainInterfaceFactory._interfaces[provider_uri]
