@@ -18,6 +18,7 @@
         name: ursula
         state: stopped
 
+    - set_fact: restarting_geth=True
     - name: Stop Geth
       become: yes
       docker_container:
