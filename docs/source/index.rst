@@ -115,7 +115,7 @@ Whitepapers
 
 .. warning::
 
-   NuCypher is currently in the *Alpha* development stage and is **not** intended for use in production.
+   NuCypher is currently in the *Beta* development stage and is **not** intended for use in production.
 
 
 .. toctree::
@@ -123,12 +123,9 @@ Whitepapers
    :caption: Guides
 
    guides/installation_guide
-   guides/getting_started
-   guides/staking_guide
-   guides/ursula_configuration_guide
-   guides/cli_guide
+   guides/network_node/network_node
+   guides/development/development
    guides/worklock_guide
-   guides/character_control_guide
    guides/contribution_guide
 
 .. toctree::

@@ -1,13 +1,18 @@
-=======================
-NuCypher WorkLock Guide
-=======================
+==============
+WorkLock Guide
+==============
 
 Overview
 --------
 
-TODO
+`WorkLock` is a novel, permissionless token distribution mechanism, developed at NuCypher, which requires participants to stake ETH and maintain NuCypher nodes in order to receive NU tokens.
 
-To better understand the commands and their options, use the ``--help`` option.
+WorkLock offers specific advantages over ICO or airdrop as a distribution mechanism, chiefly: it selects for participants who are most likely to strengthen the network because they commit to staking and running nodes.
+
+The WorkLock begins with an open bidding period, during which anyone seeking to participate can send ETH to the WorkLock contract to be escrowed on-chain.  At the end of the bidding period, stake-locked NU will be distributed pro rata across contributors. If those contributors use that stake-locked NU to run a node, the NU will eventually unlock and their escrowed ETH will be returned in full. Alternatively, WorkLock participants can cancel their bid to forgo NU and recoup their escrowed ETH immediately.
+
+The ``nucypher worklock`` CLI command provides the ability to participate in WorkLock. To better understand the
+commands and their options, use the ``--help`` option.
 
 Common CLI flags
 ----------------

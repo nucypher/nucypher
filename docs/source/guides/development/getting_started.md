@@ -141,7 +141,7 @@ alice = Alice(known_nodes=[ursula, another_ursula], ...)
 ```
 
 For information on how to run a staking Ursula node via CLI,
-see <https://docs.nucypher.com/en/latest/guides/staking_guide.html>
+see [Running a Network Node](/guides/network_node/network_node).
 
 ## Alice: Grant Access to a Secret
 

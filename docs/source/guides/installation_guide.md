@@ -140,7 +140,7 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
      docker run -it -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 nucypher/nucypher:latest nucypher status network --provider <PROVIDER URI> --network <NETWORK NAME>
     
         
-  Running a pre-configured Worker as a daemon (See [Configuration Guide](/guides/ursula_configuration_guide)):
+  Running a pre-configured Worker as a daemon (See [Configuration Guide](/guides/network_node/ursula_configuration_guide)):
  
      docker run -d -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD nucypher/nucypher:latest nucypher ursula run
 
