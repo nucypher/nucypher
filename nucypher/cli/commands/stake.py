@@ -34,7 +34,7 @@ from nucypher.cli.actions import (
     confirm_enable_restaking_lock,
     confirm_enable_restaking,
     confirm_enable_winding_down,
-    get_or_update_configuration, issue_stake_warnings)
+    get_or_update_configuration, issue_stake_suggestions)
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -476,7 +476,7 @@ def create(general_config, transacting_staker_options, config_file, force, value
     #
 
     if not force:
-        issue_stake_warnings(value=value, lock_periods=lock_periods)
+        issue_stake_suggestions(value=value, lock_periods=lock_periods)
         painting.paint_staged_stake(emitter=emitter,
                                     stakeholder=STAKEHOLDER,
                                     staking_address=staking_address,
@@ -667,7 +667,7 @@ def divide(general_config, transacting_staker_options, config_file, force, value
         extension = lock_periods
 
     if not force:
-        issue_stake_warnings(lock_periods=extension, value=value)
+        issue_stake_suggestions(lock_periods=extension, value=value)
         painting.paint_staged_stake_division(emitter=emitter,
                                              stakeholder=STAKEHOLDER,
                                              original_stake=current_stake,
