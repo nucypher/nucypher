@@ -79,6 +79,7 @@ class BaseEconomics:
     _default_bidding_end_date: int = NotImplemented
     _default_worklock_boosting_refund_rate: int = NotImplemented
     _default_worklock_commitment_duration: int = NotImplemented
+    _default_worklock_min_allowed_bid: int = NotImplemented
 
     def __init__(self,
 
@@ -106,7 +107,8 @@ class BaseEconomics:
                  bidding_start_date: int = _default_bidding_start_date,
                  bidding_end_date: int = _default_bidding_end_date,
                  worklock_boosting_refund_rate: int = _default_worklock_boosting_refund_rate,
-                 worklock_commitment_duration: int = _default_worklock_commitment_duration):
+                 worklock_commitment_duration: int = _default_worklock_commitment_duration,
+                 worklock_min_allowed_bid: int = _default_worklock_min_allowed_bid):
 
         """
         :param initial_supply: Tokens at t=0
@@ -136,6 +138,7 @@ class BaseEconomics:
         self.worklock_supply = worklock_supply
         self.worklock_boosting_refund_rate = worklock_boosting_refund_rate
         self.worklock_commitment_duration = worklock_commitment_duration
+        self.worklock_min_allowed_bid = worklock_min_allowed_bid
 
         #
         # NucypherToken & Staking Escrow
@@ -220,11 +223,13 @@ class BaseEconomics:
         3 endBidDate - Timestamp when bidding will end
         4 boostingRefund - Coefficient to boost refund ETH
         5 stakingPeriods - Duration of tokens locking
+        6 minAllowedBid - Minimum allowed ETH amount for bidding
         """
         deployment_parameters = [self.bidding_start_date,
                                  self.bidding_end_date,
                                  self.worklock_boosting_refund_rate,
-                                 self.worklock_commitment_duration]
+                                 self.worklock_commitment_duration,
+                                 self.worklock_min_allowed_bid]
         return tuple(map(int, deployment_parameters))
 
     @property

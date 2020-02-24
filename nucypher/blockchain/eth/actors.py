@@ -71,7 +71,8 @@ from nucypher.blockchain.eth.registry import (
     IndividualAllocationRegistry
 )
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
-from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration, datetime_at_period
+from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration, datetime_at_period, \
+    prettify_eth_amount
 from nucypher.characters.banners import STAKEHOLDER_BANNER
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.painting import (
@@ -1643,7 +1644,7 @@ class Bidder(NucypherTokenActor):
                  client_password: str = None,
                  *args, **kwargs):
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
-        self.worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=self.registry)
+        self.worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=self.registry)  # type: WorkLockAgent
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.economics = EconomicsFactory.get_economics(registry=self.registry)
 
@@ -1651,15 +1652,17 @@ class Bidder(NucypherTokenActor):
             self.transacting_power = TransactingPower(password=client_password, account=checksum_address)
             self.transacting_power.activate()
 
-    def _ensure_bidding_is_open(self) -> None:
+    def _ensure_bidding_is_open(self, message: str = None) -> None:
         highest_block = self.worklock_agent.blockchain.w3.eth.getBlock('latest')
         now = highest_block['timestamp']
         start = self.worklock_agent.start_date
         end = self.worklock_agent.end_date
         if now < start:
-            raise self.BiddingIsClosed(f'Bidding does not open until {maya.MayaDT(start).slang_date()}')
+            message = message or f'Bidding does not open until {maya.MayaDT(start).slang_date()}'
+            raise self.BiddingIsClosed(message)
         if now > end:
-            raise self.BiddingIsClosed(f'Bidding closed at {maya.MayaDT(end).slang_date()}')
+            message = message or f'Bidding closed at {maya.MayaDT(end).slang_date()}'
+            raise self.BiddingIsClosed(message)
 
     def _ensure_bidding_is_closed(self, message: str = None) -> None:
         highest_block = self.worklock_agent.blockchain.w3.eth.getBlock('latest')
@@ -1675,6 +1678,10 @@ class Bidder(NucypherTokenActor):
 
     def place_bid(self, value: int) -> dict:
         self._ensure_bidding_is_open()
+        minimum = self.worklock_agent.get_minimum_allowed_bid()
+        if value < minimum:
+            raise self.BidderError(f"Too small value {prettify_eth_amount(value)} for bidding, "
+                                   f"bid must be at least {prettify_eth_amount(minimum)}")
         receipt = self.worklock_agent.bid(checksum_address=self.checksum_address, value=value)
         return receipt
 
@@ -1702,6 +1709,9 @@ class Bidder(NucypherTokenActor):
         return receipt
 
     def cancel_bid(self) -> dict:
+        end = self.worklock_agent.end_date
+        error = f"Cancellation is allowed only while the bidding window is open (closed at {end})."
+        self._ensure_bidding_is_open(message=error)
 
         # Require an active bid
         if not self.get_deposited_eth:

@@ -418,7 +418,8 @@ def token_economics(testerchain):
         worklock_commitment_duration=60*60,  # seconds
         worklock_supply=NU.from_tokens(1_000_000),
         bidding_start_date=bidding_start_date,
-        bidding_end_date=bidding_end_date
+        bidding_end_date=bidding_end_date,
+        worklock_min_allowed_bid=Web3.toWei(1, "ether")
     )
     return economics
 
