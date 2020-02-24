@@ -68,7 +68,7 @@ contract WorkLock {
     * @param _escrow Escrow contract
     * @param _startBidDate Timestamp when bidding starts
     * @param _endBidDate Timestamp when bidding will end
-    * @param _endBidDate Timestamp when cancellation will ends
+    * @param _endCancellationDate Timestamp when cancellation will ends
     * @param _boostingRefund Coefficient to boost refund ETH
     * @param _stakingPeriods Amount of periods during which tokens will be locked after claiming
     * @param _minAllowedBid Minimum allowed ETH amount for bidding

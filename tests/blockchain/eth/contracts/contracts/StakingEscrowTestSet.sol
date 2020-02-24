@@ -171,16 +171,16 @@ contract Intermediary {
         escrow = _escrow;
     }
 
-    function setWorker(address _worker) public {
+    function setWorker(address _worker) external {
         escrow.setWorker(_worker);
     }
 
-    function deposit(uint256 _value, uint16 _periods) public {
+    function deposit(uint256 _value, uint16 _periods) external {
         token.approve(address(escrow), _value);
         escrow.deposit(_value, _periods);
     }
 
-    function confirmActivity() public {
+    function confirmActivity() external {
         escrow.confirmActivity();
     }
 
@@ -198,8 +198,7 @@ contract WorkLockForStakingEscrowMock {
         escrow = _escrow;
     }
 
-    function setWorkMeasurement(address _staker, bool _measureWork) public returns (uint256) {
+    function setWorkMeasurement(address _staker, bool _measureWork) external returns (uint256) {
         return escrow.setWorkMeasurement(_staker, _measureWork);
     }
 }
-
