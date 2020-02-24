@@ -165,7 +165,7 @@ class BaseContractDeployer:
         is_ready = len(disqualifications) == 0
         return is_ready, disqualifications
 
-    def deploy(self, gas_limit: int = None, progress: int = None, **overrides) -> dict:
+    def deploy(self, deployment_mode=FULL, gas_limit: int = None, progress: int = None, **overrides) -> dict:
         """
         Provides for the setup, deployment, and initialization of ethereum smart contracts.
         Emits the configured blockchain network transactions for single contract instance publication.
@@ -249,7 +249,7 @@ class UpgradeableContractMixin:
     
     def deploy(self,
                secret_hash: bytes,
-               initial_deployment: bool = True,
+               deployment_mode=FULL,
                gas_limit: int = None,
                progress=None,
                contract_version: str = "latest",
@@ -397,13 +397,21 @@ class NucypherTokenDeployer(BaseContractDeployer):
     _upgradeable = False
     _ownable = False
 
-    def deploy(self, gas_limit: int = None, progress=None, confirmations: int = 0, **overrides) -> dict:
+    def deploy(self,
+               gas_limit: int = None,
+               progress=None,
+               confirmations: int = 0,
+               deployment_mode=FULL,
+               **overrides) -> dict:
         """
         Deploy and publish the NuCypher Token contract
         to the blockchain network specified in self.blockchain.network.
 
         Deployment can only ever be executed exactly once!
         """
+        if deployment_mode != FULL:
+            raise self.ContractDeploymentError(f"{self.contract_name} cannot be deployed in {deployment_mode} mode")
+
         self.check_deployment_readiness()
 
         # Order-sensitive!
@@ -731,7 +739,7 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         return policy_manager_contract, deploy_receipt
 
     def deploy(self,
-               initial_deployment: bool = True,
+               deployment_mode=FULL,
                secret_hash: bytes = None,
                gas_limit: int = None,
                progress=None,
@@ -740,7 +748,10 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                confirmations: int = 0,
                ) -> Dict[str, dict]:
 
-        if initial_deployment and not secret_hash:
+        if deployment_mode not in (BARE, IDLE, FULL):
+            raise ValueError(f"Invalid deployment mode ({deployment_mode})")
+
+        if deployment_mode is not BARE and not secret_hash:
             raise ValueError(f"An upgrade secret hash is required to perform an initial"
                              f" deployment series for {self.contract_name}.")
 
@@ -752,7 +763,7 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                                                                          confirmations=confirmations)
 
         # This is the end of bare deployment.
-        if not initial_deployment:
+        if deployment_mode is BARE:
             self._contract = policy_manager_contract
             return self._finish_bare_deployment(deployment_receipt=deploy_receipt,
                                                 progress=progress)
@@ -780,7 +791,7 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         # Configure the StakingEscrow contract by setting the PolicyManager
         tx_args = {}
         if gas_limit:
-            tx_args.update({'gas': gas_limit})
+            tx_args.update({'gas': gas_limit})  # TODO: 842
         set_policy_manager_function = self.staking_contract.functions.setPolicyManager(wrapped_contract.address)
         set_policy_manager_receipt = self.blockchain.send_transaction(contract_function=set_policy_manager_function,
                                                                       sender_address=self.deployer_address,
@@ -849,7 +860,7 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
         return contract, deployment_receipt
 
     def deploy(self,
-               initial_deployment: bool = True,
+               deployment_mode=FULL,
                secret_hash: bytes = None,
                gas_limit: int = None,
                progress=None,
@@ -862,7 +873,10 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
         This is meant to be called only once per general deployment.
         """
 
-        if initial_deployment and not secret_hash:
+        if deployment_mode not in (BARE, IDLE, FULL):
+            raise ValueError(f"Invalid deployment mode ({deployment_mode})")
+
+        if deployment_mode is not BARE and not secret_hash:
             raise ValueError(f"An upgrade secret hash is required to perform an initial"
                              f" deployment series for {self.contract_name}.")
         self.check_deployment_readiness(contract_version=contract_version, ignore_deployed=ignore_deployed)
@@ -873,7 +887,7 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
                                                                                 confirmations=confirmations)
 
         # This is the end of bare deployment.
-        if not initial_deployment:
+        if deployment_mode is BARE:
             self._contract = staking_interface_contract
             return self._finish_bare_deployment(deployment_receipt=deployment_receipt,
                                                 progress=progress)
@@ -1040,7 +1054,7 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
         return adjudicator_contract, deploy_receipt
 
     def deploy(self,
-               initial_deployment: bool = True,
+               deployment_mode=FULL,
                secret_hash: bytes = None,
                gas_limit: int = None,
                progress=None,
@@ -1048,7 +1062,10 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
                ignore_deployed: bool = False,
                **overrides) -> Dict[str, str]:
 
-        if initial_deployment and not secret_hash:
+        if deployment_mode not in (BARE, IDLE, FULL):
+            raise ValueError(f"Invalid deployment mode ({deployment_mode})")
+
+        if deployment_mode is not BARE and not secret_hash:
             raise ValueError(f"An upgrade secret hash is required to perform an initial"
                              f" deployment series for {self.contract_name}.")
 
@@ -1059,7 +1076,7 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
                                                                       **overrides)
 
         # This is the end of bare deployment.
-        if not initial_deployment:
+        if deployment_mode is BARE:
             self._contract = adjudicator_contract
             return self._finish_bare_deployment(deployment_receipt=deploy_receipt,
                                                 progress=progress)
@@ -1234,7 +1251,11 @@ class MultiSigDeployer(BaseContractDeployer):
                                                                             confirmations=confirmations)
         return multisig_contract, deploy_receipt
 
-    def deploy(self, gas_limit: int = None, progress=None, *args, **kwargs) -> dict:
+    def deploy(self, deployment_mode=FULL, gas_limit: int = None, progress=None, *args, **kwargs) -> dict:
+
+        if deployment_mode != FULL:
+            raise self.ContractDeploymentError(f"{self.contract_name} cannot be deployed in {deployment_mode} mode")
+
         self.check_deployment_readiness()
 
         multisig_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit, *args, **kwargs)

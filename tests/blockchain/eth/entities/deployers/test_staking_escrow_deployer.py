@@ -16,13 +16,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
+from constant_sorrow.constants import BARE
 from eth_utils import keccak
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.deployers import (StakingEscrowDeployer,
                                                DispatcherDeployer)
 from nucypher.crypto.api import keccak_digest
-from nucypher.utilities.sandbox.constants import STAKING_ESCROW_DEPLOYMENT_SECRET, TEST_PROVIDER_URI
+from nucypher.utilities.sandbox.constants import STAKING_ESCROW_DEPLOYMENT_SECRET
 
 
 def test_staking_escrow_deployment(staking_escrow_deployer, deployment_progress):
@@ -149,7 +150,7 @@ def test_deploy_bare_upgradeable_contract_deployment(testerchain, test_registry,
     old_number_of_enrollments = enrolled_names.count(StakingEscrowDeployer.contract_name)
     old_number_of_proxy_enrollments = enrolled_names.count(StakingEscrowDeployer._proxy_deployer.contract_name)
 
-    receipts = deployer.deploy(initial_deployment=False, ignore_deployed=True)
+    receipts = deployer.deploy(deployment_mode=BARE, ignore_deployed=True)
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
 
