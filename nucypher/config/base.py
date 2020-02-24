@@ -147,14 +147,14 @@ class BaseConfiguration(ABC):
         return filename
 
     @classmethod
-    def default_filepath(cls) -> str:
+    def default_filepath(cls, config_root: str = None) -> str:
         """
         Generates the default configuration filepath for the class.
 
         :return: The generated filepath string
         """
         filename = cls.generate_filename()
-        default_path = os.path.join(cls.DEFAULT_CONFIG_ROOT, filename)
+        default_path = os.path.join(config_root or cls.DEFAULT_CONFIG_ROOT, filename)
         return default_path
 
     def generate_filepath(self, filepath: str = None, modifier: str = None, override: bool = False) -> str:

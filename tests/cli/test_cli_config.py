@@ -3,6 +3,7 @@ import os
 
 import pytest
 
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration, UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS
@@ -45,7 +46,12 @@ def test_initialize_via_cli(config_class, custom_filepath, click_runner, monkeyp
 
 
 @pytest.mark.parametrize('config_class', CONFIG_CLASSES)
-def test_reconfigure_via_cli(click_runner, custom_filepath, config_class):
+def test_reconfigure_via_cli(click_runner, custom_filepath, config_class, monkeypatch, test_registry):
+
+    def fake_get_latest_registry(*args, **kwargs):
+        return test_registry
+    monkeypatch.setattr(InMemoryContractRegistry, 'from_latest_publication', fake_get_latest_registry)
+
     custom_config_filepath = os.path.join(custom_filepath, config_class.generate_filename())
 
     view_args = (config_class.CHARACTER_CLASS.__name__.lower(), 'config',

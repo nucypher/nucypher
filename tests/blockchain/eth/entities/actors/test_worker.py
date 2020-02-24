@@ -3,6 +3,7 @@ import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
 
+from nucypher.blockchain.eth.actors import Worker
 from nucypher.blockchain.eth.token import NU, WorkTracker
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD

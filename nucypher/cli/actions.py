@@ -15,12 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-
-
+import glob
 import json
 import os
 import shutil
 from json import JSONDecodeError
+from os.path import abspath, dirname
 from typing import List, Tuple, Dict, Set, Optional
 
 import click
@@ -51,6 +51,7 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.token import Stake
 from nucypher.cli import painting
 from nucypher.cli.types import IPV4_ADDRESS
+from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_KEYRING_PASSWORD
 from nucypher.config.node import CharacterConfiguration
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -606,3 +607,26 @@ def get_or_update_configuration(emitter, config_class, filepath: str, config_opt
             emitter.message(f"Updated configuration values: {', '.join(updates)}", color='yellow')
             config.update(**updates)
         return emitter.echo(config.serialize())
+
+
+def select_worker_config_file(emitter, config_file, worker_address, provider_uri, network, federated):
+
+    config_root = abspath(dirname(config_file)) if config_file else DEFAULT_CONFIG_ROOT
+    worker_config_exists = glob.glob(UrsulaConfiguration.default_filepath(config_root=config_root))
+
+    if not worker_config_exists:
+        emitter.message("No Ursula configurations found.  run 'nucypher ursula init' then try again.", color='red')
+        raise click.Abort()
+
+    # TODO: Needs Cleanup
+    more_than_one_worker_config_exists = glob.glob(f'{config_root}/ursula-0x*.json')
+    ethereum_account_required = not worker_address and not federated
+
+    if more_than_one_worker_config_exists:
+        if config_file is None:
+            if ethereum_account_required:
+                worker_address = select_client_account(emitter=emitter, network=network, provider_uri=provider_uri)
+            else:
+                pass    # TODO: Support Federated Mode by walking the filesystem
+            config_file = os.path.join(DEFAULT_CONFIG_ROOT, UrsulaConfiguration.generate_filename(modifier=worker_address))
+    return config_file

@@ -26,6 +26,7 @@ import pytest
 from click.testing import CliRunner
 
 from nucypher.blockchain.eth.actors import ContractAdministrator
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import AllocationRegistry, InMemoryContractRegistry, LocalContractRegistry
 from nucypher.config.characters import UrsulaConfiguration, StakeHolderConfiguration
 from nucypher.utilities.sandbox.constants import (
@@ -37,7 +38,7 @@ from nucypher.utilities.sandbox.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_ALLOCATION_INFILE,
-    ONE_YEAR_IN_SECONDS)
+    ONE_YEAR_IN_SECONDS, TEMPORARY_DOMAIN)
 
 
 @pytest.fixture(scope='module')

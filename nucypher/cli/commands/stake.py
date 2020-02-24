@@ -335,6 +335,10 @@ def set_worker(general_config, transacting_staker_options, config_file, force, w
     if not worker_address:
         worker_address = click.prompt("Enter worker address", type=EIP55_CHECKSUM_ADDRESS)
 
+    if (worker_address == staking_address) and not force:
+        click.confirm("The worker address provided is the same as the staking account.  "
+                      "It is highly recommended to use a different accounts for staker and worker roles.", abort=True)
+
     # TODO: Check preconditions (e.g., minWorkerPeriods, already in use, etc)
 
     password = transacting_staker_options.get_password(blockchain, client_account)

@@ -2,6 +2,7 @@ import os
 
 import pytest
 
+from nucypher.blockchain.eth.actors import Worker
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import FelixConfiguration, UrsulaConfiguration, AliceConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
@@ -108,7 +109,6 @@ def test_coexisting_configurations(click_runner,
                  '--network', TEMPORARY_DOMAIN,
                  '--provider', TEST_PROVIDER_URI,
                  '--worker-address', ursula,
-                 '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--registry-filepath', agency_local_registry.filepath,
                  '--config-root', custom_filepath)
@@ -126,7 +126,6 @@ def test_coexisting_configurations(click_runner,
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--worker-address', another_ursula,
-                 '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS_2,
                  '--registry-filepath', agency_local_registry.filepath,
                  '--provider', TEST_PROVIDER_URI,
@@ -153,10 +152,14 @@ def test_coexisting_configurations(click_runner,
                 '--config-file', another_ursula_configuration_file_location)
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' * 2
+
+    Worker.BONDING_POLL_RATE = 1
+    Worker.BONDING_TIMEOUT = 1
     with pytest.raises(Teacher.DetachedWorker):
         # Worker init success, but unassigned.
         result = click_runner.invoke(nucypher_cli, run_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
+    Worker.BONDING_TIMEOUT = None
 
     # All configuration files still exist.
     assert os.path.isfile(felix_file_location)
@@ -208,7 +211,6 @@ def test_corrupted_configuration(click_runner,
     init_args = ('ursula', 'init',
                  '--provider', TEST_PROVIDER_URI,
                  '--worker-address', another_ursula,
-                 '--staker-address', staker,
                  '--network', TEMPORARY_DOMAIN,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--config-root', custom_filepath,
@@ -236,7 +238,6 @@ def test_corrupted_configuration(click_runner,
                  '--network', TEMPORARY_DOMAIN,
                  '--provider', TEST_PROVIDER_URI,
                  '--worker-address', another_ursula,
-                 '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--registry-filepath', agency_local_registry.filepath,
                  '--config-root', custom_filepath)

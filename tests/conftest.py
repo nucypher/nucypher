@@ -17,12 +17,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.characters.control.emitters import WebEmitter
 from nucypher.cli.config import GroupGeneralConfig
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import GlobalLoggerSettings
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
-
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, TEMPORARY_DOMAIN
 
 # Crash on server error by default
 WebEmitter._crash_on_error_default = True
@@ -34,8 +34,8 @@ TransactingPower.lock_account = lambda *a, **k: True
 # Disable any hardcoded preferred teachers during tests.
 TEACHER_NODES = dict()
 
-
 ##########################################
+
 
 @pytest.fixture(autouse=True, scope='session')
 def __very_pretty_and_insecure_scrypt_do_not_use():

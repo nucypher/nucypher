@@ -22,6 +22,7 @@ import pytest_twisted as pt
 import time
 from twisted.internet import threads
 
+from nucypher.blockchain.eth.actors import Worker
 from nucypher.characters.base import Learner
 from nucypher.cli import actions
 from nucypher.cli.actions import UnknownIPAddress
@@ -45,8 +46,7 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
     result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
     assert result.exit_code != 0
     assert default_filepath_mock.called
-    assert "run: 'nucypher ursula init'" in result.output
-
+    assert "No Ursula configurations found.  run 'nucypher ursula init' then try again." in result.output
 
 
 @pt.inlineCallbacks
@@ -136,7 +136,6 @@ def test_persistent_node_storage_integration(click_runner,
     init_args = ('ursula', 'init',
                  '--provider', TEST_PROVIDER_URI,
                  '--worker-address', another_ursula,
-                 '--staker-address', staker,
                  '--network', TEMPORARY_DOMAIN,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--config-root', custom_filepath,
@@ -152,7 +151,7 @@ def test_persistent_node_storage_integration(click_runner,
 
     start_pytest_ursula_services(ursula=teacher)
 
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' * 2
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n'
 
     run_args = ('ursula', 'run',
                 '--dry-run',
@@ -161,12 +160,14 @@ def test_persistent_node_storage_integration(click_runner,
                 '--config-file', another_ursula_configuration_file_location,
                 '--teacher', teacher_uri)
 
+    Worker.BONDING_TIMEOUT = 1
     with pytest.raises(Teacher.DetachedWorker):
         # Worker init success, but unassigned.
         result = yield threads.deferToThread(click_runner.invoke,
                                              nucypher_cli, run_args,
                                              catch_exceptions=False,
-                                             input=user_input)
+                                             input=user_input,
+                                             env=envvars)
     assert result.exit_code == 0
 
     # Run an Ursula amidst the other configuration files
@@ -181,7 +182,8 @@ def test_persistent_node_storage_integration(click_runner,
         result = yield threads.deferToThread(click_runner.invoke,
                                              nucypher_cli, run_args,
                                              catch_exceptions=False,
-                                             input=user_input)
+                                             input=user_input,
+                                             env=envvars)
     assert result.exit_code == 0
 
 
