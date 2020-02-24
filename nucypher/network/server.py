@@ -165,6 +165,7 @@ def make_rest_app(
 
                 # Suspicion
                 except node.SuspiciousActivity as e:
+                    # 355
                     # TODO: Include data about caller?
                     # TODO: Account for possibility that stamp, rather than interface, was bad.
                     # TODO: Maybe also record the bytes representation separately to disk?
@@ -217,10 +218,6 @@ def make_rest_app(
     def set_policy(id_as_hex):
         """
         REST endpoint for setting a kFrag.
-        TODO: Instead of taking a Request, use the apistar typing system to type
-            a payload and validate / split it.
-        TODO: Validate that the kfrag being saved is pursuant to an approved
-            Policy (see #121).
         """
         policy_message_kit = UmbralMessageKit.from_bytes(request.data)
 
@@ -230,7 +227,7 @@ def make_rest_app(
         try:
             cleartext = this_node.verify_from(alice, policy_message_kit, decrypt=True)
         except InvalidSignature:
-            # TODO: Perhaps we log this?
+            # TODO: Perhaps we log this?  Essentially 355.
             return Response(status_code=400)
 
         if not this_node.federated_only:
@@ -372,6 +369,7 @@ def make_rest_app(
         except TreasureMap.InvalidSignature:
             do_store = False
         else:
+            # TODO: If we include the policy ID in this check, does that prevent map spam?  1736
             do_store = treasure_map.public_id() == treasure_map_id
 
         if do_store:
@@ -382,7 +380,7 @@ def make_rest_app(
             this_node.treasure_maps[treasure_map_index] = treasure_map
             return Response(bytes(treasure_map), status=202)
         else:
-            # TODO: Make this a proper 500 or whatever.
+            # TODO: Make this a proper 500 or whatever.  #341
             log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
             assert False
 
@@ -432,7 +430,7 @@ class TLSHostingPower(KeyPairBasedPower):
                  *args, **kwargs) -> None:
 
         if public_certificate and public_certificate_filepath:
-            # TODO: Design decision here: if they do pass both, and they're identical, do we let that slide?
+            # TODO: Design decision here: if they do pass both, and they're identical, do we let that slide?  NRN
             raise ValueError("Pass either a public_certificate or a public_certificate_filepath, not both.")
 
         if public_certificate:
