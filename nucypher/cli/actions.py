@@ -630,3 +630,10 @@ def select_worker_config_file(emitter, config_file, worker_address, provider_uri
                 pass    # TODO: Support Federated Mode by walking the filesystem
             config_file = os.path.join(DEFAULT_CONFIG_ROOT, UrsulaConfiguration.generate_filename(modifier=worker_address))
     return config_file
+
+
+def issue_stake_warnings(value: NU = None, lock_periods: int = None):
+    if value and (value > NU.from_tokens(150000)):
+        click.confirm(f"Stake value is very large ({value} NU) - Are you sure this is correct?", abort=True)
+    if lock_periods and (lock_periods > 365):
+        click.confirm(f"Stake duration is very large ({lock_periods} periods) - Are you sure this is correct?", abort=True)
