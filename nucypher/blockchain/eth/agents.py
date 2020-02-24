@@ -1104,10 +1104,6 @@ class WorkLockAgent(EthereumContractAgent):
             return 0
         return deposit_rate
 
-    def get_minimum_allowed_bid(self) -> int:
-        tokens = self.contract.functions.minAllowedBid().call()
-        return tokens
-
     def eth_to_tokens(self, value: int) -> int:
         tokens = self.contract.functions.ethToTokens(value).call()
         return tokens
@@ -1121,13 +1117,23 @@ class WorkLockAgent(EthereumContractAgent):
         return tokens
 
     @property
-    def start_date(self) -> int:
+    def minimum_allowed_bid(self) -> int:
+        tokens = self.contract.functions.minAllowedBid().call()
+        return tokens
+
+    @property
+    def start_bidding_date(self) -> int:
         date = self.contract.functions.startBidDate().call()
         return date
 
     @property
-    def end_date(self) -> int:
+    def end_bidding_date(self) -> int:
         date = self.contract.functions.endBidDate().call()
+        return date
+
+    @property
+    def end_cancellation_date(self) -> int:
+        date = self.contract.functions.endCancellationDate().call()
         return date
 
     def worklock_parameters(self) -> Tuple:

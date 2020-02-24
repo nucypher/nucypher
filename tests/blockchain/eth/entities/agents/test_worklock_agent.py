@@ -68,10 +68,31 @@ def test_early_claim(testerchain, agency, token_economics, test_registry):
         _receipt = agent.claim(checksum_address=bidder)
 
 
-def test_successful_claim(testerchain, agency, token_economics, test_registry):
+def test_cancel_after_bidding(testerchain, agency, token_economics, test_registry):
 
     # Wait until the bidding window closes...
     testerchain.time_travel(seconds=token_economics.bidding_duration+1)
+
+    bidder = testerchain.unassigned_accounts[2]
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+
+    assert agent.get_deposited_eth(bidder)        # Bid
+    receipt = agent.cancel_bid(bidder)  # Cancel
+    assert receipt['status'] == 1
+    assert not agent.get_deposited_eth(bidder)    # No more bid
+
+
+def test_claim_while_cancellation_window(testerchain, agency, token_economics, test_registry):
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    bidder = testerchain.unassigned_accounts[0]
+    with pytest.raises(TransactionFailed):
+        _receipt = agent.claim(checksum_address=bidder)
+
+
+def test_successful_claim(testerchain, agency, token_economics, test_registry):
+
+    # Wait until the cancellation window closes...
+    testerchain.time_travel(seconds=token_economics.cancellation_end_date+1)
 
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
@@ -91,4 +112,4 @@ def test_successful_claim(testerchain, agency, token_economics, test_registry):
 
     # Ensure that the claimant is now the holder of a stake.
     locked_tokens = staking_agent.get_locked_tokens(staker_address=bidder, periods=10)
-    assert locked_tokens == 71810406272273699215965
+    assert locked_tokens > 0

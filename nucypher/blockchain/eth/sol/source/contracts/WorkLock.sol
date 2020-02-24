@@ -36,6 +36,7 @@ contract WorkLock {
 
     uint256 public startBidDate;
     uint256 public endBidDate;
+    uint256 public endCancellationDate;
 
     /*
     * @dev WorkLock calculations:
@@ -59,6 +60,7 @@ contract WorkLock {
     * @param _escrow Escrow contract
     * @param _startBidDate Timestamp when bidding starts
     * @param _endBidDate Timestamp when bidding will end
+    * @param _endBidDate Timestamp when cancellation will ends
     * @param _boostingRefund Coefficient to boost refund ETH
     * @param _stakingPeriods Amount of periods during which tokens will be locked after claiming
     * @param _minAllowedBid Minimum allowed ETH amount for bidding
@@ -68,6 +70,7 @@ contract WorkLock {
         StakingEscrow _escrow,
         uint256 _startBidDate,
         uint256 _endBidDate,
+        uint256 _endCancellationDate,
         uint256 _boostingRefund,
         uint16 _stakingPeriods,
         uint256 _minAllowedBid
@@ -79,6 +82,7 @@ contract WorkLock {
             _escrow.secondsPerPeriod() > 0 &&                   // escrow contract is deployed and accessible
             _endBidDate > _startBidDate &&                      // bidding period lasts some time
             _endBidDate > block.timestamp &&                    // there is time to make a bid
+            _endCancellationDate >= _endBidDate &&              // cancellation window includes bidding
             _boostingRefund > 0 &&                              // boosting coefficient was set
             _stakingPeriods >= _escrow.minLockedPeriods());     // staking duration is consistent with escrow contract
         // worst case for `ethToWork()` and `workToETH()`,
@@ -90,6 +94,7 @@ contract WorkLock {
         escrow = _escrow;
         startBidDate = _startBidDate;
         endBidDate = _endBidDate;
+        endCancellationDate = _endCancellationDate;
         boostingRefund = _boostingRefund;
         stakingPeriods = _stakingPeriods;
         minAllowedBid = _minAllowedBid;
@@ -160,8 +165,7 @@ contract WorkLock {
     * @notice Cancel bid and refund deposited ETH
     */
     function cancelBid() external {
-        // TODO cancellation window? (#1508)
-        require(block.timestamp < endBidDate, "Cancellation allowed only during bidding");
+        require(block.timestamp < endCancellationDate, "Cancellation allowed only during bidding");
         WorkInfo storage info = workInfo[msg.sender];
         require(info.depositedETH > 0, "No bid to cancel");
         require(!info.claimed, "Tokens are already claimed");
@@ -176,7 +180,8 @@ contract WorkLock {
     * @notice Claimed tokens will be deposited and locked as stake in the StakingEscrow contract.
     */
     function claim() external returns (uint256 claimedTokens) {
-        require(block.timestamp >= endBidDate, "Claiming tokens allowed after bidding is over");
+        require(block.timestamp >= endCancellationDate,
+            "Claiming tokens is allowed when bidding and cancellation phases are over");
         WorkInfo storage info = workInfo[msg.sender];
         require(!info.claimed, "Tokens are already claimed");
         claimedTokens = ethToTokens(info.depositedETH);

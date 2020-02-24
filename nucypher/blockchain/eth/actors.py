@@ -1634,7 +1634,7 @@ class Bidder(NucypherTokenActor):
     class BiddingIsOpen(BidderError):
         pass
 
-    class BidingIsClosed(BidderError):
+    class BiddingIsClosed(BidderError):
         pass
 
     @validate_checksum_address
@@ -1655,22 +1655,29 @@ class Bidder(NucypherTokenActor):
     def _ensure_bidding_is_open(self, message: str = None) -> None:
         highest_block = self.worklock_agent.blockchain.w3.eth.getBlock('latest')
         now = highest_block['timestamp']
-        start = self.worklock_agent.start_date
-        end = self.worklock_agent.end_date
+        start = self.worklock_agent.start_bidding_date
+        end = self.worklock_agent.end_bidding_date
         if now < start:
             message = message or f'Bidding does not open until {maya.MayaDT(start).slang_date()}'
             raise self.BiddingIsClosed(message)
-        if now > end:
+        if now >= end:
             message = message or f'Bidding closed at {maya.MayaDT(end).slang_date()}'
             raise self.BiddingIsClosed(message)
 
     def _ensure_bidding_is_closed(self, message: str = None) -> None:
         highest_block = self.worklock_agent.blockchain.w3.eth.getBlock('latest')
         now = highest_block['timestamp']
-        end = self.worklock_agent.end_date
+        end = self.worklock_agent.end_bidding_date
         if now < end:
             message = message or f"Bidding does not close until {end}"
             raise self.BiddingIsOpen(message)
+
+    def _ensure_cancellation_window(self, ensure_closed: bool = False, message: str = None) -> None:
+        highest_block = self.worklock_agent.blockchain.w3.eth.getBlock('latest')
+        now = highest_block['timestamp']
+        end = self.worklock_agent.end_cancellation_date
+        if ensure_closed and now < end or not ensure_closed and now >= end:
+            raise self.BidderError(message)
 
     #
     # Transactions
@@ -1678,7 +1685,7 @@ class Bidder(NucypherTokenActor):
 
     def place_bid(self, value: int) -> dict:
         self._ensure_bidding_is_open()
-        minimum = self.worklock_agent.get_minimum_allowed_bid()
+        minimum = self.worklock_agent.minimum_allowed_bid
         if value < minimum:
             raise self.BidderError(f"Too small value {prettify_eth_amount(value)} for bidding, "
                                    f"bid must be at least {prettify_eth_amount(minimum)}")
@@ -1687,10 +1694,10 @@ class Bidder(NucypherTokenActor):
 
     def claim(self) -> dict:
 
-        # Require the Bidding window is closed
-        end = self.worklock_agent.end_date
-        error = f"Claims cannot be placed while the bidding window is still open (closes at {end})."
-        self._ensure_bidding_is_closed(message=error)
+        # Require the cancellation window is closed
+        end = self.worklock_agent.end_cancellation_date
+        error = f"Claims cannot be placed while the cancellation window is still open (closes at {end})."
+        self._ensure_cancellation_window(ensure_closed=True, message=error)
 
         # Ensure the claim was not already placed
         if self._has_claimed:
@@ -1709,9 +1716,9 @@ class Bidder(NucypherTokenActor):
         return receipt
 
     def cancel_bid(self) -> dict:
-        end = self.worklock_agent.end_date
-        error = f"Cancellation is allowed only while the bidding window is open (closed at {end})."
-        self._ensure_bidding_is_open(message=error)
+        end = self.worklock_agent.end_cancellation_date
+        error = f"Cancellation is allowed only while the cancellation window is open (closed at {end})."
+        self._ensure_cancellation_window(ensure_closed=False, message=error)
 
         # Require an active bid
         if not self.get_deposited_eth:

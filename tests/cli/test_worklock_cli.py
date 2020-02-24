@@ -82,6 +82,7 @@ def test_bid(click_runner, testerchain, agency_local_registry, token_economics):
 
 
 def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_economics):
+
     bidder = testerchain.unassigned_accounts[0]
     agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
 
@@ -97,13 +98,29 @@ def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_econ
     assert result.exit_code == 0
     assert not agent.get_deposited_eth(bidder)    # No more bid
 
+    # Wait until the end of the bidding period
+    testerchain.time_travel(seconds=token_economics.bidding_duration + 2)
+
+    bidder = testerchain.unassigned_accounts[1]
+    command = ('cancel-bid',
+               '--bidder-address', bidder,
+               '--registry-filepath', agency_local_registry.filepath,
+               '--provider', TEST_PROVIDER_URI,
+               '--poa',
+               '--force')
+
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + 'Y\n'
+    result = click_runner.invoke(worklock, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert not agent.get_deposited_eth(bidder)    # No more bid
+
 
 def test_claim(click_runner, testerchain, agency_local_registry, token_economics):
 
-    # Wait until the end of the bidding period
-    testerchain.time_travel(token_economics.bidding_duration+2)
+    # Wait until the end of the cancellation period
+    testerchain.time_travel(seconds=token_economics.cancellation_window_duration+2)
 
-    bidder = testerchain.unassigned_accounts[1]
+    bidder = testerchain.unassigned_accounts[2]
     command = ('claim',
                '--bidder-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
@@ -119,7 +136,7 @@ def test_claim(click_runner, testerchain, agency_local_registry, token_economics
 
 
 def test_remaining_work(click_runner, testerchain, agency_local_registry, token_economics):
-    bidder = testerchain.unassigned_accounts[1]
+    bidder = testerchain.unassigned_accounts[2]
 
     # Ensure there is remaining work one layer below
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
@@ -142,7 +159,7 @@ def test_remaining_work(click_runner, testerchain, agency_local_registry, token_
 
 def test_refund(click_runner, testerchain, agency_local_registry, token_economics):
 
-    bidder = testerchain.unassigned_accounts[1]
+    bidder = testerchain.unassigned_accounts[2]
     worker_address = testerchain.unassigned_accounts[-1]
 
     #
@@ -190,7 +207,7 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
 
 
 def test_participant_status(click_runner, testerchain, agency_local_registry, token_economics):
-    bidder = Bidder(checksum_address=testerchain.unassigned_accounts[1], registry=agency_local_registry)
+    bidder = Bidder(checksum_address=testerchain.unassigned_accounts[2], registry=agency_local_registry)
 
     command = ('status',
                '--registry-filepath', agency_local_registry.filepath,

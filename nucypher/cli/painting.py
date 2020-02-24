@@ -859,25 +859,31 @@ def paint_worklock_status(emitter, registry: BaseContractRegistry):
     blockchain = worklock_agent.blockchain
 
     # Time
-    start = MayaDT(worklock_agent.contract.functions.startBidDate().call())
-    end = MayaDT(worklock_agent.contract.functions.endBidDate().call())
+    bidding_start = MayaDT(worklock_agent.contract.functions.startBidDate().call())
+    bidding_end = MayaDT(worklock_agent.contract.functions.endBidDate().call())
+    cancellation_end = MayaDT(worklock_agent.contract.functions.endCancellationDate().call())
 
-    duration = end - start
+    bidding_duration = bidding_end - bidding_start
+    cancellation_duration = cancellation_end - bidding_end
     now = maya.now()
-    remaining = end - now if end > now else timedelta()
+    bidding_remaining = bidding_end - now if bidding_end > now else timedelta()
+    cancellation_remaining = cancellation_end - now if cancellation_end > now else timedelta()
 
     payload = f"""
 
 Time
 ======================================================
-Start Date ........ {start}
-End Date .......... {end}
-Duration .......... {duration}
-Time Remaining .... {remaining} 
+Bidding Start Date ................... {bidding_start}
+Bidding End Date ..................... {bidding_end}
+Cancellation Window End Date ......... {cancellation_end}
+Bidding Duration ..................... {bidding_duration}
+Cancellation Window Duration ......... {cancellation_duration}
+Bidding Time Remaining ............... {bidding_remaining} 
+Cancellation Window Time Remaining ... {cancellation_remaining} 
 
 Economics
 ======================================================        
-Min allowed bid ... {prettify_eth_amount(worklock_agent.get_minimum_allowed_bid())}
+Min allowed bid ... {prettify_eth_amount(worklock_agent.minimum_allowed_bid)}
 ETH Pool .......... {prettify_eth_amount(blockchain.client.get_balance(worklock_agent.contract_address))}
 ETH Supply ........ {prettify_eth_amount(worklock_agent.get_eth_supply())}
 
