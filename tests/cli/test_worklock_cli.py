@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 from eth_utils import to_wei
+from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker, Bidder
 from nucypher.blockchain.eth.agents import (
@@ -34,7 +35,7 @@ from nucypher.utilities.sandbox.constants import (
 )
 
 
-def test_status(click_runner, testerchain, agency_local_registry):
+def test_status(click_runner, testerchain, agency_local_registry, token_economics):
     command = ('status',
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
@@ -43,7 +44,8 @@ def test_status(click_runner, testerchain, agency_local_registry):
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
 
     assert result.exit_code == 0
-    assert f"Lot Size .......... {NU.from_tokens(1_000_000)}" in result.output  # TODO: Amount hard-coded in token economics fixture
+    assert f"Lot Size .......... {token_economics.worklock_supply}" in result.output
+    assert f"Min allowed bid ... {Web3.fromWei(token_economics.worklock_min_allowed_bid, 'ether')} ETH" in result.output
 
 
 def test_bid(click_runner, testerchain, agency_local_registry, token_economics):
@@ -209,25 +211,3 @@ def test_participant_status(click_runner, testerchain, agency_local_registry, to
     # Worklock economics are displayed
     assert str(token_economics.worklock_boosting_refund_rate) in result.output
     assert str(token_economics.worklock_supply) in result.output
-
-
-@pytest.mark.skip()
-def test_burn_unclaimed_tokens(click_runner, testerchain, agency_local_registry):
-    # Wait until biding window starts
-    testerchain.time_travel(periods=10)
-
-    philanthropist = testerchain.unassigned_accounts[4]
-    command = ('burn-unclaimed-tokens',
-               '--registry-filepath', agency_local_registry,
-               '--checksum-address', philanthropist,
-               '--provider', TEST_PROVIDER_URI,
-               '--poa')
-
-    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
-
-    # There are unclaimed tokens
-    assert worklock_agent.get_unclaimed_tokens() > 0
-    result = click_runner.invoke(worklock, command, catch_exceptions=False)
-    assert result.exit_code == 0
-    # No more unclaimed tokens
-    assert worklock_agent.get_unclaimed_tokens() == 0

@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import csv
 import webbrowser
 from collections import Counter
+from datetime import timedelta
 from typing import List
 
 import click
@@ -854,19 +855,16 @@ def echo_solidity_version(ctx, param, value):
 
 def paint_worklock_status(emitter, registry: BaseContractRegistry):
     from maya import MayaDT
-    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
     blockchain = worklock_agent.blockchain
-
-    # Agency
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
 
     # Time
     start = MayaDT(worklock_agent.contract.functions.startBidDate().call())
     end = MayaDT(worklock_agent.contract.functions.endBidDate().call())
-    duration = end - start
-    remaining = end - maya.now()
 
-    # TODO: Include calculated refund and deposit rates
+    duration = end - start
+    now = maya.now()
+    remaining = end - now if end > now else timedelta()
 
     payload = f"""
 
@@ -878,12 +876,12 @@ Duration .......... {duration}
 Time Remaining .... {remaining} 
 
 Economics
-======================================================            
-ETH Pool .......... {blockchain.client.get_balance(worklock_agent.contract_address)}
-ETH Supply ........ {worklock_agent.get_eth_supply()}
+======================================================        
+Min allowed bid ... {prettify_eth_amount(worklock_agent.get_minimum_allowed_bid())}
+ETH Pool .......... {prettify_eth_amount(blockchain.client.get_balance(worklock_agent.contract_address))}
+ETH Supply ........ {prettify_eth_amount(worklock_agent.get_eth_supply())}
 
 Lot Size .......... {NU.from_nunits(worklock_agent.lot_value)} 
-Unclaimed Tokens .. {worklock_agent.get_unclaimed_tokens()}
 
 Boosting Refund ... {worklock_agent.contract.functions.boostingRefund().call()}
 Slowing Refund .... {worklock_agent.contract.functions.SLOWING_REFUND().call()}
@@ -898,8 +896,8 @@ def paint_bidder_status(emitter, bidder):
     message = f"""
 WorkLock Participant {bidder.checksum_address}
 =====================================================
-Total Bid ............ {bidder.get_deposited_eth}
-Available Refund ..... {bidder.available_refund}
+Total Bid ............ {prettify_eth_amount(bidder.get_deposited_eth)}
+Available Refund ..... {prettify_eth_amount(bidder.available_refund)}
 Completed Work ....... {bidder.completed_work}
 Remaining Work ....... {bidder.remaining_work}
 Refunded Work ........ {bidder.refunded_work}

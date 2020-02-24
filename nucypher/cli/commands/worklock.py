@@ -126,14 +126,16 @@ def bid(general_config, worklock_options, registry_options, force, hw_wallet, va
                                                                 poa=registry_options.poa,
                                                                 network=registry_options.network,
                                                                 show_balances=True)
-    if not value:
-        if force:
-            raise click.MissingParameter("Missing --value.")
-        value = click.prompt("Enter bid amount in ETH", type=click.STRING)
-    value = int(Web3.toWei(Decimal(value), 'ether'))
 
     registry = registry_options.get_registry(emitter, general_config.debug)
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
+
+    if not value:
+        if force:
+            raise click.MissingParameter("Missing --value.")
+        minimum_bid = bidder.worklock_agent.get_minimum_allowed_bid()
+        value = click.prompt(f"Enter bid amount in ETH (at least {Web3.fromWei(minimum_bid, 'ether')})", type=click.STRING)
+    value = int(Web3.toWei(Decimal(value), 'ether'))
 
     if not force:
         paint_bidding_notice(emitter=emitter, bidder=bidder)
@@ -260,24 +262,4 @@ def refund(general_config, worklock_options, registry_options, force, hw_wallet)
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
     receipt = bidder.refund_deposit()
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
-    return  # Exit
-
-
-@worklock.command()
-@group_registry_options
-@group_general_config
-@option_checksum_address
-def burn_unclaimed_tokens(general_config, registry_options, checksum_address):
-    emitter = _setup_emitter(general_config)
-    registry = registry_options.get_registry(emitter, general_config.debug)
-    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)
-    if not checksum_address:
-        checksum_address = select_client_account(emitter=emitter,
-                                                 provider_uri=registry_options.provider_uri,
-                                                 poa=registry_options.poa,
-                                                 network=registry_options.network,
-                                                 show_balances=True)
-    # FIXME: This won't work in real life, it needs TransactingPowers and stuff
-    receipt = worklock_agent.burn_unclaimed(sender_address=checksum_address)
-    paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=worklock_agent.blockchain.client.chain_name)
     return  # Exit

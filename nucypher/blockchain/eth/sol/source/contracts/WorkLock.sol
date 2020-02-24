@@ -23,7 +23,6 @@ contract WorkLock {
     event Bid(address indexed sender, uint256 depositedETH);
     event Claimed(address indexed sender, uint256 claimedTokens);
     event Refund(address indexed sender, uint256 refundETH, uint256 completedWork);
-    event Burnt(address indexed sender, uint256 value);
     event Canceled(address indexed sender, uint256 value);
 
     struct WorkInfo {
@@ -49,9 +48,9 @@ contract WorkLock {
     uint16 public constant SLOWING_REFUND = 100;
     uint256 private constant MAX_ETH_SUPPLY = 2e10 ether;
 
+    uint256 public minAllowedBid;
     uint256 public tokenSupply;
     uint256 public ethSupply;
-    uint256 public unclaimedTokens;
     uint16 public stakingPeriods;
     mapping(address => WorkInfo) public workInfo;
 
@@ -62,6 +61,7 @@ contract WorkLock {
     * @param _endBidDate Timestamp when bidding will end
     * @param _boostingRefund Coefficient to boost refund ETH
     * @param _stakingPeriods Amount of periods during which tokens will be locked after claiming
+    * @param _minAllowedBid Minimum allowed ETH amount for bidding
     */
     constructor(
         NuCypherToken _token,
@@ -69,7 +69,8 @@ contract WorkLock {
         uint256 _startBidDate,
         uint256 _endBidDate,
         uint256 _boostingRefund,
-        uint16 _stakingPeriods
+        uint16 _stakingPeriods,
+        uint256 _minAllowedBid
     )
         public
     {
@@ -91,6 +92,7 @@ contract WorkLock {
         endBidDate = _endBidDate;
         boostingRefund = _boostingRefund;
         stakingPeriods = _stakingPeriods;
+        minAllowedBid = _minAllowedBid;
     }
 
     /**
@@ -98,7 +100,7 @@ contract WorkLock {
     * @param _value Amount of tokens to transfer
     */
     function tokenDeposit(uint256 _value) external {
-        require(block.timestamp <= endBidDate, "Can't deposit more tokens after end of bidding");
+        require(block.timestamp < endBidDate, "Can't deposit more tokens after end of bidding");
         token.safeTransferFrom(msg.sender, address(this), _value);
         tokenSupply += _value;
         emit Deposited(msg.sender, _value);
@@ -146,9 +148,10 @@ contract WorkLock {
     */
     function bid() external payable {
         require(block.timestamp >= startBidDate, "Bidding is not open yet");
-        require(block.timestamp <= endBidDate, "Bidding is already finished");
+        require(block.timestamp < endBidDate, "Bidding is already finished");
         WorkInfo storage info = workInfo[msg.sender];
         info.depositedETH = info.depositedETH.add(msg.value);
+        require(info.depositedETH >= minAllowedBid, "Bid must be more than minimum");
         ethSupply = ethSupply.add(msg.value);
         emit Bid(msg.sender, msg.value);
     }
@@ -157,19 +160,14 @@ contract WorkLock {
     * @notice Cancel bid and refund deposited ETH
     */
     function cancelBid() external {
-        // TODO check date? check minimum amount of tokens? (#1508)
+        // TODO cancellation window? (#1508)
+        require(block.timestamp < endBidDate, "Cancellation allowed only during bidding");
         WorkInfo storage info = workInfo[msg.sender];
         require(info.depositedETH > 0, "No bid to cancel");
         require(!info.claimed, "Tokens are already claimed");
         uint256 refundETH = info.depositedETH;
         info.depositedETH = 0;
-        // if bidding is still open - then ETH supply will be decreased
-        if (block.timestamp <= endBidDate) {
-            ethSupply = ethSupply.sub(refundETH);
-        // if bidding is over - then discarded tokens will be marked as unclaimed to burn later
-        } else {
-            unclaimedTokens = unclaimedTokens.add(ethToTokens(refundETH));
-        }
+        ethSupply = ethSupply.sub(refundETH);
         msg.sender.sendValue(refundETH);
         emit Canceled(msg.sender, refundETH);
     }
@@ -233,18 +231,6 @@ contract WorkLock {
         info.completedWork = info.completedWork.add(completedWork);
         emit Refund(msg.sender, refundETH, completedWork);
         msg.sender.sendValue(refundETH);
-    }
-
-    /**
-    * @notice Burn unclaimed tokens
-    */
-    function burnUnclaimed() external {
-        require(block.timestamp >= endBidDate, "Burning tokens allowed when bidding is over");
-        require(unclaimedTokens > 0, "There are no tokens that can be burned");
-        token.approve(address(escrow), unclaimedTokens);
-        escrow.burn(unclaimedTokens);
-        emit Burnt(msg.sender, unclaimedTokens);
-        unclaimedTokens = 0;
     }
 
 }

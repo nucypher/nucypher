@@ -1037,16 +1037,6 @@ class WorkLockAgent(EthereumContractAgent):
         return receipt
 
     @validate_checksum_address
-    def burn_unclaimed(self, checksum_address: str) -> dict:
-        """
-        Burn unclaimed tokens - Out of the goodness of your heart...
-        of course the caller must pay for the transaction gas.
-        """
-        contract_function = self.contract.functions.burnUnclaimed()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
-        return receipt
-
-    @validate_checksum_address
     def refund(self, checksum_address: str) -> dict:
         """Refund ETH for completed work."""
         contract_function = self.contract.functions.refund()
@@ -1114,8 +1104,8 @@ class WorkLockAgent(EthereumContractAgent):
             return 0
         return deposit_rate
 
-    def get_unclaimed_tokens(self) -> int:
-        tokens = self.contract.functions.unclaimedTokens().call()
+    def get_minimum_allowed_bid(self) -> int:
+        tokens = self.contract.functions.minAllowedBid().call()
         return tokens
 
     def eth_to_tokens(self, value: int) -> int:
