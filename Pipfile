@@ -29,7 +29,6 @@ coincurve = "*"
 web3 = "*"
 py-geth = "*"
 # CLI / Configuration
-sentry-sdk = "==0.9.0"
 appdirs = "*"
 click = ">=7.0"
 colorama = "*"
