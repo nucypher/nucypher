@@ -5,31 +5,7 @@ workflows:
   version: 2
   test_build_deploy:
     jobs:
-      - pipenv_install_36:
-          filters:
-            tags:
-              only: /.*/
-      - pip_install_36:
-          filters:
-            tags:
-              only: /.*/
-      - pipenv_install_37:
-          filters:
-            tags:
-              only: /.*/
-      - validate_reqs_files:
-          filters:
-            tags:
-              only: /.*/
       - pip_install_37:
-          filters:
-            tags:
-              only: /.*/
-      - pipenv_install_38:
-          filters:
-            tags:
-              only: /.*/
-      - pip_install_38:
           filters:
             tags:
               only: /.*/
@@ -220,6 +196,14 @@ workflows:
             tags:
               only: /.*/
       - pip_install_37:
+          filters:
+            tags:
+              only: /.*/
+      - pipenv_install_38:
+          filters:
+            tags:
+              only: /.*/
+      - pip_install_38:
           filters:
             tags:
               only: /.*/
