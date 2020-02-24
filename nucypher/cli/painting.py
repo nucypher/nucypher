@@ -558,7 +558,7 @@ def paint_accounts(emitter, balances, registry):
         is_staking = 'Yes' if bool(staker.stakes) else 'No'
         rows.append((is_staking, address, eth, nu))
     headers = ('Staking', 'Account', 'ETH', 'NU')
-    emitter.echo(tabulate.tabulate(rows, headers=headers, tablefmt="fancy_grid"))
+    emitter.echo(tabulate.tabulate(rows, showindex=True, headers=headers, tablefmt="fancy_grid"))
 
 
 def paint_receipt_summary(emitter, receipt, chain_name: str = None, transaction_type=None, provider_uri: str = None):
