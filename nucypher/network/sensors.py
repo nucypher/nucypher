@@ -5,8 +5,8 @@ from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 
-from nucypher.network import middleware
 from nucypher.network.exceptions import NodeSeemsToBeDown
+from nucypher.network.middleware import RestMiddleware
 
 
 class AvailabilitySensor:
@@ -36,8 +36,9 @@ class AvailabilitySensor:
         self._ursula = ursula
         self.enforce_loneliness = enforce_loneliness
 
+        self.__excuses = dict()  # List of failure reasons
         self.__score = 10
-        # 10 == Fully available
+        # 10 == Perfect Score
         self.warnings = {
             9: self.mild_warning,
             7: self.medium_warning,
@@ -77,7 +78,11 @@ class AvailabilitySensor:
 
     def status(self) -> bool:
         """Returns current indication of availability"""
-        return self.score > self.SENSOR_SENSITIVITY
+        result = self.score > (self.SENSOR_SENSITIVITY*self.MAXIMUM_SCORE)
+        if not result:
+            for time, reason in self.__excuses.items():
+                self.log.info(f'[{time}] - {reason["error"]}')
+        return result
 
     @property
     def running(self) -> bool:
@@ -141,13 +146,15 @@ class AvailabilitySensor:
     def score(self) -> float:
         return self.__score
 
-    def record(self, result: bool = None) -> None:
+    def record(self, result: bool = None, reason: dict = None) -> None:
         """Score the result and cache it."""
         if result is None:
             return
+        if reason:
+            self.__excuses[maya.now().epoch] = reason
         score = int(result) + self.CHARGE_RATE * self.__score
         if score >= self.MAXIMUM_SCORE:
-            return
+            self.__score = self.MAXIMUM_SCORE
         else:
             self.__score = score
 
@@ -168,17 +175,22 @@ class AvailabilitySensor:
                 response = self._ursula.network_middleware.check_rest_availability(requesting_ursula=self._ursula,
                                                                                    responding_ursula=ursula,
                                                                                    certificate_filepath=certificate_filepath)
-            except (*NodeSeemsToBeDown,
-                    self._ursula.network_middleware.NotFound,
-                    self._ursula.NotStaking):
+
+            except RestMiddleware.BadRequest as e:
+                self.record(False, reason=e.reason)
+
+            except self._ursula.network_middleware.NotFound:
+                # Ignore this measurement and move on because the remote node is not compatible.
+                self.record(None)
+
+            except (*NodeSeemsToBeDown, self._ursula.NotStaking, ursula.network_middleware.UnexpectedResponse):
                 # This node is not available, does not support uptime checks, or is not staking - do nothing.
                 continue
 
-            # Record response
-            if response.status_code == 200:
-                self.record(True)
-            elif response.status_code == 400:
-                self.record(False)
             else:
-                # Ignore this measurement and move on.
-                self.record(None)
+                # Record response
+                if response.status_code == 200:
+                    self.record(True)
+                else:
+                    # TODO: Were not sure how this can ever happen....
+                    self.record(None)

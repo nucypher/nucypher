@@ -660,8 +660,7 @@ def divide(general_config, transacting_staker_options, config_file, force, value
     if not value:
         min_allowed_locked = NU.from_nunits(STAKEHOLDER.economics.minimum_allowed_locked)
         max_divide_value = max(min_allowed_locked, current_stake.value - min_allowed_locked)
-        value = click.prompt(f"Enter target value ({min_allowed_locked} - {str(max_divide_value)})",
-                             type=stake_value_range)
+        value = click.prompt(f"Enter target value ({min_allowed_locked} - {str(max_divide_value)})", type=stake_value_range)
     value = NU(value, 'NU')
 
     # Duration

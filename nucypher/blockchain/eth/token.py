@@ -585,7 +585,8 @@ class WorkTracker:
 
         # Only perform work this round if the requirements are met
         if not self.__check_work_requirement():
-            self.log.warn(f'CONFIRMATION PREVENTED - There are unmet confirmation requirements.')
+            self.log.warn(f'CONFIRMATION PREVENTED (callable: "{self.__requirement.__name__}") - '
+                          f'There are unmet confirmation requirements.')
             # TODO: Follow-up actions for downtime
             return
 

@@ -120,7 +120,9 @@ class NucypherMiddlewareClient:
             response = self.invoke_method(method, url, verify=certificate_filepath, *args, **kwargs)
             cleaned_response = self.response_cleaner(response)
             if cleaned_response.status_code >= 300:
-                if cleaned_response.status_code == 404:
+                if cleaned_response.status_code == 400:
+                    raise RestMiddleware.BadRequest(reason=cleaned_response.json)
+                elif cleaned_response.status_code == 404:
                     m = f"While trying to {method_name} {args} ({kwargs}), server 404'd.  Response: {cleaned_response.content}"
                     raise RestMiddleware.NotFound(m)
                 else:
@@ -150,6 +152,11 @@ class RestMiddleware:
     class NotFound(UnexpectedResponse):
         def __init__(self, *args, **kwargs):
             super().__init__(status=404, *args, **kwargs)
+
+    class BadRequest(UnexpectedResponse):
+        def __init__(self, reason, *args, **kwargs):
+            self.reason = reason
+            super().__init__(message=reason, status=400, *args, **kwargs)
 
     def __init__(self, registry=None):
         self.client = self._client_class()

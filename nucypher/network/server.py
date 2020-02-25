@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import binascii
+import json
 import os
 from typing import Tuple
 
@@ -130,19 +131,18 @@ def make_rest_app(
         TODO: Figure out how to test this without blocking the requesting REST server.
         """
 
-        # Verify the POST request contains valid Ursula bytes
         try:
             requesting_ursula = Ursula.from_bytes(request.data, registry=this_node.registry)
             requesting_ursula.mature()
         except ValueError:  # (ValueError)
-            return Response(status=400)
+            return Response({'error': 'Invalid Ursula'}, status=400)
         else:
             requesting_ursula_address, requesting_ursula_port = tuple(requesting_ursula.rest_interface)
 
         # Compare requester and posted Ursula information
         request_address = request.environ['REMOTE_ADDR']
         if request_address != requesting_ursula_address:
-            return Response(status=400)
+            return Response({'error': 'Suspicious origin address'}, status=400)
 
         #
         # Make a Sandwich
@@ -156,16 +156,17 @@ def make_rest_app(
             result = requests.get(f"https://{requesting_ursula.rest_interface}/public_information",
                                   verify=certificate_filepath)
         except NodeSeemsToBeDown:
-            return Response(status=400)  # ... toasted
+            return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
 
         if result.status_code != 200:
-            return Response(status=400)
+            # jsonify()
+            return Response(json.dumps({'error': 'Mis-configured origin REST service'}), status=400, content_type='application/json')
 
         # Compare the results of the outer POST with the inner GET... yum
         if result.content == request.data:
             return Response(status=200)
         else:
-            return Response(status=400)
+            return Response({'error': 'Suspicious node'}, status=400)
 
     @rest_app.route('/node_metadata', methods=["GET"])
     def all_known_nodes():
