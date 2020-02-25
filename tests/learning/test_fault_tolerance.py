@@ -11,12 +11,12 @@ from constant_sorrow.constants import NOT_SIGNED
 from nucypher.characters.base import Character
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nicknames import nickname_from_seed
-from nucypher.network.nodes import FleetStateTracker
+from nucypher.network.nodes import FleetStateTracker, Learner
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_ursula_for_staker
 
 
-def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas):
+def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mocker):
     #
     # Setup
     #
@@ -56,6 +56,10 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas):
     # assert len(lonely_blockchain_learner.known_nodes) == len(blockchain_ursulas) - 2
     assert blockchain_teacher in lonely_blockchain_learner.known_nodes
 
+    # Learn about a node with a badly signed payload
+    mocker.patch.object(lonely_blockchain_learner, 'verify_from', side_effect=Learner.InvalidSignature)
+    lonely_blockchain_learner.learn_from_teacher_node(eager=True)
+    assert len(lonely_blockchain_learner.suspicious_activities_witnessed['vladimirs']) == 1
 
 @pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075
 def test_invalid_workers_tolerance(testerchain,
