@@ -169,7 +169,7 @@ class AvailabilitySensor:
                                                                                    responding_ursula=ursula,
                                                                                    certificate_filepath=certificate_filepath)
             except (*NodeSeemsToBeDown,
-                    middleware.NotFound,
+                    self._ursula.network_middleware.NotFound,
                     self._ursula.NotStaking):
                 # This node is not available, does not support uptime checks, or is not staking - do nothing.
                 continue

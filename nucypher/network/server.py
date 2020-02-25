@@ -132,10 +132,9 @@ def make_rest_app(
 
         # Verify the POST request contains valid Ursula bytes
         try:
-            requesting_ursula = Ursula.from_bytes(request.data,
-                                                  federated_only=this_node.federated_only,
-                                                  registry=this_node.registry)
-        except Exception:
+            requesting_ursula = Ursula.from_bytes(request.data, registry=this_node.registry)
+            requesting_ursula.mature()
+        except ValueError:  # (ValueError)
             return Response(status=400)
         else:
             requesting_ursula_address, requesting_ursula_port = tuple(requesting_ursula.rest_interface)
