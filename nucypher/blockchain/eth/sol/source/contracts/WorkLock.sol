@@ -29,6 +29,7 @@ contract WorkLock {
         uint256 depositedETH;
         uint256 completedWork;
         bool claimed;
+        uint256 index;
     }
 
     NuCypherToken public token;
@@ -54,6 +55,8 @@ contract WorkLock {
     uint256 public ethSupply;
     uint16 public stakingPeriods;
     mapping(address => WorkInfo) public workInfo;
+
+    address[] public bidders;
 
     /**
     * @param _token Token contract
@@ -149,12 +152,26 @@ contract WorkLock {
     }
 
     /**
+    * @notice Get length of bidders array
+    */
+    function getBiddersLength() external view returns (uint256) {
+        return bidders.length;
+    }
+
+    /**
     * @notice Bid for tokens by transferring ETH
     */
     function bid() external payable {
         require(block.timestamp >= startBidDate, "Bidding is not open yet");
         require(block.timestamp < endBidDate, "Bidding is already finished");
         WorkInfo storage info = workInfo[msg.sender];
+
+        // first bid
+        if (info.depositedETH == 0) {
+            info.index = bidders.length;
+            bidders.push(msg.sender);
+        }
+
         info.depositedETH = info.depositedETH.add(msg.value);
         require(info.depositedETH >= minAllowedBid, "Bid must be more than minimum");
         ethSupply = ethSupply.add(msg.value);
@@ -171,6 +188,16 @@ contract WorkLock {
         require(!info.claimed, "Tokens are already claimed");
         uint256 refundETH = info.depositedETH;
         info.depositedETH = 0;
+
+        // remove from bidders array, move last bidder to the empty place
+        uint256 length = bidders.length;
+        if (info.index != length - 1) {
+            address lastBidder = bidders[length - 1];
+            bidders[info.index] = lastBidder;
+            workInfo[lastBidder].index = info.index;
+        }
+        bidders.pop();
+
         ethSupply = ethSupply.sub(refundETH);
         msg.sender.sendValue(refundETH);
         emit Canceled(msg.sender, refundETH);

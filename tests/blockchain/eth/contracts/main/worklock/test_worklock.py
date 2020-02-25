@@ -40,7 +40,7 @@ def escrow(testerchain, token_economics, deploy_contract, token):
 
 @pytest.mark.slow
 def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
-    creator, staker1, staker2, staker3, *everyone_else = testerchain.w3.eth.accounts
+    creator, staker1, staker2, staker3, staker4, *everyone_else = testerchain.w3.eth.accounts
 
     # Deploy WorkLock
     now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
@@ -112,6 +112,10 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     tx = testerchain.w3.eth.sendTransaction(
         {'from': testerchain.etherbase_account, 'to': staker3, 'value': staker3_balance})
     testerchain.wait_for_receipt(tx)
+    staker4_balance = staker1_balance
+    tx = testerchain.w3.eth.sendTransaction(
+        {'from': testerchain.etherbase_account, 'to': staker4, 'value': staker4_balance})
+    testerchain.wait_for_receipt(tx)
 
     # Can't do anything before start date
     with pytest.raises((TransactionFailed, ValueError)):
@@ -136,6 +140,7 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
         testerchain.wait_for_receipt(tx)
 
     # Staker does first bid
+    assert worklock.functions.getBiddersLength().call() == 0
     assert worklock.functions.workInfo(staker1).call()[0] == 0
     assert testerchain.w3.eth.getBalance(worklock.address) == 0
     tx = worklock.functions.bid().transact({'from': staker1, 'value': deposit_eth_1, 'gas_price': 0})
@@ -145,6 +150,9 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     worklock_balance = deposit_eth_1
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
     assert worklock.functions.ethToTokens(deposit_eth_1).call() == worklock_supply
+    assert worklock.functions.getBiddersLength().call() == 1
+    assert worklock.functions.bidders(0).call() == staker1
+    assert worklock.functions.workInfo(staker1).call()[3] == 0
 
     events = bidding_log.get_all_entries()
     assert 1 == len(events)
@@ -161,6 +169,9 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     worklock_balance += deposit_eth_2
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
     assert worklock.functions.ethToTokens(deposit_eth_2).call() == worklock_supply // 5
+    assert worklock.functions.getBiddersLength().call() == 2
+    assert worklock.functions.bidders(1).call() == staker2
+    assert worklock.functions.workInfo(staker2).call()[3] == 1
 
     events = bidding_log.get_all_entries()
     assert 2 == len(events)
@@ -177,11 +188,33 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     worklock_balance += staker3_bid
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
     assert worklock.functions.ethToTokens(deposit_eth_2).call() == worklock_supply // 6
+    assert worklock.functions.getBiddersLength().call() == 3
+    assert worklock.functions.bidders(2).call() == staker3
+    assert worklock.functions.workInfo(staker3).call()[3] == 2
 
     events = bidding_log.get_all_entries()
     assert 3 == len(events)
     event_args = events[2]['args']
     assert event_args['sender'] == staker3
+    assert event_args['depositedETH'] == deposit_eth_2
+
+    # Forth staker does first bid
+    assert worklock.functions.workInfo(staker4).call()[0] == 0
+    tx = worklock.functions.bid().transact({'from': staker4, 'value': deposit_eth_2, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    staker4_bid = deposit_eth_2
+    assert worklock.functions.workInfo(staker4).call()[0] == staker4_bid
+    worklock_balance += staker4_bid
+    assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
+    assert worklock.functions.ethToTokens(deposit_eth_2).call() == worklock_supply // 7
+    assert worklock.functions.getBiddersLength().call() == 4
+    assert worklock.functions.bidders(3).call() == staker4
+    assert worklock.functions.workInfo(staker4).call()[3] == 3
+
+    events = bidding_log.get_all_entries()
+    assert 4 == len(events)
+    event_args = events[3]['args']
+    assert event_args['sender'] == staker4
     assert event_args['depositedETH'] == deposit_eth_2
 
     # Staker does second bid
@@ -190,11 +223,12 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     assert worklock.functions.workInfo(staker1).call()[0] == 2 * deposit_eth_1
     worklock_balance += deposit_eth_1
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
-    assert worklock.functions.ethToTokens(deposit_eth_2).call() == worklock_supply // 10
+    assert worklock.functions.ethToTokens(deposit_eth_2).call() == worklock_supply // 11
+    assert worklock.functions.getBiddersLength().call() == 4
 
     events = bidding_log.get_all_entries()
-    assert 4 == len(events)
-    event_args = events[3]['args']
+    assert 5 == len(events)
+    event_args = events[4]['args']
     assert event_args['sender'] == staker1
     assert event_args['depositedETH'] == deposit_eth_1
 
@@ -213,10 +247,11 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     assert worklock.functions.workInfo(staker3).call()[0] == staker3_bid
     worklock_balance += 1
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
+    assert worklock.functions.getBiddersLength().call() == 4
 
     events = bidding_log.get_all_entries()
-    assert 5 == len(events)
-    event_args = events[4]['args']
+    assert 6 == len(events)
+    event_args = events[5]['args']
     assert event_args['sender'] == staker3
     assert event_args['depositedETH'] == 1
 
@@ -227,8 +262,15 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     assert worklock.functions.workInfo(staker3).call()[0] == 0
     worklock_balance -= staker3_bid
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
-    assert worklock.functions.ethToTokens(deposit_eth_2).call() == worklock_supply // 9
+    assert worklock.functions.ethToTokens(deposit_eth_2).call() == worklock_supply // 10
     assert testerchain.w3.eth.getBalance(staker3) == staker3_balance + staker3_bid
+    assert worklock.functions.getBiddersLength().call() == 3
+    assert worklock.functions.bidders(0).call() == staker1
+    assert worklock.functions.workInfo(staker1).call()[3] == 0
+    assert worklock.functions.bidders(1).call() == staker2
+    assert worklock.functions.workInfo(staker2).call()[3] == 1
+    assert worklock.functions.bidders(2).call() == staker4
+    assert worklock.functions.workInfo(staker4).call()[3] == 2
 
     events = canceling_log.get_all_entries()
     assert 1 == len(events)
@@ -253,11 +295,14 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     assert worklock.functions.workInfo(staker3).call()[0] == staker3_bid
     worklock_balance += staker3_bid
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
-    assert worklock.functions.ethToTokens(deposit_eth_2).call() == worklock_supply // 10
+    assert worklock.functions.ethToTokens(deposit_eth_2).call() == worklock_supply // 11
+    assert worklock.functions.getBiddersLength().call() == 4
+    assert worklock.functions.bidders(3).call() == staker3
+    assert worklock.functions.workInfo(staker3).call()[3] == 3
 
     events = bidding_log.get_all_entries()
-    assert 6 == len(events)
-    event_args = events[5]['args']
+    assert 7 == len(events)
+    event_args = events[6]['args']
     assert event_args['sender'] == staker3
     assert event_args['depositedETH'] == deposit_eth_2
 
@@ -284,8 +329,15 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     assert worklock.functions.workInfo(staker3).call()[0] == 0
     worklock_balance -= staker3_bid
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
-    assert worklock.functions.ethToTokens(deposit_eth_2).call() == worklock_supply // 9
+    assert worklock.functions.ethToTokens(deposit_eth_2).call() == worklock_supply // 10
     assert testerchain.w3.eth.getBalance(staker3) == staker3_balance + staker3_bid
+    assert worklock.functions.getBiddersLength().call() == 3
+    assert worklock.functions.bidders(0).call() == staker1
+    assert worklock.functions.workInfo(staker1).call()[3] == 0
+    assert worklock.functions.bidders(1).call() == staker2
+    assert worklock.functions.workInfo(staker2).call()[3] == 1
+    assert worklock.functions.bidders(2).call() == staker4
+    assert worklock.functions.workInfo(staker4).call()[3] == 2
 
     events = canceling_log.get_all_entries()
     assert 2 == len(events)
@@ -305,9 +357,9 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     tx = worklock.functions.claim().transact({'from': staker1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(staker1).call()[2]
-    staker1_tokens = 8 * worklock_supply // 9
+    staker1_tokens = 8 * worklock_supply // 10
     assert token.functions.balanceOf(staker1).call() == 0
-    staker1_remaining_work = int(-(-8 * worklock_supply * slowing_refund // (boosting_refund * 9)))  # div ceil
+    staker1_remaining_work = int(-(-8 * worklock_supply * slowing_refund // (boosting_refund * 10)))  # div ceil
     assert worklock.functions.getAvailableRefund(staker1).call() == 0
     assert worklock.functions.ethToWork(2 * deposit_eth_1).call() == staker1_remaining_work
     assert worklock.functions.workToETH(staker1_remaining_work).call() == 2 * deposit_eth_1
@@ -346,9 +398,9 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     assert not measure_work
     assert value == 0
     assert periods == 0
-    staker2_tokens = worklock_supply // 9
+    staker2_tokens = worklock_supply // 10
     # staker2_tokens * slowing_refund / boosting_refund
-    staker2_remaining_work = int(-(-worklock_supply * slowing_refund // (boosting_refund * 9)))  # div ceil
+    staker2_remaining_work = int(-(-worklock_supply * slowing_refund // (boosting_refund * 10)))  # div ceil
     assert worklock.functions.ethToWork(deposit_eth_2).call() == staker2_remaining_work
     assert worklock.functions.workToETH(staker2_remaining_work).call() == deposit_eth_2
     tx = escrow.functions.setCompletedWork(staker2, staker2_remaining_work // 2).transact()
