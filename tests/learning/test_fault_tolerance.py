@@ -59,6 +59,7 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
     # Learn about a node with a badly signed payload
     mocker.patch.object(lonely_blockchain_learner, 'verify_from', side_effect=Learner.InvalidSignature)
     lonely_blockchain_learner.learn_from_teacher_node(eager=True)
+    assert len(lonely_blockchain_learner.suspicious_activities_witnessed['vladimirs']) == 1
 
 @pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075
 def test_invalid_workers_tolerance(testerchain,

@@ -852,8 +852,8 @@ class Learner:
         try:
             self.verify_from(current_teacher, node_payload, signature=signature)
         except current_teacher.InvalidSignature:
-            # TODO: What to do if the teacher improperly signed the node payload?  1713
-            raise
+            self.suspicious_activities_witnessed['vladimirs'].append(('Node payload improperly signed', node_payload, signature))
+            self.log.warn(f"Invalid signature ({signature}) received from teacher {current_teacher} for payload {node_payload}")
 
         # End edge case handling.
         fleet_state_checksum_bytes, fleet_state_updated_bytes, node_payload = FleetStateTracker.snapshot_splitter(
