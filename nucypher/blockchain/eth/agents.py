@@ -1028,6 +1028,18 @@ class WorkLockAgent(EthereumContractAgent):
         return receipt
 
     @validate_checksum_address
+    def verify_bidding_correctness(self,
+                                   checksum_address: str,
+                                   gas_limit: int,  # TODO - #842: Gas Management
+                                   gas_to_save_state: int = 30000) -> dict:
+        """Verify all bids are less than max allowed bid"""
+        contract_function = self.contract.functions.verifyBiddingCorrectness(gas_to_save_state)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=checksum_address,
+                                                   transaction_gas_limit=gas_limit)
+        return receipt
+
+    @validate_checksum_address
     def claim(self, checksum_address: str) -> dict:
         """
         Claim tokens - will be deposited and locked as stake in the StakingEscrow contract.
@@ -1116,10 +1128,24 @@ class WorkLockAgent(EthereumContractAgent):
         tokens = self.contract.functions.workToETH(value).call()
         return tokens
 
+    def get_bidders_population(self) -> int:
+        """Returns the number of bidders on the blockchain"""
+        return self.contract.functions.getBiddersLength().call()
+
+    def get_bidders(self) -> List[str]:
+        """Returns a list of bidders"""
+        num_bidders = self.get_bidders_population()
+        bidders = [self.contract.functions.bidders(i).call() for i in range(num_bidders)]
+        return bidders
+
+    def is_claiming_available(self) -> bool:
+        """Returns True if bidders have been checked and claiming is available"""
+        return self.contract.functions.isClaimingAvailable().call()
+
     @property
     def minimum_allowed_bid(self) -> int:
-        tokens = self.contract.functions.minAllowedBid().call()
-        return tokens
+        min_bid = self.contract.functions.minAllowedBid().call()
+        return min_bid
 
     @property
     def start_bidding_date(self) -> int:
@@ -1141,8 +1167,10 @@ class WorkLockAgent(EthereumContractAgent):
             'tokenSupply',
             'startBidDate',
             'endBidDate',
+            'endCancellationDate',
             'boostingRefund',
             'stakingPeriods',
+            'minAllowedBid',
         )
 
         def _call_function_by_name(name: str):

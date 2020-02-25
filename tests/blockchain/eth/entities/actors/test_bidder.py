@@ -2,7 +2,7 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.actors import Bidder
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, WorkLockAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 
@@ -60,14 +60,30 @@ def test_get_remaining_work(testerchain, agency, token_economics, test_registry)
     assert remaining
 
 
-def test_claim(testerchain, agency, token_economics, test_registry):
+def test_verify_correctness(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.unassigned_accounts[0]
     bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+
     with pytest.raises(Bidder.BidderError):
         _receipt = bidder.claim()
 
     # Wait until the cancellation window closes...
     testerchain.time_travel(seconds=token_economics.cancellation_window_duration+1)
+
+    assert not worklock_agent.is_claiming_available()
+    with pytest.raises(Bidder.BidderError):
+        _receipt = bidder.claim()
+
+    receipts = bidder.verify_bidding_correctness(gas_limit=100000)
+    assert worklock_agent.is_claiming_available()
+    for iteration, receipt in receipts.items():
+        assert receipt['status'] == 1
+
+
+def test_claim(testerchain, agency, token_economics, test_registry):
+    bidder_address = testerchain.unassigned_accounts[0]
+    bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
     # Ensure that the bidder is not staking.

@@ -1699,6 +1699,9 @@ class Bidder(NucypherTokenActor):
         error = f"Claims cannot be placed while the cancellation window is still open (closes at {end})."
         self._ensure_cancellation_window(ensure_closed=True, message=error)
 
+        if not self.worklock_agent.is_claiming_available():
+            raise self.BidderError(f"Claiming is not available yet")
+
         # Ensure the claim was not already placed
         if self._has_claimed:
             raise self.BidderError(f"Bidder {self.checksum_address} already placed a claim.")
@@ -1730,6 +1733,46 @@ class Bidder(NucypherTokenActor):
 
         receipt = self.worklock_agent.cancel_bid(checksum_address=self.checksum_address)
         return receipt
+
+    def _get_maximum_allowed_bid(self) -> int:
+        """Returns maximum allowed bid for current deposit rate"""
+        max_tokens = self.economics.maximum_allowed_locked
+        eth_supply = self.worklock_agent.get_eth_supply()
+        worklock_supply = self.economics.worklock_supply
+        max_bid = max_tokens * eth_supply // worklock_supply
+        return max_bid
+
+    # TODO make public and CLI command to print the list
+    def _get_incorrect_bids(self) -> List[str]:
+        bidders = self.worklock_agent.get_bidders()
+        max_bid = self._get_maximum_allowed_bid()
+        incorrect = list()
+        for bidder in bidders:
+            if self.worklock_agent.get_deposited_eth(bidder) > max_bid:
+                incorrect.append(bidder)
+        return incorrect
+
+    # TODO better control: max iterations, gas limit for each iteration
+    def verify_bidding_correctness(self, gas_limit: int) -> dict:
+        end = self.worklock_agent.end_cancellation_date
+        error = f"Checking of bidding is allowed only when the cancellation window is closed (closes at {end})."
+        self._ensure_cancellation_window(ensure_closed=True, message=error)
+
+        if self.worklock_agent.is_claiming_available():
+            raise self.BidderError(f"Check has already done")
+
+        incorrect_bidders = self._get_incorrect_bids()
+        if incorrect_bidders:
+            raise self.BidderError(f"There are some bidders which have too high bid: {incorrect_bidders}")
+
+        receipts = dict()
+        iteration = 1
+        while not self.worklock_agent.is_claiming_available():
+            receipt = self.worklock_agent.verify_bidding_correctness(checksum_address=self.checksum_address,
+                                                                     gas_limit=gas_limit)
+            receipts[iteration] = receipt
+            iteration += 1
+        return receipts
 
     def refund_deposit(self) -> dict:
         """Refund ethers for completed work"""

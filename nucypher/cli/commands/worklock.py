@@ -263,3 +263,39 @@ def refund(general_config, worklock_options, registry_options, force, hw_wallet)
     receipt = bidder.refund_deposit()
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
     return  # Exit
+
+
+@worklock.command()
+@group_general_config
+@group_registry_options
+@group_worklock_options
+@option_force
+@option_hw_wallet
+@click.option('--gas-limit', help="Gas limit per transaction", type=click.IntRange(min=1))
+def verify_correctness(general_config, registry_options, worklock_options, force, hw_wallet, gas_limit):
+    """Verify correctness of bidding"""
+    emitter = _setup_emitter(general_config)
+    if not worklock_options.bidder_address:  # TODO: Consider bundle this in worklock_options
+        worklock_options.bidder_address = select_client_account(emitter=emitter,
+                                                                provider_uri=registry_options.provider_uri,
+                                                                network=registry_options.network,
+                                                                show_balances=True)
+    registry = registry_options.get_registry(emitter, general_config.debug)
+    bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
+
+    if not gas_limit:
+        # TODO print gas estimations
+        gas_limit = click.prompt(f"Enter gas limit per each transaction", type=click.IntRange(min=1))
+
+    if not force:
+        click.confirm(f"Confirm verifying of bidding from {worklock_options.bidder_address} "
+                      f"using {gas_limit} gas per each transaction?", abort=True)
+
+    receipts = bidder.verify_bidding_correctness(gas_limit=gas_limit)
+    emitter.echo("Bidding has been checked\n", color='green')
+    for iteration, receipt in receipts.items():
+        paint_receipt_summary(receipt=receipt,
+                              emitter=emitter,
+                              chain_name=bidder.staking_agent.blockchain.client.chain_name,
+                              transaction_type=f"verify-correctness[{iteration}]")
+    return  # Exit
