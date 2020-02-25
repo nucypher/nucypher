@@ -9,6 +9,7 @@ def test_create_worklock_agent(testerchain, test_registry, agency, token_economi
     assert agent.contract_address
     same_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     assert agent == same_agent
+    assert not agent.is_claiming_available()
 
 
 def test_bidding(testerchain, agency, token_economics, test_registry):
@@ -82,17 +83,31 @@ def test_cancel_after_bidding(testerchain, agency, token_economics, test_registr
     assert not agent.get_deposited_eth(bidder)    # No more bid
 
 
-def test_claim_while_cancellation_window(testerchain, agency, token_economics, test_registry):
+def test_claim_before_checking(testerchain, agency, token_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     bidder = testerchain.unassigned_accounts[0]
+
+    assert not agent.is_claiming_available()
+    with pytest.raises(TransactionFailed):
+        _receipt = agent.claim(checksum_address=bidder)
+
+    # Wait until the cancellation window closes...
+    testerchain.time_travel(seconds=token_economics.cancellation_end_date+1)
+
+    assert not agent.is_claiming_available()
     with pytest.raises(TransactionFailed):
         _receipt = agent.claim(checksum_address=bidder)
 
 
-def test_successful_claim(testerchain, agency, token_economics, test_registry):
+def test_verify_correctness(testerchain, agency, token_economics, test_registry):
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    caller = testerchain.unassigned_accounts[0]
+    receipt = agent.verify_bidding_correctness(checksum_address=caller, gas_limit=100000)
+    assert receipt['status'] == 1
+    assert agent.is_claiming_available()
 
-    # Wait until the cancellation window closes...
-    testerchain.time_travel(seconds=token_economics.cancellation_end_date+1)
+
+def test_successful_claim(testerchain, agency, token_economics, test_registry):
 
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)

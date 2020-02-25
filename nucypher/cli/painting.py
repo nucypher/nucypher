@@ -880,6 +880,7 @@ Bidding Duration ..................... {bidding_duration}
 Cancellation Window Duration ......... {cancellation_duration}
 Bidding Time Remaining ............... {bidding_remaining} 
 Cancellation Window Time Remaining ... {cancellation_remaining} 
+Claiming is available ................ {'Yes' if worklock_agent.is_claiming_available() else 'No'} 
 
 Economics
 ======================================================        

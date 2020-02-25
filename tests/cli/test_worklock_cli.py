@@ -115,10 +115,30 @@ def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_econ
     assert not agent.get_deposited_eth(bidder)    # No more bid
 
 
-def test_claim(click_runner, testerchain, agency_local_registry, token_economics):
+def test_verify_correctness(click_runner, testerchain, agency_local_registry, token_economics):
 
     # Wait until the end of the cancellation period
     testerchain.time_travel(seconds=token_economics.cancellation_window_duration+2)
+
+    bidder = testerchain.unassigned_accounts[0]
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
+    assert not agent.is_claiming_available()
+
+    command = ('verify-correctness',
+               '--bidder-address', bidder,
+               '--registry-filepath', agency_local_registry.filepath,
+               '--provider', TEST_PROVIDER_URI,
+               '--poa',
+               '--force',
+               '--gas-limit', 100000)
+
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + 'Y\n'
+    result = click_runner.invoke(worklock, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert agent.is_claiming_available()
+
+
+def test_claim(click_runner, testerchain, agency_local_registry, token_economics):
 
     bidder = testerchain.unassigned_accounts[2]
     command = ('claim',

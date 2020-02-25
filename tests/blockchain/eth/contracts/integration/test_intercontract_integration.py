@@ -351,19 +351,19 @@ def test_all(testerchain,
         testerchain.wait_for_receipt(tx)
 
     # Other stakers do bid
-    assert worklock.functions.workInfo(staker1).call()[0] == 0
-    tx = worklock.functions.bid().transact({'from': staker1, 'value': 2 * deposited_eth_2, 'gas_price': 0})
-    testerchain.wait_for_receipt(tx)
-    assert worklock.functions.workInfo(staker1).call()[0] == 2 * deposited_eth_2
-    worklock_balance += 2 * deposited_eth_2
-    assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
-    assert worklock.functions.ethToTokens(deposited_eth_2).call() == worklock_supply // 20
-
     assert worklock.functions.workInfo(staker4).call()[0] == 0
     tx = worklock.functions.bid().transact({'from': staker4, 'value': deposited_eth_2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(staker4).call()[0] == deposited_eth_2
     worklock_balance += deposited_eth_2
+    assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
+    assert worklock.functions.ethToTokens(deposited_eth_2).call() == worklock_supply // 19
+
+    assert worklock.functions.workInfo(staker1).call()[0] == 0
+    tx = worklock.functions.bid().transact({'from': staker1, 'value': 2 * deposited_eth_2, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.workInfo(staker1).call()[0] == 2 * deposited_eth_2
+    worklock_balance += 2 * deposited_eth_2
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
     assert worklock.functions.ethToTokens(deposited_eth_2).call() == worklock_supply // 21
 
@@ -376,12 +376,16 @@ def test_all(testerchain,
         testerchain.wait_for_receipt(tx)
 
     # One of stakers cancels bid
+    assert worklock.functions.getBiddersLength().call() == 3
     tx = worklock.functions.cancelBid().transact({'from': staker4, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(staker4).call()[0] == 0
     worklock_balance -= deposited_eth_2
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
     assert worklock.functions.ethToTokens(deposited_eth_2).call() == worklock_supply // 20
+    assert worklock.functions.getBiddersLength().call() == 2
+    assert worklock.functions.bidders(1).call() == staker1
+    assert worklock.functions.workInfo(staker1).call()[3] == 1
 
     # Wait for the end of the cancellation window
     testerchain.time_travel(hours=1)
@@ -390,6 +394,16 @@ def test_all(testerchain,
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.cancelBid().transact({'from': staker1, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
+    # Can't claim before check
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.claim().transact({'from': staker2, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
+
+    # Check all bidders
+    assert worklock.functions.getBiddersLength().call() == 2
+    tx = worklock.functions.verifyBiddingCorrectness(30000).transact()
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.nextBidderToCheck().call() == 2
 
     # Stakers claim tokens
     assert not worklock.functions.workInfo(staker2).call()[2]
