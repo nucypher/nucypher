@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import random
 from collections import OrderedDict, deque
+from typing import Generator, Set, List, Callable
 
 import maya
 from abc import ABC, abstractmethod
@@ -195,15 +196,13 @@ class Policy(ABC):
         :param kfrags:  A list of KFrags to distribute per this Policy.
         :param label: The identity of the resource to which Bob is granted access.
         """
-        from nucypher.policy.collections import TreasureMap  # TODO: Circular Import
-
         self.alice = alice                     # type: Alice
         self.label = label                     # type: bytes
         self.bob = bob                         # type: Bob
         self.kfrags = kfrags                   # type: List[KFrag]
         self.public_key = public_key
         self._id = construct_policy_id(self.label, bytes(self.bob.stamp))
-        self.treasure_map = TreasureMap(m=m)
+        self.treasure_map = self._treasure_map_class(m=m)
         self.expiration = expiration
 
         # Keep track of this stuff
@@ -255,11 +254,14 @@ class Policy(ABC):
         """
         return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)
 
-    def publish_treasure_map(self, network_middleware: RestMiddleware) -> dict:
+    def publish_treasure_map(self, network_middleware: RestMiddleware, blockchain_signer: Callable=None) -> dict:
         self.treasure_map.prepare_for_publication(self.bob.public_keys(DecryptingPower),
                                                   self.bob.public_keys(SigningPower),
                                                   self.alice.stamp,
                                                   self.label)
+        if blockchain_signer is not None:
+            self.treasure_map.include_blockchain_signature(blockchain_signer)
+
         if not self.alice.known_nodes:
             # TODO: Optionally, block.
             raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
@@ -468,6 +470,7 @@ class Policy(ABC):
 class FederatedPolicy(Policy):
 
     _arrangement_class = Arrangement
+    from nucypher.policy.collections import TreasureMap as _treasure_map_class  # TODO: Circular Import
 
     def make_arrangements(self, *args, **kwargs) -> None:
         try:
@@ -499,6 +502,7 @@ class BlockchainPolicy(Policy):
     A collection of n BlockchainArrangements representing a single Policy
     """
     _arrangement_class = BlockchainArrangement
+    from nucypher.policy.collections import DecentralizedTreasureMap as _treasure_map_class  # TODO: Circular Import
 
     class NoSuchPolicy(Exception):
         pass
@@ -678,6 +682,5 @@ class BlockchainPolicy(Policy):
                                                       label=self.label)
             # Sign the map.
             transacting_power = self.alice._crypto_power.power_ups(TransactingPower)
-            blockchain_signature = transacting_power.sign_message(bytes(self.treasure_map))
-            self.publish_treasure_map(network_middleware=network_middleware)
+            self.publish_treasure_map(network_middleware=network_middleware, blockchain_signer=transacting_power.sign_message)
         return
