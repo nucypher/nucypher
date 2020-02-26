@@ -33,7 +33,7 @@ from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.api import keccak_digest, secure_random
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import RevocationKit
-from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.crypto.powers import DecryptingPower, SigningPower, TransactingPower
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -202,6 +202,7 @@ class Policy(ABC):
         self.bob = bob                         # type: Bob
         self.kfrags = kfrags                   # type: List[KFrag]
         self.public_key = public_key
+        self._id = construct_policy_id(self.label, bytes(self.bob.stamp))
         self.treasure_map = TreasureMap(m=m)
         self.expiration = expiration
 
@@ -229,7 +230,7 @@ class Policy(ABC):
 
     @property
     def id(self) -> bytes:
-        return construct_policy_id(self.label, bytes(self.bob.stamp))
+        return self._id
 
     def __repr__(self):
         return f"{self.__class__.__name__}:{self.id.hex()[:6]}"
@@ -669,4 +670,14 @@ class BlockchainPolicy(Policy):
             for arrangement in self._accepted_arrangements:
                 arrangement.publish_transaction = self.publish_transaction
 
-        return super().enact(network_middleware, publish)
+        super().enact(network_middleware, publish=False)
+        if publish is True:
+            self.treasure_map.prepare_for_publication(bob_encrypting_key=self.bob.public_keys(DecryptingPower),
+                                                      bob_verifying_key=self.bob.public_keys(SigningPower),
+                                                      alice_stamp=self.alice.stamp,
+                                                      label=self.label)
+            # Sign the map.
+            transacting_power = self.alice._crypto_power.power_ups(TransactingPower)
+            blockchain_signature = transacting_power.sign_message(bytes(self.treasure_map))
+            self.publish_treasure_map(network_middleware=network_middleware)
+        return
