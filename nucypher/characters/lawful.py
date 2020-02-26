@@ -36,6 +36,7 @@ from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
 from eth_utils import to_checksum_address
 from flask import request, Response
 from twisted.internet import threads
+from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 
 import nucypher
@@ -873,12 +874,15 @@ class Bob(Character):
 
 
 class Ursula(Teacher, Character, Worker):
+
     banner = URSULA_BANNER
     _alice_class = Alice
 
     # TODO: Maybe this wants to be a registry, so that, for example,  NRN
     # TLSHostingPower still can enjoy default status, but on a different class  NRN
     _default_crypto_powerups = [SigningPower, DecryptingPower]
+
+    _pruning_interval = 60 * 60
 
     class NotEnoughUrsulas(Learner.NotEnoughTeachers, StakingEscrowAgent.NotEnoughStakers):
         """
@@ -1008,6 +1012,9 @@ class Ursula(Teacher, Character, Worker):
                                                    rest_app=rest_app, datastore=datastore,
                                                    hosting_power=tls_hosting_power)
 
+                self.__arrangement_pruning_task = LoopingCall(self.__prune_arrangements)
+                self.__arrangement_pruning_task.start(interval=self._pruning_interval)
+
             #
             # Stranger-Ursula
             #
@@ -1063,6 +1070,11 @@ class Ursula(Teacher, Character, Worker):
         else:
             message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self)
             self.log.debug(message)
+
+    def __prune_arrangements(self) -> None:
+        result = self.datastore.del_expired_policy_arrangements()
+        self.log.debug(f"Pruned {result} policy arrangements.")
+        return
 
     def rest_information(self):
         hosting_power = self._crypto_power.power_ups(TLSHostingPower)

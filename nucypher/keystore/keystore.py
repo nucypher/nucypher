@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from datetime import datetime
 from typing import Union, List
 
 from bytestring_splitter import BytestringSplitter
@@ -113,8 +114,9 @@ class KeyStore(object):
             alice_key_instance = Key.from_umbral_key(alice_verifying_key, is_signing=True)
 
         new_policy_arrangement = PolicyArrangement(
-            expiration, id, kfrag, alice_verifying_key=alice_key_instance,
-            alice_signature=None, # bob_verifying_key.id
+            expiration, id, kfrag,
+            alice_verifying_key=alice_key_instance,
+            alice_signature=None,  # bob_verifying_key.id
         )
 
         session.add(new_policy_arrangement)
@@ -133,7 +135,7 @@ class KeyStore(object):
         policy_arrangement = session.query(PolicyArrangement).filter_by(id=arrangement_id).first()
 
         if not policy_arrangement:
-              raise NotFound("No PolicyArrangement {} found.".format(arrangement_id))
+            raise NotFound("No PolicyArrangement {} found.".format(arrangement_id))
         return policy_arrangement
 
     def del_policy_arrangement(self, arrangement_id: bytes, session=None):
@@ -144,6 +146,14 @@ class KeyStore(object):
 
         session.query(PolicyArrangement).filter_by(id=arrangement_id).delete()
         session.commit()
+
+    def del_expired_policy_arrangements(self, session=None):
+        """
+        Deletes all expired PolicyArrangements from the Keystore.
+        """
+        session = session or self._session_on_init_thread
+        result = session.query(PolicyArrangement).filter(expiration=datetime.now() >= PolicyArrangement.expiration).delete()
+        return result
 
     def attach_kfrag_to_saved_arrangement(self, alice, id_as_hex, kfrag, session=None):
         session = session or self._session_on_init_thread
