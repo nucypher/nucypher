@@ -188,19 +188,12 @@ class TreasureMap:
         Ursula will refuse to propagate this if it she can't prove the payload is signed by Alice's public key,
         which is included in it,
         """
-        # TODO: No reason to keccak this over and over again.  Turn into set-once property pattern.
-        _id = keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
-        return _id
+        return self._id
 
     @classmethod
     def from_bytes(cls, bytes_representation, verify=True):
-        signature, hrac, tmap_message_kit = cls.splitter(bytes_representation)
-
-        treasure_map = cls(
-            message_kit=tmap_message_kit,
-            public_signature=signature,
-            hrac=hrac,
-        )
+        splitter = cls.splitter()
+        treasure_map = splitter(bytes_representation)
 
         if verify:
             treasure_map.public_verify()
