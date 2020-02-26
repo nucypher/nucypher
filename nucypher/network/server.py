@@ -127,8 +127,7 @@ def make_rest_app(
     @rest_app.route("/ping", methods=['POST'])
     def ping():
         """
-        Returns network information about the accessor's connection to the node.
-        TODO: Figure out how to test this without blocking the requesting REST server.
+        Asks this node: "Can you access my public information endpoint"?
         """
 
         try:

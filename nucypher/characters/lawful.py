@@ -1038,8 +1038,7 @@ class Ursula(Teacher, Character, Worker):
 
                 # Self-Health Checks
                 self._availability_sensor = None
-                if availability_check:
-                    self._availability_sensor = AvailabilitySensor(ursula=self)
+                self.availability_check = availability_check  # From configuration values, perhaps
 
             #
             # Stranger-Ursula
@@ -1130,7 +1129,8 @@ class Ursula(Teacher, Character, Worker):
 
         if learning:
             self.start_learning_loop(now=True)
-        if availability:
+        if self.availability_check:
+            self._availability_sensor = AvailabilitySensor(ursula=self)
             self._availability_sensor.start(now=False)  # wait...
         if worker and not self.federated_only:
             self.work_tracker.start(act_now=True, requirement_func=self._availability_sensor.status)

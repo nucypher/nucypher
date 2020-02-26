@@ -266,7 +266,6 @@ def ursula():
     """
     "Ursula the Untrusted" PRE Re-encryption node management commands.
     """
-    pass
 
 
 @ursula.command()
@@ -379,6 +378,8 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
         node_deployer = URSULA.get_deployer()
         node_deployer.addServices()
         node_deployer.catalogServers(node_deployer.hendrix)
+
+        # Start Services
         node_deployer.run()  # <--- Blocking Call (Reactor)
 
     # Handle Crash
