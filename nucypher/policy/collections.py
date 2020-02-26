@@ -25,6 +25,7 @@ import maya
 import msgpack
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring, BytestringSplittingError, \
     BytestringKwargifier
+from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED, NOT_SIGNED
 from constant_sorrow.constants import CFRAG_NOT_RETAINED
 from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
 from bytestring_splitter import BytestringSplitter, BytestringSplittingError, VariableLengthBytestring
@@ -40,6 +41,8 @@ from umbral.keys import UmbralPublicKey
 from umbral.pre import Capsule
 
 from nucypher.characters.lawful import Bob, Character
+from nucypher.crypto.api import keccak_digest, encrypt_and_sign, verify_eip_191
+from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.api import encrypt_and_sign, keccak_digest
 from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
@@ -52,8 +55,7 @@ from nucypher.network.middleware import RestMiddleware
 
 
 class TreasureMap:
-    from nucypher.policy.policies import Arrangement
-    ID_LENGTH = Arrangement.ID_LENGTH  # TODO: Unify with Policy / Arrangement - or is this ok?
+    ID_LENGTH = 32
 
     class NowhereToBeFound(RestMiddleware.NotFound):
         """
@@ -243,6 +245,34 @@ class TreasureMap:
 
     def __repr__(self):
         return f"{self.__class__.__name__}:{self.public_id()[:6]}"
+
+
+class DecentralizedTreasureMap(TreasureMap):
+
+    def __init__(self, blockchain_signature=NOT_SIGNED, *args, **kwargs):
+        self._blockchain_signature = blockchain_signature
+        return super().__init__(*args, **kwargs)
+
+    @classmethod
+    def splitter(cls):
+        return BytestringKwargifier(cls,
+                                    blockchain_signature=65,
+                                    public_signature=Signature,
+                                    hrac=(bytes, KECCAK_DIGEST_LENGTH),
+                                    message_kit=(UmbralMessageKit, VariableLengthBytestring)
+                                    )
+
+    def include_blockchain_signature(self, blockchain_signer):
+        self._blockchain_signature = blockchain_signer(super().__bytes__())
+
+    def verify_blockchain_signature(self, checksum_address):
+        self._set_payload()
+        return verify_eip_191(message=self._payload,
+                              signature=self._blockchain_signature,
+                              address=checksum_address)
+
+    def __bytes__(self):
+        return self._blockchain_signature + super().__bytes__()
 
 
 class PolicyCredential:
