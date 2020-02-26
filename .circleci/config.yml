@@ -23,13 +23,6 @@ workflows:
               only: /.*/
           requires:
             - pip_install_37
-      - network:
-          context: "NuCypher Tests"
-          filters:
-            tags:
-              only: /.*/
-          requires:
-            - pip_install_37
       - character:
           context: "NuCypher Tests"
           filters:
@@ -71,7 +64,6 @@ workflows:
               only: /.*/
           requires:
             - basics
-            - network
             - character
             - cli
             - deployers
@@ -113,9 +105,7 @@ workflows:
             tags:
               only: /.*/
           requires:
-            - build_docs
-            - heartbeat_demo
-            - finnegans_wake_demo
+            - tests_ok
       - build_docker:
           filters:
             tags:
@@ -213,6 +203,119 @@ workflows:
               only: /.*/
           requires:
             - pip_install_37
+      - contracts:
+          context: "Nightly"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
+      - basics:
+          context: "Nightly"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
+      - character:
+          context: "Nightly"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
+      - agents:
+          context: "Nightly"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
+      - actors:
+          context: "Nightly"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
+      - deployers:
+          context: "Nightly"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
+      - cli:
+          context: "Nightly"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
+      - tests_ok:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - basics
+            - character
+            - cli
+            - deployers
+      - build_dev_docker_images:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - basics
+      - finnegans_wake_demo:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - build_dev_docker_images
+      - heartbeat_demo:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - build_dev_docker_images
+      - estimate_gas:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - tests_ok
+      - build_docs:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - tests_ok
+      - test_build:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - build_docs
+            - heartbeat_demo
+            - finnegans_wake_demo
+      - build_docker:
+          filters:
+            tags:
+              only: /v[0-9]+.*/
+            branches:
+              only: master
+          requires:
+            - test_build
+      - test_deploy:
+          context: "NuCypher PyPI"
+          requires:
+            - test_build
+          filters:
+            tags:
+              only: /v[0-9]+.*/
+            branches:
+              ignore: /.*/
 
 
 python_36_base: &python_36_base
@@ -337,7 +440,6 @@ commands:
   capture_test_results:
     description: "Store and Upload test results; Follow-up step for tests"
     steps:
-      - codecov
       - store_test_results:
           path: reports
       - run:
@@ -348,6 +450,13 @@ commands:
           when: always
       - store_artifacts:
           path: ~/test-logs/
+      - run:
+          name: If $ENABLE_CODECOV, exit job without failing now to avoid uploading codecov results
+          command: |
+            if [ -z "$ENABLE_CODECOV"]; then
+                circleci-agent step halt
+            fi
+      - codecov
 
   build_and_save_test_docker:
     description: "Build dev docker image for running tests against docker"
@@ -465,17 +574,7 @@ jobs:
       - run:
           name: Tests for Blockhain interfaces, Crypto functions, Node Configuration and Keystore
           command: |
-            pytest $(circleci tests glob "tests/config/**/test_*.py" "tests/crypto/**/test_*.py" "tests/keystore/**/test_*.py" "tests/blockchain/eth/interfaces/**/test_*.py" "tests/blockchain/eth/clients/**/test_*.py" | circleci tests split --split-by=timings)
-      - capture_test_results
-
-  network:
-    <<: *python_37_base
-    steps:
-      - prepare_environment
-      - run:
-          name: Network Tests
-          command: |
-            pytest $(circleci tests glob "tests/network/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/network/**/test_*.py" "tests/config/**/test_*.py" "tests/crypto/**/test_*.py" "tests/keystore/**/test_*.py" "tests/blockchain/eth/interfaces/**/test_*.py" "tests/blockchain/eth/clients/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   character:
