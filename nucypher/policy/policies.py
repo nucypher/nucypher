@@ -124,13 +124,12 @@ class BlockchainArrangement(Arrangement):
                  expiration: maya.MayaDT,
                  duration_periods: int,
                  *args, **kwargs):
-
         super().__init__(alice=alice, ursula=ursula, expiration=expiration, *args, **kwargs)
 
         # The relationship exists between two addresses
-        self.author = alice                     # type: BlockchainPolicyAuthor
+        self.author = alice  # type: BlockchainPolicyAuthor
         self.policy_agent = alice.policy_agent  # type: PolicyManagerAgent
-        self.staker = ursula                    # type: Ursula
+        self.staker = ursula  # type: Ursula
 
         # Arrangement rate and duration in periods
         self.rate = rate
@@ -196,10 +195,10 @@ class Policy(ABC):
         :param kfrags:  A list of KFrags to distribute per this Policy.
         :param label: The identity of the resource to which Bob is granted access.
         """
-        self.alice = alice                     # type: Alice
-        self.label = label                     # type: bytes
-        self.bob = bob                         # type: Bob
-        self.kfrags = kfrags                   # type: List[KFrag]
+        self.alice = alice  # type: Alice
+        self.label = label  # type: bytes
+        self.bob = bob  # type: Bob
+        self.kfrags = kfrags  # type: List[KFrag]
         self.public_key = public_key
         self._id = construct_policy_id(self.label, bytes(self.bob.stamp))
         self.treasure_map = self._treasure_map_class(m=m)
@@ -208,9 +207,9 @@ class Policy(ABC):
         # Keep track of this stuff
         self.selection_buffer = 1
 
-        self._accepted_arrangements = set()    # type: Set[Arrangement]
-        self._rejected_arrangements = set()    # type: Set[Arrangement]
-        self._spare_candidates = set()         # type: Set[Ursula]
+        self._accepted_arrangements = set()  # type: Set[Arrangement]
+        self._rejected_arrangements = set()  # type: Set[Arrangement]
+        self._spare_candidates = set()  # type: Set[Ursula]
 
         self._enacted_arrangements = OrderedDict()
         self._published_arrangements = OrderedDict()
@@ -254,7 +253,7 @@ class Policy(ABC):
         """
         return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)
 
-    def publish_treasure_map(self, network_middleware: RestMiddleware, blockchain_signer: Callable=None) -> dict:
+    def publish_treasure_map(self, network_middleware: RestMiddleware, blockchain_signer: Callable = None) -> dict:
         self.treasure_map.prepare_for_publication(self.bob.public_keys(DecryptingPower),
                                                   self.bob.public_keys(SigningPower),
                                                   self.alice.stamp,
@@ -311,7 +310,6 @@ class Policy(ABC):
         return PolicyCredential(self.alice.stamp, self.label, self.expiration,
                                 self.public_key, treasure_map)
 
-
     def __assign_kfrags(self) -> Generator[Arrangement, None, None]:
 
         if len(self._accepted_arrangements) < self.n:
@@ -356,7 +354,7 @@ class Policy(ABC):
             # OK, let's check: if two or more Ursulas claimed we didn't pay,
             # we need to re-evaulate our situation here.
             arrangement_statuses = [a.status for a in self._accepted_arrangements]
-            number_of_claims_of_freeloading = sum(status==402 for status in arrangement_statuses)
+            number_of_claims_of_freeloading = sum(status == 402 for status in arrangement_statuses)
 
             if number_of_claims_of_freeloading > 2:
                 raise self.alice.NotEnoughNodes  # TODO: Clean this up and enable re-tries.
@@ -457,7 +455,7 @@ class Policy(ABC):
                     accepted = len(self._accepted_arrangements)
                     if accepted == self.n and not consider_everyone:
                         try:
-                            spares = set(list(candidate_ursulas)[index+1::])
+                            spares = set(list(candidate_ursulas)[index + 1::])
                             self._spare_candidates.update(spares)
                         except IndexError:
                             self._spare_candidates = set()
@@ -468,7 +466,6 @@ class Policy(ABC):
 
 
 class FederatedPolicy(Policy):
-
     _arrangement_class = Arrangement
     from nucypher.policy.collections import TreasureMap as _treasure_map_class  # TODO: Circular Import
 
@@ -586,12 +583,12 @@ class BlockchainPolicy(Policy):
                        target_quantity: int,
                        timeout: int = 10) -> set:  # TODO #843: Make timeout configurable
 
-        start_time = maya.now()                            # marker for timeout calculation
+        start_time = maya.now()  # marker for timeout calculation
 
         found_ursulas, unknown_addresses = set(), deque()
-        while len(found_ursulas) < target_quantity:        # until there are enough Ursulas
+        while len(found_ursulas) < target_quantity:  # until there are enough Ursulas
 
-            delta = maya.now() - start_time                # check for a timeout
+            delta = maya.now() - start_time  # check for a timeout
             if delta.total_seconds() >= timeout:
                 missing_nodes = ', '.join(a for a in unknown_addresses)
                 raise RuntimeError("Timed out after {} seconds; Cannot find {}.".format(timeout, missing_nodes))
@@ -640,11 +637,11 @@ class BlockchainPolicy(Policy):
 
         # Transact  # TODO: Move this logic to BlockchainPolicyActor
         receipt = self.author.policy_agent.create_policy(
-                       policy_id=self.hrac()[:16],          # bytes16 _policyID
-                       author_address=self.author.checksum_address,
-                       value=self.value,
-                       end_timestamp=self.expiration.epoch,           # uint16 _numberOfPeriods
-                       node_addresses=prearranged_ursulas   # address[] memory _nodes
+            policy_id=self.hrac()[:16],  # bytes16 _policyID
+            author_address=self.author.checksum_address,
+            value=self.value,
+            end_timestamp=self.expiration.epoch,  # uint16 _numberOfPeriods
+            node_addresses=prearranged_ursulas  # address[] memory _nodes
         )
 
         # Capture Response
@@ -682,5 +679,6 @@ class BlockchainPolicy(Policy):
                                                       label=self.label)
             # Sign the map.
             transacting_power = self.alice._crypto_power.power_ups(TransactingPower)
-            self.publish_treasure_map(network_middleware=network_middleware, blockchain_signer=transacting_power.sign_message)
+            self.publish_treasure_map(network_middleware=network_middleware,
+                                      blockchain_signer=transacting_power.sign_message)
         return
