@@ -1,32 +1,38 @@
 from abc import ABC, abstractmethod
 from typing import List
+from urllib.parse import urlparse
 
 from eth_utils import to_checksum_address, to_normalized_address, apply_formatters_to_dict
 from hexbytes import HexBytes
 from twisted.logger import Logger
 from web3 import Web3, IPCProvider
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 
 
 class Signer(ABC):
-    # codex = {
-    #     'clef': ClefSigner,
-    #     'keystore': LocalSigner,
-    #     'trezor': TrezorSigner,
-    #     'web3': Web3Signer,
-    # }
 
     class AccountLocked(RuntimeError):
         pass
 
     def __init__(self):
         self.log = Logger(self.__class__.__name__)
-        self.__unlocked = False
+        self._unlocked = False
 
     @classmethod
     def from_signer_uri(cls, uri: str) -> 'Signer':
-        return NotImplemented
+        codex = {
+            'web3': Web3Signer,
+            'clef': ClefSigner,
+            'keystore': LocalSigner,
+            # 'trezor': TrezorSigner,
+        }
+        for key, signer_class in codex.items():
+            if key in uri:
+                signer = signer_class.from_signer_uri(uri=uri)
+                return signer
+        else:
+            raise ValueError(f"{uri} is an unsupported signer URI")
 
     @abstractmethod
     def accounts(self) -> List[str]:
@@ -34,7 +40,7 @@ class Signer(ABC):
 
     @property
     def is_unlocked(self) -> bool:
-        return self.__unlocked
+        return self._unlocked
 
     @abstractmethod
     def unlock_account(self, account: str, password: str, duration: int = None) -> bytes:
@@ -55,9 +61,6 @@ class Signer(ABC):
 
 class Web3Signer(Signer):
 
-    def accounts(self) -> List[str]:
-        pass  # TODO
-
     def __init__(self, client=None):
         super().__init__()
         if not client:
@@ -65,6 +68,15 @@ class Web3Signer(Signer):
             blockchain = BlockchainInterfaceFactory.get_interface()
             client = blockchain.client
         self.__client = client
+
+    @classmethod
+    def from_signer_uri(cls, uri: str) -> 'Web3Signer':
+        blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=uri)
+        signer = cls(client=blockchain.client)
+        return signer
+
+    def accounts(self) -> List[str]:
+        return self.__client.accounts
 
     @staticmethod
     def is_device(self, account: str):
@@ -83,17 +95,17 @@ class Web3Signer(Signer):
         if self.is_device:
             unlocked = True
         else:
-            unlocked = self.__client.unlock_account(address=account, password=password, duration=duration)
-        self.__unlocked = unlocked
-        return self.__unlocked
+            unlocked = self.__client.unlock_account(account=account, password=password, duration=duration)
+        self._unlocked = unlocked
+        return self._unlocked
 
     def lock_account(self, account: str):
         if self.is_device:
             pass  # TODO: Force Disconnect Devices?
         else:
-            self.__client.lock_account(address=account)
-        self.__unlocked = False
-        return self.__unlocked
+            self.__client.lock_account(account=account)
+        self._unlocked = False
+        return self._unlocked
 
     def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
         """
@@ -104,13 +116,13 @@ class Web3Signer(Signer):
         signature = self.__client.sign_message(account=account, message=message)
         return HexBytes(signature)
 
-    def sign_transaction(self, account: str, unsigned_transaction: dict) -> HexBytes:
+    def sign_transaction(self, account: str, transaction: dict) -> HexBytes:
         """
         Signs the transaction with the private key of the TransactingPower.
         """
         if not self.is_unlocked:
             raise self.AccountLocked("Failed to unlock account {}".format(account))
-        signed_raw_transaction = self.__client.sign_transaction(transaction=unsigned_transaction)
+        signed_raw_transaction = self.__client.sign_transaction(transaction=transaction)
         return signed_raw_transaction
 
 
@@ -121,9 +133,16 @@ class LocalSigner(Signer):
         self.__key = None
         self.__keyfile = keyfile
 
+    @classmethod
+    def from_signer_uri(cls, uri: str) -> 'LocalSigner':
+        uri_breakdown = urlparse(uri)
+        signer = cls(keyfile=uri_breakdown.path)
+        return signer
+
     def __import_keyfile(self, password: str) -> bool:
         """
         Import geth formatted key file to the transacting power.
+
         WARNING: Do not save the key or password anywhere, especially into a shared source file
         """
         w3 = Web3()
@@ -144,22 +163,22 @@ class LocalSigner(Signer):
 
     def unlock_account(self, account: str, password: str, duration: int = None) -> bool:
         unlocked = self.__import_keyfile(password=password)
-        self.__unlocked = unlocked
-        return self.__unlocked
+        self._unlocked = unlocked
+        return self._unlocked
 
     def lock_account(self, account: str) -> bool:
         self.__key = None
-        self.__unlocked = False
-        return self.__unlocked
+        self._unlocked = False
+        return self._unlocked
 
-    def sign_transaction(self, account: str, unsigned_transaction: dict) -> HexBytes:
+    def sign_transaction(self, account: str, transaction: dict) -> HexBytes:
         """
         Signs the transaction with the private key of the TransactingPower.
         """
         if not self.is_unlocked:
             raise self.AccountLocked("Failed to unlock account {}".format(account))
         w3 = Web3()
-        signed_transaction = w3.eth.account.sign_transaction(transaction_dict=unsigned_transaction,
+        signed_transaction = w3.eth.account.sign_transaction(transaction_dict=transaction,
                                                              private_key=self.__key)
         signed_raw_transaction = signed_transaction['rawTransaction']
         return signed_raw_transaction
@@ -183,6 +202,12 @@ class ClefSigner(Signer):
         super().__init__()
         w3 = Web3(provider=IPCProvider(ipc_path=ipc_path))  # TODO: Unify with clients or build error handling
         self.w3 = w3
+
+    @classmethod
+    def from_signer_uri(cls, uri: str) -> 'Web3Signer':
+        uri_breakdown = urlparse(uri)
+        signer = cls(ipc_path=uri_breakdown.path)
+        return signer
 
     def is_connected(self) -> bool:
         return self.w3.isConnected()
@@ -225,8 +250,8 @@ class ClefSigner(Signer):
 
         return self.w3.manager.request_blocking("account_signData", [content_type, account, data])
 
-    def unlock_account(self, address: str, password: str, duration: int = None) -> bool:
+    def unlock_account(self, account: str, password: str, duration: int = None) -> bool:
         return True
 
-    def lock_account(self, address: str):
+    def lock_account(self, account: str):
         return True

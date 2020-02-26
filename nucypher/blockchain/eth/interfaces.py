@@ -36,6 +36,7 @@ from constant_sorrow.constants import (
     READ_ONLY_INTERFACE
 )
 from eth_tester import EthereumTester
+from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_checksum_address
 from twisted.logger import Logger
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider, middleware
@@ -46,7 +47,6 @@ from web3.exceptions import ValidationError
 from web3.gas_strategies import time_based
 from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.eth.clients import NuCypherGethProcess
 from nucypher.blockchain.eth.clients import Web3Client
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
@@ -114,7 +114,7 @@ class BlockchainInterface:
                  emitter = None,  # TODO # 1754
                  poa: bool = False,
                  light: bool = False,
-                 provider_process: NuCypherGethProcess = NO_PROVIDER_PROCESS,
+                 provider_process = NO_PROVIDER_PROCESS,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
                  provider: Web3Providers = NO_BLOCKCHAIN_CONNECTION,
                  gas_strategy: Union[str, Callable] = DEFAULT_GAS_STRATEGY):

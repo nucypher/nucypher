@@ -23,7 +23,6 @@ from geth.process import BaseGethProcess
 from twisted.logger import Logger
 from web3 import Web3
 
-from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
 
 UNKNOWN_DEVELOPMENT_CHAIN_ID.bool_value(True)
@@ -127,9 +126,6 @@ class Web3Client:
             # Test Clients
             cls.GANACHE: GanacheClient,
             cls.ETHEREUM_TESTER: EthereumTesterClient,
-
-            # Singers
-            cls.CLEF: ClefSigner
         }
 
         try:
@@ -138,9 +134,6 @@ class Web3Client:
             ClientSubclass = clients[node_technology]
 
         except (ValueError, IndexError):
-            # check if this is a clef signer  TODO: move this?
-            if 'clef' in getattr(w3.provider, 'ipc_path', ''):
-                return ClefSigner(w3=w3)
             raise ValueError(f"Invalid client version string. Got '{w3.clientVersion}'")
 
         except KeyError:
@@ -171,12 +164,12 @@ class Web3Client:
     def syncing(self) -> Union[bool, dict]:
         return self.w3.eth.syncing
 
-    def lock_account(self, address) -> bool:
+    def lock_account(self, account) -> bool:
         if self.is_local:
             return True
         return NotImplemented
 
-    def unlock_account(self, address, password, duration=None) -> bool:
+    def unlock_account(self, account, password, duration=None) -> bool:
         if self.is_local:
             return True
         return NotImplemented

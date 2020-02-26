@@ -72,7 +72,7 @@ from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     IndividualAllocationRegistry
 )
-from nucypher.blockchain.eth.signers import ClefSigner
+from nucypher.blockchain.eth.signers import ClefSigner, LocalSigner, Web3Signer
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration, datetime_at_period, \
     prettify_eth_amount
@@ -1484,12 +1484,6 @@ class StakeHolder(Staker):
                      keyfiles: List[str] = None,
                      signer=None):
 
-            if signer:
-               provider = IPCProvider(signer)
-               w3 = Web3(provider=provider)
-               signer = ClefSigner(w3=w3)
-
-            self.__signer = signer
             self.__keyfiles = keyfiles or list()
             self.__local_accounts = dict()
             self.__client_accounts = set()  # Note: Account index is meaningless here
@@ -1500,6 +1494,7 @@ class StakeHolder(Staker):
             self.blockchain = BlockchainInterfaceFactory.get_interface()
             self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
 
+            self.__signer = signer or Web3Signer(client=self.blockchain.client)
             self.__get_accounts()
             if client_addresses:
                 self.__client_accounts.update(client_addresses)
@@ -1539,10 +1534,10 @@ class StakeHolder(Staker):
                 transacting_power = self.__transacting_powers[checksum_address]
             except KeyError:
                 keyfile = self.__local_accounts.get(checksum_address)
+                signer = LocalSigner(keyfile=keyfile)
                 transacting_power = TransactingPower(password=password,
                                                      checksum_address=checksum_address,
-                                                     signer=self.__signer,
-                                                     keyfile=keyfile)
+                                                     signer=self.__signer)
                 self.__transacting_powers[checksum_address] = transacting_power
             transacting_power.activate(password=password)
 

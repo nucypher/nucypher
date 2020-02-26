@@ -23,6 +23,7 @@ from nucypher.blockchain.eth.constants import MAX_UINT16
 from nucypher.blockchain.eth.events import EventRecord
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
+from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU, StakeList
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli import painting, actions
@@ -60,7 +61,7 @@ from nucypher.config.characters import StakeHolderConfiguration
 option_value = click.option('--value', help="Token value of stake", type=click.INT)
 option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
 option_worker_address = click.option('--worker-address', help="Address to assign as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
-option_signer = click.option('--signer', default=None, type=EXISTING_READABLE_FILE)
+option_signer_uri = click.option('--signer', 'signer_uri', '-S', default=None, type=str)
 
 
 def _setup_emitter(general_config):
@@ -75,9 +76,9 @@ class StakeHolderConfigOptions:
 
     __option_name__ = 'config_options'
 
-    def __init__(self, provider_uri, poa, light, registry_filepath, network, signer):
+    def __init__(self, provider_uri, poa, light, registry_filepath, network, signer_uri):
         self.provider_uri = provider_uri
-        self.signer = signer
+        self.signer_uri = signer_uri
         self.poa = poa
         self.light = light
         self.registry_filepath = registry_filepath
@@ -89,6 +90,7 @@ class StakeHolderConfigOptions:
                 emitter=emitter,
                 filepath=config_file,
                 provider_uri=self.provider_uri,
+                signer_uri=self.signer_uri,
                 poa=self.poa,
                 light=self.light,
                 sync=False,
@@ -116,6 +118,7 @@ class StakeHolderConfigOptions:
         return StakeHolderConfiguration.generate(
             config_root=config_root,
             provider_uri=self.provider_uri,
+            signer_uri=self.signer_uri,
             poa=self.poa,
             light=self.light,
             sync=False,
@@ -125,6 +128,7 @@ class StakeHolderConfigOptions:
 
     def get_updates(self) -> dict:
         payload = dict(provider_uri=self.provider_uri,
+                       signer_uri=self.signer_uri,
                        poa=self.poa,
                        light=self.light,
                        registry_filepath=self.registry_filepath,
@@ -141,8 +145,7 @@ group_config_options = group_options(
     light=option_light,
     registry_filepath=option_registry_filepath,
     network=option_network,
-    signer=option_signer
-
+    signer_uri=option_signer_uri
 )
 
 
@@ -162,7 +165,6 @@ class StakerOptions:
 
         return stakeholder_config.produce(
             initial_address=initial_address,
-            signer=self.config_options.signer,
             *args, **kwargs
         )
 

@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import json
 from base64 import b64encode, b64decode
 from collections import OrderedDict
+from datetime import datetime
 from functools import partial
 from json.decoder import JSONDecodeError
 from random import shuffle
@@ -25,7 +26,6 @@ from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
 import time
-from datetime import datetime
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
@@ -37,15 +37,21 @@ from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
 from eth_utils import to_checksum_address
 from flask import request, Response
 from sqlalchemy.exc import OperationalError
-from twisted.internet import threads, reactor
+from twisted.internet import threads
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
+from umbral import pre
+from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
+from umbral.pre import UmbralCorrectnessError
+from umbral.signing import Signature
 
 import nucypher
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.signers import Web3Signer
 from nucypher.blockchain.eth.token import WorkTracker
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
@@ -67,11 +73,6 @@ from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher, NodeSprout
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
-from umbral import pre
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
-from umbral.pre import UmbralCorrectnessError
-from umbral.signing import Signature
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -84,13 +85,14 @@ class Alice(Character, BlockchainPolicyAuthor):
                  # Mode
                  is_me: bool = True,
                  federated_only: bool = False,
+                 signer = None,
 
                  # Ownership
                  checksum_address: str = None,
                  client_password: str = None,
                  cache_password: bool = False,
 
-                 # Ursulas
+                 # M of N
                  m: int = None,
                  n: int = None,
 
@@ -131,7 +133,7 @@ class Alice(Character, BlockchainPolicyAuthor):
             transacting_power = TransactingPower(checksum_address=self.checksum_address,
                                                  password=client_password,
                                                  cache=cache_password,
-                                                 signer=blockchain.client)
+                                                 signer=signer or Web3Signer(blockchain.client))
 
             self._crypto_power.consume_power_up(transacting_power)
             BlockchainPolicyAuthor.__init__(self,
@@ -918,6 +920,7 @@ class Ursula(Teacher, Character, Worker):
                  work_tracker: WorkTracker = None,
                  start_working_now: bool = True,
                  client_password: str = None,
+                 signer = None,
 
                  # Character
                  abort_on_learning_error: bool = False,
@@ -970,8 +973,15 @@ class Ursula(Teacher, Character, Worker):
 
             if not federated_only:
 
+                if not signer:
+                    blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=self.provider_uri)
+                    signer = Web3Signer(blockchain.client)
+
                 # Prepare a TransactingPower from worker node's transacting keys
-                self.transacting_power = TransactingPower(checksum_address=worker_address, password=client_password, cache=True)
+                self.transacting_power = TransactingPower(checksum_address=worker_address,
+                                                          password=client_password,
+                                                          signer=signer,
+                                                          cache=True)
                 self._crypto_power.consume_power_up(self.transacting_power)
 
                 # Use this power to substantiate the stamp

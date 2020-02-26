@@ -120,7 +120,7 @@ class TransactingPower(CryptoPowerUp):
         """
 
         # Auth
-        self.__signer = signer
+        self._signer = signer
         self.__account = checksum_address
         self.__password = password
 
@@ -158,7 +158,7 @@ class TransactingPower(CryptoPowerUp):
 
     @property
     def is_unlocked(self) -> bool:
-        return self.__signer.is_unlocked
+        return self._signer.is_unlocked
 
     #
     # Power
@@ -169,25 +169,25 @@ class TransactingPower(CryptoPowerUp):
         self.unlock_account(password=password)
         if self.__cache is False:
             self.__password = None
-        self.__blockchain.transacting_power = self
+        self.blockchain.transacting_power = self
 
     def lock_account(self):
-        return self.__signer.lock_account(account=self.__account)
+        return self._signer.lock_account(account=self.__account)
 
     def unlock_account(self, password: str = None, duration: int = None):
         """Unlocks the account with provided or cached password."""
         password = password or self.__password
-        return self.__signer.unlock_account(account=self.__account,
-                                            password=password,
-                                            duration=duration)
+        return self._signer.unlock_account(self.__account,
+                                           password=password,
+                                           duration=duration)
 
     def sign_message(self, message: bytes) -> bytes:
         """Signs the message with the private key of the TransactingPower."""
-        return self.__signer.sign_message(account=self.__account, message=message)
+        return self._signer.sign_message(account=self.__account, message=message)
 
-    def sign_transaction(self, unsigned_transaction: dict) -> HexBytes:
+    def sign_transaction(self, transaction: dict) -> HexBytes:
         """Signs the transaction with the private key of the TransactingPower."""
-        return self.__signer.sign_transaction(account=self.__account, transaction=unsigned_transaction)
+        return self._signer.sign_transaction(self.account, transaction=transaction)
 
 
 class KeyPairBasedPower(CryptoPowerUp):
