@@ -105,9 +105,7 @@ workflows:
             tags:
               only: /.*/
           requires:
-            - build_docs
-            - heartbeat_demo
-            - finnegans_wake_demo
+            - tests_ok
       - build_docker:
           filters:
             tags:
