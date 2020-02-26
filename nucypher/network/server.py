@@ -400,18 +400,22 @@ def make_rest_app(
 
     @rest_app.route('/treasure_map/<treasure_map_id>', methods=['POST'])
     def receive_treasure_map(treasure_map_id):
-        from nucypher.policy.collections import TreasureMap
+        if not this_node.federated_only:
+            from nucypher.policy.collections import DecentralizedTreasureMap as _MapClass
+        else:
+            from nucypher.policy.collections import TreasureMap as _MapClass
 
         try:
-            treasure_map = TreasureMap.from_bytes(bytes_representation=request.data, verify=True)
-        except TreasureMap.InvalidSignature:
+            treasure_map = _MapClass.from_bytes(bytes_representation=request.data, verify=True)
+        except _MapClass.InvalidSignature:
             do_store = False
         else:
-            # TODO: If we include the policy ID in this check, does that prevent map spam?  1736
-            if not this_node.federated_only:
-                alice_checksum_address = this_node.policy_agent.contract.functions.getPolicyOwner(treasure_map._hrac[:16]).call()
-
             do_store = treasure_map.public_id() == treasure_map_id
+
+        if do_store and not this_node.federated_only:
+            alice_checksum_address = this_node.policy_agent.contract.functions.getPolicyOwner(
+                treasure_map._hrac[:16]).call()
+            do_store = treasure_map.verify_blockchain_signature(checksum_address=alice_checksum_address)
 
         if do_store:
             log.info("{} storing TreasureMap {}".format(this_node, treasure_map_id))
