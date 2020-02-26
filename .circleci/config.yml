@@ -336,18 +336,25 @@ commands:
 
   capture_test_results:
     description: "Store and Upload test results; Follow-up step for tests"
+    parameters:
+      enable_codecov:
+        type: boolean
+        default: false
     steps:
-      - codecov
-      - store_test_results:
-          path: reports
-      - run:
-          name: Prepare test logs for storage as artifacts
-          command: |
-            mkdir -p ~/test-logs/
-            mv ~/.cache/nucypher/log/nucypher.log ~/test-logs/nucypher-container-$CIRCLE_NODE_INDEX.log
-          when: always
-      - store_artifacts:
-          path: ~/test-logs/
+      - when:
+          condition: <<parameters.enable_codecov>>
+          steps:
+            - codecov
+            - store_test_results:
+                path: reports
+            - run:
+                name: Prepare test logs for storage as artifacts
+                command: |
+                  mkdir -p ~/test-logs/
+                  mv ~/.cache/nucypher/log/nucypher.log ~/test-logs/nucypher-container-$CIRCLE_NODE_INDEX.log
+                when: always
+            - store_artifacts:
+                path: ~/test-logs/
 
   build_and_save_test_docker:
     description: "Build dev docker image for running tests against docker"
