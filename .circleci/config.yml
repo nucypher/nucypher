@@ -213,6 +213,135 @@ workflows:
               only: /.*/
           requires:
             - pip_install_37
+      - contracts:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
+          enable_codecov: true
+      - basics:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
+          enable_codecov: true
+      - network:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
+          enable_codecov: true
+      - character:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
+          enable_codecov: true
+      - agents:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
+          enable_codecov: true
+      - actors:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
+          enable_codecov: true
+      - deployers:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
+          enable_codecov: true
+      - cli:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
+          enable_codecov: true
+      - tests_ok:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - basics
+            - network
+            - character
+            - cli
+            - deployers
+      - build_dev_docker_images:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - basics
+      - finnegans_wake_demo:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - build_dev_docker_images
+      - heartbeat_demo:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - build_dev_docker_images
+      - estimate_gas:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - tests_ok
+      - build_docs:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - tests_ok
+      - test_build:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - build_docs
+            - heartbeat_demo
+            - finnegans_wake_demo
+      - build_docker:
+          filters:
+            tags:
+              only: /v[0-9]+.*/
+            branches:
+              only: master
+          requires:
+            - test_build
+      - test_deploy:
+          context: "NuCypher PyPI"
+          requires:
+            - test_build
+          filters:
+            tags:
+              only: /v[0-9]+.*/
+            branches:
+              ignore: /.*/
 
 
 python_36_base: &python_36_base
