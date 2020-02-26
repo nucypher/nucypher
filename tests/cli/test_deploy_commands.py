@@ -6,9 +6,15 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency
 )
-from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
+from nucypher.blockchain.eth.constants import (
+    NUCYPHER_TOKEN_CONTRACT_NAME,
+    STAKING_ESCROW_CONTRACT_NAME,
+    POLICY_MANAGER_CONTRACT_NAME,
+    ADJUDICATOR_CONTRACT_NAME,
+    DISPATCHER_CONTRACT_NAME
+)
 from nucypher.blockchain.eth.deployers import StakingEscrowDeployer
-from nucypher.blockchain.eth.registry import LocalContractRegistry
+from nucypher.blockchain.eth.registry import LocalContractRegistry, InMemoryContractRegistry
 from nucypher.cli.commands.deploy import deploy
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
@@ -17,6 +23,7 @@ from nucypher.utilities.sandbox.constants import (
 )
 
 ALTERNATE_REGISTRY_FILEPATH = '/tmp/nucypher-test-registry-alternate.json'
+ALTERNATE_REGISTRY_FILEPATH_2 = '/tmp/nucypher-test-registry-alternate-2.json'
 
 
 def test_nucypher_deploy_inspect_no_deployments(click_runner, testerchain, new_local_registry):
@@ -111,7 +118,7 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_loc
 
     command = ('contracts',
                '--contract-name', StakingEscrowDeployer.contract_name,
-               '--bare',
+               '--mode', 'bare',
                '--provider', TEST_PROVIDER_URI,
                '--registry-infile', agency_local_registry.filepath,
                '--registry-outfile', ALTERNATE_REGISTRY_FILEPATH,
@@ -144,10 +151,10 @@ def test_manual_proxy_retargeting(testerchain, click_runner, token_economics):
     deployer = StakingEscrowDeployer(deployer_address=testerchain.etherbase_account,
                                      registry=local_registry,
                                      economics=token_economics)
-    proxy_deployer = deployer.get_proxy_deployer(registry=local_registry)
+    proxy_deployer = deployer.get_proxy_deployer()
 
     # Un-targeted enrollment is indeed un targeted by the proxy
-    untargeted_deployment = deployer.get_latest_enrollment(registry=local_registry)
+    untargeted_deployment = deployer.get_latest_enrollment()
     assert proxy_deployer.target_contract.address != untargeted_deployment.address
 
     # MichWill still owns this proxy.
@@ -170,6 +177,89 @@ def test_manual_proxy_retargeting(testerchain, click_runner, token_economics):
     assert result.exit_code == 0
 
     # The proxy target has been updated.
-    proxy_deployer = deployer.get_proxy_deployer(registry=local_registry)
+    proxy_deployer = deployer.get_proxy_deployer()
     assert proxy_deployer.target_contract.address == untargeted_deployment.address
+
+
+def test_manual_deployment_of_idle_network(click_runner):
+
+    if os.path.exists(ALTERNATE_REGISTRY_FILEPATH_2):
+        os.remove(ALTERNATE_REGISTRY_FILEPATH_2)
+    assert not os.path.exists(ALTERNATE_REGISTRY_FILEPATH_2)
+    registry = LocalContractRegistry(filepath=ALTERNATE_REGISTRY_FILEPATH_2)
+    registry.write(InMemoryContractRegistry().read())  # FIXME: Manual deployments from scratch require an existing but empty registry (i.e., a json file just with "[]")
+
+    # 1. Deploy NuCypherToken
+    command = ('contracts',
+               '--contract-name', NUCYPHER_TOKEN_CONTRACT_NAME,
+               '--provider', TEST_PROVIDER_URI,
+               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2,
+               '--poa')
+
+    user_input = '0\n' + 'Y\n' + INSECURE_DEVELOPMENT_PASSWORD
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    assert os.path.exists(ALTERNATE_REGISTRY_FILEPATH_2)
+    new_registry = LocalContractRegistry(filepath=ALTERNATE_REGISTRY_FILEPATH_2)
+
+    deployed_contracts = [NUCYPHER_TOKEN_CONTRACT_NAME]
+    assert list(new_registry.enrolled_names) == deployed_contracts
+
+    # 2. Deploy StakingEscrow in IDLE mode
+    command = ('contracts',
+               '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
+               '--mode', 'idle',
+               '--provider', TEST_PROVIDER_URI,
+               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2,
+               '--poa')
+
+    secret = INSECURE_DEPLOYMENT_SECRET_PLAINTEXT.decode()
+    user_input = '0\n' + 'Y\n' + (f'{secret}\n' * 2)
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    deployed_contracts.extend([STAKING_ESCROW_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME])
+    assert list(new_registry.enrolled_names) == deployed_contracts
+
+    # 3. Deploy PolicyManager
+    command = ('contracts',
+               '--contract-name', POLICY_MANAGER_CONTRACT_NAME,
+               '--provider', TEST_PROVIDER_URI,
+               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2,
+               '--poa')
+
+    user_input = '0\n' + 'Y\n' + (f'{secret}\n' * 2)
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    deployed_contracts.extend([POLICY_MANAGER_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME])
+    assert list(new_registry.enrolled_names) == deployed_contracts
+
+    # 4. Deploy Adjudicator
+    command = ('contracts',
+               '--contract-name', ADJUDICATOR_CONTRACT_NAME,
+               '--provider', TEST_PROVIDER_URI,
+               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2,
+               '--poa')
+
+    user_input = '0\n' + 'Y\n' + (f'{secret}\n' * 2)
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    deployed_contracts.extend([ADJUDICATOR_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME])
+    assert list(new_registry.enrolled_names) == deployed_contracts
+
+    # 5. Activate StakingEscrow
+    command = ('contracts',
+               '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
+               '--activate',
+               '--provider', TEST_PROVIDER_URI,
+               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2,
+               '--poa')
+
+    user_input = '0\n' + 'Y\n' + 'Y\n'
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert list(new_registry.enrolled_names) == deployed_contracts
 

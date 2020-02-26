@@ -16,13 +16,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
+from constant_sorrow.constants import BARE
 from eth_utils import keccak
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.deployers import (StakingEscrowDeployer,
                                                DispatcherDeployer)
 from nucypher.crypto.api import keccak_digest
-from nucypher.utilities.sandbox.constants import STAKING_ESCROW_DEPLOYMENT_SECRET, TEST_PROVIDER_URI
+from nucypher.utilities.sandbox.constants import STAKING_ESCROW_DEPLOYMENT_SECRET
 
 
 def test_staking_escrow_deployment(staking_escrow_deployer, deployment_progress):
@@ -149,7 +150,7 @@ def test_deploy_bare_upgradeable_contract_deployment(testerchain, test_registry,
     old_number_of_enrollments = enrolled_names.count(StakingEscrowDeployer.contract_name)
     old_number_of_proxy_enrollments = enrolled_names.count(StakingEscrowDeployer._proxy_deployer.contract_name)
 
-    receipts = deployer.deploy(initial_deployment=False, ignore_deployed=True)
+    receipts = deployer.deploy(deployment_mode=BARE, ignore_deployed=True)
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
 
@@ -169,10 +170,10 @@ def test_deployer_version_management(testerchain, test_registry, token_economics
                                      registry=test_registry,
                                      economics=token_economics)
 
-    untargeted_deployment = deployer.get_latest_enrollment(registry=test_registry)
-    latest_targeted_deployment = deployer.get_principal_contract(registry=test_registry)
+    untargeted_deployment = deployer.get_latest_enrollment()
+    latest_targeted_deployment = deployer.get_principal_contract()
 
-    proxy_deployer = deployer.get_proxy_deployer(registry=test_registry, provider_uri=TEST_PROVIDER_URI)
+    proxy_deployer = deployer.get_proxy_deployer()
     proxy_target = proxy_deployer.target_contract.address
     assert latest_targeted_deployment.address == proxy_target
     assert untargeted_deployment.address != latest_targeted_deployment.address
@@ -185,7 +186,7 @@ def test_manual_proxy_retargeting(testerchain, test_registry, token_economics):
                                      economics=token_economics)
 
     # Get Proxy-Direct
-    proxy_deployer = deployer.get_proxy_deployer(registry=test_registry, provider_uri=TEST_PROVIDER_URI)
+    proxy_deployer = deployer.get_proxy_deployer()
 
     # Re-Deploy Staking Escrow
     old_target = proxy_deployer.target_contract.address
@@ -194,7 +195,7 @@ def test_manual_proxy_retargeting(testerchain, test_registry, token_economics):
     new_secret = keccak_digest(bytes('thistimeforsure', encoding='utf-8'))
 
     # Get the latest un-targeted contract from the registry
-    latest_deployment = deployer.get_latest_enrollment(registry=test_registry)
+    latest_deployment = deployer.get_latest_enrollment()
 
     # Build retarget transaction (just for informational purposes)
     transaction = deployer.retarget(target_address=latest_deployment.address,
@@ -219,5 +220,5 @@ def test_manual_proxy_retargeting(testerchain, test_registry, token_economics):
     assert new_target == latest_deployment.address
 
     # Check address consistency
-    new_bare_contract = deployer.get_principal_contract(registry=test_registry, provider_uri=TEST_PROVIDER_URI)
+    new_bare_contract = deployer.get_principal_contract()
     assert new_bare_contract.address == latest_deployment.address == new_target

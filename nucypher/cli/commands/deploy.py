@@ -19,9 +19,16 @@ import json
 import os
 
 import click
+from constant_sorrow import constants
+from constant_sorrow.constants import (
+    BARE,
+    IDLE,
+    FULL
+)
 
 from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency, MultiSigAgent
+from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
@@ -359,13 +366,19 @@ def rollback(general_config, actor_options):
 @deploy.command()
 @group_general_config
 @group_actor_options
-@click.option('--bare', help="Deploy a contract *only* without any additional operations.", is_flag=True)
 @option_gas
 @option_ignore_deployed
 @click.option('--confirmations', help="Number of required block confirmations", type=click.IntRange(min=0))
 @click.option('--parameters', help="Filepath to a JSON file containing additional deployment parameters",
               type=EXISTING_READABLE_FILE)
-def contracts(general_config, actor_options, bare, gas, ignore_deployed, confirmations, parameters):
+@click.option('--mode',
+              help="Deploy a contract following all steps ('full'), up to idle status ('idle'), "
+                   "or just the bare contract ('bare'). Defaults to 'full'",
+              type=click.Choice(['full', 'idle', 'bare'], case_sensitive=False),
+              default='full'
+              )
+@click.option('--activate', help="Activate a contract that is in idle mode", is_flag=True)
+def contracts(general_config, actor_options, mode, activate, gas, ignore_deployed, confirmations, parameters):
     """
     Compile and deploy contracts.
     """
@@ -373,6 +386,7 @@ def contracts(general_config, actor_options, bare, gas, ignore_deployed, confirm
 
     emitter = general_config.emitter
     ADMINISTRATOR, _, deployer_interface, local_registry = actor_options.create_actor(emitter)
+    chain_name = deployer_interface.client.chain_name
 
     deployment_parameters = {}
     if parameters:
@@ -383,47 +397,70 @@ def contracts(general_config, actor_options, bare, gas, ignore_deployed, confirm
     # Deploy Single Contract (Amend Registry)
     #
     contract_name = actor_options.contract_name
+    deployment_mode = constants.__getattr__(mode.upper())  # TODO: constant sorrow
     if contract_name:
         try:
-            contract_deployer = ADMINISTRATOR.deployers[contract_name]
+            contract_deployer_class = ADMINISTRATOR.deployers[contract_name]
         except KeyError:
             message = f"No such contract {contract_name}. Available contracts are {ADMINISTRATOR.deployers.keys()}"
             emitter.echo(message, color='red', bold=True)
             raise click.Abort()
 
+        if activate:
+            # For the moment, only StakingEscrow can be activated
+            staking_escrow_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry,
+                                                              deployer_address=ADMINISTRATOR.deployer_address)
+            if contract_name != STAKING_ESCROW_CONTRACT_NAME or not staking_escrow_deployer.ready_to_activate:
+                raise click.BadOptionUsage(option_name="--activate",
+                                           message=f"You can only activate an idle instance of {STAKING_ESCROW_CONTRACT_NAME}")
+
+            click.confirm(f"Activate {STAKING_ESCROW_CONTRACT_NAME} at "
+                          f"{staking_escrow_deployer._get_deployed_contract().address}?", abort=True)
+
+            receipts = staking_escrow_deployer.activate()
+            for tx_name, receipt in receipts.items():
+                paint_receipt_summary(emitter=emitter,
+                                      receipt=receipt,
+                                      chain_name=chain_name,
+                                      transaction_type=tx_name)
+            return  # Exit
+
         # Deploy
         emitter.echo(f"Deploying {contract_name}")
-        if contract_deployer._upgradeable and not bare:
+        if contract_deployer_class._upgradeable and deployment_mode is not BARE:
             # NOTE: Bare deployments do not engage the proxy contract
-            secret = ADMINISTRATOR.collect_deployment_secret(deployer=contract_deployer)
+            secret = ADMINISTRATOR.collect_deployment_secret(deployer=contract_deployer_class)
             receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
                                                             plaintext_secret=secret,
                                                             gas_limit=gas,
-                                                            bare=bare,
+                                                            deployment_mode=deployment_mode,
                                                             ignore_deployed=ignore_deployed,
-                                                            confirmations=confirmations)
+                                                            confirmations=confirmations,
+                                                            deployment_parameters=deployment_parameters)
         else:
             # Non-Upgradeable or Bare
             receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
                                                             gas_limit=gas,
-                                                            bare=bare,
+                                                            deployment_mode=deployment_mode,
                                                             ignore_deployed=ignore_deployed,
                                                             confirmations=confirmations,
-                                                            deployment_parameters=deployment_parameters
-                                                            )
+                                                            deployment_parameters=deployment_parameters)
 
         # Report
         paint_contract_deployment(contract_name=contract_name,
                                   contract_address=agent.contract_address,
                                   receipts=receipts,
                                   emitter=emitter,
-                                  chain_name=deployer_interface.client.chain_name,
+                                  chain_name=chain_name,
                                   open_in_browser=actor_options.etherscan)
         return  # Exit
 
     #
     # Deploy Automated Series (Create Registry)
     #
+    if deployment_mode is not FULL:
+        raise click.BadOptionUsage(option_name='--mode',
+                                   message="Only 'full' mode is supported when deploying all network contracts")
 
     # Confirm filesystem registry writes.
     if os.path.isfile(local_registry.filepath):
