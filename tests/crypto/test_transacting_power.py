@@ -3,6 +3,7 @@ from eth_account._utils.transactions import Transaction
 from eth_utils import to_checksum_address
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.signers import Signer
 from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.powers import (PowerUpError)
 from nucypher.crypto.powers import TransactingPower
@@ -21,7 +22,7 @@ def test_transacting_power_sign_message(testerchain):
 
     # The default state of the account is locked.
     # Test a signature without unlocking the account
-    with pytest.raises(PowerUpError):
+    with pytest.raises(Signer.AccountLocked):
         power.sign_message(message=b'test')
 
     # Manually unlock
@@ -45,7 +46,7 @@ def test_transacting_power_sign_message(testerchain):
     power.lock_account()
 
     # Test a signature without unlocking the account
-    with pytest.raises(PowerUpError):
+    with pytest.raises(Signer.AccountLocked):
         power.sign_message(message=b'test')
 
 
@@ -68,7 +69,7 @@ def test_transacting_power_sign_transaction(testerchain):
 
     # The default state of the account is locked.
     # Test a signature without unlocking the account
-    with pytest.raises(TransactingPower.AccountLocked):
+    with pytest.raises(Signer.AccountLocked):
         power.sign_transaction(transaction=transaction_dict)
 
     # Sign
@@ -90,7 +91,7 @@ def test_transacting_power_sign_transaction(testerchain):
 
     # Try signing with a re-locked account.
     power.lock_account()
-    with pytest.raises(TransactingPower.AccountLocked):
+    with pytest.raises(Signer.AccountLocked):
         power.sign_transaction(transaction=transaction_dict)
 
     power.unlock_account(password=INSECURE_DEVELOPMENT_PASSWORD)

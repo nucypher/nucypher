@@ -920,7 +920,6 @@ class Ursula(Teacher, Character, Worker):
                  work_tracker: WorkTracker = None,
                  start_working_now: bool = True,
                  client_password: str = None,
-                 signer = None,
 
                  # Character
                  abort_on_learning_error: bool = False,
@@ -973,6 +972,7 @@ class Ursula(Teacher, Character, Worker):
 
             if not federated_only:
 
+                signer = self.signer
                 if not signer:
                     blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=self.provider_uri)
                     signer = Web3Signer(blockchain.client)

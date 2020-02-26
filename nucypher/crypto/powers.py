@@ -26,6 +26,7 @@ from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainInterface
 from nucypher.blockchain.eth.signers import Signer
+from nucypher.blockchain.eth.signers import Web3Signer
 from nucypher.datastore import keypairs
 from nucypher.datastore.keypairs import SigningKeypair, DecryptingKeypair
 
@@ -112,7 +113,7 @@ class TransactingPower(CryptoPowerUp):
     @validate_checksum_address
     def __init__(self,
                  checksum_address: str,
-                 signer: Signer,
+                 signer: Signer = None,
                  password: str = None,
                  cache: bool = False):
         """
@@ -120,6 +121,10 @@ class TransactingPower(CryptoPowerUp):
         """
 
         # Auth
+        if not signer:
+            # TODO: Consider making this required
+            blockchain = BlockchainInterfaceFactory.get_interface()
+            signer = Web3Signer(client=blockchain.client)
         self._signer = signer
         self.__account = checksum_address
         self.__password = password
@@ -150,7 +155,7 @@ class TransactingPower(CryptoPowerUp):
     @property
     def is_active(self) -> bool:
         """Returns True if the blockchain currently has this transacting power attached."""
-        return bool(self.__blockchain.transacting_power == self)
+        return bool(self.blockchain.transacting_power == self)
 
     @property
     def account(self) -> str:

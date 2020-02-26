@@ -210,7 +210,8 @@ class ContractAdministrator(NucypherTokenActor):
         self.preallocation_escrow_deployers = dict()
         self.deployers = {d.contract_name: d for d in self.all_deployer_classes}
 
-        self.deployer_power = TransactingPower(password=client_password, checksum_address=deployer_address, cache=True)
+        self.deployer_power = TransactingPower(password=client_password,
+                                               checksum_address=deployer_address, cache=True)
         self.transacting_power = self.deployer_power
         self.transacting_power.activate()
         self.staking_escrow_test_mode = staking_escrow_test_mode
@@ -1530,7 +1531,11 @@ class StakeHolder(Staker):
                 self.__get_accounts()
                 if checksum_address not in self:
                     raise self.UnknownAccount
-            transacting_power = self.__transacting_powers[checksum_address]
+            try:
+                transacting_power = self.__transacting_powers[checksum_address]
+            except KeyError:
+                transacting_power = TransactingPower(password=password, checksum_address=checksum_address)
+                self.__transacting_powers[checksum_address] = transacting_power
             transacting_power.activate(password=password)
 
         @property
@@ -1679,7 +1684,7 @@ class Bidder(NucypherTokenActor):
         self.economics = EconomicsFactory.get_economics(registry=self.registry)
 
         if is_transacting:
-            self.transacting_power = TransactingPower(password=client_password, account=checksum_address, cache=True)
+            self.transacting_power = TransactingPower(password=client_password, checksum_address=checksum_address)
             self.transacting_power.activate()
 
         self._all_bonus_bidders = None

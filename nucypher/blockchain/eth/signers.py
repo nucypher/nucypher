@@ -21,16 +21,14 @@ class Signer(ABC):
 
     @classmethod
     def from_signer_uri(cls, uri: str) -> 'Signer':
-        codex = {
-            'web3': Web3Signer,
-            'clef': ClefSigner,
-        }
-        for key, signer_class in codex.items():
-            if key in uri:
-                signer = signer_class.from_signer_uri(uri=uri)
-                return signer
+        if 'clef' in uri:
+            signer = ClefSigner.from_signer_uri(uri=uri)
         else:
-            raise ValueError(f"{uri} is an unsupported signer URI")
+            try:
+                signer = Web3Signer.from_signer_uri(uri=uri)
+            except Exception:
+                raise ValueError(f"{uri} is an unsupported signer URI")
+        return signer
 
     @abstractmethod
     def accounts(self) -> List[str]:
