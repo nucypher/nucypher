@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import collections
 import os
 import pprint
-from typing import List
+from typing import List, Callable
 from typing import Tuple
 from typing import Union
 from urllib.parse import urlparse
@@ -38,7 +38,7 @@ from constant_sorrow.constants import (
 from eth_tester import EthereumTester
 from eth_utils import to_checksum_address
 from twisted.logger import Logger
-from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
+from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider, gas_strategies
 from web3.contract import ContractConstructor, Contract
 from web3.contract import ContractFunction
 from web3.exceptions import TimeExhausted
@@ -75,8 +75,16 @@ class BlockchainInterface:
     ethereum contracts with the given web3 provider backend.
     """
 
-    TIMEOUT = 180  # seconds
+    TIMEOUT = 600  # seconds
     NULL_ADDRESS = '0x' + '0' * 40
+
+    DEFAULT_GAS_STRATEGY = 'medium'
+    GAS_STRATEGIES = {'glacial': gas_strategies.time_based.glacial_gas_price_strategy,
+                      'slow': gas_strategies.time_based.slow_gas_price_strategy,
+                      'medium': gas_strategies.time_based.medium_gas_price_strategy,
+                      'fast': gas_strategies.time_based.fast_gas_price_strategy,
+                      # 'rpc': gas_strategies.rpc.rpc_gas_price_strategy  # TODO: Investigate compatibility with rpc
+                      }
 
     process = NO_PROVIDER_PROCESS.bool_value(False)
     Web3 = Web3
@@ -106,7 +114,8 @@ class BlockchainInterface:
                  light: bool = False,
                  provider_process: NuCypherGethProcess = NO_PROVIDER_PROCESS,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
-                 provider: Web3Providers = NO_BLOCKCHAIN_CONNECTION):
+                 provider: Web3Providers = NO_BLOCKCHAIN_CONNECTION,
+                 gas_strategy: Union[str, Callable] = DEFAULT_GAS_STRATEGY):
 
         """
         A blockchain "network interface"; The circumflex wraps entirely around the bounds of
@@ -184,6 +193,13 @@ class BlockchainInterface:
         self.transacting_power = READ_ONLY_INTERFACE
         self.is_light = light
 
+        try:
+            gas_strategy = self.GAS_STRATEGIES[gas_strategy]
+        except KeyError:
+            if not callable(gas_strategy):
+                raise ValueError(f"{gas_strategy} must be callable to be a valid gas strategy.")
+        self.gas_strategy = gas_strategy
+
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
         return r
@@ -213,6 +229,10 @@ class BlockchainInterface:
         if self.poa is True:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
+
+        # Gas Price Strategy
+        self.log.debug('Injecting POA middleware at layer 0')
+        self.client.add_middleware(self.gas_strategy)
 
     def connect(self):
 
@@ -840,6 +860,7 @@ class BlockchainInterfaceFactory:
     @classmethod
     def initialize_interface(cls,
                              provider_uri: str,
+                             gas_strategy: Callable,
                              sync: bool = False,
                              emitter=None,
                              interface_class: Interfaces = None,
@@ -854,7 +875,10 @@ class BlockchainInterfaceFactory:
         # Interface does not exist, initialize a new one.
         if not interface_class:
             interface_class = cls._default_interface_class
-        interface = interface_class(provider_uri=provider_uri, *interface_args, **interface_kwargs)
+        interface = interface_class(provider_uri=provider_uri,
+                                    gas_strategy=gas_strategy,
+                                    *interface_args, **interface_kwargs)
+
         cls._interfaces[provider_uri] = cls.CachedInterface(interface=interface,
                                                             sync=sync,
                                                             emitter=emitter)

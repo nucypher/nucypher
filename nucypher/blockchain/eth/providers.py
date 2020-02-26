@@ -19,7 +19,7 @@ class ProviderError(Exception):
 def _get_IPC_provider(provider_uri):
     uri_breakdown = urlparse(provider_uri)
     from nucypher.blockchain.eth.interfaces import BlockchainInterface
-    return IPCProvider(ipc_path=uri_breakdown.path, timeout=BlockchainInterface.TIMEOUT)
+    return IPCProvider(ipc_path=uri_breakdown.path, timeout=BlockchainInterface.TIMEOUT, request_kwargs={'timeout': 600})
 
 
 def _get_HTTP_provider(provider_uri):
