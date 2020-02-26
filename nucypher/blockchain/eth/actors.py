@@ -72,7 +72,7 @@ from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     IndividualAllocationRegistry
 )
-from nucypher.blockchain.eth.signers import ClefSigner, LocalSigner, Web3Signer
+from nucypher.blockchain.eth.signers import ClefSigner, Web3Signer
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration, datetime_at_period, \
     prettify_eth_amount
@@ -1530,15 +1530,7 @@ class StakeHolder(Staker):
                 self.__get_accounts()
                 if checksum_address not in self:
                     raise self.UnknownAccount
-            try:
-                transacting_power = self.__transacting_powers[checksum_address]
-            except KeyError:
-                keyfile = self.__local_accounts.get(checksum_address)
-                signer = LocalSigner(keyfile=keyfile)
-                transacting_power = TransactingPower(password=password,
-                                                     checksum_address=checksum_address,
-                                                     signer=self.__signer)
-                self.__transacting_powers[checksum_address] = transacting_power
+            transacting_power = self.__transacting_powers[checksum_address]
             transacting_power.activate(password=password)
 
         @property

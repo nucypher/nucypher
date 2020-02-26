@@ -24,8 +24,6 @@ class Signer(ABC):
         codex = {
             'web3': Web3Signer,
             'clef': ClefSigner,
-            'keystore': LocalSigner,
-            # 'trezor': TrezorSigner,
         }
         for key, signer_class in codex.items():
             if key in uri:
@@ -124,67 +122,6 @@ class Web3Signer(Signer):
             raise self.AccountLocked("Failed to unlock account {}".format(account))
         signed_raw_transaction = self.__client.sign_transaction(transaction=transaction)
         return signed_raw_transaction
-
-
-class LocalSigner(Signer):
-
-    def __init__(self, keyfile: str):
-        super().__init__()
-        self.__key = None
-        self.__keyfile = keyfile
-
-    @classmethod
-    def from_signer_uri(cls, uri: str) -> 'LocalSigner':
-        uri_breakdown = urlparse(uri)
-        signer = cls(keyfile=uri_breakdown.path)
-        return signer
-
-    def __import_keyfile(self, password: str) -> bool:
-        """
-        Import geth formatted key file to the transacting power.
-
-        WARNING: Do not save the key or password anywhere, especially into a shared source file
-        """
-        w3 = Web3()
-        try:
-            with open(self.__keyfile) as keyfile:
-                encrypted_key = keyfile.read()
-                private_key = w3.eth.account.decrypt(encrypted_key, password)
-        except FileNotFoundError:
-            raise  # TODO
-        except Exception:
-            raise  # TODO
-        else:
-            self.__key = private_key
-            return True
-
-    def accounts(self) -> List[str]:
-        pass  # TODO
-
-    def unlock_account(self, account: str, password: str, duration: int = None) -> bool:
-        unlocked = self.__import_keyfile(password=password)
-        self._unlocked = unlocked
-        return self._unlocked
-
-    def lock_account(self, account: str) -> bool:
-        self.__key = None
-        self._unlocked = False
-        return self._unlocked
-
-    def sign_transaction(self, account: str, transaction: dict) -> HexBytes:
-        """
-        Signs the transaction with the private key of the TransactingPower.
-        """
-        if not self.is_unlocked:
-            raise self.AccountLocked("Failed to unlock account {}".format(account))
-        w3 = Web3()
-        signed_transaction = w3.eth.account.sign_transaction(transaction_dict=transaction,
-                                                             private_key=self.__key)
-        signed_raw_transaction = signed_transaction['rawTransaction']
-        return signed_raw_transaction
-
-    def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
-        pass  # TODO
 
 
 class ClefSigner(Signer):
