@@ -5,6 +5,8 @@ import maya
 import pytest
 
 from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
+from twisted.internet.task import Clock
+
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.characters.lawful import Enrico
 from nucypher.policy.collections import TreasureMap
@@ -198,3 +200,27 @@ def test_bob_retrieves_with_treasure_map(
         treasure_map=bytes(treasure_map))
 
     assert text1[0] == text2[0] == b'Welcome to flippering number 2.'
+
+
+def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
+                                enacted_federated_policy, capsule_side_channel):
+
+    clock = Clock()
+    for u in federated_ursulas:
+        u._arrangement_pruning_task.stop()
+        u._arrangement_pruning_task.clock = clock
+        u._arrangement_pruning_task.start(interval=Ursula._pruning_interval)
+    clock.advance(Ursula._pruning_interval*2)
+
+    enrico = capsule_side_channel.enrico
+    message_kit = capsule_side_channel()
+    treasure_map = enacted_federated_policy.treasure_map
+    alice_verifying_key = enacted_federated_policy.alice.stamp
+
+    with pytest.raises(Exception):  # FIXME
+        federated_bob.retrieve(
+            message_kit,
+            enrico=enrico,
+            alice_verifying_key=alice_verifying_key,
+            label=enacted_federated_policy.label,
+            treasure_map=treasure_map)

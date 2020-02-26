@@ -35,7 +35,7 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
 from eth_utils import to_checksum_address
 from flask import request, Response
-from twisted.internet import threads
+from twisted.internet import threads, reactor
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 
@@ -1012,8 +1012,8 @@ class Ursula(Teacher, Character, Worker):
                                                    rest_app=rest_app, datastore=datastore,
                                                    hosting_power=tls_hosting_power)
 
-                self.__arrangement_pruning_task = LoopingCall(self.__prune_arrangements)
-                self.__arrangement_pruning_task.start(interval=self._pruning_interval)
+                self._arrangement_pruning_task = LoopingCall(f=self.__prune_arrangements)
+                self._arrangement_pruning_task.start(interval=self._pruning_interval)  # TODO: Move to ursula.run ?
 
             #
             # Stranger-Ursula

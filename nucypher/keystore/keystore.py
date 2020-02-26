@@ -147,13 +147,15 @@ class KeyStore(object):
         session.query(PolicyArrangement).filter_by(id=arrangement_id).delete()
         session.commit()
 
-    def del_expired_policy_arrangements(self, session=None):
+    def del_expired_policy_arrangements(self, session=None) -> int:
         """
         Deletes all expired PolicyArrangements from the Keystore.
         """
         session = session or self._session_on_init_thread
-        result = session.query(PolicyArrangement).filter(expiration=datetime.now() >= PolicyArrangement.expiration).delete()
-        return result
+        now = datetime.now()
+        result = session.query(PolicyArrangement).filter_by(expiration=now >= PolicyArrangement.expiration)
+        deleted_records = result.delete()
+        return deleted_records
 
     def attach_kfrag_to_saved_arrangement(self, alice, id_as_hex, kfrag, session=None):
         session = session or self._session_on_init_thread
