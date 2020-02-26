@@ -408,6 +408,9 @@ def make_rest_app(
             do_store = False
         else:
             # TODO: If we include the policy ID in this check, does that prevent map spam?  1736
+            if not this_node.federated_only:
+                alice_checksum_address = this_node.policy_agent.contract.functions.getPolicyOwner(treasure_map._hrac[:16]).call()
+
             do_store = treasure_map.public_id() == treasure_map_id
 
         if do_store:
