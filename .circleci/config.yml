@@ -214,69 +214,61 @@ workflows:
           requires:
             - pip_install_37
       - contracts:
-          context: "NuCypher Tests"
+          context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-          enable_codecov: true
       - basics:
-          context: "NuCypher Tests"
+          context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-          enable_codecov: true
       - network:
-          context: "NuCypher Tests"
+          context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-          enable_codecov: true
       - character:
-          context: "NuCypher Tests"
+          context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-          enable_codecov: true
       - agents:
-          context: "NuCypher Tests"
+          context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-          enable_codecov: true
       - actors:
-          context: "NuCypher Tests"
+          context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-          enable_codecov: true
       - deployers:
-          context: "NuCypher Tests"
+          context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-          enable_codecov: true
       - cli:
-          context: "NuCypher Tests"
+          context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-          enable_codecov: true
       - tests_ok:
           filters:
             tags:
@@ -465,25 +457,24 @@ commands:
 
   capture_test_results:
     description: "Store and Upload test results; Follow-up step for tests"
-    parameters:
-      enable_codecov:
-        type: boolean
-        default: false
     steps:
-      - when:
-          condition: <<parameters.enable_codecov>>
-          steps:
-            - codecov
-            - store_test_results:
-                path: reports
-            - run:
-                name: Prepare test logs for storage as artifacts
-                command: |
-                  mkdir -p ~/test-logs/
-                  mv ~/.cache/nucypher/log/nucypher.log ~/test-logs/nucypher-container-$CIRCLE_NODE_INDEX.log
-                when: always
-            - store_artifacts:
-                path: ~/test-logs/
+      - store_test_results:
+          path: reports
+      - run:
+          name: Prepare test logs for storage as artifacts
+          command: |
+            mkdir -p ~/test-logs/
+            mv ~/.cache/nucypher/log/nucypher.log ~/test-logs/nucypher-container-$CIRCLE_NODE_INDEX.log
+          when: always
+      - store_artifacts:
+          path: ~/test-logs/
+      - run:
+          name: If $ENABLE_CODECOV, exit job without failing now to avoid uploading codecov results
+          command: |
+            if [ -z "$ENABLE_CODECOV"]; then
+                circleci-agent step halt
+            fi
+      - codecov
 
   build_and_save_test_docker:
     description: "Build dev docker image for running tests against docker"
