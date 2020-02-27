@@ -176,7 +176,8 @@ class CharacterConfiguration(BaseConfiguration):
             blockchain_args = {'filepath': registry_filepath,
                                'poa': poa,
                                'provider_process': provider_process,
-                               'provider_uri': provider_uri}
+                               'provider_uri': provider_uri,
+                               'gas_strategy': gas_strategy}
             if any(blockchain_args.values()):
                 bad_args = (f"{arg}={val}" for arg, val in blockchain_args.items() if val)
                 self.log.warn(f"Arguments {bad_args} are incompatible with federated_only. "
