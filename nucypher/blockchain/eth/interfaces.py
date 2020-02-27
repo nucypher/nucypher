@@ -61,7 +61,7 @@ from nucypher.blockchain.eth.providers import (
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import prettify_eth_amount
-
+from nucypher.characters.control.emitters import StdoutEmitter
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
@@ -234,7 +234,6 @@ class BlockchainInterface:
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
         # Gas Price Strategy
-        self.log.debug('Injecting POA middleware at layer 0')
         self.client.w3.eth.setGasPriceStrategy(self.gas_strategy)
         self.client.w3.middleware_onion.add(middleware.time_based_cache_middleware)
         self.client.w3.middleware_onion.add(middleware.latest_block_based_cache_middleware)
@@ -427,18 +426,26 @@ class BlockchainInterface:
                                        ) -> dict:
 
         #
-        # Sign
+        # Setup
         #
 
+        emitter = StdoutEmitter()  # TODO: Move this to singleton?
         if self.transacting_power is READ_ONLY_INTERFACE:
             raise self.InterfaceError(str(READ_ONLY_INTERFACE))
 
+        #
+        # Sign
+        #
+
+        if self.transacting_power.device:
+            emitter.message(f'Confirm transaction {transaction_name} on hardware wallet...', color='yellow')
         signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction)
 
         #
         # Broadcast
         #
 
+        emitter.message(f'Broadcasting {transaction_name}...', color='yellow')
         txhash = self.client.send_raw_transaction(signed_raw_transaction)
         try:
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT)
