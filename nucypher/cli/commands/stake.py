@@ -454,6 +454,10 @@ def unbond_worker(general_config: GroupGeneralConfig,
                             blockchain=blockchain,
                             client_account=client_account,
                             hw_wallet=transacting_staker_options.hw_wallet)
+
+    if not force:
+        click.confirm("Are you sure you want to unbond your worker?", abort=True)
+
     STAKEHOLDER.assimilate(password=password)
     receipt = STAKEHOLDER.unbond_worker()
 

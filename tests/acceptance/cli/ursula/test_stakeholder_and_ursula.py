@@ -755,6 +755,7 @@ def test_stake_unbond_worker(click_runner,
     init_args = ('stake', 'unbond-worker',
                  '--config-file', stakeholder_configuration_file_location,
                  '--staking-address', manual_staker,
+                 '--force'
                  )
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
