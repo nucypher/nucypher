@@ -23,11 +23,13 @@ def _get_IPC_provider(provider_uri):
 
 
 def _get_HTTP_provider(provider_uri):
-    return HTTPProvider(endpoint_uri=provider_uri)
+    from nucypher.blockchain.eth.interfaces import BlockchainInterface
+    return HTTPProvider(endpoint_uri=provider_uri, request_kwargs={'timeout': BlockchainInterface.TIMEOUT})
 
 
 def _get_websocket_provider(provider_uri):
-    return WebsocketProvider(endpoint_uri=provider_uri)
+    from nucypher.blockchain.eth.interfaces import BlockchainInterface
+    return WebsocketProvider(endpoint_uri=provider_uri, websocket_kwargs={'timeout': BlockchainInterface.TIMEOUT})
 
 
 def _get_infura_provider(provider_uri):
