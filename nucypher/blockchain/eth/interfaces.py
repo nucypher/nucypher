@@ -81,11 +81,10 @@ class BlockchainInterface:
     NULL_ADDRESS = '0x' + '0' * 40
 
     DEFAULT_GAS_STRATEGY = 'medium'
-    GAS_STRATEGIES = {'glacial': time_based.glacial_gas_price_strategy,
-                      'slow': time_based.slow_gas_price_strategy,
-                      'medium': time_based.medium_gas_price_strategy,
-                      'fast': time_based.fast_gas_price_strategy,
-                      # 'rpc': gas_strategies.rpc.rpc_gas_price_strategy  # TODO: Investigate compatibility with rpc
+    GAS_STRATEGIES = {'glacial': time_based.glacial_gas_price_strategy,     # 24h
+                      'slow': time_based.slow_gas_price_strategy,           # 1h
+                      'medium': time_based.medium_gas_price_strategy,       # 5m
+                      'fast': time_based.fast_gas_price_strategy            # 60s
                       }
 
     process = NO_PROVIDER_PROCESS.bool_value(False)
@@ -112,7 +111,7 @@ class BlockchainInterface:
         pass
 
     def __init__(self,
-                 emitter = None,
+                 emitter = None,  # TODO # 1754
                  poa: bool = False,
                  light: bool = False,
                  provider_process: NuCypherGethProcess = NO_PROVIDER_PROCESS,
@@ -236,6 +235,7 @@ class BlockchainInterface:
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
         # Gas Price Strategy
+        # TODO: Do we need to use all of these at once, perhaps chhose one?
         self.client.w3.eth.setGasPriceStrategy(self.gas_strategy)
         self.client.w3.middleware_onion.add(middleware.time_based_cache_middleware)
         self.client.w3.middleware_onion.add(middleware.latest_block_based_cache_middleware)
@@ -431,10 +431,12 @@ class BlockchainInterface:
         # Setup
         #
 
+        # TODO # 1754
+        # TODO: Move this to singleton - I do not approve... nor does Bogdan?
         if GlobalLoggerSettings._json_ipc:
             emitter = JSONRPCStdoutEmitter()
         else:
-            emitter = StdoutEmitter()  # TODO: Move this to singleton - I do not approve... nor does Bogdan?
+            emitter = StdoutEmitter()
 
         if self.transacting_power is READ_ONLY_INTERFACE:
             raise self.InterfaceError(str(READ_ONLY_INTERFACE))
@@ -443,13 +445,14 @@ class BlockchainInterface:
         # Sign
         #
 
+        # TODO: Show the USD Price
+        # Price Oracle
+        # https://api.coinmarketcap.com/v1/ticker/ethereum/
+        price = unsigned_transaction['gasPrice']
+        cost_wei = price * unsigned_transaction['gas']
+        cost = Web3.fromWei(cost_wei, 'gwei')
+
         if self.transacting_power.device:
-            price = unsigned_transaction['gasPrice']
-            cost_wei = price * unsigned_transaction['gas']
-            cost = Web3.fromWei(cost_wei, 'gwei')
-            # TODO: Show the USD Price
-            # Price Oracle
-            # https://api.coinmarketcap.com/v1/ticker/ethereum/
             emitter.message(f'Confirm transaction {transaction_name} on hardware wallet... ({cost} gwei @ {price})', color='yellow')
         signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction)
 
@@ -457,7 +460,7 @@ class BlockchainInterface:
         # Broadcast
         #
 
-        emitter.message(f'Broadcasting {transaction_name} Transaction...', color='yellow')
+        emitter.message(f'Broadcasting {transaction_name} Transaction ({cost} gwei @ {price})...', color='yellow')
         txhash = self.client.send_raw_transaction(signed_raw_transaction)
         try:
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT)
@@ -841,8 +844,7 @@ class BlockchainInterfaceFactory:
 
     CachedInterface = collections.namedtuple('CachedInterface', ['interface',    # type: BlockchainInterface
                                                                  'sync',
-                                                                 'emitter',
-                                                                 'gas_strategy'])
+                                                                 'emitter'])
 
     class FactoryError(Exception):
         pass
@@ -871,7 +873,6 @@ class BlockchainInterfaceFactory:
     @classmethod
     def register_interface(cls,
                            interface: BlockchainInterface,
-                           gas_strategy: Callable = None,
                            sync: bool = False,
                            emitter=None,
                            force: bool = False,
@@ -881,7 +882,7 @@ class BlockchainInterfaceFactory:
         if (provider_uri in cls._interfaces) and not force:
             raise cls.InterfaceAlreadyInitialized(f"A connection already exists for {provider_uri}. "
                                                   "Use .get_interface instead.")
-        cached = cls.CachedInterface(interface=interface, sync=sync, emitter=emitter, gas_strategy=gas_strategy)
+        cached = cls.CachedInterface(interface=interface, sync=sync, emitter=emitter)
         cls._interfaces[provider_uri] = cached
 
     @classmethod
@@ -904,12 +905,10 @@ class BlockchainInterfaceFactory:
             interface_class = cls._default_interface_class
         interface = interface_class(provider_uri=provider_uri,
                                     gas_strategy=gas_strategy,
-                                    *interface_args, **interface_kwargs)
+                                    *interface_args,
+                                    **interface_kwargs)
 
-        cls._interfaces[provider_uri] = cls.CachedInterface(interface=interface,
-                                                            sync=sync,
-                                                            emitter=emitter,
-                                                            gas_strategy=gas_strategy)
+        cls._interfaces[provider_uri] = cls.CachedInterface(interface=interface, sync=sync,  emitter=emitter)
 
     @classmethod
     def get_interface(cls, provider_uri: str = None) -> Interfaces:
@@ -930,7 +929,7 @@ class BlockchainInterfaceFactory:
                 raise cls.NoRegisteredInterfaces(f"There is no existing blockchain connection.")
 
         # Connect and Sync
-        interface, sync, emitter, gas_strategy = cached_interface
+        interface, sync, emitter = cached_interface
         if not interface.is_connected:
             interface.connect()
             if sync:

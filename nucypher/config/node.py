@@ -30,16 +30,14 @@ from constant_sorrow.constants import (
 )
 from twisted.logger import Logger
 from umbral.signing import Signature
-from web3 import gas_strategies
-from web3.gas_strategies.time_based import glacial_gas_price_strategy
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     InMemoryContractRegistry,
     LocalContractRegistry
 )
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
