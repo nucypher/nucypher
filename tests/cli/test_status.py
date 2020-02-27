@@ -28,6 +28,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.commands.status import status
 from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI
+from tests.fixtures import MIN_REWARD_RATE_RANGE
 
 
 def test_nucypher_status_network(click_runner, testerchain, agency_local_registry):
@@ -90,6 +91,24 @@ def test_nucypher_status_stakers(click_runner, agency_local_registry, stakers):
     assert re.search(r"Worker:\s+" + some_dude.worker_address, result.output, re.MULTILINE)
     assert re.search(r"Owned:\s+" + str(round(owned_tokens, 2)), result.output, re.MULTILINE)
     assert re.search(r"Staked: " + str(round(locked_tokens, 2)), result.output, re.MULTILINE)
+    _minimum, default, _maximum = MIN_REWARD_RATE_RANGE
+    assert f"Min reward rate: {default} wei" in result.output
+
+
+def test_nucypher_status_reward_range(click_runner, agency_local_registry, stakers):
+
+    # Get info about reward range
+    stakers_command = ('reward-range',
+                       '--registry-filepath', agency_local_registry.filepath,
+                       '--provider', TEST_PROVIDER_URI,
+                       '--poa')
+
+    result = click_runner.invoke(status, stakers_command, catch_exceptions=False)
+    assert result.exit_code == 0
+    minimum, default, maximum = MIN_REWARD_RATE_RANGE
+    assert f"{minimum} wei" in result.output
+    assert f"{default} wei" in result.output
+    assert f"{maximum} wei" in result.output
 
 
 def test_nucypher_status_locked_tokens(click_runner, testerchain, agency_local_registry, stakers):

@@ -14,7 +14,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 /**
 * @notice Contract holds policy data and locks fees
-* @dev |v2.1.3|
+* @dev |v2.2.1|
 */
 contract PolicyManager is Upgradeable {
     using SafeERC20 for NuCypherToken;
@@ -64,6 +64,18 @@ contract PolicyManager is Upgradeable {
         address indexed node,
         uint16 period
     );
+    event MinRewardRateSet(
+        address indexed node,
+        uint256 value
+    );
+    event MinRewardRateRangeSet(
+        address indexed sender,
+        // TODO #1501
+        // Range range
+        uint256 min,
+        uint256 defaultValue,
+        uint256 max
+    );
 
     struct ArrangementInfo {
         address node;
@@ -97,6 +109,12 @@ contract PolicyManager is Upgradeable {
         uint256 minRewardRate;
     }
 
+    struct Range {
+        uint256 min;
+        uint256 defaultValue;
+        uint256 max;
+    }
+
     bytes16 constant RESERVED_POLICY_ID = bytes16(0);
     address constant RESERVED_NODE = address(0);
     // controlled overflow to get max int256
@@ -106,6 +124,7 @@ contract PolicyManager is Upgradeable {
     uint32 public secondsPerPeriod;
     mapping (bytes16 => Policy) public policies;
     mapping (address => NodeInfo) public nodes;
+    Range public minRewardRateRange;
 
     /**
     * @notice Constructor sets address of the escrow contract
@@ -146,11 +165,52 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Set the minimum reward that the node will take
+    * @notice Set range for the minimum reward rate for all nodes
+    */
+    // TODO # 1501
+    // function setMinRewardRateRange(Range calldata _range) external onlyOwner {
+    function setMinRewardRateRange(uint256 _min, uint256 _default, uint256 _max) external onlyOwner {
+        require(_min <= _default && _default <= _max);
+        minRewardRateRange = Range(_min, _default, _max);
+        emit MinRewardRateRangeSet(msg.sender, _min, _default, _max);
+    }
+
+    /**
+    * @notice Set the minimum reward acceptable by node
+    * @dev Input value must be within `minRewardRateRange`
     */
     function setMinRewardRate(uint256 _minRewardRate) external {
-        NodeInfo storage node = nodes[msg.sender];
-        node.minRewardRate = _minRewardRate;
+        require(_minRewardRate >= minRewardRateRange.min &&
+            _minRewardRate <= minRewardRateRange.max,
+            "The min reward rate must be within permitted range");
+        NodeInfo storage nodeInfo = nodes[msg.sender];
+        if (nodeInfo.minRewardRate == _minRewardRate) {
+            return;
+        }
+        nodeInfo.minRewardRate = _minRewardRate;
+        emit MinRewardRateSet(msg.sender, _minRewardRate);
+    }
+
+    /**
+    * @notice Get the minimum reward rate acceptable by node
+    */
+    function getMinRewardRate(NodeInfo storage _nodeInfo) internal returns (uint256) {
+        // if minRewardRate has not been set or is outside the acceptable range
+        if (_nodeInfo.minRewardRate == 0 ||
+            _nodeInfo.minRewardRate < minRewardRateRange.min ||
+            _nodeInfo.minRewardRate > minRewardRateRange.max) {
+            return minRewardRateRange.defaultValue;
+        } else {
+            return _nodeInfo.minRewardRate;
+        }
+    }
+
+    /**
+    * @notice Get the minimum reward rate acceptable by node
+    */
+    function getMinRewardRate(address _node) public returns (uint256) {
+        NodeInfo storage nodeInfo = nodes[_node];
+        return getMinRewardRate(nodeInfo);
     }
 
     /**
@@ -195,7 +255,7 @@ contract PolicyManager is Upgradeable {
             NodeInfo storage nodeInfo = nodes[node];
             require(nodeInfo.lastMinedPeriod != 0 &&
                 nodeInfo.lastMinedPeriod < currentPeriod &&
-                policy.rewardRate >= nodeInfo.minRewardRate);
+                policy.rewardRate >= getMinRewardRate(nodeInfo));
             // Check default value for rewardDelta
             if (nodeInfo.rewardDelta[currentPeriod] == DEFAULT_REWARD_DELTA) {
                 nodeInfo.rewardDelta[currentPeriod] = int256(policy.rewardRate);
@@ -645,11 +705,25 @@ contract PolicyManager is Upgradeable {
         }
     }
 
+    /**
+    * @dev Get minRewardRateRange structure by delegatecall
+    */
+    function delegateGetMinRewardRateRange(address _target) internal returns (Range memory result) {
+        bytes32 memoryAddress = delegateGetData(_target, "minRewardRateRange()", 0, 0, 0);
+        assembly {
+            result := memoryAddress
+        }
+    }
+
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public {
         super.verifyState(_testTarget);
         require(address(delegateGet(_testTarget, "escrow()")) == address(escrow));
         require(uint32(delegateGet(_testTarget, "secondsPerPeriod()")) == secondsPerPeriod);
+        Range memory rangeToCheck = delegateGetMinRewardRateRange(_testTarget);
+        require(minRewardRateRange.min == rangeToCheck.min &&
+            minRewardRateRange.defaultValue == rangeToCheck.defaultValue &&
+            minRewardRateRange.max == rangeToCheck.max);
         Policy storage policy = policies[RESERVED_POLICY_ID];
         Policy memory policyToCheck = delegateGetPolicy(_testTarget, RESERVED_POLICY_ID);
         require(policyToCheck.sponsor == policy.sponsor &&

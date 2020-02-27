@@ -418,8 +418,11 @@ def grant(general_config,
         if any((value, rate)):
             raise click.BadOptionUsage(option_name="--value, --rate",
                                        message="Can't use --value or --rate with a federated Alice.")
-    elif not (bool(value) ^ bool(rate)):
+    elif bool(value) and bool(rate):
         raise click.BadOptionUsage(option_name="--rate", message="Can't use --value if using --rate")
+    elif not (bool(value) or bool(rate)):
+        rate = ALICE.default_rate  # TODO #1709
+        click.confirm(f"Confirm default rate {rate}?", abort=True)
 
     # Request
     grant_request = {

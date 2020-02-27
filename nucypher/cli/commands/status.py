@@ -43,7 +43,8 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_staking_address,
 )
-from nucypher.cli.painting import paint_contract_status, paint_stakers, paint_locked_tokens_status
+from nucypher.cli.painting import paint_contract_status, paint_stakers, paint_locked_tokens_status, \
+    paint_min_reward_range
 
 
 class RegistryOptions:
@@ -209,7 +210,21 @@ def events(general_config, registry_options, contract_name, from_block, to_block
                 emitter.echo(f"  - {event_record}")
 
 
+@status.command(name='reward-range')
+@group_registry_options
+@group_general_config
+def reward_range(general_config, registry_options):
+    """
+    Show information about the allowed range for min reward rate.
+    """
+    emitter = _setup_emitter(general_config)
+    registry = registry_options.get_registry(emitter, general_config.debug)
+    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
+    paint_min_reward_range(emitter=emitter, policy_agent=policy_agent)
+
+
 def _setup_emitter(general_config):
     emitter = general_config.emitter
     emitter.banner(NU_BANNER)
     return emitter
+

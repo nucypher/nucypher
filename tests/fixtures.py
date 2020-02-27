@@ -99,6 +99,7 @@ from tests.performance_mocks import mock_cert_storage, mock_cert_loading, mock_r
     mock_keep_learning
 
 test_logger = Logger("test-logger")
+MIN_REWARD_RATE_RANGE = (5, 10, 15)
 
 
 #
@@ -544,6 +545,11 @@ def _make_agency(testerchain, test_registry, token_economics):
     policy_agent = policy_manager_deployer.make_agent()                 # 3 Policy Agent
     _adjudicator_agent = adjudicator_deployer.make_agent()              # 4 Adjudicator
     _worklock_agent = worklock_deployer.make_agent()                    # 5 Worklock
+
+    # Set additional parameters
+    minimum, default, maximum = MIN_REWARD_RATE_RANGE
+    txhash = policy_agent.contract.functions.setMinRewardRateRange(minimum, default, maximum).transact()
+    _receipt = testerchain.wait_for_receipt(txhash)
 
     # TODO: Get rid of returning these agents here.
     # What's important is deploying and creating the first agent for each contract,

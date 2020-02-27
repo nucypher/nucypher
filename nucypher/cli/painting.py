@@ -36,7 +36,7 @@ from nucypher.blockchain.eth.agents import (
     PreallocationEscrowAgent,
     WorkLockAgent)
 from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME
-from nucypher.blockchain.eth.deployers import DispatcherDeployer, StakingInterfaceRouterDeployer
+from nucypher.blockchain.eth.deployers import DispatcherDeployer, StakingInterfaceRouterDeployer, PolicyManagerDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
@@ -338,6 +338,40 @@ Registry  ................ {registry.filepath}
         message = f"\nStakingInterface is not enrolled in {registry.filepath}"
         emitter.echo(message, color='yellow')
 
+    try:
+
+        policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
+        paint_min_reward_range(emitter, policy_agent)
+        emitter.echo(sep, nl=False)
+
+    except BaseContractRegistry.UnknownContract:
+        message = f"\n{PolicyManagerDeployer.contract_name} is not enrolled in {registry.filepath}"
+        emitter.echo(message, color='yellow')
+        emitter.echo(sep, nl=False)
+
+
+def paint_min_reward_range(emitter, policy_agent):
+    minimum, default, maximum = policy_agent.get_min_reward_rate_range()
+
+    range_payload = f"""
+Range of the minimum reward rate:
+    ~ Minimum ............ {prettify_eth_amount(minimum)}
+    ~ Default ............ {prettify_eth_amount(default)}
+    ~ Maximum ............ {prettify_eth_amount(maximum)}"""
+    emitter.echo(range_payload)
+
+
+def paint_min_rate(emitter, registry, policy_agent, staker_address):
+    paint_min_reward_range(emitter, policy_agent)
+    minimum = policy_agent.min_reward_rate(staker_address)
+    raw_minimum = policy_agent.raw_min_reward_rate(staker_address)
+
+    rate_payload = f"""
+Minimum reward rate:
+    ~ Previously set ....... {prettify_eth_amount(raw_minimum)}
+    ~ Effective ............ {prettify_eth_amount(minimum)}"""
+    emitter.echo(rate_payload)
+
 
 def paint_multisig_contract_info(emitter, multisig_agent, token_agent):
 
@@ -450,7 +484,7 @@ See https://docs.nucypher.com/en/latest/guides/staking_guide.html'''
 
 def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_address: str = None):
     headers = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination')
-    staker_headers = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees')
+    staker_headers = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees', 'Min reward rate')
 
     stakers = stakeholder.get_stakers()
     if not stakers:
@@ -473,14 +507,16 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
             emitter.echo(f"There are no active stakes\n")
 
         fees = staker.policy_agent.get_reward_amount(staker.checksum_address)
-        gwei_fees = f"{Web3.fromWei(fees, 'gwei')} Gwei"
+        pretty_fees = prettify_eth_amount(fees)
         last_confirmed = staker.staking_agent.get_last_active_period(staker.checksum_address)
         missing = staker.missing_confirmations
+        min_reward_rate = prettify_eth_amount(staker.min_reward_rate)
 
         staker_data = [f'Missing {missing} confirmation{"s" if missing > 1 else ""}' if missing else f'Confirmed #{last_confirmed}',
                        f'{"Yes" if staker.is_restaking else "No"} ({"Locked" if staker.restaking_lock_enabled else "Unlocked"})',
                        "Yes" if bool(staker.is_winding_down) else "No",
-                       gwei_fees]
+                       pretty_fees,
+                       min_reward_rate]
 
         emitter.echo(f"\nStaker {staker.checksum_address} ════", bold=True, color='red' if missing else 'green')
         emitter.echo(f"Worker {staker.worker_address} ════")
@@ -695,8 +731,11 @@ def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> N
         else:
             emitter.echo(f"{worker}")
 
-        fees = policy_agent.get_reward_amount(staker)
-        emitter.echo(f"{tab}  Unclaimed fees: {Web3.fromWei(fees, 'gwei')} Gwei")
+        fees = prettify_eth_amount(policy_agent.get_reward_amount(staker))
+        emitter.echo(f"{tab}  Unclaimed fees: {fees}")
+
+        min_rate = prettify_eth_amount(policy_agent.get_min_reward_rate(staker))
+        emitter.echo(f"{tab}  Min reward rate: {min_rate}")
 
 
 def paint_preallocation_status(emitter, preallocation_agent, token_agent) -> None:
