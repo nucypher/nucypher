@@ -25,6 +25,7 @@ from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
 import time
+from datetime import datetime
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
@@ -872,7 +873,6 @@ class Bob(Character):
 
         return controller
 
-
 class Ursula(Teacher, Character, Worker):
 
     banner = URSULA_BANNER
@@ -882,7 +882,7 @@ class Ursula(Teacher, Character, Worker):
     # TLSHostingPower still can enjoy default status, but on a different class  NRN
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
-    _pruning_interval = 60 * 60
+    _pruning_interval = 20
 
     class NotEnoughUrsulas(Learner.NotEnoughTeachers, StakingEscrowAgent.NotEnoughStakers):
         """
@@ -1072,7 +1072,8 @@ class Ursula(Teacher, Character, Worker):
             self.log.debug(message)
 
     def __prune_arrangements(self) -> None:
-        result = self.datastore.del_expired_policy_arrangements()
+        result = self.datastore.del_expired_policy_arrangements(
+            now=datetime.fromtimestamp(self._arrangement_pruning_task.clock.seconds()))
         self.log.debug(f"Pruned {result} policy arrangements.")
         return
 

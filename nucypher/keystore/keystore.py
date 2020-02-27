@@ -138,6 +138,16 @@ class KeyStore(object):
             raise NotFound("No PolicyArrangement {} found.".format(arrangement_id))
         return policy_arrangement
 
+    def get_all_policy_arrangements(self, session=None) -> List[PolicyArrangement]:
+        """
+        Returns all the PolicyArrangements
+
+        :return: The list of PolicyArrangement objects
+        """
+        session = session or self._session_on_init_thread
+
+        return session.query(PolicyArrangement).all()
+
     def del_policy_arrangement(self, arrangement_id: bytes, session=None):
         """
         Deletes a PolicyArrangement from the Keystore.
@@ -147,19 +157,19 @@ class KeyStore(object):
         session.query(PolicyArrangement).filter_by(id=arrangement_id).delete()
         session.commit()
 
-    def del_expired_policy_arrangements(self, session=None) -> int:
+    def del_expired_policy_arrangements(self, session=None, now=None) -> int:
         """
         Deletes all expired PolicyArrangements from the Keystore.
         """
         session = session or self._session_on_init_thread
-        now = datetime.now()
-        result = session.query(PolicyArrangement).filter_by(expiration=now >= PolicyArrangement.expiration)
+        now = now or datetime.now()
+        result = session.query(PolicyArrangement).filter(PolicyArrangement.expiration < now)
         deleted_records = result.delete()
         return deleted_records
 
     def attach_kfrag_to_saved_arrangement(self, alice, id_as_hex, kfrag, session=None):
         session = session or self._session_on_init_thread
-        
+
         policy_arrangement = session.query(PolicyArrangement).filter_by(id=id_as_hex.encode()).first()
 
         if policy_arrangement is None:

@@ -3,6 +3,7 @@ import os
 
 import maya
 import pytest
+import time
 
 from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
 from twisted.internet.task import Clock
@@ -206,21 +207,24 @@ def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
                                 enacted_federated_policy, capsule_side_channel):
 
     clock = Clock()
-    for u in federated_ursulas:
-        u._arrangement_pruning_task.stop()
-        u._arrangement_pruning_task.clock = clock
-        u._arrangement_pruning_task.start(interval=Ursula._pruning_interval)
-    clock.advance(Ursula._pruning_interval*2)
+    clock.advance(time.time())
+    for urs in federated_ursulas:
+        urs._arrangement_pruning_task.stop()
+        urs._arrangement_pruning_task.clock = clock
+        urs._arrangement_pruning_task.start(interval=Ursula._pruning_interval)
+
+    clock.advance(86400 * 7)  # 1 week
 
     enrico = capsule_side_channel.enrico
     message_kit = capsule_side_channel()
     treasure_map = enacted_federated_policy.treasure_map
     alice_verifying_key = enacted_federated_policy.alice.stamp
 
-    with pytest.raises(Exception):  # FIXME
+    with pytest.raises(Ursula.NotEnoughUrsulas):
         federated_bob.retrieve(
             message_kit,
             enrico=enrico,
             alice_verifying_key=alice_verifying_key,
             label=enacted_federated_policy.label,
-            treasure_map=treasure_map)
+            treasure_map=treasure_map,
+            use_attached_cfrags=False)
