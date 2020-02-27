@@ -22,7 +22,6 @@ import click
 from constant_sorrow import constants
 from constant_sorrow.constants import (
     BARE,
-    IDLE,
     FULL
 )
 
@@ -30,13 +29,13 @@ from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency, MultiSigAgent
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     InMemoryContractRegistry,
     RegistrySourceManager,
     GithubRegistrySource
 )
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.actions import (
     get_client_password,
@@ -44,6 +43,7 @@ from nucypher.cli.actions import (
     confirm_deployment,
     establish_deployer_registry
 )
+from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
     option_config_root,
@@ -54,7 +54,6 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_contract_name
 )
-from nucypher.cli.config import group_general_config
 from nucypher.cli.painting import (
     echo_solidity_version,
     paint_staged_deployment,
@@ -65,16 +64,17 @@ from nucypher.cli.painting import (
     paint_multisig_contract_info,
     paint_multisig_proposed_transaction
 )
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE, WEI
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE, GAS_STRATEGY_CHOICES
+from nucypher.cli.types import WEI
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-
 
 option_deployer_address = click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 option_registry_infile = click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
 option_registry_outfile = click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
 option_target_address = click.option('--target-address', help="Address of the target contract", type=EIP55_CHECKSUM_ADDRESS)
 option_gas = click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
-option_network = click.option('--network', help="Name of NuCypher network", type=click.Choice(NetworksInventory.networks))
+option_gas_strategy = click.option('--gas-strategy', help="Operate with a specified gas price strategy", type=GAS_STRATEGY_CHOICES, default=None)
+option_network = click.option('--network', help="Name of NuCypher network", type=click.Choice(NetworksInventory.networks), default=None)
 option_ignore_deployed = click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
 option_ignore_solidity_version = click.option('--ignore-solidity-check', help="Ignore solidity version compatibility check", is_flag=True, default=None)
 
@@ -92,7 +92,7 @@ def _pre_launch_warnings(emitter, etherscan, hw_wallet):
                      color='yellow')
 
 
-def _initialize_blockchain(poa, provider_uri, emitter, ignore_solidity_check):
+def _initialize_blockchain(poa, provider_uri, emitter, ignore_solidity_check, gas_strategy):
     if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
         # Note: For test compatibility.
         deployer_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
@@ -100,7 +100,8 @@ def _initialize_blockchain(poa, provider_uri, emitter, ignore_solidity_check):
                                                          ignore_solidity_check=ignore_solidity_check)
         BlockchainInterfaceFactory.register_interface(interface=deployer_interface,
                                                       sync=False,
-                                                      emitter=emitter)
+                                                      emitter=emitter,
+                                                      gas_strategy=gas_strategy)
     else:
         deployer_interface = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
 
@@ -121,8 +122,9 @@ class ActorOptions:
 
     def __init__(self, provider_uri, deployer_address, contract_name,
                  registry_infile, registry_outfile, hw_wallet, dev, force, poa, config_root, etherscan,
-                 se_test_mode, ignore_solidity_check):
+                 se_test_mode, ignore_solidity_check, gas_strategy):
         self.provider_uri = provider_uri
+        self.gas_strategy = gas_strategy
         self.deployer_address = deployer_address
         self.contract_name = contract_name
         self.registry_infile = registry_infile
@@ -139,7 +141,11 @@ class ActorOptions:
     def create_actor(self, emitter):
 
         _ensure_config_root(self.config_root)
-        deployer_interface = _initialize_blockchain(self.poa, self.provider_uri, emitter, self.ignore_solidity_check)
+        deployer_interface = _initialize_blockchain(poa=self.poa,
+                                                    provider_uri=self.provider_uri,
+                                                    emitter=emitter,
+                                                    ignore_solidity_check=self.ignore_solidity_check,
+                                                    gas_strategy=self.gas_strategy)
 
         # Warnings
         _pre_launch_warnings(emitter, self.etherscan, self.hw_wallet)
@@ -186,6 +192,7 @@ class ActorOptions:
 group_actor_options = group_options(
     ActorOptions,
     provider_uri=option_provider_uri(),
+    gas_strategy=option_gas_strategy,
     contract_name=option_contract_name,
     poa=option_poa,
     force=option_force,
@@ -257,14 +264,19 @@ def download_registry(general_config, config_root, registry_outfile, network, fo
 @option_deployer_address
 @option_poa
 @option_ignore_solidity_version
-def inspect(general_config, provider_uri, config_root, registry_infile, deployer_address, poa, ignore_solidity_check):
+@option_gas_strategy
+def inspect(general_config, provider_uri, config_root, registry_infile, deployer_address, poa, ignore_solidity_check, gas_strategy):
     """
     Echo owner information and bare contract metadata.
     """
     # Init
     emitter = general_config.emitter
     _ensure_config_root(config_root)
-    _initialize_blockchain(poa, provider_uri, emitter, ignore_solidity_check)
+    _initialize_blockchain(poa=poa,
+                           provider_uri=provider_uri,
+                           emitter=emitter,
+                           ignore_solidity_check=ignore_solidity_check,
+                           gas_strategy=gas_strategy)
 
     local_registry = establish_deployer_registry(emitter=emitter,
                                                  registry_infile=registry_infile,
@@ -572,7 +584,11 @@ def multisig(general_config, actor_options, action, proposal):
     # Init
     emitter = general_config.emitter
     _ensure_config_root(actor_options.config_root)
-    blockchain = _initialize_blockchain(actor_options.poa, actor_options.provider_uri, emitter)
+    blockchain = _initialize_blockchain(poa=actor_options.poa,
+                                        provider_uri=actor_options.provider_uri,
+                                        emitter=emitter,
+                                        ignore_solidity_check=actor_options.ignore_solididty_check,
+                                        gas_strategy=actor_options.gas_strategy)
     local_registry = establish_deployer_registry(emitter=emitter,
                                                  use_existing_registry=True,
                                                  )

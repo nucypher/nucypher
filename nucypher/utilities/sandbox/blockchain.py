@@ -24,6 +24,7 @@ import maya
 from eth_tester.exceptions import TransactionFailed
 from twisted.logger import Logger
 from web3 import Web3
+from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.economics import StandardTokenEconomics, StandardTokenEconomics, BaseEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
@@ -128,7 +129,10 @@ class TesterBlockchain(BlockchainDeployerInterface):
         return 0
 
     def attach_middleware(self):
-        super().attach_middleware()
+        # For use with Proof-Of-Authority test-blockchains
+        if self.poa is True:
+            self.log.debug('Injecting POA middleware at layer 0')
+            self.client.inject_middleware(geth_poa_middleware, layer=0)
         if self.free_transactions:
             self.w3.eth.setGasPriceStrategy(self.free_gas_price_strategy)
 

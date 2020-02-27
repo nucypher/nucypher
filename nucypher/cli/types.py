@@ -20,6 +20,7 @@ from ipaddress import ip_address
 import click
 from eth_utils import to_checksum_address
 
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.networks import NetworksInventory
 
 
@@ -61,3 +62,5 @@ EXISTING_READABLE_FILE = click.Path(exists=True, dir_okay=False, file_okay=True,
 # Network
 NETWORK_PORT = click.IntRange(min=0, max=65535, clamp=False)
 IPV4_ADDRESS = IPv4Address()
+
+GAS_STRATEGY_CHOICES = click.Choice(list(BlockchainInterface.GAS_STRATEGIES.keys()))

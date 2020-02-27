@@ -367,8 +367,8 @@ class CharacterConfiguration(BaseConfiguration):
             if self.registry_filepath:
                 payload.update(dict(registry_filepath=self.registry_filepath))
 
-            # Gas
-            payload.update(dict(gas_price_strategy=self.gas_strategy))
+            # Gas Price
+            payload.update(dict(gas_strategy=self.gas_strategy))
 
         # Merge with base payload
         base_payload = super().static_payload()

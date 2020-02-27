@@ -38,11 +38,12 @@ from constant_sorrow.constants import (
 from eth_tester import EthereumTester
 from eth_utils import to_checksum_address
 from twisted.logger import Logger
-from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider, gas_strategies
+from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider, middleware
 from web3.contract import ContractConstructor, Contract
 from web3.contract import ContractFunction
 from web3.exceptions import TimeExhausted
 from web3.exceptions import ValidationError
+from web3.gas_strategies import time_based
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.clients import NuCypherGethProcess
@@ -79,10 +80,10 @@ class BlockchainInterface:
     NULL_ADDRESS = '0x' + '0' * 40
 
     DEFAULT_GAS_STRATEGY = 'medium'
-    GAS_STRATEGIES = {'glacial': gas_strategies.time_based.glacial_gas_price_strategy,
-                      'slow': gas_strategies.time_based.slow_gas_price_strategy,
-                      'medium': gas_strategies.time_based.medium_gas_price_strategy,
-                      'fast': gas_strategies.time_based.fast_gas_price_strategy,
+    GAS_STRATEGIES = {'glacial': time_based.glacial_gas_price_strategy,
+                      'slow': time_based.slow_gas_price_strategy,
+                      'medium': time_based.medium_gas_price_strategy,
+                      'fast': time_based.fast_gas_price_strategy,
                       # 'rpc': gas_strategies.rpc.rpc_gas_price_strategy  # TODO: Investigate compatibility with rpc
                       }
 
@@ -110,7 +111,7 @@ class BlockchainInterface:
         pass
 
     def __init__(self,
-                 poa: bool = True,
+                 poa: bool = False,
                  light: bool = False,
                  provider_process: NuCypherGethProcess = NO_PROVIDER_PROCESS,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
@@ -196,8 +197,10 @@ class BlockchainInterface:
         try:
             gas_strategy = self.GAS_STRATEGIES[gas_strategy]
         except KeyError:
-            if not callable(gas_strategy):
+            if gas_strategy and not callable(gas_strategy):
                 raise ValueError(f"{gas_strategy} must be callable to be a valid gas strategy.")
+            else:
+                gas_strategy = self.GAS_STRATEGIES[self.DEFAULT_GAS_STRATEGY]
         self.gas_strategy = gas_strategy
 
     def __repr__(self):
@@ -232,7 +235,10 @@ class BlockchainInterface:
 
         # Gas Price Strategy
         self.log.debug('Injecting POA middleware at layer 0')
-        self.client.add_middleware(self.gas_strategy)
+        self.client.w3.eth.setGasPriceStrategy(self.gas_strategy)
+        self.client.w3.middleware_onion.add(middleware.time_based_cache_middleware)
+        self.client.w3.middleware_onion.add(middleware.latest_block_based_cache_middleware)
+        self.client.w3.middleware_onion.add(middleware.simple_cache_middleware)
 
     def connect(self):
 
@@ -487,7 +493,7 @@ class BlockchainInterface:
 
     @validate_checksum_address
     def send_transaction(self,
-                         contract_function: ContractFunction,
+                         contract_function: Union[ContractFunction, ContractConstructor],
                          sender_address: str,
                          payload: dict = None,
                          transaction_gas_limit: int = None,
@@ -816,7 +822,8 @@ class BlockchainInterfaceFactory:
 
     CachedInterface = collections.namedtuple('CachedInterface', ['interface',    # type: BlockchainInterface
                                                                  'sync',
-                                                                 'emitter'])
+                                                                 'emitter',
+                                                                 'gas_strategy'])
 
     class FactoryError(Exception):
         pass
@@ -845,6 +852,7 @@ class BlockchainInterfaceFactory:
     @classmethod
     def register_interface(cls,
                            interface: BlockchainInterface,
+                           gas_strategy: Callable = None,
                            sync: bool = False,
                            emitter=None,
                            force: bool = False,
@@ -854,13 +862,13 @@ class BlockchainInterfaceFactory:
         if (provider_uri in cls._interfaces) and not force:
             raise cls.InterfaceAlreadyInitialized(f"A connection already exists for {provider_uri}. "
                                                   "Use .get_interface instead.")
-        cached = cls.CachedInterface(interface=interface, sync=sync, emitter=emitter)
+        cached = cls.CachedInterface(interface=interface, sync=sync, emitter=emitter, gas_strategy=gas_strategy)
         cls._interfaces[provider_uri] = cached
 
     @classmethod
     def initialize_interface(cls,
                              provider_uri: str,
-                             gas_strategy: Callable,
+                             gas_strategy: Callable = None,
                              sync: bool = False,
                              emitter=None,
                              interface_class: Interfaces = None,
@@ -881,7 +889,8 @@ class BlockchainInterfaceFactory:
 
         cls._interfaces[provider_uri] = cls.CachedInterface(interface=interface,
                                                             sync=sync,
-                                                            emitter=emitter)
+                                                            emitter=emitter,
+                                                            gas_strategy=gas_strategy)
 
     @classmethod
     def get_interface(cls, provider_uri: str = None) -> Interfaces:
@@ -902,7 +911,7 @@ class BlockchainInterfaceFactory:
                 raise cls.NoRegisteredInterfaces(f"There is no existing blockchain connection.")
 
         # Connect and Sync
-        interface, sync, emitter = cached_interface
+        interface, sync, emitter, gas_strategy = cached_interface
         if not interface.is_connected:
             interface.connect()
             if sync:
@@ -910,10 +919,13 @@ class BlockchainInterfaceFactory:
         return interface
 
     @classmethod
-    def get_or_create_interface(cls, provider_uri: str) -> BlockchainInterface:
+    def get_or_create_interface(cls,
+                                provider_uri: str,
+                                gas_strategy: str = None
+                                ) -> BlockchainInterface:
         try:
             interface = cls.get_interface(provider_uri=provider_uri)
         except (cls.InterfaceNotInitialized, cls.NoRegisteredInterfaces):
-            cls.initialize_interface(provider_uri=provider_uri)
+            cls.initialize_interface(provider_uri=provider_uri, gas_strategy=gas_strategy)
             interface = cls.get_interface(provider_uri=provider_uri)
         return interface
