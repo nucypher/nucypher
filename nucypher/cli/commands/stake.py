@@ -408,6 +408,9 @@ def detach_worker(general_config, transacting_staker_options, config_file, force
 
     password = transacting_staker_options.get_password(blockchain, client_account)
 
+    if not force:
+        click.confirm("Are you sure you want to detach your worker?", abort=True)
+
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
     receipt = STAKEHOLDER.detach_worker()
 
