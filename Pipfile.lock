@@ -47,10 +47,10 @@
         },
         "autobahn": {
             "hashes": [
-                "sha256:1ec603ea374a3b9d85540c499709c41f35f7c6e288b571d12da14aba6c381211",
-                "sha256:efb1adf87b62a960c9851ab30a87b62a90838bd8f83f0d8d75174688873cc567"
+                "sha256:8ece7d16e7998c2ed6210c278b4f59588b850e071af0f3fa98d2f2dbe1f62ce5",
+                "sha256:8fb9f3e7f6de5b7ee5479a56582873b927cc25d72319d0a86f43d992048d8171"
             ],
-            "version": "==20.2.1"
+            "version": "==20.2.2"
         },
         "automat": {
             "hashes": [
@@ -332,11 +332,11 @@
         },
         "flask-limiter": {
             "hashes": [
-                "sha256:905c35cd87bf60c92fd87922ae23fe27aa5fb31980bab31fc00807adee9f5a55",
-                "sha256:9087984ae7eeb862f93bf5b18477a5e5b1e0c907647ae74fba1c7e3f1de63d6f"
+                "sha256:d984a57ef37acb6eee29edc864ff22cd4cf090845f06968c015093ffd91e96f1",
+                "sha256:db2a069402977927282b0fcf650753bfcb50488028def9f5b2398e1d525f2f9f"
             ],
             "index": "pypi",
-            "version": "==1.1.0"
+            "version": "==1.2.1"
         },
         "flask-sqlalchemy": {
             "hashes": [
@@ -419,10 +419,10 @@
         },
         "limits": {
             "hashes": [
-                "sha256:19bc9e6f6c64e8edfc7d18734a89486cdadbad816a81673c35669a1d1cac6d5d",
-                "sha256:d05ba12c94ea8ab7a54cfa9c55ec46882790fae7e389743c0abea8e58fa1f886"
+                "sha256:0e5f8b10f18dd809eb2342f5046eb9aa5e4e69a0258567b5f4aa270647d438b3",
+                "sha256:f0c3319f032c4bfad68438ed1325c0fac86dac64582c7c25cddc87a0b658fa20"
             ],
-            "version": "==1.5"
+            "version": "==1.5.1"
         },
         "lru-dict": {
             "hashes": [
@@ -649,10 +649,10 @@
         },
         "pyhamcrest": {
             "hashes": [
-                "sha256:36cda5e849e3ee9ce54628667471e5e769f596259bb3c13c3596f6059a615ef8",
-                "sha256:5959cb4ab465b303522d2e0d270a6ee581c3ad9ba419e304bb6ebe50a60ea37a"
+                "sha256:55abfc14ec38ed2bd6093add3be72385c1b7fd8e6aeb27448c00f95cb501c60e",
+                "sha256:9f12b9b3b109d4877b2a1a42a9fb8acbf350213d3b1873eecf6eb07d6ac3caef"
             ],
-            "version": "==2.0.0"
+            "version": "==2.0.1"
         },
         "pynacl": {
             "hashes": [
@@ -904,11 +904,11 @@
         },
         "web3": {
             "hashes": [
-                "sha256:8def170567698f09f6ad1460f6a2dfba4a454b7ee30060c3f1ee7ed0273b91b8",
-                "sha256:be1b7109d6dc5b7340df79976b3e52adcaca309850b74f98f6ed8a616299c458"
+                "sha256:16f34e3af466fbdf6c3c41b05e1d7d74d71083d9189f181cc8fd352711b4c6da",
+                "sha256:59df0e25ca45cf03933c551811413e43975f36c6c2a7e5eb2fe8da11c2bfbb59"
             ],
             "index": "pypi",
-            "version": "==5.5.1"
+            "version": "==5.6.0"
         },
         "websockets": {
             "hashes": [
