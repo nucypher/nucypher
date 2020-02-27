@@ -1561,6 +1561,7 @@ class StakeHolder(Staker):
                  checksum_addresses: set = None,
                  signer: Signer = None,
                  password: str = None,
+                 is_transacting: bool = False,
                  *args, **kwargs):
 
         self.staking_interface_agent = None
@@ -1577,7 +1578,8 @@ class StakeHolder(Staker):
                 message = f"Account {initial_address} is not known by this Ethereum client. Is it a HW account? " \
                           f"If so, make sure that your device is plugged in and you use the --hw-wallet flag."
                 raise Wallet.UnknownAccount(message)
-            self.assimilate(checksum_address=initial_address, password=password)
+            if is_transacting:
+                self.assimilate(checksum_address=initial_address, password=password)
 
     @validate_checksum_address
     def assimilate(self, checksum_address: str, password: str = None) -> None:

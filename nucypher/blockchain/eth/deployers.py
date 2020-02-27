@@ -279,7 +279,7 @@ class UpgradeableContractMixin:
                                                             proxy_name=self._proxy_deployer.contract_name)
         return proxy_contract
 
-    def get_proxy_deployer(self) -> BaseContractDeployer:
+    def acget_proxy_deployer(self) -> BaseContractDeployer:
         principal_contract = self.get_principal_contract()
         proxy_deployer = self._proxy_deployer(registry=self.registry,
                                               deployer_address=self.deployer_address,

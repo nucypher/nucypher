@@ -164,6 +164,8 @@ class StakerOptions:
 
         return stakeholder_config.produce(
             initial_address=initial_address,
+            # individual_allocation=individual_allocation,  # FIXME
+            is_transacting=False,
             *args, **kwargs
         )
 
