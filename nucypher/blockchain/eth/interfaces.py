@@ -438,7 +438,12 @@ class BlockchainInterface:
         #
 
         if self.transacting_power.device:
-            emitter.message(f'Confirm transaction {transaction_name} on hardware wallet...', color='yellow')
+            cost_wei = unsigned_transaction['gasPrice'] * unsigned_transaction['gas']
+            cost = Web3.fromWei(cost_wei, 'gwei')
+            # TODO: Show the USD Price
+            # Price Oracle
+            # https://api.coinmarketcap.com/v1/ticker/ethereum/
+            emitter.message(f'Confirm transaction {transaction_name} on hardware wallet... ({cost} gwei)', color='yellow')
         signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction)
 
         #
