@@ -1482,10 +1482,8 @@ class StakeHolder(Staker):
         def __init__(self,
                      registry: BaseContractRegistry,
                      client_addresses: set = None,
-                     keyfiles: List[str] = None,
                      signer=None):
 
-            self.__keyfiles = keyfiles or list()
             self.__local_accounts = dict()
             self.__client_accounts = set()  # Note: Account index is meaningless here
             self.__transacting_powers = dict()
@@ -1512,12 +1510,6 @@ class StakeHolder(Staker):
             if self.__signer:
                 signer_accounts = self.__signer.accounts()
                 self.__client_accounts.update(signer_accounts)
-            for keyfile in self.__keyfiles:
-                try:
-                    account = to_checksum_address(keyfile.split('--')[-1])
-                    self.__local_accounts[account] = keyfile
-                except ValueError:
-                    raise ValueError(f"Key files must be in the geth wallet format; {keyfile} is invalid.")
             client_accounts = self.blockchain.client.accounts  # Accounts via connected provider
             self.__client_accounts.update(client_accounts)
 
@@ -1555,7 +1547,6 @@ class StakeHolder(Staker):
                  is_me: bool = True,
                  initial_address: str = None,
                  checksum_addresses: set = None,
-                 keyfiles: List[str] = None,
                  signer: str = None,
                  password: str = None,
                  *args, **kwargs):
@@ -1568,7 +1559,6 @@ class StakeHolder(Staker):
         # Wallet
         self.wallet = self.StakingWallet(registry=self.registry,
                                          client_addresses=checksum_addresses,
-                                         keyfiles=keyfiles,
                                          signer=signer)
         if initial_address:
             # If an initial address was passed,

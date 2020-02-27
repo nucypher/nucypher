@@ -23,7 +23,6 @@ from nucypher.blockchain.eth.constants import MAX_UINT16
 from nucypher.blockchain.eth.events import EventRecord
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
-from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU, StakeList
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli import painting, actions
@@ -183,12 +182,11 @@ class TransactingStakerOptions:
 
     __option_name__ = 'transacting_staker_options'
 
-    def __init__(self, staker_options, hw_wallet, beneficiary_address, allocation_filepath, keyfile):
+    def __init__(self, staker_options, hw_wallet, beneficiary_address, allocation_filepath):
         self.staker_options = staker_options
         self.hw_wallet = hw_wallet
         self.beneficiary_address = beneficiary_address
         self.allocation_filepath = allocation_filepath
-        self.keyfile = keyfile
 
     def create_character(self, emitter, config_file):
 
@@ -229,7 +227,6 @@ class TransactingStakerOptions:
             config_file,
             individual_allocation=individual_allocation,
             initial_address=initial_address,
-            keyfiles=[self.keyfile] if self.keyfile else None,  # TODO: Accept multiple?,
         )
 
     def get_blockchain(self):
@@ -248,8 +245,6 @@ group_transacting_staker_options = group_options(
     hw_wallet=option_hw_wallet,
     beneficiary_address=click.option('--beneficiary-address', help="Address of a pre-allocation beneficiary", type=EIP55_CHECKSUM_ADDRESS),
     allocation_filepath=click.option('--allocation-filepath', help="Path to individual allocation file", type=EXISTING_READABLE_FILE),
-    keyfile=click.option('--keyfile', default=None, type=EXISTING_READABLE_FILE),
-
 )
 
 
