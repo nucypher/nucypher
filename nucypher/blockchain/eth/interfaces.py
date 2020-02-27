@@ -61,7 +61,8 @@ from nucypher.blockchain.eth.providers import (
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import prettify_eth_amount
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.characters.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
+from nucypher.utilities.logging import GlobalLoggerSettings
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
@@ -111,6 +112,7 @@ class BlockchainInterface:
         pass
 
     def __init__(self,
+                 emitter = None,
                  poa: bool = False,
                  light: bool = False,
                  provider_process: NuCypherGethProcess = NO_PROVIDER_PROCESS,
@@ -429,7 +431,11 @@ class BlockchainInterface:
         # Setup
         #
 
-        emitter = StdoutEmitter()  # TODO: Move this to singleton?
+        if GlobalLoggerSettings._json_ipc:
+            emitter = JSONRPCStdoutEmitter()
+        else:
+            emitter = StdoutEmitter()  # TODO: Move this to singleton - I do not approve... nor does Bogdan?
+
         if self.transacting_power is READ_ONLY_INTERFACE:
             raise self.InterfaceError(str(READ_ONLY_INTERFACE))
 

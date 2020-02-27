@@ -73,7 +73,9 @@ def initialize_sentry(dsn: str):
 
 
 class GlobalLoggerSettings:
+
     log_level = LogLevel.levelWithName("info")
+    _json_ipc = False  # TODO: Oh no...
 
     @classmethod
     def set_log_level(cls, log_level_name):

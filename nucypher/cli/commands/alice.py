@@ -25,6 +25,7 @@ from nucypher.characters.control.interfaces import AliceInterface
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import get_nucypher_password, select_client_account, get_client_password, \
     get_or_update_configuration
+from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -71,7 +72,7 @@ class AliceConfigOptions:
     __option_name__ = 'config_options'
 
     def __init__(self, dev, network, provider_uri, geth, federated_only, discovery_port,
-                 pay_with, registry_filepath, middleware):
+                 pay_with, registry_filepath, middleware, gas_strategy):
 
         if federated_only and geth:
             raise click.BadOptionUsage(
@@ -87,6 +88,7 @@ class AliceConfigOptions:
         self.dev = dev
         self.domains = {network} if network else None
         self.provider_uri = provider_uri
+        self.gas_strategy = gas_strategy
         self.geth = geth
         self.federated_only = federated_only
         self.eth_node = eth_node
@@ -112,6 +114,7 @@ class AliceConfigOptions:
                 domains={TEMPORARY_DOMAIN},
                 provider_process=self.eth_node,
                 provider_uri=self.provider_uri,
+                gas_strategy=self.gas_strategy,
                 federated_only=True)
 
         else:
@@ -123,6 +126,7 @@ class AliceConfigOptions:
                     domains=self.domains,
                     provider_process=self.eth_node,
                     provider_uri=self.provider_uri,
+                    gas_strategy=self.gas_strategy,
                     filepath=config_file,
                     rest_port=self.discovery_port,
                     checksum_address=self.pay_with,
@@ -139,13 +143,14 @@ group_config_options = group_options(
     dev=option_dev,
     network=option_network,
     provider_uri=option_provider_uri(),
+    gas_strategy=option_gas_strategy,
     geth=option_geth,
     federated_only=option_federated_only,
     discovery_port=option_discovery_port(),
     pay_with=option_pay_with,
     registry_filepath=option_registry_filepath,
     middleware=option_middleware,
-    )
+)
 
 
 class AliceFullConfigOptions:
