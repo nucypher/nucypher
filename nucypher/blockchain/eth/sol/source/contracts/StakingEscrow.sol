@@ -34,12 +34,13 @@ contract WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v2.2.3|
+* @dev |v2.3.1|
 */
 contract StakingEscrow is Issuer {
     using AdditionalMath for uint256;
     using AdditionalMath for uint16;
 
+    event AllowableLockedTokensUpdated(uint256 min, uint256 max);
     event Deposited(address indexed staker, uint256 value, uint16 periods);
     event Locked(address indexed staker, uint256 value, uint16 firstPeriod, uint16 periods);
     event Divided(
@@ -431,8 +432,32 @@ contract StakingEscrow is Issuer {
     }
 
     //------------------------Main methods------------------------
+
+    /**
+    * @notice Update bounds of allowed locked tokens if values are less than previously defined
+    * @dev Only from worklock contract
+    * @param _min New value for `minAllowableLockedTokens`
+    * @param _max New value for `maxAllowableLockedTokens`
+    */
+    function updateAllowableLockedTokens(uint256 _min, uint256 _max) external {
+        require(msg.sender == address(workLock));
+        bool updated = false;
+        if (minAllowableLockedTokens > _min) {
+            minAllowableLockedTokens = _min;
+            updated = true;
+        }
+        if (maxAllowableLockedTokens > _max) {
+            maxAllowableLockedTokens = _max;
+            updated = true;
+        }
+        if (updated) {
+            emit AllowableLockedTokensUpdated(minAllowableLockedTokens, maxAllowableLockedTokens);
+        }
+    }
+
     /**
     * @notice Start or stop measuring the work of a staker
+    * @dev Only from worklock contract
     * @param _staker Staker
     * @param _measureWork Value for `measureWork` parameter
     * @return Work that was previously done

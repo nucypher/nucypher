@@ -201,4 +201,9 @@ contract WorkLockForStakingEscrowMock {
     function setWorkMeasurement(address _staker, bool _measureWork) external returns (uint256) {
         return escrow.setWorkMeasurement(_staker, _measureWork);
     }
+
+    function updateAllowableLockedTokens(uint256 _min, uint256 _max) external {
+        escrow.updateAllowableLockedTokens(_min, _max);
+    }
+
 }

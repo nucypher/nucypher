@@ -618,6 +618,12 @@ def test_allowable_locked_tokens(testerchain, token_economics, token, escrow_con
     minimum_allowed = token_economics.minimum_allowed_locked
     escrow = escrow_contract(maximum_allowed)
     creator, staker1, staker2, *everyone_else = testerchain.client.accounts
+    log = escrow.events.AllowableLockedTokensUpdated.createFilter(fromBlock='latest')
+
+    # Deploy WorkLock mock
+    worklock, _ = deploy_contract('WorkLockForStakingEscrowMock', escrow.address)
+    tx = escrow.functions.setWorkLock(worklock.address).transact()
+    testerchain.wait_for_receipt(tx)
 
     # Initialize Escrow contract
     tx = escrow.functions.initialize(0).transact({'from': creator})
@@ -662,14 +668,69 @@ def test_allowable_locked_tokens(testerchain, token_economics, token, escrow_con
     testerchain.wait_for_receipt(tx)
     staker1_lock += minimum_allowed
 
-    # Preparation for next cases
+    # Bounds can be changed only from worklock contract
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.updateAllowableLockedTokens(minimum_allowed - 1, maximum_allowed - 1).transact()
+        testerchain.wait_for_receipt(tx)
+
+    # Change bounds from worklock
+    assert escrow.functions.minAllowableLockedTokens().call() == minimum_allowed
+    assert escrow.functions.maxAllowableLockedTokens().call() == maximum_allowed
+    tx = worklock.functions.updateAllowableLockedTokens(minimum_allowed + 1, maximum_allowed + 1).transact()
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.minAllowableLockedTokens().call() == minimum_allowed
+    assert escrow.functions.maxAllowableLockedTokens().call() == maximum_allowed
+    assert len(log.get_all_entries()) == 0
+
+    tx = worklock.functions.updateAllowableLockedTokens(minimum_allowed - 1, maximum_allowed + 1).transact()
+    testerchain.wait_for_receipt(tx)
+    minimum_allowed -= 1
+    assert escrow.functions.minAllowableLockedTokens().call() == minimum_allowed
+    assert escrow.functions.maxAllowableLockedTokens().call() == maximum_allowed
+
+    events = log.get_all_entries()
+    assert len(events) == 1
+    event_args = events[-1]['args']
+    assert event_args['min'] == minimum_allowed
+    assert event_args['max'] == maximum_allowed
+
     tx = token.functions.approveAndCall(escrow.address, minimum_allowed, testerchain.w3.toBytes(duration))\
         .transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     staker1_lock += minimum_allowed
+
+    tx = worklock.functions.updateAllowableLockedTokens(minimum_allowed + 1, maximum_allowed - 1).transact()
+    testerchain.wait_for_receipt(tx)
+    maximum_allowed -= 1
+    assert escrow.functions.minAllowableLockedTokens().call() == minimum_allowed
+    assert escrow.functions.maxAllowableLockedTokens().call() == maximum_allowed
+
+    events = log.get_all_entries()
+    assert len(events) == 2
+    event_args = events[-1]['args']
+    assert event_args['min'] == minimum_allowed
+    assert event_args['max'] == maximum_allowed
+
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = token.functions.approveAndCall(escrow.address, maximum_allowed + 1, testerchain.w3.toBytes(duration)) \
+            .transact({'from': staker2})
+        testerchain.wait_for_receipt(tx)
     tx = token.functions.approveAndCall(escrow.address, maximum_allowed, testerchain.w3.toBytes(duration))\
         .transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
+
+    tx = worklock.functions.updateAllowableLockedTokens(minimum_allowed - 1, maximum_allowed - 1).transact()
+    testerchain.wait_for_receipt(tx)
+    minimum_allowed -= 1
+    maximum_allowed -= 1
+    assert escrow.functions.minAllowableLockedTokens().call() == minimum_allowed
+    assert escrow.functions.maxAllowableLockedTokens().call() == maximum_allowed
+
+    events = log.get_all_entries()
+    assert len(events) == 3
+    event_args = events[-1]['args']
+    assert event_args['min'] == minimum_allowed
+    assert event_args['max'] == maximum_allowed
 
     # Can't deposit or lock too high value (more than _maxAllowableLockedTokens coefficient)
     with pytest.raises((TransactionFailed, ValueError)):
