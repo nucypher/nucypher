@@ -188,7 +188,10 @@ class Web3Client:
         return self.w3.eth.getBalance(account)
 
     def inject_middleware(self, middleware, **kwargs):
-        self.w3.middleware_onion.inject(middleware, **kwargs)
+        return self.w3.middleware_onion.inject(middleware, **kwargs)
+
+    def add_middleware(self, middleware):
+        return self.w3.middleware_onion.add(middleware)
 
     @property
     def chain_id(self) -> int:

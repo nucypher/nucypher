@@ -503,7 +503,6 @@ def create(general_config, transacting_staker_options, config_file, force, value
     # Authenticate and Execute
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
 
-    emitter.echo("Broadcasting stake...", color='yellow')
     new_stake = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods)
 
     painting.paint_staking_confirmation(emitter=emitter, staker=STAKEHOLDER, new_stake=new_stake)
@@ -686,7 +685,6 @@ def divide(general_config, transacting_staker_options, config_file, force, value
 
     # Execute
     STAKEHOLDER.assimilate(checksum_address=current_stake.staker_address, password=password)
-    emitter.echo("Broadcasting Stake Division...", color='yellow')
     modified_stake, new_stake = STAKEHOLDER.divide_stake(stake_index=current_stake.index,
                                                          target_value=value,
                                                          additional_periods=extension)
@@ -759,7 +757,6 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
 
     # Authenticate and Execute
     STAKEHOLDER.assimilate(checksum_address=current_stake.staker_address, password=password)
-    emitter.echo("Broadcasting Stake Extension...", color='yellow')
     receipt = STAKEHOLDER.prolong_stake(stake_index=current_stake.index, additional_periods=lock_periods)
 
     # Report

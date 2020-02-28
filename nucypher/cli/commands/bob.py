@@ -1,10 +1,10 @@
-import json
-
 import click
 
 from nucypher.characters.banners import BOB_BANNER
+from nucypher.characters.control.interfaces import BobInterface
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import get_nucypher_password, select_client_account, get_or_update_configuration
+from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -17,12 +17,9 @@ from nucypher.cli.options import (
     option_dry_run,
     option_federated_only,
     option_force,
-    option_label,
-    option_message_kit,
     option_middleware,
     option_min_stake,
     option_network,
-    option_policy_encrypting_key,
     option_provider_uri,
     option_registry_filepath,
     option_teacher_uri,
@@ -30,16 +27,17 @@ from nucypher.cli.options import (
 from nucypher.config.characters import BobConfiguration
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
-from nucypher.characters.control.interfaces import BobInterface
+
 
 class BobConfigOptions:
 
     __option_name__ = 'config_options'
 
     def __init__(self, provider_uri, network, registry_filepath,
-                 checksum_address, discovery_port, dev, middleware, federated_only):
+                 checksum_address, discovery_port, dev, middleware, federated_only, gas_strategy):
 
         self.provider_uri = provider_uri
+        self.gas_strategy = gas_strategy,
         self.domains = {network} if network else None
         self.registry_filepath = registry_filepath
         self.checksum_address = checksum_address
@@ -55,6 +53,7 @@ class BobConfigOptions:
                 dev_mode=True,
                 domains={TEMPORARY_DOMAIN},
                 provider_uri=self.provider_uri,
+                gas_strategy=self.gas_strategy,
                 federated_only=True,
                 checksum_address=self.checksum_address,
                 network_middleware=self.middleware)
@@ -67,6 +66,7 @@ class BobConfigOptions:
                     checksum_address=self.checksum_address,
                     rest_port=self.discovery_port,
                     provider_uri=self.provider_uri,
+                    gas_strategy=self.gas_strategy,
                     registry_filepath=self.registry_filepath,
                     network_middleware=self.middleware)
             except FileNotFoundError:
@@ -89,14 +89,18 @@ class BobConfigOptions:
             domains=self.domains,
             federated_only=self.federated_only,
             registry_filepath=self.registry_filepath,
-            provider_uri=self.provider_uri)
+            provider_uri=self.provider_uri,
+            gas_strategy=self.gas_strategy,
+        )
 
     def get_updates(self) -> dict:
         payload = dict(checksum_address=self.checksum_address,
                        domains=self.domains,
                        federated_only=self.federated_only,
                        registry_filepath=self.registry_filepath,
-                       provider_uri=self.provider_uri)
+                       provider_uri=self.provider_uri,
+                       gas_strategy=self.gas_strategy
+                       )
         # Depends on defaults being set on Configuration classes, filtrates None values
         updates = {k: v for k, v in payload.items() if v is not None}
         return updates
@@ -105,6 +109,7 @@ class BobConfigOptions:
 group_config_options = group_options(
     BobConfigOptions,
     provider_uri=option_provider_uri(),
+    gas_strategy=option_gas_strategy,
     network=option_network,
     registry_filepath=option_registry_filepath,
     checksum_address=option_checksum_address,

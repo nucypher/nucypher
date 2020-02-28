@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import collections
 import os
 import pprint
-from typing import List
+from typing import List, Callable
 from typing import Tuple
 from typing import Union
 from urllib.parse import urlparse
@@ -38,11 +38,12 @@ from constant_sorrow.constants import (
 from eth_tester import EthereumTester
 from eth_utils import to_checksum_address
 from twisted.logger import Logger
-from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
+from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider, middleware
 from web3.contract import ContractConstructor, Contract
 from web3.contract import ContractFunction
 from web3.exceptions import TimeExhausted
 from web3.exceptions import ValidationError
+from web3.gas_strategies import time_based
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.clients import NuCypherGethProcess
@@ -60,7 +61,8 @@ from nucypher.blockchain.eth.providers import (
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import prettify_eth_amount
-
+from nucypher.characters.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
+from nucypher.utilities.logging import GlobalLoggerSettings
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
@@ -75,8 +77,15 @@ class BlockchainInterface:
     ethereum contracts with the given web3 provider backend.
     """
 
-    TIMEOUT = 180  # seconds
+    TIMEOUT = 600  # seconds
     NULL_ADDRESS = '0x' + '0' * 40
+
+    DEFAULT_GAS_STRATEGY = 'medium'
+    GAS_STRATEGIES = {'glacial': time_based.glacial_gas_price_strategy,     # 24h
+                      'slow': time_based.slow_gas_price_strategy,           # 1h
+                      'medium': time_based.medium_gas_price_strategy,       # 5m
+                      'fast': time_based.fast_gas_price_strategy            # 60s
+                      }
 
     process = NO_PROVIDER_PROCESS.bool_value(False)
     Web3 = Web3
@@ -102,11 +111,13 @@ class BlockchainInterface:
         pass
 
     def __init__(self,
-                 poa: bool = True,
+                 emitter = None,  # TODO # 1754
+                 poa: bool = False,
                  light: bool = False,
                  provider_process: NuCypherGethProcess = NO_PROVIDER_PROCESS,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
-                 provider: Web3Providers = NO_BLOCKCHAIN_CONNECTION):
+                 provider: Web3Providers = NO_BLOCKCHAIN_CONNECTION,
+                 gas_strategy: Union[str, Callable] = DEFAULT_GAS_STRATEGY):
 
         """
         A blockchain "network interface"; The circumflex wraps entirely around the bounds of
@@ -184,6 +195,15 @@ class BlockchainInterface:
         self.transacting_power = READ_ONLY_INTERFACE
         self.is_light = light
 
+        try:
+            gas_strategy = self.GAS_STRATEGIES[gas_strategy]
+        except KeyError:
+            if gas_strategy and not callable(gas_strategy):
+                raise ValueError(f"{gas_strategy} must be callable to be a valid gas strategy.")
+            else:
+                gas_strategy = self.GAS_STRATEGIES[self.DEFAULT_GAS_STRATEGY]
+        self.gas_strategy = gas_strategy
+
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
         return r
@@ -213,6 +233,13 @@ class BlockchainInterface:
         if self.poa is True:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
+
+        # Gas Price Strategy
+        # TODO: Do we need to use all of these at once, perhaps chhose one?
+        self.client.w3.eth.setGasPriceStrategy(self.gas_strategy)
+        self.client.w3.middleware_onion.add(middleware.time_based_cache_middleware)
+        self.client.w3.middleware_onion.add(middleware.latest_block_based_cache_middleware)
+        self.client.w3.middleware_onion.add(middleware.simple_cache_middleware)
 
     def connect(self):
 
@@ -401,18 +428,39 @@ class BlockchainInterface:
                                        ) -> dict:
 
         #
-        # Sign
+        # Setup
         #
+
+        # TODO # 1754
+        # TODO: Move this to singleton - I do not approve... nor does Bogdan?
+        if GlobalLoggerSettings._json_ipc:
+            emitter = JSONRPCStdoutEmitter()
+        else:
+            emitter = StdoutEmitter()
 
         if self.transacting_power is READ_ONLY_INTERFACE:
             raise self.InterfaceError(str(READ_ONLY_INTERFACE))
 
+        #
+        # Sign
+        #
+
+        # TODO: Show the USD Price
+        # Price Oracle
+        # https://api.coinmarketcap.com/v1/ticker/ethereum/
+        price = unsigned_transaction['gasPrice']
+        cost_wei = price * unsigned_transaction['gas']
+        cost = Web3.fromWei(cost_wei, 'gwei')
+
+        if self.transacting_power.device:
+            emitter.message(f'Confirm transaction {transaction_name} on hardware wallet... ({cost} gwei @ {price})', color='yellow')
         signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction)
 
         #
         # Broadcast
         #
 
+        emitter.message(f'Broadcasting {transaction_name} Transaction ({cost} gwei @ {price})...', color='yellow')
         txhash = self.client.send_raw_transaction(signed_raw_transaction)
         try:
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT)
@@ -467,7 +515,7 @@ class BlockchainInterface:
 
     @validate_checksum_address
     def send_transaction(self,
-                         contract_function: ContractFunction,
+                         contract_function: Union[ContractFunction, ContractConstructor],
                          sender_address: str,
                          payload: dict = None,
                          transaction_gas_limit: int = None,
@@ -840,6 +888,7 @@ class BlockchainInterfaceFactory:
     @classmethod
     def initialize_interface(cls,
                              provider_uri: str,
+                             gas_strategy: Callable = None,
                              sync: bool = False,
                              emitter=None,
                              interface_class: Interfaces = None,
@@ -854,10 +903,12 @@ class BlockchainInterfaceFactory:
         # Interface does not exist, initialize a new one.
         if not interface_class:
             interface_class = cls._default_interface_class
-        interface = interface_class(provider_uri=provider_uri, *interface_args, **interface_kwargs)
-        cls._interfaces[provider_uri] = cls.CachedInterface(interface=interface,
-                                                            sync=sync,
-                                                            emitter=emitter)
+        interface = interface_class(provider_uri=provider_uri,
+                                    gas_strategy=gas_strategy,
+                                    *interface_args,
+                                    **interface_kwargs)
+
+        cls._interfaces[provider_uri] = cls.CachedInterface(interface=interface, sync=sync,  emitter=emitter)
 
     @classmethod
     def get_interface(cls, provider_uri: str = None) -> Interfaces:
@@ -886,10 +937,13 @@ class BlockchainInterfaceFactory:
         return interface
 
     @classmethod
-    def get_or_create_interface(cls, provider_uri: str) -> BlockchainInterface:
+    def get_or_create_interface(cls,
+                                provider_uri: str,
+                                gas_strategy: str = None
+                                ) -> BlockchainInterface:
         try:
             interface = cls.get_interface(provider_uri=provider_uri)
         except (cls.InterfaceNotInitialized, cls.NoRegisteredInterfaces):
-            cls.initialize_interface(provider_uri=provider_uri)
+            cls.initialize_interface(provider_uri=provider_uri, gas_strategy=gas_strategy)
             interface = cls.get_interface(provider_uri=provider_uri)
         return interface

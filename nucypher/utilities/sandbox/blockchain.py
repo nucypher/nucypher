@@ -24,6 +24,7 @@ import maya
 from eth_tester.exceptions import TransactionFailed
 from twisted.logger import Logger
 from web3 import Web3
+from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.economics import StandardTokenEconomics, StandardTokenEconomics, BaseEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
@@ -61,12 +62,19 @@ def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
     return receipts
 
 
+def free_gas_price_strategy(w3, transaction_params=None):
+    return 0
+
+
 class TesterBlockchain(BlockchainDeployerInterface):
     """
     Blockchain subclass with additional test utility methods and options.
     """
 
     _instance = None
+
+    GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES,
+                      'free': free_gas_price_strategy}
 
     _PROVIDER_URI = 'tester://pyevm'
     TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
@@ -123,14 +131,9 @@ class TesterBlockchain(BlockchainDeployerInterface):
         if eth_airdrop is True:  # ETH for everyone!
             self.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
 
-    @staticmethod
-    def free_gas_price_strategy(w3, transaction_params=None):
-        return 0
-
     def attach_middleware(self):
-        super().attach_middleware()
         if self.free_transactions:
-            self.w3.eth.setGasPriceStrategy(self.free_gas_price_strategy)
+            self.w3.eth.setGasPriceStrategy(free_gas_price_strategy)
 
     def __generate_insecure_unlocked_accounts(self, quantity: int) -> List[str]:
 

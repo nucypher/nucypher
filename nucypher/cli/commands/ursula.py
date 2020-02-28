@@ -32,6 +32,7 @@ from nucypher.cli.actions import (
     get_or_update_configuration,
     select_worker_config_file
 )
+from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -64,7 +65,7 @@ class UrsulaConfigOptions:
     __option_name__ = 'config_options'
 
     def __init__(self, geth, provider_uri, worker_address, federated_only, rest_host,
-            rest_port, db_filepath, network, registry_filepath, dev, poa, light):
+            rest_port, db_filepath, network, registry_filepath, dev, poa, light, gas_strategy):
 
         if federated_only:
             # TODO: consider rephrasing in a more universal voice.
@@ -94,6 +95,7 @@ class UrsulaConfigOptions:
         self.dev = dev
         self.poa = poa
         self.light = light
+        self.gas_strategy = gas_strategy
 
     def create_config(self, emitter, config_file):
         if self.dev:
@@ -106,6 +108,7 @@ class UrsulaConfigOptions:
                 registry_filepath=self.registry_filepath,
                 provider_process=self.eth_node,
                 provider_uri=self.provider_uri,
+                gas_strategy=self.gas_strategy,
                 checksum_address=self.worker_address,
                 federated_only=self.federated_only,
                 rest_host=self.rest_host,
@@ -120,6 +123,7 @@ class UrsulaConfigOptions:
                     registry_filepath=self.registry_filepath,
                     provider_process=self.eth_node,
                     provider_uri=self.provider_uri,
+                    gas_strategy=self.gas_strategy,
                     rest_host=self.rest_host,
                     rest_port=self.rest_port,
                     db_filepath=self.db_filepath,
@@ -166,6 +170,7 @@ class UrsulaConfigOptions:
                                             registry_filepath=self.registry_filepath,
                                             provider_process=self.eth_node,
                                             provider_uri=self.provider_uri,
+                                            gas_strategy=self.gas_strategy,
                                             poa=self.poa,
                                             light=self.light)
 
@@ -178,6 +183,7 @@ class UrsulaConfigOptions:
                        checksum_address=self.worker_address,
                        registry_filepath=self.registry_filepath,
                        provider_uri=self.provider_uri,
+                       gas_strategy=self.gas_strategy,
                        poa=self.poa,
                        light=self.light)
         # Depends on defaults being set on Configuration classes, filtrates None values
@@ -189,6 +195,7 @@ group_config_options = group_options(
     UrsulaConfigOptions,
     geth=option_geth,
     provider_uri=option_provider_uri(),
+    gas_strategy=option_gas_strategy,
     worker_address=click.option('--worker-address', help="Run the worker-ursula with a specified address", type=EIP55_CHECKSUM_ADDRESS),
     federated_only=option_federated_only,
     rest_host=click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING),

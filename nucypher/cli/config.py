@@ -77,6 +77,7 @@ class GroupGeneralConfig:
             GroupGeneralConfig.verbosity = 1
 
         if json_ipc:
+            GlobalLoggerSettings._json_ipc = True  # TODO #1754
             emitter = JSONRPCStdoutEmitter(verbosity=GroupGeneralConfig.verbosity)
         else:
             emitter = StdoutEmitter(verbosity=GroupGeneralConfig.verbosity)

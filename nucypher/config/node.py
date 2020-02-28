@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 from tempfile import TemporaryDirectory
-from typing import List, Set
+from typing import List, Set, Union, Callable
 
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION,
@@ -32,12 +32,12 @@ from twisted.logger import Logger
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     InMemoryContractRegistry,
     LocalContractRegistry
 )
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
@@ -58,6 +58,9 @@ class CharacterConfiguration(BaseConfiguration):
     DEFAULT_DOMAIN = NetworksInventory.DEFAULT
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
     TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
+
+    # Gas
+    DEFAULT_GAS_STRATEGY = 'fast'
 
     def __init__(self,
 
@@ -100,6 +103,7 @@ class CharacterConfiguration(BaseConfiguration):
                  sync: bool = False,
                  provider_uri: str = None,
                  provider_process=None,
+                 gas_strategy: Union[Callable, str] = DEFAULT_GAS_STRATEGY,
 
                  # Registry
                  registry: BaseContractRegistry = None,
@@ -170,7 +174,8 @@ class CharacterConfiguration(BaseConfiguration):
             blockchain_args = {'filepath': registry_filepath,
                                'poa': poa,
                                'provider_process': provider_process,
-                               'provider_uri': provider_uri}
+                               'provider_uri': provider_uri,
+                               'gas_strategy': gas_strategy}
             if any(blockchain_args.values()):
                 bad_args = (f"{arg}={val}" for arg, val in blockchain_args.items() if val)
                 self.log.warn(f"Arguments {bad_args} are incompatible with federated_only. "
@@ -183,12 +188,14 @@ class CharacterConfiguration(BaseConfiguration):
                 self.provider_uri = None
                 self.provider_process = None
                 self.registry_filepath = None
+                self.gas_strategy = None
 
         #
         # Decentralized
         #
 
         else:
+            self.gas_strategy = gas_strategy
             is_initialized = BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri)
             if not is_initialized and provider_uri:
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
@@ -196,7 +203,8 @@ class CharacterConfiguration(BaseConfiguration):
                                                                 light=self.is_light,
                                                                 provider_process=self.provider_process,
                                                                 sync=sync,
-                                                                emitter=emitter)
+                                                                emitter=emitter,
+                                                                gas_strategy=gas_strategy)
             else:
                 self.log.warn(f"Using existing blockchain interface connection ({self.provider_uri}).")
 
@@ -273,7 +281,7 @@ class CharacterConfiguration(BaseConfiguration):
         Warning: This method allows mutation and may result in an inconsistent configuration.
         """
         merged_parameters = {**self.static_payload(), **self.dynamic_payload, **overrides}
-        non_init_params = ('config_root', 'poa', 'light', 'provider_uri', 'registry_filepath')
+        non_init_params = ('config_root', 'poa', 'light', 'provider_uri', 'registry_filepath', 'gas_strategy')
         character_init_params = filter(lambda t: t[0] not in non_init_params, merged_parameters.items())
         return dict(character_init_params)
 
@@ -357,6 +365,9 @@ class CharacterConfiguration(BaseConfiguration):
                 payload.update(dict(provider_uri=self.provider_uri, poa=self.poa, light=self.is_light))
             if self.registry_filepath:
                 payload.update(dict(registry_filepath=self.registry_filepath))
+
+            # Gas Price
+            payload.update(dict(gas_strategy=self.gas_strategy))
 
         # Merge with base payload
         base_payload = super().static_payload()
