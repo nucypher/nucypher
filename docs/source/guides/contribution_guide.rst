@@ -236,11 +236,16 @@ Issuing a New Release
 
    (nucypher)$ git push origin master && git push origin <TAG>
 
-5. Push the tag directly upstream by its name to trigger the publication webhooks on CircleCI:
+5. Open a pull request with the resulting history in order to update ``master``.
+Label the pull request as "Release Candidate" and wait for all checks to pass.
+
+6. Push the tag directly upstream by its name to trigger the publication webhooks on CircleCI:
 
 .. code:: bash
 
    (nucypher)$ git push upstream <TAG>
 
 7. Monitor the triggered deployment build on CircleCI for manual approval.
-8. Open a pull request with the resulting history in order to update ``master``.
+
+8. Merge the pull request
+
