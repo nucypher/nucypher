@@ -20,7 +20,7 @@ def test_create_bidder(testerchain, test_registry, agency, token_economics):
 
 def test_bidding(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.unassigned_accounts[0]
-    big_bid = token_economics.maximum_allowed_locked // 100
+    big_bid = token_economics.worklock_max_allowed_bid // 10
     bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
 
     assert bidder.get_deposited_eth == 0
@@ -29,7 +29,7 @@ def test_bidding(testerchain, agency, token_economics, test_registry):
     assert bidder.get_deposited_eth == big_bid
 
     another_bidder_address = testerchain.unassigned_accounts[1]
-    another_bid = token_economics.maximum_allowed_locked // 50
+    another_bid = token_economics.worklock_max_allowed_bid // 50
     another_bidder = Bidder(checksum_address=another_bidder_address, registry=test_registry)
     assert another_bidder.get_deposited_eth == 0
     receipt = another_bidder.place_bid(value=another_bid)
@@ -97,7 +97,7 @@ def test_claim(testerchain, agency, token_economics, test_registry):
     with pytest.raises(Bidder.BidderError):
         _receipt = bidder.claim()
 
-    assert bidder.get_deposited_eth == 40000000000000000000000
+    assert bidder.get_deposited_eth == token_economics.worklock_max_allowed_bid // 10
     assert bidder.completed_work == 0
     assert bidder.remaining_work == 500000000000000000000000
     assert bidder.refunded_work == 0

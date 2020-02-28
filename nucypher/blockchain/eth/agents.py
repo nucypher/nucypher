@@ -1148,6 +1148,11 @@ class WorkLockAgent(EthereumContractAgent):
         return min_bid
 
     @property
+    def maximum_allowed_bid(self) -> int:
+        max_bid = self.contract.functions.maxAllowedBid().call()
+        return max_bid
+
+    @property
     def start_bidding_date(self) -> int:
         date = self.contract.functions.startBidDate().call()
         return date
@@ -1171,6 +1176,7 @@ class WorkLockAgent(EthereumContractAgent):
             'boostingRefund',
             'stakingPeriods',
             'minAllowedBid',
+            'maxAllowedBid',
         )
 
         def _call_function_by_name(name: str):

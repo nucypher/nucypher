@@ -13,8 +13,8 @@ def test_create_worklock_agent(testerchain, test_registry, agency, token_economi
 
 
 def test_bidding(testerchain, agency, token_economics, test_registry):
-    big_bid = token_economics.maximum_allowed_locked // 100
-    small_bid = token_economics.minimum_allowed_locked // 100
+    small_bid = token_economics.worklock_min_allowed_bid * 10
+    big_bid = token_economics.worklock_max_allowed_bid // 10
 
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
@@ -32,7 +32,7 @@ def test_bidding(testerchain, agency, token_economics, test_registry):
 
 
 def test_get_deposited_eth(testerchain, agency, token_economics, test_registry):
-    big_bid = token_economics.maximum_allowed_locked // 10
+    big_bid = token_economics.worklock_max_allowed_bid // 10
     big_bidder = testerchain.unassigned_accounts[-1]
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     receipt = agent.bid(checksum_address=big_bidder, value=big_bid)
@@ -59,7 +59,7 @@ def test_get_remaining_work(testerchain, agency, token_economics, test_registry)
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     bidder = testerchain.unassigned_accounts[0]
     remaining = agent.get_remaining_work(checksum_address=bidder)
-    assert remaining == 35905203136136849607983
+    assert remaining > 0
 
 
 def test_early_claim(testerchain, agency, token_economics, test_registry):

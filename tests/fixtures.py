@@ -413,6 +413,7 @@ def token_economics(testerchain):
     # Ends in one hour
     bidding_end_date = start_date + one_hour_in_seconds
     cancellation_end_date = bidding_end_date + one_hour_in_seconds
+    min_bid = Web3.toWei(1, "ether")
 
     economics = StandardTokenEconomics(
         worklock_boosting_refund_rate=200,
@@ -421,7 +422,8 @@ def token_economics(testerchain):
         bidding_start_date=bidding_start_date,
         bidding_end_date=bidding_end_date,
         cancellation_end_date=cancellation_end_date,
-        worklock_min_allowed_bid=Web3.toWei(1, "ether")
+        worklock_min_allowed_bid=min_bid,
+        worklock_max_allowed_bid=1000*min_bid
     )
     return economics
 

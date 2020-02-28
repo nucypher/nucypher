@@ -52,6 +52,7 @@ contract WorkLock {
     uint256 private constant MAX_ETH_SUPPLY = 2e10 ether;
 
     uint256 public minAllowedBid;
+    uint256 public maxAllowedBid;
     uint256 public tokenSupply;
     uint256 public ethSupply;
     uint16 public stakingPeriods;
@@ -61,7 +62,7 @@ contract WorkLock {
     // if value == bidders.length then WorkLock is fully checked
     uint256 public nextBidderToCheck;
     // copy from the escrow contract
-    uint256 public maxAllowableLockedTokens;
+    uint256 public defaultMaxAllowableLockedTokens;
 
     /**
     * @param _token Token contract
@@ -72,6 +73,7 @@ contract WorkLock {
     * @param _boostingRefund Coefficient to boost refund ETH
     * @param _stakingPeriods Amount of periods during which tokens will be locked after claiming
     * @param _minAllowedBid Minimum allowed ETH amount for bidding
+    * @param _maxAllowedBid Maximum allowed ETH amount for bidding
     */
     constructor(
         NuCypherToken _token,
@@ -81,7 +83,8 @@ contract WorkLock {
         uint256 _endCancellationDate,
         uint256 _boostingRefund,
         uint16 _stakingPeriods,
-        uint256 _minAllowedBid
+        uint256 _minAllowedBid,
+        uint256 _maxAllowedBid
     )
         public
     {
@@ -92,7 +95,9 @@ contract WorkLock {
             _endBidDate > block.timestamp &&                    // there is time to make a bid
             _endCancellationDate >= _endBidDate &&              // cancellation window includes bidding
             _boostingRefund > 0 &&                              // boosting coefficient was set
-            _stakingPeriods >= _escrow.minLockedPeriods());     // staking duration is consistent with escrow contract
+            _stakingPeriods >= _escrow.minLockedPeriods() &&    // staking duration is consistent with escrow contract
+            _minAllowedBid <= _maxAllowedBid                    // maximum bid can't be lower than minimum
+        );
         // worst case for `ethToWork()` and `workToETH()`,
         // when ethSupply == MAX_ETH_SUPPLY and tokenSupply == totalSupply
         require(MAX_ETH_SUPPLY * totalSupply * SLOWING_REFUND / MAX_ETH_SUPPLY / totalSupply == SLOWING_REFUND &&
@@ -106,7 +111,8 @@ contract WorkLock {
         boostingRefund = _boostingRefund;
         stakingPeriods = _stakingPeriods;
         minAllowedBid = _minAllowedBid;
-        maxAllowableLockedTokens = escrow.maxAllowableLockedTokens();
+        maxAllowedBid = _maxAllowedBid;
+        defaultMaxAllowableLockedTokens = escrow.maxAllowableLockedTokens();
     }
 
     /**
@@ -180,6 +186,7 @@ contract WorkLock {
 
         info.depositedETH = info.depositedETH.add(msg.value);
         require(info.depositedETH >= minAllowedBid, "Bid must be more than minimum");
+        require(info.depositedETH <= maxAllowedBid, "Bid must be less than maximum");
         ethSupply = ethSupply.add(msg.value);
         emit Bid(msg.sender, msg.value);
     }
@@ -221,7 +228,7 @@ contract WorkLock {
             "Checking bidders is allowed when bidding and cancellation phases are over");
         require(nextBidderToCheck != bidders.length, "Bidders have already been checked");
 
-        uint256 maxAllowableBid = maxAllowableLockedTokens.mul(ethSupply).div(tokenSupply);
+        uint256 maxAllowableBid = defaultMaxAllowableLockedTokens.mul(ethSupply).div(tokenSupply);
         uint256 index = nextBidderToCheck;
 
         while (index < bidders.length && gasleft() > _gasToSaveState) {

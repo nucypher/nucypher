@@ -81,6 +81,7 @@ class BaseEconomics:
     _default_worklock_boosting_refund_rate: int = NotImplemented
     _default_worklock_commitment_duration: int = NotImplemented
     _default_worklock_min_allowed_bid: int = NotImplemented
+    _default_worklock_max_allowed_bid: int = NotImplemented
 
     def __init__(self,
 
@@ -110,7 +111,8 @@ class BaseEconomics:
                  cancellation_end_date: int = _default_cancellation_end_date,
                  worklock_boosting_refund_rate: int = _default_worklock_boosting_refund_rate,
                  worklock_commitment_duration: int = _default_worklock_commitment_duration,
-                 worklock_min_allowed_bid: int = _default_worklock_min_allowed_bid):
+                 worklock_min_allowed_bid: int = _default_worklock_min_allowed_bid,
+                 worklock_max_allowed_bid: int = _default_worklock_max_allowed_bid):
 
         """
         :param initial_supply: Tokens at t=0
@@ -142,6 +144,7 @@ class BaseEconomics:
         self.worklock_boosting_refund_rate = worklock_boosting_refund_rate
         self.worklock_commitment_duration = worklock_commitment_duration
         self.worklock_min_allowed_bid = worklock_min_allowed_bid
+        self.worklock_max_allowed_bid = worklock_max_allowed_bid
 
         #
         # NucypherToken & Staking Escrow
@@ -228,13 +231,15 @@ class BaseEconomics:
         5 boostingRefund - Coefficient to boost refund ETH
         6 stakingPeriods - Duration of tokens locking
         7 minAllowedBid - Minimum allowed ETH amount for bidding
+        8 maxAllowedBid - Maximum allowed ETH amount for bidding
         """
         deployment_parameters = [self.bidding_start_date,
                                  self.bidding_end_date,
                                  self.cancellation_end_date,
                                  self.worklock_boosting_refund_rate,
                                  self.worklock_commitment_duration,
-                                 self.worklock_min_allowed_bid]
+                                 self.worklock_min_allowed_bid,
+                                 self.worklock_max_allowed_bid]
         return tuple(map(int, deployment_parameters))
 
     @property

@@ -1685,10 +1685,14 @@ class Bidder(NucypherTokenActor):
 
     def place_bid(self, value: int) -> dict:
         self._ensure_bidding_is_open()
-        minimum = self.worklock_agent.minimum_allowed_bid
+        minimum = self.economics.worklock_min_allowed_bid
+        maximum = self.economics.worklock_max_allowed_bid
         if value < minimum:
             raise self.BidderError(f"Too small value {prettify_eth_amount(value)} for bidding, "
                                    f"bid must be at least {prettify_eth_amount(minimum)}")
+        if value > maximum:
+            raise self.BidderError(f"Too high value {prettify_eth_amount(value)} for bidding, "
+                                   f"bid must be at most {prettify_eth_amount(maximum)}")
         receipt = self.worklock_agent.bid(checksum_address=self.checksum_address, value=value)
         return receipt
 

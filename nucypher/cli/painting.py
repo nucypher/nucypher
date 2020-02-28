@@ -868,6 +868,8 @@ def paint_worklock_status(emitter, registry: BaseContractRegistry):
     now = maya.now()
     bidding_remaining = bidding_end - now if bidding_end > now else timedelta()
     cancellation_remaining = cancellation_end - now if cancellation_end > now else timedelta()
+    # TODO checking for StakingEscrow initialization?
+    claiming_available = worklock_agent.is_claiming_available()
 
     payload = f"""
 
@@ -880,11 +882,12 @@ Bidding Duration ..................... {bidding_duration}
 Cancellation Window Duration ......... {cancellation_duration}
 Bidding Time Remaining ............... {bidding_remaining} 
 Cancellation Window Time Remaining ... {cancellation_remaining} 
-Claiming is available ................ {'Yes' if worklock_agent.is_claiming_available() else 'No'} 
+Claiming is available ................ {'Yes' if claiming_available else 'No'} 
 
 Economics
 ======================================================        
 Min allowed bid ... {prettify_eth_amount(worklock_agent.minimum_allowed_bid)}
+Max allowed bid ... {prettify_eth_amount(worklock_agent.maximum_allowed_bid)}
 ETH Pool .......... {prettify_eth_amount(blockchain.client.get_balance(worklock_agent.contract_address))}
 ETH Supply ........ {prettify_eth_amount(worklock_agent.get_eth_supply())}
 

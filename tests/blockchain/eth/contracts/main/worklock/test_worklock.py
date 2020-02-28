@@ -52,6 +52,7 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     slowing_refund = 100
     staking_periods = 2 * token_economics.minimum_locked_periods
     min_allowed_bid = to_wei(1, 'ether')
+    max_allowed_bid = 8 * min_allowed_bid
     worklock, _ = deploy_contract(
         contract_name='WorkLock',
         _token=token.address,
@@ -61,7 +62,8 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
         _endBidDate=end_bid_date,
         _boostingRefund=boosting_refund,
         _stakingPeriods=staking_periods,
-        _minAllowedBid=min_allowed_bid
+        _minAllowedBid=min_allowed_bid,
+        _maxAllowedBid=max_allowed_bid
     )
     assert worklock.functions.startBidDate().call() == start_bid_date
     assert worklock.functions.endBidDate().call() == end_bid_date
@@ -69,7 +71,7 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     assert worklock.functions.boostingRefund().call() == boosting_refund
     assert worklock.functions.SLOWING_REFUND().call() == slowing_refund
     assert worklock.functions.stakingPeriods().call() == staking_periods
-    assert worklock.functions.maxAllowableLockedTokens().call() == token_economics.maximum_allowed_locked
+    assert worklock.functions.defaultMaxAllowableLockedTokens().call() == token_economics.maximum_allowed_locked
 
     deposit_log = worklock.events.Deposited.createFilter(fromBlock='latest')
     bidding_log = worklock.events.Bid.createFilter(fromBlock='latest')
@@ -144,6 +146,10 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     # Bid must be more than minimum
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.bid().transact({'from': staker1, 'value': min_allowed_bid - 1, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
+    # And less than maximum
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.bid().transact({'from': staker1, 'value': max_allowed_bid + 1, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
 
     # Staker does first bid
@@ -238,6 +244,11 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     event_args = events[4]['args']
     assert event_args['sender'] == staker1
     assert event_args['depositedETH'] == deposit_eth_1
+
+    # The final bid must be less than the maximum
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.bid().transact({'from': staker1, 'value': 1, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
 
     # Can't claim, refund or burn while bidding phase
     with pytest.raises((TransactionFailed, ValueError)):
@@ -575,7 +586,8 @@ def test_reentrancy(testerchain, token_economics, deploy_contract, token, escrow
         _endCancellationDate=end_cancellation_date,
         _boostingRefund=boosting_refund,
         _stakingPeriods=staking_periods,
-        _minAllowedBid=min_allowed_bid
+        _minAllowedBid=min_allowed_bid,
+        _maxAllowedBid=min_allowed_bid
     )
     refund_log = worklock.events.Refund.createFilter(fromBlock='latest')
     canceling_log = worklock.events.Canceled.createFilter(fromBlock='latest')
@@ -667,7 +679,8 @@ def test_max_allowed(testerchain, token_economics, deploy_contract, token, escro
         _endCancellationDate=end_cancellation_date,
         _boostingRefund=boosting_refund,
         _stakingPeriods=staking_periods,
-        _minAllowedBid=min_allowed_bid
+        _minAllowedBid=min_allowed_bid,
+        _maxAllowedBid=min_allowed_bid
     )
     worklock_supply = token_economics.maximum_allowed_locked + 1
     tx = token.functions.approve(worklock.address, worklock_supply).transact()
