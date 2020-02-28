@@ -1139,8 +1139,13 @@ class WorkLockAgent(EthereumContractAgent):
         return bidders
 
     def is_claiming_available(self) -> bool:
-        """Returns True if bidders have been checked and claiming is available"""
+        """Returns True if claiming is available"""
         return self.contract.functions.isClaimingAvailable().call()
+
+    def bidders_checked(self) -> bool:
+        """Returns True if bidders have been checked"""
+        bidders_population = self.get_bidders_population()
+        return self.contract.functions.nextBidderToCheck().call() == bidders_population
 
     @property
     def minimum_allowed_bid(self) -> int:

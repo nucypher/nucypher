@@ -79,8 +79,8 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     checks_log = worklock.events.BiddersChecked.createFilter(fromBlock='latest')
 
     # Transfer tokens to WorkLock
-    worklock_supply_1 = 2 * token_economics.maximum_allowed_locked // 10 + 1
-    worklock_supply_2 = token_economics.maximum_allowed_locked // 10 - 1
+    worklock_supply_1 = token_economics.maximum_allowed_locked // 2 + 1
+    worklock_supply_2 = token_economics.maximum_allowed_locked // 2 - 1
     worklock_supply = worklock_supply_1 + worklock_supply_2
     tx = token.functions.approve(worklock.address, worklock_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -103,7 +103,7 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     # Give stakers some ETH
     deposit_eth_1 = 4 * min_allowed_bid
     deposit_eth_2 = min_allowed_bid
-    staker1_balance = 10 * deposit_eth_1
+    staker1_balance = 100 * deposit_eth_1
     tx = testerchain.w3.eth.sendTransaction(
         {'from': testerchain.etherbase_account, 'to': staker1, 'value': staker1_balance})
     testerchain.wait_for_receipt(tx)
@@ -333,6 +333,10 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.claim().transact({'from': staker1, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
+    # Can't check before end of cancellation window
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state).transact()
+        testerchain.wait_for_receipt(tx)
 
     # But can cancel during cancellation window
     staker3_balance = testerchain.w3.eth.getBalance(staker3)
@@ -357,11 +361,6 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
     assert event_args['sender'] == staker3
     assert event_args['value'] == staker3_bid
 
-    # Can't check before end of cancellation window
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state).transact()
-        testerchain.wait_for_receipt(tx)
-
     # Wait for the end of cancellation window
     testerchain.time_travel(seconds=3600)  # Wait exactly 1 hour
 
@@ -370,54 +369,32 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow):
         tx = worklock.functions.claim().transact({'from': staker1, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
 
-    # Too low value for remaining gas
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = worklock.functions.verifyBiddingCorrectness(0).transact({'from': staker1, 'gas': 35000})
-        testerchain.wait_for_receipt(tx)
-
-    # Too low value for gas limit
-    assert worklock.functions.nextBidderToCheck().call() == 0
-    tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state).transact({'gas': gas_to_save_state + 5000})
-    testerchain.wait_for_receipt(tx)
-    assert worklock.functions.nextBidderToCheck().call() == 0
-
-    # Set gas only for one check
-    # TODO failed cases
-    tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state)\
-        .transact({'from': staker1, 'gas': 60000, 'gas_price': 0})
-    testerchain.wait_for_receipt(tx)
-    assert worklock.functions.nextBidderToCheck().call() == 1
-
-    events = checks_log.get_all_entries()
-    assert 1 == len(events)
-    event_args = events[0]['args']
-    assert event_args['sender'] == staker1
-    assert event_args['startIndex'] == 0
-    assert event_args['endIndex'] == 1
-
-    # Still can't claim because checked only portion of bidders
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = worklock.functions.claim().transact({'from': staker1, 'gas_price': 0})
-        testerchain.wait_for_receipt(tx)
-
-    # Check all others
+    # Check all bidders
+    # TODO failed cases with force refund
     assert not worklock.functions.isClaimingAvailable().call()
     tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state).transact()
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.nextBidderToCheck().call() == 3
-    assert worklock.functions.isClaimingAvailable().call()
+    assert not worklock.functions.isClaimingAvailable().call()
 
     events = checks_log.get_all_entries()
-    assert 2 == len(events)
-    event_args = events[1]['args']
+    assert 1 == len(events)
+    event_args = events[-1]['args']
     assert event_args['sender'] == creator
-    assert event_args['startIndex'] == 1
+    assert event_args['startIndex'] == 0
     assert event_args['endIndex'] == 3
 
     # Can't check again
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state).transact()
         testerchain.wait_for_receipt(tx)
+
+    tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state).transact()
+    assert worklock.functions.isClaimingAvailable().call()
+
+    assert 2 == len(events)
+
+    # Can't check again
 
     # Staker claims tokens
     value, measure_work, _completed_work, periods = escrow.functions.stakerInfo(staker1).call()
@@ -647,33 +624,45 @@ def test_reentrancy(testerchain, token_economics, deploy_contract, token, escrow
 
 
 @pytest.mark.slow
-def test_max_allowed(testerchain, token_economics, deploy_contract, token, escrow):
-    creator, bidder1, bidder2, *everyone_else = testerchain.w3.eth.accounts
+def test_verifying_correctness(testerchain, token_economics, deploy_contract, token, escrow):
+    creator, bidder1, bidder2, bidder3, *everyone_else = testerchain.w3.eth.accounts
+    gas_to_save_state = 30000
 
     # Deploy WorkLock
-    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
-    start_bid_date = now
-    end_bid_date = start_bid_date + (60 * 60)
-    end_cancellation_date = end_bid_date
     boosting_refund = 100
     staking_periods = token_economics.minimum_locked_periods
     min_allowed_bid = to_wei(1, 'ether')
-    worklock, _ = deploy_contract(
-        contract_name='WorkLock',
-        _token=token.address,
-        _escrow=escrow.address,
-        _startBidDate=start_bid_date,
-        _endBidDate=end_bid_date,
-        _endCancellationDate=end_cancellation_date,
-        _boostingRefund=boosting_refund,
-        _stakingPeriods=staking_periods,
-        _minAllowedBid=min_allowed_bid
-    )
+
+    def deploy_worklock(supply):
+
+        now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+        start_bid_date = now
+        end_bid_date = start_bid_date + (60 * 60)
+        end_cancellation_date = end_bid_date
+
+        contract, _ = deploy_contract(
+            contract_name='WorkLock',
+            _token=token.address,
+            _escrow=escrow.address,
+            _startBidDate=start_bid_date,
+            _endBidDate=end_bid_date,
+            _endCancellationDate=end_cancellation_date,
+            _boostingRefund=boosting_refund,
+            _stakingPeriods=staking_periods,
+            _minAllowedBid=min_allowed_bid
+        )
+
+        tx = token.functions.approve(contract.address, supply).transact()
+        testerchain.wait_for_receipt(tx)
+        tx = contract.functions.tokenDeposit(supply).transact()
+        testerchain.wait_for_receipt(tx)
+        log = contract.events.BiddersChecked.createFilter(fromBlock='latest')
+
+        return contract, log
+
+    # Test: bidder has too much tokens to claim
     worklock_supply = token_economics.maximum_allowed_locked + 1
-    tx = token.functions.approve(worklock.address, worklock_supply).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = worklock.functions.tokenDeposit(worklock_supply).transact()
-    testerchain.wait_for_receipt(tx)
+    worklock, _checks_log = deploy_worklock(worklock_supply, min_allowed_bid)
 
     # Bid
     tx = testerchain.w3.eth.sendTransaction(
@@ -685,6 +674,102 @@ def test_max_allowed(testerchain, token_economics, deploy_contract, token, escro
 
     # Check will fail because bidder has too much tokens to claim
     testerchain.time_travel(seconds=3600)  # Wait exactly 1 hour
+    worklock_balance = testerchain.w3.eth.getBalance(worklock.address)
+    default_max = worklock.functions.maxAllowableLockedTokens().call()
+    assert default_max * worklock_balance // worklock_supply < min_allowed_bid
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.verifyBiddingCorrectness(30000).transact()
         testerchain.wait_for_receipt(tx)
+
+    # Test: bidder will get tokens as much as possible without force refund
+    worklock_supply = 3 * token_economics.maximum_allowed_locked
+    worklock, checks_log = deploy_worklock(worklock_supply, min_allowed_bid)
+
+    # Bids
+    for bidder in [bidder1, bidder2, bidder3]:
+        tx = testerchain.w3.eth.sendTransaction(
+            {'from': testerchain.etherbase_account, 'to': bidder, 'value': min_allowed_bid})
+        testerchain.wait_for_receipt(tx)
+        tx = worklock.functions.bid().transact({'from': bidder, 'value': min_allowed_bid, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
+    assert worklock.functions.ethToTokens(min_allowed_bid).call() == token_economics.maximum_allowed_locked
+
+    # Wait exactly 1 hour
+    testerchain.time_travel(seconds=3600)
+    worklock_balance = testerchain.w3.eth.getBalance(worklock.address)
+    default_max = worklock.functions.defaultMaxAllowableLockedTokens().call()
+    assert default_max * worklock_balance // worklock_supply == min_allowed_bid
+
+    # Too low value for gas limit
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state)\
+            .transact({'from': bidder1, 'gas': gas_to_save_state + 20000})
+        testerchain.wait_for_receipt(tx)
+    tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state)\
+        .transact({'from': bidder1, 'gas': gas_to_save_state + 25000})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.nextBidderToCheck().call() == 3
+
+    events = checks_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[-1]['args']
+    assert event_args['sender'] == bidder1
+    assert event_args['startIndex'] == 0
+    assert event_args['endIndex'] == 3
+
+    # Test: partial verification with low amount of gas limit
+    worklock_supply = 3 * token_economics.maximum_allowed_locked
+    worklock, checks_log = deploy_worklock(worklock_supply)
+
+    # Bids
+    for bidder in [bidder1, bidder2, bidder3]:
+        tx = testerchain.w3.eth.sendTransaction(
+            {'from': testerchain.etherbase_account, 'to': bidder, 'value': min_allowed_bid})
+        testerchain.wait_for_receipt(tx)
+        tx = worklock.functions.bid().transact({'from': bidder, 'value': min_allowed_bid, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
+    assert worklock.functions.ethToTokens(min_allowed_bid).call() == worklock_supply // 3
+
+    # Wait exactly 1 hour
+    testerchain.time_travel(seconds=3600)  # Wait exactly 1 hour
+    worklock_balance = testerchain.w3.eth.getBalance(worklock.address)
+    default_max = worklock.functions.maxAllowableLockedTokens().call()
+    max_bid_from_max_stake = default_max * worklock_balance // worklock_supply
+    assert max_bid_from_max_stake >= min_allowed_bid
+
+    # Too low value for remaining gas
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.verifyBiddingCorrectness(0)\
+            .transact({'from': bidder1, 'gas': gas_to_save_state + 25000})
+        testerchain.wait_for_receipt(tx)
+
+    # Too low value for gas limit
+    assert worklock.functions.nextBidderToCheck().call() == 0
+    tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state).transact({'gas': gas_to_save_state + 25000})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.nextBidderToCheck().call() == 0
+
+    # Set gas only for one check
+    tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state)\
+        .transact({'gas': gas_to_save_state + 30000, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.nextBidderToCheck().call() == 1
+
+    events = checks_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[-1]['args']
+    assert event_args['sender'] == creator
+    assert event_args['startIndex'] == 0
+    assert event_args['endIndex'] == 1
+
+    # Check others
+    tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state).transact()
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.nextBidderToCheck().call() == 3
+
+    events = checks_log.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[-1]['args']
+    assert event_args['sender'] == creator
+    assert event_args['startIndex'] == 1
+    assert event_args['endIndex'] == 3

@@ -71,12 +71,14 @@ def test_verify_correctness(testerchain, agency, token_economics, test_registry)
     # Wait until the cancellation window closes...
     testerchain.time_travel(seconds=token_economics.cancellation_window_duration+1)
 
-    assert not worklock_agent.is_claiming_available()
+    assert not worklock_agent.bidders_checked()
+    assert not worklock_agent.is_claiming_available(
     with pytest.raises(Bidder.BidderError):
         _receipt = bidder.claim()
 
     receipts = bidder.verify_bidding_correctness(gas_limit=100000)
-    assert worklock_agent.is_claiming_available()
+    assert worklock_agent.bidders_checked()
+    assert worklock_agent.is_claiming_available(
     for iteration, receipt in receipts.items():
         assert receipt['status'] == 1
 

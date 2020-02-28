@@ -25,6 +25,7 @@ contract WorkLock {
     event Refund(address indexed sender, uint256 refundETH, uint256 completedWork);
     event Canceled(address indexed sender, uint256 value);
     event BiddersChecked(address indexed sender, uint256 startIndex, uint256 endIndex);
+    event ClaimingEnabled(address indexed sender);
 
     struct WorkInfo {
         uint256 depositedETH;
@@ -221,12 +222,12 @@ contract WorkLock {
             "Checking bidders is allowed when bidding and cancellation phases are over");
         require(nextBidderToCheck != bidders.length, "Bidders have already been checked");
 
-        uint256 maxAllowableBid = maxAllowableLockedTokens.mul(ethSupply).div(tokenSupply);
+        uint256 maxBidFromMaxStake = maxAllowableLockedTokens.mul(ethSupply).div(tokenSupply);
         uint256 index = nextBidderToCheck;
 
         while (index < bidders.length && gasleft() > _gasToSaveState) {
             address bidder = bidders[index];
-            require(workInfo[bidder].depositedETH <= maxAllowableBid);
+            require(workInfo[bidder].depositedETH <= maxBidFromMaxStake);
             index++;
         }
 
@@ -251,7 +252,7 @@ contract WorkLock {
     function claim() external returns (uint256 claimedTokens) {
         require(block.timestamp >= endCancellationDate,
             "Claiming tokens is allowed when bidding and cancellation phases are over");
-        require(nextBidderToCheck == bidders.length, "Bidders have not been checked");
+        require(isClaimingAvailable(), "Claiming has not been enabled yet");
         WorkInfo storage info = workInfo[msg.sender];
         require(!info.claimed, "Tokens are already claimed");
         claimedTokens = ethToTokens(info.depositedETH);

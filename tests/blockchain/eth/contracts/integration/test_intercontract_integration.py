@@ -401,6 +401,7 @@ def test_all(testerchain,
 
     # Check all bidders
     assert worklock.functions.getBiddersLength().call() == 2
+    assert worklock.functions.nextBidderToCheck().call() == 0
     tx = worklock.functions.verifyBiddingCorrectness(30000).transact()
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.nextBidderToCheck().call() == 2
@@ -432,7 +433,6 @@ def test_all(testerchain,
     assert escrow.functions.stakerInfo(staker2).call()[WIND_DOWN_FIELD]
 
     staker1_tokens = worklock_supply // 10
-    assert escrow.functions.minAllowableLockedTokens().call() == token_economics.minimum_allowed_locked
     tx = worklock.functions.claim().transact({'from': staker1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(staker1).call()[2]

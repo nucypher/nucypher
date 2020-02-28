@@ -271,9 +271,11 @@ def refund(general_config, worklock_options, registry_options, force, hw_wallet)
 @group_worklock_options
 @option_force
 @option_hw_wallet
-@click.option('--gas-limit', help="Gas limit per transaction", type=click.IntRange(min=1))
-def verify_correctness(general_config, registry_options, worklock_options, force, hw_wallet, gas_limit):
-    """Verify correctness of bidding"""
+@click.option('--gas-limit', help="Gas limit per each verification transaction", type=click.IntRange(min=60000))
+# TODO: Consider moving to administrator (nucypher-deploy)
+# TODO: interactive mode for each step, choosing only specified steps
+def post_initialization(general_config, registry_options, worklock_options, force, hw_wallet, gas_limit):
+    """Ensure correctness of bidding and enable claiming"""
     emitter = _setup_emitter(general_config)
     if not worklock_options.bidder_address:  # TODO: Consider bundle this in worklock_options
         worklock_options.bidder_address = select_client_account(emitter=emitter,
@@ -285,15 +287,16 @@ def verify_correctness(general_config, registry_options, worklock_options, force
 
     if not gas_limit:
         # TODO print gas estimations
-        gas_limit = click.prompt(f"Enter gas limit per each transaction", type=click.IntRange(min=1))
+        gas_limit = click.prompt(f"Enter gas limit per each verification transaction", type=click.IntRange(min=60000))
 
     if not force:
         click.confirm(f"Confirm verifying of bidding from {worklock_options.bidder_address} "
                       f"using {gas_limit} gas per each transaction?", abort=True)
 
-    receipts = bidder.verify_bidding_correctness(gas_limit=gas_limit)
+    verification_receipts = bidder.verify_bidding_correctness(gas_limit=gas_limit)
     emitter.echo("Bidding has been checked\n", color='green')
-    for iteration, receipt in receipts.items():
+
+    for iteration, receipt in verification_receipts.items():
         paint_receipt_summary(receipt=receipt,
                               emitter=emitter,
                               chain_name=bidder.staking_agent.blockchain.client.chain_name,
