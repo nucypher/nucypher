@@ -102,7 +102,16 @@ def test_claim_before_checking(testerchain, agency, token_economics, test_regist
 def test_verify_correctness(testerchain, agency, token_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     caller = testerchain.unassigned_accounts[0]
+    assert not agent.bidders_checked()
     receipt = agent.verify_bidding_correctness(checksum_address=caller, gas_limit=100000)
+    assert receipt['status'] == 1
+    assert agent.bidders_checked()
+
+
+def test_enable_claiming(testerchain, agency, token_economics, test_registry):
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    caller = testerchain.unassigned_accounts[0]
+    receipt = agent.enable_claiming(checksum_address=caller)
     assert receipt['status'] == 1
     assert agent.is_claiming_available()
 

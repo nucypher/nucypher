@@ -71,14 +71,25 @@ def test_verify_correctness(testerchain, agency, token_economics, test_registry)
     # Wait until the cancellation window closes...
     testerchain.time_travel(seconds=token_economics.cancellation_window_duration+1)
 
-    assert not worklock_agent.is_claiming_available()
+    assert not worklock_agent.bidders_checked()
     with pytest.raises(Bidder.BidderError):
         _receipt = bidder.claim()
 
     receipts = bidder.verify_bidding_correctness(gas_limit=100000)
-    assert worklock_agent.is_claiming_available()
+    assert worklock_agent.bidders_checked()
     for iteration, receipt in receipts.items():
         assert receipt['status'] == 1
+
+
+def test_enable_claiming(testerchain, agency, token_economics, test_registry):
+    bidder_address = testerchain.unassigned_accounts[0]
+    bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+
+    assert not worklock_agent.is_claiming_available()
+    receipt = bidder.enable_claiming()
+    assert worklock_agent.is_claiming_available()
+    assert receipt['status'] == 1
 
 
 def test_claim(testerchain, agency, token_economics, test_registry):

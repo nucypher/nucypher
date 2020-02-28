@@ -1738,8 +1738,8 @@ class Bidder(NucypherTokenActor):
         receipt = self.worklock_agent.cancel_bid(checksum_address=self.checksum_address)
         return receipt
 
-    def _get_maximum_allowed_bid(self) -> int:
-        """Returns maximum allowed bid for current deposit rate"""
+    def _get_max_bid_from_max_stake(self) -> int:
+        """Returns maximum allowed bid calculated from maximum allowed locked tokens"""
         max_tokens = self.economics.maximum_allowed_locked
         eth_supply = self.worklock_agent.get_eth_supply()
         worklock_supply = self.economics.worklock_supply
@@ -1749,20 +1749,24 @@ class Bidder(NucypherTokenActor):
     # TODO make public and CLI command to print the list
     def _get_incorrect_bids(self) -> List[str]:
         bidders = self.worklock_agent.get_bidders()
-        max_bid = self._get_maximum_allowed_bid()
+        max_bid_from_max_stake = self._get_max_bid_from_max_stake()
+
         incorrect = list()
+        if max_bid_from_max_stake >= self.economics.worklock_max_allowed_bid:
+            return incorrect
+
         for bidder in bidders:
-            if self.worklock_agent.get_deposited_eth(bidder) > max_bid:
+            if self.worklock_agent.get_deposited_eth(bidder) > max_bid_from_max_stake:
                 incorrect.append(bidder)
         return incorrect
 
-    # TODO better control: max iterations, gas limit for each iteration
+    # TODO better control: max iterations, interactive mode
     def verify_bidding_correctness(self, gas_limit: int) -> dict:
         end = self.worklock_agent.end_cancellation_date
         error = f"Checking of bidding is allowed only when the cancellation window is closed (closes at {end})."
         self._ensure_cancellation_window(ensure_closed=True, message=error)
 
-        if self.worklock_agent.is_claiming_available():
+        if self.worklock_agent.bidders_checked():
             raise self.BidderError(f"Check has already done")
 
         incorrect_bidders = self._get_incorrect_bids()
@@ -1771,12 +1775,19 @@ class Bidder(NucypherTokenActor):
 
         receipts = dict()
         iteration = 1
-        while not self.worklock_agent.is_claiming_available():
+        while not self.worklock_agent.bidders_checked():
             receipt = self.worklock_agent.verify_bidding_correctness(checksum_address=self.checksum_address,
                                                                      gas_limit=gas_limit)
             receipts[iteration] = receipt
             iteration += 1
         return receipts
+
+    def enable_claiming(self) -> dict:
+        """Enable claiming after verification"""
+        if not self.worklock_agent.bidders_checked():
+            raise self.BidderError(f"Claiming can be enabled only after bidding verification")
+        receipt = self.worklock_agent.enable_claiming(checksum_address=self.checksum_address)
+        return receipt
 
     def refund_deposit(self) -> dict:
         """Refund ethers for completed work"""

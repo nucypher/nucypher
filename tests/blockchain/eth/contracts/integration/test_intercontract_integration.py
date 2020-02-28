@@ -181,6 +181,7 @@ def worklock(testerchain, token, escrow, token_economics, deploy_contract):
     boosting_refund = 100
     staking_periods = token_economics.minimum_locked_periods
     min_allowed_bid = to_wei(1, 'ether')
+    max_allowed_bid = 100 * min_allowed_bid
     contract, _ = deploy_contract(
         contract_name='WorkLock',
         _token=token.address,
@@ -190,7 +191,8 @@ def worklock(testerchain, token, escrow, token_economics, deploy_contract):
         _endCancellationDate=end_cancellation_date,
         _boostingRefund=boosting_refund,
         _stakingPeriods=staking_periods,
-        _minAllowedBid=min_allowed_bid
+        _minAllowedBid=min_allowed_bid,
+        _maxAllowedBid=max_allowed_bid
     )
 
     tx = escrow.functions.setWorkLock(contract.address).transact({'from': creator})
@@ -401,9 +403,20 @@ def test_all(testerchain,
 
     # Check all bidders
     assert worklock.functions.getBiddersLength().call() == 2
+    assert worklock.functions.nextBidderToCheck().call() == 0
     tx = worklock.functions.verifyBiddingCorrectness(30000).transact()
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.nextBidderToCheck().call() == 2
+
+    # Enable claiming
+    assert escrow.functions.minAllowableLockedTokens().call() == token_economics.minimum_allowed_locked
+    assert escrow.functions.maxAllowableLockedTokens().call() == token_economics.maximum_allowed_locked
+    assert not worklock.functions.isClaimingAvailable().call()
+    tx = worklock.functions.enableClaiming().transact()
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.isClaimingAvailable().call()
+    assert escrow.functions.minAllowableLockedTokens().call() == worklock_supply // 20
+    assert escrow.functions.maxAllowableLockedTokens().call() == token_economics.maximum_allowed_locked
 
     # Stakers claim tokens
     assert not worklock.functions.workInfo(staker2).call()[2]
@@ -432,7 +445,6 @@ def test_all(testerchain,
     assert escrow.functions.stakerInfo(staker2).call()[WIND_DOWN_FIELD]
 
     staker1_tokens = worklock_supply // 10
-    assert escrow.functions.minAllowableLockedTokens().call() == token_economics.minimum_allowed_locked
     tx = worklock.functions.claim().transact({'from': staker1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(staker1).call()[2]

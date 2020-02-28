@@ -25,6 +25,7 @@ contract WorkLock {
     event Refund(address indexed sender, uint256 refundETH, uint256 completedWork);
     event Canceled(address indexed sender, uint256 value);
     event BiddersChecked(address indexed sender, uint256 startIndex, uint256 endIndex);
+    event ClaimingEnabled(address indexed sender);
 
     struct WorkInfo {
         uint256 depositedETH;
@@ -63,6 +64,7 @@ contract WorkLock {
     uint256 public nextBidderToCheck;
     // copy from the escrow contract
     uint256 public defaultMaxAllowableLockedTokens;
+    bool public isClaimingAvailable;
 
     /**
     * @param _token Token contract
@@ -113,6 +115,7 @@ contract WorkLock {
         minAllowedBid = _minAllowedBid;
         maxAllowedBid = _maxAllowedBid;
         defaultMaxAllowableLockedTokens = escrow.maxAllowableLockedTokens();
+        isClaimingAvailable = false;
     }
 
     /**
@@ -228,12 +231,17 @@ contract WorkLock {
             "Checking bidders is allowed when bidding and cancellation phases are over");
         require(nextBidderToCheck != bidders.length, "Bidders have already been checked");
 
-        uint256 maxAllowableBid = defaultMaxAllowableLockedTokens.mul(ethSupply).div(tokenSupply);
+        uint256 maxBidFromMaxStake = defaultMaxAllowableLockedTokens.mul(ethSupply).div(tokenSupply);
         uint256 index = nextBidderToCheck;
+
+        // skip checking if max boundary will be lower than default
+        if (maxAllowedBid <= maxBidFromMaxStake) {
+            index = bidders.length;
+        }
 
         while (index < bidders.length && gasleft() > _gasToSaveState) {
             address bidder = bidders[index];
-            require(workInfo[bidder].depositedETH <= maxAllowableBid);
+            require(workInfo[bidder].depositedETH <= maxBidFromMaxStake);
             index++;
         }
 
@@ -245,11 +253,21 @@ contract WorkLock {
     }
 
     /**
-    * @notice Checks if claiming available
+    * @notice Enable claiming after bidders have been checked.
+    * @dev Finalize bounds of allowed locked tokens
     */
-    function isClaimingAvailable() external view returns (bool) {
-        return block.timestamp >= endCancellationDate &&
-            nextBidderToCheck == bidders.length;
+    function enableClaiming() external {
+        require(block.timestamp >= endCancellationDate,
+            "Claiming tokens is allowed when bidding and cancellation phases are over");
+        require(nextBidderToCheck == bidders.length, "Bidders have not been checked");
+        require(!isClaimingAvailable,"Claiming is already enabled");
+
+        uint256 min = ethToTokens(minAllowedBid);
+        uint256 max = ethToTokens(maxAllowedBid);
+        escrow.updateAllowableLockedTokens(min, max);
+        emit ClaimingEnabled(msg.sender);
+
+        isClaimingAvailable = true;
     }
 
     /**
@@ -258,7 +276,7 @@ contract WorkLock {
     function claim() external returns (uint256 claimedTokens) {
         require(block.timestamp >= endCancellationDate,
             "Claiming tokens is allowed when bidding and cancellation phases are over");
-        require(nextBidderToCheck == bidders.length, "Bidders have not been checked");
+        require(isClaimingAvailable, "Claiming has not been enabled yet");
         WorkInfo storage info = workInfo[msg.sender];
         require(!info.claimed, "Tokens are already claimed");
         claimedTokens = ethToTokens(info.depositedETH);

@@ -1040,6 +1040,13 @@ class WorkLockAgent(EthereumContractAgent):
         return receipt
 
     @validate_checksum_address
+    def enable_claiming(self, checksum_address: str) -> dict:
+        """Enable claiming after verification"""
+        contract_function = self.contract.functions.enableClaiming()
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
+        return receipt
+
+    @validate_checksum_address
     def claim(self, checksum_address: str) -> dict:
         """
         Claim tokens - will be deposited and locked as stake in the StakingEscrow contract.
@@ -1139,8 +1146,13 @@ class WorkLockAgent(EthereumContractAgent):
         return bidders
 
     def is_claiming_available(self) -> bool:
-        """Returns True if bidders have been checked and claiming is available"""
+        """Returns True if claiming is available"""
         return self.contract.functions.isClaimingAvailable().call()
+
+    def bidders_checked(self) -> bool:
+        """Returns True if bidders have been checked"""
+        bidders_population = self.get_bidders_population()
+        return self.contract.functions.nextBidderToCheck().call() == bidders_population
 
     @property
     def minimum_allowed_bid(self) -> int:
