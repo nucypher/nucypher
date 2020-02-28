@@ -19,6 +19,7 @@ from typing import Union, List
 
 from bytestring_splitter import BytestringSplitter
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import OperationalError
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
@@ -165,6 +166,11 @@ class KeyStore(object):
         now = now or datetime.now()
         result = session.query(PolicyArrangement).filter(PolicyArrangement.expiration < now)
         deleted_records = result.delete()
+        try:
+            session.commit()
+        except OperationalError:
+            session.rollback()
+        session.close()
         return deleted_records
 
     def attach_kfrag_to_saved_arrangement(self, alice, id_as_hex, kfrag, session=None):
