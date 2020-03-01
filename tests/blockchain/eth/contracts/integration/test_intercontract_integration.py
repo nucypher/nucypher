@@ -319,7 +319,7 @@ def test_all(testerchain,
     execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
 
     # Initialize worklock
-    worklock_supply = 2200  # 2300
+    worklock_supply = 2400
     tx = token.functions.approve(worklock.address, worklock_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = worklock.functions.tokenDeposit(worklock_supply).transact({'from': creator})
@@ -399,6 +399,19 @@ def test_all(testerchain,
         tx = worklock.functions.claim().transact({'from': staker2, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
 
+    # Do force refund to whale
+    staker2_balance = testerchain.w3.eth.getBalance(staker2)
+    tx = worklock.functions.forceRefund([staker2]).transact()
+    testerchain.wait_for_receipt(tx)
+    staker2_bid = worklock.functions.workInfo(staker2).call()[0]
+    refund = deposited_eth_1 - staker2_bid
+    assert refund > 0
+    staker2_tokens = worklock.functions.ethToTokens(staker2_bid).call()
+    assert staker2_tokens <= token_economics.maximum_allowed_locked
+    worklock_balance -= refund
+    assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
+    assert testerchain.w3.eth.getBalance(staker2) == staker2_balance + refund
+
     # Check all bidders
     assert worklock.functions.getBiddersLength().call() == 2
     assert worklock.functions.nextBidderToCheck().call() == 0
@@ -412,15 +425,14 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(staker2).call()[2]
 
-    staker2_tokens = worklock_supply * 9 // 10
     assert token.functions.balanceOf(staker2).call() == 0
     assert escrow.functions.getLockedTokens(staker2, 0).call() == 0
     assert escrow.functions.getLockedTokens(staker2, 1).call() == staker2_tokens
     assert escrow.functions.getLockedTokens(staker2, token_economics.minimum_locked_periods).call() == staker2_tokens
     assert escrow.functions.getLockedTokens(staker2, token_economics.minimum_locked_periods + 1).call() == 0
     staker2_remaining_work = staker2_tokens
-    assert worklock.functions.ethToWork(deposited_eth_1).call() == staker2_remaining_work
-    assert worklock.functions.workToETH(staker2_remaining_work).call() == deposited_eth_1
+    assert worklock.functions.ethToWork(staker2_bid).call() == staker2_remaining_work
+    assert worklock.functions.workToETH(staker2_remaining_work).call() == staker2_bid
     assert worklock.functions.getRemainingWork(staker2).call() == staker2_remaining_work
     assert token.functions.balanceOf(worklock.address).call() == worklock_supply - staker2_tokens
     tx = escrow.functions.setWorker(staker2).transact({'from': staker2})
@@ -432,7 +444,6 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.stakerInfo(staker2).call()[WIND_DOWN_FIELD]
 
-    staker1_tokens = worklock_supply // 10
     tx = worklock.functions.claim().transact({'from': staker1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(staker1).call()[2]
@@ -1176,12 +1187,12 @@ def test_all(testerchain,
     assert staker2_completed_work < new_completed_work
     remaining_work = worklock.functions.getRemainingWork(staker2).call()
     assert 0 < remaining_work
-    assert deposited_eth_1 == worklock.functions.workInfo(staker2).call()[0]
+    assert staker2_bid == worklock.functions.workInfo(staker2).call()[0]
     staker2_balance = testerchain.w3.eth.getBalance(staker2)
     tx = worklock.functions.refund().transact({'from': staker2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     refund = worklock.functions.workToETH(new_completed_work).call()
-    assert deposited_eth_1 - refund == worklock.functions.workInfo(staker2).call()[0]
+    assert staker2_bid - refund == worklock.functions.workInfo(staker2).call()[0]
     assert refund + staker2_balance == testerchain.w3.eth.getBalance(staker2)
     worklock_balance -= refund
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
