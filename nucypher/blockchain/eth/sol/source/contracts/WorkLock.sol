@@ -26,6 +26,7 @@ contract WorkLock {
     event Canceled(address indexed sender, uint256 value);
     event BiddersChecked(address indexed sender, uint256 startIndex, uint256 endIndex);
     event ClaimingEnabled(address indexed sender);
+    event ForceRefund(address indexed sender, address indexed bidder, uint256 refundETH);
 
     struct WorkInfo {
         uint256 depositedETH;
@@ -65,6 +66,16 @@ contract WorkLock {
     // copy from the escrow contract
     uint256 public defaultMaxAllowableLockedTokens;
     bool public isClaimingAvailable;
+
+    /**
+    * @dev Checks timestamp regarding cancellation window
+    */
+    modifier afterCancellationWindow()
+    {
+        require(block.timestamp >= endCancellationDate,
+            "Operation is allowed when bidding and cancellation phases are over");
+        _;
+    }
 
     /**
     * @param _token Token contract
@@ -220,15 +231,85 @@ contract WorkLock {
     }
 
     /**
+    * @notice Make force refund for bidders who can get tokens more than maximum allowed
+    * @param _biddersForRefund Sorted list of unique bidders. Only bidders who must receive a refund
+    */
+    function forceRefund(address payable[] calldata _biddersForRefund) external afterCancellationWindow {
+        require(nextBidderToCheck != bidders.length, "Bidders have already been checked");
+
+        uint256 length = _biddersForRefund.length;
+        require(length > 0, "Must be at least one bidder for a refund");
+
+        // TODO quit if can't be adjusted
+
+        address previousBidder = _biddersForRefund[0];
+        uint256 minBid = workInfo[previousBidder].depositedETH;
+        uint256 maxBid = minBid;
+
+        // get minimum and maximum bids
+        for (uint256 i = 1; i < length; i++) {
+            address bidder = _biddersForRefund[i];
+            uint256 depositedETH = workInfo[bidder].depositedETH;
+            require(bidder > previousBidder && depositedETH > 0, "Addresses must be an array of unique bidders");
+            if (minBid > depositedETH) {
+                minBid = depositedETH;
+            } else if (maxBid < depositedETH) {
+                maxBid = depositedETH;
+            }
+            previousBidder = bidder;
+        }
+
+        uint256[] memory refunds = new uint256[](length);
+        // first step - align at a minimum bid
+        if (minBid != maxBid) {
+            for (uint256 i = 0; i < length; i++) {
+                address bidder = _biddersForRefund[i];
+                WorkInfo storage info = workInfo[bidder];
+                if (info.depositedETH > minBid) {
+                    refunds[i] = info.depositedETH - minBid;
+                    info.depositedETH = minBid;
+                    ethSupply -= refunds[i];
+                }
+            }
+        }
+
+        require(ethToTokens(minBid) > defaultMaxAllowableLockedTokens,
+            "At least one of bidders has allowable bid");
+
+        // final bids adjustment
+        // (min_whale_bid * token_supply - max_stake * eth_supply) / (token_supply - max_stake * n_whales)
+        uint256 refundETH = minBid.mul(tokenSupply)
+                                .sub(defaultMaxAllowableLockedTokens.mul(ethSupply))
+                                .divCeil(tokenSupply - defaultMaxAllowableLockedTokens.mul(length));
+        uint256 resultBid = minBid.sub(refundETH);
+        ethSupply -= length * refundETH;
+        for (uint256 i = 0; i < length; i++) {
+            address bidder = _biddersForRefund[i];
+            WorkInfo storage info = workInfo[bidder];
+            refunds[i] += refundETH;
+            info.depositedETH = resultBid;
+        }
+
+        // reset verification
+        nextBidderToCheck = 0;
+
+        // transfer a refund
+        for (uint256 i = 0; i < length; i++) {
+            address payable bidder = _biddersForRefund[i];
+            bidder.sendValue(refunds[i]);
+            emit ForceRefund(msg.sender, bidder, refunds[i]);
+        }
+
+    }
+
+    /**
     * @notice Check that the claimed tokens are within `maxAllowableLockedTokens` for all participants,
     * starting from the last point `nextBidderToCheck`
     * @dev Method stops working when the remaining gas is less than `_gasToSaveState`
     * and saves the state in `nextBidderToCheck`.
     * If all bidders have been checked then `nextBidderToCheck` will be equal to the length of the bidders array
     */
-    function verifyBiddingCorrectness(uint256 _gasToSaveState) external returns (uint256) {
-        require(block.timestamp >= endCancellationDate,
-            "Checking bidders is allowed when bidding and cancellation phases are over");
+    function verifyBiddingCorrectness(uint256 _gasToSaveState) external afterCancellationWindow returns (uint256) {
         require(nextBidderToCheck != bidders.length, "Bidders have already been checked");
 
         uint256 maxBidFromMaxStake = defaultMaxAllowableLockedTokens.mul(ethSupply).div(tokenSupply);
@@ -256,9 +337,7 @@ contract WorkLock {
     * @notice Enable claiming after bidders have been checked.
     * @dev Finalize bounds of allowed locked tokens
     */
-    function enableClaiming() external {
-        require(block.timestamp >= endCancellationDate,
-            "Claiming tokens is allowed when bidding and cancellation phases are over");
+    function enableClaiming() external afterCancellationWindow {
         require(nextBidderToCheck == bidders.length, "Bidders have not been checked");
         require(!isClaimingAvailable,"Claiming is already enabled");
 
@@ -273,9 +352,7 @@ contract WorkLock {
     /**
     * @notice Claimed tokens will be deposited and locked as stake in the StakingEscrow contract.
     */
-    function claim() external returns (uint256 claimedTokens) {
-        require(block.timestamp >= endCancellationDate,
-            "Claiming tokens is allowed when bidding and cancellation phases are over");
+    function claim() external afterCancellationWindow returns (uint256 claimedTokens) {
         require(isClaimingAvailable, "Claiming has not been enabled yet");
         WorkInfo storage info = workInfo[msg.sender];
         require(!info.claimed, "Tokens are already claimed");
