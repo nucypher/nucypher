@@ -1652,6 +1652,8 @@ class Bidder(NucypherTokenActor):
             self.transacting_power = TransactingPower(password=client_password, account=checksum_address)
             self.transacting_power.activate()
 
+        self._all_bidders = None
+
     def _ensure_bidding_is_open(self, message: str = None) -> None:
         highest_block = self.worklock_agent.blockchain.w3.eth.getBlock('latest')
         now = highest_block['timestamp']
@@ -1672,11 +1674,15 @@ class Bidder(NucypherTokenActor):
             message = message or f"Bidding does not close until {end}"
             raise self.BiddingIsOpen(message)
 
-    def _ensure_cancellation_window(self, ensure_closed: bool = False, message: str = None) -> None:
+    def _ensure_cancellation_window(self, ensure_closed: bool = True, message: str = None) -> None:
         highest_block = self.worklock_agent.blockchain.w3.eth.getBlock('latest')
         now = highest_block['timestamp']
         end = self.worklock_agent.end_cancellation_date
-        if ensure_closed and now < end or not ensure_closed and now >= end:
+        if ensure_closed and now < end:
+            message = message or f"Operation cannot be performed while the cancellation window is still open (closes at {end})."
+            raise self.BidderError(message)
+        elif not ensure_closed and now >= end:
+            message = message or f"Operation is allowed only while the cancellation window is open (closed at {end})."
             raise self.BidderError(message)
 
     #
@@ -1699,9 +1705,7 @@ class Bidder(NucypherTokenActor):
     def claim(self) -> dict:
 
         # Require the cancellation window is closed
-        end = self.worklock_agent.end_cancellation_date
-        error = f"Claims cannot be placed while the cancellation window is still open (closes at {end})."
-        self._ensure_cancellation_window(ensure_closed=True, message=error)
+        self._ensure_cancellation_window(ensure_closed=True)
 
         if not self.worklock_agent.is_claiming_available():
             raise self.BidderError(f"Claiming is not available yet")
@@ -1723,9 +1727,7 @@ class Bidder(NucypherTokenActor):
         return receipt
 
     def cancel_bid(self) -> dict:
-        end = self.worklock_agent.end_cancellation_date
-        error = f"Cancellation is allowed only while the cancellation window is open (closed at {end})."
-        self._ensure_cancellation_window(ensure_closed=False, message=error)
+        self._ensure_cancellation_window(ensure_closed=False)
 
         # Require an active bid
         if not self.get_deposited_eth:
@@ -1741,37 +1743,90 @@ class Bidder(NucypherTokenActor):
     def _get_max_bid_from_max_stake(self) -> int:
         """Returns maximum allowed bid calculated from maximum allowed locked tokens"""
         max_tokens = self.economics.maximum_allowed_locked
-        eth_supply = self.worklock_agent.get_eth_supply()
+        eth_supply = sum(self._all_bidders.values()) if self._all_bidders else self.worklock_agent.get_eth_supply()
         worklock_supply = self.economics.worklock_supply
         max_bid = max_tokens * eth_supply // worklock_supply
         return max_bid
 
-    # TODO make public and CLI command to print the list
-    def _get_incorrect_bids(self) -> List[str]:
-        bidders = self.worklock_agent.get_bidders()
+    def get_whales(self, force_read: bool = False) -> Dict[str, int]:
         max_bid_from_max_stake = self._get_max_bid_from_max_stake()
 
-        incorrect = list()
+        bidders = dict()
         if max_bid_from_max_stake >= self.economics.worklock_max_allowed_bid:
-            return incorrect
+            return bidders
 
+        for bidder, bid in self._get_all_bidders(force_read).items():
+            if bid > max_bid_from_max_stake:
+                bidders[bidder] = bid
+        return bidders
+
+    def _get_all_bidders(self, force_read: bool = False) -> dict:
+        if not force_read and self._all_bidders:
+            return self._all_bidders
+
+        bidders = self.worklock_agent.get_bidders()
+
+        self._all_bidders = dict()
         for bidder in bidders:
-            if self.worklock_agent.get_deposited_eth(bidder) > max_bid_from_max_stake:
-                incorrect.append(bidder)
-        return incorrect
+            bid = self.worklock_agent.get_deposited_eth(bidder)
+            self._all_bidders[bidder] = bid
+        return self._all_bidders
+
+    def _reduce_bids(self, whales: dict):
+
+        min_whale_bid = min(whales.values())
+        max_whale_bid = max(whales.values())
+
+        # first step - align at a minimum bid
+        if min_whale_bid != max_whale_bid:
+            whales = dict.fromkeys(whales.keys(), min_whale_bid)
+            self._all_bidders.update(whales)
+
+        eth_supply = sum(self._all_bidders.values())
+        worklock_supply = self.economics.worklock_supply
+        max_stake = self.economics.maximum_allowed_locked
+        if (min_whale_bid * worklock_supply) // eth_supply <= max_stake:
+            raise self.BidderError(f"Internal error: At least one of bidders {whales} has allowable bid")
+
+        a = min_whale_bid * worklock_supply - max_stake * eth_supply
+        b = worklock_supply - max_stake * len(whales)
+        refund = -(-a//b)  # div ceil
+        min_whale_bid -= refund
+        whales = dict.fromkeys(whales.keys(), min_whale_bid)
+        self._all_bidders.update(whales)
+
+        return whales
+
+    def force_refund(self) -> dict:
+        self._ensure_cancellation_window(ensure_closed=True)
+
+        whales = self.get_whales()
+        if not whales:
+            raise self.BidderError(f"All bids are correct, force refund is not needed")
+
+        new_whales = whales
+        while new_whales:
+            whales.update(new_whales)
+            whales = self._reduce_bids(whales)
+            new_whales = self.get_whales()
+
+        receipt = self.worklock_agent.force_refund(checksum_address=self.checksum_address,
+                                                   addresses=list(whales.keys()))
+
+        if self.get_whales(force_read=True):
+            raise self.BidderError(f"Internal error: offline simulation differs from transaction results")
+        return receipt
 
     # TODO better control: max iterations, interactive mode
     def verify_bidding_correctness(self, gas_limit: int) -> dict:
-        end = self.worklock_agent.end_cancellation_date
-        error = f"Checking of bidding is allowed only when the cancellation window is closed (closes at {end})."
-        self._ensure_cancellation_window(ensure_closed=True, message=error)
+        self._ensure_cancellation_window(ensure_closed=True)
 
         if self.worklock_agent.bidders_checked():
             raise self.BidderError(f"Check has already done")
 
-        incorrect_bidders = self._get_incorrect_bids()
-        if incorrect_bidders:
-            raise self.BidderError(f"There are some bidders which have too high bid: {incorrect_bidders}")
+        whales = self.get_whales()
+        if whales:
+            raise self.BidderError(f"There are some bidders which have too high bid: {whales}")
 
         receipts = dict()
         iteration = 1

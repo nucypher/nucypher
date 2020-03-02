@@ -268,8 +268,7 @@ def refund(general_config, worklock_options, registry_options, force, hw_wallet)
 @option_hw_wallet
 @click.option('--gas-limit', help="Gas limit per each verification transaction", type=click.IntRange(min=60000))
 # TODO: Consider moving to administrator (nucypher-deploy)
-# TODO: interactive mode for each step, choosing only specified steps
-def post_initialization(general_config, registry_options, worklock_options, force, hw_wallet, gas_limit):
+def post_init(general_config, registry_options, worklock_options, force, hw_wallet, gas_limit):
     """Ensure correctness of bidding and enable claiming"""
     emitter = _setup_emitter(general_config)
     if not worklock_options.bidder_address:  # TODO: Consider bundle this in worklock_options
@@ -280,22 +279,42 @@ def post_initialization(general_config, registry_options, worklock_options, forc
     registry = registry_options.get_registry(emitter, general_config.debug)
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
 
-    if not gas_limit:
-        # TODO print gas estimations
-        gas_limit = click.prompt(f"Enter gas limit per each verification transaction", type=click.IntRange(min=60000))
+    whales = bidder.get_whales()
+    if whales:
+        if not force:
+            click.confirm(f"Confirm force refund to at least {len(whales)} bidders"
+                          f" using {worklock_options.bidder_address}?", abort=True)
 
-    if not force:
-        click.confirm(f"Confirm verifying of bidding from {worklock_options.bidder_address} "
-                      f"using {gas_limit} gas per each transaction?", abort=True)
+        force_refund_receipt = bidder.force_refund()
+        emitter.echo(f"At least {len(whales)} bidders got a force refund\n", color='green')
 
-    verification_receipts = bidder.verify_bidding_correctness(gas_limit=gas_limit)
-    emitter.echo("Bidding has been checked\n", color='green')
-
-    for iteration, receipt in verification_receipts.items():
-        paint_receipt_summary(receipt=receipt,
+        paint_receipt_summary(receipt=force_refund_receipt,
                               emitter=emitter,
                               chain_name=bidder.staking_agent.blockchain.client.chain_name,
-                              transaction_type=f"verify-correctness[{iteration}]")
+                              transaction_type=f"force-refund")
+    else:
+        emitter.echo(f"All bids are correct, force refund is not needed\n", color='yellow')
+
+    if not bidder.worklock_agent.bidders_checked():
+        if not gas_limit:
+            # TODO print gas estimations
+            gas_limit = click.prompt(f"Enter gas limit per each verification transaction",
+                                     type=click.IntRange(min=60000))
+
+        if not force:
+            click.confirm(f"Confirm verifying of bidding from {worklock_options.bidder_address} "
+                          f"using {gas_limit} gas per each transaction?", abort=True)
+
+        verification_receipts = bidder.verify_bidding_correctness(gas_limit=gas_limit)
+        emitter.echo("Bidding has been checked\n", color='green')
+
+        for iteration, receipt in verification_receipts.items():
+            paint_receipt_summary(receipt=receipt,
+                                  emitter=emitter,
+                                  chain_name=bidder.staking_agent.blockchain.client.chain_name,
+                                  transaction_type=f"verify-correctness[{iteration}]")
+    else:
+        emitter.echo(f"Bidders have already been checked\n", color='yellow')
 
     if not force:
         click.confirm(f"Confirm enabling of claiming from {worklock_options.bidder_address}", abort=True)

@@ -231,7 +231,7 @@ contract WorkLock {
     }
 
     /**
-    * @notice Make force refund for bidders who can get tokens more than maximum allowed
+    * @notice Make force refund to bidders who can get tokens more than maximum allowed
     * @param _biddersForRefund Sorted list of unique bidders. Only bidders who must receive a refund
     */
     function forceRefund(address payable[] calldata _biddersForRefund) external afterCancellationWindow {
