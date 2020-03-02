@@ -30,7 +30,7 @@ from nucypher.cli.actions import (
     select_client_account,
     get_client_password,
     get_or_update_configuration,
-    select_worker_config_file
+    select_ursula_config_file
 )
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
@@ -293,6 +293,8 @@ def destroy(general_config, config_options, config_file, force):
     """
     emitter = _setup_emitter(general_config, config_options.worker_address)
     _pre_launch_warnings(emitter, dev=config_options.dev, force=force)
+    if not config_file:
+        config_file = select_ursula_config_file(emitter=emitter)
     ursula_config = config_options.create_config(emitter, config_file)
     actions.destroy_configuration(emitter, character_config=ursula_config, force=force)
 
@@ -332,13 +334,8 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
     _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
 
     domains = character_options.config_options.domains
-    if not character_options.config_options.dev:
-        config_file = select_worker_config_file(emitter=emitter,
-                                                config_file=config_file,
-                                                worker_address=worker_address,
-                                                network=list(domains)[0] if domains else None,
-                                                provider_uri=character_options.config_options.provider_uri,
-                                                federated=character_options.config_options.federated_only)
+    if not character_options.config_options.dev and not config_file:
+        config_file = select_ursula_config_file(emitter=emitter)
 
     ursula_config, URSULA = character_options.create_character(
             emitter=emitter,

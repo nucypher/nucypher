@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import glob
 import json
 import os
+import re
 import shutil
 from json import JSONDecodeError
 from os.path import abspath, dirname
@@ -31,6 +32,7 @@ from constant_sorrow.constants import (
     NO_CONTROL_PROTOCOL,
     UNKNOWN_DEVELOPMENT_CHAIN_ID
 )
+from eth_utils import is_checksum_address
 from nacl.exceptions import CryptoError
 from tabulate import tabulate
 from twisted.logger import Logger
@@ -609,26 +611,70 @@ def get_or_update_configuration(emitter, config_class, filepath: str, config_opt
         return emitter.echo(config.serialize())
 
 
-def select_worker_config_file(emitter, config_file, worker_address, provider_uri, network, federated):
+def extract_checksum_address_from_filepath(filepath, config_class=UrsulaConfiguration):
 
-    config_root = abspath(dirname(config_file)) if config_file else DEFAULT_CONFIG_ROOT
-    worker_config_exists = glob.glob(UrsulaConfiguration.default_filepath(config_root=config_root))
+    pattern = re.compile(r'''
+                         ^\w+-
+                         (0x{1}         # Then, 0x the start of the string, exactly once
+                         [0-9a-fA-F]{40}) # Followed by exactly 40 hex chars
+                         ''',
+                         re.VERBOSE)
+    filename = os.path.basename(filepath)
+    match = pattern.match(filename)
+    if not match:
+        # Extract from default by "peeking" inside the configuration file.
+        default_name = config_class.generate_filename()
+        if filename == default_name:
+            # TODO: Cleanup and deprecate worker_address in config files, leaving only checksum_address
+            federated = bool(config_class.peek(filepath=filepath, field='federated_only'))
+            if federated:
+                checksum_address = config_class.peek(filepath=filepath, field='checksum_address')
+            else:
+                checksum_address = config_class.peek(filepath=filepath, field='worker_address')
+        else:
+            breakpoint()
+            raise ValueError(f"Cannot extract checksum from filepath '{filepath}'")
+    else:
+        checksum_address = match.groups()[0]
 
-    if not worker_config_exists:
+    if not is_checksum_address(checksum_address):
+        raise RuntimeError(f"Invalid checksum address detected in configuration file at '{filepath}'.")
+    return checksum_address
+
+
+def select_ursula_config_file(emitter, config_root: str = None):
+
+    config_root = config_root or DEFAULT_CONFIG_ROOT
+
+    default_config_file = glob.glob(UrsulaConfiguration.default_filepath(config_root=config_root))
+    secondary_config_files = glob.glob(f'{config_root}/ursula-0x*.json')
+    config_files = [*default_config_file, *secondary_config_files]
+
+    if not config_files:
         emitter.message("No Ursula configurations found.  run 'nucypher ursula init' then try again.", color='red')
         raise click.Abort()
 
-    # TODO: Needs Cleanup
-    more_than_one_worker_config_exists = glob.glob(f'{config_root}/ursula-0x*.json')
-    ethereum_account_required = not worker_address and not federated
+    if len(config_files) > 1:
+        parsed_addresses = [[extract_checksum_address_from_filepath(fp)] for fp in config_files]
 
-    if more_than_one_worker_config_exists:
-        if config_file is None:
-            if ethereum_account_required:
-                worker_address = select_client_account(emitter=emitter, network=network, provider_uri=provider_uri)
-            else:
-                pass    # TODO: Support Federated Mode by walking the filesystem
-            config_file = os.path.join(DEFAULT_CONFIG_ROOT, UrsulaConfiguration.generate_filename(modifier=worker_address))
+        # Default
+        # config_file = os.path.join(DEFAULT_CONFIG_ROOT, UrsulaConfiguration.generate_filename(modifier=worker_address))
+
+        # Display account info
+        headers = ['Account']
+        emitter.echo(tabulate(parsed_addresses, headers=headers, showindex='always'))
+
+        # Prompt the user for selection, and return
+        prompt = "Select Ursula configuration"
+        account_range = click.IntRange(min=0, max=len(config_files) - 1)
+        choice = click.prompt(prompt, type=account_range, default=0)
+        chosen_account = config_files[choice]
+
+        emitter.echo(f"Selected {choice}: {chosen_account}", color='blue')
+        return chosen_account
+
+    else:
+        config_file = config_files[0]
     return config_file
 
 

@@ -633,7 +633,7 @@ class NucypherKeyring:
                 root_keypath = _write_public_keyfile(__key_filepaths['root_pub'], encrypting_public_key.to_bytes())
                 signing_keypath = _write_public_keyfile(__key_filepaths['signing_pub'], signing_public_key.to_bytes())
             except (PrivateKeyExistsError, FileExistsError):
-                raise ExistingKeyringError(f"There is an existing keyring for address '{checksum_address}'")
+                raise ExistingKeyringError(f"There is an existing keyring for address '{checksum_address}.'")
 
             # Commit
             keyring_args.update(
