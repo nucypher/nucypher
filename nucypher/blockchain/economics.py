@@ -51,15 +51,15 @@ class BaseEconomics:
     nunits_per_token = 10 ** __token_decimals  # Smallest unit designation
 
     # Period Definition
-    __default_hours_per_period = 24
+    _default_hours_per_period = 24
 
     # Time Constraints
-    __default_minimum_worker_periods = 2
-    __default_minimum_locked_periods = 30  # 720 Hours minimum
+    _default_minimum_worker_periods = 2
+    _default_minimum_locked_periods = 30  # 720 Hours minimum
 
     # Value Constraints
-    __default_minimum_allowed_locked = NU(15_000, 'NU').to_nunits()
-    __default_maximum_allowed_locked = NU(4_000_000, 'NU').to_nunits()
+    _default_minimum_allowed_locked = NU(15_000, 'NU').to_nunits()
+    _default_maximum_allowed_locked = NU(4_000_000, 'NU').to_nunits()
 
     # Slashing parameters
     HASH_ALGORITHM_KECCAK256 = 0
@@ -67,11 +67,11 @@ class BaseEconomics:
     HASH_ALGORITHM_RIPEMD160 = 2
 
     # Adjudicator
-    __default_hash_algorithm = HASH_ALGORITHM_SHA256
-    __default_base_penalty = 100
-    __default_penalty_history_coefficient = 10
-    __default_percentage_penalty_coefficient = 8
-    __default_reward_coefficient = 2
+    _default_hash_algorithm = HASH_ALGORITHM_SHA256
+    _default_base_penalty = 100
+    _default_penalty_history_coefficient = 10
+    _default_percentage_penalty_coefficient = 8
+    _default_reward_coefficient = 2
 
     # Worklock
     _default_worklock_supply: int = NotImplemented
@@ -90,18 +90,18 @@ class BaseEconomics:
                  staking_coefficient: int,
                  locked_periods_coefficient: int,
                  maximum_rewarded_periods: int,
-                 hours_per_period: int = __default_hours_per_period,
-                 minimum_locked_periods: int = __default_minimum_locked_periods,
-                 minimum_allowed_locked: int = __default_minimum_allowed_locked,
-                 maximum_allowed_locked: int = __default_maximum_allowed_locked,
-                 minimum_worker_periods: int = __default_minimum_worker_periods,
+                 hours_per_period: int = _default_hours_per_period,
+                 minimum_locked_periods: int = _default_minimum_locked_periods,
+                 minimum_allowed_locked: int = _default_minimum_allowed_locked,
+                 maximum_allowed_locked: int = _default_maximum_allowed_locked,
+                 minimum_worker_periods: int = _default_minimum_worker_periods,
 
                  # Adjudicator
-                 hash_algorithm: int = __default_hash_algorithm,
-                 base_penalty: int = __default_base_penalty,
-                 penalty_history_coefficient: int = __default_penalty_history_coefficient,
-                 percentage_penalty_coefficient: int = __default_percentage_penalty_coefficient,
-                 reward_coefficient: int = __default_reward_coefficient,
+                 hash_algorithm: int = _default_hash_algorithm,
+                 base_penalty: int = _default_base_penalty,
+                 penalty_history_coefficient: int = _default_penalty_history_coefficient,
+                 percentage_penalty_coefficient: int = _default_percentage_penalty_coefficient,
+                 reward_coefficient: int = _default_reward_coefficient,
 
                  # WorkLock
                  worklock_supply: int = _default_worklock_supply,

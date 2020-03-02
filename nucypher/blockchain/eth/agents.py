@@ -1027,6 +1027,13 @@ class WorkLockAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
         return receipt
 
+    def force_refund(self, checksum_address: str, addresses: List[str]) -> dict:
+        """Force refund to bidders who can get tokens more than maximum allowed."""
+        addresses = sorted(addresses, key=str.casefold)
+        contract_function = self.contract.functions.forceRefund(addresses)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
+        return receipt
+
     @validate_checksum_address
     def verify_bidding_correctness(self,
                                    checksum_address: str,
