@@ -826,7 +826,7 @@ def test_verifying_correctness(testerchain, token_economics, escrow, deploy_cont
 
 
 @pytest.mark.slow
-def test_force_refund(testerchain, token_economics, deploy_contract, worklock_factory):
+def test_force_refund(testerchain, token_economics, deploy_contract, worklock_factory, token):
     creator, *bidders = testerchain.w3.eth.accounts
     boosting_refund = 100
     gas_to_save_state = 30000
@@ -842,7 +842,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     # Wait end of bidding
     testerchain.time_travel(seconds=ONE_HOUR)
 
-    bidders = list(sorted(bidders))
+    bidders = sorted(bidders, key=str.casefold)
     # There is no bidders with unacceptable bid
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.forceRefund([]).transact()
@@ -930,24 +930,24 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
         testerchain.wait_for_receipt(tx)
 
     # Group of addresses to refund can't include normal bidders
-    group = list(sorted([normal_bidders[0], whales[1]]))
+    group = sorted([normal_bidders[0], whales[1]], key=str.casefold)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.forceRefund(group).transact()
         testerchain.wait_for_receipt(tx)
     # Bad input: not unique addresses, nonexistent address, not sorted list
-    group = list(sorted([whales[1], *whales]))
+    group = sorted([whales[1], *whales], key=str.casefold)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.forceRefund(group).transact()
         testerchain.wait_for_receipt(tx)
-    group = list(sorted([BlockchainInterface.NULL_ADDRESS, *whales]))
+    group = sorted([BlockchainInterface.NULL_ADDRESS, *whales], key=str.casefold)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.forceRefund(group).transact()
         testerchain.wait_for_receipt(tx)
-    group = list(sorted([creator, *whales]))
+    group = sorted([creator, *whales], key=str.casefold)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.forceRefund(group).transact()
         testerchain.wait_for_receipt(tx)
-    group = list(sorted(whales))[::-1]
+    group = sorted(whales, key=str.casefold)[::-1]
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.forceRefund(group).transact()
         testerchain.wait_for_receipt(tx)
@@ -957,7 +957,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     whale_3 = whales[2]
     whale_2_balance = testerchain.w3.eth.getBalance(whale_2)
     whale_3_balance = testerchain.w3.eth.getBalance(whale_3)
-    group = list(sorted([whale_2, whale_3]))
+    group = sorted([whale_2, whale_3], key=str.casefold)
     tx = worklock.functions.forceRefund(group).transact()
     testerchain.wait_for_receipt(tx)
     bid = worklock.functions.workInfo(whale_2).call()[0]
@@ -996,7 +996,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     assert worklock.functions.nextBidderToCheck().call() == 1
 
     # Full force refund
-    group = list(sorted(whales + hidden_whales))
+    group = sorted(whales + hidden_whales, key=str.casefold)
     balances = [testerchain.w3.eth.getBalance(bidder) for bidder in group]
     bids = [worklock.functions.workInfo(bidder).call()[0] for bidder in group]
 
@@ -1053,7 +1053,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
 
     # Force refund
     whales = bidders[len(small_bids):len(initial_bids)]
-    whales = list(sorted(whales))
+    whales = sorted(whales, key=str.casefold)
     tx = worklock.functions.forceRefund(whales).transact()
     testerchain.wait_for_receipt(tx)
 
@@ -1063,3 +1063,44 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
         assert worklock.functions.ethToTokens(bid).call() <= token_economics.maximum_allowed_locked
     tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state).transact()
     testerchain.wait_for_receipt(tx)
+
+    # Special case: there are less bidders than n, where n is `worklock_supply // maximum_allowed_locked`
+    worklock_supply = 10 * token_economics.maximum_allowed_locked
+    worklock = worklock_factory(supply=worklock_supply,
+                                bidding_delay=0,
+                                cancellation_duration=0,
+                                boosting_refund=boosting_refund,
+                                max_bid=max_allowed_bid)
+
+    bidders = bidders[0:9]
+    do_bids(testerchain, worklock, bidders, max_allowed_bid)
+    # Wait end of bidding
+    testerchain.time_travel(seconds=ONE_HOUR)
+
+    bidder1 = bidders[0]
+    worklock_tokens = token.functions.balanceOf(worklock.address).call()
+    creator_tokens = token.functions.balanceOf(creator).call()
+    bidder1_tokens = token.functions.balanceOf(bidder1).call()
+
+    bidders = sorted(bidders, key=str.casefold)
+    tx = worklock.functions.forceRefund(bidders).transact({'from': bidder1})
+    testerchain.wait_for_receipt(tx)
+
+    end_cancellation_date = worklock.functions.endCancellationDate().call()
+    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    assert end_cancellation_date > now
+    assert token.functions.balanceOf(worklock.address).call() == 0
+    assert token.functions.balanceOf(creator).call() == creator_tokens + worklock_tokens
+    assert token.functions.balanceOf(bidder1).call() == bidder1_tokens
+
+    # Distribution is canceled
+    with pytest.raises((TransactionFailed, ValueError)):
+        do_bids(testerchain, worklock, [bidder1], MIN_ALLOWED_BID)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.claim().transact({'from': bidder1, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
+
+    assert worklock.functions.workInfo(bidder1).call()[0] > 0
+    tx = worklock.functions.cancelBid().transact({'from': bidder1, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.workInfo(bidder1).call()[0] == 0
