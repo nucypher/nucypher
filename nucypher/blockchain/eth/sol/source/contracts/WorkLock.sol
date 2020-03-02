@@ -37,6 +37,7 @@ contract WorkLock {
 
     NuCypherToken public token;
     StakingEscrow public escrow;
+    address public creator;
 
     uint256 public startBidDate;
     uint256 public endBidDate;
@@ -127,6 +128,7 @@ contract WorkLock {
         maxAllowedBid = _maxAllowedBid;
         defaultMaxAllowableLockedTokens = escrow.maxAllowableLockedTokens();
         isClaimingAvailable = false;
+        creator = msg.sender;
     }
 
     /**
@@ -231,6 +233,14 @@ contract WorkLock {
     }
 
     /**
+    * @notice Cancels distribution, makes possible to retrieve all bids and creator gets all tokens
+    */
+    function shutdown() internal {
+        endCancellationDate = uint256(0) - 1; // "infinite" cancellation window
+        token.safeTransfer(creator, tokenSupply);
+    }
+
+    /**
     * @notice Make force refund to bidders who can get tokens more than maximum allowed
     * @param _biddersForRefund Sorted list of unique bidders. Only bidders who must receive a refund
     */
@@ -240,7 +250,11 @@ contract WorkLock {
         uint256 length = _biddersForRefund.length;
         require(length > 0, "Must be at least one bidder for a refund");
 
-        // TODO quit if can't be adjusted
+        uint256 minNumberOfBidders = tokenSupply.divCeil(defaultMaxAllowableLockedTokens);
+        if (bidders.length < minNumberOfBidders) {
+            shutdown();
+            return;
+        }
 
         address previousBidder = _biddersForRefund[0];
         uint256 minBid = workInfo[previousBidder].depositedETH;
