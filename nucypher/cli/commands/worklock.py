@@ -267,7 +267,7 @@ def refund(general_config, worklock_options, registry_options, force, hw_wallet)
 @option_force
 @option_hw_wallet
 @click.option('--gas-limit', help="Gas limit per each verification transaction", type=click.IntRange(min=60000))
-# TODO: Consider moving to administrator (nucypher-deploy)
+# TODO: Consider moving to administrator (nucypher-deploy) #1758
 def post_init(general_config, registry_options, worklock_options, force, hw_wallet, gas_limit):
     """Ensure correctness of bidding and enable claiming"""
     emitter = _setup_emitter(general_config)

@@ -74,7 +74,7 @@ contract WorkLock {
     modifier afterCancellationWindow()
     {
         require(block.timestamp >= endCancellationDate,
-            "Operation is allowed when bidding and cancellation phases are over");
+            "Operation is allowed when cancellation phase is over");
         _;
     }
 
@@ -201,8 +201,8 @@ contract WorkLock {
         }
 
         info.depositedETH = info.depositedETH.add(msg.value);
-        require(info.depositedETH >= minAllowedBid, "Bid must be more than minimum");
-        require(info.depositedETH <= maxAllowedBid, "Bid must be less than maximum");
+        require(info.depositedETH >= minAllowedBid, "Bid must be at least minimum");
+        require(info.depositedETH <= maxAllowedBid, "Bid must be at most maximum");
         ethSupply = ethSupply.add(msg.value);
         emit Bid(msg.sender, msg.value);
     }
@@ -211,7 +211,8 @@ contract WorkLock {
     * @notice Cancel bid and refund deposited ETH
     */
     function cancelBid() external {
-        require(block.timestamp < endCancellationDate, "Cancellation allowed only during bidding");
+        require(block.timestamp < endCancellationDate,
+            "Cancellation allowed only during cancellation window");
         WorkInfo storage info = workInfo[msg.sender];
         require(info.depositedETH > 0, "No bid to cancel");
         require(!info.claimed, "Tokens are already claimed");
@@ -336,7 +337,7 @@ contract WorkLock {
 
         while (index < bidders.length && gasleft() > _gasToSaveState) {
             address bidder = bidders[index];
-            require(workInfo[bidder].depositedETH <= maxBidFromMaxStake);
+            require(workInfo[bidder].depositedETH <= maxBidFromMaxStake, "Bid is greater than max allowable bid");
             index++;
         }
 
