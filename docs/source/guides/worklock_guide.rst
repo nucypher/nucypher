@@ -85,7 +85,7 @@ Once claimed, you can check that the stake was created successfully by running:
     
     
 Refund locked ETH
-----------------
+-----------------
 
 If you've committed some work, you are able to refund proportional part of ETH you've had bid in WorkLock contract:
 
