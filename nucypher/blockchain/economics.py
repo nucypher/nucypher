@@ -224,7 +224,7 @@ class BaseEconomics:
         ...
         2 startBidDate - Timestamp when bidding starts
         3 endBidDate - Timestamp when bidding will end
-        4 endBidDate - Timestamp when cancellation window will end
+        4 endCancellationDate - Timestamp when cancellation window will end
         5 boostingRefund - Coefficient to boost refund ETH
         6 stakingPeriods - Duration of tokens locking
         7 minAllowedBid - Minimum allowed ETH amount for bidding

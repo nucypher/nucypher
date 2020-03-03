@@ -864,7 +864,7 @@ def paint_worklock_status(emitter, registry: BaseContractRegistry):
     cancellation_end = MayaDT(worklock_agent.contract.functions.endCancellationDate().call())
 
     bidding_duration = bidding_end - bidding_start
-    cancellation_duration = cancellation_end - bidding_end
+    cancellation_duration = cancellation_end - bidding_start
     now = maya.now()
     bidding_remaining = bidding_end - now if bidding_end > now else timedelta()
     cancellation_remaining = cancellation_end - now if cancellation_end > now else timedelta()

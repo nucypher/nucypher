@@ -1637,6 +1637,15 @@ class Bidder(NucypherTokenActor):
     class BiddingIsClosed(BidderError):
         pass
 
+    class CancellationWindowIsOpen(BidderError):
+        pass
+
+    class CancellationWindowIsClosed(BidderError):
+        pass
+
+    class ClaimError(BidderError):
+        pass
+
     @validate_checksum_address
     def __init__(self,
                  checksum_address: str,
@@ -1680,10 +1689,10 @@ class Bidder(NucypherTokenActor):
         end = self.worklock_agent.end_cancellation_date
         if ensure_closed and now < end:
             message = message or f"Operation cannot be performed while the cancellation window is still open (closes at {end})."
-            raise self.BidderError(message)
+            raise self.CancellationWindowIsOpen(message)
         elif not ensure_closed and now >= end:
             message = message or f"Operation is allowed only while the cancellation window is open (closed at {end})."
-            raise self.BidderError(message)
+            raise self.CancellationWindowIsClosed(message)
 
     #
     # Transactions
@@ -1704,20 +1713,15 @@ class Bidder(NucypherTokenActor):
         self._ensure_cancellation_window(ensure_closed=True)
 
         if not self.worklock_agent.is_claiming_available():
-            raise self.BidderError(f"Claiming is not available yet")
+            raise self.ClaimError(f"Claiming is not available yet")
 
         # Ensure the claim was not already placed
         if self._has_claimed:
-            raise self.BidderError(f"Bidder {self.checksum_address} already placed a claim.")
+            raise self.ClaimError(f"Bidder {self.checksum_address} already placed a claim.")
 
         # Require an active bid
         if not self.get_deposited_eth:
-            raise self.BidderError(f"No claims available for {self.checksum_address}")
-
-        # Ensure the claim is at least large enough for min. stake
-        minimum = self.economics.minimum_allowed_locked
-        if self.available_claim < minimum:
-            raise ValueError(f"Claim is too small. Claim amount must be worth at least {NU.from_nunits(minimum)})")
+            raise self.ClaimError(f"No claims available for {self.checksum_address}")
 
         receipt = self.worklock_agent.claim(checksum_address=self.checksum_address)
         return receipt
@@ -1728,10 +1732,6 @@ class Bidder(NucypherTokenActor):
         # Require an active bid
         if not self.get_deposited_eth:
             self.BidderError(f"No bids available for {self.checksum_address}")
-
-        # Ensure the claim was not already placed
-        if self._has_claimed:
-            raise self.BidderError(f"Bidder {self.checksum_address} already placed a claim.")
 
         receipt = self.worklock_agent.cancel_bid(checksum_address=self.checksum_address)
         return receipt
@@ -1818,7 +1818,7 @@ class Bidder(NucypherTokenActor):
         self._ensure_cancellation_window(ensure_closed=True)
 
         if self.worklock_agent.bidders_checked():
-            raise self.BidderError(f"Check has already done")
+            raise self.BidderError(f"Check was already done")
 
         whales = self.get_whales()
         if whales:

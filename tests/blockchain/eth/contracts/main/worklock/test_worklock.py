@@ -48,12 +48,12 @@ MIN_ALLOWED_BID = to_wei(1, 'ether')
 
 @pytest.fixture()
 def worklock_factory(testerchain, token, escrow, token_economics, deploy_contract):
-    def deploy_worklock(supply, bidding_delay, cancellation_duration, boosting_refund):
+    def deploy_worklock(supply, bidding_delay, additional_time_to_cancel, boosting_refund):
 
         now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
         start_bid_date = now + bidding_delay
         end_bid_date = start_bid_date + BIDDING_DURATION
-        end_cancellation_date = end_bid_date + cancellation_duration
+        end_cancellation_date = end_bid_date + additional_time_to_cancel
         staking_periods = 2 * token_economics.minimum_locked_periods
 
         tx = escrow.functions.updateAllowableLockedTokens(token_economics.minimum_allowed_locked,
@@ -107,7 +107,7 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
 
     worklock = worklock_factory(supply=0,
                                 bidding_delay=ONE_HOUR,
-                                cancellation_duration=ONE_HOUR,
+                                additional_time_to_cancel=ONE_HOUR,
                                 boosting_refund=boosting_refund)
 
     assert worklock.functions.startBidDate().call() == start_bid_date
@@ -623,7 +623,7 @@ def test_reentrancy(testerchain, token_economics, deploy_contract, escrow, workl
     max_bid = 2 * MIN_ALLOWED_BID
     worklock = worklock_factory(supply=worklock_supply,
                                 bidding_delay=0,
-                                cancellation_duration=0,
+                                additional_time_to_cancel=0,
                                 boosting_refund=boosting_refund)
 
     refund_log = worklock.events.Refund.createFilter(fromBlock='latest')
@@ -716,7 +716,7 @@ def test_verifying_correctness(testerchain, token_economics, escrow, deploy_cont
     worklock_supply = token_economics.maximum_allowed_locked + 1
     worklock = worklock_factory(supply=worklock_supply,
                                 bidding_delay=0,
-                                cancellation_duration=0,
+                                additional_time_to_cancel=0,
                                 boosting_refund=boosting_refund)
 
     # Bid
@@ -736,7 +736,7 @@ def test_verifying_correctness(testerchain, token_economics, escrow, deploy_cont
     worklock_supply = 3 * token_economics.maximum_allowed_locked
     worklock = worklock_factory(supply=worklock_supply,
                                 bidding_delay=0,
-                                cancellation_duration=0,
+                                additional_time_to_cancel=0,
                                 boosting_refund=boosting_refund)
     checks_log = worklock.events.BiddersChecked.createFilter(fromBlock='latest')
 
@@ -772,7 +772,7 @@ def test_verifying_correctness(testerchain, token_economics, escrow, deploy_cont
     worklock, checks_log = deploy_worklock(worklock_supply, max_allowed_bid)
     worklock = worklock_factory(supply=worklock_supply,
                                 bidding_delay=0,
-                                cancellation_duration=0,
+                                additional_time_to_cancel=0,
                                 boosting_refund=boosting_refund)
     checks_log = worklock.events.BiddersChecked.createFilter(fromBlock='latest')
 
@@ -835,7 +835,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     worklock_supply = len(bidders) * token_economics.maximum_allowed_locked
     worklock = worklock_factory(supply=worklock_supply,
                                 bidding_delay=0,
-                                cancellation_duration=0,
+                                additional_time_to_cancel=0,
                                 boosting_refund=boosting_refund)
 
     do_bids(testerchain, worklock, bidders, MIN_ALLOWED_BID)
@@ -868,7 +868,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     worklock_supply = len(bidders) * token_economics.maximum_allowed_locked
     worklock = worklock_factory(supply=worklock_supply,
                                 bidding_delay=0,
-                                cancellation_duration=0,
+                                additional_time_to_cancel=0,
                                 boosting_refund=boosting_refund)
     normal_bid = MIN_ALLOWED_BID
     hidden_whales_bid = 2 * MIN_ALLOWED_BID
@@ -1031,7 +1031,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     max_bid = 2000 * MIN_ALLOWED_BID
     worklock = worklock_factory(supply=worklock_supply,
                                 bidding_delay=0,
-                                cancellation_duration=0,
+                                additional_time_to_cancel=0,
                                 boosting_refund=boosting_refund)
 
     small_bids = [random.randrange(MIN_ALLOWED_BID, int(1.5 * MIN_ALLOWED_BID)) for _ in range(10)]
@@ -1068,7 +1068,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     worklock_supply = 10 * token_economics.maximum_allowed_locked
     worklock = worklock_factory(supply=worklock_supply,
                                 bidding_delay=0,
-                                cancellation_duration=0,
+                                additional_time_to_cancel=0,
                                 boosting_refund=boosting_refund,
                                 max_bid=max_allowed_bid)
 
