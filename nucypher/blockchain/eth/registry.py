@@ -41,9 +41,9 @@ class CanonicalRegistrySource(ABC):
     is_primary = NotImplementedError
 
     def __init__(self, network: str, registry_name: str, *args, **kwargs):
-        if network not in NetworksInventory.networks:
+        if network not in NetworksInventory.NETWORKS:
             raise ValueError(f"{self.__class__.__name__} not available for network '{network}'. "
-                             f"Valid options are: {list(NetworksInventory.networks)}")
+                             f"Valid options are: {list(NetworksInventory.NETWORKS)}")
         self.network = network
         self.registry_name = registry_name
 

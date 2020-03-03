@@ -33,7 +33,7 @@ class NetworksInventory:  # TODO: See #1564
         CASSANDRA: 5,  # Goerli
     }
 
-    networks = tuple(__to_ethereum_chain_id.keys())
+    NETWORKS = tuple(__to_ethereum_chain_id.keys())
 
     @classmethod
     def get_ethereum_chain_id(cls, network):  # TODO: Use this (where?) to make sure we're in the right chain

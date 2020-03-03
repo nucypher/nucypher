@@ -74,7 +74,7 @@ option_registry_outfile = click.option('--registry-outfile', help="Output path f
 option_target_address = click.option('--target-address', help="Address of the target contract", type=EIP55_CHECKSUM_ADDRESS)
 option_gas = click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
 option_gas_strategy = click.option('--gas-strategy', help="Operate with a specified gas price strategy", type=click.STRING)  # TODO: GAS_STRATEGY_CHOICES
-option_network = click.option('--network', help="Name of NuCypher network", type=click.Choice(NetworksInventory.networks))
+option_network = click.option('--network', help="Name of NuCypher network", type=click.Choice(NetworksInventory.NETWORKS))
 option_ignore_deployed = click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
 option_ignore_solidity_version = click.option('--ignore-solidity-check', help="Ignore solidity version compatibility check", is_flag=True)
 

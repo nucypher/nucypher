@@ -42,6 +42,7 @@ from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     InMemoryContractRegistry,
@@ -625,12 +626,16 @@ def extract_checksum_address_from_filepath(filepath, config_class=UrsulaConfigur
         # Extract from default by "peeking" inside the configuration file.
         default_name = config_class.generate_filename()
         if filename == default_name:
+            checksum_address = config_class.peek(filepath=filepath, field='checksum_address')
+
+            ###########
             # TODO: Cleanup and deprecate worker_address in config files, leaving only checksum_address
-            federated = bool(config_class.peek(filepath=filepath, field='federated_only'))
-            if federated:
-                checksum_address = config_class.peek(filepath=filepath, field='checksum_address')
-            else:
-                checksum_address = config_class.peek(filepath=filepath, field='worker_address')
+            if config_class == UrsulaConfiguration:
+                federated = bool(config_class.peek(filepath=filepath, field='federated_only'))
+                if not federated:
+                    checksum_address = config_class.peek(filepath=filepath, field='worker_address')
+            ###########
+
         else:
             raise ValueError(f"Cannot extract checksum from filepath '{filepath}'")
     else:
@@ -683,7 +688,7 @@ def select_config_file(emitter,
         # Interactive
         #
 
-        parsed_addresses = ([extract_checksum_address_from_filepath(fp)] for fp in config_files)
+        parsed_addresses = tuple([extract_checksum_address_from_filepath(fp)] for fp in config_files)
 
         # Display account info
         headers = ['Account']
@@ -708,3 +713,12 @@ def issue_stake_suggestions(value: NU = None, lock_periods: int = None):
         click.confirm(f"Wow, {value} - That's alot of NU - Are you sure this is correct?", abort=True)
     if lock_periods and (lock_periods > 365):
         click.confirm(f"Woah, {lock_periods} is a long time - Are you sure this is correct?", abort=True)
+
+
+def select_network(emitter) -> str:
+    headers = ["Network"]
+    rows = [[n] for n in NetworksInventory.NETWORKS]
+    emitter.echo(tabulate(rows, headers=headers, showindex='always'))
+    choice = click.prompt("Select Network", default=0, type=click.IntRange(0, len(NetworksInventory.NETWORKS)-1))
+    network = NetworksInventory.NETWORKS[choice]
+    return network

@@ -599,7 +599,7 @@ def test_registry_source_manager(testerchain, test_registry):
             return raw_registry_data
 
     RegistrySourceManager._FALLBACK_CHAIN = (MockRegistrySource,)
-    NetworksInventory.networks = (TEMPORARY_DOMAIN,)
+    NetworksInventory.NETWORKS = (TEMPORARY_DOMAIN,)
 
 
 @pytest.fixture(scope='module')
