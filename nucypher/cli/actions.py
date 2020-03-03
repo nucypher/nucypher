@@ -21,7 +21,6 @@ import os
 import re
 import shutil
 from json import JSONDecodeError
-from os.path import abspath, dirname
 from typing import List, Tuple, Dict, Set, Optional
 
 import click
@@ -54,7 +53,8 @@ from nucypher.blockchain.eth.token import Stake
 from nucypher.cli import painting
 from nucypher.cli.types import IPV4_ADDRESS
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_KEYRING_PASSWORD
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_KEYRING_PASSWORD, \
+    NUCYPHER_ENVVAR_WORKER_ADDRESS
 from nucypher.config.node import CharacterConfiguration
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -614,7 +614,7 @@ def get_or_update_configuration(emitter, config_class, filepath: str, config_opt
 def extract_checksum_address_from_filepath(filepath, config_class=UrsulaConfiguration):
 
     pattern = re.compile(r'''
-                         ^\w+-
+                         (^\w+)-
                          (0x{1}         # Then, 0x the start of the string, exactly once
                          [0-9a-fA-F]{40}) # Followed by exactly 40 hex chars
                          ''',
@@ -632,49 +632,74 @@ def extract_checksum_address_from_filepath(filepath, config_class=UrsulaConfigur
             else:
                 checksum_address = config_class.peek(filepath=filepath, field='worker_address')
         else:
-            breakpoint()
             raise ValueError(f"Cannot extract checksum from filepath '{filepath}'")
     else:
-        checksum_address = match.groups()[0]
+        try:
+
+            character_name, checksum_address = match.groups()
+        except ValueError:
+            raise  # TODO: Additional handling here?
 
     if not is_checksum_address(checksum_address):
         raise RuntimeError(f"Invalid checksum address detected in configuration file at '{filepath}'.")
     return checksum_address
 
 
-def select_ursula_config_file(emitter, config_root: str = None):
+def select_config_file(emitter,
+                       config_class,
+                       config_root: str = None,
+                       checksum_address: str = None,
+                       ) -> str:
+
+    #
+    # Scrape Disk Configurations
+    #
 
     config_root = config_root or DEFAULT_CONFIG_ROOT
-
-    default_config_file = glob.glob(UrsulaConfiguration.default_filepath(config_root=config_root))
-    secondary_config_files = glob.glob(f'{config_root}/ursula-0x*.json')
+    default_config_file = glob.glob(config_class.default_filepath(config_root=config_root))
+    glob_pattern = f'{config_root}/{config_class._NAME}-0x*.{config_class._CONFIG_FILE_EXTENSION}'
+    secondary_config_files = glob.glob(glob_pattern)
     config_files = [*default_config_file, *secondary_config_files]
-
     if not config_files:
-        emitter.message("No Ursula configurations found.  run 'nucypher ursula init' then try again.", color='red')
+        emitter.message(f"No {config_class._NAME} configurations found.  run 'nucypher {config_class._NAME} init' then try again.", color='red')
         raise click.Abort()
 
-    if len(config_files) > 1:
-        parsed_addresses = [[extract_checksum_address_from_filepath(fp)] for fp in config_files]
+    checksum_address = checksum_address or os.environ.get(NUCYPHER_ENVVAR_WORKER_ADDRESS, None)  # TODO: Deprecate worker_address in favor of checksum_address
+    if checksum_address:
 
-        # Default
-        # config_file = os.path.join(DEFAULT_CONFIG_ROOT, UrsulaConfiguration.generate_filename(modifier=worker_address))
+        #
+        # Manual
+        #
+
+        parsed_addresses = {extract_checksum_address_from_filepath(fp): fp for fp in config_files}
+        try:
+            config_file = parsed_addresses[checksum_address]
+        except KeyError:
+            raise ValueError(f"'{checksum_address}' is not a known {config_class._NAME} configuration account.")
+
+    elif len(config_files) > 1:
+
+        #
+        # Interactive
+        #
+
+        parsed_addresses = ([extract_checksum_address_from_filepath(fp)] for fp in config_files)
 
         # Display account info
         headers = ['Account']
         emitter.echo(tabulate(parsed_addresses, headers=headers, showindex='always'))
 
         # Prompt the user for selection, and return
-        prompt = "Select Ursula configuration"
+        prompt = f"Select {config_class._NAME} configuration"
         account_range = click.IntRange(min=0, max=len(config_files) - 1)
         choice = click.prompt(prompt, type=account_range, default=0)
-        chosen_account = config_files[choice]
-
-        emitter.echo(f"Selected {choice}: {chosen_account}", color='blue')
-        return chosen_account
+        config_file = config_files[choice]
+        emitter.echo(f"Selected {choice}: {config_file}", color='blue')
 
     else:
+        # Default: Only one config file, use it.
         config_file = config_files[0]
+
     return config_file
 
 
