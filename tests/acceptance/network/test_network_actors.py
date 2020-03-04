@@ -133,8 +133,7 @@ def test_treasure_map_is_legit(enacted_federated_policy):
         assert ursula_address in enacted_federated_policy.bob.known_nodes.addresses()
 
 
-@pytest.mark.usefixtures('blockchain_ursulas')
-def test_treasure_map_cannot_be_duplicated(blockchain_alice, blockchain_bob, agency):
+def test_treasure_map_cannot_be_duplicated(blockchain_ursulas, blockchain_alice, blockchain_bob, agency):
 
     # Setup the policy details
     n = 3
@@ -149,7 +148,18 @@ def test_treasure_map_cannot_be_duplicated(blockchain_alice, blockchain_bob, age
                                     rate=int(1e18),  # one ether
                                     expiration=policy_end_datetime)
 
-    assert False
+    u = blockchain_ursulas[0]
+    saved_map = u.treasure_maps[bytes.fromhex(policy.treasure_map.public_id())]
+    assert saved_map == policy.treasure_map
+    # This Ursula was actually a Vladimir.
+    # Thus, he has access to the (encrypted) TreasureMap and can use its details to
+    # try to store his own fake details.
+    vladimir = Vladimir.from_target_ursula(u)
+    node_on_which_to_store_bad_map = blockchain_ursulas[1]
+    with pytest.raises(vladimir.network_middleware.UnexpectedResponse) as e:
+        vladimir.publish_fraudulent_treasure_map(legit_treasure_map=saved_map,
+                                                 target_node=node_on_which_to_store_bad_map)
+    assert e.value.status == 402
 
 
 @pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075
