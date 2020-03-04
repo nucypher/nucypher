@@ -64,12 +64,15 @@ class Vladimir(Ursula):
             crypto_power.consume_power_up(SigningPower(pubkey=target_ursula.stamp.as_umbral_pubkey()))
 
         if attach_transacting_key:
-            cls.attach_transacting_key(blockchain=target_ursula.blockchain)
+            cls.attach_transacting_key(blockchain=target_ursula.policy_agent.blockchain)
 
 
         vladimir = cls(is_me=True,
                        crypto_power=crypto_power,
                        db_filepath=cls.db_filepath,
+                       domains=[':TEMPORARY_DOMAIN:'],
+                       block_until_bonded=False,
+                       start_working_now=False,
                        rest_host=target_ursula.rest_interface.host,
                        rest_port=target_ursula.rest_interface.port,
                        certificate=target_ursula.rest_server_certificate(),
