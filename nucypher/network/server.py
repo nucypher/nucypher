@@ -400,6 +400,7 @@ def make_rest_app(
 
     @rest_app.route('/treasure_map/<treasure_map_id>', methods=['POST'])
     def receive_treasure_map(treasure_map_id):
+        # TODO: Any of the codepaths that trigger 4xx Responses here are also SuspiciousActivity.
         if not this_node.federated_only:
             from nucypher.policy.collections import DecentralizedTreasureMap as _MapClass
         else:
@@ -408,9 +409,13 @@ def make_rest_app(
         try:
             treasure_map = _MapClass.from_bytes(bytes_representation=request.data, verify=True)
         except _MapClass.InvalidSignature:
-            do_store = False
+            log.info("Bad TreasureMap HRAC Signature; not storing {}".format(treasure_map_id))
+            return Response("This TreasureMap's HRAC is not properly signed.", status=401)
+        if treasure_map.public_id() == treasure_map_id:
+            do_store = True
         else:
-            do_store = treasure_map.public_id() == treasure_map_id
+            return Response("Can't save a TreasureMap with this ID from you.", status=409)
+
 
         if do_store and not this_node.federated_only:
             alice_checksum_address = this_node.policy_agent.contract.functions.getPolicyOwner(
@@ -425,9 +430,8 @@ def make_rest_app(
             this_node.treasure_maps[treasure_map_index] = treasure_map
             return Response(bytes(treasure_map), status=202)
         else:
-            # TODO: Make this a proper 500 or whatever.  #341
             log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
-            assert False
+            return Response("This TreasureMap doesn't match a paid Policy.", status=402)
 
     @rest_app.route('/status/', methods=['GET'])
     def status():
