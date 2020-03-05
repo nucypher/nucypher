@@ -41,6 +41,10 @@ class Vladimir(Ursula):
     fraud_key = 'a75d701cc4199f7646909d15f22e2e0ef6094b3e2aa47a188f35f47e8932a7b9'
     db_filepath = ':memory:'
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._checksum_address = self.fraud_address
+
     @classmethod
     def from_target_ursula(cls,
                            target_ursula: Ursula,
