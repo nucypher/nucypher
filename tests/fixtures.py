@@ -402,7 +402,7 @@ def federated_ursulas(ursula_federated_test_config):
 def token_economics(testerchain):
 
     # Get current blocktime
-    blockchain = BlockchainInterfaceFactory.get_interface()
+    blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=testerchain.provider_uri)
     now = blockchain.w3.eth.getBlock(block_identifier='latest').timestamp
 
     # Calculate instant start time
@@ -568,7 +568,7 @@ def _make_agency(testerchain, test_registry, token_economics):
     return token_agent, staking_agent, policy_agent
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='module', autouse=True)
 def test_registry_source_manager(testerchain, test_registry):
 
     class MockRegistrySource(CanonicalRegistrySource):

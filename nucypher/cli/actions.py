@@ -666,7 +666,8 @@ def select_config_file(emitter,
     secondary_config_files = glob.glob(glob_pattern)
     config_files = [*default_config_file, *secondary_config_files]
     if not config_files:
-        emitter.message(f"No {config_class._NAME} configurations found.  run 'nucypher {config_class._NAME} init' then try again.", color='red')
+        emitter.message(f"No {config_class._NAME.capitalize()} configurations found.  "
+                        f"run 'nucypher {config_class._NAME} init' then try again.", color='red')
         raise click.Abort()
 
     checksum_address = checksum_address or os.environ.get(NUCYPHER_ENVVAR_WORKER_ADDRESS, None)  # TODO: Deprecate worker_address in favor of checksum_address
