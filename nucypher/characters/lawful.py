@@ -568,7 +568,10 @@ class Bob(Character):
         Iterate through the nodes we know, asking for the TreasureMap.
         Return the first one who has it.
         """
-        from nucypher.policy.collections import TreasureMap
+        if self.federated_only:
+            from nucypher.policy.collections import TreasureMap as _MapClass
+        else:
+            from nucypher.policy.collections import DecentralizedTreasureMap as _MapClass
         for node in self.known_nodes.shuffled():
             try:
                 response = network_middleware.get_treasure_map_from_node(node=node, map_id=map_id)
@@ -580,7 +583,7 @@ class Bob(Character):
 
             if response.status_code == 200 and response.content:
                 try:
-                    treasure_map = TreasureMap.from_bytes(response.content)
+                    treasure_map = _MapClass.from_bytes(response.content)
                 except InvalidSignature:
                     # TODO: What if a node gives a bunk TreasureMap?  NRN
                     raise
@@ -590,7 +593,7 @@ class Bob(Character):
         else:
             # TODO: Work out what to do in this scenario -
             #       if Bob can't get the TreasureMap, he needs to rest on the learning mutex or something.  NRN
-            raise TreasureMap.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_id} ")
+            raise _MapClass.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_id} ")
 
         return treasure_map
 
