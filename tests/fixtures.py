@@ -835,10 +835,10 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
 
     #                          0xaAa482c790b4301bE18D75A0D1B11B2ACBEF798B
     stakeholder_private_key = '255f64a948eeb1595b8a2d1e76740f4683eca1c8f1433d13293db9b6e27676cc'
-    address = testerchain.provider.ethereum_tester.add_account(stakeholder_private_key,
+    address = testerchain.provider.ethereum_tester.add_account(private_key=stakeholder_private_key,
                                                                password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    testerchain.provider.ethereum_tester.unlock_account(address, password=INSECURE_DEVELOPMENT_PASSWORD)
+    testerchain.provider.ethereum_tester.unlock_account(account=address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     tx = {'to': address,
           'from': testerchain.etherbase_account,

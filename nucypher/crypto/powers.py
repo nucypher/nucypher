@@ -106,7 +106,7 @@ class TransactingPower(CryptoPowerUp):
 
     not_found_error = NoTransactingPower
 
-    class AccountLocked(Signer.AccountLocked, PowerUpError):
+    class AccountLocked(PowerUpError):
         """Raised when signing cannot be performed due to a locked account"""
         pass
 
@@ -130,6 +130,7 @@ class TransactingPower(CryptoPowerUp):
         self.__password = password
 
         # Config
+        self.__is_unlocked = False
         self.__blockchain = None
         self.__cache = cache
         self.__activated = False
@@ -163,7 +164,11 @@ class TransactingPower(CryptoPowerUp):
 
     @property
     def is_unlocked(self) -> bool:
-        return self._signer.is_unlocked
+        return self.__is_unlocked
+
+    @property
+    def is_device(self) -> bool:
+        return self._signer.is_device(account=self.__account)
 
     #
     # Power
@@ -176,23 +181,31 @@ class TransactingPower(CryptoPowerUp):
             self.__password = None
         self.blockchain.transacting_power = self
 
-    def lock_account(self):
-        return self._signer.lock_account(account=self.__account)
+    def lock_account(self) -> None:
+        self._signer.lock_account(account=self.__account)
+        self.__is_unlocked = False
 
-    def unlock_account(self, password: str = None, duration: int = None):
+    def unlock_account(self, password: str = None, duration: int = None) -> bool:
         """Unlocks the account with provided or cached password."""
         password = password or self.__password
-        return self._signer.unlock_account(self.__account,
-                                           password=password,
-                                           duration=duration)
+        result = self._signer.unlock_account(self.__account,
+                                             password=password,
+                                             duration=duration)
+        if result:
+            self.__is_unlocked = True
+        return self.is_unlocked
 
     def sign_message(self, message: bytes) -> bytes:
         """Signs the message with the private key of the TransactingPower."""
+        if not self.is_unlocked:
+            raise self.AccountLocked("Failed to unlock account {}".format(self.__account))
         return self._signer.sign_message(account=self.__account, message=message)
 
     def sign_transaction(self, transaction: dict) -> HexBytes:
         """Signs the transaction with the private key of the TransactingPower."""
-        return self._signer.sign_transaction(self.account, transaction=transaction)
+        if not self.is_unlocked:
+            raise self.AccountLocked("Failed to unlock account {}".format(self.__account))
+        return self._signer.sign_transaction(transaction_dict=transaction)
 
 
 class KeyPairBasedPower(CryptoPowerUp):

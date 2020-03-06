@@ -22,7 +22,7 @@ def test_transacting_power_sign_message(testerchain):
 
     # The default state of the account is locked.
     # Test a signature without unlocking the account
-    with pytest.raises(Signer.AccountLocked):
+    with pytest.raises(power.AccountLocked):
         power.sign_message(message=b'test')
 
     # Manually unlock
@@ -46,7 +46,7 @@ def test_transacting_power_sign_message(testerchain):
     power.lock_account()
 
     # Test a signature without unlocking the account
-    with pytest.raises(Signer.AccountLocked):
+    with pytest.raises(power.AccountLocked):
         power.sign_message(message=b'test')
 
 
@@ -68,8 +68,10 @@ def test_transacting_power_sign_transaction(testerchain):
                         'data': b''}
 
     # The default state of the account is locked.
+    assert not power.is_unlocked
+
     # Test a signature without unlocking the account
-    with pytest.raises(Signer.AccountLocked):
+    with pytest.raises(power.AccountLocked):
         power.sign_transaction(transaction=transaction_dict)
 
     # Sign
@@ -91,7 +93,7 @@ def test_transacting_power_sign_transaction(testerchain):
 
     # Try signing with a re-locked account.
     power.lock_account()
-    with pytest.raises(Signer.AccountLocked):
+    with pytest.raises(power.AccountLocked):
         power.sign_transaction(transaction=transaction_dict)
 
     power.unlock_account(password=INSECURE_DEVELOPMENT_PASSWORD)

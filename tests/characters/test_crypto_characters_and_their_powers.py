@@ -157,7 +157,7 @@ def test_character_transacting_power_signing(testerchain, agency, test_registry)
                         'value': 1,
                         'data': b''}
 
-    signed_transaction = power.sign_transaction(transaction=transaction_dict)
+    signed_transaction = power.sign_transaction(transaction_dict=transaction_dict)
 
     # Demonstrate that the transaction is valid RLP encoded.
     restored_transaction = Transaction.from_bytes(serialized_bytes=signed_transaction)

@@ -1580,7 +1580,7 @@ class StakeHolder(Staker):
         if self.individual_allocation:
             if checksum_address != self.individual_allocation.beneficiary_address:
                 raise ValueError(f"Beneficiary {self.individual_allocation.beneficiary_address} in individual "
-                                 f"allocation doesnt match this checksum address ({checksum_address})")
+                                 f"allocation does not match this checksum address ({checksum_address})")
             staking_address = self.individual_allocation.contract_address
             self.beneficiary_address = self.individual_allocation.beneficiary_address
             self.preallocation_escrow_agent = PreallocationEscrowAgent(registry=self.registry,

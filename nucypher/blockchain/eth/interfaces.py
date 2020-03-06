@@ -899,6 +899,9 @@ class BlockchainInterfaceFactory:
                              *interface_args,
                              **interface_kwargs
                              ) -> None:
+        if not provider_uri:
+            # Prevent empty strings and Falsy
+            raise BlockchainInterface.UnsupportedProvider(f"'{provider_uri}' is not a valid provider URI")
 
         if provider_uri in cls._interfaces:
             raise cls.InterfaceAlreadyInitialized(f"A connection already exists for {provider_uri}.  "
