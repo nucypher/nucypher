@@ -20,15 +20,15 @@ import inspect
 from typing import List, Tuple, Optional
 
 from hexbytes import HexBytes
+from nucypher.keystore import keypairs
+from nucypher.keystore.keypairs import SigningKeypair, DecryptingKeypair
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainInterface
-from nucypher.blockchain.eth.signers import Signer
-from nucypher.blockchain.eth.signers import Web3Signer
+from nucypher.blockchain.eth.signers import Signer, Web3Signer
 from nucypher.datastore import keypairs
-from nucypher.datastore.keypairs import SigningKeypair, DecryptingKeypair
 
 
 class PowerUpError(TypeError):
@@ -201,11 +201,11 @@ class TransactingPower(CryptoPowerUp):
             raise self.AccountLocked("Failed to unlock account {}".format(self.__account))
         return self._signer.sign_message(account=self.__account, message=message)
 
-    def sign_transaction(self, transaction: dict) -> HexBytes:
+    def sign_transaction(self, transaction_dict: dict) -> HexBytes:
         """Signs the transaction with the private key of the TransactingPower."""
         if not self.is_unlocked:
             raise self.AccountLocked("Failed to unlock account {}".format(self.__account))
-        return self._signer.sign_transaction(transaction_dict=transaction)
+        return self._signer.sign_transaction(transaction_dict=transaction_dict)
 
 
 class KeyPairBasedPower(CryptoPowerUp):

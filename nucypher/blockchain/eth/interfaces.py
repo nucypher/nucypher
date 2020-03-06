@@ -36,7 +36,6 @@ from constant_sorrow.constants import (
     READ_ONLY_INTERFACE
 )
 from eth_tester import EthereumTester
-from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_checksum_address
 from twisted.logger import Logger
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider, middleware
@@ -191,18 +190,10 @@ class BlockchainInterface:
         self._provider = provider
         self._provider_process = provider_process
         self.w3 = NO_BLOCKCHAIN_CONNECTION
-        self.client = NO_BLOCKCHAIN_CONNECTION  # type: Web3Client
+        self.client = NO_BLOCKCHAIN_CONNECTION         # type: Web3Client
         self.transacting_power = READ_ONLY_INTERFACE
         self.is_light = light
-
-        try:
-            gas_strategy = self.GAS_STRATEGIES[gas_strategy]
-        except KeyError:
-            if gas_strategy and not callable(gas_strategy):
-                raise ValueError(f"{gas_strategy} must be callable to be a valid gas strategy.")
-            else:
-                gas_strategy = self.GAS_STRATEGIES[self.DEFAULT_GAS_STRATEGY]
-        self.gas_strategy = gas_strategy
+        self.gas_strategy = self.get_gas_strategy(gas_strategy)
 
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
@@ -226,6 +217,17 @@ class BlockchainInterface:
         if self.client is NO_BLOCKCHAIN_CONNECTION:
             return False
         return self.client.is_connected
+
+    @classmethod
+    def get_gas_strategy(cls, gas_strategy: Union[str, Callable]) -> Callable:
+        try:
+            gas_strategy = cls.GAS_STRATEGIES[gas_strategy]
+        except KeyError:
+            if gas_strategy and not callable(gas_strategy):
+                raise ValueError(f"{gas_strategy} must be callable to be a valid gas strategy.")
+            else:
+                gas_strategy = cls.GAS_STRATEGIES[cls.DEFAULT_GAS_STRATEGY]
+        return gas_strategy
 
     def attach_middleware(self):
 
@@ -452,7 +454,7 @@ class BlockchainInterface:
         cost_wei = price * unsigned_transaction['gas']
         cost = Web3.fromWei(cost_wei, 'gwei')
 
-        if self.transacting_power.device:
+        if self.transacting_power.is_device:
             emitter.message(f'Confirm transaction {transaction_name} on hardware wallet... ({cost} gwei @ {price})', color='yellow')
         signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction)
 

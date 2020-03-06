@@ -72,12 +72,12 @@ def test_transacting_power_sign_transaction(testerchain):
 
     # Test a signature without unlocking the account
     with pytest.raises(power.AccountLocked):
-        power.sign_transaction(transaction=transaction_dict)
+        power.sign_transaction(transaction_dict=transaction_dict)
 
     # Sign
     power.activate()
     assert power.is_unlocked is True
-    signed_transaction = power.sign_transaction(transaction=transaction_dict)
+    signed_transaction = power.sign_transaction(transaction_dict=transaction_dict)
 
     # Demonstrate that the transaction is valid RLP encoded.
     from eth_account._utils.transactions import Transaction
@@ -89,12 +89,12 @@ def test_transacting_power_sign_transaction(testerchain):
     del transaction_dict['gas']
     del transaction_dict['nonce']
     with pytest.raises(TypeError):
-        power.sign_transaction(transaction=transaction_dict)
+        power.sign_transaction(transaction_dict=transaction_dict)
 
     # Try signing with a re-locked account.
     power.lock_account()
     with pytest.raises(power.AccountLocked):
-        power.sign_transaction(transaction=transaction_dict)
+        power.sign_transaction(transaction_dict=transaction_dict)
 
     power.unlock_account(password=INSECURE_DEVELOPMENT_PASSWORD)
     assert power.is_unlocked is True
