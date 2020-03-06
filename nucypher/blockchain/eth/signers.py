@@ -7,6 +7,7 @@ from hexbytes import HexBytes
 from twisted.logger import Logger
 from web3 import Web3, IPCProvider
 
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 
@@ -56,7 +57,7 @@ class Signer(ABC):
 
 class Web3Signer(Signer):
 
-    def __init__(self, client):
+    def __init__(self, client: EthereumClient):
         super().__init__()
         self.__client = client
 

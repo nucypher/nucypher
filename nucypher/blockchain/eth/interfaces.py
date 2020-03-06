@@ -46,7 +46,7 @@ from web3.exceptions import ValidationError
 from web3.gas_strategies import time_based
 from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.eth.clients import Web3Client
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
     _get_tester_pyevm,
@@ -190,7 +190,7 @@ class BlockchainInterface:
         self._provider = provider
         self._provider_process = provider_process
         self.w3 = NO_BLOCKCHAIN_CONNECTION
-        self.client = NO_BLOCKCHAIN_CONNECTION         # type: Web3Client
+        self.client = NO_BLOCKCHAIN_CONNECTION         # type: EthereumClient
         self.transacting_power = READ_ONLY_INTERFACE
         self.is_light = light
         self.gas_strategy = self.get_gas_strategy(gas_strategy)
@@ -262,7 +262,7 @@ class BlockchainInterface:
         # Connect if not connected
         try:
             self.w3 = self.Web3(provider=self._provider)
-            self.client = Web3Client.from_w3(w3=self.w3)
+            self.client = EthereumClient.from_w3(w3=self.w3)
         except requests.ConnectionError:  # RPC
             raise self.ConnectionFailed(f'Connection Failed - {str(self.provider_uri)} - is RPC enabled?')
         except FileNotFoundError:         # IPC File Protocol

@@ -62,7 +62,7 @@ LOCAL_CHAINS = {1337: "GethDev",
                 5777: "Ganache/TestRPC"}
 
 
-class Web3Client:
+class EthereumClient:
 
     is_local = False
 
@@ -106,7 +106,7 @@ class Web3Client:
         return cls
 
     @classmethod
-    def from_w3(cls, w3: Web3) -> 'Web3Client':
+    def from_w3(cls, w3: Web3) -> 'EthereumClient':
         """
 
         Client version strings
@@ -300,7 +300,7 @@ class Web3Client:
         return True
 
 
-class GethClient(Web3Client):
+class GethClient(EthereumClient):
 
     @classmethod
     def _get_variant(cls, w3):
@@ -360,7 +360,7 @@ class GethClient(Web3Client):
         return self.w3.manager.request_blocking("personal_listWallets", [])
 
 
-class ParityClient(Web3Client):
+class ParityClient(EthereumClient):
 
     @property
     def peers(self) -> list:
@@ -380,7 +380,7 @@ class ParityClient(Web3Client):
         return self.w3.parity.personal.lockAccount(account)
 
 
-class GanacheClient(Web3Client):
+class GanacheClient(EthereumClient):
 
     is_local = True
 
@@ -391,7 +391,7 @@ class GanacheClient(Web3Client):
         return True
 
 
-class InfuraClient(Web3Client):
+class InfuraClient(EthereumClient):
 
     is_local = False
 
@@ -402,7 +402,7 @@ class InfuraClient(Web3Client):
         return True
 
 
-class EthereumTesterClient(Web3Client):
+class EthereumTesterClient(EthereumClient):
 
     is_local = True
 
