@@ -34,7 +34,7 @@ contract WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v2.2.3|
+* @dev |v2.2.4|
 */
 contract StakingEscrow is Issuer {
     using AdditionalMath for uint256;
@@ -479,7 +479,7 @@ contract StakingEscrow is Issuer {
     * Only if this parameter is not locked
     * @param _reStake Value for parameter
     */
-    function setReStake(bool _reStake) external isInitialized {
+    function setReStake(bool _reStake) external {
         require(!isReStakeLocked(msg.sender));
         StakerInfo storage info = stakerInfo[msg.sender];
         if (info.reStakeDisabled == !_reStake) {
@@ -493,7 +493,7 @@ contract StakingEscrow is Issuer {
     * @notice Lock `reStake` parameter. Only if this parameter is not locked
     * @param _lockReStakeUntilPeriod Can't change `reStake` value until this period
     */
-    function lockReStake(uint16 _lockReStakeUntilPeriod) external isInitialized {
+    function lockReStake(uint16 _lockReStakeUntilPeriod) external {
         require(!isReStakeLocked(msg.sender) &&
             _lockReStakeUntilPeriod > getCurrentPeriod());
         stakerInfo[msg.sender].lockReStakeUntilPeriod = _lockReStakeUntilPeriod;
@@ -608,7 +608,7 @@ contract StakingEscrow is Issuer {
     * @param _value Amount of tokens to deposit
     * @param _periods Amount of periods during which tokens will be locked
     */
-    function deposit(address _staker, address _payer, uint256 _value, uint16 _periods) internal isInitialized {
+    function deposit(address _staker, address _payer, uint256 _value, uint16 _periods) internal {
         require(_value != 0);
         StakerInfo storage info = stakerInfo[_staker];
         require(workerToStaker[_staker] == address(0) || workerToStaker[_staker] == info.worker,
@@ -773,7 +773,7 @@ contract StakingEscrow is Issuer {
     /**
     * @notice Confirm activity for the next period and mine for the previous period
     */
-    function confirmActivity() external {
+    function confirmActivity() external isInitialized {
         address staker = getStakerFromWorker(msg.sender);
         StakerInfo storage info = stakerInfo[staker];
         require(info.value > 0, "Staker must have a stake to confirm activity");
@@ -958,7 +958,7 @@ contract StakingEscrow is Issuer {
         address _investigator,
         uint256 _reward
     )
-        public
+        public isInitialized
     {
         require(msg.sender == address(adjudicator));
         require(_penalty > 0);

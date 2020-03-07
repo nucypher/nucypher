@@ -308,16 +308,6 @@ def test_all(testerchain,
         tx = escrow.functions.deposit(1, 1).transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
-    # Initialize escrow
-    tx = token.functions.transfer(multisig.address, token_economics.erc20_reward_supply).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    tx = token.functions.approve(escrow.address, token_economics.erc20_reward_supply)\
-        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
-    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
-    tx = escrow.functions.initialize(token_economics.erc20_reward_supply)\
-        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
-    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
-
     # Initialize worklock
     worklock_supply = 3 * token_economics.minimum_allowed_locked + token_economics.maximum_allowed_locked
     tx = token.functions.approve(worklock.address, worklock_supply).transact({'from': creator})
@@ -561,6 +551,27 @@ def test_all(testerchain,
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.deposit(2001, 1).transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
+
+    # Can't confirm activity before initialization
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.confirmActivity().transact({'from': staker1})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.confirmActivity().transact({'from': staker2})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.confirmActivity().transact({'from': staker3})
+        testerchain.wait_for_receipt(tx)
+
+    # Initialize escrow
+    tx = token.functions.transfer(multisig.address, token_economics.erc20_reward_supply).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = token.functions.approve(escrow.address, token_economics.erc20_reward_supply) \
+        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
+    tx = escrow.functions.initialize(token_economics.erc20_reward_supply) \
+        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
 
     # Grant access to transfer tokens
     tx = token.functions.approve(escrow.address, 10000).transact({'from': creator})

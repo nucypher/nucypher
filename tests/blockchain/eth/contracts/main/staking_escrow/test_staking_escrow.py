@@ -73,15 +73,6 @@ def test_staking(testerchain, token, escrow_contract):
     assert 0 == escrow.functions.getLockedTokens(staker2, 0).call()
     assert 0 == escrow.functions.getLockedTokens(testerchain.client.accounts[3], 0).call()
 
-    # Staker can't deposit tokens before Escrow initialization
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.deposit(500, 2).transact({'from': staker1})
-        testerchain.wait_for_receipt(tx)
-
-    # Initialize Escrow contract
-    tx = escrow.functions.initialize(0).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-
     # Can't deposit for too short a period (less than _minLockedPeriods coefficient)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.deposit(1000, 1).transact({'from': staker1})
@@ -91,7 +82,7 @@ def test_staking(testerchain, token, escrow_contract):
             .transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
-    # Staker transfers some tokens to the escrow and lock them
+    # Staker transfers some tokens to the escrow and locks them before initialization
     current_period = escrow.functions.getCurrentPeriod().call()
     tx = escrow.functions.deposit(1000, 2).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
@@ -126,7 +117,16 @@ def test_staking(testerchain, token, escrow_contract):
     assert staker1 == event_args['staker']
     assert event_args['windDown']
 
-    # Staker(2) stakes tokens also
+    # Can't confirm activity before initialization
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.confirmActivity().transact({'from': staker1})
+        testerchain.wait_for_receipt(tx)
+
+    # Initialize Escrow contract
+    tx = escrow.functions.initialize(0).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    # Ursula(2) stakes tokens also
     tx = escrow.functions.deposit(500, 2).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWorker(staker2).transact({'from': staker2})

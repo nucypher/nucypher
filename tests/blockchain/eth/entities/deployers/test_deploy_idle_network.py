@@ -132,11 +132,13 @@ def test_stake_in_idle_network(testerchain, token_economics, test_registry):
     staker.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=staker.checksum_address)
     staker.transacting_power.activate()
 
-    # Since StakingEscrow hasn't been activated yet, trying to deposit must fail
+    # Since StakingEscrow hasn't been activated yet, deposit should work but confirmation must fail
     amount = token_economics.minimum_allowed_locked
     periods = token_economics.minimum_locked_periods
+    staker.initialize_stake(amount=amount, lock_periods=periods)
+    staker.set_worker(account)
     with pytest.raises((TransactionFailed, ValueError)):
-        staker.initialize_stake(amount=amount, lock_periods=periods)
+        staker.staking_agent.confirm_activity(worker_address=account)
 
 
 @pytest.mark.slow()
