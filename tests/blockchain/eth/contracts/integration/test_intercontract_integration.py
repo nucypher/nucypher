@@ -303,10 +303,33 @@ def test_all(testerchain,
     tx = token.functions.approve(escrow.address, 10000).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
 
-    # Staker can't deposit tokens before Escrow initialization
+    # Check that nothing is locked
+    assert 0 == escrow.functions.getLockedTokens(staker1, 0).call()
+    assert 0 == escrow.functions.getLockedTokens(staker2, 0).call()
+    assert 0 == escrow.functions.getLockedTokens(staker3, 0).call()
+    assert 0 == escrow.functions.getLockedTokens(staker4, 0).call()
+
+    # Deposit tokens for 1 staker
+    staker1_tokens = token_economics.minimum_allowed_locked
+    duration = token_economics.minimum_locked_periods
+    tx = token.functions.approve(escrow.address, 2 * staker1_tokens).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.batchDeposit([staker1], [staker1_tokens], [duration]).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    escrow_supply = token_economics.minimum_allowed_locked
+    assert token.functions.balanceOf(escrow.address).call() == escrow_supply
+    assert escrow.functions.getAllTokens(staker1).call() == staker1_tokens
+    assert escrow.functions.getLockedTokens(staker1, 0).call() == 0
+    assert escrow.functions.getLockedTokens(staker1, 1).call() == staker1_tokens
+    assert escrow.functions.getLockedTokens(staker1, duration).call() == staker1_tokens
+    assert escrow.functions.getLockedTokens(staker1, duration + 1).call() == 0
+
+    # Can't deposit tokens again for the same staker
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.deposit(1, 1).transact({'from': staker1})
+        tx = escrow.functions.batchDeposit([staker1], [staker1_tokens], [duration]).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
+    tx = token.functions.approve(escrow.address, 0).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
 
     # Initialize worklock
     worklock_supply = 3 * token_economics.minimum_allowed_locked + token_economics.maximum_allowed_locked
@@ -443,7 +466,7 @@ def test_all(testerchain,
     assert token.functions.balanceOf(worklock.address).call() == worklock_supply - staker2_tokens
     tx = escrow.functions.setWorker(staker2).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    escrow_supply = token_economics.erc20_reward_supply + staker2_tokens
+    escrow_supply += staker2_tokens
     assert escrow.functions.getAllTokens(staker2).call() == staker2_tokens
     assert escrow.functions.getCompletedWork(staker2).call() == 0
     tx = escrow.functions.setWindDown(True).transact({'from': staker2})
@@ -453,9 +476,10 @@ def test_all(testerchain,
     tx = worklock.functions.claim().transact({'from': staker1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(staker1).call()[2]
-    staker1_tokens = worklock.functions.ethToTokens(2 * deposited_eth_2).call()
+    staker1_claims = worklock.functions.ethToTokens(2 * deposited_eth_2).call()
+    staker1_tokens += staker1_claims
     assert escrow.functions.getLockedTokens(staker1, 1).call() == staker1_tokens
-    escrow_supply += staker1_tokens
+    escrow_supply += staker1_claims
 
     # Staker prolongs lock duration
     tx = escrow.functions.prolongStake(0, 3).transact({'from': staker2, 'gas_price': 0})
@@ -534,10 +558,6 @@ def test_all(testerchain,
         testerchain.wait_for_receipt(tx)
 
     # Check that nothing is locked
-    assert 0 == escrow.functions.getLockedTokens(staker1, 0).call()
-    assert 0 == escrow.functions.getLockedTokens(staker2, 0).call()
-    assert 0 == escrow.functions.getLockedTokens(staker3, 0).call()
-    assert 0 == escrow.functions.getLockedTokens(staker4, 0).call()
     assert 0 == escrow.functions.getLockedTokens(preallocation_escrow_1.address, 0).call()
     assert 0 == escrow.functions.getLockedTokens(preallocation_escrow_2.address, 0).call()
     assert 0 == escrow.functions.getLockedTokens(contracts_owners[0], 0).call()
@@ -572,6 +592,7 @@ def test_all(testerchain,
     tx = escrow.functions.initialize(token_economics.erc20_reward_supply) \
         .buildTransaction({'from': multisig.address, 'gasPrice': 0})
     execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
+    escrow_supply += token_economics.erc20_reward_supply
 
     # Grant access to transfer tokens
     tx = token.functions.approve(escrow.address, 10000).transact({'from': creator})
@@ -590,12 +611,11 @@ def test_all(testerchain,
     tx = escrow.functions.confirmActivity().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     escrow_supply += 1000
-    first_sub_stake = staker1_tokens
     second_sub_stake = 1000
     staker1_tokens += second_sub_stake
     assert token.functions.balanceOf(escrow.address).call() == escrow_supply
     assert token.functions.balanceOf(staker1).call() == 9000
-    assert escrow.functions.getLockedTokens(staker1, 0).call() == 0
+    assert escrow.functions.getLockedTokens(staker1, 0).call() == token_economics.minimum_allowed_locked
     assert escrow.functions.getLockedTokens(staker1, 1).call() == staker1_tokens
     assert escrow.functions.getLockedTokens(staker1, token_economics.minimum_locked_periods).call() == staker1_tokens
     assert escrow.functions.getLockedTokens(staker1, token_economics.minimum_locked_periods + 1).call() == second_sub_stake
@@ -649,7 +669,7 @@ def test_all(testerchain,
     # Divide stakes
     tx = escrow.functions.divideStake(0, 500, 6).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.divideStake(1, 500, 9).transact({'from': staker1})
+    tx = escrow.functions.divideStake(2, 500, 9).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     tx = preallocation_escrow_interface_1.functions.divideStake(0, 500, 6).transact({'from': staker3})
     testerchain.wait_for_receipt(tx)

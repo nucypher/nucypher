@@ -34,7 +34,7 @@ contract WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v2.2.4|
+* @dev |v2.3.1|
 */
 contract StakingEscrow is Issuer {
     using AdditionalMath for uint256;
@@ -540,6 +540,49 @@ contract StakingEscrow is Issuer {
                 subStake.lastPeriod = nextPeriod;
             }
         }
+    }
+
+    /**
+    * @notice Batch deposit. Allowed only initial deposit for each staker
+    * @param _stakers Stakers
+    * @param _values Amount of tokens to deposit for each staker
+    * @param _periods Amount of periods during which tokens will be locked for each staker
+    */
+    function batchDeposit(
+        address[] calldata _stakers,
+        uint256[] calldata _values,
+        uint16[] calldata _periods
+    )
+        external
+    {
+        require(_stakers.length != 0 &&
+            _stakers.length == _values.length &&
+            _stakers.length == _periods.length);
+        uint16 previousPeriod = getCurrentPeriod() - 1;
+        uint16 nextPeriod = previousPeriod + 2;
+        uint256 sumValue = 0;
+
+        for (uint256 i = 0; i < _stakers.length; i++) {
+            address staker = _stakers[i];
+            uint256 value = _values[i];
+            uint16 periods = _periods[i];
+            StakerInfo storage info = stakerInfo[staker];
+            require(info.subStakes.length == 0 &&
+                value >= minAllowableLockedTokens &&
+                value <= maxAllowableLockedTokens &&
+                periods >= minLockedPeriods);
+            require(workerToStaker[staker] == address(0) || workerToStaker[staker] == info.worker,
+                "A staker can't be a worker for another staker");
+            stakers.push(staker);
+            policyManager.register(staker, previousPeriod);
+            info.value = value;
+            info.subStakes.push(SubStakeInfo(nextPeriod, 0, periods, value));
+            sumValue = sumValue.add(value);
+            emit Deposited(staker, value, periods);
+            emit Locked(staker, value, nextPeriod, periods);
+        }
+
+        token.safeTransferFrom(msg.sender, address(this), sumValue);
     }
 
     /**
