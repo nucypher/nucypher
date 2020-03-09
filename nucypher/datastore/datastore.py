@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from datetime import datetime
 from typing import List
 
@@ -44,7 +46,7 @@ class Datastore:
 
     def __init__(self, sqlalchemy_engine=None) -> None:
         """
-        Initalizes a Datastore object.
+        Initializes a Datastore object.
 
         :param sqlalchemy_engine: SQLAlchemy engine object to create session
         """
@@ -123,7 +125,7 @@ class Datastore:
                                arrangement_id: bytes,
                                kfrag: KFrag = None,
                                alice_verifying_key: UmbralPublicKey = None,
-                               alice_signature: Signature = None,
+                               alice_signature: Signature = None,  # TODO: Why is this unused?
                                session=None
                                ) -> PolicyArrangement:
         """
@@ -143,7 +145,7 @@ class Datastore:
             kfrag=kfrag,
             alice_verifying_key=alice_key_instance,
             alice_signature=None,
-            # bob_verifying_key.id
+            # bob_verifying_key.id  # TODO: Is this needed?
         )
 
         session.add(new_policy_arrangement)
@@ -191,6 +193,7 @@ class Datastore:
         """
         session = session or self._session_on_init_thread
         deleted_records = session.query(PolicyArrangement).filter_by(id=arrangement_id).delete()
+
         self.__commit(session=session)
         return deleted_records
 
@@ -201,7 +204,10 @@ class Datastore:
         session = session or self._session_on_init_thread
         now = now or datetime.now()
         result = session.query(PolicyArrangement).filter(PolicyArrangement.expiration <= now)
-        deleted_records = result.delete()
+
+        deleted_records = 0
+        if result.count() > 0:
+            deleted_records = result.delete()
         self.__commit(session=session)
         return deleted_records
 
