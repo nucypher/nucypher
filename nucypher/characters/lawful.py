@@ -873,6 +873,7 @@ class Bob(Character):
 
         return controller
 
+
 class Ursula(Teacher, Character, Worker):
 
     banner = URSULA_BANNER
@@ -882,7 +883,7 @@ class Ursula(Teacher, Character, Worker):
     # TLSHostingPower still can enjoy default status, but on a different class  NRN
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
-    _pruning_interval = 20
+    _pruning_interval = 60  # seconds
 
     class NotEnoughUrsulas(Learner.NotEnoughTeachers, StakingEscrowAgent.NotEnoughStakers):
         """

@@ -55,6 +55,14 @@ class KeyStore(object):
         # Best to treat like hot lava.
         self._session_on_init_thread = Session()
 
+    @staticmethod
+    def __commit(session) -> None:
+        try:
+            session.commit()
+        except OperationalError:
+            session.rollback()
+            raise
+
     def add_key(self, key, is_signing=True, session=None) -> Key:
         """
         :param key: Keypair object to store in the keystore.
@@ -67,11 +75,10 @@ class KeyStore(object):
         new_key = Key(fingerprint, key_data, is_signing)
 
         session.add(new_key)
-        session.commit()
-
+        self.__commit(session=session)
         return new_key
 
-    def get_key(self, fingerprint: bytes, session=None) -> Union[keypairs.DecryptingKeypair, keypairs.SigningKeypair]:
+    def get_key(self, fingerprint: bytes, session=None) -> UmbralPublicKey:
         """
         Returns a key from the KeyStore.
 
@@ -97,7 +104,7 @@ class KeyStore(object):
         session = session or self._session_on_init_thread
 
         session.query(Key).filter_by(fingerprint=fingerprint).delete()
-        session.commit()
+        self.__commit(session=session)
 
     def add_policy_arrangement(self, expiration, id, kfrag=None,
                                alice_verifying_key=None,
@@ -117,12 +124,12 @@ class KeyStore(object):
         new_policy_arrangement = PolicyArrangement(
             expiration, id, kfrag,
             alice_verifying_key=alice_key_instance,
-            alice_signature=None,  # bob_verifying_key.id
+            alice_signature=None,
+            # bob_verifying_key.id
         )
 
         session.add(new_policy_arrangement)
-        session.commit()
-
+        self.__commit(session=session)
         return new_policy_arrangement
 
     def get_policy_arrangement(self, arrangement_id: bytes, session=None) -> PolicyArrangement:
@@ -132,9 +139,7 @@ class KeyStore(object):
         :return: The PolicyArrangement object
         """
         session = session or self._session_on_init_thread
-
         policy_arrangement = session.query(PolicyArrangement).filter_by(id=arrangement_id).first()
-
         if not policy_arrangement:
             raise NotFound("No PolicyArrangement {} found.".format(arrangement_id))
         return policy_arrangement
@@ -146,17 +151,17 @@ class KeyStore(object):
         :return: The list of PolicyArrangement objects
         """
         session = session or self._session_on_init_thread
+        arrangements = session.query(PolicyArrangement).all()
+        return arrangements
 
-        return session.query(PolicyArrangement).all()
-
-    def del_policy_arrangement(self, arrangement_id: bytes, session=None):
+    def del_policy_arrangement(self, arrangement_id: bytes, session=None) -> int:
         """
         Deletes a PolicyArrangement from the Keystore.
         """
         session = session or self._session_on_init_thread
-
-        session.query(PolicyArrangement).filter_by(id=arrangement_id).delete()
-        session.commit()
+        deleted_records = session.query(PolicyArrangement).filter_by(id=arrangement_id).delete()
+        self.__commit(session=session)
+        return deleted_records
 
     def del_expired_policy_arrangements(self, session=None, now=None) -> int:
         """
@@ -164,18 +169,13 @@ class KeyStore(object):
         """
         session = session or self._session_on_init_thread
         now = now or datetime.now()
-        result = session.query(PolicyArrangement).filter(PolicyArrangement.expiration < now)
+        result = session.query(PolicyArrangement).filter(PolicyArrangement.expiration <= now)
         deleted_records = result.delete()
-        try:
-            session.commit()
-        except OperationalError:
-            session.rollback()
-        session.close()
+        self.__commit(session=session)
         return deleted_records
 
     def attach_kfrag_to_saved_arrangement(self, alice, id_as_hex, kfrag, session=None):
         session = session or self._session_on_init_thread
-
         policy_arrangement = session.query(PolicyArrangement).filter_by(id=id_as_hex.encode()).first()
 
         if policy_arrangement is None:
@@ -185,7 +185,7 @@ class KeyStore(object):
             raise alice.SuspiciousActivity
 
         policy_arrangement.kfrag = bytes(kfrag)
-        session.commit()
+        self.__commit(session=session)
 
     def save_workorder(self, bob_verifying_key, bob_signature, arrangement_id, session=None) -> Workorder:
         """
@@ -204,7 +204,7 @@ class KeyStore(object):
                                   arrangement_id=arrangement_id)
 
         session.add(new_workorder)
-        session.commit()
+        self.__commit(session=session)
         return new_workorder
 
     def get_workorders(self,
@@ -238,7 +238,7 @@ class KeyStore(object):
 
         return list(workorders)
 
-    def del_workorders(self, arrangement_id: bytes, session=None):
+    def del_workorders(self, arrangement_id: bytes, session=None) -> int:
         """
         Deletes a Workorder from the Keystore.
         """
@@ -246,6 +246,5 @@ class KeyStore(object):
 
         workorders = session.query(Workorder).filter_by(arrangement_id=arrangement_id)
         deleted = workorders.delete()
-        session.commit()
-
+        self.__commit(session=session)
         return deleted
