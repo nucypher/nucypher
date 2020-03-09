@@ -81,7 +81,8 @@ class WorkLockOptions:
 
 group_worklock_options = group_options(
     WorkLockOptions,
-    bidder_address=option_bidder_address)
+    bidder_address=option_bidder_address
+)
 
 
 @click.group()
@@ -122,6 +123,7 @@ def bid(general_config, worklock_options, registry_options, force, hw_wallet, va
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=registry_options.provider_uri,
+                                                                poa=registry_options.poa,
                                                                 network=registry_options.network,
                                                                 show_balances=True)
     if not value:
@@ -170,6 +172,7 @@ def cancel_bid(general_config, registry_options, worklock_options, force, hw_wal
     if not worklock_options.bidder_address:  # TODO: Consider bundle this in worklock_options
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=registry_options.provider_uri,
+                                                                poa=registry_options.poa,
                                                                 network=registry_options.network,
                                                                 show_balances=True)
     registry = registry_options.get_registry(emitter, general_config.debug)
@@ -196,6 +199,7 @@ def claim(general_config, worklock_options, registry_options, force, hw_wallet):
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=registry_options.provider_uri,
+                                                                poa=registry_options.poa,
                                                                 network=registry_options.network,
                                                                 show_balances=True)
 
@@ -225,6 +229,7 @@ def remaining_work(general_config, worklock_options, registry_options):
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=registry_options.provider_uri,
+                                                                poa=registry_options.poa,
                                                                 network=registry_options.network,
                                                                 show_balances=True)
     registry = registry_options.get_registry(emitter, general_config.debug)
@@ -245,6 +250,7 @@ def refund(general_config, worklock_options, registry_options, force, hw_wallet)
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=registry_options.provider_uri,
+                                                                poa=registry_options.poa,
                                                                 network=registry_options.network,
                                                                 show_balances=True)
     if not force:
@@ -268,6 +274,7 @@ def burn_unclaimed_tokens(general_config, registry_options, checksum_address):
     if not checksum_address:
         checksum_address = select_client_account(emitter=emitter,
                                                  provider_uri=registry_options.provider_uri,
+                                                 poa=registry_options.poa,
                                                  network=registry_options.network,
                                                  show_balances=True)
     # FIXME: This won't work in real life, it needs TransactingPowers and stuff
