@@ -98,7 +98,7 @@ class Felix(Character, NucypherTokenActor):
         self.db_engine = create_engine(f'sqlite:///{self.db_filepath}', convert_unicode=True)
 
         # Blockchain
-        transacting_power = TransactingPower(password=client_password, checksum_address=self.checksum_address, cache=True)
+        transacting_power = TransactingPower(password=client_password, account=self.checksum_address, cache=True)
         self._crypto_power.consume_power_up(transacting_power)
 
         self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)

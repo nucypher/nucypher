@@ -128,7 +128,7 @@ def test_character_transacting_power_signing(testerchain, agency, test_registry)
     # Manually consume the power up
     transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                          signer=Web3Signer(testerchain.client),
-                                         checksum_address=eth_address)
+                                         account=eth_address)
 
     signer._crypto_power.consume_power_up(transacting_power)
 

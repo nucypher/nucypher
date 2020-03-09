@@ -112,7 +112,7 @@ class TransactingPower(CryptoPowerUp):
 
     @validate_checksum_address
     def __init__(self,
-                 checksum_address: str,
+                 account: str,
                  signer: Signer = None,
                  password: str = None,
                  cache: bool = False):
@@ -126,7 +126,7 @@ class TransactingPower(CryptoPowerUp):
             blockchain = BlockchainInterfaceFactory.get_interface()
             signer = Web3Signer(client=blockchain.client)
         self._signer = signer
-        self.__account = checksum_address
+        self.__account = account
         self.__password = password
 
         # Config
