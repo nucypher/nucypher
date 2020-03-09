@@ -57,8 +57,8 @@ from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, TransactingPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
-from nucypher.keystore.keypairs import HostingKeypair
-from nucypher.keystore.threading import ThreadedSession
+from nucypher.datastore.keypairs import HostingKeypair
+from nucypher.datastore.threading import ThreadedSession
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed

@@ -29,7 +29,7 @@ from nucypher.characters.banners import FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
 from nucypher.config.constants import TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower, TransactingPower
-from nucypher.keystore.threading import ThreadedSession
+from nucypher.datastore.threading import ThreadedSession
 
 
 class Felix(Character, NucypherTokenActor):

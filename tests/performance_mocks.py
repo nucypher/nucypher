@@ -482,7 +482,7 @@ class NotARestApp:
 
     def actual_rest_app(self):
         if self._actual_rest_app is None:
-            self._actual_rest_app, _keystore = make_rest_app(db_filepath="no datastore",
+            self._actual_rest_app, _datastore = make_rest_app(db_filepath="no datastore",
                                                              this_node=self.this_node,
                                                              serving_domains=(None,))
             _new_view_functions = self._ViewFunctions(self._actual_rest_app.view_functions)
@@ -522,7 +522,7 @@ mock_metadata_validation = patch("nucypher.network.nodes.Teacher.validate_metada
 
 @contextmanager
 def mock_secret_source(*args, **kwargs):
-    with patch("nucypher.keystore.keypairs.Keypair._private_key_source", new=lambda *args, **kwargs: NotAPrivateKey()):
+    with patch("nucypher.datastore.keypairs.Keypair._private_key_source", new=lambda *args, **kwargs: NotAPrivateKey()):
         yield
     NotAPublicKey.reset()
 

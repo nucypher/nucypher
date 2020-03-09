@@ -26,17 +26,17 @@ from umbral.kfrags import KFrag
 
 from nucypher.crypto.signing import Signature
 from nucypher.crypto.utils import fingerprint_from_key
-from nucypher.keystore.db.models import Key, PolicyArrangement, Workorder
+from nucypher.datastore.db.models import Key, PolicyArrangement, Workorder
 
 
 class NotFound(Exception):
     """
-    Exception class for KeyStore calls for objects that don't exist.
+    Exception class for Datastore calls for objects that don't exist.
     """
     pass
 
 
-class KeyStore(object):
+class Datastore:
     """
     A storage class of persistent cryptographic entities for use by Ursula.
     """
@@ -44,7 +44,7 @@ class KeyStore(object):
 
     def __init__(self, sqlalchemy_engine=None) -> None:
         """
-        Initalizes a KeyStore object.
+        Initalizes a Datastore object.
 
         :param sqlalchemy_engine: SQLAlchemy engine object to create session
         """
@@ -88,7 +88,7 @@ class KeyStore(object):
 
     def get_key(self, fingerprint: bytes, session=None) -> UmbralPublicKey:
         """
-        Returns a key from the KeyStore.
+        Returns a key from the Datastore.
 
         :param fingerprint: Fingerprint, in bytes, of key to return
 
@@ -105,7 +105,7 @@ class KeyStore(object):
 
     def del_key(self, fingerprint: bytes, session=None):
         """
-        Deletes a key from the KeyStore.
+        Deletes a key from the Datastore.
 
         :param fingerprint: Fingerprint of key to delete
         """
