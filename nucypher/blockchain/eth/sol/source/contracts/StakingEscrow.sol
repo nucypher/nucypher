@@ -550,37 +550,47 @@ contract StakingEscrow is Issuer {
     */
     function batchDeposit(
         address[] calldata _stakers,
+        uint256[] calldata _numberOfSubStakes,
         uint256[] calldata _values,
         uint16[] calldata _periods
     )
         external
     {
+        uint256 subStakesLength = _values.length;
         require(_stakers.length != 0 &&
-            _stakers.length == _values.length &&
-            _stakers.length == _periods.length);
+            _stakers.length == _numberOfSubStakes.length &&
+            subStakesLength >= _stakers.length &&
+            _periods.length == subStakesLength);
         uint16 previousPeriod = getCurrentPeriod() - 1;
         uint16 nextPeriod = previousPeriod + 2;
         uint256 sumValue = 0;
 
+        uint256 j = 0;
         for (uint256 i = 0; i < _stakers.length; i++) {
             address staker = _stakers[i];
-            uint256 value = _values[i];
-            uint16 periods = _periods[i];
+            uint256 numberOfSubStakes = _numberOfSubStakes[i];
+            require(numberOfSubStakes > 0 && subStakesLength >= i + numberOfSubStakes);
             StakerInfo storage info = stakerInfo[staker];
-            require(info.subStakes.length == 0 &&
-                value >= minAllowableLockedTokens &&
-                value <= maxAllowableLockedTokens &&
-                periods >= minLockedPeriods);
+            require(info.subStakes.length == 0);
             require(workerToStaker[staker] == address(0) || workerToStaker[staker] == info.worker,
                 "A staker can't be a worker for another staker");
             stakers.push(staker);
             policyManager.register(staker, previousPeriod);
-            info.value = value;
-            info.subStakes.push(SubStakeInfo(nextPeriod, 0, periods, value));
-            sumValue = sumValue.add(value);
-            emit Deposited(staker, value, periods);
-            emit Locked(staker, value, nextPeriod, periods);
+
+            uint256 endIndex = j + numberOfSubStakes;
+            for (; j < endIndex; j++) {
+                uint256 value =  _values[j];
+                uint16 periods = _periods[j];
+                require(value >= minAllowableLockedTokens && periods >= minLockedPeriods);
+                info.value = info.value.add(value);
+                info.subStakes.push(SubStakeInfo(nextPeriod, 0, periods, value));
+                sumValue = sumValue.add(value);
+                emit Deposited(staker, value, periods);
+                emit Locked(staker, value, nextPeriod, periods);
+            }
+            require(info.value <= maxAllowableLockedTokens);
         }
+        require(j == subStakesLength);
 
         token.safeTransferFrom(msg.sender, address(this), sumValue);
     }

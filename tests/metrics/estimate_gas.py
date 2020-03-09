@@ -209,11 +209,12 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Batch deposit tokens
     #
-    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 5), {'from': origin})
-    transact_and_log("Batch deposit tokens for 5 owners",
+    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 10), {'from': origin})
+    transact_and_log("Batch deposit tokens for 5 owners x 2 sub-stakes",
                      staker_functions.batchDeposit(everyone_else[0:5],
-                                                   [MIN_ALLOWED_LOCKED] * 5,
-                                                   [MIN_LOCKED_PERIODS] * 5),
+                                                   [2] * 5,
+                                                   [MIN_ALLOWED_LOCKED] * 10,
+                                                   [MIN_LOCKED_PERIODS] * 10),
                      {'from': origin})
 
     #

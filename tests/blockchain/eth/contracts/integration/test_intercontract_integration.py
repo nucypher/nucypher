@@ -314,7 +314,7 @@ def test_all(testerchain,
     duration = token_economics.minimum_locked_periods
     tx = token.functions.approve(escrow.address, 2 * staker1_tokens).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.batchDeposit([staker1], [staker1_tokens], [duration]).transact({'from': creator})
+    tx = escrow.functions.batchDeposit([staker1], [1], [staker1_tokens], [duration]).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     escrow_supply = token_economics.minimum_allowed_locked
     assert token.functions.balanceOf(escrow.address).call() == escrow_supply
@@ -326,7 +326,7 @@ def test_all(testerchain,
 
     # Can't deposit tokens again for the same staker
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.batchDeposit([staker1], [staker1_tokens], [duration]).transact({'from': creator})
+        tx = escrow.functions.batchDeposit([staker1], [1], [staker1_tokens], [duration]).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     tx = token.functions.approve(escrow.address, 0).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
