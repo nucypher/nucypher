@@ -15,18 +15,18 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from datetime import datetime
-from typing import Union, List
+from typing import List
 
+import maya
 from bytestring_splitter import BytestringSplitter
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import sessionmaker
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
 from nucypher.crypto.signing import Signature
 from nucypher.crypto.utils import fingerprint_from_key
 from nucypher.keystore.db.models import Key, PolicyArrangement, Workorder
-from . import keypairs
 
 
 class NotFound(Exception):
@@ -38,7 +38,7 @@ class NotFound(Exception):
 
 class KeyStore(object):
     """
-    A storage class of cryptographic keys.
+    A storage class of persistent cryptographic entities for use by Ursula.
     """
     kfrag_splitter = BytestringSplitter(Signature, (KFrag, KFrag.expected_bytes_length()))
 
@@ -63,7 +63,15 @@ class KeyStore(object):
             session.rollback()
             raise
 
-    def add_key(self, key, is_signing=True, session=None) -> Key:
+    #
+    # Keys
+    #
+
+    def add_key(self,
+                key: UmbralPublicKey,
+                is_signing: bool = True,
+                session=None
+                ) -> Key:
         """
         :param key: Keypair object to store in the keystore.
 
@@ -106,10 +114,18 @@ class KeyStore(object):
         session.query(Key).filter_by(fingerprint=fingerprint).delete()
         self.__commit(session=session)
 
-    def add_policy_arrangement(self, expiration, id, kfrag=None,
-                               alice_verifying_key=None,
-                               alice_signature=None,
-                               session=None) -> PolicyArrangement:
+    #
+    # Arrangements
+    #
+
+    def add_policy_arrangement(self,
+                               expiration: maya.MayaDT,
+                               arrangement_id: bytes,
+                               kfrag: KFrag = None,
+                               alice_verifying_key: UmbralPublicKey = None,
+                               alice_signature: Signature = None,
+                               session=None
+                               ) -> PolicyArrangement:
         """
         Creates a PolicyArrangement to the Keystore.
 
@@ -122,7 +138,9 @@ class KeyStore(object):
             alice_key_instance = Key.from_umbral_key(alice_verifying_key, is_signing=True)
 
         new_policy_arrangement = PolicyArrangement(
-            expiration, id, kfrag,
+            expiration=expiration,
+            id=arrangement_id,
+            kfrag=kfrag,
             alice_verifying_key=alice_key_instance,
             alice_signature=None,
             # bob_verifying_key.id
@@ -134,7 +152,7 @@ class KeyStore(object):
 
     def get_policy_arrangement(self, arrangement_id: bytes, session=None) -> PolicyArrangement:
         """
-        Returns the PolicyArrangement by its HRAC.
+        Retrieves a PolicyArrangement by its HRAC.
 
         :return: The PolicyArrangement object
         """
@@ -153,6 +171,19 @@ class KeyStore(object):
         session = session or self._session_on_init_thread
         arrangements = session.query(PolicyArrangement).all()
         return arrangements
+
+    def attach_kfrag_to_saved_arrangement(self, alice, id_as_hex, kfrag, session=None):
+        session = session or self._session_on_init_thread
+        policy_arrangement = session.query(PolicyArrangement).filter_by(id=id_as_hex.encode()).first()
+
+        if policy_arrangement is None:
+            raise NotFound("Can't attach a kfrag to non-existent Arrangement {}".format(id_as_hex))
+
+        if policy_arrangement.alice_verifying_key.key_data != alice.stamp:
+            raise alice.SuspiciousActivity
+
+        policy_arrangement.kfrag = bytes(kfrag)
+        self.__commit(session=session)
 
     def del_policy_arrangement(self, arrangement_id: bytes, session=None) -> int:
         """
@@ -174,20 +205,16 @@ class KeyStore(object):
         self.__commit(session=session)
         return deleted_records
 
-    def attach_kfrag_to_saved_arrangement(self, alice, id_as_hex, kfrag, session=None):
-        session = session or self._session_on_init_thread
-        policy_arrangement = session.query(PolicyArrangement).filter_by(id=id_as_hex.encode()).first()
+    #
+    # Work Orders
+    #
 
-        if policy_arrangement is None:
-            raise NotFound("Can't attach a kfrag to non-existent Arrangement {}".format(id_as_hex))
-
-        if policy_arrangement.alice_verifying_key.key_data != alice.stamp:
-            raise alice.SuspiciousActivity
-
-        policy_arrangement.kfrag = bytes(kfrag)
-        self.__commit(session=session)
-
-    def save_workorder(self, bob_verifying_key, bob_signature, arrangement_id, session=None) -> Workorder:
+    def save_workorder(self,
+                       bob_verifying_key: UmbralPublicKey,
+                       bob_signature: Signature,
+                       arrangement_id: bytes,
+                       session=None
+                       ) -> Workorder:
         """
         Adds a Workorder to the keystore.
         """

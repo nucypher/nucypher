@@ -203,7 +203,7 @@ def make_rest_app(
         with ThreadedSession(db_engine) as session:
             new_policy_arrangement = datastore.add_policy_arrangement(
                 arrangement.expiration.datetime(),
-                id=arrangement.id.hex().encode(),
+                arrangement_id=arrangement.id.hex().encode(),
                 alice_verifying_key=arrangement.alice.stamp,
                 session=session,
             )
