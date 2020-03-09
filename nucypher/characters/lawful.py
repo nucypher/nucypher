@@ -36,6 +36,7 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
 from eth_utils import to_checksum_address
 from flask import request, Response
+from sqlalchemy.exc import OperationalError
 from twisted.internet import threads, reactor
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
@@ -1073,9 +1074,13 @@ class Ursula(Teacher, Character, Worker):
             self.log.debug(message)
 
     def __prune_arrangements(self) -> None:
-        result = self.datastore.del_expired_policy_arrangements(
-            now=datetime.fromtimestamp(self._arrangement_pruning_task.clock.seconds()))
-        self.log.debug(f"Pruned {result} policy arrangements.")
+        now = datetime.fromtimestamp(self._arrangement_pruning_task.clock.seconds())
+        try:
+            result = self.datastore.del_expired_policy_arrangements(now=now)
+        except OperationalError:
+            self.log.warn(f"Failed to prune policy arrangements; DB session rolled back.")
+        else:
+            self.log.debug(f"Pruned {result} policy arrangements.")
         return
 
     def rest_information(self):
