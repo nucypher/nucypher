@@ -1097,8 +1097,8 @@ class Ursula(Teacher, Character, Worker):
         except OperationalError:
             self.log.warn(f"Failed to prune policy arrangements; DB session rolled back.")
         else:
-            self.log.debug(f"Pruned {result} policy arrangements.")
-        return
+            if result > 0:
+                self.log.debug(f"Pruned {result} policy arrangements.")
 
     def rest_information(self):
         hosting_power = self._crypto_power.power_ups(TLSHostingPower)
