@@ -399,7 +399,8 @@ def select_client_account(emitter,
                           registry=None,
                           show_balances: bool = True,
                           show_staking: bool = False,
-                          network: str = None
+                          network: str = None,
+                          poa: bool = False
                           ) -> str:
     """
     Note: Setting show_balances to True, causes an eager contract and blockchain connection.
@@ -411,7 +412,7 @@ def select_client_account(emitter,
 
     # Lazy connect the blockchain interface
     if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-        BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, emitter=emitter)
+        BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, emitter=emitter)
     blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
 
     # Lazy connect to contracts
