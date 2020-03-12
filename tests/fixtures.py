@@ -66,8 +66,8 @@ from nucypher.config.characters import (
 )
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import canonical_address_from_umbral_key
-from nucypher.keystore import keystore
-from nucypher.keystore.db import Base
+from nucypher.datastore import datastore
+from nucypher.datastore.db import Base
 from nucypher.policy.collections import IndisputableEvidence, WorkOrder
 from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
@@ -123,11 +123,11 @@ def temp_dir_path():
 
 
 @pytest.fixture(scope="module")
-def test_keystore():
+def test_datastore():
     engine = create_engine('sqlite:///:memory:')
     Base.metadata.create_all(engine)
-    test_keystore = keystore.KeyStore(engine)
-    yield test_keystore
+    test_datastore = datastore.Datastore(engine)
+    yield test_datastore
 
 
 @pytest.fixture(scope='function')

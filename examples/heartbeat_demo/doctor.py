@@ -10,7 +10,7 @@ from timeit import default_timer as timer
 from nucypher.characters.lawful import Bob, Ursula, Enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.keystore.keypairs import DecryptingKeypair, SigningKeypair
+from nucypher.datastore.keypairs import DecryptingKeypair, SigningKeypair
 from nucypher.network.middleware import RestMiddleware
 
 from umbral.keys import UmbralPublicKey

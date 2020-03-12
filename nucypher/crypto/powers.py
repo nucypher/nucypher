@@ -26,8 +26,8 @@ from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.keystore import keypairs
-from nucypher.keystore.keypairs import SigningKeypair, DecryptingKeypair
+from nucypher.datastore import keypairs
+from nucypher.datastore.keypairs import SigningKeypair, DecryptingKeypair
 
 
 class PowerUpError(TypeError):
@@ -49,7 +49,7 @@ class NoTransactingPower(PowerUpError):
 class CryptoPower(object):
     def __init__(self, power_ups: list = None) -> None:
         self.__power_ups = {}   # type: dict
-        # TODO: The keys here will actually be IDs for looking up in a KeyStore.
+        # TODO: The keys here will actually be IDs for looking up in a Datastore.
         self.public_keys = {}  # type: dict
 
         if power_ups is not None:

@@ -154,7 +154,7 @@ Whitepapers
    api/config
    api/crypto
    api/keyring
-   api/keystore
+   api/datastore
    api/network
    api/policy
 

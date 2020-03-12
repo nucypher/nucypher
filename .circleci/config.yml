@@ -572,9 +572,9 @@ jobs:
     steps:
       - prepare_environment
       - run:
-          name: Tests for Blockhain interfaces, Crypto functions, Node Configuration and Keystore
+          name: Tests for Blockhain interfaces, Crypto functions, Node Configuration and Datastore
           command: |
-            pytest $(circleci tests glob "tests/network/**/test_*.py" "tests/config/**/test_*.py" "tests/crypto/**/test_*.py" "tests/keystore/**/test_*.py" "tests/blockchain/eth/interfaces/**/test_*.py" "tests/blockchain/eth/clients/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/network/**/test_*.py" "tests/config/**/test_*.py" "tests/crypto/**/test_*.py" "tests/datastore/**/test_*.py" "tests/blockchain/eth/interfaces/**/test_*.py" "tests/blockchain/eth/clients/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   character:

@@ -22,7 +22,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from nucypher.crypto.utils import fingerprint_from_key
-from nucypher.keystore.db import Base
+from nucypher.datastore.db import Base
 
 
 class Key(Base):

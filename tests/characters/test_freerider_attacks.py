@@ -21,7 +21,7 @@ import maya
 import pytest
 
 from nucypher.characters.unlawful import Amonia
-from nucypher.keystore.db.models import PolicyArrangement
+from nucypher.datastore.db.models import PolicyArrangement
 
 
 def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bob, agency, testerchain):

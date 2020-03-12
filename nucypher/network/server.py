@@ -35,9 +35,9 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.utils import canonical_address_from_umbral_key
-from nucypher.keystore.keypairs import HostingKeypair
-from nucypher.keystore.keystore import NotFound
-from nucypher.keystore.threading import ThreadedSession
+from nucypher.datastore.keypairs import HostingKeypair
+from nucypher.datastore.datastore import NotFound
+from nucypher.datastore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
@@ -86,8 +86,8 @@ def make_rest_app(
 
     forgetful_node_storage = ForgetfulNodeStorage(federated_only=this_node.federated_only)
 
-    from nucypher.keystore import keystore
-    from nucypher.keystore.db import Base
+    from nucypher.datastore import datastore
+    from nucypher.datastore.db import Base
     from sqlalchemy.engine import create_engine
 
     log.info("Starting datastore {}".format(db_filepath))
@@ -101,7 +101,7 @@ def make_rest_app(
     engine = create_engine(db_uri)
 
     Base.metadata.create_all(engine)
-    datastore = keystore.KeyStore(engine)
+    datastore = datastore.Datastore(engine)
     db_engine = engine
 
     from nucypher.characters.lawful import Alice, Ursula
@@ -203,7 +203,7 @@ def make_rest_app(
         with ThreadedSession(db_engine) as session:
             new_policy_arrangement = datastore.add_policy_arrangement(
                 arrangement.expiration.datetime(),
-                id=arrangement.id.hex().encode(),
+                arrangement_id=arrangement.id.hex().encode(),
                 alice_verifying_key=arrangement.alice.stamp,
                 session=session,
             )

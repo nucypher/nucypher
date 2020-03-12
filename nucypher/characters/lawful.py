@@ -25,6 +25,7 @@ from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
 import time
+from datetime import datetime
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
@@ -35,7 +36,9 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
 from eth_utils import to_checksum_address
 from flask import request, Response
-from twisted.internet import threads
+from sqlalchemy.exc import OperationalError
+from twisted.internet import threads, reactor
+from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 
 import nucypher
@@ -55,8 +58,8 @@ from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, TransactingPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
-from nucypher.keystore.keypairs import HostingKeypair
-from nucypher.keystore.threading import ThreadedSession
+from nucypher.datastore.keypairs import HostingKeypair
+from nucypher.datastore.threading import ThreadedSession
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
@@ -873,12 +876,15 @@ class Bob(Character):
 
 
 class Ursula(Teacher, Character, Worker):
+
     banner = URSULA_BANNER
     _alice_class = Alice
 
     # TODO: Maybe this wants to be a registry, so that, for example,  NRN
     # TLSHostingPower still can enjoy default status, but on a different class  NRN
     _default_crypto_powerups = [SigningPower, DecryptingPower]
+
+    _pruning_interval = 60  # seconds
 
     class NotEnoughUrsulas(Learner.NotEnoughTeachers, StakingEscrowAgent.NotEnoughStakers):
         """
@@ -949,23 +955,25 @@ class Ursula(Teacher, Character, Worker):
         #
         # Self-Ursula
         #
-        # TODO: Better handle ephemeral staking self ursula <-- Is this still relevant?  571
-        self.log.debug(f"URSULA worker: {worker_address}, staker {checksum_address}")
+
         if is_me is True:  # TODO: #429
+
+            # In-Memory TreasureMap tracking
             self._stored_treasure_maps = dict()
 
             #
-            # Ursula is a Decentralized Worker
+            # Ursula the Decentralized Worker
             #
+
             if not federated_only:
+
                 # Prepare a TransactingPower from worker node's transacting keys
                 self.transacting_power = TransactingPower(account=worker_address, password=client_password, cache=True)
                 self._crypto_power.consume_power_up(self.transacting_power)
 
                 # Use this power to substantiate the stamp
                 self.substantiate_stamp()
-                self.log.debug(
-                    f"Created decentralized identity evidence: {self.decentralized_identity_evidence[:10].hex()}")
+                self.log.debug(f"Created decentralized identity evidence: {self.decentralized_identity_evidence[:10].hex()}")
                 decentralized_identity_evidence = self.decentralized_identity_evidence
 
                 Worker.__init__(self,
@@ -977,13 +985,15 @@ class Ursula(Teacher, Character, Worker):
                                 start_working_now=start_working_now)
 
         #
-        # ProxyRESTServer and TLSHostingPower #
+        # ProxyRESTServer and TLSHostingPower
         #
+
         if not crypto_power or (TLSHostingPower not in crypto_power):
 
             #
-            # Ephemeral Self-Ursula
+            # Ephemeral Self-Ursula (Development Ursula)
             #
+
             if is_me:
                 self.suspicious_activities_witnessed = {'vladimirs': [],
                                                         'bad_treasure_maps': [],
@@ -992,6 +1002,7 @@ class Ursula(Teacher, Character, Worker):
                 #
                 # REST Server (Ephemeral Self-Ursula)
                 #
+
                 rest_app, datastore = make_rest_app(
                     this_node=self,
                     db_filepath=db_filepath,
@@ -999,8 +1010,9 @@ class Ursula(Teacher, Character, Worker):
                 )
 
                 #
-                # TLSHostingPower (Ephemeral Self-Ursula)
+                # TLSHostingPower (Ephemeral Powers and Private Keys)
                 #
+
                 tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host,
                                                      checksum_address=self.checksum_address)
                 tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=rest_host)
@@ -1011,6 +1023,7 @@ class Ursula(Teacher, Character, Worker):
             #
             # Stranger-Ursula
             #
+
             else:
 
                 # TLSHostingPower
@@ -1033,11 +1046,13 @@ class Ursula(Teacher, Character, Worker):
             #
             # OK - Now we have a ProxyRestServer and a TLSHostingPower for some Ursula
             #
+
             self._crypto_power.consume_power_up(tls_hosting_power)  # Consume!
 
         #
-        # Verifiable Node
+        # Teacher (Verifiable Node)
         #
+
         certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
         certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
         Teacher.__init__(self,
@@ -1049,20 +1064,41 @@ class Ursula(Teacher, Character, Worker):
                          decentralized_identity_evidence=decentralized_identity_evidence,
                          )
 
+        #
+        # Startup Services  # TODO: PR #1462
+        #
+
         if start_learning_now:
             self.start_learning_loop(now=True)
 
-        #
-        # Logging / Updating
-        #
         if is_me:
+
+            # Initial Fleet State
             self.known_nodes.record_fleet_state(additional_nodes_to_track=[self])
+
+            # Arrangement Pruning
+            self._arrangement_pruning_task = LoopingCall(f=self.__prune_arrangements)
+            self.__pruning_task = None   # TODO: Move to ursula.run awaiting PR #1462
+            self.__pruning_task = self._arrangement_pruning_task.start(interval=self._pruning_interval)
+
             message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)
             self.log.info(message)
             self.log.info(self.banner.format(self.nickname))
+
         else:
             message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self)
             self.log.debug(message)
+
+    def __prune_arrangements(self) -> None:
+        """Deletes all expired arrangements and kfrags in the datastore."""
+        now = datetime.fromtimestamp(self._arrangement_pruning_task.clock.seconds())
+        try:
+            result = self.datastore.del_expired_policy_arrangements(now=now)
+        except OperationalError:
+            self.log.warn(f"Failed to prune policy arrangements; DB session rolled back.")
+        else:
+            if result > 0:
+                self.log.debug(f"Pruned {result} policy arrangements.")
 
     def rest_information(self):
         hosting_power = self._crypto_power.power_ups(TLSHostingPower)
