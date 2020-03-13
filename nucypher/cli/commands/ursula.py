@@ -30,8 +30,8 @@ from nucypher.cli.actions import (
     select_client_account,
     get_client_password,
     get_or_update_configuration,
-    select_worker_config_file
-)
+    select_config_file,
+    select_network)
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
@@ -275,9 +275,8 @@ def init(general_config, config_options, force, config_root):
     _pre_launch_warnings(emitter, dev=None, force=force)
     if not config_root:
         config_root = general_config.config_root
-
     if not config_options.federated_only and not config_options.domains:  # TODO: Again, weird network/domains mapping. See UrsulaConfigOptions' constructor. #1580
-        raise click.BadOptionUsage(option_name="--network", message=f"--network is required when creating an Ursula in decentralized mode.")
+        config_options.domains = {select_network(emitter)}
     ursula_config = config_options.generate_config(emitter, config_root, force)
     painting.paint_new_installation_help(emitter, new_configuration=ursula_config)
 
@@ -293,6 +292,10 @@ def destroy(general_config, config_options, config_file, force):
     """
     emitter = _setup_emitter(general_config, config_options.worker_address)
     _pre_launch_warnings(emitter, dev=config_options.dev, force=force)
+    if not config_file:
+        config_file = select_config_file(emitter=emitter,
+                                         checksum_address=config_options.worker_address,
+                                         config_class=UrsulaConfiguration)
     ursula_config = config_options.create_config(emitter, config_file)
     actions.destroy_configuration(emitter, character_config=ursula_config, force=force)
 
@@ -331,14 +334,10 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
     emitter = _setup_emitter(general_config, worker_address=worker_address)
     _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
 
-    domains = character_options.config_options.domains
-    if not character_options.config_options.dev:
-        config_file = select_worker_config_file(emitter=emitter,
-                                                config_file=config_file,
-                                                worker_address=worker_address,
-                                                network=list(domains)[0] if domains else None,
-                                                provider_uri=character_options.config_options.provider_uri,
-                                                federated=character_options.config_options.federated_only)
+    if not character_options.config_options.dev and not config_file:
+        config_file = select_config_file(emitter=emitter,
+                                         checksum_address=worker_address,
+                                         config_class=UrsulaConfiguration)
 
     ursula_config, URSULA = character_options.create_character(
             emitter=emitter,
@@ -415,11 +414,14 @@ def config(general_config, config_options, config_file):
     View and optionally update the Ursula node's configuration.
     """
     emitter = _setup_emitter(general_config, config_options.worker_address)
-    filepath = config_file or UrsulaConfiguration.default_filepath()
-    emitter.echo(f"Ursula Configuration {filepath} \n {'='*55}")
+    if not config_file:
+        config_file = select_config_file(emitter=emitter,
+                                         checksum_address=config_options.worker_address,
+                                         config_class=UrsulaConfiguration)
+    emitter.echo(f"Ursula Configuration {config_file} \n {'='*55}")
     return get_or_update_configuration(emitter=emitter,
                                        config_class=UrsulaConfiguration,
-                                       filepath=filepath,
+                                       filepath=config_file,
                                        config_options=config_options)
 
 

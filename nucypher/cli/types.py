@@ -49,7 +49,7 @@ class IPv4Address(click.ParamType):
 
 
 # NuCypher
-NETWORK_DOMAIN = click.Choice(choices=NetworksInventory.networks)
+NETWORK_DOMAIN = click.Choice(choices=NetworksInventory.NETWORKS)
 
 # Ethereum
 EIP55_CHECKSUM_ADDRESS = ChecksumAddress()

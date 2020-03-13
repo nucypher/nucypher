@@ -18,9 +18,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import glob
 import json
 import os
+import re
 import shutil
 from json import JSONDecodeError
-from os.path import abspath, dirname
 from typing import List, Tuple, Dict, Set, Optional
 
 import click
@@ -31,6 +31,7 @@ from constant_sorrow.constants import (
     NO_CONTROL_PROTOCOL,
     UNKNOWN_DEVELOPMENT_CHAIN_ID
 )
+from eth_utils import is_checksum_address
 from nacl.exceptions import CryptoError
 from tabulate import tabulate
 from twisted.logger import Logger
@@ -41,6 +42,7 @@ from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     InMemoryContractRegistry,
@@ -52,7 +54,8 @@ from nucypher.blockchain.eth.token import Stake
 from nucypher.cli import painting
 from nucypher.cli.types import IPV4_ADDRESS
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_KEYRING_PASSWORD
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_KEYRING_PASSWORD, \
+    NUCYPHER_ENVVAR_WORKER_ADDRESS
 from nucypher.config.node import CharacterConfiguration
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -610,31 +613,113 @@ def get_or_update_configuration(emitter, config_class, filepath: str, config_opt
         return emitter.echo(config.serialize())
 
 
-def select_worker_config_file(emitter, config_file, worker_address, provider_uri, network, federated):
+def extract_checksum_address_from_filepath(filepath, config_class=UrsulaConfiguration):
 
-    config_root = abspath(dirname(config_file)) if config_file else DEFAULT_CONFIG_ROOT
-    worker_config_exists = glob.glob(UrsulaConfiguration.default_filepath(config_root=config_root))
+    pattern = re.compile(r'''
+                         (^\w+)-
+                         (0x{1}         # Then, 0x the start of the string, exactly once
+                         [0-9a-fA-F]{40}) # Followed by exactly 40 hex chars
+                         ''',
+                         re.VERBOSE)
 
-    if not worker_config_exists:
-        emitter.message("No Ursula configurations found.  run 'nucypher ursula init' then try again.", color='red')
+    filename = os.path.basename(filepath)
+    match = pattern.match(filename)
+
+    if match:
+        character_name, checksum_address = match.groups()
+
+    else:
+        # Extract from default by "peeking" inside the configuration file.
+        default_name = config_class.generate_filename()
+        if filename == default_name:
+            checksum_address = config_class.peek(filepath=filepath, field='checksum_address')
+
+            ###########
+            # TODO: Cleanup and deprecate worker_address in config files, leaving only checksum_address
+            if config_class == UrsulaConfiguration:
+                federated = bool(config_class.peek(filepath=filepath, field='federated_only'))
+                if not federated:
+                    checksum_address = config_class.peek(filepath=filepath, field='worker_address')
+            ###########
+
+        else:
+            raise ValueError(f"Cannot extract checksum from filepath '{filepath}'")
+
+    if not is_checksum_address(checksum_address):
+        raise RuntimeError(f"Invalid checksum address detected in configuration file at '{filepath}'.")
+    return checksum_address
+
+
+def select_config_file(emitter,
+                       config_class,
+                       config_root: str = None,
+                       checksum_address: str = None,
+                       ) -> str:
+
+    #
+    # Scrape Disk Configurations
+    #
+
+    config_root = config_root or DEFAULT_CONFIG_ROOT
+    default_config_file = glob.glob(config_class.default_filepath(config_root=config_root))
+    glob_pattern = f'{config_root}/{config_class._NAME}-0x*.{config_class._CONFIG_FILE_EXTENSION}'
+    secondary_config_files = glob.glob(glob_pattern)
+    config_files = [*default_config_file, *secondary_config_files]
+    if not config_files:
+        emitter.message(f"No {config_class._NAME.capitalize()} configurations found.  "
+                        f"run 'nucypher {config_class._NAME} init' then try again.", color='red')
         raise click.Abort()
 
-    # TODO: Needs Cleanup
-    more_than_one_worker_config_exists = glob.glob(f'{config_root}/ursula-0x*.json')
-    ethereum_account_required = not worker_address and not federated
+    checksum_address = checksum_address or os.environ.get(NUCYPHER_ENVVAR_WORKER_ADDRESS, None)  # TODO: Deprecate worker_address in favor of checksum_address
+    if checksum_address:
 
-    if more_than_one_worker_config_exists:
-        if config_file is None:
-            if ethereum_account_required:
-                worker_address = select_client_account(emitter=emitter, network=network, provider_uri=provider_uri)
-            else:
-                pass    # TODO: Support Federated Mode by walking the filesystem
-            config_file = os.path.join(DEFAULT_CONFIG_ROOT, UrsulaConfiguration.generate_filename(modifier=worker_address))
+        #
+        # Manual
+        #
+
+        parsed_addresses = {extract_checksum_address_from_filepath(fp): fp for fp in config_files}
+        try:
+            config_file = parsed_addresses[checksum_address]
+        except KeyError:
+            raise ValueError(f"'{checksum_address}' is not a known {config_class._NAME} configuration account.")
+
+    elif len(config_files) > 1:
+
+        #
+        # Interactive
+        #
+
+        parsed_addresses = tuple([extract_checksum_address_from_filepath(fp)] for fp in config_files)
+
+        # Display account info
+        headers = ['Account']
+        emitter.echo(tabulate(parsed_addresses, headers=headers, showindex='always'))
+
+        # Prompt the user for selection, and return
+        prompt = f"Select {config_class._NAME} configuration"
+        account_range = click.IntRange(min=0, max=len(config_files) - 1)
+        choice = click.prompt(prompt, type=account_range, default=0)
+        config_file = config_files[choice]
+        emitter.echo(f"Selected {choice}: {config_file}", color='blue')
+
+    else:
+        # Default: Only one config file, use it.
+        config_file = config_files[0]
+
     return config_file
 
 
 def issue_stake_suggestions(value: NU = None, lock_periods: int = None):
     if value and (value > NU.from_tokens(150000)):
-        click.confirm(f"Wow, {value} - That's alot of NU - Are you sure this is correct?", abort=True)
+        click.confirm(f"Wow, {value} - That's a lot of NU - Are you sure this is correct?", abort=True)
     if lock_periods and (lock_periods > 365):
         click.confirm(f"Woah, {lock_periods} is a long time - Are you sure this is correct?", abort=True)
+
+
+def select_network(emitter) -> str:
+    headers = ["Network"]
+    rows = [[n] for n in NetworksInventory.NETWORKS]
+    emitter.echo(tabulate(rows, headers=headers, showindex='always'))
+    choice = click.prompt("Select Network", default=0, type=click.IntRange(0, len(NetworksInventory.NETWORKS)-1))
+    network = NetworksInventory.NETWORKS[choice]
+    return network

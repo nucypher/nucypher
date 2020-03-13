@@ -72,7 +72,7 @@ class Web3Client:
     ALT_PARITY = 'Parity-Ethereum'
     GANACHE = 'EthereumJS TestRPC'
     ETHEREUM_TESTER = 'EthereumTester'  # (PyEVM)
-    SYNC_TIMEOUT_DURATION = 60 # seconds to wait for various blockchain syncing endeavors
+    SYNC_TIMEOUT_DURATION = 60  # seconds to wait for various blockchain syncing endeavors
     PEERING_TIMEOUT = 30
     SYNC_SLEEP_DURATION = 5
 

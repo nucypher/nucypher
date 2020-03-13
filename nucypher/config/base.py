@@ -1,6 +1,7 @@
 import json
 import os
 from abc import ABC, abstractmethod
+from typing import Union
 
 from constant_sorrow.constants import (
     UNKNOWN_VERSION
@@ -197,6 +198,15 @@ class BaseConfiguration(ABC):
                 os.mkdir(self.config_root, mode=0o755)
             except FileNotFoundError:
                 os.makedirs(self.config_root, mode=0o755)
+
+    @classmethod
+    def peek(cls, filepath: str, field: str) -> Union[str, None]:
+        payload = cls._read_configuration_file(filepath=filepath)
+        try:
+            result = payload[field]
+        except KeyError:
+            raise cls.ConfigurationError(f"Cannot peek; No such configuration field '{field}', options are {list(payload.keys())}")
+        return result
 
     def to_configuration_file(self, filepath: str = None, modifier: str = None, override: bool = False) -> str:
         filepath = self.generate_filepath(filepath=filepath, modifier=modifier, override=override)

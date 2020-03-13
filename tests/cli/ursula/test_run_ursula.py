@@ -40,12 +40,11 @@ from nucypher.utilities.sandbox.constants import (
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 
-@mock.patch('nucypher.config.characters.UrsulaConfiguration.default_filepath', return_value='/non/existent/file')
+@mock.patch('glob.glob', return_value=list())
 def test_missing_configuration_file(default_filepath_mock, click_runner):
-    cmd_args = ('ursula', 'run')
+    cmd_args = ('ursula', 'run', '--network', TEMPORARY_DOMAIN)
     result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
     assert result.exit_code != 0
-    assert default_filepath_mock.called
     assert "No Ursula configurations found.  run 'nucypher ursula init' then try again." in result.output
 
 
