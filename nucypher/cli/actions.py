@@ -620,9 +620,14 @@ def extract_checksum_address_from_filepath(filepath, config_class=UrsulaConfigur
                          [0-9a-fA-F]{40}) # Followed by exactly 40 hex chars
                          ''',
                          re.VERBOSE)
+
     filename = os.path.basename(filepath)
     match = pattern.match(filename)
-    if not match:
+
+    if match:
+        character_name, checksum_address = match.groups()
+
+    else:
         # Extract from default by "peeking" inside the configuration file.
         default_name = config_class.generate_filename()
         if filename == default_name:
@@ -638,12 +643,6 @@ def extract_checksum_address_from_filepath(filepath, config_class=UrsulaConfigur
 
         else:
             raise ValueError(f"Cannot extract checksum from filepath '{filepath}'")
-    else:
-        try:
-
-            character_name, checksum_address = match.groups()
-        except ValueError:
-            raise  # TODO: Additional handling here?
 
     if not is_checksum_address(checksum_address):
         raise RuntimeError(f"Invalid checksum address detected in configuration file at '{filepath}'.")
@@ -711,7 +710,7 @@ def select_config_file(emitter,
 
 def issue_stake_suggestions(value: NU = None, lock_periods: int = None):
     if value and (value > NU.from_tokens(150000)):
-        click.confirm(f"Wow, {value} - That's alot of NU - Are you sure this is correct?", abort=True)
+        click.confirm(f"Wow, {value} - That's a lot of NU - Are you sure this is correct?", abort=True)
     if lock_periods and (lock_periods > 365):
         click.confirm(f"Woah, {lock_periods} is a long time - Are you sure this is correct?", abort=True)
 
