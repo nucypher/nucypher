@@ -545,6 +545,7 @@ contract StakingEscrow is Issuer {
     /**
     * @notice Batch deposit. Allowed only initial deposit for each staker
     * @param _stakers Stakers
+    * @param _numberOfSubStakes Number of sub-stakes which belong to staker in _values and _periods arrays
     * @param _values Amount of tokens to deposit for each staker
     * @param _periods Amount of periods during which tokens will be locked for each staker
     */
@@ -569,15 +570,14 @@ contract StakingEscrow is Issuer {
         for (uint256 i = 0; i < _stakers.length; i++) {
             address staker = _stakers[i];
             uint256 numberOfSubStakes = _numberOfSubStakes[i];
-            require(numberOfSubStakes > 0 && subStakesLength >= i + numberOfSubStakes);
+            uint256 endIndex = j + numberOfSubStakes;
+            require(numberOfSubStakes > 0 && subStakesLength >= endIndex);
             StakerInfo storage info = stakerInfo[staker];
             require(info.subStakes.length == 0);
-            require(workerToStaker[staker] == address(0) || workerToStaker[staker] == info.worker,
-                "A staker can't be a worker for another staker");
+            require(workerToStaker[staker] == address(0), "A staker can't be a worker for another staker");
             stakers.push(staker);
             policyManager.register(staker, previousPeriod);
 
-            uint256 endIndex = j + numberOfSubStakes;
             for (; j < endIndex; j++) {
                 uint256 value =  _values[j];
                 uint16 periods = _periods[j];

@@ -693,8 +693,8 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
         # TODO: Consider looking for absence of Initialized event - see #1193
         # This mimics initialization pre-condition in Issuer (StakingEscrow's base contract)
-        current_supply_1 = deployed_contract.functions.currentSupply1().call()
-        return current_supply_1 == 0
+        current_minting_period = deployed_contract.functions.currentMintingPeriod().call()
+        return current_minting_period == 0
 
     @property
     def is_active(self) -> bool:
@@ -705,8 +705,8 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
         # TODO: Consider looking for Initialized event - see #1193
         # This mimics isInitialized() modifier in Issuer (StakingEscrow's base contract)
-        current_supply_1 = deployed_contract.functions.currentSupply1().call()
-        return current_supply_1 != 0
+        current_minting_period = deployed_contract.functions.currentMintingPeriod().call()
+        return current_minting_period != 0
 
 
 class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):
