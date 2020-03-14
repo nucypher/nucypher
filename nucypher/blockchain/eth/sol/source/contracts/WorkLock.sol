@@ -25,7 +25,6 @@ contract WorkLock {
     event Refund(address indexed sender, uint256 refundETH, uint256 completedWork);
     event Canceled(address indexed sender, uint256 value);
     event BiddersChecked(address indexed sender, uint256 startIndex, uint256 endIndex);
-    event ClaimingEnabled(address indexed sender);
     event ForceRefund(address indexed sender, address indexed bidder, uint256 refundETH);
 
     struct WorkInfo {
@@ -153,10 +152,6 @@ contract WorkLock {
         }
 
         uint256 bonusETH = _ethAmount - minAllowedBid;
-        if (bonusETH == 0) {
-            return minAllowableLockedTokens;
-        }
-
         uint256 bonusTokenSupply = tokenSupply - bidders.length * minAllowableLockedTokens;
         return minAllowableLockedTokens + bonusETH.mul(bonusTokenSupply).div(bonusETHSupply);
     }
@@ -311,9 +306,9 @@ contract WorkLock {
         info.depositedETH = 0;
 
         // remove from bidders array, move last bidder to the empty place
-        uint256 length = bidders.length;
-        if (info.index != length - 1) {
-            address lastBidder = bidders[length - 1];
+        uint256 lastIndex = bidders.length - 1;
+        if (info.index != lastIndex) {
+            address lastBidder = bidders[lastIndex];
             bidders[info.index] = lastBidder;
             workInfo[lastBidder].index = info.index;
         }
