@@ -20,8 +20,6 @@ import inspect
 from typing import List, Tuple, Optional
 
 from hexbytes import HexBytes
-from nucypher.keystore import keypairs
-from nucypher.keystore.keypairs import SigningKeypair, DecryptingKeypair
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 
@@ -29,6 +27,7 @@ from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainInterface
 from nucypher.blockchain.eth.signers import Signer, Web3Signer
 from nucypher.datastore import keypairs
+from nucypher.datastore.keypairs import SigningKeypair, DecryptingKeypair
 
 
 class PowerUpError(TypeError):

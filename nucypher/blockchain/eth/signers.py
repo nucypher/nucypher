@@ -142,8 +142,8 @@ class ClefSigner(Signer):
 
     @validate_checksum_address
     def is_device(self, account: str):
-        return True  # TODO: Detect HW v. SW Wallets via clef API
-
+        return True  # TODO: Detect HW v. SW Wallets via clef API - #1772
+    
     def accounts(self) -> List[str]:
         normalized_addresses = self.w3.manager.request_blocking("account_list", [])
         checksum_addresses = [to_checksum_address(addr) for addr in normalized_addresses]
