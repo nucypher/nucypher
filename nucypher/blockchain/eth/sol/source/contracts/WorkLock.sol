@@ -45,9 +45,11 @@ contract WorkLock {
 
     /*
     * @dev WorkLock calculations:
-    * depositRate = tokenSupply / ethSupply
-    * claimedTokens = depositedETH * depositRate
-    * refundRate = depositRate * SLOWING_REFUND / boostingRefund
+    * bid = minBid + bonusETHPart
+    * bonusTokenSupply = tokenSupply - bidders.length * minBid
+    * bonusDepositRate = bonusTokenSupply / bonusETHSupply
+    * claimedTokens = minAllowableLockedTokens + bonusETHPart * bonusDepositRate
+    * bonusRefundRate = bonusDepositRate * SLOWING_REFUND / boostingRefund
     * refundETH = completedWork / refundRate
     */
     uint256 public boostingRefund;
@@ -56,7 +58,7 @@ contract WorkLock {
 
     uint256 public minAllowedBid;
     uint256 public tokenSupply;
-    uint256 public ethSupply;
+    uint256 public bonusETHSupply;
     uint16 public stakingPeriods;
     mapping(address => WorkInfo) public workInfo;
 
@@ -65,6 +67,7 @@ contract WorkLock {
     uint256 public nextBidderToCheck;
     // copy from the escrow contract
     uint256 public maxAllowableLockedTokens;
+    uint256 public minAllowableLockedTokens;
 
     /**
     * @dev Checks timestamp regarding cancellation window
@@ -120,6 +123,7 @@ contract WorkLock {
         stakingPeriods = _stakingPeriods;
         minAllowedBid = _minAllowedBid;
         maxAllowableLockedTokens = escrow.maxAllowableLockedTokens();
+        minAllowableLockedTokens = escrow.minAllowableLockedTokens();
         creator = msg.sender;
     }
 
@@ -139,7 +143,70 @@ contract WorkLock {
     * @dev This value will be fixed only after end of bidding
     */
     function ethToTokens(uint256 _ethAmount) public view returns (uint256) {
-        return _ethAmount.mul(tokenSupply).div(ethSupply);
+        if (_ethAmount < minAllowedBid) {
+            return 0;
+        }
+
+        // when all participants bid with the same minimum amount of eth
+        if (bonusETHSupply == 0) {
+            return tokenSupply / bidders.length;
+        }
+
+        uint256 bonusETH = _ethAmount - minAllowedBid;
+        if (bonusETH == 0) {
+            return minAllowableLockedTokens;
+        }
+
+        uint256 bonusTokenSupply = tokenSupply - bidders.length * minAllowableLockedTokens;
+        return minAllowableLockedTokens + bonusETH.mul(bonusTokenSupply).div(bonusETHSupply);
+    }
+
+    /**
+    * @notice Calculate amount of work that need to be done to refund specified amount of ETH
+    */
+    function ethToWork(uint256 _ethAmount, uint256 _tokenSupply, uint256 _ethSupply)
+        internal view returns (uint256)
+    {
+        return _ethAmount.mul(_tokenSupply).mul(SLOWING_REFUND).divCeil(_ethSupply.mul(boostingRefund));
+    }
+
+    /**
+    * @notice Calculate amount of work that need to be done to refund specified amount of ETH
+    * @dev This value will be fixed only after end of bidding
+    * @param _ethAmount Specified amount of ETH
+    * @param _otherETHAmount Base part of ETH amount for correct calculation of work
+    */
+    function ethToWork(uint256 _ethAmount, uint256 _otherETHAmount) internal view returns (uint256) {
+
+        uint256 baseETHSupply = bidders.length * minAllowedBid;
+        // when all participants bid with the same minimum amount of eth
+        if (bonusETHSupply == 0) {
+            return ethToWork(_ethAmount, tokenSupply, baseETHSupply);
+        }
+
+        uint256 baseETH = 0;
+        uint256 bonusETH = 0;
+        if (_ethAmount + _otherETHAmount <= minAllowedBid) {
+            baseETH = _ethAmount;
+        } else if (_otherETHAmount >= minAllowedBid) {
+            bonusETH = _ethAmount;
+        } else {
+            bonusETH = _ethAmount + _otherETHAmount - minAllowedBid;
+            baseETH = _ethAmount - bonusETH;
+        }
+
+        uint256 baseTokenSupply = bidders.length * minAllowableLockedTokens;
+        uint256 work = 0;
+        if (baseETH > 0) {
+            work = ethToWork(baseETH, baseTokenSupply, baseETHSupply);
+        }
+
+        if (bonusETH > 0) {
+            uint256 bonusTokenSupply = tokenSupply - baseTokenSupply;
+            work += ethToWork(bonusETH, bonusTokenSupply, bonusETHSupply);
+        }
+
+        return work;
     }
 
     /**
@@ -147,15 +214,45 @@ contract WorkLock {
     * @dev This value will be fixed only after end of bidding
     */
     function ethToWork(uint256 _ethAmount) public view returns (uint256) {
-        return _ethAmount.mul(tokenSupply).mul(SLOWING_REFUND).divCeil(ethSupply.mul(boostingRefund));
+        return ethToWork(_ethAmount, 0);
+    }
+
+    /**
+    * @notice Calculate amount of ETH that will be refund for completing specified amount of work
+    */
+    function workToETH(uint256 _completedWork, uint256 _ethSupply, uint256 _tokenSupply)
+        internal view returns (uint256)
+    {
+        return _completedWork.mul(_ethSupply).mul(boostingRefund).div(_tokenSupply.mul(SLOWING_REFUND));
     }
 
     /**
     * @notice Calculate amount of ETH that will be refund for completing specified amount of work
     * @dev This value will be fixed only after end of bidding
     */
-    function workToETH(uint256 _completedWork) public view returns (uint256) {
-        return _completedWork.mul(ethSupply).mul(boostingRefund).div(tokenSupply.mul(SLOWING_REFUND));
+    function workToETH(uint256 _completedWork, uint256 _depositedETH) public view returns (uint256) {
+        uint256 baseETHSupply = bidders.length * minAllowedBid;
+        // when all participants bid with the same minimum amount of eth
+        if (bonusETHSupply == 0) {
+            return workToETH(_completedWork, baseETHSupply, tokenSupply);
+        }
+
+        uint256 bonusWork = 0;
+        uint256 bonusETH = 0;
+        uint256 baseTokenSupply = bidders.length * minAllowableLockedTokens;
+
+        if (_depositedETH > minAllowedBid ) {
+            bonusETH = _depositedETH - minAllowedBid;
+            uint256 bonusTokenSupply = tokenSupply - baseTokenSupply;
+            bonusWork = ethToWork(bonusETH, bonusTokenSupply, bonusETHSupply);
+
+            if (_completedWork <= bonusWork) {
+                return workToETH(_completedWork, bonusETHSupply, bonusTokenSupply);
+            }
+        }
+
+        _completedWork -= bonusWork;
+        return bonusETH + workToETH(_completedWork, baseETHSupply, baseTokenSupply);
     }
 
     /**
@@ -188,13 +285,16 @@ contract WorkLock {
 
         // first bid
         if (info.depositedETH == 0) {
+            require(msg.value >= minAllowedBid, "Bid must be at least minimum");
+            require(bidders.length < tokenSupply / minAllowableLockedTokens, "Not enough tokens for more bidders");
             info.index = bidders.length;
             bidders.push(msg.sender);
+            bonusETHSupply = bonusETHSupply.add(msg.value - minAllowedBid);
+        } else {
+            bonusETHSupply = bonusETHSupply.add(msg.value);
         }
 
         info.depositedETH = info.depositedETH.add(msg.value);
-        require(info.depositedETH >= minAllowedBid, "Bid must be at least minimum");
-        ethSupply = ethSupply.add(msg.value);
         emit Bid(msg.sender, msg.value);
     }
 
@@ -219,7 +319,9 @@ contract WorkLock {
         }
         bidders.pop();
 
-        ethSupply = ethSupply.sub(refundETH);
+        if (refundETH > minAllowedBid) {
+            bonusETHSupply = bonusETHSupply.sub(refundETH - minAllowedBid);
+        }
         msg.sender.sendValue(refundETH);
         emit Canceled(msg.sender, refundETH);
     }
@@ -242,7 +344,7 @@ contract WorkLock {
         uint256 length = _biddersForRefund.length;
         require(length > 0, "Must be at least one bidder for a refund");
 
-        uint256 minNumberOfBidders = tokenSupply.divCeil(defaultMaxAllowableLockedTokens);
+        uint256 minNumberOfBidders = tokenSupply.divCeil(maxAllowableLockedTokens);
         if (bidders.length < minNumberOfBidders) {
             shutdown();
             return;
@@ -274,21 +376,24 @@ contract WorkLock {
                 if (info.depositedETH > minBid) {
                     refunds[i] = info.depositedETH - minBid;
                     info.depositedETH = minBid;
-                    ethSupply -= refunds[i];
+                    bonusETHSupply -= refunds[i];
                 }
             }
         }
 
-        require(ethToTokens(minBid) > defaultMaxAllowableLockedTokens,
+        require(ethToTokens(minBid) > maxAllowableLockedTokens,
             "At least one of bidders has allowable bid");
 
-        // final bids adjustment
+        // final bids adjustment (only for bonus part)
         // (min_whale_bid * token_supply - max_stake * eth_supply) / (token_supply - max_stake * n_whales)
-        uint256 refundETH = minBid.mul(tokenSupply)
-                                .sub(defaultMaxAllowableLockedTokens.mul(ethSupply))
-                                .divCeil(tokenSupply - defaultMaxAllowableLockedTokens.mul(length));
+        uint256 maxBonusTokens = maxAllowableLockedTokens - minAllowableLockedTokens;
+        uint256 minBonusETH = minBid - minAllowedBid;
+        uint256 bonusTokenSupply = tokenSupply - bidders.length * minAllowableLockedTokens;
+        uint256 refundETH = minBonusETH.mul(bonusTokenSupply)
+                                .sub(maxBonusTokens.mul(bonusETHSupply))
+                                .divCeil(bonusTokenSupply - maxBonusTokens.mul(length));
         uint256 resultBid = minBid.sub(refundETH);
-        ethSupply -= length * refundETH;
+        bonusETHSupply -= length * refundETH;
         for (uint256 i = 0; i < length; i++) {
             address bidder = _biddersForRefund[i];
             WorkInfo storage info = workInfo[bidder];
@@ -318,8 +423,17 @@ contract WorkLock {
     function verifyBiddingCorrectness(uint256 _gasToSaveState) external afterCancellationWindow returns (uint256) {
         require(nextBidderToCheck != bidders.length, "Bidders have already been checked");
 
-        uint256 maxBidFromMaxStake = maxAllowableLockedTokens.mul(ethSupply).div(tokenSupply);
+        // all participants bid with the same minimum amount of eth
         uint256 index = nextBidderToCheck;
+        if (bonusETHSupply == 0) {
+            require(tokenSupply / bidders.length <= maxAllowableLockedTokens, "Not enough bidders");
+            index = bidders.length;
+        }
+
+        uint256 maxBonusTokens = maxAllowableLockedTokens - minAllowableLockedTokens;
+        uint256 bonusTokenSupply = tokenSupply - bidders.length * minAllowableLockedTokens;
+        uint256 maxBidFromMaxStake = minAllowedBid + maxBonusTokens.mul(bonusETHSupply).div(bonusTokenSupply);
+
 
         while (index < bidders.length && gasleft() > _gasToSaveState) {
             address bidder = bidders[index];
@@ -337,7 +451,7 @@ contract WorkLock {
     /**
     * @notice Checks if claiming available
     */
-    function isClaimingAvailable() external view returns (bool) {
+    function isClaimingAvailable() public view returns (bool) {
         return block.timestamp >= endCancellationDate &&
             nextBidderToCheck == bidders.length;
     }
@@ -376,7 +490,7 @@ contract WorkLock {
             return 0;
         }
 
-        uint256 refundETH = workToETH(completedWork);
+        uint256 refundETH = workToETH(completedWork, info.depositedETH);
         if (refundETH > info.depositedETH) {
             refundETH = info.depositedETH;
         }
@@ -396,7 +510,7 @@ contract WorkLock {
         }
         info.depositedETH = info.depositedETH.sub(refundETH);
         // convert refund back to work to eliminate potential rounding errors
-        uint256 completedWork = ethToWork(refundETH);
+        uint256 completedWork = ethToWork(refundETH, info.depositedETH);
 
         info.completedWork = info.completedWork.add(completedWork);
         emit Refund(msg.sender, refundETH, completedWork);
