@@ -1661,7 +1661,7 @@ class Bidder(NucypherTokenActor):
             self.transacting_power = TransactingPower(password=client_password, account=checksum_address)
             self.transacting_power.activate()
 
-        self._all_bidders = None
+        self._all_bonus_bidders = None
 
     def _ensure_bidding_is_open(self, message: str = None) -> None:
         highest_block = self.worklock_agent.blockchain.w3.eth.getBlock('latest')
@@ -1736,60 +1736,59 @@ class Bidder(NucypherTokenActor):
         receipt = self.worklock_agent.cancel_bid(checksum_address=self.checksum_address)
         return receipt
 
-    def _get_max_bid_from_max_stake(self) -> int:
+    def _get_max_bonus_bid_from_max_stake(self) -> int:
         """Returns maximum allowed bid calculated from maximum allowed locked tokens"""
-        max_tokens = self.economics.maximum_allowed_locked
-        eth_supply = sum(self._all_bidders.values()) if self._all_bidders else self.worklock_agent.get_eth_supply()
-        worklock_supply = self.economics.worklock_supply
-        max_bid = max_tokens * eth_supply // worklock_supply
-        return max_bid
+        max_bonus_tokens = self.economics.maximum_allowed_locked - self.economics.minimum_allowed_locked
+        bonus_eth_supply = sum(self._all_bonus_bidders.values()) if self._all_bonus_bidders else self.worklock_agent.get_bonus_eth_supply()
+        bonus_worklock_supply = self.worklock_agent.get_bonus_lot_value()
+        max_bonus_bid = max_bonus_tokens * bonus_eth_supply // bonus_worklock_supply
+        return max_bonus_bid
 
     def get_whales(self, force_read: bool = False) -> Dict[str, int]:
-        max_bid_from_max_stake = self._get_max_bid_from_max_stake()
+        max_bonus_bid_from_max_stake = self._get_max_bonus_bid_from_max_stake()
 
         bidders = dict()
-        if max_bid_from_max_stake >= self.economics.worklock_max_allowed_bid:
-            return bidders
-
-        for bidder, bid in self._get_all_bidders(force_read).items():
-            if bid > max_bid_from_max_stake:
+        for bidder, bid in self._get_all_bonus_bidders(force_read).items():
+            if bid > max_bonus_bid_from_max_stake:
                 bidders[bidder] = bid
         return bidders
 
-    def _get_all_bidders(self, force_read: bool = False) -> dict:
-        if not force_read and self._all_bidders:
-            return self._all_bidders
+    def _get_all_bonus_bidders(self, force_read: bool = False) -> dict:
+        if not force_read and self._all_bonus_bidders:
+            return self._all_bonus_bidders
 
         bidders = self.worklock_agent.get_bidders()
+        min_bid = self.economics.worklock_min_allowed_bid
 
-        self._all_bidders = dict()
+        self._all_bonus_bidders = dict()
         for bidder in bidders:
             bid = self.worklock_agent.get_deposited_eth(bidder)
-            self._all_bidders[bidder] = bid
-        return self._all_bidders
+            if bid > min_bid:
+                self._all_bonus_bidders[bidder] = bid - min_bid
+        return self._all_bonus_bidders
 
     def _reduce_bids(self, whales: dict):
 
-        min_whale_bid = min(whales.values())
-        max_whale_bid = max(whales.values())
+        min_whale_bonus_bid = min(whales.values())
+        max_whale_bonus_bid = max(whales.values())
 
         # first step - align at a minimum bid
-        if min_whale_bid != max_whale_bid:
-            whales = dict.fromkeys(whales.keys(), min_whale_bid)
-            self._all_bidders.update(whales)
+        if min_whale_bonus_bid != max_whale_bonus_bid:
+            whales = dict.fromkeys(whales.keys(), min_whale_bonus_bid)
+            self._all_bonus_bidders.update(whales)
 
-        eth_supply = sum(self._all_bidders.values())
-        worklock_supply = self.economics.worklock_supply
-        max_stake = self.economics.maximum_allowed_locked
-        if (min_whale_bid * worklock_supply) // eth_supply <= max_stake:
+        bonus_eth_supply = sum(self._all_bonus_bidders.values())
+        bonus_worklock_supply = self.worklock_agent.get_bonus_lot_value()
+        max_bonus_tokens = self.economics.maximum_allowed_locked - self.economics.minimum_allowed_locked
+        if (min_whale_bonus_bid * bonus_worklock_supply) // bonus_eth_supply <= max_bonus_tokens:
             raise self.BidderError(f"Internal error: At least one of bidders {whales} has allowable bid")
 
-        a = min_whale_bid * worklock_supply - max_stake * eth_supply
-        b = worklock_supply - max_stake * len(whales)
+        a = min_whale_bonus_bid * bonus_worklock_supply - max_bonus_tokens * bonus_eth_supply
+        b = bonus_worklock_supply - max_bonus_tokens * len(whales)
         refund = -(-a//b)  # div ceil
-        min_whale_bid -= refund
-        whales = dict.fromkeys(whales.keys(), min_whale_bid)
-        self._all_bidders.update(whales)
+        min_whale_bonus_bid -= refund
+        whales = dict.fromkeys(whales.keys(), min_whale_bonus_bid)
+        self._all_bonus_bidders.update(whales)
 
         return whales
 

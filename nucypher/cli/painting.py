@@ -884,16 +884,18 @@ Claiming is available ................ {'Yes' if worklock_agent.is_claiming_avai
 
 Economics
 ======================================================        
-Min allowed bid ... {prettify_eth_amount(worklock_agent.minimum_allowed_bid)}
-ETH Pool .......... {prettify_eth_amount(blockchain.client.get_balance(worklock_agent.contract_address))}
-ETH Supply ........ {prettify_eth_amount(worklock_agent.get_eth_supply())}
+Min allowed bid ....... {prettify_eth_amount(worklock_agent.minimum_allowed_bid)}
+ETH Pool .............. {prettify_eth_amount(blockchain.client.get_balance(worklock_agent.contract_address))}
+ETH Supply ............ {prettify_eth_amount(worklock_agent.get_eth_supply())}
+Bonus ETH Supply ...... {prettify_eth_amount(worklock_agent.get_bonus_eth_supply())}
 
-Lot Size .......... {NU.from_nunits(worklock_agent.lot_value)} 
+Lot Size .............. {NU.from_nunits(worklock_agent.lot_value)} 
+Bonus Lot Size ........ {NU.from_nunits(worklock_agent.get_bonus_lot_value())} 
 
-Boosting Refund ... {worklock_agent.contract.functions.boostingRefund().call()}
-Slowing Refund .... {worklock_agent.contract.functions.SLOWING_REFUND().call()}
-Refund Rate ....... {worklock_agent.get_refund_rate()}
-Deposit Rate ...... {worklock_agent.get_deposit_rate()}
+Boosting Refund ....... {worklock_agent.contract.functions.boostingRefund().call()}
+Slowing Refund ........ {worklock_agent.contract.functions.SLOWING_REFUND().call()}
+Bonus Refund Rate ..... {worklock_agent.get_bonus_refund_rate()}
+Bonus Deposit Rate .... {worklock_agent.get_bonus_deposit_rate()}
     """
     emitter.echo(payload)
     return

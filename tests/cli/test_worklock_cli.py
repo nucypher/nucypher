@@ -44,8 +44,8 @@ def test_status(click_runner, testerchain, agency_local_registry, token_economic
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
 
     assert result.exit_code == 0
-    assert f"Lot Size .......... {NU.from_nunits(token_economics.worklock_supply)}" in result.output
-    assert f"Min allowed bid ... {Web3.fromWei(token_economics.worklock_min_allowed_bid, 'ether')} ETH" in result.output
+    assert f"Lot Size .............. {NU.from_nunits(token_economics.worklock_supply)}" in result.output
+    assert f"Min allowed bid ....... {Web3.fromWei(token_economics.worklock_min_allowed_bid, 'ether')} ETH" in result.output
 
 
 def test_bid(click_runner, testerchain, agency_local_registry, token_economics):

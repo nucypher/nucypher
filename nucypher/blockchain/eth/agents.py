@@ -1099,26 +1099,40 @@ class WorkLockAgent(EthereumContractAgent):
         supply = self.contract.functions.tokenSupply().call()
         return supply
 
+    def get_bonus_lot_value(self) -> int:
+        """
+        Total number of tokens than can be  awarded for bonus part of bid.
+        """
+        num_bidders = self.get_bidders_population()
+        supply = self.lot_value - num_bidders * self.contract.functions.minAllowableLockedTokens().call()
+        return supply
+
     @validate_checksum_address
     def get_remaining_work(self, checksum_address: str) -> int:
         """Get remaining work periods until full refund for the target address."""
         result = self.contract.functions.getRemainingWork(checksum_address).call()
         return result
 
-    def get_eth_supply(self) -> int:
-        supply = self.contract.functions.ethSupply().call()
+    def get_bonus_eth_supply(self) -> int:
+        supply = self.contract.functions.bonusETHSupply().call()
         return supply
 
-    def get_refund_rate(self) -> int:
+    def get_eth_supply(self) -> int:
+        num_bidders = self.get_bidders_population()
+        min_bid = self.minimum_allowed_bid
+        supply = num_bidders * min_bid + self.get_bonus_eth_supply()
+        return supply
+
+    def get_bonus_refund_rate(self) -> int:
         f = self.contract.functions
         slowing_refund = f.SLOWING_REFUND().call()
         boosting_refund = f.boostingRefund().call()
-        refund_rate = self.get_deposit_rate() * slowing_refund / boosting_refund
+        refund_rate = self.get_bonus_deposit_rate() * slowing_refund / boosting_refund
         return refund_rate
 
-    def get_deposit_rate(self) -> int:
+    def get_bonus_deposit_rate(self) -> int:
         try:
-            deposit_rate = self.lot_value // self.get_eth_supply()
+            deposit_rate = self.get_bonus_lot_value() // self.get_bonus_eth_supply()
         except ZeroDivisionError:
             return 0
         return deposit_rate

@@ -124,14 +124,14 @@ def test_claim(testerchain, agency, token_economics, test_registry):
     with pytest.raises(Bidder.BidderError):
         _receipt = bidder.claim()
 
-    assert bidder.get_deposited_eth == worklock_agent.get_eth_supply() // 10
+    assert bidder.get_deposited_eth > token_economics.worklock_min_allowed_bid
     assert bidder.completed_work == 0
-    assert bidder.remaining_work == token_economics.maximum_allowed_locked // 2
+    assert bidder.remaining_work <= token_economics.maximum_allowed_locked // 2
     assert bidder.refunded_work == 0
 
     # Ensure that the claimant is now the holder of an unbonded stake.
     locked_tokens = staking_agent.get_locked_tokens(staker_address=bidder.checksum_address, periods=10)
-    assert locked_tokens == token_economics.maximum_allowed_locked
+    assert locked_tokens <= token_economics.maximum_allowed_locked
 
     # Confirm the stake is unbonded
     worker_address = staking_agent.get_worker_from_staker(staker_address=bidder.checksum_address)
