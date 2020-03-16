@@ -127,7 +127,7 @@ def test_post_initialization(click_runner, testerchain, agency_local_registry, t
     assert not agent.is_claiming_available()
     assert not agent.bidders_checked()
 
-    command = ('post-init',
+    command = ('enable-claiming',
                '--bidder-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,

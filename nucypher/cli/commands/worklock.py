@@ -115,7 +115,7 @@ def status(general_config, registry_options, worklock_options):
 @group_worklock_options
 @option_force
 @option_hw_wallet
-@click.option('--value', help="ETH value of bid", type=click.STRING)
+@click.option('--value', help="ETH value of bid", type=click.FloatRange(min=0))
 def bid(general_config, worklock_options, registry_options, force, hw_wallet, value):
     """Place a bid"""
     emitter = _setup_emitter(general_config)
@@ -134,7 +134,7 @@ def bid(general_config, worklock_options, registry_options, force, hw_wallet, va
         if force:
             raise click.MissingParameter("Missing --value.")
         minimum_bid = bidder.worklock_agent.minimum_allowed_bid
-        value = click.prompt(f"Enter bid amount in ETH (at least {Web3.fromWei(minimum_bid, 'ether')})", type=click.STRING)
+        value = click.prompt(f"Enter bid amount in ETH (at least {Web3.fromWei(minimum_bid, 'ether')})", type=click.FloatRange(min=0))
     value = int(Web3.toWei(Decimal(value), 'ether'))
 
     if not force:
@@ -273,7 +273,7 @@ def refund(general_config, worklock_options, registry_options, force, hw_wallet)
 @option_hw_wallet
 @click.option('--gas-limit', help="Gas limit per each verification transaction", type=click.IntRange(min=60000))
 # TODO: Consider moving to administrator (nucypher-deploy) #1758
-def post_init(general_config, registry_options, worklock_options, force, hw_wallet, gas_limit):
+def enable_claiming(general_config, registry_options, worklock_options, force, hw_wallet, gas_limit):
     """Ensure correctness of bidding and enable claiming"""
     emitter = _setup_emitter(general_config)
     if not worklock_options.bidder_address:  # TODO: Consider bundle this in worklock_options

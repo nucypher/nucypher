@@ -32,7 +32,7 @@ contract WorkLock {
         uint256 depositedETH;
         uint256 completedWork;
         bool claimed;
-        uint256 index;
+        uint128 index;
     }
 
     NuCypherToken public token;
@@ -137,6 +137,7 @@ contract WorkLock {
         token.safeTransferFrom(msg.sender, address(this), _value);
         tokenSupply += _value;
         emit Deposited(msg.sender, _value);
+        require(tokenSupply / minAllowableLockedTokens <= uint128(0) - 1, "Potential overflow for bidder index");
     }
 
     /**
@@ -170,26 +171,39 @@ contract WorkLock {
     /**
     * @notice Calculate amount of work that need to be done to refund specified amount of ETH
     * @dev This value will be fixed only after end of bidding
-    * @param _ethAmount Specified amount of ETH
-    * @param _otherETHAmount Base part of ETH amount for correct calculation of work
+    * @param _ethToReclaim Specified sum of ETH staker wishes to reclaim following completion of work
+    * @param _restOfDepositedETH Remaining ETH in staker's deposit once ethToReclaim sum has been subtracted
+    * @dev _ethToReclaim + _restOfDepositedETH = depositedETH
     */
-    function ethToWork(uint256 _ethAmount, uint256 _otherETHAmount) internal view returns (uint256) {
+    function ethToWork(uint256 _ethToReclaim, uint256 _restOfDepositedETH) internal view returns (uint256) {
 
         uint256 baseETHSupply = bidders.length * minAllowedBid;
         // when all participants bid with the same minimum amount of eth
         if (bonusETHSupply == 0) {
-            return ethToWork(_ethAmount, tokenSupply, baseETHSupply);
+            return ethToWork(_ethToReclaim, tokenSupply, baseETHSupply);
         }
 
         uint256 baseETH = 0;
         uint256 bonusETH = 0;
-        if (_ethAmount + _otherETHAmount <= minAllowedBid) {
-            baseETH = _ethAmount;
-        } else if (_otherETHAmount >= minAllowedBid) {
-            bonusETH = _ethAmount;
+
+        // If the staker's total remaining deposit (including the specified sum of ETH to reclaim)
+        // is lower than the minimum bid size,
+        // then only the base part is used to calculate the work required to reclaim ETH
+        if (_ethToReclaim + _restOfDepositedETH <= minAllowedBid) {
+            baseETH = _ethToReclaim;
+
+        // If the staker's remaining deposit (not including the specified sum of ETH to reclaim)
+        // is still greater than the minimum bid size,
+        // then only the bonus part is used to calculate the work required to reclaim ETH
+        } else if (_restOfDepositedETH >= minAllowedBid) {
+            bonusETH = _ethToReclaim;
+
+        // If the staker's remaining deposit (not including the specified sum of ETH to reclaim)
+        // is lower than the minimum bid size,
+        // then both the base and bonus parts must be used to calculate the work required to reclaim ETH
         } else {
-            bonusETH = _ethAmount + _otherETHAmount - minAllowedBid;
-            baseETH = _ethAmount - bonusETH;
+            bonusETH = _ethToReclaim + _restOfDepositedETH - minAllowedBid;
+            baseETH = _ethToReclaim - bonusETH;
         }
 
         uint256 baseTokenSupply = bidders.length * minAllowableLockedTokens;
@@ -238,7 +252,7 @@ contract WorkLock {
         uint256 bonusETH = 0;
         uint256 baseTokenSupply = bidders.length * minAllowableLockedTokens;
 
-        if (_depositedETH > minAllowedBid ) {
+        if (_depositedETH > minAllowedBid) {
             bonusETH = _depositedETH - minAllowedBid;
             uint256 bonusTokenSupply = tokenSupply - baseTokenSupply;
             bonusWork = ethToWork(bonusETH, bonusTokenSupply, bonusETHSupply);
@@ -284,7 +298,7 @@ contract WorkLock {
         if (info.depositedETH == 0) {
             require(msg.value >= minAllowedBid, "Bid must be at least minimum");
             require(bidders.length < tokenSupply / minAllowableLockedTokens, "Not enough tokens for more bidders");
-            info.index = bidders.length;
+            info.index = uint128(bidders.length);
             bidders.push(msg.sender);
             bonusETHSupply = bonusETHSupply.add(msg.value - minAllowedBid);
         } else {
@@ -467,7 +481,7 @@ contract WorkLock {
     /**
     * @notice Claimed tokens will be deposited and locked as stake in the StakingEscrow contract.
     */
-    function claim() external afterCancellationWindow returns (uint256 claimedTokens) {
+    function claim() external returns (uint256 claimedTokens) {
         require(isClaimingAvailable(), "Claiming has not been enabled yet");
         WorkInfo storage info = workInfo[msg.sender];
         require(!info.claimed, "Tokens are already claimed");

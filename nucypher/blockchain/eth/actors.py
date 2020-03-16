@@ -1404,7 +1404,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
                                             start_of_period=True)
             expiration -= 1  # Get the last second of the target period
         else:
-            now = self.staking_agent.blockchain.w3.eth.getBlock(block_identifier='latest').timestamp
+            now = self.staking_agent.blockchain.get_blocktime()
             duration_periods = calculate_period_duration(now=maya.MayaDT(now),
                                                          future_time=expiration,
                                                          seconds_per_period=self.economics.seconds_per_period)
@@ -1646,6 +1646,9 @@ class Bidder(NucypherTokenActor):
     class ClaimError(BidderError):
         pass
 
+    class WhaleError(BidderError):
+        pass
+
     @validate_checksum_address
     def __init__(self,
                  checksum_address: str,
@@ -1664,8 +1667,7 @@ class Bidder(NucypherTokenActor):
         self._all_bonus_bidders = None
 
     def _ensure_bidding_is_open(self, message: str = None) -> None:
-        highest_block = self.worklock_agent.blockchain.w3.eth.getBlock('latest')
-        now = highest_block['timestamp']
+        now = self.worklock_agent.blockchain.get_blocktime()
         start = self.worklock_agent.start_bidding_date
         end = self.worklock_agent.end_bidding_date
         if now < start:
@@ -1676,22 +1678,22 @@ class Bidder(NucypherTokenActor):
             raise self.BiddingIsClosed(message)
 
     def _ensure_bidding_is_closed(self, message: str = None) -> None:
-        highest_block = self.worklock_agent.blockchain.w3.eth.getBlock('latest')
-        now = highest_block['timestamp']
+        now = self.worklock_agent.blockchain.get_blocktime()
         end = self.worklock_agent.end_bidding_date
         if now < end:
-            message = message or f"Bidding does not close until {end}"
+            message = message or f"Bidding does not close until {maya.MayaDT(end).slang_date()}"
             raise self.BiddingIsOpen(message)
 
     def _ensure_cancellation_window(self, ensure_closed: bool = True, message: str = None) -> None:
-        highest_block = self.worklock_agent.blockchain.w3.eth.getBlock('latest')
-        now = highest_block['timestamp']
+        now = self.worklock_agent.blockchain.get_blocktime()
         end = self.worklock_agent.end_cancellation_date
         if ensure_closed and now < end:
-            message = message or f"Operation cannot be performed while the cancellation window is still open (closes at {end})."
+            message = message or f"Operation cannot be performed while the cancellation window is still open " \
+                                 f"(closes at {maya.MayaDT(end).slang_date()})."
             raise self.CancellationWindowIsOpen(message)
         elif not ensure_closed and now >= end:
-            message = message or f"Operation is allowed only while the cancellation window is open (closed at {end})."
+            message = message or f"Operation is allowed only while the cancellation window is open " \
+                                 f"(closed at {maya.MayaDT(end).slang_date()})."
             raise self.CancellationWindowIsClosed(message)
 
     #
@@ -1702,7 +1704,7 @@ class Bidder(NucypherTokenActor):
         self._ensure_bidding_is_open()
         minimum = self.worklock_agent.minimum_allowed_bid
         if value < minimum:
-            raise self.BidderError(f"Too small value {prettify_eth_amount(value)} for bidding, "
+            raise self.BidderError(f"{prettify_eth_amount(value)} is too small a value for bidding; "
                                    f"bid must be at least {prettify_eth_amount(minimum)}")
         receipt = self.worklock_agent.bid(checksum_address=self.checksum_address, value=value)
         return receipt
@@ -1721,7 +1723,7 @@ class Bidder(NucypherTokenActor):
 
         # Require an active bid
         if not self.get_deposited_eth:
-            raise self.ClaimError(f"No claims available for {self.checksum_address}")
+            raise self.ClaimError(f"No bids available for {self.checksum_address}")
 
         receipt = self.worklock_agent.claim(checksum_address=self.checksum_address)
         return receipt
@@ -1745,6 +1747,7 @@ class Bidder(NucypherTokenActor):
         return max_bonus_bid
 
     def get_whales(self, force_read: bool = False) -> Dict[str, int]:
+        """Returns all worklock bidders over the whale threshold as a dictionary of addresses and bonus bid values."""
         max_bonus_bid_from_max_stake = self._get_max_bonus_bid_from_max_stake()
 
         bidders = dict()
@@ -1781,7 +1784,7 @@ class Bidder(NucypherTokenActor):
         bonus_worklock_supply = self.worklock_agent.get_bonus_lot_value()
         max_bonus_tokens = self.economics.maximum_allowed_locked - self.economics.minimum_allowed_locked
         if (min_whale_bonus_bid * bonus_worklock_supply) // bonus_eth_supply <= max_bonus_tokens:
-            raise self.BidderError(f"Internal error: At least one of bidders {whales} has allowable bid")
+            raise self.WhaleError(f"At least one of bidders {whales} has allowable bid")
 
         a = min_whale_bonus_bid * bonus_worklock_supply - max_bonus_tokens * bonus_eth_supply
         b = bonus_worklock_supply - max_bonus_tokens * len(whales)
@@ -1797,9 +1800,9 @@ class Bidder(NucypherTokenActor):
 
         whales = self.get_whales()
         if not whales:
-            raise self.BidderError(f"All bids are correct, force refund is not needed")
+            raise self.WhaleError(f"Force refund aborted: No whales detected and all bids qualify for claims.")
 
-        new_whales = whales
+        new_whales = whales.copy()
         while new_whales:
             whales.update(new_whales)
             whales = self._reduce_bids(whales)
@@ -1809,7 +1812,7 @@ class Bidder(NucypherTokenActor):
                                                    addresses=list(whales.keys()))
 
         if self.get_whales(force_read=True):
-            raise self.BidderError(f"Internal error: offline simulation differs from transaction results")
+            raise RuntimeError(f"Internal error: offline simulation differs from transaction results")
         return receipt
 
     # TODO better control: max iterations, interactive mode
@@ -1821,7 +1824,7 @@ class Bidder(NucypherTokenActor):
 
         whales = self.get_whales()
         if whales:
-            raise self.BidderError(f"There are some bidders which have too high bid: {whales}")
+            raise self.WhaleError(f"Some bidders have bids that are too high: {whales}")
 
         receipts = dict()
         iteration = 1
@@ -1842,7 +1845,8 @@ class Bidder(NucypherTokenActor):
     def withdraw_compensation(self) -> dict:
         """Withdraw compensation after force refund"""
         if not self.available_compensation:
-            raise self.BidderError(f'There is no compensation available for {self.checksum_address}')
+            raise self.BidderError(f'There is no compensation available for {self.checksum_address}; '
+                                   f'Did you mean to call "refund"?')
         receipt = self.worklock_agent.withdraw_compensation(checksum_address=self.checksum_address)
         return receipt
 

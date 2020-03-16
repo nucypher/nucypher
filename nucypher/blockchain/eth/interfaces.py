@@ -513,6 +513,11 @@ class BlockchainInterface:
                              f"as it seems to come from {-confirmations} blocks in the future...")
         return confirmations
 
+    def get_blocktime(self):
+        highest_block = self.w3.eth.getBlock('latest')
+        now = highest_block['timestamp']
+        return now
+
     @validate_checksum_address
     def send_transaction(self,
                          contract_function: Union[ContractFunction, ContractConstructor],

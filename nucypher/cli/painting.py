@@ -880,7 +880,7 @@ Bidding Duration ..................... {bidding_duration}
 Cancellation Window Duration ......... {cancellation_duration}
 Bidding Time Remaining ............... {bidding_remaining} 
 Cancellation Window Time Remaining ... {cancellation_remaining} 
-Claiming is available ................ {'Yes' if worklock_agent.is_claiming_available() else 'No'} 
+Claiming phase open .................. {'Yes' if worklock_agent.is_claiming_available() else 'No'} 
 
 Economics
 ======================================================        
@@ -911,6 +911,10 @@ Completed Work ....... {bidder.completed_work}
 Remaining Work ....... {bidder.remaining_work}
 Refunded Work ........ {bidder.refunded_work}
 """
+    compensation = bidder.available_compensation
+    if compensation:
+        message += f"Compensation ......... {prettify_eth_amount(compensation)}\n"
+
     emitter.echo(message)
     return
 

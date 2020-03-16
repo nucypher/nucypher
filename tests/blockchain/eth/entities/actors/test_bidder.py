@@ -67,7 +67,7 @@ def test_verify_correctness_before_refund(testerchain, agency, token_economics, 
     bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
-    with pytest.raises(Bidder.BidderError):
+    with pytest.raises(Bidder.CancellationWindowIsOpen):
         _receipt = bidder.claim()
 
     # Wait until the cancellation window closes...
@@ -83,12 +83,29 @@ def test_verify_correctness_before_refund(testerchain, agency, token_economics, 
 def test_force_refund(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[0]
     bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
+    whales = bidder.get_whales()
+
+    # Simulate force refund
+    new_whales = whales.copy()
+    while new_whales:
+        whales.update(new_whales)
+        whales = bidder._reduce_bids(whales)
+        new_whales = bidder.get_whales()
+
+    bidder_address = testerchain.client.accounts[1]
+    bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
     receipt = bidder.force_refund()
     assert receipt['status'] == 1
     assert not bidder.get_whales()
     assert not worklock_agent.bidders_checked()
+
+    # Compare off-chain and on-chain calculations
+    min_bid = token_economics.worklock_min_allowed_bid
+    for whale, bonus in whales.items():
+        contract_bid = worklock_agent.get_deposited_eth(whale)
+        assert bonus == contract_bid - min_bid
 
 
 def test_verify_correctness(testerchain, agency, token_economics, test_registry):
@@ -97,7 +114,7 @@ def test_verify_correctness(testerchain, agency, token_economics, test_registry)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
     assert not worklock_agent.bidders_checked()
-    with pytest.raises(Bidder.BidderError):
+    with pytest.raises(Bidder.ClaimError):
         _receipt = bidder.claim()
 
     receipts = bidder.verify_bidding_correctness(gas_limit=100000)
@@ -132,7 +149,7 @@ def test_claim(testerchain, agency, token_economics, test_registry):
     assert receipt['status'] == 1
 
     # Cant claim more than once
-    with pytest.raises(Bidder.BidderError):
+    with pytest.raises(Bidder.ClaimError):
         _receipt = bidder.claim()
 
     assert bidder.get_deposited_eth > token_economics.worklock_min_allowed_bid
