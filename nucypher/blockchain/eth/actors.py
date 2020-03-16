@@ -1839,6 +1839,13 @@ class Bidder(NucypherTokenActor):
         receipt = self.worklock_agent.refund(checksum_address=self.checksum_address)
         return receipt
 
+    def withdraw_compensation(self) -> dict:
+        """Withdraw compensation after force refund"""
+        if not self.available_compensation:
+            raise self.BidderError(f'There is no compensation available for {self.checksum_address}')
+        receipt = self.worklock_agent.withdraw_compensation(checksum_address=self.checksum_address)
+        return receipt
+
     #
     # Calls
     #
@@ -1877,6 +1884,11 @@ class Bidder(NucypherTokenActor):
     def available_refund(self) -> int:
         refund_eth = self.worklock_agent.get_available_refund(checksum_address=self.checksum_address)
         return refund_eth
+
+    @property
+    def available_compensation(self) -> int:
+        compensation_eth = self.worklock_agent.get_available_compensation(checksum_address=self.checksum_address)
+        return compensation_eth
 
     @property
     def available_claim(self) -> int:

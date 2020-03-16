@@ -107,6 +107,17 @@ def test_verify_correctness(testerchain, agency, token_economics, test_registry)
         assert receipt['status'] == 1
 
 
+def test_withdraw_compensation(testerchain, agency, token_economics, test_registry):
+    bidder_address = testerchain.client.accounts[12]
+    bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+
+    assert worklock_agent.get_available_compensation(checksum_address=bidder_address) > 0
+    receipt = bidder.withdraw_compensation()
+    assert receipt['status'] == 1
+    assert worklock_agent.get_available_compensation(checksum_address=bidder_address) == 0
+
+
 def test_claim(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[11]
     bidder = Bidder(checksum_address=bidder_address, registry=test_registry)

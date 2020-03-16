@@ -122,6 +122,7 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
     canceling_log = worklock.events.Canceled.createFilter(fromBlock='latest')
     checks_log = worklock.events.BiddersChecked.createFilter(fromBlock='latest')
     force_refund_log = worklock.events.ForceRefund.createFilter(fromBlock='latest')
+    compensation_log = worklock.events.CompensationWithdrawn.createFilter(fromBlock='latest')
 
     # Transfer tokens to WorkLock
     worklock_supply_1 = token_economics.minimum_allowed_locked
@@ -454,6 +455,11 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state).transact()
         testerchain.wait_for_receipt(tx)
+    # No compensation yet
+    assert worklock.functions.compensation(staker1).call() == 0
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.withdrawCompensation().transact({'from': staker1})
+        testerchain.wait_for_receipt(tx)
 
     # Force refund to first staker
     assert worklock.functions.ethToTokens(staker1_bid).call() > max_stake
@@ -465,10 +471,11 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
     refund = staker1_bid - bid
     staker1_bid = bid
     assert worklock.functions.ethToTokens(bid).call() <= max_stake
-    worklock_balance -= refund
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
-    assert testerchain.w3.eth.getBalance(staker1) == staker_1_balance + refund
+    assert testerchain.w3.eth.getBalance(staker1) == staker_1_balance
+    assert worklock.functions.compensation(staker1).call() == refund
 
+    assert len(compensation_log.get_all_entries()) == 0
     events = force_refund_log.get_all_entries()
     assert len(events) == 1
     event_args = events[-1]['args']
@@ -479,6 +486,24 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
     # Can't force refund again
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.forceRefund([staker1]).transact()
+        testerchain.wait_for_receipt(tx)
+
+    tx = worklock.functions.withdrawCompensation().transact({'from': staker1})
+    testerchain.wait_for_receipt(tx)
+    worklock_balance -= refund
+    assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
+    assert testerchain.w3.eth.getBalance(staker1) == staker_1_balance + refund
+    assert worklock.functions.compensation(staker1).call() == 0
+
+    events = compensation_log.get_all_entries()
+    assert len(events) == 1
+    event_args = events[-1]['args']
+    assert event_args['sender'] == staker1
+    assert event_args['value'] == refund
+
+    # Can't withdraw compensation again
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.withdrawCompensation().transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
     # Check all bidders
@@ -658,7 +683,7 @@ def test_reentrancy(testerchain, token_economics, deploy_contract, escrow, workl
 
     refund_log = worklock.events.Refund.createFilter(fromBlock='latest')
     canceling_log = worklock.events.Canceled.createFilter(fromBlock='latest')
-    force_refund_log = worklock.events.ForceRefund.createFilter(fromBlock='latest')
+    compensation_log = worklock.events.CompensationWithdrawn.createFilter(fromBlock='latest')
 
     reentrancy_contract, _ = deploy_contract('ReentrancyTest')
     contract_address = reentrancy_contract.address
@@ -689,25 +714,27 @@ def test_reentrancy(testerchain, token_economics, deploy_contract, escrow, workl
     assert worklock.functions.workInfo(contract_address).call()[0] == max_bid
     assert len(canceling_log.get_all_entries()) == 0
 
-    # Check reentrancy protection when doing force refund
-    testerchain.time_travel(seconds=ONE_HOUR)
-    transaction = worklock.functions.forceRefund([contract_address]).buildTransaction({'gas': 0})
-    tx = reentrancy_contract.functions.setData(2, transaction['to'], 0, transaction['data']).transact()
-    testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = testerchain.client.send_transaction({'to': contract_address})
-        testerchain.wait_for_receipt(tx)
-    assert testerchain.w3.eth.getBalance(contract_address) == balance
-    assert worklock.functions.workInfo(contract_address).call()[0] == max_bid
-    assert len(force_refund_log.get_all_entries()) == 0
-
     # Do force refund and check bidders
+    testerchain.time_travel(seconds=ONE_HOUR)
     tx = reentrancy_contract.functions.setData(0, BlockchainInterface.NULL_ADDRESS, 0, b'').transact()
     testerchain.wait_for_receipt(tx)
     tx = worklock.functions.forceRefund([contract_address]).transact()
     testerchain.wait_for_receipt(tx)
     tx = worklock.functions.verifyBiddingCorrectness(30000).transact()
     testerchain.wait_for_receipt(tx)
+
+    # Check reentrancy protection when withdrawing compensation
+    refund = worklock.functions.compensation(contract_address).call()
+    assert refund > 0
+    transaction = worklock.functions.withdrawCompensation().buildTransaction({'gas': 0})
+    tx = reentrancy_contract.functions.setData(2, transaction['to'], 0, transaction['data']).transact()
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = testerchain.client.send_transaction({'to': contract_address})
+        testerchain.wait_for_receipt(tx)
+    assert testerchain.w3.eth.getBalance(contract_address) == balance
+    assert worklock.functions.compensation(contract_address).call() == refund
+    assert len(compensation_log.get_all_entries()) == 0
 
     # Claim
     transaction = worklock.functions.claim().buildTransaction({'gas': 0})
@@ -942,9 +969,9 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     assert refund > 0
     assert bid > normal_bid
     assert worklock.functions.ethToTokens(bid).call() <= token_economics.maximum_allowed_locked
-    worklock_balance -= refund
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
-    assert testerchain.w3.eth.getBalance(whale_1) == whale_1_balance + refund
+    assert testerchain.w3.eth.getBalance(whale_1) == whale_1_balance
+    assert worklock.functions.compensation(whale_1).call() == refund
 
     events = refund_log.get_all_entries()
     assert len(events) == 1
@@ -996,10 +1023,11 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     assert refund > 0
     assert bid > normal_bid
     assert worklock.functions.ethToTokens(bid).call() <= token_economics.maximum_allowed_locked
-    worklock_balance -= 2 * refund
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
-    assert testerchain.w3.eth.getBalance(whale_2) == whale_2_balance + refund
-    assert testerchain.w3.eth.getBalance(whale_3) == whale_3_balance + refund
+    assert testerchain.w3.eth.getBalance(whale_2) == whale_2_balance
+    assert testerchain.w3.eth.getBalance(whale_3) == whale_3_balance
+    assert worklock.functions.compensation(whale_2).call() == refund
+    assert worklock.functions.compensation(whale_3).call() == refund
 
     events = refund_log.get_all_entries()
     assert len(events) == 3
@@ -1029,6 +1057,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     group = sorted(whales + hidden_whales, key=str.casefold)
     balances = [testerchain.w3.eth.getBalance(bidder) for bidder in group]
     bids = [worklock.functions.workInfo(bidder).call()[0] for bidder in group]
+    refunds = [worklock.functions.compensation(bidder).call() for bidder in group]
 
     tx = worklock.functions.forceRefund(group).transact({'from': whale_1})
     testerchain.wait_for_receipt(tx)
@@ -1040,8 +1069,8 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
         assert worklock.functions.workInfo(bidder).call()[0] == normal_bid
         refund = bids[i] - normal_bid
         assert refund > 0
-        worklock_balance -= refund
-        assert testerchain.w3.eth.getBalance(bidder) == balances[i] + refund
+        assert testerchain.w3.eth.getBalance(bidder) == balances[i]
+        assert worklock.functions.compensation(bidder).call() == refunds[i] + refund
         event_args = events[3 + i]['args']
         assert event_args['sender'] == whale_1
         assert event_args['bidder'] == bidder

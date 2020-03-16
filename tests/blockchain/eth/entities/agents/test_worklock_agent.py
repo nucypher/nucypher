@@ -109,6 +109,7 @@ def test_force_refund(testerchain, agency, token_economics, test_registry):
 
     receipt = agent.force_refund(checksum_address=caller, addresses=testerchain.client.accounts[2:11])
     assert receipt['status'] == 1
+    assert agent.get_available_compensation(testerchain.client.accounts[2]) > 0
 
 
 def test_verify_correctness(testerchain, agency, token_economics, test_registry):
@@ -119,6 +120,17 @@ def test_verify_correctness(testerchain, agency, token_economics, test_registry)
     assert receipt['status'] == 1
     assert agent.bidders_checked()
     assert agent.is_claiming_available()
+
+
+def test_withdraw_compensation(testerchain, agency, token_economics, test_registry):
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    bidder = testerchain.client.accounts[2]
+
+    balance = testerchain.w3.eth.getBalance(bidder)
+    receipt = agent.withdraw_compensation(checksum_address=bidder)
+    assert receipt['status'] == 1
+    assert testerchain.w3.eth.getBalance(bidder) > balance
+    assert agent.get_available_compensation(testerchain.client.accounts[2]) == 0
 
 
 def test_successful_claim(testerchain, agency, token_economics, test_registry):

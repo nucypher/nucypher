@@ -322,3 +322,28 @@ def post_init(general_config, registry_options, worklock_options, force, hw_wall
         emitter.echo(f"Bidders have already been checked\n", color='yellow')
 
     return  # Exit
+
+
+@worklock.command()
+@option_force
+@option_hw_wallet
+@group_registry_options
+@group_worklock_options
+@group_general_config
+def withdraw_compensation(general_config, worklock_options, registry_options, force, hw_wallet):
+    emitter = _setup_emitter(general_config)
+    if not worklock_options.bidder_address:
+        worklock_options.bidder_address = select_client_account(emitter=emitter,
+                                                                provider_uri=registry_options.provider_uri,
+                                                                poa=registry_options.poa,
+                                                                network=registry_options.network,
+                                                                show_balances=True)
+    registry = registry_options.get_registry(emitter, general_config.debug)
+    bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
+    if not force:
+        value = bidder.available_compensation
+        click.confirm(f"Collect {prettify_eth_amount(value)} compensation for bidder {worklock_options.bidder_address}?", abort=True)
+    emitter.message("Submitting WorkLock compensation request...")
+    receipt = bidder.withdraw_compensation()
+    paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
+    return  # Exit

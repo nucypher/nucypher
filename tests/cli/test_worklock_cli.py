@@ -142,6 +142,28 @@ def test_post_initialization(click_runner, testerchain, agency_local_registry, t
     assert agent.bidders_checked()
 
 
+def test_withdraw_compensation(click_runner, testerchain, agency_local_registry, token_economics):
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
+
+    bidder = None
+    for address in testerchain.client.accounts[2:12]:
+        if agent.get_available_compensation(checksum_address=address) > 0:
+            bidder = address
+            break
+
+    command = ('withdraw-compensation',
+               '--bidder-address', bidder,
+               '--registry-filepath', agency_local_registry.filepath,
+               '--provider', TEST_PROVIDER_URI,
+               '--poa',
+               '--force')
+
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + 'Y\n'
+    result = click_runner.invoke(worklock, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert agent.get_available_compensation(checksum_address=bidder) == 0
+
+
 def test_claim(click_runner, testerchain, agency_local_registry, token_economics):
 
     bidder = testerchain.client.accounts[2]

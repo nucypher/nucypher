@@ -1063,6 +1063,13 @@ class WorkLockAgent(EthereumContractAgent):
         return receipt
 
     @validate_checksum_address
+    def withdraw_compensation(self, checksum_address: str) -> dict:
+        """Withdraw compensation after force refund."""
+        contract_function = self.contract.functions.withdrawCompensation()
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
+        return receipt
+
+    @validate_checksum_address
     def check_claim(self, checksum_address: str) -> bool:
         has_claimed = bool(self.contract.functions.workInfo(checksum_address).call()[2])
         return has_claimed
@@ -1084,6 +1091,11 @@ class WorkLockAgent(EthereumContractAgent):
     def get_available_refund(self, checksum_address: str) -> int:
         refund_eth = self.contract.functions.getAvailableRefund(checksum_address).call()
         return refund_eth
+
+    @validate_checksum_address
+    def get_available_compensation(self, checksum_address: str) -> int:
+        compensation_eth = self.contract.functions.compensation(checksum_address).call()
+        return compensation_eth
 
     @validate_checksum_address
     def get_deposited_eth(self, checksum_address: str) -> int:

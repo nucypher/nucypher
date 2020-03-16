@@ -417,9 +417,16 @@ def test_all(testerchain,
     assert refund > 0
     staker2_tokens = worklock.functions.ethToTokens(staker2_bid).call()
     assert staker2_tokens <= token_economics.maximum_allowed_locked
+    assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
+    assert testerchain.w3.eth.getBalance(staker2) == staker2_balance
+    assert worklock.functions.compensation(staker2).call() == refund
+
+    tx = worklock.functions.withdrawCompensation().transact({'from': staker2})
+    testerchain.wait_for_receipt(tx)
     worklock_balance -= refund
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
     assert testerchain.w3.eth.getBalance(staker2) == staker2_balance + refund
+    assert worklock.functions.compensation(staker2).call() == 0
 
     # Check all bidders
     assert worklock.functions.getBiddersLength().call() == 2

@@ -26,6 +26,7 @@ contract WorkLock {
     event Canceled(address indexed sender, uint256 value);
     event BiddersChecked(address indexed sender, uint256 startIndex, uint256 endIndex);
     event ForceRefund(address indexed sender, address indexed bidder, uint256 refundETH);
+    event CompensationWithdrawn(address indexed sender, uint256 value);
 
     struct WorkInfo {
         uint256 depositedETH;
@@ -60,6 +61,7 @@ contract WorkLock {
     uint256 public bonusETHSupply;
     uint16 public stakingPeriods;
     mapping(address => WorkInfo) public workInfo;
+    mapping(address => uint256) public compensation;
 
     address[] public bidders;
     // if value == bidders.length then WorkLock is fully checked
@@ -399,13 +401,24 @@ contract WorkLock {
         // reset verification
         nextBidderToCheck = 0;
 
-        // transfer a refund
+        // save a refund
         for (uint256 i = 0; i < length; i++) {
-            address payable bidder = _biddersForRefund[i];
-            bidder.sendValue(refunds[i]);
+            address bidder = _biddersForRefund[i];
+            compensation[bidder] += refunds[i];
             emit ForceRefund(msg.sender, bidder, refunds[i]);
         }
 
+    }
+
+    /**
+    * @notice Withdraw compensation after force refund
+    */
+    function withdrawCompensation() external {
+        uint256 refund = compensation[msg.sender];
+        require(refund > 0, "There is no compensation");
+        compensation[msg.sender] = 0;
+        msg.sender.sendValue(refund);
+        emit CompensationWithdrawn(msg.sender, refund);
     }
 
     /**
