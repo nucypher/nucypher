@@ -931,8 +931,8 @@ def paint_bidding_notice(emitter, bidder):
 - WorkLock token rewards are claimed in the form of a stake and will be locked for
   the stake duration.
 
-- WorkLock ETH deposits will be available for refund at a rate of {prettify_eth_amount(bidder.worklock_agent.get_refund_rate())} 
-  per confirmed period. This rate will become frozen on {maya.MayaDT(bidder.economics.bidding_end_date).local_datetime()}.
+- WorkLock ETH deposits will be available for refund at a rate of {prettify_eth_amount(bidder.worklock_agent.get_bonus_refund_rate())} 
+  per confirmed period. This rate may vary until {maya.MayaDT(bidder.economics.bidding_end_date).local_datetime()}.
 
 - Once claiming WorkLock tokens, you are obligated to maintain a networked and available
   Ursula-Worker node bonded to the staker address {bidder.checksum_address}
