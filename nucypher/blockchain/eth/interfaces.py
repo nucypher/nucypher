@@ -495,7 +495,7 @@ class BlockchainInterface:
             start = maya.now()
             confirmations_so_far = self.get_confirmations(receipt)
             while confirmations_so_far < confirmations:
-                self.log.info(f"So far, we've only got {confirmations_so_far} confirmations. "
+                self.log.info(f"So far, we've received {confirmations_so_far} confirmations. "
                               f"Waiting for {confirmations - confirmations_so_far} more.")
                 time.sleep(3)
                 confirmations_so_far = self.get_confirmations(receipt)

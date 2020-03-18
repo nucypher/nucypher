@@ -102,8 +102,7 @@ def _initialize_blockchain(poa, provider_uri, emitter, ignore_solidity_check, ga
 
         BlockchainInterfaceFactory.register_interface(interface=deployer_interface,
                                                       sync=False,
-                                                      emitter=emitter,
-                                                      gas_strategy=gas_strategy)
+                                                      emitter=emitter)
     else:
         deployer_interface = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
 

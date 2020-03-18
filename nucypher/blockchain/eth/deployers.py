@@ -1160,7 +1160,7 @@ class WorklockDeployer(BaseContractDeployer):
         self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
 
-    def _deploy_essential(self, gas_limit: int = None):
+    def _deploy_essential(self, gas_limit: int = None, confirmations: int = 0):
         # Deploy
         constructor_args = (self.token_agent.contract_address,
                             self.staking_agent.contract_address,
@@ -1170,28 +1170,36 @@ class WorklockDeployer(BaseContractDeployer):
                                                                      self.registry,
                                                                      self.contract_name,
                                                                      *constructor_args,
-                                                                     gas_limit=gas_limit)
+                                                                     gas_limit=gas_limit,
+                                                                     confirmations=confirmations)
 
         self._contract = worklock_contract
         return worklock_contract, receipt
 
-    def deploy(self, gas_limit: int = None, progress=None) -> Dict[str, dict]:
+    def deploy(self, gas_limit: int = None, progress=None, confirmations: int = 0, deployment_mode=FULL) -> Dict[str, dict]:
+
+        if deployment_mode != FULL:
+            raise self.ContractDeploymentError(f"{self.contract_name} cannot be deployed in {deployment_mode} mode")
+
         self.check_deployment_readiness()
 
         # Essential
-        worklock_contract, deployment_receipt = self._deploy_essential(gas_limit=gas_limit)
+        worklock_contract, deployment_receipt = self._deploy_essential(gas_limit=gas_limit, confirmations=confirmations)
         if progress:
             progress.update(1)
 
         # Bonding
         bonding_function = self.staking_agent.contract.functions.setWorkLock(worklock_contract.address)
         bonding_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
-                                                           contract_function=bonding_function)
+                                                           contract_function=bonding_function,
+                                                           confirmations=confirmations)
         if progress:
             progress.update(1)
 
         # Funding
-        approve_receipt, funding_receipt = self.fund(sender_address=self.deployer_address, progress=progress)
+        approve_receipt, funding_receipt = self.fund(sender_address=self.deployer_address,
+                                                     progress=progress,
+                                                     confirmations=confirmations)
 
         # Gather the transaction hashes
         self.deployment_receipts = dict(zip(self.deployment_steps, (deployment_receipt,
@@ -1200,7 +1208,7 @@ class WorklockDeployer(BaseContractDeployer):
                                                                     funding_receipt)))
         return self.deployment_receipts
 
-    def fund(self, sender_address: str, progress=None) -> Tuple[dict, dict]:
+    def fund(self, sender_address: str, progress=None, confirmations: int = 0) -> Tuple[dict, dict]:
         """
         Convenience method for funding the contract and establishing the
         total worklock lot value to be auctioned.
@@ -1210,14 +1218,16 @@ class WorklockDeployer(BaseContractDeployer):
         token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
         approve_function = token_agent.contract.functions.approve(self.contract_address, supply)
         approve_receipt = self.blockchain.send_transaction(contract_function=approve_function,
-                                                           sender_address=sender_address)
+                                                           sender_address=sender_address,
+                                                           confirmations=confirmations)
 
         if progress:
             progress.update(1)
 
         funding_function = self.contract.functions.tokenDeposit(supply)
         funding_receipt = self.blockchain.send_transaction(contract_function=funding_function,
-                                                           sender_address=sender_address)
+                                                           sender_address=sender_address,
+                                                           confirmations=confirmations)
 
         if progress:
             progress.update(1)
