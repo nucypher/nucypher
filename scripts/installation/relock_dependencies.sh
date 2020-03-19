@@ -15,7 +15,7 @@ fi
 
 echo "Removing existing lock files..."
 pipenv --rm
-rm Pipfile.lock
+rm -f Pipfile.lock
 rm -f $PREFIX.txt
 rm -f dev-$PREFIX.txt
 
