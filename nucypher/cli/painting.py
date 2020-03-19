@@ -889,6 +889,7 @@ ETH Pool .............. {prettify_eth_amount(blockchain.client.get_balance(workl
 ETH Supply ............ {prettify_eth_amount(worklock_agent.get_eth_supply())}
 Bonus ETH Supply ...... {prettify_eth_amount(worklock_agent.get_bonus_eth_supply())}
 
+Number of bidders...... {worklock_agent.get_bidders_population()}
 Lot Size .............. {NU.from_nunits(worklock_agent.lot_value)} 
 Bonus Lot Size ........ {NU.from_nunits(worklock_agent.get_bonus_lot_value())} 
 
@@ -902,10 +903,15 @@ Bonus Deposit Rate .... {worklock_agent.get_bonus_deposit_rate()}
 
 
 def paint_bidder_status(emitter, bidder):
+    claim = NU.from_nunits(bidder.available_claim)
+    if claim > bidder.economics.maximum_allowed_locked:
+        claim = f"{claim} (Above the allowed max. The bid will be partially refunded)"
+
     message = f"""
 WorkLock Participant {bidder.checksum_address}
 =====================================================
 Total Bid ............ {prettify_eth_amount(bidder.get_deposited_eth)}
+Available Claim ...... {claim}
 Available Refund ..... {prettify_eth_amount(bidder.available_refund)}
 Completed Work ....... {bidder.completed_work}
 Remaining Work ....... {bidder.remaining_work}
