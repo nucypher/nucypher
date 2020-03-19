@@ -1027,6 +1027,25 @@ class WorkLockAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
         return receipt
 
+    def force_refund(self, checksum_address: str, addresses: List[str]) -> dict:
+        """Force refund to bidders who can get tokens more than maximum allowed."""
+        addresses = sorted(addresses, key=str.casefold)
+        contract_function = self.contract.functions.forceRefund(addresses)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
+        return receipt
+
+    @validate_checksum_address
+    def verify_bidding_correctness(self,
+                                   checksum_address: str,
+                                   gas_limit: int,  # TODO - #842: Gas Management
+                                   gas_to_save_state: int = 30000) -> dict:
+        """Verify all bids are less than max allowed bid"""
+        contract_function = self.contract.functions.verifyBiddingCorrectness(gas_to_save_state)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=checksum_address,
+                                                   transaction_gas_limit=gas_limit)
+        return receipt
+
     @validate_checksum_address
     def claim(self, checksum_address: str) -> dict:
         """
@@ -1037,19 +1056,16 @@ class WorkLockAgent(EthereumContractAgent):
         return receipt
 
     @validate_checksum_address
-    def burn_unclaimed(self, checksum_address: str) -> dict:
-        """
-        Burn unclaimed tokens - Out of the goodness of your heart...
-        of course the caller must pay for the transaction gas.
-        """
-        contract_function = self.contract.functions.burnUnclaimed()
+    def refund(self, checksum_address: str) -> dict:
+        """Refund ETH for completed work."""
+        contract_function = self.contract.functions.refund()
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
         return receipt
 
     @validate_checksum_address
-    def refund(self, checksum_address: str) -> dict:
-        """Refund ETH for completed work."""
-        contract_function = self.contract.functions.refund()
+    def withdraw_compensation(self, checksum_address: str) -> dict:
+        """Withdraw compensation after force refund."""
+        contract_function = self.contract.functions.withdrawCompensation()
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
         return receipt
 
@@ -1067,13 +1083,19 @@ class WorkLockAgent(EthereumContractAgent):
         work = self.contract.functions.workInfo(checksum_address).call()[1]
         return work
 
-    def get_available_refund(self, completed_work: str) -> int:
-        refund_eth = self.contract.functions.workToETH(completed_work).call()
-        return refund_eth
-
     #
     # Calls
     #
+
+    @validate_checksum_address
+    def get_available_refund(self, checksum_address: str) -> int:
+        refund_eth = self.contract.functions.getAvailableRefund(checksum_address).call()
+        return refund_eth
+
+    @validate_checksum_address
+    def get_available_compensation(self, checksum_address: str) -> int:
+        compensation_eth = self.contract.functions.compensation(checksum_address).call()
+        return compensation_eth
 
     @validate_checksum_address
     def get_deposited_eth(self, checksum_address: str) -> int:
@@ -1089,33 +1111,43 @@ class WorkLockAgent(EthereumContractAgent):
         supply = self.contract.functions.tokenSupply().call()
         return supply
 
+    def get_bonus_lot_value(self) -> int:
+        """
+        Total number of tokens than can be  awarded for bonus part of bid.
+        """
+        num_bidders = self.get_bidders_population()
+        supply = self.lot_value - num_bidders * self.contract.functions.minAllowableLockedTokens().call()
+        return supply
+
     @validate_checksum_address
     def get_remaining_work(self, checksum_address: str) -> int:
         """Get remaining work periods until full refund for the target address."""
         result = self.contract.functions.getRemainingWork(checksum_address).call()
         return result
 
-    def get_eth_supply(self) -> int:
-        supply = self.contract.functions.ethSupply().call()
+    def get_bonus_eth_supply(self) -> int:
+        supply = self.contract.functions.bonusETHSupply().call()
         return supply
 
-    def get_refund_rate(self) -> int:
+    def get_eth_supply(self) -> int:
+        num_bidders = self.get_bidders_population()
+        min_bid = self.minimum_allowed_bid
+        supply = num_bidders * min_bid + self.get_bonus_eth_supply()
+        return supply
+
+    def get_bonus_refund_rate(self) -> int:
         f = self.contract.functions
         slowing_refund = f.SLOWING_REFUND().call()
         boosting_refund = f.boostingRefund().call()
-        refund_rate = self.get_deposit_rate() * slowing_refund / boosting_refund
+        refund_rate = self.get_bonus_deposit_rate() * slowing_refund / boosting_refund
         return refund_rate
 
-    def get_deposit_rate(self) -> int:
+    def get_bonus_deposit_rate(self) -> int:
         try:
-            deposit_rate = self.lot_value // self.get_eth_supply()
+            deposit_rate = self.get_bonus_lot_value() // self.get_bonus_eth_supply()
         except ZeroDivisionError:
             return 0
         return deposit_rate
-
-    def get_unclaimed_tokens(self) -> int:
-        tokens = self.contract.functions.unclaimedTokens().call()
-        return tokens
 
     def eth_to_tokens(self, value: int) -> int:
         tokens = self.contract.functions.ethToTokens(value).call()
@@ -1129,14 +1161,43 @@ class WorkLockAgent(EthereumContractAgent):
         tokens = self.contract.functions.workToETH(value).call()
         return tokens
 
+    def get_bidders_population(self) -> int:
+        """Returns the number of bidders on the blockchain"""
+        return self.contract.functions.getBiddersLength().call()
+
+    def get_bidders(self) -> List[str]:
+        """Returns a list of bidders"""
+        num_bidders = self.get_bidders_population()
+        bidders = [self.contract.functions.bidders(i).call() for i in range(num_bidders)]
+        return bidders
+
+    def is_claiming_available(self) -> bool:
+        """Returns True if claiming is available"""
+        return self.contract.functions.isClaimingAvailable().call()
+
+    def bidders_checked(self) -> bool:
+        """Returns True if bidders have been checked"""
+        bidders_population = self.get_bidders_population()
+        return self.contract.functions.nextBidderToCheck().call() == bidders_population
+
     @property
-    def start_date(self) -> int:
+    def minimum_allowed_bid(self) -> int:
+        min_bid = self.contract.functions.minAllowedBid().call()
+        return min_bid
+
+    @property
+    def start_bidding_date(self) -> int:
         date = self.contract.functions.startBidDate().call()
         return date
 
     @property
-    def end_date(self) -> int:
+    def end_bidding_date(self) -> int:
         date = self.contract.functions.endBidDate().call()
+        return date
+
+    @property
+    def end_cancellation_date(self) -> int:
+        date = self.contract.functions.endCancellationDate().call()
         return date
 
     def worklock_parameters(self) -> Tuple:
@@ -1144,8 +1205,10 @@ class WorkLockAgent(EthereumContractAgent):
             'tokenSupply',
             'startBidDate',
             'endBidDate',
+            'endCancellationDate',
             'boostingRefund',
             'stakingPeriods',
+            'minAllowedBid',
         )
 
         def _call_function_by_name(name: str):

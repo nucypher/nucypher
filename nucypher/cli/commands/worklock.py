@@ -115,25 +115,37 @@ def status(general_config, registry_options, worklock_options):
 @group_worklock_options
 @option_force
 @option_hw_wallet
-@click.option('--value', help="ETH value of bid", type=click.STRING)
+@click.option('--value', help="ETH value of bid", type=click.FloatRange(min=0))
 def bid(general_config, worklock_options, registry_options, force, hw_wallet, value):
-    """Place a bid"""
+    """Place a bid, or increase an existing bid"""
     emitter = _setup_emitter(general_config)
-
+    registry = registry_options.get_registry(emitter, general_config.debug)
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=registry_options.provider_uri,
                                                                 poa=registry_options.poa,
                                                                 network=registry_options.network,
+                                                                registry=registry,
                                                                 show_balances=True)
+
+    bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
+
     if not value:
         if force:
             raise click.MissingParameter("Missing --value.")
-        value = click.prompt("Enter bid amount in ETH", type=click.STRING)
-    value = int(Web3.toWei(Decimal(value), 'ether'))
 
-    registry = registry_options.get_registry(emitter, general_config.debug)
-    bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
+        existing_bid_amount = bidder.get_deposited_eth
+        if not existing_bid_amount:  # It's the first bid
+            minimum_bid = bidder.worklock_agent.minimum_allowed_bid
+            minimum_bid_in_eth = Web3.fromWei(minimum_bid, 'ether')
+            prompt = f"Enter bid amount in ETH (at least {minimum_bid_in_eth} ETH)"
+        else:  # There's an existing bid and the bidder is increasing the amount
+            emitter.message(f"You have an existing bid of {Web3.fromWei(existing_bid_amount, 'ether')} ETH")
+            minimum_bid_in_eth = Web3.fromWei(1, 'ether')
+            prompt = f"Enter the amount in ETH that you want to increase your bid"
+        value = click.prompt(prompt, type=click.FloatRange(min=minimum_bid_in_eth))
+
+    value = int(Web3.toWei(Decimal(value), 'ether'))
 
     if not force:
         paint_bidding_notice(emitter=emitter, bidder=bidder)
@@ -167,15 +179,17 @@ def bid(general_config, worklock_options, registry_options, force, hw_wallet, va
 @option_force
 @option_hw_wallet
 def cancel_bid(general_config, registry_options, worklock_options, force, hw_wallet):
-    """Cancel your bid"""
+    """Cancel your bid and receive your ETH back"""
     emitter = _setup_emitter(general_config)
+    registry = registry_options.get_registry(emitter, general_config.debug)
     if not worklock_options.bidder_address:  # TODO: Consider bundle this in worklock_options
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=registry_options.provider_uri,
                                                                 poa=registry_options.poa,
                                                                 network=registry_options.network,
-                                                                show_balances=True)
-    registry = registry_options.get_registry(emitter, general_config.debug)
+                                                                show_balances=True,
+                                                                registry=registry)
+
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
     if not force:
         value = bidder.get_deposited_eth
@@ -194,13 +208,15 @@ def cancel_bid(general_config, registry_options, worklock_options, force, hw_wal
 @group_worklock_options
 @group_general_config
 def claim(general_config, worklock_options, registry_options, force, hw_wallet):
-    """Claim tokens for a successful bid, and start staking them"""
+    """Claim tokens for your bid, and start staking them"""
     emitter = _setup_emitter(general_config)
+    registry = registry_options.get_registry(emitter, general_config.debug)
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=registry_options.provider_uri,
                                                                 poa=registry_options.poa,
                                                                 network=registry_options.network,
+                                                                registry=registry,
                                                                 show_balances=True)
 
     # TODO: Show amount of tokens to claim
@@ -209,7 +225,7 @@ def claim(general_config, worklock_options, registry_options, force, hw_wallet):
         emitter.echo("Note: Claiming WorkLock NU tokens will initialize a new stake.", color='blue')
         click.confirm(f"Continue worklock claim for bidder {worklock_options.bidder_address}?", abort=True)
     emitter.message("Submitting Claim...")
-    registry = registry_options.get_registry(emitter, general_config.debug)
+
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
     receipt = bidder.claim()
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
@@ -225,14 +241,17 @@ def claim(general_config, worklock_options, registry_options, force, hw_wallet):
 @group_registry_options
 @group_general_config
 def remaining_work(general_config, worklock_options, registry_options):
+    """Check how much work is pending until you can get all your locked ETH back"""
     emitter = _setup_emitter(general_config)
+    registry = registry_options.get_registry(emitter, general_config.debug)
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=registry_options.provider_uri,
                                                                 poa=registry_options.poa,
                                                                 network=registry_options.network,
+                                                                registry=registry,
                                                                 show_balances=True)
-    registry = registry_options.get_registry(emitter, general_config.debug)
+
     bidder = worklock_options.create_transactionless_bidder(registry=registry)
     _remaining_work = bidder.remaining_work
     emitter.echo(f"Work Remaining for {worklock_options.bidder_address}: {_remaining_work}")
@@ -246,17 +265,20 @@ def remaining_work(general_config, worklock_options, registry_options):
 @group_worklock_options
 @group_general_config
 def refund(general_config, worklock_options, registry_options, force, hw_wallet):
+    """Reclaim ETH unlocked by your work"""
     emitter = _setup_emitter(general_config)
+    registry = registry_options.get_registry(emitter, general_config.debug)
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=registry_options.provider_uri,
                                                                 poa=registry_options.poa,
                                                                 network=registry_options.network,
+                                                                registry=registry,
                                                                 show_balances=True)
     if not force:
         click.confirm(f"Collect ETH refund for bidder {worklock_options.bidder_address}?", abort=True)
     emitter.message("Submitting WorkLock refund request...")
-    registry = registry_options.get_registry(emitter, general_config.debug)
+
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
     receipt = bidder.refund_deposit()
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
@@ -264,20 +286,88 @@ def refund(general_config, worklock_options, registry_options, force, hw_wallet)
 
 
 @worklock.command()
-@group_registry_options
 @group_general_config
-@option_checksum_address
-def burn_unclaimed_tokens(general_config, registry_options, checksum_address):
+@group_registry_options
+@group_worklock_options
+@option_force
+@option_hw_wallet
+@click.option('--gas-limit', help="Gas limit per each verification transaction", type=click.IntRange(min=60000))
+# TODO: Consider moving to administrator (nucypher-deploy) #1758
+def enable_claiming(general_config, registry_options, worklock_options, force, hw_wallet, gas_limit):
+    """Ensure correctness of bidding and enable claiming"""
     emitter = _setup_emitter(general_config)
     registry = registry_options.get_registry(emitter, general_config.debug)
-    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)
-    if not checksum_address:
-        checksum_address = select_client_account(emitter=emitter,
-                                                 provider_uri=registry_options.provider_uri,
-                                                 poa=registry_options.poa,
-                                                 network=registry_options.network,
-                                                 show_balances=True)
-    # FIXME: This won't work in real life, it needs TransactingPowers and stuff
-    receipt = worklock_agent.burn_unclaimed(sender_address=checksum_address)
-    paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=worklock_agent.blockchain.client.chain_name)
+    if not worklock_options.bidder_address:  # TODO: Consider bundle this in worklock_options
+        worklock_options.bidder_address = select_client_account(emitter=emitter,
+                                                                provider_uri=registry_options.provider_uri,
+                                                                network=registry_options.network,
+                                                                registry=registry,
+                                                                show_balances=True)
+    bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
+
+    whales = bidder.get_whales()
+    if whales:
+        if not force:
+            click.confirm(f"Confirm force refund to at least {len(whales)} bidders"
+                          f" using {worklock_options.bidder_address}?", abort=True)
+
+        force_refund_receipt = bidder.force_refund()
+        emitter.echo(f"At least {len(whales)} bidders got a force refund\n", color='green')
+
+        paint_receipt_summary(receipt=force_refund_receipt,
+                              emitter=emitter,
+                              chain_name=bidder.staking_agent.blockchain.client.chain_name,
+                              transaction_type=f"force-refund")
+    else:
+        emitter.echo(f"All bids are correct, force refund is not needed\n", color='yellow')
+
+    if not bidder.worklock_agent.bidders_checked():
+        if not gas_limit:
+            # TODO print gas estimations
+            gas_limit = click.prompt(f"Enter gas limit per each verification transaction",
+                                     type=click.IntRange(min=60000))
+
+        if not force:
+            click.confirm(f"Confirm verifying of bidding from {worklock_options.bidder_address} "
+                          f"using {gas_limit} gas per each transaction?", abort=True)
+
+        verification_receipts = bidder.verify_bidding_correctness(gas_limit=gas_limit)
+        emitter.echo("Bidding has been checked\n", color='green')
+
+        for iteration, receipt in verification_receipts.items():
+            paint_receipt_summary(receipt=receipt,
+                                  emitter=emitter,
+                                  chain_name=bidder.staking_agent.blockchain.client.chain_name,
+                                  transaction_type=f"verify-correctness[{iteration}]")
+    else:
+        emitter.echo(f"Bidders have already been checked\n", color='yellow')
+
+    return  # Exit
+
+
+@worklock.command()
+@option_force
+@option_hw_wallet
+@group_registry_options
+@group_worklock_options
+@group_general_config
+def withdraw_compensation(general_config, worklock_options, registry_options, force, hw_wallet):
+    """Reclaim ETH that wasn't locked by WorkLock"""
+    emitter = _setup_emitter(general_config)
+    registry = registry_options.get_registry(emitter, general_config.debug)
+    if not worklock_options.bidder_address:
+        worklock_options.bidder_address = select_client_account(emitter=emitter,
+                                                                provider_uri=registry_options.provider_uri,
+                                                                poa=registry_options.poa,
+                                                                network=registry_options.network,
+                                                                registry=registry,
+                                                                show_balances=True)
+
+    bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
+    if not force:
+        value = bidder.available_compensation
+        click.confirm(f"Collect {prettify_eth_amount(value)} compensation for bidder {worklock_options.bidder_address}?", abort=True)
+    emitter.message("Submitting WorkLock compensation request...")
+    receipt = bidder.withdraw_compensation()
+    paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
     return  # Exit

@@ -2,6 +2,7 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 
 def test_create_worklock_agent(testerchain, test_registry, agency, token_economics):
@@ -9,39 +10,40 @@ def test_create_worklock_agent(testerchain, test_registry, agency, token_economi
     assert agent.contract_address
     same_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     assert agent == same_agent
+    assert not agent.is_claiming_available()
 
 
 def test_bidding(testerchain, agency, token_economics, test_registry):
-    big_bid = token_economics.maximum_allowed_locked // 100
-    small_bid = token_economics.minimum_allowed_locked // 100
+    small_bid = token_economics.worklock_min_allowed_bid
+    big_bid = 5 * token_economics.worklock_min_allowed_bid
 
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
     # Round 1
-    for multiplier, bidder in enumerate(testerchain.unassigned_accounts[:3], start=1):
+    for multiplier, bidder in enumerate(testerchain.client.accounts[:11], start=1):
         bid = big_bid * multiplier
         receipt = agent.bid(checksum_address=bidder, value=bid)
         assert receipt['status'] == 1
 
     # Round 2
-    for multiplier, bidder in enumerate(testerchain.unassigned_accounts[:3], start=1):
+    for multiplier, bidder in enumerate(testerchain.client.accounts[:11], start=1):
         bid = (small_bid * 2) * multiplier
         receipt = agent.bid(checksum_address=bidder, value=bid)
         assert receipt['status'] == 1
 
 
 def test_get_deposited_eth(testerchain, agency, token_economics, test_registry):
-    big_bid = token_economics.maximum_allowed_locked // 10
-    big_bidder = testerchain.unassigned_accounts[-1]
+    small_bid = token_economics.worklock_min_allowed_bid
+    small_bidder = testerchain.client.accounts[-1]
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    receipt = agent.bid(checksum_address=big_bidder, value=big_bid)
+    receipt = agent.bid(checksum_address=small_bidder, value=small_bid)
     assert receipt['status'] == 1
-    bid = agent.get_deposited_eth(big_bidder)
-    assert bid == big_bid
+    bid = agent.get_deposited_eth(small_bidder)
+    assert bid == small_bid
 
 
 def test_cancel_bid(testerchain, agency, token_economics, test_registry):
-    bidder = testerchain.unassigned_accounts[1]
+    bidder = testerchain.client.accounts[1]
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
     assert agent.get_deposited_eth(bidder)        # Bid
@@ -56,27 +58,87 @@ def test_cancel_bid(testerchain, agency, token_economics, test_registry):
 
 def test_get_remaining_work(testerchain, agency, token_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    bidder = testerchain.unassigned_accounts[0]
+    bidder = testerchain.client.accounts[0]
     remaining = agent.get_remaining_work(checksum_address=bidder)
-    assert remaining == 35905203136136849607983
+    assert remaining > 0
 
 
 def test_early_claim(testerchain, agency, token_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    bidder = testerchain.unassigned_accounts[0]
+    bidder = testerchain.client.accounts[0]
     with pytest.raises(TransactionFailed):
         _receipt = agent.claim(checksum_address=bidder)
 
 
-def test_successful_claim(testerchain, agency, token_economics, test_registry):
+def test_cancel_after_bidding(testerchain, agency, token_economics, test_registry):
 
     # Wait until the bidding window closes...
     testerchain.time_travel(seconds=token_economics.bidding_duration+1)
 
+    bidder = testerchain.client.accounts[0]
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+
+    assert agent.get_deposited_eth(bidder)        # Bid
+    receipt = agent.cancel_bid(bidder)  # Cancel
+    assert receipt['status'] == 1
+    assert not agent.get_deposited_eth(bidder)    # No more bid
+
+
+def test_claim_before_checking(testerchain, agency, token_economics, test_registry):
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    bidder = testerchain.client.accounts[2]
+
+    assert not agent.is_claiming_available()
+    with pytest.raises(TransactionFailed):
+        _receipt = agent.claim(checksum_address=bidder)
+
+    # Wait until the cancellation window closes...
+    testerchain.time_travel(seconds=token_economics.cancellation_end_date+1)
+
+    assert not agent.is_claiming_available()
+    with pytest.raises(TransactionFailed):
+        _receipt = agent.claim(checksum_address=bidder)
+
+
+def test_force_refund(testerchain, agency, token_economics, test_registry):
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    caller = testerchain.client.accounts[0]
+
+    with pytest.raises(BlockchainInterface.InterfaceError):
+        _receipt = agent.verify_bidding_correctness(checksum_address=caller, gas_limit=100000)
+
+    receipt = agent.force_refund(checksum_address=caller, addresses=testerchain.client.accounts[2:11])
+    assert receipt['status'] == 1
+    assert agent.get_available_compensation(testerchain.client.accounts[2]) > 0
+
+
+def test_verify_correctness(testerchain, agency, token_economics, test_registry):
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    caller = testerchain.client.accounts[0]
+    assert not agent.bidders_checked()
+    receipt = agent.verify_bidding_correctness(checksum_address=caller, gas_limit=100000)
+    assert receipt['status'] == 1
+    assert agent.bidders_checked()
+    assert agent.is_claiming_available()
+
+
+def test_withdraw_compensation(testerchain, agency, token_economics, test_registry):
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    bidder = testerchain.client.accounts[2]
+
+    balance = testerchain.w3.eth.getBalance(bidder)
+    receipt = agent.withdraw_compensation(checksum_address=bidder)
+    assert receipt['status'] == 1
+    assert testerchain.w3.eth.getBalance(bidder) > balance
+    assert agent.get_available_compensation(testerchain.client.accounts[2]) == 0
+
+
+def test_successful_claim(testerchain, agency, token_economics, test_registry):
+
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
-    bidder = testerchain.unassigned_accounts[0]
+    bidder = testerchain.client.accounts[2]
 
     # Ensure that the bidder is not staking.
     locked_tokens = staking_agent.get_locked_tokens(staker_address=bidder, periods=10)
@@ -91,4 +153,4 @@ def test_successful_claim(testerchain, agency, token_economics, test_registry):
 
     # Ensure that the claimant is now the holder of a stake.
     locked_tokens = staking_agent.get_locked_tokens(staker_address=bidder, periods=10)
-    assert locked_tokens == 71810406272273699215965
+    assert locked_tokens > 0

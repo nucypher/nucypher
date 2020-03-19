@@ -37,27 +37,23 @@ contract StakingEscrowForWorkLockMock {
         minLockedPeriods = _minLockedPeriods;
     }
 
-    function getCompletedWork(address _staker) public view returns (uint256) {
+    function getCompletedWork(address _staker) external view returns (uint256) {
         return stakerInfo[_staker].completedWork;
     }
 
-    function setWorkMeasurement(address _staker, bool _measureWork) public returns (uint256) {
+    function setWorkMeasurement(address _staker, bool _measureWork) external returns (uint256) {
         stakerInfo[_staker].measureWork = _measureWork;
         return stakerInfo[_staker].completedWork;
     }
 
-    function deposit(address _staker, uint256 _value, uint16 _periods) public {
+    function deposit(address _staker, uint256 _value, uint16 _periods) external {
         stakerInfo[_staker].value = _value;
         stakerInfo[_staker].periods = _periods;
         token.transferFrom(msg.sender, address(this), _value);
     }
 
-    function setCompletedWork(address _staker, uint256 _completedWork) public {
+    function setCompletedWork(address _staker, uint256 _completedWork) external {
         stakerInfo[_staker].completedWork = _completedWork;
-    }
-
-    function burn(uint256 _value) public {
-        token.transferFrom(msg.sender, address(this), _value);
     }
 
 }

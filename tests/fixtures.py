@@ -33,7 +33,7 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 from web3 import Web3
 
-from nucypher.blockchain.economics import StandardTokenEconomics
+from nucypher.blockchain.economics import StandardTokenEconomics, BaseEconomics
 from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
@@ -412,13 +412,16 @@ def token_economics(testerchain):
 
     # Ends in one hour
     bidding_end_date = start_date + one_hour_in_seconds
+    cancellation_end_date = bidding_end_date + one_hour_in_seconds
 
     economics = StandardTokenEconomics(
         worklock_boosting_refund_rate=200,
-        worklock_commitment_duration=60*60,  # seconds
-        worklock_supply=NU.from_tokens(1_000_000),
+        worklock_commitment_duration=60,  # periods
+        worklock_supply=10*BaseEconomics._default_maximum_allowed_locked,
         bidding_start_date=bidding_start_date,
-        bidding_end_date=bidding_end_date
+        bidding_end_date=bidding_end_date,
+        cancellation_end_date=cancellation_end_date,
+        worklock_min_allowed_bid=Web3.toWei(1, "ether")
     )
     return economics
 

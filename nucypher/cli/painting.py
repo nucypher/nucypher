@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import csv
 import webbrowser
 from collections import Counter
+from datetime import timedelta
 from typing import List
 
 import click
@@ -854,56 +855,72 @@ def echo_solidity_version(ctx, param, value):
 
 def paint_worklock_status(emitter, registry: BaseContractRegistry):
     from maya import MayaDT
-    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
     blockchain = worklock_agent.blockchain
 
-    # Agency
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
-
     # Time
-    start = MayaDT(worklock_agent.contract.functions.startBidDate().call())
-    end = MayaDT(worklock_agent.contract.functions.endBidDate().call())
-    duration = end - start
-    remaining = end - maya.now()
+    bidding_start = MayaDT(worklock_agent.contract.functions.startBidDate().call())
+    bidding_end = MayaDT(worklock_agent.contract.functions.endBidDate().call())
+    cancellation_end = MayaDT(worklock_agent.contract.functions.endCancellationDate().call())
 
-    # TODO: Include calculated refund and deposit rates
+    bidding_duration = bidding_end - bidding_start
+    cancellation_duration = cancellation_end - bidding_start
+    now = maya.now()
+    bidding_remaining = bidding_end - now if bidding_end > now else timedelta()
+    cancellation_remaining = cancellation_end - now if cancellation_end > now else timedelta()
 
     payload = f"""
 
 Time
 ======================================================
-Start Date ........ {start}
-End Date .......... {end}
-Duration .......... {duration}
-Time Remaining .... {remaining} 
+Bidding Start Date ................... {bidding_start}
+Bidding End Date ..................... {bidding_end}
+Cancellation Window End Date ......... {cancellation_end}
+Bidding Duration ..................... {bidding_duration}
+Cancellation Window Duration ......... {cancellation_duration}
+Bidding Time Remaining ............... {bidding_remaining} 
+Cancellation Window Time Remaining ... {cancellation_remaining} 
+Claiming phase open .................. {'Yes' if worklock_agent.is_claiming_available() else 'No'} 
 
 Economics
-======================================================            
-ETH Pool .......... {blockchain.client.get_balance(worklock_agent.contract_address)}
-ETH Supply ........ {worklock_agent.get_eth_supply()}
+======================================================        
+Min allowed bid ....... {prettify_eth_amount(worklock_agent.minimum_allowed_bid)}
+ETH Pool .............. {prettify_eth_amount(blockchain.client.get_balance(worklock_agent.contract_address))}
+ETH Supply ............ {prettify_eth_amount(worklock_agent.get_eth_supply())}
+Bonus ETH Supply ...... {prettify_eth_amount(worklock_agent.get_bonus_eth_supply())}
 
-Lot Size .......... {NU.from_nunits(worklock_agent.lot_value)} 
-Unclaimed Tokens .. {worklock_agent.get_unclaimed_tokens()}
+Number of bidders...... {worklock_agent.get_bidders_population()}
+Lot Size .............. {NU.from_nunits(worklock_agent.lot_value)} 
+Bonus Lot Size ........ {NU.from_nunits(worklock_agent.get_bonus_lot_value())} 
 
-Boosting Refund ... {worklock_agent.contract.functions.boostingRefund().call()}
-Slowing Refund .... {worklock_agent.contract.functions.SLOWING_REFUND().call()}
-Refund Rate ....... {worklock_agent.get_refund_rate()}
-Deposit Rate ...... {worklock_agent.get_deposit_rate()}
+Boosting Refund ....... {worklock_agent.contract.functions.boostingRefund().call()}
+Slowing Refund ........ {worklock_agent.contract.functions.SLOWING_REFUND().call()}
+Bonus Refund Rate ..... {worklock_agent.get_bonus_refund_rate()}
+Bonus Deposit Rate .... {worklock_agent.get_bonus_deposit_rate()}
     """
     emitter.echo(payload)
     return
 
 
 def paint_bidder_status(emitter, bidder):
+    claim = NU.from_nunits(bidder.available_claim)
+    if claim > bidder.economics.maximum_allowed_locked:
+        claim = f"{claim} (Above the allowed max. The bid will be partially refunded)"
+
     message = f"""
 WorkLock Participant {bidder.checksum_address}
 =====================================================
-Total Bid ............ {bidder.get_deposited_eth}
-Available Refund ..... {bidder.available_refund}
+Total Bid ............ {prettify_eth_amount(bidder.get_deposited_eth)}
+Available Claim ...... {claim}
+Available Refund ..... {prettify_eth_amount(bidder.available_refund)}
 Completed Work ....... {bidder.completed_work}
 Remaining Work ....... {bidder.remaining_work}
 Refunded Work ........ {bidder.refunded_work}
 """
+    compensation = bidder.available_compensation
+    if compensation:
+        message += f"Compensation ......... {prettify_eth_amount(compensation)}\n"
+
     emitter.echo(message)
     return
 
@@ -920,8 +937,8 @@ def paint_bidding_notice(emitter, bidder):
 - WorkLock token rewards are claimed in the form of a stake and will be locked for
   the stake duration.
 
-- WorkLock ETH deposits will be available for refund at a rate of {prettify_eth_amount(bidder.worklock_agent.get_refund_rate())} 
-  per confirmed period. This rate will become frozen on {maya.MayaDT(bidder.economics.bidding_end_date).local_datetime()}.
+- WorkLock ETH deposits will be available for refund at a rate of {prettify_eth_amount(bidder.worklock_agent.get_bonus_refund_rate())} 
+  per confirmed period. This rate may vary until {maya.MayaDT(bidder.economics.bidding_end_date).local_datetime()}.
 
 - Once claiming WorkLock tokens, you are obligated to maintain a networked and available
   Ursula-Worker node bonded to the staker address {bidder.checksum_address}

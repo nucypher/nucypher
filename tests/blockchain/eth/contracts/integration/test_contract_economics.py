@@ -55,6 +55,7 @@ def test_reward(testerchain, agency, token_economics, mock_transacting_power_act
     _txhash = staking_agent.confirm_activity(worker_address=ursula)
 
     contract_reward = staking_agent.calculate_staking_reward(staker_address=ursula)
+    assert contract_reward > 0
     calculations_reward = token_economics.cumulative_rewards_at_period(1)
     error = (contract_reward - calculations_reward) / calculations_reward
     assert error > 0
