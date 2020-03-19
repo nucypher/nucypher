@@ -117,7 +117,7 @@ def status(general_config, registry_options, worklock_options):
 @option_hw_wallet
 @click.option('--value', help="ETH value of bid", type=click.FloatRange(min=0))
 def bid(general_config, worklock_options, registry_options, force, hw_wallet, value):
-    """Place a bid"""
+    """Place a bid, or increase an existing bid"""
     emitter = _setup_emitter(general_config)
 
     if not worklock_options.bidder_address:
@@ -169,7 +169,7 @@ def bid(general_config, worklock_options, registry_options, force, hw_wallet, va
 @option_force
 @option_hw_wallet
 def cancel_bid(general_config, registry_options, worklock_options, force, hw_wallet):
-    """Cancel your bid"""
+    """Cancel your bid and receive your ETH back"""
     emitter = _setup_emitter(general_config)
     if not worklock_options.bidder_address:  # TODO: Consider bundle this in worklock_options
         worklock_options.bidder_address = select_client_account(emitter=emitter,
@@ -196,7 +196,7 @@ def cancel_bid(general_config, registry_options, worklock_options, force, hw_wal
 @group_worklock_options
 @group_general_config
 def claim(general_config, worklock_options, registry_options, force, hw_wallet):
-    """Claim tokens for a successful bid, and start staking them"""
+    """Claim tokens for your bid, and start staking them"""
     emitter = _setup_emitter(general_config)
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
@@ -227,6 +227,7 @@ def claim(general_config, worklock_options, registry_options, force, hw_wallet):
 @group_registry_options
 @group_general_config
 def remaining_work(general_config, worklock_options, registry_options):
+    """Check how much work is pending until you can get all your locked ETH back"""
     emitter = _setup_emitter(general_config)
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
@@ -248,6 +249,7 @@ def remaining_work(general_config, worklock_options, registry_options):
 @group_worklock_options
 @group_general_config
 def refund(general_config, worklock_options, registry_options, force, hw_wallet):
+    """Reclaim ETH unlocked by your work"""
     emitter = _setup_emitter(general_config)
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
@@ -331,6 +333,7 @@ def enable_claiming(general_config, registry_options, worklock_options, force, h
 @group_worklock_options
 @group_general_config
 def withdraw_compensation(general_config, worklock_options, registry_options, force, hw_wallet):
+    """Reclaim ETH that wasn't locked by WorkLock"""
     emitter = _setup_emitter(general_config)
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
