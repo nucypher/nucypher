@@ -18,6 +18,7 @@ To briefly review, **Alice** is the *data owner*. She wants to share some data w
 |
 **Q: How much trust do we place in Ursula, the proxy?**
 
+
 Ursulas are “semi-trusted” in the sense that Alice must trust Ursula to revoke a policy once it expires or if instructed to do so (by Alice). We also must trust Ursula to be responsive and perform the re-encryption correctly so that Bob can access the data. 
 
 |
