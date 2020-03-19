@@ -1855,10 +1855,9 @@ class Bidder(NucypherTokenActor):
     #
 
     @property
-    def get_deposited_eth(self, denomination: str = 'wei') -> int:
+    def get_deposited_eth(self) -> int:
         bid = self.worklock_agent.get_deposited_eth(checksum_address=self.checksum_address)
-        ether_bid = Web3.toWei(bid, denomination)
-        return ether_bid
+        return bid
 
     @property
     def _has_claimed(self) -> bool:
