@@ -56,6 +56,7 @@ all:
             geth_dir: '/home/nucypher/geth/.ethereum/goerli/'
             geth_container_datadir: "/root/.ethereum/goerli"
             etherscan_domain: goerli.etherscan.io
+            ansible_python_interpreter: /usr/bin/python3
 
             # these can be overridden at the instance level if desired
             NUCYPHER_KEYRING_PASSWORD: xxxxxxxxxxxxxxxxxxxxxxxpanda

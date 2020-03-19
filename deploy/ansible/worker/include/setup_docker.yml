@@ -27,6 +27,7 @@
     - name: Install Docker Module for Python
       pip:
         name: docker
+        executable: pip3
 
     - name: Ensure group "docker" exists
       group:
