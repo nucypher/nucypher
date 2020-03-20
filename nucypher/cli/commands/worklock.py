@@ -153,19 +153,13 @@ def bid(general_config, worklock_options, registry_options, force, hw_wallet, va
     receipt = bidder.place_bid(value=value)
     emitter.message("Publishing WorkLock Bid...")
 
-    # Ensure the total bid value is worth a claim that is at
-    # least large enough for the minimum stake.
-    minimum = bidder.economics.minimum_allowed_locked
+    maximum = NU.from_nunits(bidder.economics.maximum_allowed_locked)
     available_claim = NU.from_nunits(bidder.available_claim)
-    if available_claim < minimum:
-        warning = f"Total bid ({available_claim}) is too small for a claim, please bid more or cancel.\n" \
-                  f"Total must be worth at least {NU.from_nunits(minimum)})."
-        emitter.echo(warning, color='yellow')
-    else:
-        message = f'Current bid: {prettify_eth_amount(bidder.get_deposited_eth)} | ' \
-                  f'Available claim: {available_claim}\n' \
-                  f'Note that available claim value may fluctuate until bidding closes and claims are finalized.\n'
-        emitter.echo(message, color='yellow')
+    message = f'Current bid: {prettify_eth_amount(bidder.get_deposited_eth)} | Claim: {available_claim}\n'
+    if available_claim > maximum:
+        message += f"This claim is currently above the allowed max ({maximum}), so the bid may be partially refunded.\n"
+    message += f'Note that available claim value may fluctuate until bidding closes and claims are finalized.\n'
+    emitter.echo(message, color='yellow')
 
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
     return  # Exit
