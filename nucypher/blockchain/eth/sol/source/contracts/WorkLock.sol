@@ -4,6 +4,7 @@ pragma solidity ^0.5.3;
 import "zeppelin/math/SafeMath.sol";
 import "zeppelin/token/ERC20/SafeERC20.sol";
 import "zeppelin/utils/Address.sol";
+import "zeppelin/ownership/Ownable.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/StakingEscrow.sol";
 import "contracts/lib/AdditionalMath.sol";
@@ -12,7 +13,7 @@ import "contracts/lib/AdditionalMath.sol";
 /**
 * @notice The WorkLock distribution contract
 */
-contract WorkLock {
+contract WorkLock is Ownable {
     using SafeERC20 for NuCypherToken;
     using SafeMath for uint256;
     using AdditionalMath for uint256;
@@ -27,6 +28,7 @@ contract WorkLock {
     event BiddersChecked(address indexed sender, uint256 startIndex, uint256 endIndex);
     event ForceRefund(address indexed sender, address indexed bidder, uint256 refundETH);
     event CompensationWithdrawn(address indexed sender, uint256 value);
+    event Shutdown(address indexed sender);
 
     struct WorkInfo {
         uint256 depositedETH;
@@ -37,7 +39,6 @@ contract WorkLock {
 
     NuCypherToken public token;
     StakingEscrow public escrow;
-    address public creator;
 
     uint256 public startBidDate;
     uint256 public endBidDate;
@@ -125,7 +126,6 @@ contract WorkLock {
         minAllowedBid = _minAllowedBid;
         maxAllowableLockedTokens = escrow.maxAllowableLockedTokens();
         minAllowableLockedTokens = escrow.minAllowableLockedTokens();
-        creator = msg.sender;
     }
 
     /**
@@ -338,11 +338,22 @@ contract WorkLock {
     }
 
     /**
-    * @notice Cancels distribution, makes possible to retrieve all bids and creator gets all tokens
+    * @notice Cancels distribution, makes possible to retrieve all bids and owner gets all tokens
     */
-    function shutdown() internal {
+    function shutdown() external onlyOwner {
+        require(!isClaimingAvailable(), "Claiming has already been enabled");
+        internalShutdown();
+    }
+
+    /**
+    * @notice Cancels distribution, makes possible to retrieve all bids and owner gets all tokens
+    */
+    function internalShutdown() internal {
+        startBidDate = 0;
+        endBidDate = 0;
         endCancellationDate = uint256(0) - 1; // "infinite" cancellation window
-        token.safeTransfer(creator, tokenSupply);
+        token.safeTransfer(owner(), tokenSupply);
+        emit Shutdown(msg.sender);
     }
 
     /**
@@ -357,7 +368,7 @@ contract WorkLock {
 
         uint256 minNumberOfBidders = tokenSupply.divCeil(maxAllowableLockedTokens);
         if (bidders.length < minNumberOfBidders) {
-            shutdown();
+            internalShutdown();
             return;
         }
 
