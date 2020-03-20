@@ -875,11 +875,13 @@ Time
 ======================================================
 Bidding Start Date ................... {bidding_start}
 Bidding End Date ..................... {bidding_end}
-Cancellation Window End Date ......... {cancellation_end}
 Bidding Duration ..................... {bidding_duration}
-Cancellation Window Duration ......... {cancellation_duration}
 Bidding Time Remaining ............... {bidding_remaining} 
-Cancellation Window Time Remaining ... {cancellation_remaining} 
+
+Cancellation Window End Date ......... {cancellation_end}
+Cancellation Window Duration ......... {cancellation_duration}
+Cancellation Window Time Remaining ... {cancellation_remaining}
+ 
 Claiming phase open .................. {'Yes' if worklock_agent.is_claiming_available() else 'No'} 
 
 Economics
