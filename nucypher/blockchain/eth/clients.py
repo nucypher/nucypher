@@ -342,14 +342,14 @@ class GethClient(EthereumClient):
     def lock_account(self, account):
         return self.w3.geth.personal.lockAccount(account)
 
-    def sign_transaction(self, transaction: dict) -> bytes:
+    def sign_transaction(self, transaction_dict: dict) -> bytes:
 
         # Do not include a 'to' field for contract creation.
-        if transaction['to'] == b'':
-            transaction = dissoc(transaction, 'to')
+        if transaction_dict['to'] == b'':
+            transaction_dict = dissoc(transaction_dict, 'to')
 
         # Sign
-        result = self.w3.eth.signTransaction(transaction=transaction)
+        result = self.w3.eth.signTransaction(transaction=transaction_dict)
 
         # Return RLP bytes
         rlp_encoded_transaction = result.raw
