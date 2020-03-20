@@ -17,11 +17,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import click
+import tabulate
 from decimal import Decimal
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Bidder
-from nucypher.blockchain.eth.agents import ContractAgency, WorkLockAgent
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import prettify_eth_amount
 from nucypher.characters.banners import WORKLOCK_BANNER
@@ -31,7 +31,6 @@ from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     option_force,
     group_options,
-    option_checksum_address,
     option_hw_wallet
 )
 from nucypher.cli.actions import get_client_password
@@ -224,7 +223,7 @@ def claim(general_config, worklock_options, registry_options, force, hw_wallet):
     if not force:
         emitter.echo("Note: Claiming WorkLock NU tokens will initialize a new stake.", color='blue')
         click.confirm(f"Continue worklock claim for bidder {worklock_options.bidder_address}?", abort=True)
-    emitter.message("Submitting Claim...")
+    emitter.echo("Submitting Claim...")
 
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
     receipt = bidder.claim()
@@ -277,7 +276,7 @@ def refund(general_config, worklock_options, registry_options, force, hw_wallet)
                                                                 show_balances=True)
     if not force:
         click.confirm(f"Collect ETH refund for bidder {worklock_options.bidder_address}?", abort=True)
-    emitter.message("Submitting WorkLock refund request...")
+    emitter.echo("Submitting WorkLock refund request...")
 
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
     receipt = bidder.refund_deposit()
@@ -307,6 +306,10 @@ def enable_claiming(general_config, registry_options, worklock_options, force, h
 
     whales = bidder.get_whales()
     if whales:
+        headers = ("Bidders that require correction", "Current bid bonus")
+        columns = (whales.keys(), map(prettify_eth_amount, whales.values()))
+        emitter.echo(tabulate.tabulate(dict(zip(headers, columns)), headers=headers, floatfmt="fancy_grid"))
+
         if not force:
             click.confirm(f"Confirm force refund to at least {len(whales)} bidders"
                           f" using {worklock_options.bidder_address}?", abort=True)
@@ -367,7 +370,7 @@ def withdraw_compensation(general_config, worklock_options, registry_options, fo
     if not force:
         value = bidder.available_compensation
         click.confirm(f"Collect {prettify_eth_amount(value)} compensation for bidder {worklock_options.bidder_address}?", abort=True)
-    emitter.message("Submitting WorkLock compensation request...")
+    emitter.echo("Submitting WorkLock compensation request...")
     receipt = bidder.withdraw_compensation()
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
     return  # Exit
