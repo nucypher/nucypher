@@ -321,7 +321,7 @@ def enable_claiming(general_config, registry_options, worklock_options, force, h
     if not bidder.worklock_agent.bidders_checked():
         if not gas_limit:
             # TODO print gas estimations
-            min_gas = 60000
+            min_gas = 180000
             gas_limit = click.prompt(f"Enter gas limit per each verification transaction (at least {min_gas})",
                                      type=click.IntRange(min=min_gas))
 
