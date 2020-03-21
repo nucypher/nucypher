@@ -1661,7 +1661,7 @@ class Bidder(NucypherTokenActor):
         self.economics = EconomicsFactory.get_economics(registry=self.registry)
 
         if is_transacting:
-            self.transacting_power = TransactingPower(password=client_password, account=checksum_address)
+            self.transacting_power = TransactingPower(password=client_password, account=checksum_address, cache=True)
             self.transacting_power.activate()
 
         self._all_bonus_bidders = None
@@ -1829,6 +1829,7 @@ class Bidder(NucypherTokenActor):
         receipts = dict()
         iteration = 1
         while not self.worklock_agent.bidders_checked():
+            self.transacting_power.activate()  # Refresh TransactingPower
             receipt = self.worklock_agent.verify_bidding_correctness(checksum_address=self.checksum_address,
                                                                      gas_limit=gas_limit)
             receipts[iteration] = receipt
