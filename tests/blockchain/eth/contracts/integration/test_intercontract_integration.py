@@ -828,7 +828,9 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     assert staker2_balance < testerchain.client.get_balance(staker2)
     staker3_balance = testerchain.client.get_balance(staker3)
-    tx = preallocation_escrow_interface_1.functions.withdrawPolicyReward(staker3).transact({'from': staker3, 'gas_price': 0})
+    tx = preallocation_escrow_interface_1.functions.withdrawPolicyReward().transact({'from': staker3, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    tx = preallocation_escrow_1.functions.withdrawETH().transact({'from': staker3, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert staker3_balance < testerchain.client.get_balance(staker3)
 

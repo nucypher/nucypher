@@ -336,7 +336,7 @@ def test_policy(testerchain, policy_manager, preallocation_escrow, preallocation
 
     # Nothing to withdraw
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = preallocation_escrow_interface.functions.withdrawPolicyReward(owner).transact({'from': owner, 'gas_price': 0})
+        tx = preallocation_escrow_interface.functions.withdrawPolicyReward().transact({'from': owner, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = preallocation_escrow.functions.withdrawETH().transact({'from': owner, 'gas_price': 0})
@@ -354,18 +354,19 @@ def test_policy(testerchain, policy_manager, preallocation_escrow, preallocation
 
     # Only owner can withdraw reward
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = preallocation_escrow_interface.functions.withdrawPolicyReward(creator).transact({'from': creator, 'gas_price': 0})
+        tx = preallocation_escrow_interface.functions.withdrawPolicyReward().transact({'from': creator, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = preallocation_escrow.functions.withdrawETH().transact({'from': creator, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
 
     # Owner withdraws reward
-    tx = preallocation_escrow_interface.functions.withdrawPolicyReward(owner).transact({'from': owner, 'gas_price': 0})
+    tx = preallocation_escrow_interface.functions.withdrawPolicyReward().transact({'from': owner, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert owner_balance + 10000 == testerchain.client.get_balance(owner)
+    assert 10000 == testerchain.client.get_balance(preallocation_escrow.address)
+    assert owner_balance == testerchain.client.get_balance(owner)
     assert 0 == testerchain.client.get_balance(policy_manager.address)
-    assert 0 == testerchain.client.get_balance(preallocation_escrow.address)
+    assert 10000 == testerchain.client.get_balance(preallocation_escrow.address)
 
     events = staker_reward.get_all_entries()
     assert 1 == len(events)
@@ -375,6 +376,19 @@ def test_policy(testerchain, policy_manager, preallocation_escrow, preallocation
 
     events = rewards.get_all_entries()
     assert 0 == len(events)
+
+    tx = preallocation_escrow.functions.withdrawETH().transact({'from': owner, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert 0 == testerchain.client.get_balance(preallocation_escrow.address)
+    assert owner_balance + 10000 == testerchain.client.get_balance(owner)
+    assert 0 == testerchain.client.get_balance(policy_manager.address)
+    assert 0 == testerchain.client.get_balance(preallocation_escrow.address)
+
+    events = rewards.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['owner']
+    assert 10000 == event_args['value']
 
     # Only owner can set min reward rate
     min_reward_sets = preallocation_escrow_interface.events.MinRewardRateSet.createFilter(fromBlock='latest')

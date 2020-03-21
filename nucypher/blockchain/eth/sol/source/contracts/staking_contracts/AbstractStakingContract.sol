@@ -63,10 +63,16 @@ contract AbstractStakingContract {
     */
     function isFallbackAllowed() public returns (bool);
 
+    // TODO add some abstract methods for withdrawing
+
     /**
     * @dev Function sends all requests to the target contract
     */
     function () external payable {
+        if (msg.data.length == 0) {
+            return;
+        }
+
         require(isFallbackAllowed());
         address target = router.target();
         require(target.isContract());

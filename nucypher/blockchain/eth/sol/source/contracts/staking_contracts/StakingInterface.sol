@@ -144,7 +144,7 @@ contract StakingInterface {
     /**
     * @notice Mint tokens in the staking escrow
     */
-    function mint() external {
+    function mint() public {
         getStateContract().escrow().mint();
         emit Mined(msg.sender);
     }
@@ -152,9 +152,9 @@ contract StakingInterface {
     /**
     * @notice Withdraw available reward from the policy manager to the staking contract
     */
-    function withdrawPolicyReward(address payable _recipient) public {
-        uint256 value = getStateContract().policyManager().withdraw(_recipient);
-        emit PolicyRewardWithdrawn(_recipient, value);
+    function withdrawPolicyReward() public {
+        uint256 value = getStateContract().policyManager().withdraw();
+        emit PolicyRewardWithdrawn(msg.sender, value);
     }
 
     /**

@@ -94,10 +94,10 @@ contract PolicyManagerForStakingContractMock {
     uint32 public secondsPerPeriod = 1;
     uint256 public minRewardRate;
 
-    function withdraw(address payable _recipient) public returns (uint256) {
+    function withdraw() public returns (uint256) {
         uint256 value = address(this).balance;
         require(value > 0);
-        _recipient.transfer(value);
+        msg.sender.transfer(value);
         return value;
     }
 

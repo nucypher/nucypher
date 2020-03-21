@@ -45,15 +45,6 @@ def test_staking_interface(testerchain, policy_manager, preallocation_escrow):
         tx = fake_preallocation_escrow.functions.additionalMethod(1).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
 
-    # And can't send ETH to the preallocation escrow without payable fallback function
-    tx = testerchain.client.send_transaction(
-        {'from': testerchain.client.coinbase, 'to': owner, 'value': 1})
-    testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = testerchain.client.send_transaction(
-            {'from': owner, 'to': preallocation_escrow.address, 'value': 1, 'gas_price': 0})
-        testerchain.wait_for_receipt(tx)
-
 
 @pytest.mark.slow
 def test_upgrading(testerchain, token, deploy_contract, escrow):
@@ -99,11 +90,11 @@ def test_upgrading(testerchain, token, deploy_contract, escrow):
         tx = preallocation_escrow_interface_v2.functions.thirdMethod().transact({'from': owner})
         testerchain.wait_for_receipt(tx)
 
-    # Can't send ETH to this version of the library
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = testerchain.client.send_transaction(
-            {'from': owner, 'to': preallocation_escrow_contract.address, 'value': 1, 'gas_price': 0})
-        testerchain.wait_for_receipt(tx)
+    # Anyone can send ETH
+    tx = testerchain.client.send_transaction(
+        {'from': creator, 'to': preallocation_escrow_contract.address, 'value': 1, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert 1 == testerchain.client.get_balance(preallocation_escrow_contract.address)
 
     # Only creator can update a library
     with pytest.raises((TransactionFailed, ValueError)):
@@ -138,21 +129,6 @@ def test_upgrading(testerchain, token, deploy_contract, escrow):
     testerchain.wait_for_receipt(tx)
     tx = preallocation_escrow_interface_v2.functions.thirdMethod().transact({'from': owner})
     testerchain.wait_for_receipt(tx)
-
-    # And can send and withdraw ETH
-    tx = testerchain.client.send_transaction(
-        {'from': owner, 'to': preallocation_escrow_contract.address, 'value': 1, 'gas_price': 0})
-    testerchain.wait_for_receipt(tx)
-    assert 1 == testerchain.client.get_balance(preallocation_escrow_contract.address)
-    # Only user can send ETH
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = testerchain.client.send_transaction(
-            {'from': testerchain.client.coinbase,
-             'to': preallocation_escrow_contract.address,
-             'value': 1,
-             'gas_price': 0})
-        testerchain.wait_for_receipt(tx)
-    assert 1 == testerchain.client.get_balance(preallocation_escrow_contract.address)
 
     rewards = preallocation_escrow_contract.events.ETHWithdrawn.createFilter(fromBlock='latest')
     owner_balance = testerchain.client.get_balance(owner)
