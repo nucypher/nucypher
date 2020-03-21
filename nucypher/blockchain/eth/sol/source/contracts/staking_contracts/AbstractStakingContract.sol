@@ -62,8 +62,16 @@ contract AbstractStakingContract {
     * @dev Checks permission for calling fallback function
     */
     function isFallbackAllowed() public returns (bool);
+    
+    /**
+    * @dev Withdraw tokens from staking contract
+    */
+    function withdrawTokens(uint256 _value) public;
 
-    // TODO add some abstract methods for withdrawing
+    /**
+    * @dev Withdraw ETH from staking contract
+    */
+    function withdrawETH() public;
 
     /**
     * @dev Function sends all requests to the target contract

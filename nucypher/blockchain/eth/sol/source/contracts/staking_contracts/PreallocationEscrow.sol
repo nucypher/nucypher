@@ -129,7 +129,7 @@ contract PreallocationEscrow is AbstractStakingContract, Ownable {
     * @notice Withdraw available amount of tokens to owner
     * @param _value Amount of token to withdraw
     */
-    function withdrawTokens(uint256 _value) external onlyOwner {
+    function withdrawTokens(uint256 _value) public onlyOwner {
         uint256 balance = token.balanceOf(address(this));
         require(balance >= _value);
         // Withdrawal invariant for PreallocationEscrow:
@@ -142,7 +142,7 @@ contract PreallocationEscrow is AbstractStakingContract, Ownable {
     /**
     * @notice Withdraw available ETH to the owner
     */
-    function withdrawETH() external onlyOwner {
+    function withdrawETH() public onlyOwner {
         uint256 balance = address(this).balance;
         require(balance != 0);
         msg.sender.sendValue(balance);
