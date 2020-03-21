@@ -1656,6 +1656,7 @@ class Bidder(NucypherTokenActor):
                  client_password: str = None,
                  *args, **kwargs):
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
+        self.log = Logger(f"WorkLockBidder")
         self.worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=self.registry)  # type: WorkLockAgent
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.economics = EconomicsFactory.get_economics(registry=self.registry)
@@ -1826,12 +1827,15 @@ class Bidder(NucypherTokenActor):
         if whales:
             raise self.WhaleError(f"Some bidders have bids that are too high: {whales}")
 
+        self.log.debug(f"Starting bidding verification. Next bidder to check: {self.worklock_agent.next_bidder_to_check}")
+
         receipts = dict()
         iteration = 1
         while not self.worklock_agent.bidders_checked():
             self.transacting_power.activate()  # Refresh TransactingPower
             receipt = self.worklock_agent.verify_bidding_correctness(checksum_address=self.checksum_address,
                                                                      gas_limit=gas_limit)
+            self.log.debug(f"Iteration {iteration}. Next bidder to check: {self.worklock_agent.next_bidder_to_check}")
             receipts[iteration] = receipt
             iteration += 1
         return receipts
