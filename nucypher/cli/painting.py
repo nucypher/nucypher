@@ -913,15 +913,21 @@ def paint_bidder_status(emitter, bidder):
 WorkLock Participant {bidder.checksum_address}
 =====================================================
 Total Bid ............ {prettify_eth_amount(bidder.get_deposited_eth)}
-Available Claim ...... {claim}
-Available Refund ..... {prettify_eth_amount(bidder.available_refund)}
-Completed Work ....... {bidder.completed_work}
-Remaining Work ....... {bidder.remaining_work}
-Refunded Work ........ {bidder.refunded_work}
-"""
+Tokens Allocated ..... {claim}
+Tokens Claimed? ...... {"Yes" if bidder._has_claimed else "No"}"""
+
     compensation = bidder.available_compensation
     if compensation:
-        message += f"Compensation ......... {prettify_eth_amount(compensation)}\n"
+        message += f"""
+Unspent Bid Amount ... {prettify_eth_amount(compensation)}"""
+
+    message += f"""\n
+Completed Work ....... {bidder.completed_work}
+Available Refund ..... {prettify_eth_amount(bidder.available_refund)}
+
+Refunded Work ........ {bidder.refunded_work}
+Remaining Work ....... {bidder.remaining_work}
+"""
 
     emitter.echo(message)
     return
