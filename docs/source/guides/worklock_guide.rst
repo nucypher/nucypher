@@ -17,7 +17,7 @@ At the end of this cancellation period, stake-locked NU will be distributed acco
  - Each bidder receives, at least, the minimum amount of NU needed to stake.
  - All bids will be greater or equal to the minimum allowed bid.
  - In addition to the minimum amount of NU, each bidder receives a portion of the remaining NU, distributed pro rata across all participants, taking into consideration their bid surplus with respect to the minimum bid.
- - If the resulting NU amount is above the maximum allowed NU to stake, then the bid of such bidder is partially refunded until the corresponding amount of NU is within the allowed limits.
+ - If the resulting NU amount is above the maximum allowed NU to stake, then such a bidder has their bid partially refunded until the corresponding amount of NU is within the allowed limits.
 
 Finally, if WorkLock participants use that stake-locked NU to run a node, the NU will eventually unlock and their escrowed ETH will be returned in full.
 
@@ -83,7 +83,7 @@ You can cancel a bid to WorkLock by running:
 Claim your stake
 ----------------
 
-Once the claiming period is open, you can claim your tokens as a stake in NuCypher:
+Once the claiming window is open, you can claim your tokens as a stake in NuCypher:
 
 .. code::
 

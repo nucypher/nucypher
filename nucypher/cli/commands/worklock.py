@@ -216,24 +216,24 @@ def claim(general_config, worklock_options, registry_options, force, hw_wallet):
 
     unspent_bid = bidder.available_compensation
     if unspent_bid:
-        emitter.echo(f"Before claiming your tokens, note that WorkLock didn't use your bid completely.\n"
-                     f"An unspent amount of {prettify_eth_amount(unspent_bid)} is available for refund.")
+        emitter.echo(f"Note that WorkLock did not use your entire bid due to a maximum claim limit.\n"
+                     f"Therefore, an unspent amount of {prettify_eth_amount(unspent_bid)} is available for refund.")
         if not force:
-            click.confirm(f"Collect unspent bid amount for bidder {worklock_options.bidder_address}?", abort=True)
+            click.confirm(f"Before claiming your NU tokens for {worklock_options.bidder_address}, you will need to be refunded your unspent bid amount. Would you like to proceed?", abort=True)
         emitter.echo("Requesting refund of unspent bid amount...")
         receipt = bidder.withdraw_compensation()
         paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
 
     has_claimed = bidder._has_claimed
     if has_claimed:
-        emitter.echo("Claimed was already done", color='red')
+        emitter.echo(f"Claim was already done for {bidder.checksum_address}", color='red')
         return
 
     tokens = NU.from_nunits(bidder.available_claim)
     emitter.echo(f"\nYou have an available claim of {tokens} 🎉 \n", color='green', bold=True)
     if not force:
         lock_duration = bidder.worklock_agent.worklock_parameters()[-2]
-        emitter.echo(f"Note: Claiming WorkLock NU tokens will initialize a new stake during {lock_duration} periods.",
+        emitter.echo(f"Note: Claiming WorkLock NU tokens will initialize a new stake to be locked for {lock_duration} periods.",
                      color='blue')
         click.confirm(f"Continue WorkLock claim for bidder {worklock_options.bidder_address}?", abort=True)
     emitter.echo("Submitting Claim...")
@@ -359,4 +359,3 @@ def enable_claiming(general_config, registry_options, worklock_options, force, h
         emitter.echo(f"Bidders have already been checked\n", color='yellow')
 
     return  # Exit
-

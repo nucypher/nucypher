@@ -974,7 +974,7 @@ Successfully claimed WorkLock tokens for {bidder_address}.
 
 You can check that the stake was created correctly by running:
 
-  nucypher status stakers --staking-address {bidder_address} --network {network} --provider {provider_uri}
+  nucypher status stakers --staking-address {bidder_address} --network {network} --provider {provider_uri} --poa
 
 Next Steps for WorkLock Winners
 ===============================
