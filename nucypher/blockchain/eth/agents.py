@@ -25,6 +25,7 @@ from eth_utils.address import to_checksum_address
 from eth_tester.exceptions import TransactionFailed
 from twisted.logger import Logger
 from web3.contract import Contract
+from web3.exceptions import BadFunctionCallOutput
 
 from nucypher.blockchain.eth.constants import (
     DISPATCHER_CONTRACT_NAME,
@@ -1270,13 +1271,14 @@ class MultiSigAgent(EthereumContractAgent):
 
     @property
     def owners(self) -> Tuple[str]:
+        # FIXME: Use the length of owners array
         i = 0
         owners = list()
         array_is_within_bounds = True
         while array_is_within_bounds:
             try:
                 owner = self.get_owner(i)
-            except (TransactionFailed, ValueError):
+            except (TransactionFailed, ValueError, BadFunctionCallOutput):
                 array_is_within_bounds = False
             else:
                 owners.append(owner)

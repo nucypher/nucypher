@@ -435,9 +435,12 @@ Unsigned TX hash: ... {data_to_sign}
 def paint_decoded_transaction(emitter, raw_transaction_data, contract):
     emitter.echo("Decoded transaction:\n")
     contract_function, params = contract.decode_function_input(raw_transaction_data)
-    emitter.echo(str(contract_function))
+    emitter.echo(str(contract_function), color='yellow', bold=True)
     for param, value in params.items():
-        emitter.echo(f"  {param}={value}")
+        emitter.echo(f"  {param}", color='green', nl=False)
+        emitter.echo(" = ", nl=False)
+        emitter.echo(str(value), color='green')
+    emitter.echo()
 
 
 def paint_staged_stake(emitter,

@@ -26,7 +26,7 @@ from constant_sorrow.constants import (
 )
 
 from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency, MultiSigAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -61,10 +61,9 @@ from nucypher.cli.painting import (
     paint_contract_deployment,
     paint_deployer_contract_inspection,
     paint_receipt_summary,
-    paint_multisig_contract_info,
     paint_multisig_proposed_transaction
 )
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE, GAS_STRATEGY_CHOICES
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.cli.types import WEI
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
@@ -543,63 +542,6 @@ def transfer_tokens(general_config, actor_options, target_address, value):
     click.confirm(f"Transfer {value} from {deployer_address} to {target_address}?", abort=True)
     receipt = token_agent.transfer(amount=int(value), sender_address=deployer_address, target_address=target_address)
     paint_receipt_summary(emitter=emitter, receipt=receipt)
-
-
-@deploy.command(name='multisig')
-@group_general_config
-@group_actor_options
-@click.argument('action', type=click.Choice(['inspect', 'sign', 'execute']))  # TODO: Is this wanting to be a separate command?
-@click.option('--proposal', help="Filepath to a JSON file containing a multisig transaction data",
-              type=EXISTING_READABLE_FILE)
-def multisig(general_config, actor_options, action, proposal):
-    """
-    Perform operations via a MultiSig contract
-    """
-    # Init
-    emitter = general_config.emitter
-    _ensure_config_root(actor_options.config_root)
-    blockchain = _initialize_blockchain(poa=actor_options.poa,
-                                        provider_uri=actor_options.provider_uri,
-                                        emitter=emitter,
-                                        ignore_solidity_check=actor_options.ignore_solididty_check,
-                                        gas_strategy=actor_options.gas_strategy)
-    local_registry = establish_deployer_registry(emitter=emitter,
-                                                 use_existing_registry=True,
-                                                 )
-
-    # Warnings
-    # _pre_launch_warnings(emitter, etherscan, hw_wallet)
-
-    multisig_agent = ContractAgency.get_agent(MultiSigAgent,
-                                              registry=local_registry,
-                                              provider_uri=actor_options.provider_uri)
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=local_registry)
-
-    if action == 'inspect':
-        paint_multisig_contract_info(emitter, multisig_agent, token_agent)
-    elif action == 'sign':
-        if not proposal:
-            raise ValueError("multisig sign requires the use of --proposal")
-
-        with open(proposal) as json_file:
-            proposal = json.load(json_file)
-
-        executive_summary = proposal['parameters']
-
-        name, version, address, abi = local_registry.search(contract_address=executive_summary['target_address'])
-        # TODO: This assumes that we're always signing proxy retargetting. For the moment is true.
-        proxy_contract = blockchain.client.w3.eth.contract(abi=abi,
-                                                           address=address,
-                                                           version=version,
-                                                           ContractFactoryClass=blockchain._contract_factory)
-        paint_multisig_proposed_transaction(emitter, proposal, proxy_contract)
-
-        click.confirm("Proceed with signing?", abort=True)
-
-        # TODO: Blocked by lack of support to EIP191 - #1566
-
-    elif action == 'execute':
-        pass  # TODO
 
 
 @deploy.command("transfer-ownership")
