@@ -49,18 +49,18 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_registry_filepath,
     option_staking_address,
-)
+    option_signer_uri)
 from nucypher.cli.painting import paint_receipt_summary
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE,
-    WEI)
+    WEI
+)
 from nucypher.config.characters import StakeHolderConfiguration
 
 option_value = click.option('--value', help="Token value of stake", type=click.INT)
 option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
 option_worker_address = click.option('--worker-address', help="Address to assign as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
-option_signer_uri = click.option('--signer', 'signer_uri', '-S', default=None, type=str)
 
 
 def _setup_emitter(general_config):
@@ -175,7 +175,7 @@ group_staker_options = group_options(
     StakerOptions,
     config_options=group_config_options,
     staking_address=option_staking_address,
-    )
+)
 
 
 class TransactingStakerOptions:

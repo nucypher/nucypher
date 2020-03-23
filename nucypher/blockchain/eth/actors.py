@@ -72,7 +72,7 @@ from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     IndividualAllocationRegistry
 )
-from nucypher.blockchain.eth.signers import ClefSigner, Web3Signer
+from nucypher.blockchain.eth.signers import ClefSigner, Web3Signer, Signer
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration, datetime_at_period, \
     prettify_eth_amount
@@ -194,27 +194,30 @@ class ContractAdministrator(NucypherTokenActor):
                  registry: BaseContractRegistry,
                  deployer_address: str = None,
                  client_password: str = None,
+                 signer: Signer = None,
                  staking_escrow_test_mode: bool = False,
                  economics: BaseEconomics = None):
         """
-        Note: super() is not called here to avoid setting the token agent.
-        TODO: Review this logic ^^ "bare mode".  #1510
+        Note: super() is not called here to avoid setting the token agent.  TODO: call super but use "bare mode" without token agent.  #1510
         """
         self.log = Logger("Deployment-Actor")
 
         self.deployer_address = deployer_address
         self.checksum_address = self.deployer_address
         self.economics = economics or StandardTokenEconomics()
+        self.staking_escrow_test_mode = staking_escrow_test_mode
 
         self.registry = registry
         self.preallocation_escrow_deployers = dict()
         self.deployers = {d.contract_name: d for d in self.all_deployer_classes}
 
-        self.deployer_power = TransactingPower(password=client_password,
-                                               account=deployer_address, cache=True)
+        # Powers
+        self.deployer_power = TransactingPower(signer=signer,
+                                               password=client_password,
+                                               account=deployer_address,
+                                               cache=True)
         self.transacting_power = self.deployer_power
         self.transacting_power.activate()
-        self.staking_escrow_test_mode = staking_escrow_test_mode
 
         self.sidekick_power = None
         self.sidekick_address = None
@@ -1526,7 +1529,9 @@ class StakeHolder(Staker):
             try:
                 transacting_power = self.__transacting_powers[checksum_address]
             except KeyError:
-                transacting_power = TransactingPower(password=password, account=checksum_address)
+                transacting_power = TransactingPower(signer=self.__signer,
+                                                     password=password,
+                                                     account=checksum_address)
                 self.__transacting_powers[checksum_address] = transacting_power
             transacting_power.activate(password=password)
 
@@ -1664,17 +1669,20 @@ class Bidder(NucypherTokenActor):
     @validate_checksum_address
     def __init__(self,
                  checksum_address: str,
-                 is_transacting: bool = True,
+                 signer: Signer = None,
                  client_password: str = None,
                  *args, **kwargs):
+
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
         self.log = Logger(f"WorkLockBidder")
         self.worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=self.registry)  # type: WorkLockAgent
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.economics = EconomicsFactory.get_economics(registry=self.registry)
 
-        if is_transacting:
-            self.transacting_power = TransactingPower(password=client_password, account=checksum_address)
+        if signer:
+            self.transacting_power = TransactingPower(signer=signer,
+                                                      password=client_password,
+                                                      account=checksum_address)
             self.transacting_power.activate()
 
         self._all_bonus_bidders = None

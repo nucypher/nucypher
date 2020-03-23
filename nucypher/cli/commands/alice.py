@@ -49,7 +49,7 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_registry_filepath,
     option_teacher_uri,
-    option_rate)
+    option_rate, option_signer_uri)
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD
@@ -72,7 +72,7 @@ class AliceConfigOptions:
     __option_name__ = 'config_options'
 
     def __init__(self, dev, network, provider_uri, geth, federated_only, discovery_port,
-                 pay_with, registry_filepath, middleware, gas_strategy):
+                 pay_with, registry_filepath, middleware, gas_strategy, signer_uri):
 
         if federated_only and geth:
             raise click.BadOptionUsage(
@@ -88,6 +88,7 @@ class AliceConfigOptions:
         self.dev = dev
         self.domains = {network} if network else None
         self.provider_uri = provider_uri
+        self.signer_uri = signer_uri
         self.gas_strategy = gas_strategy
         self.geth = geth
         self.federated_only = federated_only
@@ -114,6 +115,7 @@ class AliceConfigOptions:
                 domains={TEMPORARY_DOMAIN},
                 provider_process=self.eth_node,
                 provider_uri=self.provider_uri,
+                signer_uri=self.signer_uri,
                 gas_strategy=self.gas_strategy,
                 federated_only=True)
 
@@ -126,6 +128,7 @@ class AliceConfigOptions:
                     domains=self.domains,
                     provider_process=self.eth_node,
                     provider_uri=self.provider_uri,
+                    signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
                     filepath=config_file,
                     rest_port=self.discovery_port,
@@ -143,6 +146,7 @@ group_config_options = group_options(
     dev=option_dev,
     network=option_network,
     provider_uri=option_provider_uri(),
+    signer_uri=option_signer_uri,
     gas_strategy=option_gas_strategy,
     geth=option_geth,
     federated_only=option_federated_only,
@@ -188,6 +192,7 @@ class AliceFullConfigOptions:
             domains=opts.domains,
             federated_only=opts.federated_only,
             provider_uri=opts.provider_uri,
+            signer_uri=opts.signer_uri,
             provider_process=opts.eth_node,
             registry_filepath=opts.registry_filepath,
             poa=self.poa,
@@ -202,6 +207,7 @@ class AliceFullConfigOptions:
                        domains=opts.domains,
                        federated_only=opts.federated_only,
                        provider_uri=opts.provider_uri,
+                       signer_uri=opts.signer_uri,
                        registry_filepath=opts.registry_filepath,
                        poa=self.poa,
                        light=self.light,

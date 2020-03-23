@@ -23,7 +23,7 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_registry_filepath,
     option_teacher_uri,
-)
+    option_signer_uri)
 from nucypher.config.characters import BobConfiguration
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
@@ -33,10 +33,11 @@ class BobConfigOptions:
 
     __option_name__ = 'config_options'
 
-    def __init__(self, provider_uri, network, registry_filepath,
-                 checksum_address, discovery_port, dev, middleware, federated_only, gas_strategy):
+    def __init__(self, provider_uri, network, registry_filepath, checksum_address, discovery_port,
+                 dev, middleware, federated_only, gas_strategy, signer_uri):
 
         self.provider_uri = provider_uri
+        self.signer_uri = signer_uri
         self.gas_strategy = gas_strategy,
         self.domains = {network} if network else None
         self.registry_filepath = registry_filepath
@@ -54,6 +55,7 @@ class BobConfigOptions:
                 domains={TEMPORARY_DOMAIN},
                 provider_uri=self.provider_uri,
                 gas_strategy=self.gas_strategy,
+                signer_uri=self.signer_uri,
                 federated_only=True,
                 checksum_address=self.checksum_address,
                 network_middleware=self.middleware)
@@ -66,6 +68,7 @@ class BobConfigOptions:
                     checksum_address=self.checksum_address,
                     rest_port=self.discovery_port,
                     provider_uri=self.provider_uri,
+                    signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
                     registry_filepath=self.registry_filepath,
                     network_middleware=self.middleware)
@@ -90,6 +93,7 @@ class BobConfigOptions:
             federated_only=self.federated_only,
             registry_filepath=self.registry_filepath,
             provider_uri=self.provider_uri,
+            signer_uri=self.signer_uri,
             gas_strategy=self.gas_strategy,
         )
 
@@ -99,6 +103,7 @@ class BobConfigOptions:
                        federated_only=self.federated_only,
                        registry_filepath=self.registry_filepath,
                        provider_uri=self.provider_uri,
+                       signer_uri=self.signer_uri,
                        gas_strategy=self.gas_strategy
                        )
         # Depends on defaults being set on Configuration classes, filtrates None values
@@ -110,6 +115,7 @@ group_config_options = group_options(
     BobConfigOptions,
     provider_uri=option_provider_uri(),
     gas_strategy=option_gas_strategy,
+    signer_uri=option_signer_uri,
     network=option_network,
     registry_filepath=option_registry_filepath,
     checksum_address=option_checksum_address,

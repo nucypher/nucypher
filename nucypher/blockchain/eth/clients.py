@@ -23,6 +23,7 @@ from geth.process import BaseGethProcess
 from twisted.logger import Logger
 from web3 import Web3
 
+from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
 
 UNKNOWN_DEVELOPMENT_CHAIN_ID.bool_value(True)

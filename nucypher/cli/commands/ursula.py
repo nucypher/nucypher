@@ -51,7 +51,7 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_registry_filepath,
     option_teacher_uri,
-)
+    option_signer_uri)
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT
 from nucypher.config.characters import UrsulaConfiguration
@@ -65,7 +65,7 @@ class UrsulaConfigOptions:
     __option_name__ = 'config_options'
 
     def __init__(self, geth, provider_uri, worker_address, federated_only, rest_host,
-            rest_port, db_filepath, network, registry_filepath, dev, poa, light, gas_strategy):
+                 rest_port, db_filepath, network, registry_filepath, dev, poa, light, gas_strategy, signer_uri):
 
         if federated_only:
             # TODO: consider rephrasing in a more universal voice.
@@ -85,6 +85,7 @@ class UrsulaConfigOptions:
 
         self.eth_node = eth_node
         self.provider_uri = provider_uri
+        self.signer_uri = signer_uri
         self.worker_address = worker_address
         self.federated_only = federated_only
         self.rest_host = rest_host
@@ -108,6 +109,7 @@ class UrsulaConfigOptions:
                 registry_filepath=self.registry_filepath,
                 provider_process=self.eth_node,
                 provider_uri=self.provider_uri,
+                signer_uri=self.signer_uri,
                 gas_strategy=self.gas_strategy,
                 checksum_address=self.worker_address,
                 federated_only=self.federated_only,
@@ -123,6 +125,7 @@ class UrsulaConfigOptions:
                     registry_filepath=self.registry_filepath,
                     provider_process=self.eth_node,
                     provider_uri=self.provider_uri,
+                    signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
                     rest_host=self.rest_host,
                     rest_port=self.rest_port,
@@ -170,6 +173,7 @@ class UrsulaConfigOptions:
                                             registry_filepath=self.registry_filepath,
                                             provider_process=self.eth_node,
                                             provider_uri=self.provider_uri,
+                                            signer_uri=self.signer_uri,
                                             gas_strategy=self.gas_strategy,
                                             poa=self.poa,
                                             light=self.light)
@@ -183,6 +187,7 @@ class UrsulaConfigOptions:
                        checksum_address=self.worker_address,
                        registry_filepath=self.registry_filepath,
                        provider_uri=self.provider_uri,
+                       signer_uri=self.signer_uri,
                        gas_strategy=self.gas_strategy,
                        poa=self.poa,
                        light=self.light)
@@ -195,6 +200,7 @@ group_config_options = group_options(
     UrsulaConfigOptions,
     geth=option_geth,
     provider_uri=option_provider_uri(),
+    signer_uri=option_signer_uri,
     gas_strategy=option_gas_strategy,
     worker_address=click.option('--worker-address', help="Run the worker-ursula with a specified address", type=EIP55_CHECKSUM_ADDRESS),
     federated_only=option_federated_only,
@@ -205,7 +211,8 @@ group_config_options = group_options(
     registry_filepath=option_registry_filepath,
     poa=option_poa,
     light=option_light,
-    dev=option_dev)
+    dev=option_dev
+)
 
 
 class UrsulaCharacterOptions:

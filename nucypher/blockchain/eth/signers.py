@@ -7,9 +7,7 @@ from hexbytes import HexBytes
 from twisted.logger import Logger
 from web3 import Web3, IPCProvider
 
-from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 
 
 class Signer(ABC):
@@ -57,12 +55,14 @@ class Signer(ABC):
 
 class Web3Signer(Signer):
 
-    def __init__(self, client: EthereumClient):
+    def __init__(self, client):
         super().__init__()
         self.__client = client
 
     @classmethod
     def from_signer_uri(cls, uri: str) -> 'Web3Signer':
+        from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+
         try:
             blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=uri)
         except BlockchainInterface.UnsupportedProvider:
@@ -150,14 +150,14 @@ class ClefSigner(Signer):
         return checksum_addresses
 
     @validate_checksum_address
-    def sign_transaction(self, account: str, transaction_dict: dict) -> HexBytes:
+    def sign_transaction(self, transaction_dict: dict) -> HexBytes:
         formatters = {
             'nonce': Web3.toHex,
             'gasPrice': Web3.toHex,
             'gas': Web3.toHex,
             'value': Web3.toHex,
             'chainId': Web3.toHex,
-            'from': to_normalized_address
+            'from': to_checksum_address
         }
         transaction_dict = apply_formatters_to_dict(formatters, transaction_dict)
         signed = self.w3.manager.request_blocking("account_signTransaction", [transaction_dict])
