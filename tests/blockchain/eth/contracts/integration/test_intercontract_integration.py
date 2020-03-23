@@ -156,13 +156,13 @@ def generate_args_for_slashing(mock_ursula_reencrypts, ursula):
 
 
 @pytest.fixture()
-def staking_interface(testerchain, token, escrow, policy_manager, deploy_contract):
+def staking_interface(testerchain, token, escrow, policy_manager, worklock, deploy_contract):
     escrow, _ = escrow
     policy_manager, _ = policy_manager
     secret_hash = testerchain.w3.keccak(router_secret)
     # Creator deploys the staking interface
     staking_interface, _ = deploy_contract(
-        'StakingInterface', token.address, escrow.address, policy_manager.address)
+        'StakingInterface', token.address, escrow.address, policy_manager.address, worklock.address)
     router, _ = deploy_contract(
         'StakingInterfaceRouter', staking_interface.address, secret_hash)
     return staking_interface, router
@@ -331,6 +331,16 @@ def test_all(testerchain,
     tx = token.functions.approve(escrow.address, 0).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
+    # Create the first preallocation escrow
+    preallocation_escrow_1, _ = deploy_contract(
+        'PreallocationEscrow', staking_interface_router.address, token.address, escrow.address)
+    preallocation_escrow_interface_1 = testerchain.client.get_contract(
+        abi=staking_interface.abi,
+        address=preallocation_escrow_1.address,
+        ContractFactoryClass=Contract)
+    tx = preallocation_escrow_1.functions.transferOwnership(staker3).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
     # Initialize worklock
     worklock_supply = 3 * token_economics.minimum_allowed_locked + token_economics.maximum_allowed_locked
     tx = token.functions.approve(worklock.address, worklock_supply).transact({'from': creator})
@@ -366,10 +376,15 @@ def test_all(testerchain,
         testerchain.wait_for_receipt(tx)
 
     # Other stakers do bid
-    assert worklock.functions.workInfo(staker4).call()[0] == 0
-    tx = worklock.functions.bid().transact({'from': staker4, 'value': deposited_eth_2, 'gas_price': 0})
+    assert worklock.functions.workInfo(preallocation_escrow_1.address).call()[0] == 0
+    tx = testerchain.client.send_transaction(
+        {'from': testerchain.client.coinbase, 'to': preallocation_escrow_1.address, 'value': deposited_eth_2})
     testerchain.wait_for_receipt(tx)
-    assert worklock.functions.workInfo(staker4).call()[0] == deposited_eth_2
+    assert testerchain.w3.eth.getBalance(preallocation_escrow_1.address) == deposited_eth_2
+    tx = preallocation_escrow_interface_1.functions.bid(deposited_eth_2).transact({'from': staker3, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert testerchain.w3.eth.getBalance(preallocation_escrow_1.address) == 0
+    assert worklock.functions.workInfo(preallocation_escrow_1.address).call()[0] == deposited_eth_2
     worklock_balance += deposited_eth_2
     bonus_worklock_supply -= min_stake
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
@@ -396,11 +411,12 @@ def test_all(testerchain,
 
     # One of stakers cancels bid
     assert worklock.functions.getBiddersLength().call() == 3
-    tx = worklock.functions.cancelBid().transact({'from': staker4, 'gas_price': 0})
+    tx = preallocation_escrow_interface_1.functions.cancelBid().transact({'from': staker3, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert worklock.functions.workInfo(staker4).call()[0] == 0
+    assert worklock.functions.workInfo(preallocation_escrow_1.address).call()[0] == 0
     worklock_balance -= deposited_eth_2
     bonus_worklock_supply += min_stake
+    assert testerchain.w3.eth.getBalance(preallocation_escrow_1.address) == deposited_eth_2
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
     assert worklock.functions.ethToTokens(deposited_eth_2).call() == min_stake
     assert worklock.functions.ethToTokens(2 * deposited_eth_2).call() == min_stake + bonus_worklock_supply // 18
@@ -499,17 +515,7 @@ def test_all(testerchain,
         tx = worklock.functions.refund().transact({'from': staker2, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
 
-    # Create the first preallocation escrow
-    preallocation_escrow_1, _ = deploy_contract(
-        'PreallocationEscrow', staking_interface_router.address, token.address, escrow.address)
-    preallocation_escrow_interface_1 = testerchain.client.get_contract(
-        abi=staking_interface.abi,
-        address=preallocation_escrow_1.address,
-        ContractFactoryClass=Contract)
-
     # Set and lock re-stake parameter in first preallocation escrow
-    tx = preallocation_escrow_1.functions.transferOwnership(staker3).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
     assert not escrow.functions.stakerInfo(preallocation_escrow_1.address).call()[DISABLE_RE_STAKE_FIELD]
     current_period = escrow.functions.getCurrentPeriod().call()
     tx = preallocation_escrow_interface_1.functions.lockReStake(current_period + 22).transact({'from': staker3})
@@ -948,7 +954,7 @@ def test_all(testerchain,
     # Upgrade the preallocation escrow library
     # Deploy the same contract as the second version
     staking_interface_v2, _ = deploy_contract(
-        'StakingInterface', token.address, escrow.address, policy_manager.address)
+        'StakingInterface', token.address, escrow.address, policy_manager.address, worklock.address)
     router_secret2 = os.urandom(SECRET_LENGTH)
     router_secret2_hash = testerchain.w3.keccak(router_secret2)
     # Staker and Alice can't upgrade library, only owner can

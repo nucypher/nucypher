@@ -20,6 +20,9 @@ import os
 import pytest
 from eth_utils import keccak
 from eth_tester.exceptions import TransactionFailed
+from web3.contract import Contract
+
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 
 @pytest.mark.slow
@@ -407,17 +410,13 @@ def test_policy(testerchain, policy_manager, preallocation_escrow, preallocation
 
 
 @pytest.mark.slow
-def test_reentrancy(testerchain, deploy_contract, token, escrow, policy_manager):
-    proxy, _ = deploy_contract('StakingInterfaceMockV2', token.address, escrow.address, policy_manager.address)
-    secret = os.urandom(32)
-    secret_hash = keccak(secret)
-    router, _ = deploy_contract('StakingInterfaceRouter', proxy.address, secret_hash)
+def test_reentrancy(testerchain, preallocation_escrow, deploy_contract):
+    owner = testerchain.client.accounts[1]
 
     # Prepare contracts
     reentrancy_contract, _ = deploy_contract('ReentrancyTest')
     contract_address = reentrancy_contract.address
-    preallocation_escrow, _ = deploy_contract('PreallocationEscrow', router.address, token.address, escrow.address)
-    tx = preallocation_escrow.functions.transferOwnership(contract_address).transact()
+    tx = preallocation_escrow.functions.transferOwnership(contract_address).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
 
     # Transfer ETH to user escrow
@@ -438,3 +437,168 @@ def test_reentrancy(testerchain, deploy_contract, token, escrow, policy_manager)
         tx = testerchain.client.send_transaction({'to': contract_address})
         testerchain.wait_for_receipt(tx)
     assert testerchain.w3.eth.getBalance(contract_address) == balance
+
+
+@pytest.mark.slow
+def test_worklock(testerchain, worklock, preallocation_escrow, preallocation_escrow_interface, staking_interface):
+    """
+    Test worklock functions in the preallocation escrow
+    """
+    creator = testerchain.client.accounts[0]
+    owner = testerchain.client.accounts[1]
+
+    bids = preallocation_escrow_interface.events.Bid.createFilter(fromBlock='latest')
+    claims = preallocation_escrow_interface.events.Claimed.createFilter(fromBlock='latest')
+    refunds = preallocation_escrow_interface.events.Refund.createFilter(fromBlock='latest')
+    cancellations = preallocation_escrow_interface.events.BidCanceled.createFilter(fromBlock='latest')
+    compensations = preallocation_escrow_interface.events.CompensationWithdrawn.createFilter(fromBlock='latest')
+
+    # Owner can't use the staking interface directly
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.bid(0).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.cancelBid().transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.withdrawCompensation().transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.claim().transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.refund().transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+
+    # Send ETH to to the escrow
+    bid = 10000
+    tx = testerchain.client.send_transaction(
+        {'from': testerchain.client.coinbase, 'to': preallocation_escrow.address, 'value': 2 * bid})
+    testerchain.wait_for_receipt(tx)
+
+    # Bid
+    assert worklock.functions.depositedETH().call() == 0
+    assert testerchain.client.get_balance(preallocation_escrow.address) == 2 * bid
+    tx = preallocation_escrow_interface.functions.bid(bid).transact({'from': owner, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.depositedETH().call() == bid
+    assert testerchain.client.get_balance(preallocation_escrow.address) == bid
+
+    events = bids.get_all_entries()
+    assert len(events) == 1
+    event_args = events[0]['args']
+    assert event_args['sender'] == owner
+    assert event_args['depositedETH'] == bid
+
+    # Cancel bid
+    tx = preallocation_escrow_interface.functions.cancelBid().transact({'from': owner, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.depositedETH().call() == 0
+    assert testerchain.client.get_balance(preallocation_escrow.address) == 2 * bid
+
+    events = cancellations.get_all_entries()
+    assert len(events) == 1
+    event_args = events[0]['args']
+    assert event_args['sender'] == owner
+
+    # Withdraw compensation
+    compensation = 11000
+    tx = worklock.functions.sendCompensation().transact({'from': creator, 'value': compensation, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.compensation().call() == compensation
+    tx = preallocation_escrow_interface.functions.withdrawCompensation().transact({'from': owner, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.compensation().call() == 0
+    assert testerchain.client.get_balance(preallocation_escrow.address) == 2 * bid + compensation
+
+    events = compensations.get_all_entries()
+    assert len(events) == 1
+    event_args = events[0]['args']
+    assert event_args['sender'] == owner
+
+    # Claim
+    assert worklock.functions.claimed().call() == 0
+    tx = preallocation_escrow_interface.functions.claim().transact({'from': owner, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.claimed().call() == 1
+
+    events = claims.get_all_entries()
+    assert len(events) == 1
+    event_args = events[0]['args']
+    assert event_args['sender'] == owner
+    assert event_args['claimedTokens'] == 1
+
+    # Withdraw refund
+    refund = 12000
+    tx = worklock.functions.sendRefund().transact({'from': creator, 'value': refund, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.refundETH().call() == refund
+    tx = preallocation_escrow_interface.functions.refund().transact({'from': owner, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.refundETH().call() == 0
+    assert testerchain.client.get_balance(preallocation_escrow.address) == 2 * bid + compensation + refund
+
+    events = refunds.get_all_entries()
+    assert len(events) == 1
+    event_args = events[0]['args']
+    assert event_args['sender'] == owner
+    assert event_args['refundETH'] == refund
+
+
+@pytest.mark.slow
+def test_interface_without_worklock(testerchain, deploy_contract, token, escrow, policy_manager, worklock):
+    creator = testerchain.client.accounts[0]
+    owner = testerchain.client.accounts[1]
+
+    staking_interface, _ = deploy_contract(
+        'StakingInterface', token.address, escrow.address, policy_manager.address, worklock.address)
+    secret = os.urandom(32)
+    secret_hash = keccak(secret)
+    router, _ = deploy_contract('StakingInterfaceRouter', staking_interface.address, secret_hash)
+
+    preallocation_escrow, _ = deploy_contract('PreallocationEscrow', router.address, token.address, escrow.address)
+    # Transfer ownership
+    tx = preallocation_escrow.functions.transferOwnership(owner).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    preallocation_escrow_interface = testerchain.client.get_contract(
+        abi=staking_interface.abi,
+        address=preallocation_escrow.address,
+        ContractFactoryClass=Contract)
+
+    # All worklock methods work
+    tx = preallocation_escrow_interface.functions.bid(0).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    tx = preallocation_escrow_interface.functions.cancelBid().transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    tx = preallocation_escrow_interface.functions.withdrawCompensation().transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    tx = preallocation_escrow_interface.functions.claim().transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    tx = preallocation_escrow_interface.functions.refund().transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+
+    # Test interface without worklock
+    secret2 = os.urandom(32)
+    secret2_hash = keccak(secret2)
+    staking_interface, _ = deploy_contract(
+        'StakingInterface', token.address, escrow.address, policy_manager.address, BlockchainInterface.NULL_ADDRESS)
+    tx = router.functions.upgrade(staking_interface.address, secret, secret2_hash).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    # Current version of interface doesn't have worklock contract
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = preallocation_escrow_interface.functions.bid(0).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = preallocation_escrow_interface.functions.cancelBid().transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = preallocation_escrow_interface.functions.withdrawCompensation().transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = preallocation_escrow_interface.functions.claim().transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = preallocation_escrow_interface.functions.refund().transact({'from': owner})
+        testerchain.wait_for_receipt(tx)

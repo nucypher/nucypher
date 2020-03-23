@@ -116,6 +116,56 @@ contract PolicyManagerForStakingContractMock {
 /**
 * @notice Contract for staking contract tests
 */
+contract WorkLockForStakingContractMock {
+
+    uint256 public startBidDate = 1;
+    uint256 public claimed;
+    uint256 public depositedETH;
+    uint256 public compensation;
+    uint256 public refundETH;
+
+    function bid() external payable {
+        depositedETH = msg.value;
+    }
+
+    function cancelBid() external {
+        uint256 value = depositedETH;
+        depositedETH = 0;
+        msg.sender.transfer(value);
+    }
+
+    function sendCompensation() external payable {
+        compensation = msg.value;
+    }
+
+    function withdrawCompensation() external {
+        uint256 value = compensation;
+        compensation = 0;
+        msg.sender.transfer(value);
+    }
+
+    function claim() external returns (uint256) {
+        claimed += 1;
+        return claimed;
+    }
+
+    function sendRefund() external payable {
+        refundETH = msg.value;
+    }
+
+    function refund() external returns (uint256) {
+        uint256 value = refundETH;
+        refundETH = 0;
+        msg.sender.transfer(value);
+        return value;
+    }
+
+}
+
+
+/**
+* @notice Contract for staking contract tests
+*/
 contract StakingInterfaceMockV1 {
 
     function firstMethod() public pure {}

@@ -62,7 +62,7 @@ contract AbstractStakingContract {
     * @dev Checks permission for calling fallback function
     */
     function isFallbackAllowed() public returns (bool);
-    
+
     /**
     * @dev Withdraw tokens from staking contract
     */

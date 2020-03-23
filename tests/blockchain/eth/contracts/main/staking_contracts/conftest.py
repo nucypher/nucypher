@@ -50,10 +50,16 @@ def policy_manager(testerchain, deploy_contract):
 
 
 @pytest.fixture()
-def staking_interface(testerchain, token, escrow, policy_manager, deploy_contract):
+def worklock(testerchain, deploy_contract):
+    contract, _ = deploy_contract('WorkLockForStakingContractMock')
+    return contract
+
+
+@pytest.fixture()
+def staking_interface(testerchain, token, escrow, policy_manager, worklock, deploy_contract):
     # Creator deploys the staking interface
     contract, _ = deploy_contract(
-        'StakingInterface', token.address, escrow.address, policy_manager.address)
+        'StakingInterface', token.address, escrow.address, policy_manager.address, worklock.address)
     return contract
 
 

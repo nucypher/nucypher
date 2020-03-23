@@ -5,13 +5,14 @@ import "contracts/staking_contracts/AbstractStakingContract.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/StakingEscrow.sol";
 import "contracts/PolicyManager.sol";
+import "contracts/WorkLock.sol";
 
 
 /**
 * @notice Interface for accessing main contracts from a staking contract
 * @dev All methods must be stateless because this code will be executed by delegatecall call.
 * If state is needed - use getStateContract() method to access state of this contract.
-* @dev |v1.3.1|
+* @dev |v1.4.1|
 */
 contract StakingInterface {
 
@@ -27,30 +28,41 @@ contract StakingInterface {
     event WorkerSet(address indexed sender, address worker);
     event Prolonged(address indexed sender, uint256 index, uint16 periods);
     event WindDownSet(address indexed sender, bool windDown);
+    event Bid(address indexed sender, uint256 depositedETH);
+    event Claimed(address indexed sender, uint256 claimedTokens);
+    event Refund(address indexed sender, uint256 refundETH);
+    event BidCanceled(address indexed sender);
+    event CompensationWithdrawn(address indexed sender);
 
     NuCypherToken public token;
     StakingEscrow public escrow;
     PolicyManager public policyManager;
+    WorkLock public workLock;
 
     /**
     * @notice Constructor sets addresses of the contracts
     * @param _token Token contract
     * @param _escrow Escrow contract
     * @param _policyManager PolicyManager contract
+    * @param _workLock WorkLock contract
     */
     constructor(
         NuCypherToken _token,
         StakingEscrow _escrow,
-        PolicyManager _policyManager
+        PolicyManager _policyManager,
+        WorkLock _workLock
     )
         public
     {
         require(_token.totalSupply() > 0 &&
             _escrow.secondsPerPeriod() > 0 &&
-            _policyManager.secondsPerPeriod() > 0);
+            _policyManager.secondsPerPeriod() > 0 &&
+            // in case there is no worklock contract
+            (address(_workLock) == address(0) || _workLock.startBidDate() > 0));
         token = _token;
         escrow = _escrow;
         policyManager = _policyManager;
+        workLock = _workLock;
     }
 
     /**
@@ -183,6 +195,56 @@ contract StakingInterface {
     function setWindDown(bool _windDown) public {
         getStateContract().escrow().setWindDown(_windDown);
         emit WindDownSet(msg.sender, _windDown);
+    }
+
+    /**
+    * @notice Bid for tokens by transferring ETH
+    */
+    function bid(uint256 _value) public payable {
+        WorkLock workLockFromState = getStateContract().workLock();
+        require(address(workLockFromState) != address(0));
+        workLockFromState.bid.value(_value)();
+        emit Bid(msg.sender, _value);
+    }
+
+    /**
+    * @notice Cancel bid and refund deposited ETH
+    */
+    function cancelBid() public {
+        WorkLock workLockFromState = getStateContract().workLock();
+        require(address(workLockFromState) != address(0));
+        workLockFromState.cancelBid();
+        emit BidCanceled(msg.sender);
+    }
+
+    /**
+    * @notice Withdraw compensation after force refund
+    */
+    function withdrawCompensation() public {
+        WorkLock workLockFromState = getStateContract().workLock();
+        require(address(workLockFromState) != address(0));
+        workLockFromState.withdrawCompensation();
+        emit CompensationWithdrawn(msg.sender);
+    }
+
+    /**
+    * @notice Claimed tokens will be deposited and locked as stake in the StakingEscrow contract.
+    */
+    function claim() public {
+        WorkLock workLockFromState = getStateContract().workLock();
+        require(address(workLockFromState) != address(0));
+        uint256 claimedTokens = workLockFromState.claim();
+        emit Claimed(msg.sender, claimedTokens);
+    }
+
+    /**
+    * @notice Refund ETH for the completed work
+    */
+    function refund() public {
+        WorkLock workLockFromState = getStateContract().workLock();
+        require(address(workLockFromState) != address(0));
+        uint256 refundETH = workLockFromState.refund();
+        emit Refund(msg.sender, refundETH);
     }
 
 }
