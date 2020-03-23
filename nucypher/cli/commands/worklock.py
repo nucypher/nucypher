@@ -17,11 +17,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import click
+import maya
 import tabulate
 from decimal import Decimal
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Bidder
+from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import prettify_eth_amount
 from nucypher.characters.banners import WORKLOCK_BANNER
@@ -119,6 +121,12 @@ def bid(general_config, worklock_options, registry_options, force, hw_wallet, va
     """Place a bid, or increase an existing bid"""
     emitter = _setup_emitter(general_config)
     registry = registry_options.get_registry(emitter, general_config.debug)
+
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
+    now = maya.now().epoch
+    if not worklock_agent.start_bidding_date <= now <= worklock_agent.end_bidding_date:
+        raise click.Abort(f"You can't bid, the bidding window is closed.")
+
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=registry_options.provider_uri,
@@ -175,6 +183,12 @@ def cancel_bid(general_config, registry_options, worklock_options, force, hw_wal
     """Cancel your bid and receive your ETH back"""
     emitter = _setup_emitter(general_config)
     registry = registry_options.get_registry(emitter, general_config.debug)
+
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
+    now = maya.now().epoch
+    if not worklock_agent.start_bidding_date <= now <= worklock_agent.end_cancellation_date:
+        raise click.Abort(f"You can't cancel your bid. The cancellation window is closed.")
+
     if not worklock_options.bidder_address:  # TODO: Consider bundle this in worklock_options
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=registry_options.provider_uri,
@@ -204,6 +218,11 @@ def claim(general_config, worklock_options, registry_options, force, hw_wallet):
     """Claim tokens for your bid, and start staking them"""
     emitter = _setup_emitter(general_config)
     registry = registry_options.get_registry(emitter, general_config.debug)
+
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
+    if not worklock_agent.is_claiming_available():
+        raise click.Abort(f"You can't claim tokens. Claiming is not currently available.")
+
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=registry_options.provider_uri,
