@@ -1,11 +1,15 @@
 import datetime
 import maya
 import pytest
+import io
+import os
+from werkzeug.exceptions import RequestEntityTooLarge
 
 from nucypher.network.nodes import Learner
 from nucypher.policy.collections import TreasureMap
 from nucypher.policy.policies import Policy
-from nucypher.utilities.sandbox.middleware import NodeIsDownMiddleware
+from nucypher.utilities.sandbox.middleware import NodeIsDownMiddleware, EvilMiddleWare
+from bytestring_splitter import BytestringSplittingError
 from functools import partial
 
 
@@ -117,3 +121,32 @@ def test_node_has_changed_cert(federated_alice, federated_ursulas):
 
     # Cool - we didn't crash because of SSLError.
     # TODO: Assertions and such.
+
+
+def test_huge_treasure_maps_are_rejected(federated_alice, federated_ursulas):
+    federated_alice.network_middleware = EvilMiddleWare()
+
+    firstula = list(federated_ursulas)[0]
+
+    ok_amount = 10 * 1024  # 10k
+    ok_data = os.urandom(ok_amount)
+
+    with pytest.raises(BytestringSplittingError):
+        federated_alice.network_middleware.upload_arbitrary_data(
+            firstula, 'consider_arrangement', ok_data
+        )
+
+    """
+    TODO:  the following does not work because of this issue: https://github.com/pallets/werkzeug/issues/1513
+
+    it is implemented at a lower level through hendrix
+    but would be nice if it could be configurable through
+    flask as well and thus, testable here...
+
+    evil_amount = 5000 * 1024
+    evil_data = os.urandom(evil_amount)
+    with pytest.raises(RequestEntityTooLarge):
+        federated_alice.network_middleware.upload_arbitrary_data(
+            firstula, 'consider_arrangement', evil_data
+        )
+    """

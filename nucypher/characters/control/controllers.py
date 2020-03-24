@@ -14,6 +14,7 @@ from twisted.logger import Logger
 from nucypher.characters.control.emitters import StdoutEmitter, WebEmitter, JSONRPCStdoutEmitter
 from nucypher.characters.control.interfaces import CharacterPublicInterface
 from nucypher.characters.control.specifications.exceptions import SpecificationError
+from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.utilities.controllers import JSONRPCTestClient
 
@@ -248,6 +249,7 @@ class WebController(CharacterControlServer):
     def make_control_transport(self):
 
         self._transport = Flask(self.app_name)
+        self._transport.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_CONTENT_LENGTH
 
         # Return FlaskApp decorator
         return self._transport

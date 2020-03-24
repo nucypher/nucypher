@@ -31,6 +31,7 @@ from web3.exceptions import TimeExhausted
 
 import nucypher
 from nucypher.config.storages import ForgetfulNodeStorage
+from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
@@ -109,6 +110,7 @@ def make_rest_app(
     _node_class = Ursula
 
     rest_app = Flask("ursula-service")
+    rest_app.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_CONTENT_LENGTH
 
     @rest_app.route("/public_information")
     def public_information():

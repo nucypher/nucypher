@@ -175,3 +175,9 @@ class EvilMiddleWare(MockRestMiddleware):
                                     data=bytes(VariableLengthBytestring(shitty_interface_id))
                                     )
         return response
+
+    def upload_arbitrary_data(self, node, path, data):
+        response = self.client.post(node_or_sprout=node,
+                                    path=path,
+                                    data=data)
+        return response
