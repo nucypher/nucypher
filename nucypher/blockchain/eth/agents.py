@@ -1270,20 +1270,13 @@ class MultiSigAgent(EthereumContractAgent):
         return owner
 
     @property
+    def number_of_owners(self):
+        number = self.contract.functions.getNumberOfOwners().call()
+        return number
+
+    @property
     def owners(self) -> Tuple[str]:
-        # FIXME: Use the length of owners array
-        i = 0
-        owners = list()
-        array_is_within_bounds = True
-        while array_is_within_bounds:
-            try:
-                owner = self.get_owner(i)
-            except (TransactionFailed, ValueError, BadFunctionCallOutput):
-                array_is_within_bounds = False
-            else:
-                owners.append(owner)
-                i += 1
-        return tuple(owners)
+        return tuple(self.get_owner(i) for i in range(self.number_of_owners))
 
     @property
     def threshold(self) -> int:

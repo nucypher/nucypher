@@ -59,6 +59,7 @@ def test_multisig_deployer_and_agent(testerchain,
 
     assert multisig_agent.nonce == 0
     assert multisig_agent.threshold == threshold
+    assert multisig_agent.number_of_owners == len(owners)
     for i, owner in enumerate(owners):
         assert multisig_agent.get_owner(i) == owner
         assert multisig_agent.is_owner(owner)
