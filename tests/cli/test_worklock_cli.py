@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import random
 
+import pytest
 from eth_utils import to_wei
 from web3 import Web3
 
@@ -35,6 +36,21 @@ from nucypher.utilities.sandbox.constants import (
 )
 
 
+@pytest.fixture(scope='module')
+def bids(testerchain):
+    bids_distribution = dict()
+
+    min_bid_eth_value = 1
+    max_bid_eth_value = 10
+
+    whale = testerchain.client.accounts[0]
+    bids_distribution[whale] = 50_000
+    for bidder in testerchain.client.accounts[1:12]:
+        bids_distribution[bidder] = random.randrange(min_bid_eth_value, max_bid_eth_value)
+
+    return bids_distribution
+
+
 def test_status(click_runner, testerchain, agency_local_registry, token_economics):
     command = ('status',
                '--registry-filepath', agency_local_registry.filepath,
@@ -48,13 +64,10 @@ def test_status(click_runner, testerchain, agency_local_registry, token_economic
     assert f"Min allowed bid ....... {Web3.fromWei(token_economics.worklock_min_allowed_bid, 'ether')} ETH" in result.output
 
 
-def test_bid(click_runner, testerchain, agency_local_registry, token_economics):
+def test_bid(click_runner, testerchain, agency_local_registry, token_economics, bids):
 
     # Wait until biding window starts
     testerchain.time_travel(seconds=90)
-
-    min_bid_eth_value = 4
-    max_bid_eth_value = 10
 
     base_command = ('bid',
                     '--registry-filepath', agency_local_registry.filepath,
@@ -65,8 +78,7 @@ def test_bid(click_runner, testerchain, agency_local_registry, token_economics):
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
     total_bids = 0
     # Multiple bidders
-    for bidder in testerchain.client.accounts[:12]:
-        bid_eth_value = random.randrange(min_bid_eth_value, max_bid_eth_value)
+    for bidder, bid_eth_value in bids.items():
         pre_bid_balance = testerchain.client.get_balance(bidder)
         assert pre_bid_balance > to_wei(bid_eth_value, 'ether')
 
@@ -83,9 +95,11 @@ def test_bid(click_runner, testerchain, agency_local_registry, token_economics):
         assert testerchain.client.get_balance(worklock_agent.contract_address) == total_bids
 
 
-def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_economics):
+def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_economics, bids):
 
-    bidder = testerchain.client.accounts[0]
+    bidders = list(bids.keys())
+
+    bidder = bidders[-1]
     agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
 
     command = ('cancel-bid',
@@ -103,7 +117,7 @@ def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_econ
     # Wait until the end of the bidding period
     testerchain.time_travel(seconds=token_economics.bidding_duration + 2)
 
-    bidder = testerchain.client.accounts[1]
+    bidder = bidders[-2]
     command = ('cancel-bid',
                '--bidder-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
@@ -142,29 +156,8 @@ def test_post_initialization(click_runner, testerchain, agency_local_registry, t
     assert agent.bidders_checked()
 
 
-def test_withdraw_compensation(click_runner, testerchain, agency_local_registry, token_economics):
-    agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
-
-    bidder = None
-    for address in testerchain.client.accounts[2:12]:
-        if agent.get_available_compensation(checksum_address=address) > 0:
-            bidder = address
-            break
-
-    command = ('withdraw-compensation',
-               '--bidder-address', bidder,
-               '--registry-filepath', agency_local_registry.filepath,
-               '--provider', TEST_PROVIDER_URI,
-               '--poa',
-               '--force')
-
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + 'Y\n'
-    result = click_runner.invoke(worklock, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
-    assert agent.get_available_compensation(checksum_address=bidder) == 0
-
-
 def test_claim(click_runner, testerchain, agency_local_registry, token_economics):
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
 
     bidder = testerchain.client.accounts[2]
     command = ('claim',
@@ -177,6 +170,20 @@ def test_claim(click_runner, testerchain, agency_local_registry, token_economics
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + 'Y\n'
     result = click_runner.invoke(worklock, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
+
+    whale = testerchain.client.accounts[0]
+    assert agent.get_available_compensation(checksum_address=whale) > 0
+    command = ('claim',
+               '--bidder-address', whale,
+               '--registry-filepath', agency_local_registry.filepath,
+               '--provider', TEST_PROVIDER_URI,
+               '--poa',
+               '--force')
+
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + 'Y\n'
+    result = click_runner.invoke(worklock, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert agent.get_available_compensation(checksum_address=whale) == 0
 
     # TODO: Check successful new stake in StakingEscrow
 
@@ -263,8 +270,6 @@ def test_participant_status(click_runner, testerchain, agency_local_registry, to
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
-
-    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
 
     # Bidder-specific data is displayed
     assert bidder.checksum_address in result.output

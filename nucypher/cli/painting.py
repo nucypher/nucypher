@@ -875,11 +875,13 @@ Time
 ======================================================
 Bidding Start Date ................... {bidding_start}
 Bidding End Date ..................... {bidding_end}
-Cancellation Window End Date ......... {cancellation_end}
 Bidding Duration ..................... {bidding_duration}
-Cancellation Window Duration ......... {cancellation_duration}
 Bidding Time Remaining ............... {bidding_remaining} 
-Cancellation Window Time Remaining ... {cancellation_remaining} 
+
+Cancellation Window End Date ......... {cancellation_end}
+Cancellation Window Duration ......... {cancellation_duration}
+Cancellation Window Time Remaining ... {cancellation_remaining}
+ 
 Claiming phase open .................. {'Yes' if worklock_agent.is_claiming_available() else 'No'} 
 
 Economics
@@ -911,15 +913,21 @@ def paint_bidder_status(emitter, bidder):
 WorkLock Participant {bidder.checksum_address}
 =====================================================
 Total Bid ............ {prettify_eth_amount(bidder.get_deposited_eth)}
-Available Claim ...... {claim}
-Available Refund ..... {prettify_eth_amount(bidder.available_refund)}
-Completed Work ....... {bidder.completed_work}
-Remaining Work ....... {bidder.remaining_work}
-Refunded Work ........ {bidder.refunded_work}
-"""
+Tokens Allocated ..... {claim}
+Tokens Claimed? ...... {"Yes" if bidder._has_claimed else "No"}"""
+
     compensation = bidder.available_compensation
     if compensation:
-        message += f"Compensation ......... {prettify_eth_amount(compensation)}\n"
+        message += f"""
+Unspent Bid Amount ... {prettify_eth_amount(compensation)}"""
+
+    message += f"""\n
+Completed Work ....... {bidder.completed_work}
+Available Refund ..... {prettify_eth_amount(bidder.available_refund)}
+
+Refunded Work ........ {bidder.refunded_work}
+Remaining Work ....... {bidder.remaining_work}
+"""
 
     emitter.echo(message)
     return
@@ -966,7 +974,7 @@ Successfully claimed WorkLock tokens for {bidder_address}.
 
 You can check that the stake was created correctly by running:
 
-  nucypher status stakers --staking-address {bidder_address} --network {network} --provider {provider_uri}
+  nucypher status stakers --staking-address {bidder_address} --network {network} --provider {provider_uri} --poa
 
 Next Steps for WorkLock Winners
 ===============================
