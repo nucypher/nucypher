@@ -1,0 +1,85 @@
+- name: Nucypher (staker/worker) VM for Azure
+  hosts: localhost
+  connection: local
+  tasks:
+
+  - name: Resource Group for Nucypher nodes (deployment location is determined below)
+    azure_rm_resourcegroup:
+      name: "{{ resgroup }}"
+      location: "{{ cloudregion }}"
+
+  - name: Virtual Network
+    azure_rm_virtualnetwork:
+      resource_group: "{{ resgroup }}"
+      name: "{{ vnet }}"
+      address_prefixes: "10.0.0.0/16"
+
+  - name: Subnet
+    azure_rm_subnet:
+      resource_group: "{{ resgroup }}"
+      name: "{{ subnet }}"
+      address_prefix: "10.0.1.0/24"
+      virtual_network: "{{ vnet }}"
+
+  - name: Create public IP address
+    azure_rm_publicipaddress:
+      resource_group: "{{ resgroup }}"
+      allocation_method: Static
+      name: "{{ item.ip }}"
+    register: output_ip_address
+    loop: "{{ vmlist }}"
+
+  - name: Allow SSH and Nucypher communication ports in network security group
+    azure_rm_securitygroup:
+      resource_group: "{{ resgroup }}"
+      name: "{{ item.nsg }}"
+      rules:
+        - name: SSH
+          protocol: Tcp
+          destination_port_range: 22
+          access: Allow
+          priority: 1001
+          direction: Inbound
+
+        - name: nucypher_inbound
+          protocol: Tcp
+          destination_port_range: 9151
+          access: Allow
+          priority: 1002
+          direction: Inbound
+
+        - name: nucypher_outbound
+          protocol: Tcp
+          destination_port_range: 9151
+          access: Allow
+          priority: 3002
+          direction: Outbound
+    loop: "{{ vmlist }}"
+
+  - name: Virtual Network VM NIC
+    azure_rm_networkinterface:
+      resource_group: "{{ resgroup }}"
+      name: "{{ item.nic }}"
+      virtual_network: "{{ vnet }}"
+      subnet: "{{ subnet }}"
+      public_ip_name: "{{ item.ip }}"
+      security_group: "{{ item.nsg }}"
+    loop: "{{ vmlist }}"
+
+  - name: Create VM
+    azure_rm_virtualmachine:
+      resource_group: "{{ resgroup }}"
+      name: "{{ item.name }}"
+      vm_size: "{{ item.size }}"
+      admin_username: "{{ user }}"
+      ssh_password_enabled: false
+      ssh_public_keys:
+        - path: "/home/{{ user }}/.ssh/authorized_keys"
+          key_data: "{{ osshpkey }}"
+      network_interfaces: "{{ item.nic }}"
+      image:
+        offer: UbuntuServer
+        publisher: Canonical
+        sku: 18.04-LTS
+        version: latest
+    loop: "{{ vmlist }}"
