@@ -1029,9 +1029,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
         self.check_deployment_readiness()
         router_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                contract_name=self._router_deployer.contract_name)
-        constructor_args = (router_contract.address,
-                            self.token_contract.address,
-                            self.staking_escrow_contract.address)
+        constructor_args = (router_contract.address,)
 
         deployer_address = self.sidekick_address if use_sidekick else self.deployer_address
         self._contract, deploy_receipt = self.blockchain.deploy_contract(deployer_address,

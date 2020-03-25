@@ -2,6 +2,7 @@ pragma solidity ^0.5.3;
 
 
 import "contracts/NuCypherToken.sol";
+import "contracts/staking_contracts/AbstractStakingContract.sol";
 
 
 /**
@@ -168,6 +169,9 @@ contract WorkLockForStakingContractMock {
 */
 contract StakingInterfaceMockV1 {
 
+    address public token = address(1);
+    address public escrow = address(1);
+
     function firstMethod() public pure {}
 
     function secondMethod() public pure returns (uint256) {
@@ -181,6 +185,9 @@ contract StakingInterfaceMockV1 {
 * @notice Contract for staking contract tests
 */
 contract StakingInterfaceMockV2 {
+
+    address public token = address(1);
+    address public escrow = address(1);
 
     function () external payable {
         // can only use with ETH
@@ -202,6 +209,9 @@ contract StakingInterfaceMockV2 {
 * @dev Interface that could be destroyed by selfdestruct
 */
 contract DestroyableStakingInterface {
+
+    address public token = address(1);
+    address public escrow = address(1);
 
     function method() public pure returns (uint256) {
         return 15;

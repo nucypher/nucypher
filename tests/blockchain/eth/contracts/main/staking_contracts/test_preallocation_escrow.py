@@ -556,7 +556,7 @@ def test_interface_without_worklock(testerchain, deploy_contract, token, escrow,
     secret_hash = keccak(secret)
     router, _ = deploy_contract('StakingInterfaceRouter', staking_interface.address, secret_hash)
 
-    preallocation_escrow, _ = deploy_contract('PreallocationEscrow', router.address, token.address, escrow.address)
+    preallocation_escrow, _ = deploy_contract('PreallocationEscrow', router.address)
     # Transfer ownership
     tx = preallocation_escrow.functions.transferOwnership(owner).transact({'from': creator})
     testerchain.wait_for_receipt(tx)

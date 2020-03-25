@@ -9,30 +9,9 @@ import "contracts/WorkLock.sol";
 
 
 /**
-* @notice Interface for accessing main contracts from a staking contract
-* @dev All methods must be stateless because this code will be executed by delegatecall call.
-* If state is needed - use getStateContract() method to access state of this contract.
-* @dev |v1.4.1|
+* @notice Base StakingInterface
 */
-contract StakingInterface {
-
-    event DepositedAsStaker(address indexed sender, uint256 value, uint16 periods);
-    event WithdrawnAsStaker(address indexed sender, uint256 value);
-    event Locked(address indexed sender, uint256 value, uint16 periods);
-    event Divided(address indexed sender, uint256 index, uint256 newValue, uint16 periods);
-    event Mined(address indexed sender);
-    event PolicyRewardWithdrawn(address indexed sender, uint256 value);
-    event MinRewardRateSet(address indexed sender, uint256 value);
-    event ReStakeSet(address indexed sender, bool reStake);
-    event ReStakeLocked(address indexed sender, uint16 lockUntilPeriod);
-    event WorkerSet(address indexed sender, address worker);
-    event Prolonged(address indexed sender, uint256 index, uint16 periods);
-    event WindDownSet(address indexed sender, bool windDown);
-    event Bid(address indexed sender, uint256 depositedETH);
-    event Claimed(address indexed sender, uint256 claimedTokens);
-    event Refund(address indexed sender, uint256 refundETH);
-    event BidCanceled(address indexed sender);
-    event CompensationWithdrawn(address indexed sender);
+contract BaseStakingInterface {
 
     NuCypherToken public token;
     StakingEscrow public escrow;
@@ -69,10 +48,56 @@ contract StakingInterface {
     * @notice Get contract which stores state
     * @dev Assume that `this` is the staking contract
     */
-    function getStateContract() internal view returns (StakingInterface) {
+    function getStateContract() internal view returns (BaseStakingInterface) {
         address payable stakingContractAddress = address(bytes20(address(this)));
         StakingInterfaceRouter router = AbstractStakingContract(stakingContractAddress).router();
-        return StakingInterface(router.target());
+        return BaseStakingInterface(router.target());
+    }
+
+}
+
+
+/**
+* @notice Interface for accessing main contracts from a staking contract
+* @dev All methods must be stateless because this code will be executed by delegatecall call.
+* If state is needed - use getStateContract() method to access state of this contract.
+* @dev |v1.4.1|
+*/
+contract StakingInterface is BaseStakingInterface {
+
+    event DepositedAsStaker(address indexed sender, uint256 value, uint16 periods);
+    event WithdrawnAsStaker(address indexed sender, uint256 value);
+    event Locked(address indexed sender, uint256 value, uint16 periods);
+    event Divided(address indexed sender, uint256 index, uint256 newValue, uint16 periods);
+    event Mined(address indexed sender);
+    event PolicyRewardWithdrawn(address indexed sender, uint256 value);
+    event MinRewardRateSet(address indexed sender, uint256 value);
+    event ReStakeSet(address indexed sender, bool reStake);
+    event ReStakeLocked(address indexed sender, uint16 lockUntilPeriod);
+    event WorkerSet(address indexed sender, address worker);
+    event Prolonged(address indexed sender, uint256 index, uint16 periods);
+    event WindDownSet(address indexed sender, bool windDown);
+    event Bid(address indexed sender, uint256 depositedETH);
+    event Claimed(address indexed sender, uint256 claimedTokens);
+    event Refund(address indexed sender, uint256 refundETH);
+    event BidCanceled(address indexed sender);
+    event CompensationWithdrawn(address indexed sender);
+
+    /**
+    * @notice Constructor sets addresses of the contracts
+    * @param _token Token contract
+    * @param _escrow Escrow contract
+    * @param _policyManager PolicyManager contract
+    * @param _workLock WorkLock contract
+    */
+    constructor(
+        NuCypherToken _token,
+        StakingEscrow _escrow,
+        PolicyManager _policyManager,
+        WorkLock _workLock
+    )
+        public BaseStakingInterface(_token, _escrow, _policyManager, _workLock)
+    {
     }
 
     /**
@@ -108,7 +133,7 @@ contract StakingInterface {
     * @param _periods Amount of periods during which tokens will be locked
     */
     function depositAsStaker(uint256 _value, uint16 _periods) public {
-        StakingInterface state = getStateContract();
+        BaseStakingInterface state = getStateContract();
         NuCypherToken tokenFromState = state.token();
         require(tokenFromState.balanceOf(address(this)) >= _value);
         StakingEscrow escrowFromState = state.escrow();

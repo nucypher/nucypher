@@ -61,10 +61,8 @@ def test_upgrading(testerchain, token, deploy_contract, escrow):
 
     interface_v1, _ = deploy_contract('StakingInterfaceMockV1')
     interface_v2, _ = deploy_contract('StakingInterfaceMockV2')
-    router_contract, _ = deploy_contract(
-        'StakingInterfaceRouter', interface_v1.address, secret_hash)
-    preallocation_escrow_contract, _ = deploy_contract(
-        'PreallocationEscrow', router_contract.address, token.address, escrow.address)
+    router_contract, _ = deploy_contract('StakingInterfaceRouter', interface_v1.address, secret_hash)
+    preallocation_escrow_contract, _ = deploy_contract('PreallocationEscrow', router_contract.address)
     # Transfer ownership
     tx = preallocation_escrow_contract.functions.transferOwnership(owner).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -172,19 +170,19 @@ def test_interface_selfdestruct(testerchain, token, deploy_contract, escrow):
 
     # Deploy contract again with a router targeting it
     interface2, _ = deploy_contract('DestroyableStakingInterface')
-    router_contract, _ = deploy_contract(
-        'StakingInterfaceRouter', interface2.address, secret_hash)
+    router_contract, _ = deploy_contract('StakingInterfaceRouter', interface2.address, secret_hash)
     assert interface2.address == router_contract.functions.target().call()
 
-    # Can't create user escrow using wrong contracts
+    # Can't create contracts using wrong addresses
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('PreallocationEscrow', router_contract.address, router_contract.address, router_contract.address)
+        deploy_contract('PreallocationEscrow', token.address)
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('PreallocationEscrow', token.address, token.address, token.address)
+        deploy_contract('BaseStakingInterface', token.address, token.address, token.address, token.address)
+    with pytest.raises((TransactionFailed, ValueError)):
+        deploy_contract('StakingInterfaceRouter', token.address, secret_hash)
 
     # Deploy preallocation escrow
-    preallocation_escrow_contract, _ = deploy_contract(
-        'PreallocationEscrow', router_contract.address, token.address, escrow.address)
+    preallocation_escrow_contract, _ = deploy_contract('PreallocationEscrow', router_contract.address)
     preallocation_escrow_interface = testerchain.client.get_contract(
         abi=interface1.abi,
         address=preallocation_escrow_contract.address,

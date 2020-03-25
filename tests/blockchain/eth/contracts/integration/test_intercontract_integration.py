@@ -268,13 +268,12 @@ def execute_multisig_transaction(testerchain, multisig, accounts, tx):
 
 
 @pytest.fixture(scope='module')
-def preallocation_escrow_1(testerchain, escrow, token, staking_interface, staking_interface_router, deploy_contract):
+def preallocation_escrow_1(testerchain, staking_interface, staking_interface_router, deploy_contract):
     creator = testerchain.w3.eth.accounts[0]
     staker3 = testerchain.client.accounts[3]
 
     # Create the first preallocation escrow
-    contract, _ = deploy_contract(
-        'PreallocationEscrow', staking_interface_router.address, token.address, escrow.address)
+    contract, _ = deploy_contract('PreallocationEscrow', staking_interface_router.address)
     tx = contract.functions.transferOwnership(staker3).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
@@ -292,14 +291,13 @@ def preallocation_escrow_interface_1(testerchain, staking_interface, preallocati
 
 
 @pytest.fixture(scope='module')
-def preallocation_escrow_2(testerchain, escrow, token, staking_interface, staking_interface_router, deploy_contract):
+def preallocation_escrow_2(testerchain, token, staking_interface, staking_interface_router, deploy_contract):
     creator = testerchain.w3.eth.accounts[0]
     staker4 = testerchain.client.accounts[4]
 
     # Deploy one more preallocation escrow
     pytest.staker4_tokens = 10000
-    contract, _ = deploy_contract(
-        'PreallocationEscrow', staking_interface_router.address, token.address, escrow.address)
+    contract, _ = deploy_contract('PreallocationEscrow', staking_interface_router.address)
     tx = contract.functions.transferOwnership(staker4).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = token.functions.approve(contract.address, pytest.staker4_tokens).transact({'from': creator})

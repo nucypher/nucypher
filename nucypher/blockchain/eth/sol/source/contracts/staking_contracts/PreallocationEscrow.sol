@@ -2,54 +2,30 @@ pragma solidity ^0.5.3;
 
 
 import "zeppelin/ownership/Ownable.sol";
-import "zeppelin/token/ERC20/SafeERC20.sol";
 import "zeppelin/math/SafeMath.sol";
-import "zeppelin/utils/Address.sol";
-import "contracts/NuCypherToken.sol";
 import "contracts/staking_contracts/AbstractStakingContract.sol";
 
-/**
-* @notice StakingEscrow interface
-*/
-contract StakingEscrowInterface {
-    function getAllTokens(address _staker) external view returns (uint256);
-    function secondsPerPeriod() external view returns (uint32);
-}
 
 /**
 * @notice Contract holds tokens for vesting.
 * Also tokens can be used as a stake in the staking escrow contract
 */
 contract PreallocationEscrow is AbstractStakingContract, Ownable {
-    using SafeERC20 for NuCypherToken;
     using SafeMath for uint256;
-    using Address for address payable;
 
     event TokensDeposited(address indexed sender, uint256 value, uint256 duration);
     event TokensWithdrawn(address indexed owner, uint256 value);
     event ETHWithdrawn(address indexed owner, uint256 value);
 
-    NuCypherToken public token;
     uint256 public lockedValue;
     uint256 public endLockTimestamp;
-    StakingEscrowInterface public stakingEscrow;
+    StakingEscrow public stakingEscrow;
 
     /**
     * @param _router Address of the StakingInterfaceRouter contract
-    * @param _token Address of the NuCypher token contract
-    * @param _stakingEscrow Address of the StakingEscrow contract
     */
-    constructor(
-        StakingInterfaceRouter _router,
-        NuCypherToken _token,
-        StakingEscrowInterface _stakingEscrow
-    ) public AbstractStakingContract(_router) {
-        // check that the input addresses are contract
-        require(_token.totalSupply() > 0);
-        require(_stakingEscrow.secondsPerPeriod() > 0);
-
-        token = _token;
-        stakingEscrow = _stakingEscrow;
+    constructor(StakingInterfaceRouter _router) public AbstractStakingContract(_router) {
+        stakingEscrow = _router.target().escrow();
     }
 
     /**

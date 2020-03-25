@@ -72,11 +72,11 @@ def router(testerchain, staking_interface, deploy_contract):
 
 
 @pytest.fixture()
-def preallocation_escrow(testerchain, token, router, deploy_contract, escrow):
+def preallocation_escrow(testerchain, router, deploy_contract):
     creator = testerchain.client.accounts[0]
     user = testerchain.client.accounts[1]
 
-    contract, _ = deploy_contract('PreallocationEscrow', router.address, token.address, escrow.address)
+    contract, _ = deploy_contract('PreallocationEscrow', router.address)
 
     # Transfer ownership
     tx = contract.functions.transferOwnership(user).transact({'from': creator})
