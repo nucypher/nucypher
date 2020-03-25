@@ -26,20 +26,24 @@ contract StakingEscrowForStakingContractMock {
         token = _token;
     }
 
-    function deposit(uint256 _value, uint16 _periods) public {
-        node = msg.sender;
-        value = _value;
-        lockedValue = _value;
-        periods = _periods;
+    function deposit(uint256 _value, uint16 _periods) external {
+        deposit(msg.sender, _value, _periods);
+    }
+
+    function deposit(address _node, uint256 _value, uint16 _periods) public {
+        node = _node;
+        value += _value;
+        lockedValue += _value;
+        periods += _periods;
         token.transferFrom(msg.sender, address(this), _value);
     }
 
-    function lock(uint256 _value, uint16 _periods) public {
+    function lock(uint256 _value, uint16 _periods) external {
         lockedValue += _value;
         periods += _periods;
     }
 
-    function divideStake(uint256 _index, uint256 _newValue, uint16 _periods) public {
+    function divideStake(uint256 _index, uint256 _newValue, uint16 _periods) external {
         index = _index;
         lockedValue += _newValue;
         periods += _periods;
@@ -50,7 +54,7 @@ contract StakingEscrowForStakingContractMock {
         token.transfer(msg.sender, _value);
     }
 
-    function withdrawAll() public {
+    function withdrawAll() external {
         withdraw(value);
     }
 
@@ -58,30 +62,28 @@ contract StakingEscrowForStakingContractMock {
         value += 1000;
     }
 
-    function setReStake(bool _reStake) public {
+    function setReStake(bool _reStake) external {
         reStake = _reStake;
     }
 
-    function lockReStake(uint16 _lockReStakeUntilPeriod) public {
+    function lockReStake(uint16 _lockReStakeUntilPeriod) external {
         lockReStakeUntilPeriod = _lockReStakeUntilPeriod;
     }
 
-    function setWorker(address _worker) public {
+    function setWorker(address _worker) external {
         worker = _worker;
     }
 
-    function prolongStake(uint256 _index, uint16 _periods) public {
+    function prolongStake(uint256 _index, uint16 _periods) external {
         index = _index;
         periods += _periods;
     }
 
-    function getAllTokens(address)
-        public view returns (uint256)
-    {
+    function getAllTokens(address) external view returns (uint256) {
         return value;
     }
 
-    function setWindDown(bool _windDown) public {
+    function setWindDown(bool _windDown) external {
         windDown = _windDown;
     }
 }
@@ -219,6 +221,43 @@ contract DestroyableStakingInterface {
 
     function destroy() public {
         selfdestruct(msg.sender);
+    }
+
+}
+
+
+/**
+* @notice Simple implementation of AbstractStakingContract
+*/
+contract SimpleStakingContract is AbstractStakingContract, Ownable {
+
+    /**
+    * @param _router Address of the StakingInterfaceRouter contract
+    */
+    constructor(StakingInterfaceRouter _router) public AbstractStakingContract(_router) {}
+
+    /**
+    * @notice Withdraw available amount of tokens to owner
+    * @param _value Amount of token to withdraw
+    */
+    function withdrawTokens(uint256 _value) public onlyOwner {
+        token.safeTransfer(msg.sender, _value);
+    }
+
+    /**
+    * @notice Withdraw available ETH to the owner
+    */
+    function withdrawETH() public onlyOwner {
+        uint256 balance = address(this).balance;
+        require(balance != 0);
+        msg.sender.sendValue(balance);
+    }
+
+    /**
+    * @notice Calling fallback function is allowed only for the owner
+    */
+    function isFallbackAllowed() public returns (bool) {
+        return msg.sender == owner();
     }
 
 }

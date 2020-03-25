@@ -69,24 +69,3 @@ def router(testerchain, staking_interface, deploy_contract):
     secret_hash = keccak(secret)
     contract, _ = deploy_contract('StakingInterfaceRouter', staking_interface.address, secret_hash)
     return contract
-
-
-@pytest.fixture()
-def preallocation_escrow(testerchain, router, deploy_contract):
-    creator = testerchain.client.accounts[0]
-    user = testerchain.client.accounts[1]
-
-    contract, _ = deploy_contract('PreallocationEscrow', router.address)
-
-    # Transfer ownership
-    tx = contract.functions.transferOwnership(user).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    return contract
-
-
-@pytest.fixture()
-def preallocation_escrow_interface(testerchain, staking_interface, preallocation_escrow):
-    return testerchain.client.get_contract(
-        abi=staking_interface.abi,
-        address=preallocation_escrow.address,
-        ContractFactoryClass=Contract)
