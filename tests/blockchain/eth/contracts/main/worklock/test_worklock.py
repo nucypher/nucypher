@@ -590,6 +590,12 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
     tx = escrow.functions.setCompletedWork(staker2, staker2_remaining_work // 2).transact()
     testerchain.wait_for_receipt(tx)
     assert not worklock.functions.workInfo(staker2).call()[2]
+
+    # Can't refund before claim even with completed work
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.refund().transact({'from': staker2, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
+
     tx = worklock.functions.claim().transact({'from': staker2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.getAvailableRefund(staker2).call() == 0
