@@ -1,12 +1,10 @@
 # Deploying Nucypher (worker/staker) to Azure Cloud
 
 
-### Instances Provisioning Playbooks for Azure
-
 If you have Ansible setup to run playbooks against the Azure resource API then you can run the `deploy_nucypher_azure_infra.yml`
 
 
-### Setting up your Ubuntu environment for running Ansible Azure
+### Setting up a environment for running Ansible Azure
 
 You have 3 options for using Ansible to deploy your infrastructure:
 
