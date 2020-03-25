@@ -523,10 +523,11 @@ contract WorkLock {
     * @notice Refund ETH for the completed work
     */
     function refund() external returns (uint256 refundETH) {
+        WorkInfo storage info = workInfo[msg.sender];
+        require(info.claimed, "Tokens must be claimed before refund");
         refundETH = getAvailableRefund(msg.sender);
         require(refundETH > 0, "Nothing to refund: there is no ETH to refund or no completed work");
 
-        WorkInfo storage info = workInfo[msg.sender];
         if (refundETH == info.depositedETH) {
             escrow.setWorkMeasurement(msg.sender, false);
         }
