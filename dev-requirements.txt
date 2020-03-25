@@ -53,3 +53,4 @@ typing-extensions==3.7.4.2
 urllib3==1.25.9
 virtualenv==20.0.18
 wcwidth==0.1.9
+prometheus_client==0.7.1

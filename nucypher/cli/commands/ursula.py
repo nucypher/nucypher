@@ -51,7 +51,8 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_teacher_uri,
     option_signer_uri)
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT
+from nucypher.cli.processes import UrsulaCommandProtocol
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, IPV4_ADDRESS
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS
 from nucypher.config.keyring import NucypherKeyring
@@ -333,7 +334,9 @@ def forget(general_config, config_options, config_file):
 @click.option('--interactive', '-I', help="Run interactively", is_flag=True, default=False)
 @click.option('--prometheus', help="Run the ursula prometheus exporter", is_flag=True, default=False)
 @click.option('--metrics-port', help="Run a Prometheus metrics exporter on specified HTTP port", type=NETWORK_PORT)
-def run(general_config, character_options, config_file, interactive, dry_run, metrics_port, prometheus):
+@click.option("--metrics-host", help="Run a prometheus metrics exporter on specified IP address", type=IPV4_ADDRESS)
+@click.option("--metrics-prefix", help="Create metrics params with specified prefix", default="ursula")
+def run(general_config, character_options, config_file, interactive, dry_run, metrics_port, metrics_host, metrics_prefix, prometheus):
     """Run an "Ursula" node."""
 
     worker_address = character_options.config_options.worker_address
@@ -346,15 +349,18 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
                                          config_class=UrsulaConfiguration)
 
     ursula_config, URSULA = character_options.create_character(
-            emitter=emitter,
-            config_file=config_file,
-            json_ipc=general_config.json_ipc
+        emitter=emitter,
+        config_file=config_file,
+        json_ipc=general_config.json_ipc
     )
 
     return URSULA.run(emitter=emitter,
                       start_reactor=not dry_run,
                       interactive=interactive,
-                      prometheus=prometheus)
+                      prometheus=prometheus,
+                      metrics_listen_address=metrics_listen_address,
+                      metrics_port=metrics_port,
+                      metrics_prefix=metrics_prefix)
 
 
 @ursula.command(name='save-metadata')
