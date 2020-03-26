@@ -316,16 +316,14 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
                                                    just_build_transaction=True)
 
         trustee = Trustee(registry=registry, checksum_address=ADMINISTRATOR.deployer_address)
-        data_for_multisig_executives = trustee.produce_data_to_sign(transaction)
+        transaction_proposal = trustee.create_transaction_proposal(transaction)
 
         emitter.message(f"Transaction to retarget {contract_name} proxy to {target_address} was built:", color='green')
-        paint_multisig_proposed_transaction(emitter, data_for_multisig_executives)
+        paint_multisig_proposed_transaction(emitter, transaction_proposal)  # TODO: Show decoded function too
 
         # TODO: Move this logic to a better place
-        nonce = data_for_multisig_executives['parameters']['nonce']
-        filepath = f'proposal-{nonce}.json'
-        with open(filepath, 'w') as outfile:
-            json.dump(data_for_multisig_executives, outfile)
+        filepath = f'proposal-{trustee.multisig_agent.contract_address[:8]}-TX-{transaction_proposal.nonce}.json'
+        transaction_proposal.write(filepath=filepath)
         emitter.echo(f"Saved proposal to {filepath}", color='blue', bold=True)
 
     elif retarget:

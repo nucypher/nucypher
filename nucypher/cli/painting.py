@@ -413,23 +413,20 @@ Registry  ................ {registry.filepath}
         emitter.echo(f"[{i}] {owner}")
 
 
-def paint_multisig_proposed_transaction(emitter, data_for_multisig_executives, contract=None):
-    executive_summary = data_for_multisig_executives['parameters']
-    data_to_sign = data_for_multisig_executives['digest']
-    raw_data = executive_summary['data']
+def paint_multisig_proposed_transaction(emitter, proposal, contract=None):
 
     info = f"""
-Trustee address: .... {executive_summary['trustee_address']}
-Target address: ..... {executive_summary['target_address']}
-Value: .............. {Web3.fromWei(executive_summary['value'], 'ether')} ETH
-Nonce: .............. {executive_summary['nonce']}
-Raw TX data: ........ {raw_data}
-Unsigned TX hash: ... {data_to_sign}
+Trustee address: .... {proposal.trustee_address}
+Target address: ..... {proposal.target_address}
+Value: .............. {Web3.fromWei(proposal.value, 'ether')} ETH
+Nonce: .............. {proposal.nonce}
+Raw TX data: ........ {proposal.data.hex()}
+Unsigned TX hash: ... {proposal.digest.hex()}
 """
     emitter.echo(info)
 
     if contract:
-        paint_decoded_transaction(emitter, raw_data, contract)
+        paint_decoded_transaction(emitter, proposal.data, contract)
 
 
 def paint_decoded_transaction(emitter, raw_transaction_data, contract):

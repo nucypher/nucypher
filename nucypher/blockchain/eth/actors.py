@@ -66,7 +66,7 @@ from nucypher.blockchain.eth.deployers import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.multisig import Authorization
+from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.registry import (
     AllocationRegistry,
     BaseContractRegistry,
@@ -704,21 +704,9 @@ class Trustee(MultiSigActor):
         receipt = self.multisig_agent.execute()
         return receipt
 
-    def produce_data_to_sign(self, transaction):
-        data_to_sign = dict(trustee_address=transaction['from'],
-                            target_address=transaction['to'],
-                            value=transaction['value'],
-                            data=transaction['data'],
-                            nonce=self.multisig_agent.nonce)
-
-        unsigned_digest = self.multisig_agent.get_unsigned_transaction_hash(**data_to_sign)
-
-        data_for_multisig_executives = {
-            'parameters': data_to_sign,
-            'digest': unsigned_digest.hex()
-        }
-
-        return data_for_multisig_executives
+    def create_transaction_proposal(self, transaction):
+        proposal = Proposal.from_transaction(transaction, multisig_agent=self.multisig_agent)
+        return proposal
 
 
 class Executive(MultiSigActor):
