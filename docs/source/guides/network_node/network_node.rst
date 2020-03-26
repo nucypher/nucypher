@@ -1,3 +1,5 @@
+.. _running-a-node:
+
 ======================
 Running a Network Node
 ======================

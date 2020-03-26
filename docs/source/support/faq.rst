@@ -11,6 +11,8 @@ The answers in the FAQ regularly reference the network characters "**Alice**," "
 **Ursula** serves as the "*proxy*" in this proxy re-encryption scheme and *re-encrypts the ciphertext encrypted under Alice's key to a ciphertext that will be decryptable under Bob's key*.
 
 
+
+
 General
 -------
 
@@ -31,6 +33,23 @@ Using the Network
 -----------------
 
 *These are questions related to how the NuCypher network works.*
+
+Q: How do I know if NuCypher is a good fit for my use case?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A centralized approach to access control means users are forced to trust the system(s) with the plaintext version of
+their private data, and usually are given little insight into who exactly they are trusting. NuCypher’s decentralized
+access control system offers developers, and their users, a departure from this opaque and trust-dependent paradigm.
+When integrated, `nucypher` enables end-to-end encrypted data sharing workflows within applications – but
+crucially, without sacrificing scalability, redundancy or performance – and applicable to data payloads of
+any form, size, structure, sensitivity or production cadence. Users enjoy the same sharing powers they
+currently take for granted, but are **not** obliged to trust the developers of the application or
+third-party access control services (e.g. centralized servers or key management systems) with their data.
+
+Q: How is NuCypher different from more traditional public key infrastructure (PKI)?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For an in-depth analysis of this topic, see our blog post entitled "`Three things that NuCypher's "Ursula" can do that vanilla public-key cryptography can't <https://blog.nucypher.com/why-use-nucyphers-ursula-instead-of-traditional-public-key-cryptography/>`_".
 
 Q: How much trust do we place in Ursula, the proxy?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -84,6 +103,24 @@ Q: Why are Bobs' requests handled off-chain?
 
 It allows for a very small/lightweight Bob.
 
+Q: Why can't my users reuse their Ethereum wallet keys when creating a sharing policy?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Avoiding key reuse is a strong defense-in-depth measure against cryptographic and software flaws. While it is
+possible to use your ETH keys in `nucypher`, we strongly advise against such a practice. It is best to keep these
+sets of keys separate.
+
+Q: How can I get help integrating nucypher into my application?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+See :ref:`application-development`. To chat directly with our team, please join our `Discord <http://discord.nucypher.com>`_.
+
+Q: How do I integrate nucypher if my application is not written in Python?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Nucypher also provides REST-like HTTP endpoints for working with characters. See :ref:`character-control-guide`.
+
+
 
 
 Running a Node
@@ -111,6 +148,11 @@ Q: How many Ursulas per period collect Inflation rewards (NU)?
 
 Every Ursula that is “online” and “available” will receive a cut based on the size of their stake proportional to the overall NU staked in the network.
 
+Q: How/Where can I acquire NU tokens?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+NU tokens can be acquired via the "*WorkLock*" mechanism developed by NuCypher - more information is available in our `original blog post <https://blog.nucypher.com/the-worklock/>`_ and :ref:`worklock-guide`.
+
 Q: What are the recommended specifications for running a nucypher node?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -118,6 +160,21 @@ Worker nodes need to run ``nucypher`` and a local ethereum node. In total, you w
 require at least 4GB for RAM. Nodes also need 24/7 uptime and a static, public IPv4 address.
 
 For ``nucypher`` specific requirements, see `System Requirements and Dependencies <https://docs.nucypher.com/en/latest/guides/installation_guide.html#system-requirements-and-dependencies/>`_.
+
+Q: How do I set up a network node?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+See :ref:`running-a-node`.
+
+Q: Is there a guide for Windows?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Our guide is intended for Linux - we do not officially support Windows.
+
+Q: How computationally expensive is performing re-encryptions likely to be?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A re-encryption operation is very lightweight (in the order of ms) and is comparable to computing an ECDSA signature.
 
 Q: Can my Staker and Worker address be the same?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -130,10 +187,12 @@ is used by an Ursula node.
 You should stake with one address and set the worker to be a different address. Subsequently, you can bond
 the worker address to the stake.
 
-Q: Is there a guide for Windows?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Q: How do I maximize the inflation-based rewards I will receive?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Our guide is intended for Linux - we do not officially support Windows.
+    * Lock your stake for a year or more - stakes with tokens locked for a year or more will be afforded the maximum time coefficient for the calculation of inflation rewards - see `Ursula Generates Staking Rewards <https://docs.nucypher.com/en/latest/architecture/contracts.html#ursula-generates-staking-rewards>`_
+    * Enable :ref:`sub-stake-restaking` to relock inflation rewards and increase your stake size and consequently your proportion of future inflation rewards
+    * Disable :ref:`sub-stake-winddown` to maintain locked stake duration
 
 Q: Where is my Ursula config path?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
