@@ -1,3 +1,20 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import sys
 from abc import ABC, abstractmethod
 from typing import List
@@ -8,6 +25,7 @@ from hexbytes import HexBytes
 from twisted.logger import Logger
 from web3 import Web3, IPCProvider
 
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 
 
@@ -171,21 +189,29 @@ class ClefSigner(Signer):
         """
         if isinstance(message, bytes):
             message = Web3.toHex(message)
+
         if not content_type:
             content_type = self.DEFAULT_CONTENT_TYPE
         elif content_type not in self.SIGN_DATA_CONTENT_TYPES:
             raise ValueError(f'{content_type} is not a valid content type. '
                              f'Valid types are {self.SIGN_DATA_CONTENT_TYPES}')
         if content_type == self.SIGN_DATA_FOR_VALIDATOR:
-            if not validator_address or validator_address == BlockchainInterface.NULL_ADDRESS:
+            if not validator_address or validator_address == NULL_ADDRESS:
                 raise ValueError('When using the intended validator type, a validator address is required.')
-            data = [validator_address, message]
+            data = {'address': validator_address, 'message': message}
         elif content_type == self.SIGN_DATA_FOR_ECRECOVER:
             data = message
         else:
             raise NotImplementedError
 
         return HexBytes(self.w3.manager.request_blocking("account_signData", [content_type, account, data]))
+
+    def sign_data_for_validator(self, account: str, message: bytes, validator_address: str):
+        signature = self.sign_message(account=account,
+                                      message=message,
+                                      content_type=self.SIGN_DATA_FOR_VALIDATOR,
+                                      validator_address=validator_address)
+        return signature
 
     @validate_checksum_address
     def unlock_account(self, account: str, password: str, duration: int = None) -> bool:
