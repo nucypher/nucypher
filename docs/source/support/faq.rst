@@ -2,12 +2,12 @@
 Frequently Asked Questions
 ==========================
 
-Network-Related Questions
--------------------------
+Using the Network
+-----------------
 
 *These are questions related to how the NuCypher network works.*
 
-The answers in the FAQ regularly reference the network characters "**Alice**," "**Bob**," "**Ursula**," and "**Enrico**." For a more in-depth introduction to each character, head over to  `Character Concepts <https://nucypher.readthedocs.io/en/latest/architecture/character.html/>` 
+The answers in the FAQ regularly reference the network characters "**Alice**," "**Bob**," "**Ursula**," and "**Enrico**." For a more in-depth introduction to each character, head over to :ref:`character-concepts`.
 
 **Alice** is the *data owner*. She wants to share some data with **Bob**, *the data recipient*.
 
@@ -23,9 +23,10 @@ Ursulas are “semi-trusted” in the sense that Alice must trust Ursula to revo
 Q: Who pays Ursula? How is it done?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Currently, Alice pays Ursulas via an ETH deposit to the PolicyManager contract at the point of granting access to Bob. Payment models are an area of active research for the NuCypher protocol, including the prospect of Bob independently paying for all or some component of the work performed by Ursula. 
+Currently, Alice pays Ursulas via an ETH deposit to the PolicyManager contract at the point of granting access to Bob. Payment models are an area of active research for the NuCypher protocol, including the prospect of Bob independently paying for all or some component of the work performed by Ursula.
+
 Q: How much does Alice pay?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Alice provides an upfront deposit that covers the entirety of the sharing policy's duration, for all the Ursulas required to service the policy. Currently, Ursulas may choose a discretionary payment rate per period, which Alices discover on an Ursula-by-Ursula basis by querying public network contracts. In the early stages of the network, both Alice and Ursula must settle on a rate which falls within a fixed, universal range, enforced by the PolicyManager contract.
 
@@ -102,8 +103,9 @@ Q: Why are Bob’s requests handled off-chain?
 It allows for a very small/lightweight Bob.
 
 
-Setup-Related Questions
------------------------
+
+Running a Node
+--------------
 
 *These are questions related to setting up the NuCypher network on your machine.*
 
@@ -118,7 +120,7 @@ For ``nucypher`` specific requirements, see `System Requirements and Dependencie
 Q: What is the network name for Incentivized Testnet?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The network name for incentivized testnet is ``cassandra``.
+The network name for incentivized testnet is ``gemini``.
 
 Q: Can my Staker and Worker address be the same?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -158,7 +160,7 @@ This is **ONLY** a heuristic to ensure that your node is running correctly, it d
        .. code::
 
             Starting Ursula on xxx.xxx.xxx.xxx:9151
-            Connecting to cassandra
+            Connecting to gemini
             Working ~ Keep Ursula Online!
 
     #. Ensure that your node uses the correct IP address and can be accessed via port 9151 from an outside
@@ -171,7 +173,7 @@ This is **ONLY** a heuristic to ensure that your node is running correctly, it d
 
         nucypher status stakers
         >    --provider <your_geth_provider>
-        >    --network cassandra
+        >    --network gemini
         >    --staking-address <your_staker_address>
 
     #. Ensure that your node is listed on the `Status Monitor Page <https://status.nucypher.network>`_ (this can take a few minutes).
@@ -185,7 +187,7 @@ or `systemd <https://docs.nucypher.com/en/latest/guides/installation_guide.html#
 Q: When installing on Docker, what do I input for <NETWORK NAME>?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For the *“Come and Stake It”* incentivized testnet, the network name is ``cassandra``.
+For the *“Come and Stake It”* incentivized testnet, the network name is ``gemini``.
 
 Q: How can I check for currently available staking rewards?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -194,7 +196,7 @@ Run::
 
     nucypher status stakers
     >    --provider <your_geth_provider>
-    >    --network cassandra
+    >    --network gemini
     >    --staking-address <your_staker_address>
 
 Note that a minimum of two periods must elapse before rewards will be delivered to your wallet. For example, say we
@@ -218,7 +220,7 @@ Run::
 
     nucypher status stakers
     >    --provider <your_geth_provider>
-    >    --network cassandra
+    >    --network gemini
     >    --staking-address <your_staker_address>
 
 
@@ -268,7 +270,7 @@ Check when last your node confirmed activity by running::
 
     nucypher status stakers
     >    --provider <your_geth_provider>
-    >    --network cassandra
+    >    --network gemini
     >    --staking-address <your_staker_address>
 
 If everything looks fine, the status monitor probably just needs some time to connect to the node again to update the
