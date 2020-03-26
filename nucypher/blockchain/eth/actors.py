@@ -714,27 +714,26 @@ class Executive(MultiSigActor):
     An actor having the power to authorize transaction executions to a delegated trustee.
     """
 
-    def sign_hash(self, unsigned_hash: bytes) -> bytes:
-        blockchain = self.multisig_agent.blockchain
-        signed_hash = blockchain.transacting_power.sign_hash(unsigned_hash=unsigned_hash)
-        return signed_hash
+    def __init__(self,
+                 checksum_address: str,
+                 signer: Signer = None,
+                 client_password: str = None,
+                 *args, **kwargs):
 
-    def authorize(self, trustee, contract_function: ContractFunction) -> Authorization:
-        try:
-            transaction = contract_function.buildTransaction()
-        except (TransactionFailed, ValueError):
-            # TODO - Handle Validation Failure
-            raise
-        unsigned_transaction_hash = self.multisig_agent.get_unsigned_transaction_hash(
-            trustee_address=trustee.checksum_address,
-            target_address=contract_function.address,
-            value=transaction['value'],
-            data=transaction['data'],
-            nonce=trustee.current_nonce
-        )
-        signed_transaction_hash = self.sign_hash(unsigned_hash=unsigned_transaction_hash)
-        authorization = self.Authorization(trustee_address=trustee.checksum_address,
-                                           signed_transaction_hash=signed_transaction_hash)
+        super().__init__(checksum_address=checksum_address, *args, **kwargs)
+        self.signer = signer
+        if signer:
+            self.transacting_power = TransactingPower(signer=signer,
+                                                      password=client_password,
+                                                      account=checksum_address)
+            self.transacting_power.activate()
+
+    def authorize_proposal(self, proposal) -> Authorization:
+        # TODO: Double-check that the digest corresponds to the real data to sign
+        signature = self.signer.sign_data_for_validator(account=self.checksum_address,
+                                                        message=proposal.application_specific_data,
+                                                        validator_address=self.multisig_agent.contract_address)
+        authorization = Authorization.deserialize(data=Web3.toBytes(hexstr=signature))
         return authorization
 
 

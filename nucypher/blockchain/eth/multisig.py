@@ -19,7 +19,9 @@ import json
 from collections import namedtuple
 from typing import List
 
+from bytestring_splitter import BytestringSplitter
 from eth_abi.packed import encode_single_packed
+from eth_account import Account
 from web3 import Web3
 
 
@@ -97,51 +99,48 @@ class Authorization:
     transaction by the delegated trustee.
     """
 
-    SignatureComponents = namedtuple('SignatureComponents', 'v r s')
+    SignatureComponents = namedtuple('SignatureComponents', 'r s v')
 
-    def __init__(self, trustee_address: str, signed_transaction_hash: bytes):
-        self.trustee_address = trustee_address
-        self.__data = signed_transaction_hash
-        self.__r = None
-        self.__s = None
-        self.__v = None
+    splitter = BytestringSplitter((bytes, 32),  # r
+                                  (bytes, 32),  # s
+                                  (bytes, 1))   # v
+
+    def __init__(self, r, s, v):
+        if v[0] not in (27, 28):
+            raise ValueError(f"Wrong v component: got {v[0]} but only 27 or 28 are valid values")
+        self.components = self.SignatureComponents(r=r, s=s, v=v)
+
+    def recover_executive_address(self, proposal: Proposal) -> str:
+        signing_account = Account.recoverHash(message_hash=proposal.digest, signature=self.serialize())
+        return signing_account
+
 
     def __bytes__(self):
         pass
-
-    def get_signature_components(self) -> SignatureComponents:
-        components = self.SignatureComponents(v=self.__v, r=self.__r, s=self.__s)
-        return components
 
     @property
     def id(self):
         # TODO - Unique ID
         pass
 
-    def _serialize(self) -> bytes:
-        #TODO: BSS
-        pass
+    def serialize(self) -> bytes:
+        return self.components.r + self.components.s + self.components.v
 
     @classmethod
-    def _deserialize(cls, data: bytes) -> tuple:
-        #TODO: BSS
-        pass
+    def deserialize(cls, data: bytes) -> 'Authorization':
+        r, s, v = cls.splitter(data)
+        return cls(r=r, s=s, v=v)
 
-    def _write(self, filepath: str = None) -> str:
+    def _write(self, filepath: str) -> str:
         with open(filepath, 'wb') as file:
-            # TODO: Serialize
-            file.write(self.__data)
+            file.write(self.serialize())
         return filepath
 
     @classmethod
-    def from_file(cls, filepath: str = None) -> 'Authorization':
+    def from_file(cls, filepath: str) -> 'Authorization':
         with open(filepath, 'rb') as file:
             data = file.read()
-            deserialized_data = cls._deserialize(data=data)
-            trustee_address, presigned_transaction_hash = deserialized_data
-        instance = cls(trustee_address=trustee_address,
-                       signed_transaction_hash=presigned_transaction_hash)
-        return instance
+        return cls.deserialize(data=data)
 
 
 class ExecutiveBoard:

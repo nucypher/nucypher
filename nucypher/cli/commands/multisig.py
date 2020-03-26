@@ -21,14 +21,15 @@ import os
 
 import click
 
-from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee, Executive
+from nucypher.blockchain.eth.actors import Trustee, Executive
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency, MultiSigAgent
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.multisig import Proposal
 from nucypher.blockchain.eth.registry import LocalContractRegistry, InMemoryContractRegistry
+from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.cli.actions import (
     get_client_password,
     select_client_account,
-    establish_deployer_registry,
     get_provider_process)
 from nucypher.cli.commands.stake import option_signer_uri
 from nucypher.cli.config import group_general_config
@@ -51,8 +52,7 @@ from nucypher.cli.painting import (
     paint_multisig_contract_info,
     paint_multisig_proposed_transaction
 )
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
-from nucypher.cli.types import WEI
+from nucypher.cli.types import EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
@@ -148,31 +148,33 @@ group_blockchain_options = group_options(
 class MultiSigOptions:
     __option_name__ = 'multisig_options'
 
-    def __init__(self, checksum_address, signer_uri):
+    def __init__(self, checksum_address, signer_uri, hw_wallet):
         self.checksum_address = checksum_address
         self.signer_uri = signer_uri
+        self.hw_wallet = hw_wallet
 
-    def __create_executive(self, registry, transacting: bool = False, hw_wallet: bool = False):
+    def __create_executive(self, registry, transacting: bool = False) -> Executive:
         client_password = None
-        if transacting and not hw_wallet:
+        if transacting and not self.hw_wallet:
             client_password = get_client_password(checksum_address=self.checksum_address)
         executive = Executive(checksum_address=self.checksum_address,
                               registry=registry,
-                              client_password=client_password,
-                              is_transacting=transacting)
+                              signer=ClefSigner(self.signer_uri),
+                              client_password=client_password)
         return executive
 
-    def create_executive(self, registry, hw_wallet: bool = False):
-        return self.__create_executive(registry, transacting=True, hw_wallet=hw_wallet)
+    def create_executive(self, registry) -> Executive:
+        return self.__create_executive(registry, transacting=True)
 
-    def create_transactionless_executive(self, registry):
+    def create_transactingless_executive(self, registry) -> Executive:
         return self.__create_executive(registry, transacting=False)
 
 
 group_multisig_options = group_options(
     MultiSigOptions,
     checksum_address=option_checksum_address,
-    signer_uri=option_signer_uri
+    signer_uri=option_signer_uri,
+    hw_wallet=option_hw_wallet
 )
 
 
@@ -222,12 +224,17 @@ def sign(general_config, blockchain_options, multisig_options, proposal):
     if not proposal:
         raise click.MissingParameter("nucypher multisig sign requires the use of --proposal")
 
-    with open(proposal) as json_file:
-        proposal = json.load(json_file)
+    proposal = Proposal.from_file(proposal)
 
-    executive_summary = proposal['parameters']
+    if not multisig_options.checksum_address:
+        multisig_options.checksum_address = select_client_account(emitter=emitter,
+                                                                  provider_uri=blockchain_options.provider_uri,
+                                                                  poa=blockchain_options.poa,
+                                                                  network=blockchain_options.network,
+                                                                  registry=registry,
+                                                                  show_balances=True)
 
-    name, version, address, abi = registry.search(contract_address=executive_summary['target_address'])
+    name, version, address, abi = registry.search(contract_address=proposal.target_address)
     # TODO: This assumes that we're always signing proxy retargetting. For the moment is true.
     proxy_contract = blockchain.client.w3.eth.contract(abi=abi,
                                                        address=address,
@@ -237,4 +244,11 @@ def sign(general_config, blockchain_options, multisig_options, proposal):
 
     click.confirm("Proceed with signing?", abort=True)
 
-    # TODO: Blocked by lack of support to EIP191 - #1566
+    executive = multisig_options.create_transactingless_executive(registry)  # FIXME
+    authorization = executive.authorize_proposal(proposal)
+    emitter.echo(f"Signature received from {authorization.recover_executive_address(proposal)}")
+    emitter.echo(f"{authorization.serialize().hex()}")
+
+
+
+
