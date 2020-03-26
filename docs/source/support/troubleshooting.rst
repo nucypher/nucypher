@@ -93,3 +93,9 @@ Potential reasons:
 
     #. If trying to collect rewards, this is a `known bug <https://github.com/nucypher/nucypher/issues/1657>`_ in our
        code - rerun the command without the ``--staking-address`` option.
+
+
+ValidationError: The field extraData is 97 bytes, but should be 32. It is quite likely that you are connected to a POA chain
+----------------------------------------------------------------------------------------------------------------------------
+
+Add the ``--poa`` flag to your command and try again.
