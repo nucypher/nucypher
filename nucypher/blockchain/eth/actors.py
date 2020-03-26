@@ -1669,17 +1669,18 @@ class Bidder(NucypherTokenActor):
     @validate_checksum_address
     def __init__(self,
                  checksum_address: str,
+                 transacting: bool = True,
                  signer: Signer = None,
                  client_password: str = None,
                  *args, **kwargs):
 
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
         self.log = Logger(f"WorkLockBidder")
-        self.worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=self.registry)  # type: WorkLockAgent
+        self.worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=self.registry)
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.economics = EconomicsFactory.get_economics(registry=self.registry)
 
-        if signer:
+        if transacting:
             self.transacting_power = TransactingPower(signer=signer,
                                                       password=client_password,
                                                       account=checksum_address)

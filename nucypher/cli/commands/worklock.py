@@ -67,25 +67,23 @@ class WorkLockOptions:
         self.bidder_address = bidder_address
         self.signer_uri = signer_uri
 
-    def __create_bidder(self, registry, signer: Optional[Signer] = None, hw_wallet: bool = False):
+    def __create_bidder(self, registry, signer: Optional[Signer] = None, transacting: bool = True, hw_wallet: bool = False):
         client_password = None
-        if signer:
-            #  and not hw_wallet:  # TODO: ...mabye?
-            client_password = None
-            if signer.is_device(self.bidder_address):
-                client_password = get_client_password(checksum_address=self.bidder_address)
+        if (signer and signer.is_device(self.bidder_address)) or hw_wallet:
+            client_password = get_client_password(checksum_address=self.bidder_address)
         bidder = Bidder(checksum_address=self.bidder_address,
                         registry=registry,
                         client_password=client_password,
-                        signer=signer)
+                        signer=signer,
+                        transacting=transacting)
         return bidder
 
     def create_bidder(self, registry, hw_wallet: bool = False):
         signer = Signer.from_signer_uri(self.signer_uri) if self.signer_uri else None
-        return self.__create_bidder(registry=registry, signer=signer, hw_wallet=hw_wallet)
+        return self.__create_bidder(registry=registry, signer=signer, hw_wallet=hw_wallet, transacting=True)
 
     def create_transactionless_bidder(self, registry):
-        return self.__create_bidder(registry)
+        return self.__create_bidder(registry, transacting=False)
 
 
 group_worklock_options = group_options(
