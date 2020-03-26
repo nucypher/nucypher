@@ -7,7 +7,7 @@ Network-Related Questions
 
 *These are questions related to how the NuCypher network works.*
 
-We assume familiarity with the network characters "**Alice**," "**Bob**," "**Ursula**," and "**Enrico**."
+The answers in the FAQ regularly reference the network characters "**Alice**," "**Bob**," "**Ursula**," and "**Enrico**." For a more in-depth introduction to each character, head over to  `Character Concepts <https://nucypher.readthedocs.io/en/latest/architecture/character.html/>` 
 
 **Alice** is the *data owner*. She wants to share some data with **Bob**, *the data recipient*.
 
@@ -18,13 +18,16 @@ We assume familiarity with the network characters "**Alice**," "**Bob**," "**Urs
 Q: How much trust do we place in Ursula, the proxy?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Ursulas are “semi-trusted” in the sense that Alice must trust Ursula to revoke a policy once it expires or if instructed to do so (by Alice). We also must trust Ursula to be responsive and perform the re-encryption correctly so that Bob can access the data. 
+Ursulas are “semi-trusted” in the sense that Alice must trust Ursula to revoke a policy once it expires or if instructed to do so (by Alice). Alice and Bob also trust Ursula to be responsive and perform the re-encryption correctly so that Bob can access the data. Importantly, Ursulas are not trusted with access to any underlying plaintext.
 
 Q: Who pays Ursula? How is it done?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Currently, Alice pays Ursula (since Ursula is doing work for Alice). Alice pays an ETH deposit into the PolicyManager contract when granting.
-(However, we do imagine Bob paying in some models!)
+Currently, Alice pays Ursulas via an ETH deposit to the PolicyManager contract at the point of granting access to Bob. Payment models are an area of active research for the NuCypher protocol, including the prospect of Bob independently paying for all or some component of the work performed by Ursula. 
+Q: How much does Alice pay?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Alice provides an upfront deposit that covers the entirety of the sharing policy's duration, for all the Ursulas required to service the policy. Currently, Ursulas may choose a discretionary payment rate per period, which Alices discover on an Ursula-by-Ursula basis by querying public network contracts. In the early stages of the network, both Alice and Ursula must settle on a rate which falls within a fixed, universal range, enforced by the PolicyManager contract.
 
 Q: How do we verify that Ursula has performed the re-encryption correctly?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -270,4 +273,3 @@ Check when last your node confirmed activity by running::
 
 If everything looks fine, the status monitor probably just needs some time to connect to the node again to update the
 node's status.
-
