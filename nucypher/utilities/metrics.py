@@ -20,8 +20,8 @@ def collect_prometheus_metrics(ursula, filters, event_metrics, node_metrics):
                     }
 
     node_metrics["learning_status"].state('running' if ursula._learning_task.running else 'stopped')
-    node_metrics["known_nodes_guage"].set(len(ursula.known_nodes))
-    node_metrics["work_orders_guage"].set(len(ursula.work_orders()))
+    node_metrics["known_nodes_gauge"].set(len(ursula.known_nodes))
+    node_metrics["work_orders_gauge"].set(len(ursula.work_orders()))
 
     if not ursula.federated_only:
 
@@ -40,7 +40,7 @@ def collect_prometheus_metrics(ursula, filters, event_metrics, node_metrics):
 
         missing_confirmations = staking_agent.get_missing_confirmations(
             checksum_address=ursula.checksum_address)  # TODO: lol
-        node_metrics["missing_confirmation_guage"].set(missing_confirmations)
+        node_metrics["missing_confirmation_gauge"].set(missing_confirmations)
 
         decentralized_payload = {'provider': str(ursula.provider_uri),
                                  'active_stake': str(locked),
@@ -125,59 +125,59 @@ def get_filters(ursula):
     return filters
 
 
-def initialize_prometheus_exporter(ursula, host, port: int, metrics_prefix) -> None:
+def initialize_prometheus_exporter(ursula, listen_address, port: int, metrics_prefix) -> None:
     from prometheus_client.twisted import MetricsResource
     from twisted.web.resource import Resource
     from twisted.web.server import Site
 
     node_metrics = {
-        "known_nodes_guage": Gauge(metrics_prefix + '_known_nodes', 'Number of currently known nodes'),
-        "work_orders_guage": Gauge(metrics_prefix + '_work_orders', 'Number of accepted work orders'),
-        "missing_confirmation_guage": Gauge(metrics_prefix + '_missing_confirmations',
+        "known_nodes_gauge": Gauge(f'{metrics_prefix}_known_nodes', 'Number of currently known nodes'),
+        "work_orders_gauge": Gauge(f'{metrics_prefix}_work_orders', 'Number of accepted work orders'),
+        "missing_confirmation_gauge": Gauge(f'{metrics_prefix}_missing_confirmations',
                                             'Currently missed confirmations'),
-        "learning_status": Enum(metrics_prefix + '_node_discovery', 'Learning loop status',
+        "learning_status": Enum(f'{metrics_prefix}_node_discovery', 'Learning loop status',
                                 states=['starting', 'running', 'stopped']),
-        "eth_balance_gauge": Gauge(metrics_prefix + '_eth_balance', 'Ethereum balance'),
-        "token_balance_gauge": Gauge(metrics_prefix + '_token_balance', 'NuNit balance'),
-        "requests_counter": Counter(metrics_prefix + '_http_failures', 'HTTP Failures', ['method', 'endpoint']),
-        "host_info": Info(metrics_prefix + '_host_info', 'Description of info'),
-        "active_stake_gauge": Gauge(metrics_prefix + '_active_stake', 'Active stake')
+        "eth_balance_gauge": Gauge(f'{metrics_prefix}_eth_balance', 'Ethereum balance'),
+        "token_balance_gauge": Gauge(f'{metrics_prefix}_token_balance', 'NuNit balance'),
+        "requests_counter": Counter(f'{metrics_prefix}_http_failures', 'HTTP Failures', ['method', 'endpoint']),
+        "host_info": Info(f'{metrics_prefix}_host_info', 'Description of info'),
+        "active_stake_gauge": Gauge(f'{metrics_prefix}_active_stake', 'Active stake')
     }
 
     # {event_name: {event.argument: metric}}
     event_metrics = {
-        "deposited": {"value": Gauge(metrics_prefix + '_deposited_value', 'Deposited value'),
-                      "periods": Gauge(metrics_prefix + '_deposited_periods', 'Deposited periods')},
-        "locked": {"value": Gauge(metrics_prefix + '_locked_value', 'Locked valued'),
-                   "periods": Gauge(metrics_prefix + '_locked_periods', 'Locked periods')},
-        "divided": {"newValue": Gauge(metrics_prefix + '_divided_new_value', 'New value of divided sub stake'),
-                    "periods": Gauge(metrics_prefix + '_divided_periods', 'Amount of periods for extending sub stake')},
-        "prolonged": {"value": Gauge(metrics_prefix + '_prolonged_value', 'Prolonged value'),
-                      "periods": Gauge(metrics_prefix + '_prolonged_periods', 'Prolonged periods')},
-        "withdrawn": {"value": Gauge(metrics_prefix + '_withdrawn_value', 'Withdrawn value')},
-        "activity_confirmed": {"value": Gauge(metrics_prefix + '_activity_confirmed_value',
+        "deposited": {"value": Gauge(f'{metrics_prefix}_deposited_value', 'Deposited value'),
+                      "periods": Gauge(f'{metrics_prefix}_deposited_periods', 'Deposited periods')},
+        "locked": {"value": Gauge(f'{metrics_prefix}_locked_value', 'Locked valued'),
+                   "periods": Gauge(f'{metrics_prefix}_locked_periods', 'Locked periods')},
+        "divided": {"newValue": Gauge(f'{metrics_prefix}_divided_new_value', 'New value of divided sub stake'),
+                    "periods": Gauge(f'{metrics_prefix}_divided_periods', 'Amount of periods for extending sub stake')},
+        "prolonged": {"value": Gauge(f'{metrics_prefix}_prolonged_value', 'Prolonged value'),
+                      "periods": Gauge(f'{metrics_prefix}_prolonged_periods', 'Prolonged periods')},
+        "withdrawn": {"value": Gauge(f'{metrics_prefix}_withdrawn_value', 'Withdrawn value')},
+        "activity_confirmed": {"value": Gauge(f'{metrics_prefix}_activity_confirmed_value',
                                               'Activity confirmed with value of locked tokens'),
-                               "period": Gauge(metrics_prefix + '_activity_confirmed_period',
+                               "period": Gauge(f'{metrics_prefix}_activity_confirmed_period',
                                                'Activity confirmed period')},
-        "mined": {"value": Gauge(metrics_prefix + '_mined_value', 'Mined value'),
-                  "period": Gauge(metrics_prefix + '_mined_period', 'Mined period')},
-        "slashed_reward": {"reward": Gauge(metrics_prefix + '_slashed_reward', 'Reward for investigating slasher')},
-        "slashed_penalty": {"penalty": Gauge(metrics_prefix + '_slashed_penalty', 'Penalty for slashing')},
-        "restake_set": {"reStake": Gauge(metrics_prefix + '_restake_set', 'Restake set')},
-        "restake_locked": {"lockUntilPeriod": Gauge(metrics_prefix + '_restake_locked_until_period', 'Restake locked')},
-        "work_measurement_set": {"measureWork": Gauge(metrics_prefix + '_work_measurement_set_measure_work', 'Work measurement set')},
-        "wind_down_set": {"windDown": Gauge(metrics_prefix + '_wind_down_set_wind_down', 'is windDown')},
-        "worker_set": {"startPeriod": Gauge(metrics_prefix + '_worker_set_start_period', 'New worker was set')},
-        "work_lock_deposited": {"value": Gauge(metrics_prefix + '_work_lock_deposited_value', 'Deposited value')},
-        "work_lock_bid": {"depositedETH": Gauge(metrics_prefix + '_work_lock_bid_depositedETH', 'Deposited ETH value')},
+        "mined": {"value": Gauge(f'{metrics_prefix}_mined_value', 'Mined value'),
+                  "period": Gauge(f'{metrics_prefix}_mined_period', 'Mined period')},
+        "slashed_reward": {"reward": Gauge(f'{metrics_prefix}_slashed_reward', 'Reward for investigating slasher')},
+        "slashed_penalty": {"penalty": Gauge(f'{metrics_prefix}_slashed_penalty', 'Penalty for slashing')},
+        "restake_set": {"reStake": Gauge(f'{metrics_prefix}_restake_set', 'Restake set')},
+        "restake_locked": {"lockUntilPeriod": Gauge(f'{metrics_prefix}_restake_locked_until_period', 'Restake locked')},
+        "work_measurement_set": {"measureWork": Gauge(f'{metrics_prefix}_work_measurement_set_measure_work', 'Work measurement set')},
+        "wind_down_set": {"windDown": Gauge(f'{metrics_prefix}_wind_down_set_wind_down', 'is windDown')},
+        "worker_set": {"startPeriod": Gauge(f'{metrics_prefix}_worker_set_start_period', 'New worker was set')},
+        "work_lock_deposited": {"value": Gauge(f'{metrics_prefix}_work_lock_deposited_value', 'Deposited value')},
+        "work_lock_bid": {"depositedETH": Gauge(f'{metrics_prefix}_work_lock_bid_depositedETH', 'Deposited ETH value')},
         "work_lock_claimed": {
-            "claimedTokens": Gauge(metrics_prefix + '_work_lock_claimed_claimedTokens', 'Claimed tokens value')},
+            "claimedTokens": Gauge(f'{metrics_prefix}_work_lock_claimed_claimedTokens', 'Claimed tokens value')},
         "work_lock_refund": {
-            "refundETH": Gauge(metrics_prefix + '_work_lock_refund_refundETH', 'Refunded ETH'),
-            "completedWork": Gauge(metrics_prefix + '_work_lock_refund_completedWork', 'Completed work'),
+            "refundETH": Gauge(f'{metrics_prefix}_work_lock_refund_refundETH', 'Refunded ETH'),
+            "completedWork": Gauge(f'{metrics_prefix}_work_lock_refund_completedWork', 'Completed work'),
         },
-        "work_lock_burnt": {"value": Gauge(metrics_prefix + '_work_lock_burnt_value', 'Burnt value')},
-        "work_lock_canceled": {"value": Gauge(metrics_prefix + '_work_lock_canceled_value', 'Canceled value')}
+        "work_lock_burnt": {"value": Gauge(f'{metrics_prefix}_work_lock_burnt_value', 'Burnt value')},
+        "work_lock_canceled": {"value": Gauge(f'{metrics_prefix}_work_lock_canceled_value', 'Canceled value')}
     }
 
     # Scheduling
@@ -189,4 +189,4 @@ def initialize_prometheus_exporter(ursula, host, port: int, metrics_prefix) -> N
     root = Resource()
     root.putChild(b'metrics', MetricsResource())
     factory = Site(root)
-    reactor.listenTCP(port, factory, interface=host)
+    reactor.listenTCP(port, factory, interface=listen_address)
