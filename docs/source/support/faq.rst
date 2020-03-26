@@ -2,11 +2,6 @@
 Frequently Asked Questions
 ==========================
 
-Using the Network
------------------
-
-*These are questions related to how the NuCypher network works.*
-
 The answers in the FAQ regularly reference the network characters "**Alice**," "**Bob**," "**Ursula**," and "**Enrico**." For a more in-depth introduction to each character, head over to :ref:`character-concepts`.
 
 **Alice** is the *data owner*. She wants to share some data with **Bob**, *the data recipient*.
@@ -15,20 +10,32 @@ The answers in the FAQ regularly reference the network characters "**Alice**," "
 
 **Ursula** serves as the "*proxy*" in this proxy re-encryption scheme and *re-encrypts the ciphertext encrypted under Alice's key to a ciphertext that will be decryptable under Bob's key*.
 
+
+General
+-------
+
+Q: What is the network name for Incentivized Testnet?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The network name for incentivized testnet is ``gemini``.
+
+Q: How long is a period?
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+1 period is 24 hours. Periods begin at midnight UTC.
+
+
+
+
+Using the Network
+-----------------
+
+*These are questions related to how the NuCypher network works.*
+
 Q: How much trust do we place in Ursula, the proxy?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Ursulas are “semi-trusted” in the sense that Alice must trust Ursula to revoke a policy once it expires or if instructed to do so (by Alice). Alice and Bob also trust Ursula to be responsive and perform the re-encryption correctly so that Bob can access the data. Importantly, Ursulas are not trusted with access to any underlying plaintext.
-
-Q: Who pays Ursula? How is it done?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Currently, Alice pays Ursulas via an ETH deposit to the PolicyManager contract at the point of granting access to Bob. Payment models are an area of active research for the NuCypher protocol, including the prospect of Bob independently paying for all or some component of the work performed by Ursula.
-
-Q: How much does Alice pay?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Alice provides an upfront deposit that covers the entirety of the sharing policy's duration, for all the Ursulas required to service the policy. Currently, Ursulas may choose a discretionary payment rate per period, which Alices discover on an Ursula-by-Ursula basis by querying public network contracts. In the early stages of the network, both Alice and Ursula must settle on a rate which falls within a fixed, universal range, enforced by the PolicyManager contract.
 
 Q: How do we verify that Ursula has performed the re-encryption correctly?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -47,57 +54,32 @@ Q: Who is the Staker in this narrative? Is it Alice or Ursula?
 The Staker can be thought of as a fiduciary administrator that holds NU and collects rewards.
 Typically, but not always, Ursula and the Staker are the same party. Recall that Ursula is only “valid” (i.e. will be selected for work and able to earn inflation rewards) if she’s bonded to a Staker.
 
-Q: What kind of token is NU?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Q: Does Alice or Bob need NU to use the network? Who pays Ursula? How is it done?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-NU is an implementation of the ERC20 standard deployed onto the Ethereum blockchain.
+Neither Alice nor Bob need NU to use the network - Stakers require NU to run Ursulas on the network. However, Alice pays Ursulas for re-encryptions via an ETH deposit to the PolicyManager contract at the point of granting access to Bob. Payment models are an area of active research for the NuCypher protocol, including the prospect of Bob independently paying in ETH for all or some component of the work performed by Ursula.
 
-Q: Why have the Staker and Ursula been split?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Q: How much does Alice pay?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We split them so that the Staker can hold NU offline in a hardware wallet.
-
-Q: What currency does Alice use to pay for re-encryptions?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Alice pays for re-encryptions in Ether.
+Alice provides an upfront deposit that covers the entirety of the sharing policy's duration (in periods), for all the Ursulas required to service the policy. Currently, Ursulas may choose a discretionary payment rate per period, which Alices discover on an Ursula-by-Ursula basis by querying public network contracts. In the early stages of the network, both Alice and Ursula must settle on a rate which falls within a fixed, universal range, enforced by the PolicyManager contract.
 
 Q: What currency does Ursula stake in (assuming Ursula is also the Staker)?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Ursula stakes in NU, collects policy rewards in ETH, and inflation rewards in NU.
-
-Q: What are the two streams of income Ursula can receive?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Inflation Rewards (NU) and Policy Rewards (ETH). We will soon refer to Policy Rewards as “Fees” to avoid confusion.
+Ursula stakes in NU, receives policy rewards in ETH, and receives inflation rewards in NU.
 
 Q: Why do you have a mix of NU and ETH?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 It’s much more convenient for Alice to simply carry ETH. If she has to acquire NU also, it sets a much higher barrier to entry.
 
-Q: How are Policy Rewards (ETH) determined?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The reward is calculated with Confirm Activity taking into account the number of policies Ursula is enforcing.
-
-Q: How many Ursulas per period collect Inflation rewards (NU)?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Every Ursula that is “online” and “available” will receive a cut based on the size of their stake.
-
-Q: How long is a period?
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-1 period is 24 hours. Periods begin at midnight UTC.
-
-Q: Where are Bob’s requests handled?
+Q: Where are Bobs’ requests handled?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Bob’s requests are handled off-chain.
+Bobs' requests are handled off-chain.
 
-Q: Why are Bob’s requests handled off-chain?
+Q: Why are Bobs' requests handled off-chain?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 It allows for a very small/lightweight Bob.
@@ -107,7 +89,27 @@ It allows for a very small/lightweight Bob.
 Running a Node
 --------------
 
-*These are questions related to setting up the NuCypher network on your machine.*
+*These are questions related to running a node on the NuCypher network.*
+
+Q: What kind of token is NU?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+NU is an implementation of the ERC20 standard deployed onto the Ethereum blockchain.
+
+Q: What are the two streams of income Ursula can receive?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Inflation Rewards (NU) and Policy Rewards (ETH). We will soon refer to Policy Rewards as “Fees” to avoid confusion.
+
+Q: How are Policy Rewards (ETH) determined?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The reward is calculated with Confirm Activity taking into account the number of policies Ursula is enforcing.
+
+Q: How many Ursulas per period collect Inflation rewards (NU)?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Every Ursula that is “online” and “available” will receive a cut based on the size of their stake proportional to the overall NU staked in the network.
 
 Q: What are the recommended specifications for running a nucypher node?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -116,11 +118,6 @@ Worker nodes need to run ``nucypher`` and a local ethereum node. In total, you w
 require at least 4GB for RAM. Nodes also need 24/7 uptime and a static, public IPv4 address.
 
 For ``nucypher`` specific requirements, see `System Requirements and Dependencies <https://docs.nucypher.com/en/latest/guides/installation_guide.html#system-requirements-and-dependencies/>`_.
-
-Q: What is the network name for Incentivized Testnet?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The network name for incentivized testnet is ``gemini``.
 
 Q: Can my Staker and Worker address be the same?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -257,8 +254,8 @@ Q: This all seems too complex for me, can I still participate in some way?
 We highly recommend delegating to an experienced staker rather than doing it yourself, if
 you are not super familiar with running nodes for other networks.
 
-Q: Why is my node is labelled as Idle in the status monitor?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Q: Why is my node is labelled as "*Idle*" in the status monitor?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Your node is `Idle` because it has never confirmed activity. Likely, your worker address does not have any
 ETH to use for transaction gas.
