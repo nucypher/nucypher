@@ -334,7 +334,7 @@ def forget(general_config, config_options, config_file):
 @click.option('--interactive', '-I', help="Run interactively", is_flag=True, default=False)
 @click.option('--prometheus', help="Run the ursula prometheus exporter", is_flag=True, default=False)
 @click.option('--metrics-port', help="Run a Prometheus metrics exporter on specified HTTP port", type=NETWORK_PORT)
-@click.option("--metrics-host", help="Run a prometheus metrics exporter on specified IP address", type=IPV4_ADDRESS)
+@click.option("--metrics-listen-address", help="Run a prometheus metrics exporter on specified IP address", type=IPV4_ADDRESS)
 @click.option("--metrics-prefix", help="Create metrics params with specified prefix", default="ursula")
 def run(general_config, character_options, config_file, interactive, dry_run, metrics_port, metrics_host, metrics_prefix, prometheus):
     """Run an "Ursula" node."""
