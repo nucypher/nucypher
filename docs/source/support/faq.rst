@@ -71,7 +71,7 @@ Q: Who is the Staker in this narrative? Is it Alice or Ursula?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The Staker can be thought of as a fiduciary administrator that holds NU and collects rewards.
-Typically, but not always, Ursula and the Staker are the same party. Recall that Ursula is only “valid” (i.e. will be selected for work and able to earn inflation rewards) if she’s bonded to a Staker.
+Ursula performs work on behalf of the Staker: recall that Ursula is only “valid” (i.e. will be selected for work and able to earn inflation rewards) if she’s bonded to a Staker.
 
 Q: Does Alice or Bob need NU to use the network? Who pays Ursula? How is it done?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -81,7 +81,7 @@ Neither Alice nor Bob need NU to use the network - Stakers require NU to run Urs
 Q: How much does Alice pay?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Alice provides an upfront deposit that covers the entirety of the sharing policy's duration (in periods), for all the Ursulas required to service the policy. Currently, Ursulas may choose a discretionary payment rate per period, which Alices discover on an Ursula-by-Ursula basis by querying public network contracts. In the early stages of the network, both Alice and Ursula must settle on a rate which falls within a fixed, universal range, enforced by the PolicyManager contract.
+Alice provides an upfront deposit that covers the entirety of the sharing policy's duration (in periods), for all the Ursulas required to service the policy. Currently, Ursulas may choose a discretionary payment rate per period, which Alice discovers on an Ursula-by-Ursula basis by querying public network contracts. In the early stages of the network, both Alice and Ursula must settle on a rate which falls within a fixed, universal range, enforced by the PolicyManager contract.
 
 Q: What currency does Ursula stake in (assuming Ursula is also the Staker)?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -92,6 +92,7 @@ Q: Why do you have a mix of NU and ETH?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 It’s much more convenient for Alice to simply carry ETH. If she has to acquire NU also, it sets a much higher barrier to entry.
+Additionally, since NU is an ERC20 token, using it for payment instead of ETH offers no advantages.
 
 Q: Where are Bobs’ requests handled?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -146,7 +147,7 @@ The reward is calculated with Confirm Activity taking into account the number of
 Q: How many Ursulas per period collect Inflation rewards (NU)?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Every Ursula that is “online” and “available” will receive a cut based on the size of their stake proportional to the overall NU staked in the network.
+Every Ursula that is “online” and “available” will receive a cut based on the size of their stake proportional to the overall NU staked in the network and augmented by a time coefficient based on their remaining stake duration.
 
 Q: How/Where can I acquire NU tokens?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
