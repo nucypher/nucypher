@@ -102,6 +102,116 @@ All staking-related operations done by Staker are performed through the ``nucyph
 Staking
 --------
 
+Using Clef as an external transaction signer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. important::
+
+    External signing support is an experimental feature and under active development.
+
+Motivation
+**********
+
+Instead of running a full ethereum node for both transaction signing and broadcast, an external signer can be specified
+via command line independent from the provider. This allows stakers and other network users to use hardware and software
+wallets without needing to run an ethereum node at all.
+
+Some examples:
+
+- Infura/Alchemy/Etc. for broadcasting with clef signer
+- Local geth node for broadcasting with clef signer
+- Remote ethereum node for broadcasting with local geth signer
+
+Clef Setup
+**********
+
+We'll quickly walk through setup steps below, but additional in-depth documentation on clef can
+be found in the source repository here https://github.com/ethereum/go-ethereum/tree/master/cmd/clef
+
+Clef is typically installed alongside geth.  If you already have geth installed on you system you
+may already have clef installed.  To check for an existing installation run:
+
+.. code:: bash
+
+    $ clef --version
+    Clef version 0.0.0
+
+Next, initialize Clef with your chosen password to encrypt the master seed:
+
+.. code:: bash
+
+    $ clef init
+    ...
+    The master seed of clef will be locked with a password.
+    Please specify a password. Do not forget this password!
+    Password:
+
+Then attest nucypher's clef rules:
+
+.. code:: bash
+
+    $ clef attest <PATH TO RULES>
+    ...
+    Decrypt master seed of clef
+    Password:
+    INFO [03-27|14:56:41.196] Ruleset attestation updated              sha256=nucypher/crypto/rules.js
+
+
+Running Clef for Goerli
+***********************
+
+.. code:: bash
+
+    $ clef --keystore <PATH TO KEYSTORE> --chainid 5 --advanced
+
+
+<PATH TO KEYSTORE> - The path to the directory containing geth-formatted private key files.
+
+.. code:: bash
+
+    Enter 'ok' to proceed:
+    > ok
+   ...
+
+    ------- Signer info -------
+    * extapi_version : 6.0.0
+    * extapi_http : n/a
+    * extapi_ipc : /home/user/.clef/clef.ipc
+    * intapi_version : 7.0.0
+
+
+
+.. note::::
+
+    Chain ID 5 is specified to ensure clef signs transactions with the network ID of Goerli.
+
+.. note::::
+
+    Chain ID 5 is specified to ensure clef signs transactions with the network ID of Goerli.
+
+
+Using clef as a nucypher signer
+*******************************
+
+.. code:: bash
+
+    $ nucypher <COMMAND> <ACTION> --signer <CLEF IPC PATH>
+
+Some examples:
+
+.. code:: bash
+
+    $ nucypher stake init-stakeholder --signer ~/clef/clef.ipc ...
+    $ nucypher stake create --signer ~/clef/clef.ipc
+
+
+Interacting with clef
+*********************
+
+Requests for account management, and signing will be directed at clef, with a 10 second timeout.
+
+
+
 
 Run an Ethereum node for Staking
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
