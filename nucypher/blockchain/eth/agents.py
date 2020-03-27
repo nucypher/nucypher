@@ -1321,15 +1321,12 @@ class MultiSigAgent(EthereumContractAgent):
                 v: Vector,
                 r: Vector,
                 s: Vector,
-                transaction_function,
+                destination: str,
                 value: int,
+                data: bytes,
                 sender_address: str
                 ) -> dict:
-        contract_function = self.contract.functions.execute(v, r, s,
-                                                            transaction_function.address,
-                                                            value,
-                                                            transaction_function.data)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=sender_address)
+        contract_function = self.contract.functions.execute(v, r, s, destination, value, data)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return receipt
 

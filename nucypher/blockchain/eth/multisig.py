@@ -131,6 +131,11 @@ class Authorization:
         r, s, v = cls.splitter(data)
         return cls(r=r, s=s, v=v)
 
+    @classmethod
+    def from_hex(cls, hexstr: str) -> 'Authorization':
+        bytestr = Web3.toBytes(hexstr=hexstr)
+        return cls.deserialize(bytestr)
+
     def _write(self, filepath: str) -> str:
         with open(filepath, 'wb') as file:
             file.write(self.serialize())

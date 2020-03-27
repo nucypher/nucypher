@@ -34,7 +34,7 @@ from constant_sorrow.constants import (
     FULL
 )
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import keccak, is_checksum_address, to_checksum_address
+from eth_utils import keccak, is_checksum_address, to_checksum_address, to_canonical_address
 from twisted.logger import Logger
 from web3 import Web3, IPCProvider
 from web3.contract import ContractFunction
@@ -654,6 +654,11 @@ class ContractAdministrator(NucypherTokenActor):
 
 class MultiSigActor(NucypherTokenActor):
 
+    class UnknownExecutive(Exception):
+        """
+        Raised when Executive is not listed as a owner of the MultiSig.
+        """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.multisig_agent = ContractAgency.get_agent(MultiSigAgent, registry=self.registry)  # type: MultiSigAgent
@@ -669,34 +674,62 @@ class Trustee(MultiSigActor):
     class NoAuthorizations(RuntimeError):
         """Raised when there are zero authorizations."""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self,
+                 checksum_address: str,
+                 client_password: str = None,
+                 *args, **kwargs):
+        super().__init__(checksum_address=checksum_address, *args, **kwargs)
         self.authorizations = dict()
+        self.executive_addresses = tuple(self.multisig_agent.owners)
+        if client_password:  # TODO: Consider a is_transacting parameter
+            self.transacting_power = TransactingPower(password=client_password,
+                                                      account=checksum_address)
+            self.transacting_power.activate()
 
-    def add_authorization(self, authorization):
-        self.authorizations[authorization.trustee_address] = authorization
+    def add_authorization(self, authorization, proposal: Proposal) -> str:
+        executive_address = authorization.recover_executive_address(proposal)
+        if executive_address not in self.executive_addresses:
+            raise self.UnknownExecutive(f"Executive {executive_address} is not listed as owner of the MultiSig.")
+        if executive_address in self.authorizations:
+            raise ValueError(f"We already have an authorization from executive {executive_address}")
 
-    def combine_authorizations(self) -> Tuple[List[bytes], ...]:
+        self.authorizations[executive_address] = authorization
+        return executive_address
+
+    def _combine_authorizations(self) -> Tuple[List[bytes], ...]:
         if not self.authorizations:
             raise self.NoAuthorizations
 
         all_v, all_r, all_s = list(), list(), list()
-        # Authorizations (i.e., signatures) must be provided in increasing order by signing address
-        for trustee_address, authorization in sorted(self.authorizations.items()):
-            v, r, s = authorization.get_components()
-            all_v.append(v)
+
+        def order_by_address(executive_address_to_sort):
+            """
+            Authorizations (i.e., signatures) must be provided to the MultiSig in increasing order by signing address
+            """
+            return Web3.toInt(to_canonical_address(executive_address_to_sort))
+
+        for executive_address in sorted(self.authorizations.keys(), key=order_by_address):
+            authorization = self.authorizations[executive_address]
+            r, s, v = authorization.components
+            all_v.append(Web3.toInt(v))  # v values are passed to the contract as ints, not as bytes
             all_r.append(r)
             all_s.append(s)
 
-        # TODO: check for inconsistencies (nonce, etc.)
-        return all_v, all_r, all_s
+        return all_r, all_s, all_v
 
-    def execute(self, contract_function: ContractFunction) -> dict:
-        v, r, s = self.combine_authorizations()
+    def execute(self, proposal: Proposal) -> dict:
+
+        if proposal.trustee_address != self.checksum_address:
+            raise ValueError(f"This proposal is meant to be executed by trustee {proposal.trustee_address}, "
+                             f"not by this trustee ({self.checksum_address})")
+        # TODO: check for inconsistencies (nonce, etc.)
+
+        r, s, v = self._combine_authorizations()
         receipt = self.multisig_agent.execute(sender_address=self.checksum_address,
                                               v=v, r=r, s=s,
-                                              transaction_function=contract_function,
-                                              value=None)  # TODO: Design Flaw...
+                                              destination=proposal.target_address,
+                                              value=proposal.value,
+                                              data=proposal.data)
         return receipt
 
     def change_threshold(self, new_threshold: int) -> dict:
@@ -719,8 +752,11 @@ class Executive(MultiSigActor):
                  signer: Signer = None,
                  client_password: str = None,
                  *args, **kwargs):
-
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
+
+        if checksum_address not in self.multisig_agent.owners:
+            raise self.UnknownExecutive(f"Executive {checksum_address} is not listed as a owner of the MultiSig. "
+                                        f"Current owners are {self.multisig_agent.owners}")
         self.signer = signer
         if signer:
             self.transacting_power = TransactingPower(signer=signer,
