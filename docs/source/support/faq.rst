@@ -175,7 +175,7 @@ Our guide is intended for Linux - we do not officially support Windows.
 Q: How computationally expensive is performing re-encryptions likely to be?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A re-encryption operation is very lightweight (in the order of ms) and is comparable to computing an ECDSA signature.
+A re-encryption operation is very lightweight (in the order of milliseconds) and is comparable to computing an ECDSA signature.
 
 Q: Can my Staker and Worker address be the same?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
