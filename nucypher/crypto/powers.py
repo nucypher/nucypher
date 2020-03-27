@@ -19,13 +19,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
 from typing import List, Tuple, Optional
 
-from eth_utils import to_checksum_address
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from hexbytes import HexBytes
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainInterface
+from nucypher.blockchain.eth.signers import Signer, Web3Signer
 from nucypher.datastore import keypairs
 from nucypher.datastore.keypairs import SigningKeypair, DecryptingKeypair
 
@@ -100,104 +100,39 @@ class CryptoPowerUp:
 
 class TransactingPower(CryptoPowerUp):
     """
-    Allows for transacting on a Blockchain via web3 backend.
+    The power to sign ethereum transactions as the custodian of a private key through a signing backend.
     """
+
     not_found_error = NoTransactingPower
 
-    class NoBlockchainConnection(PowerUpError):
-        pass
-
     class AccountLocked(PowerUpError):
+        """Raised when signing cannot be performed due to a locked account"""
         pass
 
-    class InvalidSigningRequest(PowerUpError):
-        pass
-
+    @validate_checksum_address
     def __init__(self,
                  account: str,
-                 provider_uri: str = None,
+                 signer: Signer = None,
                  password: str = None,
-                 cache: bool = False,):
+                 cache: bool = False):
         """
         Instantiates a TransactingPower for the given checksum_address.
         """
-        self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=provider_uri)
+
+        # Auth
+        if not signer:
+            # TODO: Consider making this required
+            blockchain = BlockchainInterfaceFactory.get_interface()
+            signer = Web3Signer(client=blockchain.client)
+        self._signer = signer
         self.__account = account
-
-        # TODO: Temporary fix for #1128 and #1385. It's ugly af, but it works. Move somewhere else?
-        try:
-            wallets = self.blockchain.client.wallets
-        except AttributeError:
-            is_from_hw_wallet = False
-        else:
-            HW_WALLET_URL_PREFIXES = ('trezor', 'ledger')
-            hw_accounts = [w['accounts'] for w in wallets if w['url'].startswith(HW_WALLET_URL_PREFIXES)]
-            hw_addresses = [to_checksum_address(account['address']) for sublist in hw_accounts for account in sublist]
-            is_from_hw_wallet = account in hw_addresses
-
-        self.device = is_from_hw_wallet
-
         self.__password = password
-        self.__unlocked = False
-        self.__activated = False
+
+        # Config
+        self.__is_unlocked = False
+        self.__blockchain = None
         self.__cache = cache
-
-    @property
-    def is_unlocked(self) -> bool:
-        return self.__unlocked
-
-    @property
-    def is_active(self) -> bool:
-        """Returns True if the blockchain currently has this transacting power attached."""
-        return self.blockchain.transacting_power == self
-
-    @property
-    def account(self) -> str:
-        return self.__account
-
-    def activate(self, password: str = None):
-        """Be Consumed"""
-        self.unlock_account(password=password)
-        if self.__cache is False:
-            self.__password = None
-        self.blockchain.transacting_power = self
-
-    def lock_account(self):
-        if self.device:
-            pass  # TODO: Force Disconnect Devices?
-        else:
-            _result = self.blockchain.client.lock_account(address=self.account)
-        self.__unlocked = False
-        return self.__unlocked
-
-    def unlock_account(self, password: str = None, duration: int = None):
-        password = password or self.__password
-        if self.device:
-            unlocked = True
-        else:
-            if self.blockchain.client is NO_BLOCKCHAIN_CONNECTION:
-                raise self.NoBlockchainConnection
-            unlocked = self.blockchain.client.unlock_account(address=self.account, password=password, duration=duration)
-        self.__unlocked = unlocked
-        return self.__unlocked
-
-    def sign_message(self, message: bytes) -> bytes:
-        """
-        Signs the message with the private key of the TransactingPower.
-        """
-        if not self.is_unlocked:
-            raise self.AccountLocked("Failed to unlock account {}".format(self.account))
-        signature = self.blockchain.client.sign_message(account=self.account, message=message)
-        return signature
-
-    def sign_transaction(self, unsigned_transaction: dict) -> HexBytes:
-        """
-        Signs the transaction with the private key of the TransactingPower.
-        """
-        if not self.is_unlocked:
-            raise self.AccountLocked("Failed to unlock account {}".format(self.account))
-        signed_raw_transaction = self.blockchain.client.sign_transaction(transaction=unsigned_transaction)
-        return signed_raw_transaction
+        self.__activated = False
 
     def __enter__(self):
         return self.unlock_account()
@@ -205,16 +140,79 @@ class TransactingPower(CryptoPowerUp):
     def __exit__(self, exc_type, exc_val, exc_tb):
         return self.lock_account()
 
+    #
+    # Properties
+    #
+
+    @property
+    def blockchain(self) -> BlockchainInterface:
+        """Lazy evaluation of existing connection"""
+        if self.__blockchain is None:
+            blockchain = BlockchainInterfaceFactory.get_interface()
+            self.__blockchain = blockchain
+        return self.__blockchain
+
+    @property
+    def is_active(self) -> bool:
+        """Returns True if the blockchain currently has this transacting power attached."""
+        return bool(self.blockchain.transacting_power == self)
+
+    @property
+    def account(self) -> str:
+        return self.__account
+
+    @property
+    def is_unlocked(self) -> bool:
+        return self.__is_unlocked
+
+    @property
+    def is_device(self) -> bool:
+        return self._signer.is_device(account=self.__account)
+
+    #
+    # Power
+    #
+
+    def activate(self, password: str = None) -> None:
+        """Called during power consumption"""
+        self.unlock_account(password=password)
+        if self.__cache is False:
+            self.__password = None
+        self.blockchain.transacting_power = self
+
+    def lock_account(self) -> None:
+        self._signer.lock_account(account=self.__account)
+        self.__is_unlocked = False
+
+    def unlock_account(self, password: str = None, duration: int = None) -> bool:
+        """Unlocks the account with provided or cached password."""
+        password = password or self.__password
+        result = self._signer.unlock_account(self.__account,
+                                             password=password,
+                                             duration=duration)
+        if result:
+            self.__is_unlocked = True
+        return self.is_unlocked
+
+    def sign_message(self, message: bytes) -> bytes:
+        """Signs the message with the private key of the TransactingPower."""
+        if not self.is_unlocked:
+            raise self.AccountLocked("Failed to unlock account {}".format(self.__account))
+        return self._signer.sign_message(account=self.__account, message=message)
+
+    def sign_transaction(self, transaction_dict: dict) -> HexBytes:
+        """Signs the transaction with the private key of the TransactingPower."""
+        if not self.is_unlocked:
+            raise self.AccountLocked("Failed to unlock account {}".format(self.__account))
+        return self._signer.sign_transaction(transaction_dict=transaction_dict)
+
 
 class KeyPairBasedPower(CryptoPowerUp):
     confers_public_key = True
     _keypair_class = keypairs.Keypair
     _default_private_key_class = UmbralPrivateKey
 
-    def __init__(self,
-                 public_key: UmbralPublicKey = None,
-                 keypair: keypairs.Keypair = None,
-                 ) -> None:
+    def __init__(self, public_key: UmbralPublicKey = None, keypair: keypairs.Keypair = None):
         if keypair and public_key:
             raise ValueError("Pass keypair or pubkey_bytes (or neither), but not both.")
         elif keypair:

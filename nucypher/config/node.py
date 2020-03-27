@@ -38,6 +38,7 @@ from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
     LocalContractRegistry
 )
+from nucypher.blockchain.eth.signers import Signer
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
@@ -65,6 +66,7 @@ class CharacterConfiguration(BaseConfiguration):
     def __init__(self,
 
                  # Base
+                 emitter=None,
                  config_root: str = None,
                  filepath: str = None,
 
@@ -104,13 +106,11 @@ class CharacterConfiguration(BaseConfiguration):
                  provider_uri: str = None,
                  provider_process=None,
                  gas_strategy: Union[Callable, str] = DEFAULT_GAS_STRATEGY,
+                 signer_uri: str = None,
 
                  # Registry
                  registry: BaseContractRegistry = None,
-                 registry_filepath: str = None,
-
-                 emitter=None,
-                 ):
+                 registry_filepath: str = None):
 
         self.log = Logger(self.__class__.__name__)
         UNINITIALIZED_CONFIGURATION.bool_value(False)
@@ -145,6 +145,7 @@ class CharacterConfiguration(BaseConfiguration):
         self.is_light = light
         self.provider_uri = provider_uri or NO_BLOCKCHAIN_CONNECTION
         self.provider_process = provider_process or NO_BLOCKCHAIN_CONNECTION
+        self.signer_uri = signer_uri or NO_BLOCKCHAIN_CONNECTION
 
         # Learner
         self.federated_only = federated_only
@@ -281,7 +282,13 @@ class CharacterConfiguration(BaseConfiguration):
         Warning: This method allows mutation and may result in an inconsistent configuration.
         """
         merged_parameters = {**self.static_payload(), **self.dynamic_payload, **overrides}
-        non_init_params = ('config_root', 'poa', 'light', 'provider_uri', 'registry_filepath', 'gas_strategy')
+        non_init_params = ('config_root',
+                           'poa',
+                           'light',
+                           'provider_uri',
+                           'registry_filepath',
+                           'gas_strategy',
+                           'signer_uri')
         character_init_params = filter(lambda t: t[0] not in non_init_params, merged_parameters.items())
         return dict(character_init_params)
 
@@ -362,7 +369,12 @@ class CharacterConfiguration(BaseConfiguration):
         # Optional values (mode)
         if not self.federated_only:
             if self.provider_uri:
-                payload.update(dict(provider_uri=self.provider_uri, poa=self.poa, light=self.is_light))
+                if not self.signer_uri:
+                    self.signer_uri = self.provider_uri
+                payload.update(dict(provider_uri=self.provider_uri,
+                                    poa=self.poa,
+                                    light=self.is_light,
+                                    signer_uri=self.signer_uri))
             if self.registry_filepath:
                 payload.update(dict(registry_filepath=self.registry_filepath))
 
@@ -380,7 +392,7 @@ class CharacterConfiguration(BaseConfiguration):
         """Exported dynamic configuration values for initializing Ursula"""
         payload = dict()
         if not self.federated_only:
-            payload.update(dict(registry=self.registry))
+            payload.update(dict(registry=self.registry, signer=Signer.from_signer_uri(self.signer_uri)))
 
         payload.update(dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
                             known_nodes=self.known_nodes,

@@ -15,27 +15,30 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
+from decimal import Decimal
+from typing import Optional
 
 import click
 import maya
 import tabulate
-from decimal import Decimal
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Bidder
-from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency
+from nucypher.blockchain.eth.agents import ContractAgency, WorkLockAgent
+from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import prettify_eth_amount
 from nucypher.characters.banners import WORKLOCK_BANNER
+from nucypher.cli.actions import get_client_password
 from nucypher.cli.actions import select_client_account
 from nucypher.cli.commands.status import group_registry_options
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     option_force,
     group_options,
-    option_hw_wallet
+    option_hw_wallet,
+    option_signer_uri
 )
-from nucypher.cli.actions import get_client_password
 from nucypher.cli.painting import (
     paint_receipt_summary,
     paint_worklock_status,
@@ -60,21 +63,24 @@ class WorkLockOptions:
 
     __option_name__ = 'worklock_options'
 
-    def __init__(self, bidder_address: str):
+    def __init__(self, bidder_address: str, signer_uri):
         self.bidder_address = bidder_address
+        self.signer_uri = signer_uri
 
-    def __create_bidder(self, registry, transacting: bool = False, hw_wallet: bool = False):
+    def __create_bidder(self, registry, signer: Optional[Signer] = None, transacting: bool = True, hw_wallet: bool = False):
         client_password = None
-        if transacting and not hw_wallet:
+        if (signer and signer.is_device(self.bidder_address)) or hw_wallet:
             client_password = get_client_password(checksum_address=self.bidder_address)
         bidder = Bidder(checksum_address=self.bidder_address,
                         registry=registry,
                         client_password=client_password,
-                        is_transacting=transacting)
+                        signer=signer,
+                        transacting=transacting)
         return bidder
 
     def create_bidder(self, registry, hw_wallet: bool = False):
-        return self.__create_bidder(registry, transacting=True, hw_wallet=hw_wallet)
+        signer = Signer.from_signer_uri(self.signer_uri) if self.signer_uri else None
+        return self.__create_bidder(registry=registry, signer=signer, hw_wallet=hw_wallet, transacting=True)
 
     def create_transactionless_bidder(self, registry):
         return self.__create_bidder(registry, transacting=False)
@@ -82,7 +88,8 @@ class WorkLockOptions:
 
 group_worklock_options = group_options(
     WorkLockOptions,
-    bidder_address=option_bidder_address
+    bidder_address=option_bidder_address,
+    signer_uri=option_signer_uri
 )
 
 

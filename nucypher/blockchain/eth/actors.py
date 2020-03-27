@@ -36,7 +36,7 @@ from constant_sorrow.constants import (
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak, is_checksum_address, to_checksum_address
 from twisted.logger import Logger
-from web3 import Web3
+from web3 import Web3, IPCProvider
 from web3.contract import ContractFunction
 
 from nucypher.blockchain.economics import StandardTokenEconomics, EconomicsFactory, BaseEconomics
@@ -48,8 +48,10 @@ from nucypher.blockchain.eth.agents import (
     ContractAgency,
     PreallocationEscrowAgent,
     MultiSigAgent,
-    WorkLockAgent)
-from nucypher.blockchain.eth.decorators import validate_checksum_address, only_me, save_receipt
+    WorkLockAgent
+)
+from nucypher.blockchain.eth.decorators import only_me, save_receipt
+from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
@@ -70,6 +72,7 @@ from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     IndividualAllocationRegistry
 )
+from nucypher.blockchain.eth.signers import ClefSigner, Web3Signer, Signer
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration, datetime_at_period, \
     prettify_eth_amount
@@ -191,26 +194,30 @@ class ContractAdministrator(NucypherTokenActor):
                  registry: BaseContractRegistry,
                  deployer_address: str = None,
                  client_password: str = None,
+                 signer: Signer = None,
                  staking_escrow_test_mode: bool = False,
                  economics: BaseEconomics = None):
         """
-        Note: super() is not called here to avoid setting the token agent.
-        TODO: Review this logic ^^ "bare mode".  #1510
+        Note: super() is not called here to avoid setting the token agent.  TODO: call super but use "bare mode" without token agent.  #1510
         """
         self.log = Logger("Deployment-Actor")
 
         self.deployer_address = deployer_address
         self.checksum_address = self.deployer_address
         self.economics = economics or StandardTokenEconomics()
+        self.staking_escrow_test_mode = staking_escrow_test_mode
 
         self.registry = registry
         self.preallocation_escrow_deployers = dict()
         self.deployers = {d.contract_name: d for d in self.all_deployer_classes}
 
-        self.deployer_power = TransactingPower(password=client_password, account=deployer_address, cache=True)
+        # Powers
+        self.deployer_power = TransactingPower(signer=signer,
+                                               password=client_password,
+                                               account=deployer_address,
+                                               cache=True)
         self.transacting_power = self.deployer_power
         self.transacting_power.activate()
-        self.staking_escrow_test_mode = staking_escrow_test_mode
 
         self.sidekick_power = None
         self.sidekick_address = None
@@ -222,7 +229,7 @@ class ContractAdministrator(NucypherTokenActor):
     @validate_checksum_address
     def recruit_sidekick(self, sidekick_address: str, sidekick_password: str):
         self.sidekick_power = TransactingPower(account=sidekick_address, password=sidekick_password, cache=True)
-        if self.sidekick_power.device:
+        if self.sidekick_power.is_device:
             raise ValueError("Holy Wallet! Sidekicks can only be SW accounts")
         self.sidekick_address = sidekick_address
 
@@ -1477,10 +1484,11 @@ class StakeHolder(Staker):
 
         def __init__(self,
                      registry: BaseContractRegistry,
-                     checksum_addresses: set = None):
+                     client_addresses: set = None,
+                     signer=None):
 
-            # Wallet
-            self.__accounts = set()  # Note: Account index is meaningless here
+            self.__local_accounts = dict()
+            self.__client_accounts = set()  # Note: Account index is meaningless here
             self.__transacting_powers = dict()
 
             # Blockchain
@@ -1488,25 +1496,29 @@ class StakeHolder(Staker):
             self.blockchain = BlockchainInterfaceFactory.get_interface()
             self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
 
+            self.__signer = signer or Web3Signer(client=self.blockchain.client)
             self.__get_accounts()
-            if checksum_addresses:
-                self.__accounts.update(checksum_addresses)
+            if client_addresses:
+                self.__client_accounts.update(client_addresses)
 
         @validate_checksum_address
         def __contains__(self, checksum_address: str) -> bool:
-            return bool(checksum_address in self.__accounts)
+            return bool(checksum_address in self.accounts)
 
         @property
         def active_account(self) -> str:
             return self.blockchain.transacting_power.account
 
         def __get_accounts(self) -> None:
-            accounts = self.blockchain.client.accounts
-            self.__accounts.update(accounts)
+            if self.__signer:
+                signer_accounts = self.__signer.accounts()
+                self.__client_accounts.update(signer_accounts)
+            client_accounts = self.blockchain.client.accounts  # Accounts via connected provider
+            self.__client_accounts.update(client_accounts)
 
         @property
         def accounts(self) -> set:
-            return self.__accounts
+            return {*self.__client_accounts, *self.__local_accounts}
 
         @validate_checksum_address
         def activate_account(self, checksum_address: str, password: str = None) -> None:
@@ -1517,7 +1529,9 @@ class StakeHolder(Staker):
             try:
                 transacting_power = self.__transacting_powers[checksum_address]
             except KeyError:
-                transacting_power = TransactingPower(password=password, account=checksum_address)
+                transacting_power = TransactingPower(signer=self.__signer,
+                                                     password=password,
+                                                     account=checksum_address)
                 self.__transacting_powers[checksum_address] = transacting_power
             transacting_power.activate(password=password)
 
@@ -1538,6 +1552,7 @@ class StakeHolder(Staker):
                  is_me: bool = True,
                  initial_address: str = None,
                  checksum_addresses: set = None,
+                 signer: str = None,
                  password: str = None,
                  *args, **kwargs):
 
@@ -1547,7 +1562,9 @@ class StakeHolder(Staker):
         self.log = Logger(f"stakeholder")
 
         # Wallet
-        self.wallet = self.StakingWallet(registry=self.registry, checksum_addresses=checksum_addresses)
+        self.wallet = self.StakingWallet(registry=self.registry,
+                                         client_addresses=checksum_addresses,
+                                         signer=signer)
         if initial_address:
             # If an initial address was passed,
             # it is safe to understand that it has already been used at a higher level.
@@ -1568,7 +1585,7 @@ class StakeHolder(Staker):
         if self.individual_allocation:
             if checksum_address != self.individual_allocation.beneficiary_address:
                 raise ValueError(f"Beneficiary {self.individual_allocation.beneficiary_address} in individual "
-                                 f"allocation doesn't match this checksum address ({checksum_address})")
+                                 f"allocation does not match this checksum address ({checksum_address})")
             staking_address = self.individual_allocation.contract_address
             self.beneficiary_address = self.individual_allocation.beneficiary_address
             self.preallocation_escrow_agent = PreallocationEscrowAgent(registry=self.registry,
@@ -1652,17 +1669,21 @@ class Bidder(NucypherTokenActor):
     @validate_checksum_address
     def __init__(self,
                  checksum_address: str,
-                 is_transacting: bool = True,
+                 transacting: bool = True,
+                 signer: Signer = None,
                  client_password: str = None,
                  *args, **kwargs):
+
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
         self.log = Logger(f"WorkLockBidder")
-        self.worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=self.registry)  # type: WorkLockAgent
+        self.worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=self.registry)
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.economics = EconomicsFactory.get_economics(registry=self.registry)
 
-        if is_transacting:
-            self.transacting_power = TransactingPower(password=client_password, account=checksum_address, cache=True)
+        if transacting:
+            self.transacting_power = TransactingPower(signer=signer,
+                                                      password=client_password,
+                                                      account=checksum_address)
             self.transacting_power.activate()
 
         self._all_bonus_bidders = None

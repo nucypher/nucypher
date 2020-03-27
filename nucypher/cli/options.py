@@ -190,3 +190,4 @@ option_middleware = wrap_option(
     process_middleware,
     mock_networking=click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True),
     )
+option_signer_uri = click.option('--signer', 'signer_uri', '-S', default=None, type=str)

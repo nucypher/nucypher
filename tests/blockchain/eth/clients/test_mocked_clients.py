@@ -4,7 +4,7 @@ import pytest
 from web3 import HTTPProvider, IPCProvider, WebsocketProvider
 
 from nucypher.blockchain.eth.clients import (
-    Web3Client,
+    EthereumClient,
     GethClient,
     ParityClient,
     GanacheClient,
@@ -364,5 +364,5 @@ def test_no_peers_unsynced_geth_client():
     interface.connect()
 
     assert interface.client._has_latest_block() is False
-    with pytest.raises(Web3Client.SyncTimeout):
+    with pytest.raises(EthereumClient.SyncTimeout):
         list(interface.client.sync())

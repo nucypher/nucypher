@@ -52,8 +52,8 @@ from nucypher.cli.options import (
     option_hw_wallet,
     option_poa,
     option_provider_uri,
-    option_contract_name
-)
+    option_contract_name,
+    option_signer_uri)
 from nucypher.cli.painting import (
     echo_solidity_version,
     paint_staged_deployment,
@@ -123,8 +123,9 @@ class ActorOptions:
 
     def __init__(self, provider_uri, deployer_address, contract_name,
                  registry_infile, registry_outfile, hw_wallet, dev, force, poa, config_root, etherscan,
-                 se_test_mode, ignore_solidity_check, gas_strategy):
+                 se_test_mode, ignore_solidity_check, gas_strategy, signer_uri):
         self.provider_uri = provider_uri
+        self.signer_uri = signer_uri
         self.gas_strategy = gas_strategy
         self.deployer_address = deployer_address
         self.contract_name = contract_name
@@ -194,6 +195,7 @@ group_actor_options = group_options(
     ActorOptions,
     provider_uri=option_provider_uri(),
     gas_strategy=option_gas_strategy,
+    signer_uri=option_signer_uri,
     contract_name=option_contract_name,
     poa=option_poa,
     force=option_force,

@@ -22,6 +22,7 @@ from cryptography.exceptions import InvalidSignature
 from eth_account._utils.transactions import Transaction
 from eth_utils import to_checksum_address
 
+from nucypher.blockchain.eth.signers import Web3Signer
 from nucypher.characters.lawful import Alice, Character, Bob
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto import api
@@ -126,6 +127,7 @@ def test_character_transacting_power_signing(testerchain, agency, test_registry)
 
     # Manually consume the power up
     transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
+                                         signer=Web3Signer(testerchain.client),
                                          account=eth_address)
 
     signer._crypto_power.consume_power_up(transacting_power)
@@ -155,7 +157,7 @@ def test_character_transacting_power_signing(testerchain, agency, test_registry)
                         'value': 1,
                         'data': b''}
 
-    signed_transaction = power.sign_transaction(unsigned_transaction=transaction_dict)
+    signed_transaction = power.sign_transaction(transaction_dict=transaction_dict)
 
     # Demonstrate that the transaction is valid RLP encoded.
     restored_transaction = Transaction.from_bytes(serialized_bytes=signed_transaction)

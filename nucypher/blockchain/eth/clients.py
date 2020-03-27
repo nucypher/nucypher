@@ -1,10 +1,10 @@
 import json
 import os
 import shutil
-import time
 from typing import Union
 
 import maya
+import time
 from constant_sorrow.constants import NOT_RUNNING, UNKNOWN_DEVELOPMENT_CHAIN_ID
 from cytoolz.dicttoolz import dissoc
 from eth_account import Account
@@ -23,8 +23,8 @@ from geth.process import BaseGethProcess
 from twisted.logger import Logger
 from web3 import Web3
 
+from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
-
 
 UNKNOWN_DEVELOPMENT_CHAIN_ID.bool_value(True)
 
@@ -63,7 +63,7 @@ LOCAL_CHAINS = {1337: "GethDev",
                 5777: "Ganache/TestRPC"}
 
 
-class Web3Client:
+class EthereumClient:
 
     is_local = False
 
@@ -71,15 +71,21 @@ class Web3Client:
     PARITY = 'Parity'
     ALT_PARITY = 'Parity-Ethereum'
     GANACHE = 'EthereumJS TestRPC'
+
     ETHEREUM_TESTER = 'EthereumTester'  # (PyEVM)
+    CLEF = 'Clef'  # Signer-only
+
+    PEERING_TIMEOUT = 30        # seconds
     SYNC_TIMEOUT_DURATION = 60  # seconds to wait for various blockchain syncing endeavors
-    PEERING_TIMEOUT = 30
-    SYNC_SLEEP_DURATION = 5
+    SYNC_SLEEP_DURATION = 5     # seconds
 
     class ConnectionNotEstablished(RuntimeError):
         pass
 
     class SyncTimeout(RuntimeError):
+        pass
+
+    class UnknownAccount(ValueError):
         pass
 
     def __init__(self,
@@ -101,7 +107,7 @@ class Web3Client:
         return cls
 
     @classmethod
-    def from_w3(cls, w3: Web3) -> 'Web3Client':
+    def from_w3(cls, w3: Web3) -> 'EthereumClient':
         """
 
         Client version strings
@@ -162,12 +168,12 @@ class Web3Client:
     def syncing(self) -> Union[bool, dict]:
         return self.w3.eth.syncing
 
-    def lock_account(self, address) -> bool:
+    def lock_account(self, account) -> bool:
         if self.is_local:
             return True
         return NotImplemented
 
-    def unlock_account(self, address, password, duration=None) -> bool:
+    def unlock_account(self, account, password, duration=None) -> bool:
         if self.is_local:
             return True
         return NotImplemented
@@ -225,17 +231,17 @@ class Web3Client:
         receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash=transaction_hash, timeout=timeout)
         return receipt
 
-    def sign_transaction(self, transaction: dict):
+    def sign_transaction(self, transaction_dict: dict):
         raise NotImplementedError
 
     def get_transaction(self, transaction_hash) -> str:
         return self.w3.eth.getTransaction(transaction_hash=transaction_hash)
 
-    def send_transaction(self, transaction: dict) -> str:
-        return self.w3.eth.sendTransaction(transaction=transaction)
+    def send_transaction(self, transaction_dict: dict) -> str:
+        return self.w3.eth.sendTransaction(transaction=transaction_dict)
 
-    def send_raw_transaction(self, transaction: bytes) -> str:
-        return self.w3.eth.sendRawTransaction(raw_transaction=transaction)
+    def send_raw_transaction(self, transaction_bytes: bytes) -> str:
+        return self.w3.eth.sendRawTransaction(raw_transaction=transaction_bytes)
 
     def sign_message(self, account: str, message: bytes) -> str:
         """
@@ -295,7 +301,7 @@ class Web3Client:
         return True
 
 
-class GethClient(Web3Client):
+class GethClient(EthereumClient):
 
     @classmethod
     def _get_variant(cls, w3):
@@ -316,10 +322,10 @@ class GethClient(Web3Client):
         new_account = self.w3.geth.personal.newAccount(password)
         return to_checksum_address(new_account)  # cast and validate
 
-    def unlock_account(self, address: str, password: str, duration: int = None):
+    def unlock_account(self, account: str, password: str, duration: int = None):
         if self.is_local:
             return True
-        debug_message = f"Unlocking account {address}"
+        debug_message = f"Unlocking account {account}"
 
         if duration is None:
             debug_message += f" for 5 minutes"
@@ -332,19 +338,19 @@ class GethClient(Web3Client):
             debug_message += " with no password."
 
         self.log.debug(debug_message)
-        return self.w3.geth.personal.unlockAccount(address, password, duration)
+        return self.w3.geth.personal.unlockAccount(account, password, duration)
 
-    def lock_account(self, address):
-        return self.w3.geth.personal.lockAccount(address)
+    def lock_account(self, account):
+        return self.w3.geth.personal.lockAccount(account)
 
-    def sign_transaction(self, transaction: dict) -> bytes:
+    def sign_transaction(self, transaction_dict: dict) -> bytes:
 
         # Do not include a 'to' field for contract creation.
-        if transaction['to'] == b'':
-            transaction = dissoc(transaction, 'to')
+        if transaction_dict['to'] == b'':
+            transaction_dict = dissoc(transaction_dict, 'to')
 
         # Sign
-        result = self.w3.eth.signTransaction(transaction=transaction)
+        result = self.w3.eth.signTransaction(transaction=transaction_dict)
 
         # Return RLP bytes
         rlp_encoded_transaction = result.raw
@@ -355,7 +361,7 @@ class GethClient(Web3Client):
         return self.w3.manager.request_blocking("personal_listWallets", [])
 
 
-class ParityClient(Web3Client):
+class ParityClient(EthereumClient):
 
     @property
     def peers(self) -> list:
@@ -368,14 +374,14 @@ class ParityClient(Web3Client):
         new_account = self.w3.parity.personal.newAccount(password)
         return to_checksum_address(new_account)  # cast and validate
 
-    def unlock_account(self, address, password, duration: int = None) -> bool:
-        return self.w3.parity.personal.unlockAccount(address, password, duration)
+    def unlock_account(self, account, password, duration: int = None) -> bool:
+        return self.w3.parity.personal.unlockAccount(account, password, duration)
 
-    def lock_account(self, address):
-        return self.w3.parity.personal.lockAccount(address)
+    def lock_account(self, account):
+        return self.w3.parity.personal.lockAccount(account)
 
 
-class GanacheClient(Web3Client):
+class GanacheClient(EthereumClient):
 
     is_local = True
 
@@ -386,7 +392,7 @@ class GanacheClient(Web3Client):
         return True
 
 
-class InfuraClient(Web3Client):
+class InfuraClient(EthereumClient):
 
     is_local = False
 
@@ -397,29 +403,29 @@ class InfuraClient(Web3Client):
         return True
 
 
-class EthereumTesterClient(Web3Client):
+class EthereumTesterClient(EthereumClient):
 
     is_local = True
 
-    def unlock_account(self, address, password, duration: int = None) -> bool:
+    def unlock_account(self, account, password, duration: int = None) -> bool:
         """Returns True if the testing backend keyring has control of the given address."""
-        address = to_canonical_address(address)
+        account = to_canonical_address(account)
         keystore = self.w3.provider.ethereum_tester.backend._key_lookup
-        if address in keystore:
+        if account in keystore:
             return True
         else:
-            return self.w3.provider.ethereum_tester.unlock_account(account=address,
+            return self.w3.provider.ethereum_tester.unlock_account(account=account,
                                                                    password=password,
                                                                    unlock_seconds=duration)
 
-    def lock_account(self, address) -> bool:
+    def lock_account(self, account) -> bool:
         """Returns True if the testing backend keyring has control of the given address."""
-        address = to_canonical_address(address)
+        account = to_canonical_address(account)
         keystore = self.w3.provider.ethereum_tester.backend._key_lookup
-        if address in keystore:
+        if account in keystore:
             return True
         else:
-            return self.w3.provider.ethereum_tester.lock_account(account=address)
+            return self.w3.provider.ethereum_tester.lock_account(account=account)
 
     def sync(self, *args, **kwargs):
         return True
@@ -429,23 +435,26 @@ class EthereumTesterClient(Web3Client):
                                                                         password=password)
         return insecure_account
 
-    def sign_transaction(self, transaction: dict) -> bytes:
-        # Get signing key of test account
-        address = to_canonical_address(transaction['from'])
-        signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[address]._raw_key
+    def __get_signing_key(self, account: bytes):
+        """Get signing key of test account"""
+        account = to_canonical_address(account)
+        try:
+            signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[account]._raw_key
+        except KeyError:
+            raise self.UnknownAccount(account)
+        return signing_key
 
+    def sign_transaction(self, transaction_dict: dict) -> bytes:
         # Sign using a local private key
-        signed_transaction = self.w3.eth.account.sign_transaction(transaction, private_key=signing_key)
+        address = to_canonical_address(transaction_dict['from'])
+        signing_key = self.__get_signing_key(account=address)
+        signed_transaction = self.w3.eth.account.sign_transaction(transaction_dict, private_key=signing_key)
         rlp_transaction = signed_transaction.rawTransaction
-
         return rlp_transaction
 
     def sign_message(self, account: str, message: bytes) -> str:
-        # Get signing key of test account
-        address = to_canonical_address(account)
-        signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[address]._raw_key
-
-        # Sign, EIP-191 (Geth) Style
+        """Sign, EIP-191 (Geth) Style"""
+        signing_key = self.__get_signing_key(account=account)
         signable_message = encode_defunct(primitive=message)
         signature_and_stuff = Account.sign_message(signable_message=signable_message, private_key=signing_key)
         return signature_and_stuff['signature']

@@ -30,6 +30,7 @@ def validate_checksum_address(func: Callable) -> Callable:
     """
 
     parameter_name_suffix = '_address'
+    aliases = ('account', 'address')
     log = Logger('EIP-55-validator')
 
     @functools.wraps(func)
@@ -38,7 +39,9 @@ def validate_checksum_address(func: Callable) -> Callable:
         # Check for the presence of checksum addresses in this call
         params = inspect.getcallargs(func, *args, **kwargs)
         addresses_as_parameters = (parameter_name for parameter_name in params
-                                   if parameter_name.endswith(parameter_name_suffix))
+                                   if parameter_name.endswith(parameter_name_suffix)
+                                   or parameter_name in aliases)
+
         for parameter_name in addresses_as_parameters:
             checksum_address = params[parameter_name]
 

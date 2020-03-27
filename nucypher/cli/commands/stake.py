@@ -49,12 +49,13 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_registry_filepath,
     option_staking_address,
-)
+    option_signer_uri)
 from nucypher.cli.painting import paint_receipt_summary
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE,
-    WEI)
+    WEI
+)
 from nucypher.config.characters import StakeHolderConfiguration
 
 option_value = click.option('--value', help="Token value of stake", type=click.INT)
@@ -74,8 +75,9 @@ class StakeHolderConfigOptions:
 
     __option_name__ = 'config_options'
 
-    def __init__(self, provider_uri, poa, light, registry_filepath, network):
+    def __init__(self, provider_uri, poa, light, registry_filepath, network, signer_uri):
         self.provider_uri = provider_uri
+        self.signer_uri = signer_uri
         self.poa = poa
         self.light = light
         self.registry_filepath = registry_filepath
@@ -87,6 +89,7 @@ class StakeHolderConfigOptions:
                 emitter=emitter,
                 filepath=config_file,
                 provider_uri=self.provider_uri,
+                signer_uri=self.signer_uri,
                 poa=self.poa,
                 light=self.light,
                 sync=False,
@@ -114,6 +117,7 @@ class StakeHolderConfigOptions:
         return StakeHolderConfiguration.generate(
             config_root=config_root,
             provider_uri=self.provider_uri,
+            signer_uri=self.signer_uri,
             poa=self.poa,
             light=self.light,
             sync=False,
@@ -123,6 +127,7 @@ class StakeHolderConfigOptions:
 
     def get_updates(self) -> dict:
         payload = dict(provider_uri=self.provider_uri,
+                       signer_uri=self.signer_uri,
                        poa=self.poa,
                        light=self.light,
                        registry_filepath=self.registry_filepath,
@@ -138,8 +143,9 @@ group_config_options = group_options(
     poa=option_poa,
     light=option_light,
     registry_filepath=option_registry_filepath,
-    network=option_network
-    )
+    network=option_network,
+    signer_uri=option_signer_uri
+)
 
 
 class StakerOptions:
@@ -150,7 +156,7 @@ class StakerOptions:
         self.config_options = config_options
         self.staking_address = staking_address
 
-    def create_character(self, emitter, config_file, individual_allocation=None, initial_address=None):
+    def create_character(self, emitter, config_file, initial_address=None, *args, **kwargs):
         stakeholder_config = self.config_options.create_config(emitter, config_file)
 
         if initial_address is None:
@@ -158,7 +164,8 @@ class StakerOptions:
 
         return stakeholder_config.produce(
             initial_address=initial_address,
-            individual_allocation=individual_allocation)
+            *args, **kwargs
+        )
 
     def get_blockchain(self):
         return BlockchainInterfaceFactory.get_interface(provider_uri=self.config_options.provider_uri)  # Eager connection
@@ -168,7 +175,7 @@ group_staker_options = group_options(
     StakerOptions,
     config_options=group_config_options,
     staking_address=option_staking_address,
-    )
+)
 
 
 class TransactingStakerOptions:
@@ -219,7 +226,8 @@ class TransactingStakerOptions:
             emitter,
             config_file,
             individual_allocation=individual_allocation,
-            initial_address=initial_address)
+            initial_address=initial_address,
+        )
 
     def get_blockchain(self):
         return self.staker_options.get_blockchain()
@@ -237,7 +245,7 @@ group_transacting_staker_options = group_options(
     hw_wallet=option_hw_wallet,
     beneficiary_address=click.option('--beneficiary-address', help="Address of a pre-allocation beneficiary", type=EIP55_CHECKSUM_ADDRESS),
     allocation_filepath=click.option('--allocation-filepath', help="Path to individual allocation file", type=EXISTING_READABLE_FILE),
-    )
+)
 
 
 @click.group()

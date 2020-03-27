@@ -27,6 +27,7 @@ from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 
 from nucypher.blockchain.eth.actors import StakeHolder
+from nucypher.blockchain.eth.signers import Signer
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import CharacterConfiguration
@@ -252,12 +253,15 @@ class StakeHolderConfiguration(CharacterConfiguration):
 
     def static_payload(self) -> dict:
         """Values to read/write from stakeholder JSON configuration files"""
+        if not self.signer_uri:
+            self.signer_uri = self.provider_uri
         payload = dict(provider_uri=self.provider_uri,
                        poa=self.poa,
                        light=self.is_light,
                        domains=list(self.domains),
                        # TODO: Move empty collection casting to base
-                       checksum_addresses=self.checksum_addresses or list())
+                       checksum_addresses=self.checksum_addresses or list(),
+                       signer_uri=self.signer_uri)
 
         if self.registry_filepath:
             payload.update(dict(registry_filepath=self.registry_filepath))
@@ -265,7 +269,7 @@ class StakeHolderConfiguration(CharacterConfiguration):
 
     @property
     def dynamic_payload(self) -> dict:
-        payload = dict(registry=self.registry)
+        payload = dict(registry=self.registry, signer=Signer.from_signer_uri(self.signer_uri))
         return payload
 
     def __setup_node_storage(self, node_storage=None) -> None:
