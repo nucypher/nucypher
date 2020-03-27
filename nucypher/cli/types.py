@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from decimal import Decimal, DecimalException
 from ipaddress import ip_address
 
 import click
@@ -46,6 +47,42 @@ class IPv4Address(click.ParamType):
             self.fail("Invalid IP Address")
         else:
             return value
+
+
+class DecimalType(click.ParamType):
+    name = 'decimal'
+
+    def convert(self, value, param, ctx):
+        try:
+            return Decimal(value)
+        except DecimalException:
+            self.fail(f"'{value}' is an invalid decimal number")
+
+
+class DecimalRange(DecimalType):
+    name = 'decimal_range'
+
+    def __init__(self, min=None, max=None, clamp=False):
+        self.min = min
+        self.max = max
+        self.clamp = clamp
+
+    def convert(self, value, param, ctx):
+        rv = DecimalType.convert(self, value, param, ctx)
+        if self.clamp:
+            if self.min is not None and rv < self.min:
+                return self.min
+            if self.max is not None and rv > self.max:
+                return self.max
+        if self.min is not None and rv < self.min or \
+           self.max is not None and rv > self.max:
+            if self.min is None:
+                self.fail(f'{rv} is bigger than the maximum valid value {self.max}')
+            elif self.max is None:
+                self.fail(f'{rv} is smaller than the minimum valid value {self.min}')
+            else:
+                self.fail(f'{rv} is not in the valid range of {self.min} to {self.max}')
+        return rv
 
 
 # NuCypher
