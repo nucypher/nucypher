@@ -184,8 +184,11 @@ def test_withdraw_eth(testerchain, preallocation_escrow):
         {'from': testerchain.client.coinbase, 'to': preallocation_escrow.address, 'value': value})
     testerchain.wait_for_receipt(tx)
 
-    tx = preallocation_escrow.functions.withdrawETH().transact({'from': owner})
+    balance = testerchain.client.get_balance(owner)
+    tx = preallocation_escrow.functions.withdrawETH().transact({'from': owner, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
+    assert testerchain.client.get_balance(preallocation_escrow.address) == 0
+    assert testerchain.client.get_balance(owner) == balance + value
 
     events = log.get_all_entries()
     assert len(events) == 1

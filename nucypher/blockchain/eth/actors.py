@@ -1127,7 +1127,7 @@ class Staker(NucypherTokenActor):
         """Collect rewarded ETH."""
         if self.is_contract:
             if collector_address and collector_address != self.beneficiary_address:
-                raise ValueError("Allowed to withdraw policy reward only to the beneficiary address")
+                raise ValueError("Policy rewards must be withdrawn to the beneficiary address")
             self.preallocation_escrow_agent.collect_policy_reward()  # TODO save receipt
             receipt = self.preallocation_escrow_agent.withdraw_eth()
         else:
