@@ -738,7 +738,9 @@ class Trustee(MultiSigActor):
         return receipt
 
     def create_transaction_proposal(self, transaction):
-        proposal = Proposal.from_transaction(transaction, multisig_agent=self.multisig_agent)
+        proposal = Proposal.from_transaction(transaction,
+                                             multisig_agent=self.multisig_agent,
+                                             trustee_address=self.checksum_address)
         return proposal
 
 

@@ -36,8 +36,8 @@ class Proposal:
         self.digest = digest
 
     @classmethod
-    def from_transaction(cls, transaction, multisig_agent):
-        proposal_elements = dict(trustee_address=transaction['from'],
+    def from_transaction(cls, transaction, multisig_agent, trustee_address: str):
+        proposal_elements = dict(trustee_address=trustee_address,
                                  target_address=transaction['to'],
                                  value=transaction['value'],
                                  data=Web3.toBytes(hexstr=transaction['data']),
