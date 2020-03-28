@@ -197,6 +197,7 @@ class ContractAdministrator(NucypherTokenActor):
                  client_password: str = None,
                  signer: Signer = None,
                  staking_escrow_test_mode: bool = False,
+                 is_transacting: bool = True,  # FIXME: Workaround to be able to build MultiSig TXs
                  economics: BaseEconomics = None):
         """
         Note: super() is not called here to avoid setting the token agent.  TODO: call super but use "bare mode" without token agent.  #1510
@@ -213,12 +214,16 @@ class ContractAdministrator(NucypherTokenActor):
         self.deployers = {d.contract_name: d for d in self.all_deployer_classes}
 
         # Powers
-        self.deployer_power = TransactingPower(signer=signer,
-                                               password=client_password,
-                                               account=deployer_address,
-                                               cache=True)
-        self.transacting_power = self.deployer_power
-        self.transacting_power.activate()
+        if is_transacting:
+            self.deployer_power = TransactingPower(signer=signer,
+                                                   password=client_password,
+                                                   account=deployer_address,
+                                                   cache=True)
+            self.transacting_power = self.deployer_power
+            self.transacting_power.activate()
+        else:
+            self.deployer_power = None
+            self.transacting_power = None
 
         self.sidekick_power = None
         self.sidekick_address = None

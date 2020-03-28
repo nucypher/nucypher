@@ -26,7 +26,7 @@ from constant_sorrow.constants import (
 )
 
 from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency, MultiSigAgent
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -139,7 +139,7 @@ class ActorOptions:
         self.se_test_mode = se_test_mode
         self.ignore_solidity_check = ignore_solidity_check
 
-    def create_actor(self, emitter):
+    def create_actor(self, emitter, is_multisig: bool = False):
 
         _ensure_config_root(self.config_root)
         deployer_interface = _initialize_blockchain(poa=self.poa,
@@ -163,28 +163,35 @@ class ActorOptions:
         # Make Authenticated Deployment Actor
         #
         # Verify Address & collect password
-        deployer_address = self.deployer_address
-        if not deployer_address:
-            prompt = "Select deployer account"
-            deployer_address = select_client_account(emitter=emitter,
-                                                     prompt=prompt,
-                                                     provider_uri=self.provider_uri,
-                                                     show_balances=False)
-
-        if not self.force:
-            click.confirm("Selected {} - Continue?".format(deployer_address), abort=True)
-
         password = None
-        if not self.hw_wallet and not deployer_interface.client.is_local:
-            password = get_client_password(checksum_address=deployer_address)
+        if is_multisig:
+            multisig_agent = ContractAgency.get_agent(MultiSigAgent, registry=local_registry)
+            deployer_address = multisig_agent.contract.address
+            is_transacting = False
+        else:
+            is_transacting = True
+            deployer_address = self.deployer_address
+            if not deployer_address:
+                prompt = "Select deployer account"
+                deployer_address = select_client_account(emitter=emitter,
+                                                         prompt=prompt,
+                                                         provider_uri=self.provider_uri,
+                                                         show_balances=False)
+
+            if not self.force:
+                click.confirm("Selected {} - Continue?".format(deployer_address), abort=True)
+
+            if not self.hw_wallet and not deployer_interface.client.is_local:
+                password = get_client_password(checksum_address=deployer_address)
         # Produce Actor
         ADMINISTRATOR = ContractAdministrator(registry=local_registry,
                                               client_password=password,
                                               deployer_address=deployer_address,
+                                              is_transacting=is_transacting,
                                               staking_escrow_test_mode=self.se_test_mode)
         # Verify ETH Balance
         emitter.echo(f"\n\nDeployer ETH balance: {ADMINISTRATOR.eth_balance}")
-        if ADMINISTRATOR.eth_balance == 0:
+        if is_transacting and ADMINISTRATOR.eth_balance == 0:
             emitter.echo("Deployer address has no ETH.", color='red', bold=True)
             raise click.Abort()
         return ADMINISTRATOR, deployer_address, deployer_interface, local_registry
@@ -299,7 +306,8 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
     """
     # Init
     emitter = general_config.emitter
-    ADMINISTRATOR, _, _, registry = actor_options.create_actor(emitter)
+
+    ADMINISTRATOR, _, _, registry = actor_options.create_actor(emitter, is_multisig=bool(multisig))  # FIXME: Workaround for building MultiSig TXs
 
     contract_name = actor_options.contract_name
     if not contract_name:
@@ -315,13 +323,20 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
                                                    target_address=target_address,
                                                    just_build_transaction=True)
 
-        trustee = Trustee(registry=registry, checksum_address=ADMINISTRATOR.deployer_address)
+        trustee_address = select_client_account(emitter=emitter,
+                                                prompt="Select trustee address",
+                                                provider_uri=actor_options.provider_uri,
+                                                show_balances=False)
+
+        if not actor_options.force:
+            click.confirm(f"Selected {trustee_address} - Continue?", abort=True)
+
+        trustee = Trustee(registry=registry, checksum_address=trustee_address)
         transaction_proposal = trustee.create_transaction_proposal(transaction)
 
         emitter.message(f"Transaction to retarget {contract_name} proxy to {target_address} was built:", color='green')
         paint_multisig_proposed_transaction(emitter, transaction_proposal)  # TODO: Show decoded function too
 
-        # TODO: Move this logic to a better place
         filepath = f'proposal-{trustee.multisig_agent.contract_address[:8]}-TX-{transaction_proposal.nonce}.json'
         transaction_proposal.write(filepath=filepath)
         emitter.echo(f"Saved proposal to {filepath}", color='blue', bold=True)
