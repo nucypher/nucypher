@@ -67,9 +67,12 @@ class WorkLockOptions:
         self.bidder_address = bidder_address
         self.signer_uri = signer_uri
 
-    def __create_bidder(self, registry, signer: Optional[Signer] = None, transacting: bool = True, hw_wallet: bool = False):
+    def __create_bidder(self,
+                        registry, signer: Optional[Signer] = None,
+                        transacting: bool = True,
+                        hw_wallet: bool = False):
         client_password = None
-        if (signer and signer.is_device(self.bidder_address)) or hw_wallet:
+        if transacting and not signer and not hw_wallet:
             client_password = get_client_password(checksum_address=self.bidder_address)
         bidder = Bidder(checksum_address=self.bidder_address,
                         registry=registry,
