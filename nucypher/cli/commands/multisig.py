@@ -24,7 +24,7 @@ import click
 from nucypher.blockchain.eth.actors import Trustee, Executive
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency, MultiSigAgent
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.multisig import Proposal
+from nucypher.blockchain.eth.multisig import Proposal, Authorization
 from nucypher.blockchain.eth.registry import LocalContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.cli.actions import (
@@ -163,11 +163,27 @@ class MultiSigOptions:
                               client_password=client_password)
         return executive
 
-    def create_executive(self, registry) -> Executive:
+    def create_executive(self, registry) -> Executive:  # TODO: Reconsider this method: Executives don't transact, just sign.
         return self.__create_executive(registry, transacting=True)
 
     def create_transactingless_executive(self, registry) -> Executive:
         return self.__create_executive(registry, transacting=False)
+
+    def __create_trustee(self, registry, transacting: bool = False) -> Trustee:
+        client_password = None
+        if transacting and not self.hw_wallet:
+            client_password = get_client_password(checksum_address=self.checksum_address)
+        trustee = Trustee(checksum_address=self.checksum_address,
+                          registry=registry,
+                          #signer=ClefSigner(self.signer_uri),
+                          client_password=client_password)
+        return trustee
+
+    def create_trustee(self, registry) -> Executive:
+        return self.__create_trustee(registry, transacting=True)
+
+    # def create_transactingless_trustee(self, registry) -> Executive:
+    #     return self.__create_executive(registry, transacting=False)
 
 
 group_multisig_options = group_options(
@@ -244,11 +260,60 @@ def sign(general_config, blockchain_options, multisig_options, proposal):
 
     click.confirm("Proceed with signing?", abort=True)
 
-    executive = multisig_options.create_transactingless_executive(registry)  # FIXME
+    executive = multisig_options.create_transactingless_executive(registry)  # FIXME: Since we use a signer, don't ask for PW
     authorization = executive.authorize_proposal(proposal)
-    emitter.echo(f"Signature received from {authorization.recover_executive_address(proposal)}")
-    emitter.echo(f"{authorization.serialize().hex()}")
+    emitter.echo(f"\nSignature received from {authorization.recover_executive_address(proposal)}:\n")
+    emitter.echo(f"{authorization.serialize().hex()}\n", bold=True, color='green')
 
 
+@multisig.command()
+@group_general_config
+@group_blockchain_options
+@group_multisig_options
+@click.option('--proposal', help="Filepath to a JSON file containing a multisig transaction data",
+              type=EXISTING_READABLE_FILE)
+def execute(general_config, blockchain_options, multisig_options, proposal):
+    """
+    Collect authorizations from executives and execute transaction through MultiSig contract
+    """
+    # Init
+    emitter = general_config.emitter
+    #_ensure_config_root(actor_options.config_root)
+    blockchain = blockchain_options.connect_blockchain(emitter, general_config.debug)
+    registry = blockchain_options.get_registry()
 
+    if not proposal:
+        raise click.MissingParameter("nucypher multisig execute requires the use of --proposal")
+
+    proposal = Proposal.from_file(proposal)
+
+    if not multisig_options.checksum_address:
+        multisig_options.checksum_address = select_client_account(emitter=emitter,
+                                                                  provider_uri=blockchain_options.provider_uri,
+                                                                  poa=blockchain_options.poa,
+                                                                  network=blockchain_options.network,
+                                                                  registry=registry,
+                                                                  show_balances=True)
+
+    name, version, address, abi = registry.search(contract_address=proposal.target_address)
+    # TODO: This assumes that we're always signing proxy retargetting. For the moment is true.
+    proxy_contract = blockchain.client.w3.eth.contract(abi=abi,
+                                                       address=address,
+                                                       version=version,
+                                                       ContractFactoryClass=blockchain._contract_factory)
+    paint_multisig_proposed_transaction(emitter, proposal, proxy_contract)
+
+    trustee = multisig_options.create_trustee(registry)
+    threshold = trustee.multisig_agent.threshold
+
+    while len(trustee.authorizations) < threshold:
+        auth_hex = click.prompt("Signature", type=click.STRING)
+        authorization = Authorization.from_hex(auth_hex)
+        executive_address = trustee.add_authorization(authorization, proposal)
+        emitter.echo(f"Added authorization from executive {executive_address}", color='green')
+
+    click.confirm("\nCollected enough authorizations. Proceed with execution?", abort=True)
+
+    receipt = trustee.execute(proposal)
+    paint_receipt_summary(emitter, receipt)
 
