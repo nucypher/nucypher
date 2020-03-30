@@ -46,7 +46,7 @@ from nucypher.cli.painting import (
     paint_bidder_status,
     paint_worklock_claim
 )
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, DecimalRange
 
 option_bidder_address = click.option('--bidder-address',
                                      help="Bidder's checksum address.",
@@ -67,9 +67,13 @@ class WorkLockOptions:
         self.bidder_address = bidder_address
         self.signer_uri = signer_uri
 
-    def __create_bidder(self, registry, signer: Optional[Signer] = None, transacting: bool = True, hw_wallet: bool = False):
+    def __create_bidder(self,
+                        registry,
+                        signer: Optional[Signer] = None,
+                        transacting: bool = True,
+                        hw_wallet: bool = False):
         client_password = None
-        if (signer and signer.is_device(self.bidder_address)) or hw_wallet:
+        if transacting and not signer and not hw_wallet:
             client_password = get_client_password(checksum_address=self.bidder_address)
         bidder = Bidder(checksum_address=self.bidder_address,
                         registry=registry,
@@ -123,7 +127,7 @@ def status(general_config, registry_options, worklock_options):
 @group_worklock_options
 @option_force
 @option_hw_wallet
-@click.option('--value', help="ETH value of bid", type=click.FloatRange(min=0))
+@click.option('--value', help="ETH value of bid", type=DecimalRange(min=0))
 def bid(general_config, worklock_options, registry_options, force, hw_wallet, value):
     """Place a bid, or increase an existing bid"""
     emitter = _setup_emitter(general_config)
@@ -157,7 +161,7 @@ def bid(general_config, worklock_options, registry_options, force, hw_wallet, va
             emitter.message(f"You have an existing bid of {Web3.fromWei(existing_bid_amount, 'ether')} ETH")
             minimum_bid_in_eth = Web3.fromWei(1, 'ether')
             prompt = f"Enter the amount in ETH that you want to increase your bid"
-        value = click.prompt(prompt, type=click.FloatRange(min=minimum_bid_in_eth))
+        value = click.prompt(prompt, type=DecimalRange(min=minimum_bid_in_eth))
 
     value = int(Web3.toWei(Decimal(value), 'ether'))
 
