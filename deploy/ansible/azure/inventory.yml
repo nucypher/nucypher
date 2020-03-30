@@ -1,0 +1,12 @@
+all:
+ vars:
+      cloudregion: "westcentralus"
+      resgroup: "ncrg"
+      vnet: "ncvnet"
+      subnet: "ncsnet"
+      osshpkey: "<open-ssh-public-key>"
+      user: "azureuser"
+      vmlist:
+        - { name: "ncstaker", nic: "stakernic", ip: "stakerip", nsg: "stakernsg", size: "Standard_B1s" }
+        - { name: "ncworker1", nic: "ncworker1nic", ip: "ncworker1ip", nsg: "ncworker1nsg", size: "Standard_B1s" }
+        - { name: "ncworker2", nic: "ncworker2nic", ip: "ncworker2ip", nsg: "ncworker2nsg", size: "Standard_B1s" }
