@@ -34,7 +34,7 @@ contract PolicyManagerV2Mock is PolicyManager {
 
     function verifyState(address _testTarget) public override {
         super.verifyState(_testTarget);
-        require(delegateGet(_testTarget, "valueToCheck()") == valueToCheck);
+        require(delegateGet(_testTarget, this.valueToCheck.selector) == valueToCheck);
     }
 }
 

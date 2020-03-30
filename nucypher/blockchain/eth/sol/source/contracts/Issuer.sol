@@ -192,15 +192,15 @@ abstract contract Issuer is Upgradeable {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-        require(address(uint160(delegateGet(_testTarget, "token()"))) == address(token));
-        require(delegateGet(_testTarget, "miningCoefficient()") == miningCoefficient);
-        require(delegateGet(_testTarget, "lockedPeriodsCoefficient()") == lockedPeriodsCoefficient);
-        require(uint32(delegateGet(_testTarget, "secondsPerPeriod()")) == secondsPerPeriod);
-        require(uint16(delegateGet(_testTarget, "rewardedPeriods()")) == rewardedPeriods);
-        require(uint16(delegateGet(_testTarget, "currentMintingPeriod()")) == currentMintingPeriod);
-        require(delegateGet(_testTarget, "currentSupply1()") == currentSupply1);
-        require(delegateGet(_testTarget, "currentSupply2()") == currentSupply2);
-        require(delegateGet(_testTarget, "totalSupply()") == totalSupply);
+        require(address(uint160(delegateGet(_testTarget, this.token.selector))) == address(token));
+        require(delegateGet(_testTarget, this.miningCoefficient.selector) == miningCoefficient);
+        require(delegateGet(_testTarget, this.lockedPeriodsCoefficient.selector) == lockedPeriodsCoefficient);
+        require(uint32(delegateGet(_testTarget, this.secondsPerPeriod.selector)) == secondsPerPeriod);
+        require(uint16(delegateGet(_testTarget, this.rewardedPeriods.selector)) == rewardedPeriods);
+        require(uint16(delegateGet(_testTarget, this.currentMintingPeriod.selector)) == currentMintingPeriod);
+        require(delegateGet(_testTarget, this.currentSupply1.selector) == currentSupply1);
+        require(delegateGet(_testTarget, this.currentSupply2.selector) == currentSupply2);
+        require(delegateGet(_testTarget, this.totalSupply.selector) == totalSupply);
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`

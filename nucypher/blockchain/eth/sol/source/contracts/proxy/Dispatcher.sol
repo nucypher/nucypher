@@ -90,7 +90,7 @@ contract Dispatcher is Upgradeable {
     * @dev Call verifyState method for Upgradeable contract
     */
     function verifyUpgradeableState(address _from, address _to) private {
-        (bool callSuccess,) = _from.delegatecall(abi.encodeWithSignature("verifyState(address)", _to));
+        (bool callSuccess,) = _from.delegatecall(abi.encodeWithSelector(this.verifyState.selector, _to));
         require(callSuccess);
     }
 
@@ -98,17 +98,17 @@ contract Dispatcher is Upgradeable {
     * @dev Call finishUpgrade method from the Upgradeable contract
     */
     function finishUpgrade() private {
-        (bool callSuccess,) = target.delegatecall(abi.encodeWithSignature("finishUpgrade(address)", target));
+        (bool callSuccess,) = target.delegatecall(abi.encodeWithSelector(this.finishUpgrade.selector, target));
         require(callSuccess);
     }
 
     function verifyState(address _testTarget) public override onlyWhileUpgrading {
         //checks equivalence accessing state through new contract and current storage
-        require(address(uint160(delegateGet(_testTarget, "owner()"))) == owner());
-        require(address(uint160(delegateGet(_testTarget, "target()"))) == target);
-        require(address(uint160(delegateGet(_testTarget, "previousTarget()"))) == previousTarget);
-        require(bytes32(delegateGet(_testTarget, "secretHash()")) == secretHash);
-        require(uint8(delegateGet(_testTarget, "isUpgrade()")) == isUpgrade);
+        require(address(uint160(delegateGet(_testTarget, this.owner.selector))) == owner());
+        require(address(uint160(delegateGet(_testTarget, this.target.selector))) == target);
+        require(address(uint160(delegateGet(_testTarget, this.previousTarget.selector))) == previousTarget);
+        require(bytes32(delegateGet(_testTarget, this.secretHash.selector)) == secretHash);
+        require(uint8(delegateGet(_testTarget, this.isUpgrade.selector)) == isUpgrade);
     }
 
     /**

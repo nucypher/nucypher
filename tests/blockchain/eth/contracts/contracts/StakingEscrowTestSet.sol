@@ -86,7 +86,7 @@ contract StakingEscrowV2Mock is StakingEscrow {
 
     function verifyState(address _testTarget) public override {
         super.verifyState(_testTarget);
-        require(delegateGet(_testTarget, "valueToCheck()") == valueToCheck);
+        require(delegateGet(_testTarget, this.valueToCheck.selector) == valueToCheck);
     }
 
     function finishUpgrade(address _target) public override onlyWhileUpgrading {

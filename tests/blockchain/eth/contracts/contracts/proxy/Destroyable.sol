@@ -22,8 +22,8 @@ contract Destroyable is Upgradeable {
 
     function verifyState(address _testTarget) public override {
         super.verifyState(_testTarget);
-        require(delegateGet(_testTarget, "constructorValue()") == constructorValue);
-        require(delegateGet(_testTarget, "functionValue()") == functionValue);
+        require(delegateGet(_testTarget, this.constructorValue.selector) == constructorValue);
+        require(delegateGet(_testTarget, this.functionValue.selector) == functionValue);
     }
 
     function finishUpgrade(address _target) public override {

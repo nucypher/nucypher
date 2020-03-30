@@ -98,6 +98,6 @@ contract AdjudicatorV2Mock is Adjudicator {
 
     function verifyState(address _testTarget) override public {
         super.verifyState(_testTarget);
-        require(uint256(delegateGet(_testTarget, "valueToCheck()")) == valueToCheck);
+        require(uint256(delegateGet(_testTarget, this.valueToCheck.selector)) == valueToCheck);
     }
 }

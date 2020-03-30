@@ -20,6 +20,6 @@ contract ContractV3 is ContractV2 {
 
     function verifyState(address _testTarget) public override {
         super.verifyState(_testTarget);
-        require(delegateGet(_testTarget, "anotherStorageValue()") == anotherStorageValue);
+        require(delegateGet(_testTarget, this.anotherStorageValue.selector) == anotherStorageValue);
     }
 }

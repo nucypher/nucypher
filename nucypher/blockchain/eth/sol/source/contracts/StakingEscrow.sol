@@ -1317,7 +1317,7 @@ contract StakingEscrow is Issuer {
     function delegateGetStakerInfo(address _target, bytes32 _staker)
         internal returns (StakerInfo memory result)
     {
-        bytes32 memoryAddress = delegateGetData(_target, "stakerInfo(address)", 1, _staker, 0);
+        bytes32 memoryAddress = delegateGetData(_target, this.stakerInfo.selector, 1, _staker, 0);
         assembly {
             result := memoryAddress
         }
@@ -1330,7 +1330,7 @@ contract StakingEscrow is Issuer {
         internal returns (SubStakeInfo memory result)
     {
         bytes32 memoryAddress = delegateGetData(
-            _target, "getSubStakeInfo(address,uint256)", 2, _staker, bytes32(_index));
+            _target, this.getSubStakeInfo.selector, 2, _staker, bytes32(_index));
         assembly {
             result := memoryAddress
         }
@@ -1343,7 +1343,7 @@ contract StakingEscrow is Issuer {
         internal returns (Downtime memory result)
     {
         bytes32 memoryAddress = delegateGetData(
-            _target, "getPastDowntime(address,uint256)", 2, _staker, bytes32(_index));
+            _target, this.getPastDowntime.selector, 2, _staker, bytes32(_index));
         assembly {
             result := memoryAddress
         }
@@ -1352,24 +1352,24 @@ contract StakingEscrow is Issuer {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-        require((delegateGet(_testTarget, "isTestContract()") == 0) == !isTestContract);
-        require(uint16(delegateGet(_testTarget, "minWorkerPeriods()")) == minWorkerPeriods);
-        require(delegateGet(_testTarget, "minAllowableLockedTokens()") == minAllowableLockedTokens);
-        require(delegateGet(_testTarget, "maxAllowableLockedTokens()") == maxAllowableLockedTokens);
-        require(address(delegateGet(_testTarget, "policyManager()")) == address(policyManager));
-        require(address(delegateGet(_testTarget, "adjudicator()")) == address(adjudicator));
-        require(address(delegateGet(_testTarget, "workLock()")) == address(workLock));
-        require(delegateGet(_testTarget, "lockedPerPeriod(uint16)",
+        require((delegateGet(_testTarget, this.isTestContract.selector) == 0) == !isTestContract);
+        require(uint16(delegateGet(_testTarget, this.minWorkerPeriods.selector)) == minWorkerPeriods);
+        require(delegateGet(_testTarget, this.minAllowableLockedTokens.selector) == minAllowableLockedTokens);
+        require(delegateGet(_testTarget, this.maxAllowableLockedTokens.selector) == maxAllowableLockedTokens);
+        require(address(delegateGet(_testTarget, this.policyManager.selector)) == address(policyManager));
+        require(address(delegateGet(_testTarget, this.adjudicator.selector)) == address(adjudicator));
+        require(address(delegateGet(_testTarget, this.workLock.selector)) == address(workLock));
+        require(delegateGet(_testTarget, this.lockedPerPeriod.selector,
             bytes32(bytes2(RESERVED_PERIOD))) == lockedPerPeriod[RESERVED_PERIOD]);
-        require(address(delegateGet(_testTarget, "workerToStaker(address)", bytes32(0))) ==
+        require(address(delegateGet(_testTarget, this.workerToStaker.selector, bytes32(0))) ==
             workerToStaker[address(0)]);
 
-        require(delegateGet(_testTarget, "getStakersLength()") == stakers.length);
+        require(delegateGet(_testTarget, this.getStakersLength.selector) == stakers.length);
         if (stakers.length == 0) {
             return;
         }
         address stakerAddress = stakers[0];
-        require(address(uint160(delegateGet(_testTarget, "stakers(uint256)", 0))) == stakerAddress);
+        require(address(uint160(delegateGet(_testTarget, this.stakers.selector, 0))) == stakerAddress);
         StakerInfo storage info = stakerInfo[stakerAddress];
         bytes32 staker = bytes32(uint256(stakerAddress));
         StakerInfo memory infoToCheck = delegateGetStakerInfo(_testTarget, staker);
@@ -1385,7 +1385,7 @@ contract StakingEscrow is Issuer {
             infoToCheck.workerStartPeriod == info.workerStartPeriod &&
             infoToCheck.windDown == info.windDown);
 
-        require(delegateGet(_testTarget, "getPastDowntimeLength(address)", staker) ==
+        require(delegateGet(_testTarget, this.getPastDowntimeLength.selector, staker) ==
             info.pastDowntime.length);
         for (uint256 i = 0; i < info.pastDowntime.length && i < MAX_CHECKED_VALUES; i++) {
             Downtime storage downtime = info.pastDowntime[i];
@@ -1394,7 +1394,7 @@ contract StakingEscrow is Issuer {
                 downtimeToCheck.endPeriod == downtime.endPeriod);
         }
 
-        require(delegateGet(_testTarget, "getSubStakesLength(address)", staker) == info.subStakes.length);
+        require(delegateGet(_testTarget, this.getSubStakesLength.selector, staker) == info.subStakes.length);
         for (uint256 i = 0; i < info.subStakes.length && i < MAX_CHECKED_VALUES; i++) {
             SubStakeInfo storage subStakeInfo = info.subStakes[i];
             SubStakeInfo memory subStakeInfoToCheck = delegateGetSubStakeInfo(_testTarget, staker, i);
@@ -1405,7 +1405,7 @@ contract StakingEscrow is Issuer {
         }
 
         if (info.worker != address(0)) {
-            require(address(delegateGet(_testTarget, "workerToStaker(address)", bytes32(uint256(info.worker)))) ==
+            require(address(delegateGet(_testTarget, this.workerToStaker.selector, bytes32(uint256(info.worker)))) ==
                 workerToStaker[info.worker]);
         }
     }
