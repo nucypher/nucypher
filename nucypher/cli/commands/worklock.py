@@ -68,7 +68,8 @@ class WorkLockOptions:
         self.signer_uri = signer_uri
 
     def __create_bidder(self,
-                        registry, signer: Optional[Signer] = None,
+                        registry,
+                        signer: Optional[Signer] = None,
                         transacting: bool = True,
                         hw_wallet: bool = False):
         client_password = None
