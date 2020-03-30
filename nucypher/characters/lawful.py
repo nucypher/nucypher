@@ -950,12 +950,26 @@ class Ursula(Teacher, Character, Worker):
             domains = {CharacterConfiguration.DEFAULT_DOMAIN}
 
         if is_me:
-
             # If we're federated only, we assume that all other nodes in our domain are as well.
             self.set_federated_mode(federated_only)
 
+        Character.__init__(self,
+                           is_me=is_me,
+                           checksum_address=checksum_address,
+                           start_learning_now=False,  # Handled later in this function to avoid race condition
+                           federated_only=self._federated_only_instances,  # TODO: 'Ursula' object has no attribute '_federated_only_instances' if an is_me Ursula is not inited prior to this moment  NRN
+                           crypto_power=crypto_power,
+                           abort_on_learning_error=abort_on_learning_error,
+                           known_nodes=known_nodes,
+                           domains=domains,
+                           known_node_class=Ursula,
+                           **character_kwargs)
+
+        if is_me:
+
             # Learner
             self._start_learning_now = start_learning_now
+            self.known_nodes.record_fleet_state(additional_nodes_to_track=[self])  # Initial Impression
 
             # In-Memory TreasureMap tracking
             self._stored_treasure_maps = dict()
@@ -972,23 +986,11 @@ class Ursula(Teacher, Character, Worker):
             # Prometheus / Metrics
             self._metrics_port = metrics_port
 
-        Character.__init__(self,
-                           is_me=is_me,
-                           checksum_address=checksum_address,
-                           start_learning_now=False,  # Handled later in this function to avoid race condition
-                           federated_only=self._federated_only_instances,  # TODO: 'Ursula' object has no attribute '_federated_only_instances' if an is_me Ursula is not inited prior to this moment  NRN
-                           crypto_power=crypto_power,
-                           abort_on_learning_error=abort_on_learning_error,
-                           known_nodes=known_nodes,
-                           domains=domains,
-                           known_node_class=Ursula,
-                           **character_kwargs)
+        #
+        # Ursula the Decentralized Worker (Self)
+        #
 
         if is_me and not federated_only:  # TODO: #429
-
-            #
-            # Ursula the Decentralized Worker (Self)
-            #
 
             # Prepare a TransactingPower from worker node's transacting keys
             self.transacting_power = TransactingPower(account=worker_address,
@@ -1074,8 +1076,7 @@ class Ursula(Teacher, Character, Worker):
                          certificate_filepath=certificate_filepath,
                          interface_signature=interface_signature,
                          timestamp=timestamp,
-                         decentralized_identity_evidence=decentralized_identity_evidence,
-                         )
+                         decentralized_identity_evidence=decentralized_identity_evidence)
 
         if is_me:
             message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)
@@ -1120,6 +1121,7 @@ class Ursula(Teacher, Character, Worker):
         if learning:
             if emitter:
                 emitter.message(f"Connecting to {','.join(self.learning_domains)}", color='green', bold=True)
+            # Initial Fleet State
             self.start_learning_loop(now=self._start_learning_now)
 
         if availability:

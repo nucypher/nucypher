@@ -209,7 +209,8 @@ def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
     clock = Clock()
     clock.advance(time.time())
     for urs in federated_ursulas:
-        urs._arrangement_pruning_task.stop()
+        if urs._arrangement_pruning_task.running:
+            urs._arrangement_pruning_task.stop()
         urs._arrangement_pruning_task.clock = clock
         urs._arrangement_pruning_task.start(interval=Ursula._pruning_interval)
 
