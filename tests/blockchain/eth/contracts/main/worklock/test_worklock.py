@@ -93,7 +93,7 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
     gas_to_save_state = 30000
 
     # Deploy WorkLock
-    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    now = testerchain.get_blocktime()
     start_bid_date = now + ONE_HOUR
     end_bid_date = start_bid_date + ONE_HOUR
     end_cancellation_date = end_bid_date + ONE_HOUR
@@ -1135,6 +1135,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
                                 bidding_delay=0,
                                 additional_time_to_cancel=0,
                                 boosting_refund=boosting_refund)
+    shutdown_log = worklock.events.Shutdown.createFilter(fromBlock='latest')
 
     bidders = bidders[0:9]
     do_bids(testerchain, worklock, bidders, 10 * MIN_ALLOWED_BID)
@@ -1168,3 +1169,208 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     tx = worklock.functions.cancelBid().transact({'from': bidder1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(bidder1).call()[0] == 0
+
+    events = shutdown_log.get_all_entries()
+    assert len(events) == 1
+    event_args = events[-1]['args']
+    assert event_args['sender'] == bidder1
+
+
+@pytest.mark.slow
+def test_shutdown(testerchain, token_economics, deploy_contract, worklock_factory, token):
+    creator, bidder, *everyone_else = testerchain.w3.eth.accounts
+    boosting_refund = 100
+    gas_to_save_state = 30000
+
+    # Shutdown before start of bidding
+    now = testerchain.get_blocktime()
+    start_bid_date = now + ONE_HOUR
+    end_bid_date = start_bid_date + ONE_HOUR
+    end_cancellation_date = end_bid_date + ONE_HOUR
+    worklock = worklock_factory(supply=0,
+                                bidding_delay=ONE_HOUR,
+                                additional_time_to_cancel=ONE_HOUR,
+                                boosting_refund=boosting_refund)
+    shutdown_log = worklock.events.Shutdown.createFilter(fromBlock='latest')
+
+    # Only owner can do shutdown
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.shutdown().transact({'from': bidder})
+        testerchain.wait_for_receipt(tx)
+
+    creator_tokens = token.functions.balanceOf(creator).call()
+    assert token.functions.balanceOf(worklock.address).call() == 0
+    assert worklock.functions.startBidDate().call() == start_bid_date
+    assert worklock.functions.endBidDate().call() == end_bid_date
+    assert worklock.functions.endCancellationDate().call() == end_cancellation_date
+    tx = worklock.functions.shutdown().transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.startBidDate().call() == 0
+    assert worklock.functions.endBidDate().call() == 0
+    assert worklock.functions.endCancellationDate().call() > end_cancellation_date
+    assert token.functions.balanceOf(worklock.address).call() == 0
+    assert token.functions.balanceOf(creator).call() == creator_tokens
+
+    events = shutdown_log.get_all_entries()
+    assert len(events) == 1
+    event_args = events[-1]['args']
+    assert event_args['sender'] == creator
+
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.bid().transact({'from': bidder, 'value': MIN_ALLOWED_BID, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
+
+    # Shutdown after start of bidding
+    now = testerchain.get_blocktime()
+    start_bid_date = now
+    end_bid_date = start_bid_date + ONE_HOUR
+    end_cancellation_date = end_bid_date + ONE_HOUR
+    worklock_supply = token_economics.maximum_allowed_locked
+    worklock = worklock_factory(supply=worklock_supply,
+                                bidding_delay=0,
+                                additional_time_to_cancel=ONE_HOUR,
+                                boosting_refund=boosting_refund)
+    shutdown_log = worklock.events.Shutdown.createFilter(fromBlock='latest')
+    do_bids(testerchain, worklock, [bidder], MIN_ALLOWED_BID)
+
+    # Only owner can do shutdown
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.shutdown().transact({'from': bidder})
+        testerchain.wait_for_receipt(tx)
+
+    creator_tokens = token.functions.balanceOf(creator).call()
+    assert token.functions.balanceOf(worklock.address).call() == worklock_supply
+    assert worklock.functions.startBidDate().call() == start_bid_date
+    assert worklock.functions.endBidDate().call() == end_bid_date
+    assert worklock.functions.endCancellationDate().call() == end_cancellation_date
+    tx = worklock.functions.shutdown().transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.startBidDate().call() == 0
+    assert worklock.functions.endBidDate().call() == 0
+    assert worklock.functions.endCancellationDate().call() > end_cancellation_date
+    assert token.functions.balanceOf(worklock.address).call() == 0
+    assert token.functions.balanceOf(creator).call() == creator_tokens + worklock_supply
+
+    events = shutdown_log.get_all_entries()
+    assert len(events) == 1
+    event_args = events[-1]['args']
+    assert event_args['sender'] == creator
+
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.bid().transact({'from': bidder, 'value': MIN_ALLOWED_BID, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
+    tx = token.functions.approve(worklock.address, worklock_supply).transact()
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.tokenDeposit(worklock_supply).transact()
+        testerchain.wait_for_receipt(tx)
+
+    assert worklock.functions.workInfo(bidder).call()[0] > 0
+    tx = worklock.functions.cancelBid().transact({'from': bidder, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.workInfo(bidder).call()[0] == 0
+
+    # Shutdown after end of bidding
+    now = testerchain.get_blocktime()
+    start_bid_date = now
+    end_bid_date = start_bid_date + ONE_HOUR
+    end_cancellation_date = end_bid_date + ONE_HOUR
+    worklock = worklock_factory(supply=worklock_supply,
+                                bidding_delay=0,
+                                additional_time_to_cancel=ONE_HOUR,
+                                boosting_refund=boosting_refund)
+    shutdown_log = worklock.events.Shutdown.createFilter(fromBlock='latest')
+    do_bids(testerchain, worklock, [bidder], MIN_ALLOWED_BID)
+
+    # Wait end of bidding
+    testerchain.time_travel(seconds=ONE_HOUR)
+
+    # Only owner can do shutdown
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.shutdown().transact({'from': bidder})
+        testerchain.wait_for_receipt(tx)
+
+    tx = worklock.functions.shutdown().transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.startBidDate().call() == 0
+    assert worklock.functions.endBidDate().call() == 0
+    assert worklock.functions.endCancellationDate().call() > end_cancellation_date
+    assert token.functions.balanceOf(worklock.address).call() == 0
+    assert token.functions.balanceOf(creator).call() == creator_tokens + worklock_supply
+
+    events = shutdown_log.get_all_entries()
+    assert len(events) == 1
+    event_args = events[-1]['args']
+    assert event_args['sender'] == creator
+
+    assert worklock.functions.workInfo(bidder).call()[0] > 0
+    tx = worklock.functions.cancelBid().transact({'from': bidder, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.workInfo(bidder).call()[0] == 0
+
+    tx = token.functions.approve(worklock.address, worklock_supply).transact()
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.tokenDeposit(worklock_supply).transact()
+        testerchain.wait_for_receipt(tx)
+
+    # Shutdown after end of cancellation window
+    now = testerchain.get_blocktime()
+    start_bid_date = now
+    end_bid_date = start_bid_date + ONE_HOUR
+    end_cancellation_date = end_bid_date
+    worklock = worklock_factory(supply=worklock_supply,
+                                bidding_delay=0,
+                                additional_time_to_cancel=0,
+                                boosting_refund=boosting_refund)
+    shutdown_log = worklock.events.Shutdown.createFilter(fromBlock='latest')
+    do_bids(testerchain, worklock, [bidder], MIN_ALLOWED_BID)
+
+    # Wait end of cancellation window
+    testerchain.time_travel(seconds=ONE_HOUR)
+
+    # Only owner can do shutdown
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.shutdown().transact({'from': bidder})
+        testerchain.wait_for_receipt(tx)
+
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.cancelBid().transact({'from': bidder, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
+
+    tx = worklock.functions.shutdown().transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.startBidDate().call() == 0
+    assert worklock.functions.endBidDate().call() == 0
+    assert worklock.functions.endCancellationDate().call() > end_cancellation_date
+    assert token.functions.balanceOf(worklock.address).call() == 0
+    assert token.functions.balanceOf(creator).call() == creator_tokens + worklock_supply
+
+    events = shutdown_log.get_all_entries()
+    assert len(events) == 1
+    event_args = events[-1]['args']
+    assert event_args['sender'] == creator
+
+    assert worklock.functions.workInfo(bidder).call()[0] > 0
+    tx = worklock.functions.cancelBid().transact({'from': bidder, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.workInfo(bidder).call()[0] == 0
+
+    # Shutdown after enabling of claiming
+    worklock = worklock_factory(supply=worklock_supply,
+                                bidding_delay=0,
+                                additional_time_to_cancel=0,
+                                boosting_refund=boosting_refund)
+    do_bids(testerchain, worklock, [bidder], MIN_ALLOWED_BID)
+
+    # Wait end of cancellation window
+    testerchain.time_travel(seconds=ONE_HOUR)
+
+    tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state).transact()
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.isClaimingAvailable().call()
+
+    # Can't call shutdown after enabling of claiming
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.shutdown().transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
