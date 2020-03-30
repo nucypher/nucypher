@@ -3,6 +3,7 @@ import requests
 from flask import Response
 from twisted.internet import threads
 
+from nucypher.network.middleware import NucypherMiddlewareClient, RestMiddleware
 from nucypher.network.sensors import AvailabilitySensor
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
@@ -34,6 +35,8 @@ def test_availability_sensor_success(blockchain_ursulas):
             ursula._availability_sensor.record(False, reason={'error': 'fake failure reason'})
 
         assert sensor.score < 4
+        assert sensor.status() == (sensor.score > (sensor.SENSOR_SENSITIVITY * sensor.MAXIMUM_SCORE))
+        assert not sensor.status()
 
         original_issuer = AvailabilitySensor.issue_warnings
         warnings = dict()
@@ -50,9 +53,12 @@ def test_availability_sensor_success(blockchain_ursulas):
         assert len(sensor._AvailabilitySensor__excuses) > 0
 
     def raise_to_maximum():
+        sensor = ursula._availability_sensor
         for i in range(150):
-            ursula._availability_sensor.record(True)
-        assert ursula._availability_sensor.score > 9.98
+            sensor.record(True)
+        assert sensor.score > 9.98
+        assert sensor.status() == bool(sensor.score > (sensor.SENSOR_SENSITIVITY * sensor.MAXIMUM_SCORE))
+        assert sensor.status()
 
     # Run the Callbacks
     try:
@@ -80,17 +86,18 @@ def test_availability_sensor_integration(blockchain_ursulas, monkeypatch):
     def maintain():
         sensor = ursula._availability_sensor
 
-        def mock_public_information_endpoint(route, *args, **kwargs):
-            if 'public_information' in route:
-                ursula_were_looking_for = str(ursula.rest_interface.port) in route
-                if ursula_were_looking_for:
-                    return Response(status=400)  # Make this node unreachable
+        def mock_node_information_endpoint(middleware, port, *args, **kwargs):
+            ursula_were_looking_for = ursula.rest_interface.port == port
+            if ursula_were_looking_for:
+                raise RestMiddleware.NotFound("Fake Reason")  # Make this node unreachable
             else:
                 response = Response(response=bytes(ursula), mimetype='application/octet-stream')
                 return response
 
         # apply the monkeypatch for requests.get to mock_get
-        monkeypatch.setattr(requests, "get", mock_public_information_endpoint)
+        monkeypatch.setattr(NucypherMiddlewareClient,
+                            NucypherMiddlewareClient.node_information.__name__,
+                            mock_node_information_endpoint)
 
         ursula._availability_sensor.start()
         sensor.measure()  # This makes a REST Call

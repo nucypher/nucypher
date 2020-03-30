@@ -148,10 +148,10 @@ class AvailabilitySensor:
 
     def record(self, result: bool = None, reason: dict = None) -> None:
         """Score the result and cache it."""
-        if result is None:
-            return
-        if reason:
+        if (not result) and reason:
             self.__excuses[maya.now().epoch] = reason
+        if result is None:
+            return  # Actually nevermind, dont score this one...
         score = int(result) + self.CHARGE_RATE * self.__score
         if score >= self.MAXIMUM_SCORE:
             self.__score = self.MAXIMUM_SCORE
@@ -181,7 +181,7 @@ class AvailabilitySensor:
 
             except self._ursula.network_middleware.NotFound:
                 # Ignore this measurement and move on because the remote node is not compatible.
-                self.record(None)
+                self.record(None, reason={"error": "Remote node did not support 'ping' endpoint."})
 
             except (*NodeSeemsToBeDown, self._ursula.NotStaking, ursula.network_middleware.UnexpectedResponse):
                 # This node is not available, does not support uptime checks, or is not staking - do nothing.
@@ -193,4 +193,4 @@ class AvailabilitySensor:
                     self.record(True)
                 else:
                     # TODO: Were not sure how this can ever happen....
-                    self.record(None)
+                    self.record(None, reason={"error": f"{ursula.rest_url} returned {response.status_code} from 'ping' endpoint."})

@@ -149,20 +149,12 @@ def make_rest_app(
 
         try:
             # Fetch and store requester's teacher certificate.
-            certificate = this_node.network_middleware.get_certificate(host=requesting_ursula_address,
-                                                                       port=requesting_ursula_port)
-            certificate_filepath = this_node.node_storage.store_node_certificate(certificate=certificate)
-            result = requests.get(f"https://{requesting_ursula.rest_interface}/public_information",
-                                  verify=certificate_filepath)
+            requesting_ursula_bytes = this_node.network_middleware.client.node_information(host=requesting_ursula_address, port=requesting_ursula_port)
         except NodeSeemsToBeDown:
             return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
 
-        if result.status_code != 200:
-            # jsonify()
-            return Response(json.dumps({'error': 'Mis-configured origin REST service'}), status=400, content_type='application/json')
-
         # Compare the results of the outer POST with the inner GET... yum
-        if result.content == request.data:
+        if requesting_ursula_bytes == request.data:
             return Response(status=200)
         else:
             return Response({'error': 'Suspicious node'}, status=400)
