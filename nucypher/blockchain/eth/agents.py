@@ -103,6 +103,12 @@ class EthereumContractAgent:
     class ContractNotDeployed(Exception):
         pass
 
+    class RequirementError(Exception):
+        """
+        Raised when an agent discovers a failed requirement in an invocation to a contract function,
+        usually, a failed `require()`.
+        """
+
     def __init__(self,
                  registry: BaseContractRegistry,
                  provider_uri: str = None,
