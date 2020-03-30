@@ -19,7 +19,6 @@ import os
 
 import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
-from twisted.internet import stdio
 
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.utils import datetime_at_period
@@ -229,6 +228,7 @@ class UrsulaCharacterOptions:
 
         ursula_config = self.config_options.create_config(emitter, config_file)
 
+        # TODO: WAT
         client_password = None
         if not ursula_config.federated_only:
             if not self.config_options.dev and not json_ipc:
@@ -326,15 +326,10 @@ def forget(general_config, config_options, config_file):
 @option_dry_run
 @group_general_config
 @click.option('--interactive', '-I', help="Run interactively", is_flag=True, default=False)
+@click.option('--prometheus', help="Run the ursula prometheus exporter", is_flag=True, default=False)
 @click.option('--metrics-port', help="Run a Prometheus metrics exporter on specified HTTP port", type=NETWORK_PORT)
-def run(general_config, character_options, config_file, interactive, dry_run, metrics_port):
-    """
-    Run an "Ursula" node.
-    """
-
-    #
-    # Setup
-    #
+def run(general_config, character_options, config_file, interactive, dry_run, metrics_port, prometheus):
+    """Run an "Ursula" node."""
 
     worker_address = character_options.config_options.worker_address
     emitter = _setup_emitter(general_config, worker_address=worker_address)
@@ -351,51 +346,10 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
             json_ipc=general_config.json_ipc
     )
 
-    #
-    # Additional Services
-    #
-
-    if interactive:
-        stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA, emitter=emitter))
-    if metrics_port:
-        # Prevent import without prometheus installed
-        from nucypher.utilities.metrics import initialize_prometheus_exporter
-        initialize_prometheus_exporter(ursula=URSULA, port=metrics_port)  # TODO: Integrate with Hendrix TLS Deploy?
-
-    #
-    # Deploy Warnings
-    #
-
-    emitter.message(f"Starting Ursula on {URSULA.rest_interface}", color='green', bold=True)
-    emitter.message(f"Connecting to {','.join(ursula_config.domains)}", color='green', bold=True)
-    emitter.message("Working ~ Keep Ursula Online!", color='blue', bold=True)
-
-    # Run
-    try:
-        if dry_run:
-            # Prevent the cataloging of services, and do not run the reactor
-            return  # <-- ABORT - (Last Chance)
-        node_deployer = URSULA.get_deployer()
-        node_deployer.addServices()
-        node_deployer.catalogServers(node_deployer.hendrix)
-
-        # Start Services
-        node_deployer.run()  # <--- Blocking Call (Reactor)
-
-    # Handle Crash
-    except Exception as e:
-        ursula_config.log.critical(str(e))
-        emitter.message(
-            f"{e.__class__.__name__} {e}",
-            color='red',
-            bold=True)
-        raise  # Crash :-(
-
-    # Graceful Exit
-    finally:
-        emitter.message("Stopping Ursula", color='green')
-        ursula_config.cleanup()
-        emitter.message("Ursula Stopped", color='red')
+    return URSULA.run(emitter=emitter,
+                      start_reactor=not dry_run,
+                      interactive=interactive,
+                      prometheus=prometheus)
 
 
 @ursula.command(name='save-metadata')

@@ -37,6 +37,7 @@ from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
 from eth_utils import to_checksum_address
 from flask import request, Response
 from sqlalchemy.exc import OperationalError
+from twisted.internet import stdio, reactor
 from twisted.internet import threads
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
@@ -58,7 +59,9 @@ from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import (
     WebController
 )
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
+from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
@@ -915,6 +918,8 @@ class Ursula(Teacher, Character, Worker):
                  interface_signature=None,
                  timestamp=None,
                  availability_check: bool = True,
+                 prune_datastore: bool = True,
+                 metrics_port: int = None,
 
                  # Blockchain
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
@@ -940,13 +945,32 @@ class Ursula(Teacher, Character, Worker):
         #
 
         if domains is None:
-            # TODO: Clean up imports
+            # TODO: Move defaults to configuration, Off character.
             from nucypher.config.node import CharacterConfiguration
             domains = {CharacterConfiguration.DEFAULT_DOMAIN}
 
         if is_me:
+
             # If we're federated only, we assume that all other nodes in our domain are as well.
             self.set_federated_mode(federated_only)
+
+            # Learner
+            self._start_learning_now = start_learning_now
+
+            # In-Memory TreasureMap tracking
+            self._stored_treasure_maps = dict()
+
+            # Self-Health Checks
+            self._availability_check = availability_check
+            self._availability_sensor = AvailabilitySensor(ursula=self)
+
+            # Arrangement Pruning
+            self._prune_datastore = prune_datastore
+            self._arrangement_pruning_task = LoopingCall(f=self.__prune_arrangements)
+            self.__pruning_task = None
+
+            # Prometheus / Metrics
+            self._metrics_port = metrics_port
 
         Character.__init__(self,
                            is_me=is_me,
@@ -960,54 +984,36 @@ class Ursula(Teacher, Character, Worker):
                            known_node_class=Ursula,
                            **character_kwargs)
 
-        #
-        # Self-Ursula
-        #
-
-        if is_me is True:  # TODO: #429
-
-            # In-Memory TreasureMap tracking
-            self._stored_treasure_maps = dict()
+        if is_me and not federated_only:  # TODO: #429
 
             #
-            # Ursula the Decentralized Worker
+            # Ursula the Decentralized Worker (Self)
             #
 
-            if not federated_only:
+            # Prepare a TransactingPower from worker node's transacting keys
+            self.transacting_power = TransactingPower(account=worker_address,
+                                                      password=client_password,
+                                                      signer=self.signer,
+                                                      cache=True)
+            self._crypto_power.consume_power_up(self.transacting_power)
 
-                signer = self.signer
-                if not signer:
-                    blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=self.provider_uri)
-                    signer = Web3Signer(blockchain.client)
+            # Use this power to substantiate the stamp
+            self.substantiate_stamp()
+            self.log.debug(f"Created decentralized identity evidence: {self.decentralized_identity_evidence[:10].hex()}")
+            decentralized_identity_evidence = self.decentralized_identity_evidence
 
-                # Prepare a TransactingPower from worker node's transacting keys
-                self.transacting_power = TransactingPower(account=worker_address,
-                                                          password=client_password,
-                                                          signer=signer,
-                                                          cache=True)
-                self._crypto_power.consume_power_up(self.transacting_power)
-
-                # Use this power to substantiate the stamp
-                self.substantiate_stamp()
-                self.log.debug(f"Created decentralized identity evidence: {self.decentralized_identity_evidence[:10].hex()}")
-                decentralized_identity_evidence = self.decentralized_identity_evidence
-
-                Worker.__init__(self,
-                                is_me=is_me,
-                                registry=self.registry,
-                                checksum_address=checksum_address,
-                                worker_address=worker_address,
-                                work_tracker=work_tracker,
-                                start_working_now=start_working_now)
-
-        #
-        # ProxyRESTServer and TLSHostingPower
-        #
+            Worker.__init__(self,
+                            is_me=is_me,
+                            registry=self.registry,
+                            checksum_address=checksum_address,
+                            worker_address=worker_address,
+                            work_tracker=work_tracker,
+                            start_working_now=start_working_now)
 
         if not crypto_power or (TLSHostingPower not in crypto_power):
 
             #
-            # Ephemeral Self-Ursula (Development Ursula)
+            # Development Ursula
             #
 
             if is_me:
@@ -1015,30 +1021,20 @@ class Ursula(Teacher, Character, Worker):
                                                         'bad_treasure_maps': [],
                                                         'freeriders': []}
 
-                #
                 # REST Server (Ephemeral Self-Ursula)
-                #
-
                 rest_app, datastore = make_rest_app(
                     this_node=self,
                     db_filepath=db_filepath,
                     serving_domains=domains,
                 )
 
-                #
                 # TLSHostingPower (Ephemeral Powers and Private Keys)
-                #
-
                 tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host,
                                                      checksum_address=self.checksum_address)
                 tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=rest_host)
                 self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port,
                                                    rest_app=rest_app, datastore=datastore,
                                                    hosting_power=tls_hosting_power)
-
-                # Self-Health Checks
-                self._availability_sensor = None
-                self.availability_check = availability_check  # From configuration values, perhaps
 
             #
             # Stranger-Ursula
@@ -1063,10 +1059,7 @@ class Ursula(Teacher, Character, Worker):
                     hosting_power=tls_hosting_power
                 )
 
-            #
             # OK - Now we have a ProxyRestServer and a TLSHostingPower for some Ursula
-            #
-
             self._crypto_power.consume_power_up(tls_hosting_power)  # Consume!
 
         #
@@ -1084,27 +1077,10 @@ class Ursula(Teacher, Character, Worker):
                          decentralized_identity_evidence=decentralized_identity_evidence,
                          )
 
-        #
-        # Startup Services  # TODO: PR #1462
-        #
-
-        if start_learning_now:
-            self.start_learning_loop(now=True)
-
         if is_me:
-
-            # Initial Fleet State
-            self.known_nodes.record_fleet_state(additional_nodes_to_track=[self])
-
-            # Arrangement Pruning
-            self._arrangement_pruning_task = LoopingCall(f=self.__prune_arrangements)
-            self.__pruning_task = None   # TODO: Move to ursula.run awaiting PR #1462
-            self.__pruning_task = self._arrangement_pruning_task.start(interval=self._pruning_interval)
-
             message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)
             self.log.info(message)
             self.log.info(self.banner.format(self.nickname))
-
         else:
             message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self)
             self.log.debug(message)
@@ -1120,25 +1096,76 @@ class Ursula(Teacher, Character, Worker):
             if result > 0:
                 self.log.debug(f"Pruned {result} policy arrangements.")
 
-    def run_worker(self,
-                   learning: bool = True,
-                   availability: bool = True,
-                   worker: bool = True):
+    def run(self,
+            emitter: StdoutEmitter = None,
+            hendrix: bool = True,
+            learning: bool = True,
+            availability: bool = True,
+            worker: bool = True,
+            pruning: bool = True,
+            interactive: bool = False,
+            prometheus: bool = False,
+            start_reactor: bool = True
+            ) -> None:
 
-        """Schedule Async Loops"""
+        """Schedule and start select ursula services, then optionally start the reactor."""
+
+        #
+        # Async loops ordered by schedule priority
+        #
+
+        if pruning:
+            self.__pruning_task = self._arrangement_pruning_task.start(interval=self._pruning_interval, now=True)
 
         if learning:
-            self.start_learning_loop(now=True)
-        if self.availability_check:
-            self._availability_sensor = AvailabilitySensor(ursula=self)
+            if emitter:
+                emitter.message(f"Connecting to {','.join(self.learning_domains)}", color='green', bold=True)
+            self.start_learning_loop(now=self._start_learning_now)
+
+        if availability:
             self._availability_sensor.start(now=False)  # wait...
+
         if worker and not self.federated_only:
             self.work_tracker.start(act_now=True, requirement_func=self._availability_sensor.status)
 
-        deployer = self.get_deployer()
-        deployer.addServices()
-        deployer.catalogServers(deployer.hendrix)
-        deployer.run()  # <--- Blocking Call (Reactor)
+        #
+        # Non-order dependant services
+        #
+
+        if prometheus:
+            # TODO: Integrate with Hendrix TLS Deploy?
+            # Local scoped to help prevent import without prometheus installed
+            from nucypher.utilities.metrics import initialize_prometheus_exporter
+            initialize_prometheus_exporter(ursula=self, port=self._metrics_port)
+
+        if interactive and emitter:
+            stdio.StandardIO(UrsulaCommandProtocol(ursula=self, emitter=emitter))
+
+        if hendrix:
+
+            if emitter:
+                emitter.message(f"Starting Ursula on {self.rest_interface}", color='green', bold=True)
+
+            deployer = self.get_deployer()
+            deployer.addServices()
+            deployer.catalogServers(deployer.hendrix)
+
+            if not start_reactor:
+                return
+
+            if emitter:
+                emitter.message("Working ~ Keep Ursula Online!", color='blue', bold=True)
+
+            try:
+                deployer.run()  # <--- Blocking Call (Reactor)
+            except Exception as e:
+                self.log.critical(str(e))
+                if emitter:
+                    emitter.message(f"{e.__class__.__name__} {e}", color='red', bold=True)
+                raise  # Crash :-(
+
+        elif start_reactor:  # ... without hendrix
+            reactor.run()    # <--- Blocking Call (Reactor)
 
     def rest_information(self):
         hosting_power = self._crypto_power.power_ups(TLSHostingPower)
