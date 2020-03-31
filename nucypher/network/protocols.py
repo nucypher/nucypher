@@ -14,8 +14,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
 from urllib.parse import urlparse
 
 from eth_utils import is_checksum_address
@@ -70,6 +68,10 @@ class InterfaceInfo:
         loopback, localhost = '127.0.0.1', 'localhost'
         self.host = loopback if host == localhost else host
         self.port = int(port)
+
+    def __iter__(self):
+        yield self.host
+        yield self.port
 
     @classmethod
     def from_bytes(cls, url_string):

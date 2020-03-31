@@ -153,7 +153,8 @@ def ursula_federated_test_config():
                                         federated_only=True,
                                         network_middleware=MockRestMiddleware(),
                                         save_metadata=False,
-                                        reload_metadata=False,)
+                                        reload_metadata=False,
+                                        availability_check=False)
     yield ursula_config
     ursula_config.cleanup()
 
@@ -170,7 +171,8 @@ def ursula_decentralized_test_config(test_registry):
                                         network_middleware=MockRestMiddleware(),
                                         save_metadata=False,
                                         reload_metadata=False,
-                                        registry=test_registry)
+                                        registry=test_registry,
+                                        availability_check=False)
     yield ursula_config
     ursula_config.cleanup()
 

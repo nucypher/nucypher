@@ -137,6 +137,10 @@ def paint_node_status(emitter, ursula, start_time):
         current_period = f'Current Period ...... {ursula.staking_agent.get_current_period()}'
         stats.extend([current_period, worker_address])
 
+    if ursula._availability_sensor:
+        score = 'Availability Score .. {}'.format(ursula._availability_sensor.score)
+        stats.append(score)
+
     emitter.echo('\n' + '\n'.join(stats) + '\n')
 
 

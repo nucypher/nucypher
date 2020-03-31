@@ -16,17 +16,22 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import binascii
+import json
 import os
 from typing import Tuple
 
+import requests
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
-from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES, NO_BLOCKCHAIN_CONNECTION
-from flask import Flask, Response, jsonify
-from flask import request
+from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
+from flask import Flask, Response, request
+from flask import jsonify
 from hendrix.experience import crosstown_traffic
 from jinja2 import Template, TemplateError
 from twisted.logger import Logger
+from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
 from web3.exceptions import TimeExhausted
 
 import nucypher
@@ -41,8 +46,6 @@ from nucypher.datastore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
@@ -120,6 +123,41 @@ def make_rest_app(
             mimetype='application/octet-stream')
 
         return response
+
+    @rest_app.route("/ping", methods=['POST'])
+    def ping():
+        """
+        Asks this node: "Can you access my public information endpoint"?
+        """
+
+        try:
+            requesting_ursula = Ursula.from_bytes(request.data, registry=this_node.registry)
+            requesting_ursula.mature()
+        except ValueError:  # (ValueError)
+            return Response({'error': 'Invalid Ursula'}, status=400)
+        else:
+            requesting_ursula_address, requesting_ursula_port = tuple(requesting_ursula.rest_interface)
+
+        # Compare requester and posted Ursula information
+        request_address = request.environ['REMOTE_ADDR']
+        if request_address != requesting_ursula_address:
+            return Response({'error': 'Suspicious origin address'}, status=400)
+
+        #
+        # Make a Sandwich
+        #
+
+        try:
+            # Fetch and store requester's teacher certificate.
+            requesting_ursula_bytes = this_node.network_middleware.client.node_information(host=requesting_ursula_address, port=requesting_ursula_port)
+        except NodeSeemsToBeDown:
+            return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
+
+        # Compare the results of the outer POST with the inner GET... yum
+        if requesting_ursula_bytes == request.data:
+            return Response(status=200)
+        else:
+            return Response({'error': 'Suspicious node'}, status=400)
 
     @rest_app.route('/node_metadata', methods=["GET"])
     def all_known_nodes():

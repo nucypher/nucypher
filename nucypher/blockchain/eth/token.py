@@ -17,7 +17,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from _pydecimal import Decimal
 from collections import UserList
-from typing import Union, Tuple, Dict
+from typing import Dict
+from typing import Union, Tuple, Callable
 
 import maya
 from constant_sorrow.constants import (
@@ -484,11 +485,13 @@ class WorkTracker:
     CLOCK = reactor
     REFRESH_RATE = 60 * 15  # Fifteen minutes
 
-    def __init__(self, worker, refresh_rate: int = None, *args, **kwargs):
+    def __init__(self,
+                 worker,
+                 refresh_rate: int = None,
+                 *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.log = Logger('stake-tracker')
-
         self.worker = worker
         self.staking_agent = self.worker.staking_agent
 
@@ -496,6 +499,7 @@ class WorkTracker:
         self._tracking_task = task.LoopingCall(self._do_work)
         self._tracking_task.clock = self.CLOCK
 
+        self.__requirement = None
         self.__current_period = None
         self.__start_time = NOT_STAKING
         self.__uptime_period = NOT_STAKING
@@ -506,10 +510,11 @@ class WorkTracker:
         return self.__current_period
 
     def stop(self) -> None:
-        self._tracking_task.stop()
-        self.log.info(f"STOPPED WORK TRACKING")
+        if self._tracking_task.running:
+            self._tracking_task.stop()
+            self.log.info(f"STOPPED WORK TRACKING")
 
-    def start(self, act_now: bool = False, force: bool = False) -> None:
+    def start(self, act_now: bool = False, requirement_func: Callable = None, force: bool = False) -> None:
         """
         High-level stake tracking initialization, this function aims
         to be safely called at any time - For example, it is okay to call
@@ -517,6 +522,9 @@ class WorkTracker:
         """
         if self._tracking_task.running and not force:
             return
+
+        # Add optional confirmation requirement callable
+        self.__requirement = requirement_func
 
         # Record the start time and period
         self.__start_time = maya.now()
@@ -546,15 +554,27 @@ class WorkTracker:
         else:
             self.log.warn(f"Unhandled error during work tracking: {failure.getTraceback()}")
 
+    def __check_work_requirement(self) -> bool:
+        # TODO: Check for stake expiration and exit
+        if self.__requirement is None:
+            return True
+        try:
+            r = self.__requirement()
+            if not isinstance(r, bool):
+                raise ValueError(f"'requirement' must return a boolean.")
+        except TypeError:
+            raise ValueError(f"'requirement' must be a callable.")
+        return r
+
     def _do_work(self) -> None:
-        # TODO: #1515 Shut down at end of terminal stake
+         # TODO: #1515 Shut down at end of terminal stake
 
         # Update on-chain status
         self.log.info(f"Checking for new period. Current period is {self.__current_period}")
         onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
         if self.current_period != onchain_period:
             self.__current_period = onchain_period
-            # self.worker.stakes.refresh()  # TODO: #1517 Move this a better location
+            # self.worker.stakes.refresh()  # TODO: #1517 Track stakes for fast access to terminal period.
 
         # Measure working interval
         interval = onchain_period - self.worker.last_active_period
@@ -563,6 +583,13 @@ class WorkTracker:
         if interval > 0:
             # TODO: #1516 Follow-up actions for downtime
             self.log.warn(f"MISSED CONFIRMATIONS - {interval} missed staking confirmations detected.")
+
+        # Only perform work this round if the requirements are met
+        if not self.__check_work_requirement():
+            self.log.warn(f'CONFIRMATION PREVENTED (callable: "{self.__requirement.__name__}") - '
+                          f'There are unmet confirmation requirements.')
+            # TODO: Follow-up actions for downtime
+            return
 
         # Confirm Activity
         self.log.info("Confirmed activity for period {}".format(self.current_period))

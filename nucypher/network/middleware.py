@@ -21,17 +21,14 @@ import ssl
 
 import requests
 import time
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, EXEMPT_FROM_VERIFICATION
-
-
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from twisted.logger import Logger
+
 from umbral.cfrags import CapsuleFrag
 from umbral.signing import Signature
-
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-
 
 EXEMPT_FROM_VERIFICATION.bool_value(False)
 
@@ -123,7 +120,9 @@ class NucypherMiddlewareClient:
             response = self.invoke_method(method, url, verify=certificate_filepath, *args, **kwargs)
             cleaned_response = self.response_cleaner(response)
             if cleaned_response.status_code >= 300:
-                if cleaned_response.status_code == 404:
+                if cleaned_response.status_code == 400:
+                    raise RestMiddleware.BadRequest(reason=cleaned_response.json)
+                elif cleaned_response.status_code == 404:
                     m = f"While trying to {method_name} {args} ({kwargs}), server 404'd.  Response: {cleaned_response.content}"
                     raise RestMiddleware.NotFound(m)
                 else:
@@ -154,6 +153,11 @@ class RestMiddleware:
         def __init__(self, *args, **kwargs):
             super().__init__(status=404, *args, **kwargs)
 
+    class BadRequest(UnexpectedResponse):
+        def __init__(self, reason, *args, **kwargs):
+            self.reason = reason
+            super().__init__(message=reason, status=400, *args, **kwargs)
+
     def __init__(self, registry=None):
         self.client = self._client_class()
 
@@ -170,8 +174,8 @@ class RestMiddleware:
             if current_attempt == retry_attempts:
                 message = f"No Response from seednode {host}:{port} after {retry_attempts} attempts"
                 self.log.info(message)
-                raise RuntimeError("No response from {}:{}".format(host, port))
-            self.log.info("No Response from seednode {}. Retrying in {} seconds...".format(host, retry_rate))
+                raise ConnectionRefusedError("No response from {}:{}".format(host, port))
+            self.log.info(f"No Response from seednode {host}:{port}. Retrying in {retry_rate} seconds...")
             time.sleep(retry_rate)
             return self.get_certificate(host, port, timeout, retry_attempts, retry_rate, current_attempt + 1)
 
@@ -233,6 +237,14 @@ class RestMiddleware:
             node_or_sprout=work_order.ursula,
             path=f"kFrag/{id_as_hex}/reencrypt",
             data=payload, timeout=2)
+
+    def check_rest_availability(self, requesting_ursula, responding_ursula, certificate_filepath=None):
+        response = self.client.post(node_or_sprout=responding_ursula,
+                                    data=bytes(requesting_ursula),
+                                    path="ping",
+                                    timeout=4,  # Two round trips are expected
+                                    certificate_filepath=certificate_filepath)
+        return response
 
     def get_nodes_via_rest(self,
                            node,
