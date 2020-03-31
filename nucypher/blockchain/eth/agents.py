@@ -56,13 +56,20 @@ class ContractAgency:
     @classmethod
     def get_agent(cls,
                   agent_class,
-                  registry: BaseContractRegistry,
+                  registry: BaseContractRegistry = None,
                   provider_uri: str = None,
                   ) -> 'EthereumContractAgent':
 
         if not issubclass(agent_class, EthereumContractAgent):
             raise TypeError(f"Only agent subclasses can be used from the agency.")
-        registry_id = registry.id
+
+        if not registry:
+            if len(cls.__agents) == 1:
+                registry = list(cls.__agents.keys()).pop()
+            else:
+                raise ValueError("Need to specify a registry in order to get an agent from the ContractAgency")
+        else:
+            registry_id = registry.id
         try:
             return cls.__agents[registry_id][agent_class]
         except KeyError:
