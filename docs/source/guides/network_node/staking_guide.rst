@@ -21,15 +21,12 @@ of security than software wallets.
 
 Staking Procedure:
 
-1) Install ``nucypher`` on Staking machine (see :doc:`/guides/installation_guide`)
-2) Run an ethereum node on the Staker's machine eg. geth, parity, etc. (see `Run an Ethereum node for Staking`_)
-3) Create staker's ethereum address (see `Run an Ethereum node for Staking`_)
-4) Request testnet tokens by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and type ``.getfunded <YOUR_STAKER_ETH_ADDRESS>`` in the #testnet-faucet channel
-5) Initiate a new StakeHolder and Stake (see `Initialize a new stakeholder`_)
-6) Create and fund worker's ethereum address with ETH
-7) Bond a Worker to a Staker using the worker's ethereum address (see `Bonding a Worker`_)
-8) Optionally, modify stake settings (see `Modifying Active Stakes`_)
-9) Configure and Run a Worker Node (see :ref:`ursula-config-guide`)
+1) Install ``nucypher`` on Staker's machine (see :doc:`/guides/installation_guide`)
+2) Establish ethereum account, provider, and signer (see `Staking`_)
+3) Request testnet tokens by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and type ``.getfunded <YOUR_STAKER_ETH_ADDRESS>`` in the #testnet-faucet channel
+4) Initialize a new StakeHolder and Stake (see `Initialize a new stakeholder`_)
+5) Initialize a new stake (see `Initialize a new stake`_)
+6) Bond a Worker to a Staker using the worker's ethereum address (see `Bonding a Worker`_)
 
 
 Staking CLI
@@ -102,8 +99,59 @@ All staking-related operations done by Staker are performed through the ``nucyph
 Staking
 --------
 
-Using Clef as an external transaction signer
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Staking transactions can be broadcast using either a local or remote ethereum node on
+both software amd hardware wallets. By default transaction signing requests are forwarded to the configured provider;
+This works well for locally or independently-run trusted nodes. In order to use a remote ethereum provider
+(Alchemy, Infura, Public Remote Node) an external transaction signing client (like clef or geth) is needed separate from
+the broadcasting node.
+
+Below we describe the usage of both local and remote providers...
+
+Running an Ethereum Node for Staking (Local Provider)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Here we describe the steps required to run an ethereum node for both transaction signing and broadcast.
+This is the typical configuration for a locally operated trusted ethereum node.
+
+Assuming you have ``geth`` installed, let's run a node on the Görli testnet.
+
+.. code:: bash
+
+    $ geth --goerli
+
+If you want to use your hardware wallet, just connect it to your machine. You'll see something like this in logs:
+
+.. code:: bash
+
+    INFO [08-30|15:50:39.153] New wallet appeared      url=ledger://0001:000b:00      status="Ethereum app v1.2.7 online"
+
+If you see something like ``New wallet appeared, failed to open`` in the logs,
+you need to reconnect the hardware wallet (without turning the ``geth`` node
+off).
+
+If you don't have a hardware wallet, you can create a software one:
+
+Whilst running the initialized node:
+
+.. code:: bash
+
+    Linux:
+    $ geth attach /home/<username>/.ethereum/goerli/geth.ipc
+    > personal.newAccount();
+    > eth.accounts
+    ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
+
+    MacOS:
+    $ geth attach /Users/<username>/Library/Ethereum/goerli/geth.ipc
+    > personal.newAccount();
+    > eth.accounts
+    ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
+
+Where ``0x287a817426dd1ae78ea23e9918e2273b6733a43d`` is your newly created
+account address and ``<username>`` is your user.
+
+Using Clef as an external transaction signer (Remote Provider)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. important::
 
@@ -177,9 +225,8 @@ by specifying the keystore directory path:
     * intapi_version : 7.0.0
 
 
-
-Using clef as a nucypher signer
-*******************************
+Using clef with nucypher commands
+*********************************
 
 .. code:: bash
 
@@ -206,47 +253,6 @@ Requests for account management, and signing will be directed at clef, with a 10
 Be alert for user-interactive requests from the clef CLI.
 
 
-Run an Ethereum node for Staking
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Assuming you have ``geth`` installed, let's run a node on the Görli testnet.
-
-.. code:: bash
-
-    $ geth --goerli
-
-If you want to use your hardware wallet, just connect it to your machine. You'll see something like this in logs:
-
-.. code:: bash
-
-    INFO [08-30|15:50:39.153] New wallet appeared      url=ledger://0001:000b:00      status="Ethereum app v1.2.7 online"
-
-If you see something like ``New wallet appeared, failed to open`` in the logs,
-you need to reconnect the hardware wallet (without turning the ``geth`` node
-off).
-
-If you don't have a hardware wallet, you can create a software one:
-
-Whilst running the initialized node:
-
-.. code:: bash
-
-    Linux:
-    $ geth attach /home/<username>/.ethereum/goerli/geth.ipc
-    > personal.newAccount();
-    > eth.accounts
-    ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
-
-    MacOS:
-    $ geth attach /Users/<username>/Library/Ethereum/goerli/geth.ipc
-    > personal.newAccount();
-    > eth.accounts
-    ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
-
-Where ``0x287a817426dd1ae78ea23e9918e2273b6733a43d`` is your newly created
-account address and ``<username>`` is your user.
-
-
 Initialize a new stakeholder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -267,7 +273,7 @@ If you ran ``geth`` node as above, your ``<PROVIDER>`` is
 
 
 Initialize a new stake
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 
 Once you have configured nucypher for staking, you can proceed with stake initiation.
 This operation will transfer an amount of tokens to nucypher's staking escrow contract and lock them for
