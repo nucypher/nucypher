@@ -160,7 +160,7 @@ If you ran ``geth`` node as above, your ``<PROVIDER>`` is
 
 ``<NETWORK_NAME>`` is the name of the NuCypher network domain where the staker will participate.
 
-.. note:: If you're participating in NuCypher's incentivized testnet, this name is ``cassandra``.
+.. note:: If you're participating in NuCypher's incentivized testnet, this name is ``gemini``.
 
 
 Initialize a new stake

@@ -220,6 +220,7 @@ However, when re-staking is enabled (default) then all staking rewards are re-lo
             + 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9
 			
 
+.. _sub-stake-winddown:
 
 Winding down
 ^^^^^^^^^^^^

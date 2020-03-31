@@ -2,12 +2,7 @@
 Frequently Asked Questions
 ==========================
 
-Network-Related Questions
--------------------------
-
-*These are questions related to how the NuCypher network works.*
-
-The answers in the FAQ regularly reference the network characters "**Alice**," "**Bob**," "**Ursula**," and "**Enrico**." For a more in-depth introduction to each character, head over to  `Character Concepts <https://nucypher.readthedocs.io/en/latest/architecture/character.html/>` 
+The answers in the FAQ regularly reference the network characters "**Alice**," "**Bob**," "**Ursula**," and "**Enrico**." For a more in-depth introduction to each character, head over to :ref:`character-concepts`.
 
 **Alice** is the *data owner*. She wants to share some data with **Bob**, *the data recipient*.
 
@@ -15,19 +10,51 @@ The answers in the FAQ regularly reference the network characters "**Alice**," "
 
 **Ursula** serves as the "*proxy*" in this proxy re-encryption scheme and *re-encrypts the ciphertext encrypted under Alice's key to a ciphertext that will be decryptable under Bob's key*.
 
+
+
+
+General
+-------
+
+Q: What is the network name for Incentivized Testnet?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The network name for incentivized testnet is ``gemini``.
+
+Q: How long is a period?
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+1 period is 24 hours. Periods begin at midnight UTC.
+
+
+
+
+Using the Network
+-----------------
+
+*These are questions related to how the NuCypher network works.*
+
+Q: How do I know if NuCypher is a good fit for my use case?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A centralized approach to access control means users are forced to trust the system(s) with the plaintext version of
+their private data, and usually are given little insight into who exactly they are trusting. NuCypher’s decentralized
+access control system offers developers, and their users, a departure from this opaque and trust-dependent paradigm.
+When integrated, `nucypher` enables end-to-end encrypted data sharing workflows within applications – but
+crucially, without sacrificing scalability, redundancy or performance – and applicable to data payloads of
+any form, size, structure, sensitivity or production cadence. Users enjoy the same sharing powers they
+currently take for granted, but are **not** obliged to trust the developers of the application or
+third-party access control services (e.g. centralized servers or key management systems) with their data.
+
+Q: How is NuCypher different from more traditional public key infrastructure (PKI)?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For an in-depth analysis of this topic, see our blog post entitled "`Three things that NuCypher's "Ursula" can do that vanilla public-key cryptography can't <https://blog.nucypher.com/why-use-nucyphers-ursula-instead-of-traditional-public-key-cryptography/>`_".
+
 Q: How much trust do we place in Ursula, the proxy?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Ursulas are “semi-trusted” in the sense that Alice must trust Ursula to revoke a policy once it expires or if instructed to do so (by Alice). Alice and Bob also trust Ursula to be responsive and perform the re-encryption correctly so that Bob can access the data. Importantly, Ursulas are not trusted with access to any underlying plaintext.
-
-Q: Who pays Ursula? How is it done?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Currently, Alice pays Ursulas via an ETH deposit to the PolicyManager contract at the point of granting access to Bob. Payment models are an area of active research for the NuCypher protocol, including the prospect of Bob independently paying for all or some component of the work performed by Ursula. 
-Q: How much does Alice pay?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Alice provides an upfront deposit that covers the entirety of the sharing policy's duration, for all the Ursulas required to service the policy. Currently, Ursulas may choose a discretionary payment rate per period, which Alices discover on an Ursula-by-Ursula basis by querying public network contracts. In the early stages of the network, both Alice and Ursula must settle on a rate which falls within a fixed, universal range, enforced by the PolicyManager contract.
 
 Q: How do we verify that Ursula has performed the re-encryption correctly?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -44,37 +71,73 @@ Q: Who is the Staker in this narrative? Is it Alice or Ursula?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The Staker can be thought of as a fiduciary administrator that holds NU and collects rewards.
-Typically, but not always, Ursula and the Staker are the same party. Recall that Ursula is only “valid” (i.e. will be selected for work and able to earn inflation rewards) if she’s bonded to a Staker.
+Ursula performs work on behalf of the Staker: recall that Ursula is only “valid” (i.e. will be selected for work and able to earn inflation rewards) if she’s bonded to a Staker.
+
+Q: Does Alice or Bob need NU to use the network? Who pays Ursula? How is it done?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Neither Alice nor Bob need NU to use the network - Stakers require NU to run Ursulas on the network. However, Alice pays Ursulas for re-encryptions via an ETH deposit to the PolicyManager contract at the point of granting access to Bob. Payment models are an area of active research for the NuCypher protocol, including the prospect of Bob independently paying in ETH for all or some component of the work performed by Ursula.
+
+Q: How much does Alice pay?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Alice provides an upfront deposit that covers the entirety of the sharing policy's duration (in periods), for all the Ursulas required to service the policy. Currently, Ursulas may choose a discretionary payment rate per period, which Alice discovers on an Ursula-by-Ursula basis by querying public network contracts. In the early stages of the network, both Alice and Ursula must settle on a rate which falls within a fixed, universal range, enforced by the PolicyManager contract.
+
+Q: What currency does Ursula stake in (assuming Ursula is also the Staker)?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Ursula stakes in NU, receives policy rewards in ETH, and receives inflation rewards in NU.
+
+Q: Why do you have a mix of NU and ETH?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It’s much more convenient for Alice to simply carry ETH. If she has to acquire NU also, it sets a much higher barrier to entry.
+Additionally, since NU is an ERC20 token, using it for payment instead of ETH offers no advantages.
+
+Q: Where are Bobs’ requests handled?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Bobs' requests are handled off-chain.
+
+Q: Why are Bobs' requests handled off-chain?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It allows for a very small/lightweight Bob.
+
+Q: Why can't my users reuse their Ethereum wallet keys when creating a sharing policy?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Avoiding key reuse is a strong defense-in-depth measure against cryptographic and software flaws. While it is
+possible to use your ETH keys in `nucypher`, we strongly advise against such a practice. It is best to keep these
+sets of keys separate.
+
+Q: How can I get help integrating nucypher into my application?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+See :ref:`application-development`. To chat directly with our team, please join our `Discord <http://discord.nucypher.com>`_.
+
+Q: How do I integrate nucypher if my application is not written in Python?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Nucypher also provides REST-like HTTP endpoints for working with characters. See :ref:`character-control-guide`.
+
+
+
+
+Running a Node
+--------------
+
+*These are questions related to running a node on the NuCypher network.*
 
 Q: What kind of token is NU?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 NU is an implementation of the ERC20 standard deployed onto the Ethereum blockchain.
 
-Q: Why have the Staker and Ursula been split?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-We split them so that the Staker can hold NU offline in a hardware wallet.
-
-Q: What currency does Alice use to pay for re-encryptions?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Alice pays for re-encryptions in Ether.
-
-Q: What currency does Ursula stake in (assuming Ursula is also the Staker)?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Ursula stakes in NU, collects policy rewards in ETH, and inflation rewards in NU.
-
 Q: What are the two streams of income Ursula can receive?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Inflation Rewards (NU) and Policy Rewards (ETH). We will soon refer to Policy Rewards as “Fees” to avoid confusion.
-
-Q: Why do you have a mix of NU and ETH?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-It’s much more convenient for Alice to simply carry ETH. If she has to acquire NU also, it sets a much higher barrier to entry.
 
 Q: How are Policy Rewards (ETH) determined?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -84,28 +147,12 @@ The reward is calculated with Confirm Activity taking into account the number of
 Q: How many Ursulas per period collect Inflation rewards (NU)?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Every Ursula that is “online” and “available” will receive a cut based on the size of their stake.
+Every Ursula that is “online” and “available” will receive a cut based on the size of their stake proportional to the overall NU staked in the network and augmented by a time coefficient based on their remaining stake duration.
 
-Q: How long is a period?
-~~~~~~~~~~~~~~~~~~~~~~~~
+Q: How/Where can I acquire NU tokens?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1 period is 24 hours. Periods begin at midnight UTC.
-
-Q: Where are Bob’s requests handled?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Bob’s requests are handled off-chain.
-
-Q: Why are Bob’s requests handled off-chain?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-It allows for a very small/lightweight Bob.
-
-
-Setup-Related Questions
------------------------
-
-*These are questions related to setting up the NuCypher network on your machine.*
+NU tokens can be acquired via the "*WorkLock*" mechanism developed by NuCypher - more information is available in our `original blog post <https://blog.nucypher.com/the-worklock/>`_ and :ref:`worklock-guide`.
 
 Q: What are the recommended specifications for running a nucypher node?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -115,10 +162,20 @@ require at least 4GB for RAM. Nodes also need 24/7 uptime and a static, public I
 
 For ``nucypher`` specific requirements, see `System Requirements and Dependencies <https://docs.nucypher.com/en/latest/guides/installation_guide.html#system-requirements-and-dependencies/>`_.
 
-Q: What is the network name for Incentivized Testnet?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Q: How do I set up a network node?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The network name for incentivized testnet is ``cassandra``.
+See :ref:`running-a-node`.
+
+Q: Is there a guide for Windows?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Our guide is intended for Linux - we do not officially support Windows.
+
+Q: How computationally expensive is performing re-encryptions likely to be?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A re-encryption operation is very lightweight (in the order of milliseconds) and is comparable to computing an ECDSA signature.
 
 Q: Can my Staker and Worker address be the same?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -131,10 +188,12 @@ is used by an Ursula node.
 You should stake with one address and set the worker to be a different address. Subsequently, you can bond
 the worker address to the stake.
 
-Q: Is there a guide for Windows?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Q: How do I maximize the inflation-based rewards I will receive?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Our guide is intended for Linux - we do not officially support Windows.
+    * Lock your stake for a year or more - stakes with tokens locked for a year or more will be afforded the maximum time coefficient for the calculation of inflation rewards - see `Ursula Generates Staking Rewards <https://docs.nucypher.com/en/latest/architecture/contracts.html#ursula-generates-staking-rewards>`_
+    * Enable :ref:`sub-stake-restaking` to relock inflation rewards and increase your stake size and consequently your proportion of future inflation rewards
+    * Disable :ref:`sub-stake-winddown` to maintain locked stake duration
 
 Q: Where is my Ursula config path?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -158,7 +217,7 @@ This is **ONLY** a heuristic to ensure that your node is running correctly, it d
        .. code::
 
             Starting Ursula on xxx.xxx.xxx.xxx:9151
-            Connecting to cassandra
+            Connecting to gemini
             Working ~ Keep Ursula Online!
 
     #. Ensure that your node uses the correct IP address and can be accessed via port 9151 from an outside
@@ -171,7 +230,7 @@ This is **ONLY** a heuristic to ensure that your node is running correctly, it d
 
         nucypher status stakers
         >    --provider <your_geth_provider>
-        >    --network cassandra
+        >    --network gemini
         >    --staking-address <your_staker_address>
 
     #. Ensure that your node is listed on the `Status Monitor Page <https://status.nucypher.network>`_ (this can take a few minutes).
@@ -185,7 +244,7 @@ or `systemd <https://docs.nucypher.com/en/latest/guides/installation_guide.html#
 Q: When installing on Docker, what do I input for <NETWORK NAME>?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For the *“Come and Stake It”* incentivized testnet, the network name is ``cassandra``.
+For the *“Come and Stake It”* incentivized testnet, the network name is ``gemini``.
 
 Q: How can I check for currently available staking rewards?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -194,7 +253,7 @@ Run::
 
     nucypher status stakers
     >    --provider <your_geth_provider>
-    >    --network cassandra
+    >    --network gemini
     >    --staking-address <your_staker_address>
 
 Note that a minimum of two periods must elapse before rewards will be delivered to your wallet. For example, say we
@@ -218,7 +277,7 @@ Run::
 
     nucypher status stakers
     >    --provider <your_geth_provider>
-    >    --network cassandra
+    >    --network gemini
     >    --staking-address <your_staker_address>
 
 
@@ -255,8 +314,8 @@ Q: This all seems too complex for me, can I still participate in some way?
 We highly recommend delegating to an experienced staker rather than doing it yourself, if
 you are not super familiar with running nodes for other networks.
 
-Q: Why is my node is labelled as Idle in the status monitor?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Q: Why is my node is labelled as "*Idle*" in the status monitor?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Your node is `Idle` because it has never confirmed activity. Likely, your worker address does not have any
 ETH to use for transaction gas.
@@ -268,7 +327,7 @@ Check when last your node confirmed activity by running::
 
     nucypher status stakers
     >    --provider <your_geth_provider>
-    >    --network cassandra
+    >    --network gemini
     >    --staking-address <your_staker_address>
 
 If everything looks fine, the status monitor probably just needs some time to connect to the node again to update the

@@ -1,3 +1,5 @@
+.. _worklock-guide:
+
 ==============
 WorkLock Guide
 ==============

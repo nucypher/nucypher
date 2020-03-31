@@ -105,6 +105,12 @@ Whitepapers
     *by Michael Egorov, MacLane Wilkison - NuCypher*
 
 
+    https://github.com/nucypher/mining-paper/blob/master/2_phase_minting_schedule/2phase_mintingschedule_v4.pdf
+
+    *"Temporally equitable subsidies: a two-phase token minting schedule"*
+    *by Arjun Hassard - NuCypher*
+
+
 **Cryptography**
 
     https://github.com/nucypher/umbral-doc/blob/master/umbral-doc.pdf

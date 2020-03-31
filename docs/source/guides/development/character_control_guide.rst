@@ -1,3 +1,5 @@
+.. _character-control-guide:
+
 =======================
 Character Control Guide
 =======================

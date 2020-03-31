@@ -125,7 +125,7 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
 
 ``<NETWORK_NAME>`` is the name of the NuCypher network domain where the node will run.
 
-.. note:: If you're participating in NuCypher's incentivized testnet, this name is ``cassandra``.
+.. note:: If you're participating in NuCypher's incentivized testnet, this name is ``gemini``.
 
 
 .. note:: If you're a preallocation user, recall that you're using a contract to stake.

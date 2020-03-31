@@ -1,3 +1,5 @@
+.. _character-concepts:
+
 Character Concepts
 ==================
 
