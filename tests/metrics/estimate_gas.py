@@ -207,6 +207,17 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact(token_functions.transfer(ursula3, MIN_ALLOWED_LOCKED * 10), {'from': origin})
 
     #
+    # Batch deposit tokens
+    #
+    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 10), {'from': origin})
+    transact_and_log("Batch deposit tokens for 5 owners x 2 sub-stakes",
+                     staker_functions.batchDeposit(everyone_else[0:5],
+                                                   [2] * 5,
+                                                   [MIN_ALLOWED_LOCKED] * 10,
+                                                   [MIN_LOCKED_PERIODS] * 10),
+                     {'from': origin})
+
+    #
     # Ursula and Alice give Escrow rights to transfer
     #
     transact_and_log("Approving transfer",

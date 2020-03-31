@@ -19,6 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_checksum_address
+from web3.contract import Contract
 
 MAX_SUB_STAKES = 30
 MAX_UINT16 = 65535
@@ -73,15 +74,6 @@ def test_staking(testerchain, token, escrow_contract):
     assert 0 == escrow.functions.getLockedTokens(staker2, 0).call()
     assert 0 == escrow.functions.getLockedTokens(testerchain.client.accounts[3], 0).call()
 
-    # Staker can't deposit tokens before Escrow initialization
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.deposit(500, 2).transact({'from': staker1})
-        testerchain.wait_for_receipt(tx)
-
-    # Initialize Escrow contract
-    tx = escrow.functions.initialize(0).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-
     # Can't deposit for too short a period (less than _minLockedPeriods coefficient)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.deposit(1000, 1).transact({'from': staker1})
@@ -91,7 +83,7 @@ def test_staking(testerchain, token, escrow_contract):
             .transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
-    # Staker transfers some tokens to the escrow and lock them
+    # Staker transfers some tokens to the escrow and locks them before initialization
     current_period = escrow.functions.getCurrentPeriod().call()
     tx = escrow.functions.deposit(1000, 2).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
@@ -126,7 +118,16 @@ def test_staking(testerchain, token, escrow_contract):
     assert staker1 == event_args['staker']
     assert event_args['windDown']
 
-    # Staker(2) stakes tokens also
+    # Can't confirm activity before initialization
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.confirmActivity().transact({'from': staker1})
+        testerchain.wait_for_receipt(tx)
+
+    # Initialize Escrow contract
+    tx = escrow.functions.initialize(0).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    # Ursula(2) stakes tokens also
     tx = escrow.functions.deposit(500, 2).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWorker(staker2).transact({'from': staker2})
@@ -712,3 +713,283 @@ def test_allowable_locked_tokens(testerchain, token_economics, token, escrow_con
     staker1_lock += minimum_allowed
     tx = escrow.functions.lock(maximum_allowed - staker1_lock, duration).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
+
+
+@pytest.mark.slow
+def test_batch_deposit(testerchain, token, escrow_contract, deploy_contract):
+    escrow = escrow_contract(1500)
+    policy_manager_interface = testerchain.get_contract_factory('PolicyManagerForStakingEscrowMock')
+    policy_manager = testerchain.client.get_contract(
+        abi=policy_manager_interface.abi,
+        address=escrow.functions.policyManager().call(),
+        ContractFactoryClass=Contract)
+
+    creator = testerchain.client.accounts[0]
+    deposit_log = escrow.events.Deposited.createFilter(fromBlock='latest')
+    lock_log = escrow.events.Locked.createFilter(fromBlock='latest')
+
+    # Grant access to transfer tokens
+    tx = token.functions.approve(escrow.address, 10000).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    # Deposit tokens for 1 staker
+    staker = testerchain.client.accounts[1]
+    tx = escrow.functions.batchDeposit([staker], [1], [1000], [10]).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    escrow_balance = 1000
+    assert token.functions.balanceOf(escrow.address).call() == escrow_balance
+    assert escrow.functions.getAllTokens(staker).call() == 1000
+    assert escrow.functions.getLockedTokens(staker, 0).call() == 0
+    assert escrow.functions.getLockedTokens(staker, 1).call() == 1000
+    assert escrow.functions.getLockedTokens(staker, 10).call() == 1000
+    assert escrow.functions.getLockedTokens(staker, 11).call() == 0
+    current_period = escrow.functions.getCurrentPeriod().call()
+    assert policy_manager.functions.getPeriodsLength(staker).call() == 1
+    assert policy_manager.functions.getPeriod(staker, 0).call() == current_period - 1
+    assert escrow.functions.getPastDowntimeLength(staker).call() == 0
+    assert escrow.functions.getLastActivePeriod(staker).call() == 0
+
+    deposit_events = deposit_log.get_all_entries()
+    assert len(deposit_events) == 1
+    event_args = deposit_events[-1]['args']
+    assert event_args['staker'] == staker
+    assert event_args['value'] == 1000
+    assert event_args['periods'] == 10
+
+    lock_events = lock_log.get_all_entries()
+    assert len(lock_events) == 1
+    event_args = lock_events[-1]['args']
+    assert event_args['staker'] == staker
+    assert event_args['value'] == 1000
+    assert event_args['firstPeriod'] == current_period + 1
+    assert event_args['periods'] == 10
+
+    # Can't deposit tokens again for the same staker twice
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.batchDeposit([staker], [1], [1000], [10])\
+            .transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
+    # Can't deposit tokens with too low or too high value
+    staker = testerchain.client.accounts[2]
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.batchDeposit([staker], [1], [1], [10])\
+            .transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.batchDeposit([staker], [1], [1501], [10])\
+            .transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.batchDeposit([staker], [1], [500], [1])\
+            .transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.batchDeposit([staker], [2], [1000, 501], [10, 10])\
+            .transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
+    # Inconsistent input
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.batchDeposit([staker], [0], [500], [10])\
+            .transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.batchDeposit([staker], [2], [500], [10])\
+            .transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.batchDeposit([staker], [1, 1], [500], [10])\
+            .transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.batchDeposit([staker], [1, 1], [500, 500], [10])\
+            .transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.batchDeposit([staker], [1, 1], [500, 500], [10, 10])\
+            .transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    stakers = testerchain.client.accounts[2:4]
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.batchDeposit(stakers, [1, 1], [500, 500, 500], [10, 10, 10])\
+            .transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
+    # Initialize Escrow contract
+    tx = escrow.functions.initialize(0).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    # Deposit tokens for multiple stakers
+    stakers = testerchain.client.accounts[2:7]
+    tx = escrow.functions.batchDeposit(
+        stakers, [1, 1, 1, 1, 1], [100, 200, 300, 400, 500], [50, 100, 150, 200, 250]).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    escrow_balance += 1500
+    assert token.functions.balanceOf(escrow.address).call() == escrow_balance
+    current_period = escrow.functions.getCurrentPeriod().call()
+    deposit_events = deposit_log.get_all_entries()
+    lock_events = lock_log.get_all_entries()
+
+    assert len(deposit_events) == 6
+    assert len(lock_events) == 6
+
+    for index, staker in enumerate(stakers):
+        value = 100 * (index + 1)
+        duration = 50 * (index + 1)
+        assert escrow.functions.getAllTokens(staker).call() == value
+        assert escrow.functions.getLockedTokens(staker, 0).call() == 0
+        assert escrow.functions.getLockedTokens(staker, 1).call() == value
+        assert escrow.functions.getLockedTokens(staker, duration).call() == value
+        assert escrow.functions.getLockedTokens(staker, duration + 1).call() == 0
+        assert policy_manager.functions.getPeriodsLength(staker).call() == 1
+        assert policy_manager.functions.getPeriod(staker, 0).call() == current_period - 1
+        assert escrow.functions.getPastDowntimeLength(staker).call() == 0
+        assert escrow.functions.getLastActivePeriod(staker).call() == 0
+
+        event_args = deposit_events[index + 1]['args']
+        assert event_args['staker'] == staker
+        assert event_args['value'] == value
+        assert event_args['periods'] == duration
+
+        event_args = lock_events[index + 1]['args']
+        assert event_args['staker'] == staker
+        assert event_args['value'] == value
+        assert event_args['firstPeriod'] == current_period + 1
+        assert event_args['periods'] == duration
+
+    # Deposit tokens for multiple stakers with multiple sub-stakes
+    stakers = testerchain.client.accounts[7:10]
+    tx = escrow.functions.batchDeposit(
+        stakers, [1, 2, 3], [100, 200, 300, 400, 500, 600], [50, 100, 150, 200, 250, 300])\
+        .transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    escrow_balance += 2100
+    assert token.functions.balanceOf(escrow.address).call() == escrow_balance
+    current_period = escrow.functions.getCurrentPeriod().call()
+    deposit_events = deposit_log.get_all_entries()
+    lock_events = lock_log.get_all_entries()
+
+    assert len(deposit_events) == 12
+    assert len(lock_events) == 12
+
+    staker = stakers[0]
+    duration = 50
+    value = 100
+    assert escrow.functions.getAllTokens(staker).call() == value
+    assert escrow.functions.getLockedTokens(staker, 1).call() == value
+    assert escrow.functions.getLockedTokens(staker, duration).call() == value
+    assert escrow.functions.getLockedTokens(staker, duration + 1).call() == 0
+    assert policy_manager.functions.getPeriodsLength(staker).call() == 1
+    assert policy_manager.functions.getPeriod(staker, 0).call() == current_period - 1
+    assert escrow.functions.getPastDowntimeLength(staker).call() == 0
+    assert escrow.functions.getLastActivePeriod(staker).call() == 0
+    assert escrow.functions.getSubStakesLength(staker).call() == 1
+
+    event_args = deposit_events[6]['args']
+    assert event_args['staker'] == staker
+    assert event_args['value'] == value
+    assert event_args['periods'] == duration
+
+    event_args = lock_events[6]['args']
+    assert event_args['staker'] == staker
+    assert event_args['value'] == value
+    assert event_args['firstPeriod'] == current_period + 1
+    assert event_args['periods'] == duration
+
+    staker = stakers[1]
+    duration1 = 100
+    duration2 = 150
+    value1 = 200
+    value2 = 300
+    assert escrow.functions.getAllTokens(staker).call() == value1 + value2
+    assert escrow.functions.getLockedTokens(staker, 0).call() == 0
+    assert escrow.functions.getLockedTokens(staker, 1).call() == value1 + value2
+    assert escrow.functions.getLockedTokens(staker, duration1).call() == value1 + value2
+    assert escrow.functions.getLockedTokens(staker, duration1 + 1).call() == value2
+    assert escrow.functions.getLockedTokens(staker, duration2).call() == value2
+    assert escrow.functions.getLockedTokens(staker, duration2 + 1).call() == 0
+    assert policy_manager.functions.getPeriodsLength(staker).call() == 1
+    assert policy_manager.functions.getPeriod(staker, 0).call() == current_period - 1
+    assert escrow.functions.getPastDowntimeLength(staker).call() == 0
+    assert escrow.functions.getLastActivePeriod(staker).call() == 0
+    assert escrow.functions.getSubStakesLength(staker).call() == 2
+
+    event_args = deposit_events[7]['args']
+    assert event_args['staker'] == staker
+    assert event_args['value'] == value1
+    assert event_args['periods'] == duration1
+
+    event_args = lock_events[7]['args']
+    assert event_args['staker'] == staker
+    assert event_args['value'] == value1
+    assert event_args['firstPeriod'] == current_period + 1
+    assert event_args['periods'] == duration1
+
+    event_args = deposit_events[8]['args']
+    assert event_args['staker'] == staker
+    assert event_args['value'] == value2
+    assert event_args['periods'] == duration2
+
+    event_args = lock_events[8]['args']
+    assert event_args['staker'] == staker
+    assert event_args['value'] == value2
+    assert event_args['firstPeriod'] == current_period + 1
+    assert event_args['periods'] == duration2
+
+    staker = stakers[2]
+    duration1 = 200
+    duration2 = 250
+    duration3 = 300
+    value1 = 400
+    value2 = 500
+    value3 = 600
+    assert escrow.functions.getAllTokens(staker).call() == value1 + value2 + value3
+    assert escrow.functions.getLockedTokens(staker, 0).call() == 0
+    assert escrow.functions.getLockedTokens(staker, 1).call() == value1 + value2 + value3
+    assert escrow.functions.getLockedTokens(staker, duration1).call() == value1 + value2 + value3
+    assert escrow.functions.getLockedTokens(staker, duration1 + 1).call() == value2 + value3
+    assert escrow.functions.getLockedTokens(staker, duration2).call() == value2 + value3
+    assert escrow.functions.getLockedTokens(staker, duration2 + 1).call() == value3
+    assert escrow.functions.getLockedTokens(staker, duration3).call() == value3
+    assert escrow.functions.getLockedTokens(staker, duration3 + 1).call() == 0
+    assert policy_manager.functions.getPeriodsLength(staker).call() == 1
+    assert policy_manager.functions.getPeriod(staker, 0).call() == current_period - 1
+    assert escrow.functions.getPastDowntimeLength(staker).call() == 0
+    assert escrow.functions.getLastActivePeriod(staker).call() == 0
+    assert escrow.functions.getSubStakesLength(staker).call() == 3
+
+    event_args = deposit_events[9]['args']
+    assert event_args['staker'] == staker
+    assert event_args['value'] == value1
+    assert event_args['periods'] == duration1
+
+    event_args = lock_events[9]['args']
+    assert event_args['staker'] == staker
+    assert event_args['value'] == value1
+    assert event_args['firstPeriod'] == current_period + 1
+    assert event_args['periods'] == duration1
+
+    event_args = deposit_events[10]['args']
+    assert event_args['staker'] == staker
+    assert event_args['value'] == value2
+    assert event_args['periods'] == duration2
+
+    event_args = lock_events[10]['args']
+    assert event_args['staker'] == staker
+    assert event_args['value'] == value2
+    assert event_args['firstPeriod'] == current_period + 1
+    assert event_args['periods'] == duration2
+
+    event_args = deposit_events[11]['args']
+    assert event_args['staker'] == staker
+    assert event_args['value'] == value3
+    assert event_args['periods'] == duration3
+
+    event_args = lock_events[11]['args']
+    assert event_args['staker'] == staker
+    assert event_args['value'] == value3
+    assert event_args['firstPeriod'] == current_period + 1
+    assert event_args['periods'] == duration3

@@ -34,7 +34,7 @@ contract WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v2.2.3|
+* @dev |v2.3.1|
 */
 contract StakingEscrow is Issuer {
     using AdditionalMath for uint256;
@@ -479,7 +479,7 @@ contract StakingEscrow is Issuer {
     * Only if this parameter is not locked
     * @param _reStake Value for parameter
     */
-    function setReStake(bool _reStake) external isInitialized {
+    function setReStake(bool _reStake) external {
         require(!isReStakeLocked(msg.sender));
         StakerInfo storage info = stakerInfo[msg.sender];
         if (info.reStakeDisabled == !_reStake) {
@@ -493,7 +493,7 @@ contract StakingEscrow is Issuer {
     * @notice Lock `reStake` parameter. Only if this parameter is not locked
     * @param _lockReStakeUntilPeriod Can't change `reStake` value until this period
     */
-    function lockReStake(uint16 _lockReStakeUntilPeriod) external isInitialized {
+    function lockReStake(uint16 _lockReStakeUntilPeriod) external {
         require(!isReStakeLocked(msg.sender) &&
             _lockReStakeUntilPeriod > getCurrentPeriod());
         stakerInfo[msg.sender].lockReStakeUntilPeriod = _lockReStakeUntilPeriod;
@@ -540,6 +540,59 @@ contract StakingEscrow is Issuer {
                 subStake.lastPeriod = nextPeriod;
             }
         }
+    }
+
+    /**
+    * @notice Batch deposit. Allowed only initial deposit for each staker
+    * @param _stakers Stakers
+    * @param _numberOfSubStakes Number of sub-stakes which belong to staker in _values and _periods arrays
+    * @param _values Amount of tokens to deposit for each staker
+    * @param _periods Amount of periods during which tokens will be locked for each staker
+    */
+    function batchDeposit(
+        address[] calldata _stakers,
+        uint256[] calldata _numberOfSubStakes,
+        uint256[] calldata _values,
+        uint16[] calldata _periods
+    )
+        external
+    {
+        uint256 subStakesLength = _values.length;
+        require(_stakers.length != 0 &&
+            _stakers.length == _numberOfSubStakes.length &&
+            subStakesLength >= _stakers.length &&
+            _periods.length == subStakesLength);
+        uint16 previousPeriod = getCurrentPeriod() - 1;
+        uint16 nextPeriod = previousPeriod + 2;
+        uint256 sumValue = 0;
+
+        uint256 j = 0;
+        for (uint256 i = 0; i < _stakers.length; i++) {
+            address staker = _stakers[i];
+            uint256 numberOfSubStakes = _numberOfSubStakes[i];
+            uint256 endIndex = j + numberOfSubStakes;
+            require(numberOfSubStakes > 0 && subStakesLength >= endIndex);
+            StakerInfo storage info = stakerInfo[staker];
+            require(info.subStakes.length == 0);
+            require(workerToStaker[staker] == address(0), "A staker can't be a worker for another staker");
+            stakers.push(staker);
+            policyManager.register(staker, previousPeriod);
+
+            for (; j < endIndex; j++) {
+                uint256 value =  _values[j];
+                uint16 periods = _periods[j];
+                require(value >= minAllowableLockedTokens && periods >= minLockedPeriods);
+                info.value = info.value.add(value);
+                info.subStakes.push(SubStakeInfo(nextPeriod, 0, periods, value));
+                sumValue = sumValue.add(value);
+                emit Deposited(staker, value, periods);
+                emit Locked(staker, value, nextPeriod, periods);
+            }
+            require(info.value <= maxAllowableLockedTokens);
+        }
+        require(j == subStakesLength);
+
+        token.safeTransferFrom(msg.sender, address(this), sumValue);
     }
 
     /**
@@ -608,7 +661,7 @@ contract StakingEscrow is Issuer {
     * @param _value Amount of tokens to deposit
     * @param _periods Amount of periods during which tokens will be locked
     */
-    function deposit(address _staker, address _payer, uint256 _value, uint16 _periods) internal isInitialized {
+    function deposit(address _staker, address _payer, uint256 _value, uint16 _periods) internal {
         require(_value != 0);
         StakerInfo storage info = stakerInfo[_staker];
         require(workerToStaker[_staker] == address(0) || workerToStaker[_staker] == info.worker,
@@ -773,7 +826,7 @@ contract StakingEscrow is Issuer {
     /**
     * @notice Confirm activity for the next period and mine for the previous period
     */
-    function confirmActivity() external {
+    function confirmActivity() external isInitialized {
         address staker = getStakerFromWorker(msg.sender);
         StakerInfo storage info = stakerInfo[staker];
         require(info.value > 0, "Staker must have a stake to confirm activity");
@@ -958,7 +1011,7 @@ contract StakingEscrow is Issuer {
         address _investigator,
         uint256 _reward
     )
-        public
+        public isInitialized
     {
         require(msg.sender == address(adjudicator));
         require(_penalty > 0);
