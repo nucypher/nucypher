@@ -11,7 +11,7 @@ from nucypher.network.middleware import RestMiddleware
 
 class AvailabilitySensor:
 
-    FAST_INTERVAL = 5          # Seconds
+    FAST_INTERVAL = 15          # Seconds
     SLOW_INTERVAL = 60 * 5
     SEEDING_DURATION = 60
     MAXIMUM_ALONE_TIME = 120
@@ -61,14 +61,21 @@ class AvailabilitySensor:
                       f'Please check your network and firewall configuration.'
                       f'Auto-shutdown will commence soon if the services do not become available.')
 
-    def shutdown_everything(self, reason = None):
+    def shutdown_everything(self, reason=None, halt_reactor=True):
+        self.log.warn(f'[NODE IS UNREACHABLE] Commencing auto-shutdown sequence...')
+        self._ursula.stop(halt_reactor=False)
         try:
             if reason:
                 raise reason(reason.message)
             raise self.Unreachable(f'{self._ursula} is unreachable.')
         finally:
-            if reactor.running:
-                reactor.stop()
+            if halt_reactor:
+                self._halt_reactor()
+
+    @staticmethod
+    def _halt_reactor() -> None:
+        if reactor.running:
+            reactor.stop()
 
     def handle_measurement_errors(self, *args, **kwargs) -> None:
         failure = args[0]

@@ -378,7 +378,7 @@ class LocalContractRegistry(BaseContractRegistry):
         """
         try:
             with open(self.filepath, 'r') as registry_file:
-                self.log.debug("Reading from registrar: filepath {}".format(self.filepath))
+                self.log.debug("Reading from registry: filepath {}".format(self.filepath))
                 registry_file.seek(0)
                 file_data = registry_file.read()
                 if file_data:

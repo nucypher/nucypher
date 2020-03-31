@@ -510,8 +510,9 @@ class WorkTracker:
         return self.__current_period
 
     def stop(self) -> None:
-        self._tracking_task.stop()
-        self.log.info(f"STOPPED WORK TRACKING")
+        if self._tracking_task.running:
+            self._tracking_task.stop()
+            self.log.info(f"STOPPED WORK TRACKING")
 
     def start(self, act_now: bool = False, requirement_func: Callable = None, force: bool = False) -> None:
         """

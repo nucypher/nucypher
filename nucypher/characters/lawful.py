@@ -967,21 +967,20 @@ class Ursula(Teacher, Character, Worker):
 
         if is_me:
 
-            # Learner
-            self._start_learning_now = start_learning_now
-            self.known_nodes.record_fleet_state(additional_nodes_to_track=[self])  # Initial Impression
-
             # In-Memory TreasureMap tracking
             self._stored_treasure_maps = dict()
+
+            # Learner
+            self._start_learning_now = start_learning_now
 
             # Self-Health Checks
             self._availability_check = availability_check
             self._availability_sensor = AvailabilitySensor(ursula=self)
 
             # Arrangement Pruning
+            self.__pruning_task = None
             self._prune_datastore = prune_datastore
             self._arrangement_pruning_task = LoopingCall(f=self.__prune_arrangements)
-            self.__pruning_task = None
 
             # Prometheus / Metrics
             self._metrics_port = metrics_port
@@ -1079,6 +1078,8 @@ class Ursula(Teacher, Character, Worker):
                          decentralized_identity_evidence=decentralized_identity_evidence)
 
         if is_me:
+            self.known_nodes.record_fleet_state(additional_nodes_to_track=[self])  # Initial Impression
+
             message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)
             self.log.info(message)
             self.log.info(self.banner.format(self.nickname))
@@ -1121,7 +1122,6 @@ class Ursula(Teacher, Character, Worker):
         if learning:
             if emitter:
                 emitter.message(f"Connecting to {','.join(self.learning_domains)}", color='green', bold=True)
-            # Initial Fleet State
             self.start_learning_loop(now=self._start_learning_now)
 
         if availability:
@@ -1168,6 +1168,18 @@ class Ursula(Teacher, Character, Worker):
 
         elif start_reactor:  # ... without hendrix
             reactor.run()    # <--- Blocking Call (Reactor)
+
+    def stop(self, halt_reactor: bool = False) -> None:
+        """Stop services"""
+        self._availability_sensor.stop()
+        if self._learning_task.running:
+            self.stop_learning_loop()
+        if not self.federated_only:
+            self.work_tracker.stop()
+        if self._arrangement_pruning_task.running:
+            self._arrangement_pruning_task.stop()
+        if halt_reactor:
+            reactor.stop()
 
     def rest_information(self):
         hosting_power = self._crypto_power.power_ups(TLSHostingPower)
