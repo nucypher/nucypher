@@ -160,9 +160,9 @@ Using Clef as an external transaction signer (Remote Provider)
 Motivation
 **********
 
-Instead of running a full ethereum node for both transaction signing and broadcast, an external signer can be specified
-via command line independent from the provider. This allows stakers and other network users to use hardware and software
-wallets without needing to run an ethereum node at all.
+Instead of using a local ethereum node for both transaction signing and broadcast, an external signer can be specified
+and operated independently of the provider/broadcaster. This separation allows stakers to use local hardware and software wallets
+to send pre-signed transactions to an external (possibly remote) ethereum node.
 
 Some examples:
 
@@ -184,6 +184,8 @@ may already have clef installed.  To check for an existing installation run:
 
     $ clef --version
     Clef version 0.0.0
+
+If clef was not found, upgrade geth to the latest version and try again.
 
 Next, initialize Clef with your chosen password to encrypt the master seed:
 
@@ -207,8 +209,7 @@ by specifying the keystore directory path:
     $ clef --keystore <PATH TO GOERLI KEYSTORE> --chainid 5 --advanced
 
 
-- <PATH TO KEYSTORE> - The path to the directory containing geth-formatted private key files.
-  the default for linux is `~/.ethereum/goerli/keystore`.
+- <PATH TO KEYSTORE> - The path to the directory containing geth-formatted private key files; the default path for Linux is ``~/.ethereum/goerli/keystore``.
 - Chain ID 5 is specified to ensure clef signs transactions with the network ID of Goerli.
 
 
@@ -250,7 +251,7 @@ Interacting with clef
 *********************
 
 Requests for account management, and signing will be directed at clef, with a 10 second timeout.
-Be alert for user-interactive requests from the clef CLI.
+Be alert for user-interactive requests and confirmations from the clef CLI.
 
 
 Initialize a new stakeholder
