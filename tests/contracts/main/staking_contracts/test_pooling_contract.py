@@ -23,18 +23,18 @@ from web3.contract import Contract
 from nucypher.blockchain.eth.token import NU
 
 
-OWNER_COEFFICIENT = int(NU.from_tokens(100_000))
+BASE_OWNER_COEFFICIENT = int(NU.from_tokens(100_000))
 
 
 @pytest.fixture()
 def pooling_contract(testerchain, router, deploy_contract):
     creator = testerchain.client.accounts[0]
-    user = testerchain.client.accounts[1]
+    owner = testerchain.client.accounts[1]
 
-    contract, _ = deploy_contract('PoolingStakingContract', router.address, OWNER_COEFFICIENT)
+    contract, _ = deploy_contract('PoolingStakingContract', router.address, BASE_OWNER_COEFFICIENT)
 
     # Transfer ownership
-    tx = contract.functions.transferOwnership(user).transact({'from': creator})
+    tx = contract.functions.transferOwnership(owner).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     return contract
 
@@ -55,19 +55,15 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     deposit_log = pooling_contract.events.TokensDeposited.createFilter(fromBlock='latest')
     withdraw_log = pooling_contract.events.TokensWithdrawn.createFilter(fromBlock='latest')
 
-    assert pooling_contract.functions.baseCoefficient().call() == OWNER_COEFFICIENT
+    assert pooling_contract.functions.baseCoefficient().call() == BASE_OWNER_COEFFICIENT
     assert pooling_contract.functions.withdrawnTokens().call() == 0
-    assert pooling_contract.functions.ownerCoefficient().call() == OWNER_COEFFICIENT
-    assert pooling_contract.functions.ownerWithdrawnTokens().call() == 0
-    assert pooling_contract.functions.delegators(owner).call() == [0, 0]
+    assert pooling_contract.functions.delegators(owner).call() == [BASE_OWNER_COEFFICIENT, 0]
     assert token.functions.balanceOf(pooling_contract.address).call() == 0
 
     # Give some tokens to the owner
     tx = token.functions.transfer(owner, token_economics.minimum_allowed_locked).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    assert pooling_contract.functions.ownerCoefficient().call() == OWNER_COEFFICIENT
-    assert pooling_contract.functions.ownerWithdrawnTokens().call() == 0
-    assert pooling_contract.functions.delegators(owner).call() == [0, 0]
+    assert pooling_contract.functions.delegators(owner).call() == [BASE_OWNER_COEFFICIENT, 0]
 
     # Give some tokens to delegators
     for index, delegator in enumerate(delegators):
@@ -76,7 +72,7 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
         testerchain.wait_for_receipt(tx)
 
     # Delegators deposit tokens to the pooling contract
-    base_coefficient = OWNER_COEFFICIENT
+    base_coefficient = BASE_OWNER_COEFFICIENT
     tokens_supply = 0
     for index, delegator in enumerate(delegators):
         assert pooling_contract.functions.delegators(delegator).call() == [0, 0]
@@ -99,24 +95,20 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
         assert event_args['coefficient'] == tokens
 
     assert pooling_contract.functions.withdrawnTokens().call() == 0
-    assert pooling_contract.functions.ownerCoefficient().call() == OWNER_COEFFICIENT
-    assert pooling_contract.functions.ownerWithdrawnTokens().call() == 0
+    assert pooling_contract.functions.delegators(owner).call() == [BASE_OWNER_COEFFICIENT, 0]
 
-    # Owner also becomes a delegator
-    assert pooling_contract.functions.delegators(owner).call() == [0, 0]
+    # Owner also deposits some tokens
     tokens = token.functions.balanceOf(owner).call()
     tx = token.functions.approve(pooling_contract.address, tokens).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
     tx = pooling_contract.functions.depositTokens(tokens).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
-    assert pooling_contract.functions.delegators(owner).call() == [tokens, 0]
+    assert pooling_contract.functions.delegators(owner).call() == [BASE_OWNER_COEFFICIENT + tokens, 0]
     base_coefficient += tokens
     tokens_supply += tokens
 
     assert pooling_contract.functions.baseCoefficient().call() == base_coefficient
     assert pooling_contract.functions.withdrawnTokens().call() == 0
-    assert pooling_contract.functions.ownerCoefficient().call() == OWNER_COEFFICIENT
-    assert pooling_contract.functions.ownerWithdrawnTokens().call() == 0
     assert token.functions.balanceOf(pooling_contract.address).call() == tokens_supply
 
     events = deposit_log.get_all_entries()
@@ -124,7 +116,7 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     event_args = events[-1]['args']
     assert event_args['sender'] == owner
     assert event_args['value'] == tokens
-    assert event_args['coefficient'] == tokens
+    assert event_args['coefficient'] == BASE_OWNER_COEFFICIENT + tokens
 
     # Delegators deposit tokens to the pooling contract again
     for index, delegator in enumerate(delegators):
@@ -147,8 +139,6 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
         assert event_args['coefficient'] == 2 * tokens
 
     assert pooling_contract.functions.withdrawnTokens().call() == 0
-    assert pooling_contract.functions.ownerCoefficient().call() == OWNER_COEFFICIENT
-    assert pooling_contract.functions.ownerWithdrawnTokens().call() == 0
 
     # Only owner can deposit tokens to the staking escrow
     stake = tokens_supply
@@ -208,53 +198,23 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
         assert event_args['value'] == portion
 
     # Owner withdraws tokens as delegator
-    coefficient = pooling_contract.functions.delegators(owner).call()[0]
-    max_portion = withdrawn_stake * coefficient // base_coefficient
+    owner_coefficient = pooling_contract.functions.delegators(owner).call()[0]
+    owner_max_portion = withdrawn_stake * owner_coefficient // base_coefficient
 
-    tx = pooling_contract.functions.withdrawTokens(max_portion).transact({'from': owner})
+    tx = pooling_contract.functions.withdrawTokens(owner_max_portion).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
-    assert pooling_contract.functions.delegators(owner).call() == [coefficient, max_portion]
-    tokens_supply -= max_portion
-    withdrawn_tokens += max_portion
+    assert pooling_contract.functions.delegators(owner).call() == [owner_coefficient, owner_max_portion]
+    tokens_supply -= owner_max_portion
+    withdrawn_tokens += owner_max_portion
     assert pooling_contract.functions.baseCoefficient().call() == base_coefficient
     assert token.functions.balanceOf(pooling_contract.address).call() == tokens_supply
     assert pooling_contract.functions.withdrawnTokens().call() == withdrawn_tokens
-    assert pooling_contract.functions.ownerWithdrawnTokens().call() == 0
 
     events = withdraw_log.get_all_entries()
     assert len(events) == len(delegators) + 1
     event_args = events[-1]['args']
     assert event_args['sender'] == owner
-    assert event_args['value'] == max_portion
-
-    # Can't withdraw more than max allowed
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = pooling_contract.functions.withdrawTokens(1).transact({'from': owner})
-        testerchain.wait_for_receipt(tx)
-
-    # But can withdraw as owner
-    max_owner_portion = withdrawn_stake * OWNER_COEFFICIENT // base_coefficient
-
-    # Only owner can
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = pooling_contract.functions.withdrawOwnerTokens(1).transact({'from': delegators[0]})
-        testerchain.wait_for_receipt(tx)
-
-    tx = pooling_contract.functions.withdrawOwnerTokens(max_owner_portion).transact({'from': owner})
-    testerchain.wait_for_receipt(tx)
-    assert pooling_contract.functions.delegators(owner).call() == [coefficient, max_portion]
-    tokens_supply -= max_owner_portion
-    withdrawn_tokens += max_owner_portion
-    assert pooling_contract.functions.baseCoefficient().call() == base_coefficient
-    assert token.functions.balanceOf(pooling_contract.address).call() == tokens_supply
-    assert pooling_contract.functions.withdrawnTokens().call() == withdrawn_tokens
-    assert pooling_contract.functions.ownerWithdrawnTokens().call() == max_owner_portion
-
-    events = withdraw_log.get_all_entries()
-    assert len(events) == len(delegators) + 2
-    event_args = events[-1]['args']
-    assert event_args['sender'] == owner
-    assert event_args['value'] == max_owner_portion
+    assert event_args['value'] == owner_max_portion
 
     # Can't withdraw more than max allowed
     with pytest.raises((TransactionFailed, ValueError)):
@@ -280,10 +240,20 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
         assert pooling_contract.functions.baseCoefficient().call() == base_coefficient
         assert token.functions.balanceOf(pooling_contract.address).call() == tokens_supply
         assert pooling_contract.functions.withdrawnTokens().call() == withdrawn_tokens
-        assert pooling_contract.functions.ownerWithdrawnTokens().call() == max_owner_portion
 
         events = withdraw_log.get_all_entries()
-        assert len(events) == len(delegators) + 2 + index + 1
+        assert len(events) == len(delegators) + 1 + index + 1
         event_args = events[-1]['args']
         assert event_args['sender'] == delegator
         assert event_args['value'] == portion
+
+    # Transfer ownership
+    delegator = delegators[0]
+    coefficient, withdrawn_tokens = pooling_contract.functions.delegators(delegator).call()
+    assert pooling_contract.functions.delegators(owner).call() == [owner_coefficient, owner_max_portion]
+    tx = pooling_contract.functions.transferOwnership(delegator).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    coefficient += owner_coefficient
+    withdrawn_tokens += owner_max_portion
+    assert pooling_contract.functions.delegators(delegator).call() == [coefficient, withdrawn_tokens]
+    assert pooling_contract.functions.delegators(owner).call() == [0, 0]

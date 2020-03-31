@@ -24,12 +24,10 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
     uint256 public withdrawnTokens;
 
     mapping (address => Delegator) public delegators;
-    uint256 public ownerCoefficient;
-    uint256 public ownerWithdrawnTokens;
 
     /**
     * @param _router Address of the StakingInterfaceRouter contract
-    * @param _ownerCoefficient Address of the NuCypher token contract
+    * @param _ownerCoefficient Base owner's portion of reward
     */
     constructor(
         StakingInterfaceRouter _router,
@@ -37,10 +35,28 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
     )
         public AbstractStakingContract(_router)
     {
-        ownerCoefficient = _ownerCoefficient;
         baseCoefficient = _ownerCoefficient;
+        Delegator storage delegator = delegators[msg.sender];
+        delegator.coefficient = _ownerCoefficient;
     }
 
+    /**
+    * @notice Transfer ownership and right to get reward to the new owner
+    */
+    function transferOwnership(address _newOwner) public override onlyOwner {
+        Delegator storage ownerInfo = delegators[owner()];
+        Delegator storage newOwnerInfo = delegators[_newOwner];
+        newOwnerInfo.coefficient = newOwnerInfo.coefficient.add(ownerInfo.coefficient);
+        newOwnerInfo.withdrawnTokens = newOwnerInfo.withdrawnTokens.add(ownerInfo.withdrawnTokens);
+        ownerInfo.coefficient = 0;
+        ownerInfo.withdrawnTokens = 0;
+        super.transferOwnership(_newOwner);
+    }
+
+    /**
+    * @notice Transfer tokens as delegator
+    * @param _value Amount of tokens to transfer
+    */
     function depositTokens(uint256 _value) external {
         require(_value > 0, "Value must be not empty");
         baseCoefficient = baseCoefficient.add(_value);
@@ -50,29 +66,27 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
         emit TokensDeposited(msg.sender, _value, delegator.coefficient);
     }
 
-    function withdrawOwnerTokens(uint256 _value) external onlyOwner {
-        ownerWithdrawnTokens = ownerWithdrawnTokens.add(_value);
-        withdrawTokens(_value, ownerCoefficient, ownerWithdrawnTokens);
-    }
-
+    /**
+    * @notice Withdraw amount of tokens to delegator
+    * @param _value Amount of tokens to withdraw
+    */
     function withdrawTokens(uint256 _value) public override {
         Delegator storage delegator = delegators[msg.sender];
-        delegator.withdrawnTokens = delegator.withdrawnTokens.add(_value);
-        withdrawTokens(_value, delegator.coefficient, delegator.withdrawnTokens);
-    }
-
-    function withdrawTokens(uint256 _value, uint256 _senderCoefficient, uint256 _senderWithdrawnTokens) internal {
         uint256 tokens = token.balanceOf(address(this));
-        require(_value <= tokens, "Value to withdraw must be less than amount of tokens in the contract");
+        uint256 maxAllowableTokens = tokens.add(withdrawnTokens).mul(delegator.coefficient).div(baseCoefficient);
 
-        uint256 maxAllowableTokens = tokens.add(withdrawnTokens).mul(_senderCoefficient).div(baseCoefficient);
-        require(_senderWithdrawnTokens <= maxAllowableTokens,
+        delegator.withdrawnTokens = delegator.withdrawnTokens.add(_value);
+        require(delegator.withdrawnTokens <= maxAllowableTokens,
             "Requested amount of tokens exceeded allowed portion");
+
         withdrawnTokens += _value;
         token.safeTransfer(msg.sender, _value);
         emit TokensWithdrawn(msg.sender, _value);
     }
 
+    /**
+    * @notice Withdraw available amount of ETH to delegator
+    */
     // TODO
     function withdrawETH() public override {}
 
