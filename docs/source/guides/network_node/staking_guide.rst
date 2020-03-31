@@ -122,6 +122,7 @@ Some examples:
 - Local geth node for broadcasting with clef signer
 - Remote ethereum node for broadcasting with local geth signer
 
+
 Clef Setup
 **********
 
@@ -146,26 +147,22 @@ Next, initialize Clef with your chosen password to encrypt the master seed:
     Please specify a password. Do not forget this password!
     Password:
 
-Then attest nucypher's clef rules:
-
-.. code:: bash
-
-    $ clef attest <PATH TO RULES>
-    ...
-    Decrypt master seed of clef
-    Password:
-    INFO [03-27|14:56:41.196] Ruleset attestation updated              sha256=nucypher/crypto/rules.js
-
 
 Running Clef for Goerli
 ***********************
 
+Clef can use hardware wallets (ledger and trezor) over USB, or geth formatted private keys
+by specifying the keystore directory path:
+
 .. code:: bash
 
-    $ clef --keystore <PATH TO KEYSTORE> --chainid 5 --advanced
+    $ clef --keystore <PATH TO GOERLI KEYSTORE> --chainid 5 --advanced
 
 
-<PATH TO KEYSTORE> - The path to the directory containing geth-formatted private key files.
+- <PATH TO KEYSTORE> - The path to the directory containing geth-formatted private key files.
+  the default for linux is `~/.ethereum/goerli/keystore`.
+- Chain ID 5 is specified to ensure clef signs transactions with the network ID of Goerli.
+
 
 .. code:: bash
 
@@ -181,15 +178,6 @@ Running Clef for Goerli
 
 
 
-.. note::::
-
-    Chain ID 5 is specified to ensure clef signs transactions with the network ID of Goerli.
-
-.. note::::
-
-    Chain ID 5 is specified to ensure clef signs transactions with the network ID of Goerli.
-
-
 Using clef as a nucypher signer
 *******************************
 
@@ -201,16 +189,21 @@ Some examples:
 
 .. code:: bash
 
+    # Create a new stakeholder with clef as the default signer
     $ nucypher stake init-stakeholder --signer ~/clef/clef.ipc ...
-    $ nucypher stake create --signer ~/clef/clef.ipc
+
+    # Update an existing configuration with clef as the default signer
+    $ nucypher stake config --signer ~/clef/clef.ipc  # Set clef as the default signer
+
+    # Create a new stake using inline signer and provider values
+    $ nucypher stake create --signer ~/clef/clef.ipc --provider ~/.ethereum/goerli/geth.ipc
 
 
 Interacting with clef
 *********************
 
 Requests for account management, and signing will be directed at clef, with a 10 second timeout.
-
-
+Be alert for user-interactive requests from the clef CLI.
 
 
 Run an Ethereum node for Staking
