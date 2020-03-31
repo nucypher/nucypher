@@ -203,6 +203,7 @@ def initialize_prometheus_exporter(ursula, listen_address, port: int, metrics_pr
     from prometheus_client.twisted import MetricsResource
     from twisted.web.resource import Resource
     from twisted.web.server import Site
+    from .json_metrics_export import JSONMetricsResource
 
     node_metrics = {
         "known_nodes_gauge": Gauge(f'{metrics_prefix}_known_nodes', 'Number of currently known nodes'),
@@ -231,5 +232,6 @@ def initialize_prometheus_exporter(ursula, listen_address, port: int, metrics_pr
     # WSGI Service
     root = Resource()
     root.putChild(b'metrics', MetricsResource())
+    root.putChild(b'json_metrics', JSONMetricsResource())
     factory = Site(root)
     reactor.listenTCP(port, factory, interface=listen_address)
