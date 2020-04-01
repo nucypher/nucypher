@@ -384,3 +384,41 @@ def test_fee(testerchain, token_economics, token, policy_manager, pooling_contra
     withdrawn_eth += owner_max_portion
     assert pooling_contract.functions.delegators(delegator).call() == [coefficient, 0, withdrawn_eth]
     assert pooling_contract.functions.delegators(owner).call() == [0, 0, 0]
+
+
+@pytest.mark.slow
+def test_reentrancy(testerchain, pooling_contract, token, deploy_contract):
+    creator = testerchain.client.accounts[0]
+    owner = testerchain.client.accounts[1]
+
+    # Prepare contracts
+    reentrancy_contract, _ = deploy_contract('ReentrancyTest')
+    contract_address = reentrancy_contract.address
+    tx = pooling_contract.functions.transferOwnership(contract_address).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+
+    # Transfer ETH to the contract
+    value = Web3.toWei(1, 'ether')
+    tx = testerchain.client.send_transaction(
+        {'from': testerchain.client.coinbase, 'to': pooling_contract.address, 'value': value})
+    testerchain.wait_for_receipt(tx)
+    assert testerchain.client.get_balance(pooling_contract.address) == value
+
+    # Change eth distribution, owner will be able to withdraw only half
+    tokens = BASE_OWNER_COEFFICIENT
+    tx = token.functions.transfer(owner, tokens).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = token.functions.approve(pooling_contract.address, tokens).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    tx = pooling_contract.functions.depositTokens(tokens).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+
+    # Try to withdraw ETH twice
+    balance = testerchain.w3.eth.getBalance(contract_address)
+    transaction = pooling_contract.functions.withdrawETH().buildTransaction({'gas': 0})
+    tx = reentrancy_contract.functions.setData(2, transaction['to'], 0, transaction['data']).transact()
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = testerchain.client.send_transaction({'to': contract_address})
+        testerchain.wait_for_receipt(tx)
+    assert testerchain.w3.eth.getBalance(contract_address) == balance
