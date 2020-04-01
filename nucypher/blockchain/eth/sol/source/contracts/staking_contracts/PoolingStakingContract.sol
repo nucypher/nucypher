@@ -14,14 +14,17 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
 
     event TokensDeposited(address indexed sender, uint256 value, uint256 coefficient);
     event TokensWithdrawn(address indexed sender, uint256 value);
+    event ETHWithdrawn(address indexed sender, uint256 value);
 
     struct Delegator {
         uint256 coefficient;
         uint256 withdrawnTokens;
+        uint256 withdrawnETH;
     }
 
     uint256 public baseCoefficient;
     uint256 public withdrawnTokens;
+    uint256 public withdrawnETH;
 
     mapping (address => Delegator) public delegators;
 
@@ -48,8 +51,10 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
         Delegator storage newOwnerInfo = delegators[_newOwner];
         newOwnerInfo.coefficient = newOwnerInfo.coefficient.add(ownerInfo.coefficient);
         newOwnerInfo.withdrawnTokens = newOwnerInfo.withdrawnTokens.add(ownerInfo.withdrawnTokens);
+        newOwnerInfo.withdrawnETH = newOwnerInfo.withdrawnETH.add(ownerInfo.withdrawnETH);
         ownerInfo.coefficient = 0;
         ownerInfo.withdrawnTokens = 0;
+        ownerInfo.withdrawnETH = 0;
         super.transferOwnership(_newOwner);
     }
 
@@ -66,6 +71,8 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
         emit TokensDeposited(msg.sender, _value, delegator.coefficient);
     }
 
+    // TODO methods to calculate available tokens/eth
+
     /**
     * @notice Withdraw amount of tokens to delegator
     * @param _value Amount of tokens to withdraw
@@ -79,7 +86,7 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
         require(delegator.withdrawnTokens <= maxAllowableTokens,
             "Requested amount of tokens exceeded allowed portion");
 
-        withdrawnTokens += _value;
+        withdrawnTokens = withdrawnTokens.add(_value);
         token.safeTransfer(msg.sender, _value);
         emit TokensWithdrawn(msg.sender, _value);
     }
@@ -87,8 +94,19 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
     /**
     * @notice Withdraw available amount of ETH to delegator
     */
-    // TODO
-    function withdrawETH() public override {}
+    function withdrawETH() public override {
+        Delegator storage delegator = delegators[msg.sender];
+        uint256 balance = address(this).balance;
+        uint256 maxAllowableETH = balance.add(withdrawnETH).mul(delegator.coefficient).div(baseCoefficient);
+        require(delegator.withdrawnETH < maxAllowableETH, "There is no available ETH to withdraw");
+
+        uint256 ethAmount = maxAllowableETH - delegator.withdrawnETH;
+        delegator.withdrawnETH = maxAllowableETH;
+
+        withdrawnETH = withdrawnETH.add(ethAmount);
+        msg.sender.sendValue(ethAmount);
+        emit ETHWithdrawn(msg.sender, ethAmount);
+    }
 
     /**
     * @notice Calling fallback function is allowed only for the owner
