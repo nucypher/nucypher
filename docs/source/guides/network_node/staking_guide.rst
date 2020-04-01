@@ -102,8 +102,8 @@ Staking
 Staking transactions can be broadcast using either a local or remote ethereum node.
 By default transaction signing requests are forwarded to the configured ethereum provider;
 This is the typical configuration for locally or independently run ethereum nodes.
-In order to use a remote ethereum provider (Alchemy, Infura, Public Remote Node) an external transaction signing client
-(like clef or geth) is needed separate from the broadcasting node.
+In order to use a remote ethereum provider (e.g. Alchemy, Infura, Public Remote Node) an external transaction signing client
+(e.g. clef or geth) is needed separate from the broadcasting node.
 
 Below we describe the usage of both local and remote ethereum providers...
 
