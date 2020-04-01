@@ -5,15 +5,65 @@ import "contracts/staking_contracts/AbstractStakingContract.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/StakingEscrow.sol";
 import "contracts/PolicyManager.sol";
+import "contracts/WorkLock.sol";
+
+
+/**
+* @notice Base StakingInterface
+*/
+contract BaseStakingInterface {
+
+    NuCypherToken public token;
+    StakingEscrow public escrow;
+    PolicyManager public policyManager;
+    WorkLock public workLock;
+
+    /**
+    * @notice Constructor sets addresses of the contracts
+    * @param _token Token contract
+    * @param _escrow Escrow contract
+    * @param _policyManager PolicyManager contract
+    * @param _workLock WorkLock contract
+    */
+    constructor(
+        NuCypherToken _token,
+        StakingEscrow _escrow,
+        PolicyManager _policyManager,
+        WorkLock _workLock
+    )
+        public
+    {
+        require(_token.totalSupply() > 0 &&
+            _escrow.secondsPerPeriod() > 0 &&
+            _policyManager.secondsPerPeriod() > 0 &&
+            // in case there is no worklock contract
+            (address(_workLock) == address(0) || _workLock.startBidDate() > 0));
+        token = _token;
+        escrow = _escrow;
+        policyManager = _policyManager;
+        workLock = _workLock;
+    }
+
+    /**
+    * @notice Get contract which stores state
+    * @dev Assume that `this` is the staking contract
+    */
+    function getStateContract() internal view returns (BaseStakingInterface) {
+        address payable stakingContractAddress = address(bytes20(address(this)));
+        StakingInterfaceRouter router = AbstractStakingContract(stakingContractAddress).router();
+        return BaseStakingInterface(router.target());
+    }
+
+}
 
 
 /**
 * @notice Interface for accessing main contracts from a staking contract
 * @dev All methods must be stateless because this code will be executed by delegatecall call.
 * If state is needed - use getStateContract() method to access state of this contract.
-* @dev |v1.3.1|
+* @dev |v1.4.1|
 */
-contract StakingInterface {
+contract StakingInterface is BaseStakingInterface {
 
     event DepositedAsStaker(address indexed sender, uint256 value, uint16 periods);
     event WithdrawnAsStaker(address indexed sender, uint256 value);
@@ -27,40 +77,27 @@ contract StakingInterface {
     event WorkerSet(address indexed sender, address worker);
     event Prolonged(address indexed sender, uint256 index, uint16 periods);
     event WindDownSet(address indexed sender, bool windDown);
-
-    NuCypherToken public token;
-    StakingEscrow public escrow;
-    PolicyManager public policyManager;
+    event Bid(address indexed sender, uint256 depositedETH);
+    event Claimed(address indexed sender, uint256 claimedTokens);
+    event Refund(address indexed sender, uint256 refundETH);
+    event BidCanceled(address indexed sender);
+    event CompensationWithdrawn(address indexed sender);
 
     /**
     * @notice Constructor sets addresses of the contracts
     * @param _token Token contract
     * @param _escrow Escrow contract
     * @param _policyManager PolicyManager contract
+    * @param _workLock WorkLock contract
     */
     constructor(
         NuCypherToken _token,
         StakingEscrow _escrow,
-        PolicyManager _policyManager
+        PolicyManager _policyManager,
+        WorkLock _workLock
     )
-        public
+        public BaseStakingInterface(_token, _escrow, _policyManager, _workLock)
     {
-        require(_token.totalSupply() > 0 &&
-            _escrow.secondsPerPeriod() > 0 &&
-            _policyManager.secondsPerPeriod() > 0);
-        token = _token;
-        escrow = _escrow;
-        policyManager = _policyManager;
-    }
-
-    /**
-    * @notice Get contract which stores state
-    * @dev Assume that `this` is the staking contract
-    */
-    function getStateContract() internal view returns (StakingInterface) {
-        address payable stakingContractAddress = address(bytes20(address(this)));
-        StakingInterfaceRouter router = AbstractStakingContract(stakingContractAddress).router();
-        return StakingInterface(router.target());
     }
 
     /**
@@ -96,7 +133,7 @@ contract StakingInterface {
     * @param _periods Amount of periods during which tokens will be locked
     */
     function depositAsStaker(uint256 _value, uint16 _periods) public {
-        StakingInterface state = getStateContract();
+        BaseStakingInterface state = getStateContract();
         NuCypherToken tokenFromState = state.token();
         require(tokenFromState.balanceOf(address(this)) >= _value);
         StakingEscrow escrowFromState = state.escrow();
@@ -144,7 +181,7 @@ contract StakingInterface {
     /**
     * @notice Mint tokens in the staking escrow
     */
-    function mint() external {
+    function mint() public {
         getStateContract().escrow().mint();
         emit Mined(msg.sender);
     }
@@ -152,9 +189,9 @@ contract StakingInterface {
     /**
     * @notice Withdraw available reward from the policy manager to the staking contract
     */
-    function withdrawPolicyReward(address payable _recipient) public {
-        uint256 value = getStateContract().policyManager().withdraw(_recipient);
-        emit PolicyRewardWithdrawn(_recipient, value);
+    function withdrawPolicyReward() public {
+        uint256 value = getStateContract().policyManager().withdraw();
+        emit PolicyRewardWithdrawn(msg.sender, value);
     }
 
     /**
@@ -183,6 +220,56 @@ contract StakingInterface {
     function setWindDown(bool _windDown) public {
         getStateContract().escrow().setWindDown(_windDown);
         emit WindDownSet(msg.sender, _windDown);
+    }
+
+    /**
+    * @notice Bid for tokens by transferring ETH
+    */
+    function bid(uint256 _value) public payable {
+        WorkLock workLockFromState = getStateContract().workLock();
+        require(address(workLockFromState) != address(0));
+        workLockFromState.bid.value(_value)();
+        emit Bid(msg.sender, _value);
+    }
+
+    /**
+    * @notice Cancel bid and refund deposited ETH
+    */
+    function cancelBid() public {
+        WorkLock workLockFromState = getStateContract().workLock();
+        require(address(workLockFromState) != address(0));
+        workLockFromState.cancelBid();
+        emit BidCanceled(msg.sender);
+    }
+
+    /**
+    * @notice Withdraw compensation after force refund
+    */
+    function withdrawCompensation() public {
+        WorkLock workLockFromState = getStateContract().workLock();
+        require(address(workLockFromState) != address(0));
+        workLockFromState.withdrawCompensation();
+        emit CompensationWithdrawn(msg.sender);
+    }
+
+    /**
+    * @notice Claimed tokens will be deposited and locked as stake in the StakingEscrow contract.
+    */
+    function claim() public {
+        WorkLock workLockFromState = getStateContract().workLock();
+        require(address(workLockFromState) != address(0));
+        uint256 claimedTokens = workLockFromState.claim();
+        emit Claimed(msg.sender, claimedTokens);
+    }
+
+    /**
+    * @notice Refund ETH for the completed work
+    */
+    function refund() public {
+        WorkLock workLockFromState = getStateContract().workLock();
+        require(address(workLockFromState) != address(0));
+        uint256 refundETH = workLockFromState.refund();
+        emit Refund(msg.sender, refundETH);
     }
 
 }

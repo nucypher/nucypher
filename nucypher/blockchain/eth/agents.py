@@ -894,9 +894,8 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    @validate_checksum_address
-    def collect_policy_reward(self, collector_address: str):
-        contract_function = self.__interface_agent.functions.withdrawPolicyReward(collector_address)
+    def collect_policy_reward(self):
+        contract_function = self.__interface_agent.functions.withdrawPolicyReward()
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 

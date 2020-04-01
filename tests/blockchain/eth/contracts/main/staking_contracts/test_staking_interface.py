@@ -17,18 +17,37 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-
 import pytest
-from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak
+from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
-from web3.exceptions import BadFunctionCallOutput
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 
+@pytest.fixture()
+def staking_contract(testerchain, router, deploy_contract):
+    creator = testerchain.client.accounts[0]
+    user = testerchain.client.accounts[1]
+
+    contract, _ = deploy_contract('SimpleStakingContract', router.address)
+
+    # Transfer ownership
+    tx = contract.functions.transferOwnership(user).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    return contract
+
+
+@pytest.fixture()
+def staking_contract_interface(testerchain, staking_interface, staking_contract):
+    return testerchain.client.get_contract(
+        abi=staking_interface.abi,
+        address=staking_contract.address,
+        ContractFactoryClass=Contract)
+
+
 @pytest.mark.slow
-def test_staking_interface(testerchain, policy_manager, preallocation_escrow):
+def test_nonexistent_method(testerchain, policy_manager, staking_contract):
     """
     Test that interface executes only predefined methods
     """
@@ -37,7 +56,7 @@ def test_staking_interface(testerchain, policy_manager, preallocation_escrow):
     # Create fake instance of the user escrow contract
     fake_preallocation_escrow = testerchain.client.get_contract(
         abi=policy_manager.abi,
-        address=preallocation_escrow.address,
+        address=staking_contract.address,
         ContractFactoryClass=Contract)
 
     # Can't execute method that not in the interface
@@ -45,207 +64,412 @@ def test_staking_interface(testerchain, policy_manager, preallocation_escrow):
         tx = fake_preallocation_escrow.functions.additionalMethod(1).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
 
-    # And can't send ETH to the preallocation escrow without payable fallback function
-    tx = testerchain.client.send_transaction(
-        {'from': testerchain.client.coinbase, 'to': owner, 'value': 1})
-    testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = testerchain.client.send_transaction(
-            {'from': owner, 'to': preallocation_escrow.address, 'value': 1, 'gas_price': 0})
-        testerchain.wait_for_receipt(tx)
-
 
 @pytest.mark.slow
-def test_upgrading(testerchain, token, deploy_contract, escrow):
+def test_staker(testerchain, token, escrow, staking_contract, staking_contract_interface, staking_interface):
+    """
+    Test staker functions in the staking interface
+    """
     creator = testerchain.client.accounts[0]
     owner = testerchain.client.accounts[1]
-    tx = testerchain.client.send_transaction(
-        {'from': testerchain.client.coinbase, 'to': owner, 'value': 1})
+
+    # Deposit some tokens to the staking contract
+    value = 2000
+    tx = token.functions.transfer(staking_contract.address, value).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
+    assert token.functions.balanceOf(staking_contract.address).call() == value
 
-    secret = os.urandom(32)
-    secret2 = os.urandom(32)
-    secret_hash = keccak(secret)
-    secret2_hash = keccak(secret2)
-
-    interface_v1, _ = deploy_contract('StakingInterfaceMockV1')
-    interface_v2, _ = deploy_contract('StakingInterfaceMockV2')
-    router_contract, _ = deploy_contract(
-        'StakingInterfaceRouter', interface_v1.address, secret_hash)
-    preallocation_escrow_contract, _ = deploy_contract(
-        'PreallocationEscrow', router_contract.address, token.address, escrow.address)
-    # Transfer ownership
-    tx = preallocation_escrow_contract.functions.transferOwnership(owner).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    preallocation_escrow_interface_v1 = testerchain.client.get_contract(
-        abi=interface_v1.abi,
-        address=preallocation_escrow_contract.address,
-        ContractFactoryClass=Contract)
-    preallocation_escrow_interface_v2 = testerchain.client.get_contract(
-        abi=interface_v2.abi,
-        address=preallocation_escrow_contract.address,
-        ContractFactoryClass=Contract)
-
-    # Check existed methods and that only owner can call them
+    # Can't deposit more than amount in the staking contract
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = preallocation_escrow_interface_v1.functions.firstMethod().transact({'from': creator})
-        testerchain.wait_for_receipt(tx)
-    tx = preallocation_escrow_interface_v1.functions.firstMethod().transact({'from': owner})
-    testerchain.wait_for_receipt(tx)
-    assert 20 == preallocation_escrow_interface_v1.functions.secondMethod().call({'from': owner})
-
-    # Nonexistent methods can't be called
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = preallocation_escrow_interface_v2.functions.thirdMethod().transact({'from': owner})
+        tx = staking_contract_interface.functions.depositAsStaker(value + 1, 5).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
 
-    # Can't send ETH to this version of the library
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = testerchain.client.send_transaction(
-            {'from': owner, 'to': preallocation_escrow_contract.address, 'value': 1, 'gas_price': 0})
-        testerchain.wait_for_receipt(tx)
+    staker_deposits = staking_contract_interface.events.DepositedAsStaker.createFilter(fromBlock='latest')
 
-    # Only creator can update a library
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(interface_v2.address, secret, secret2_hash).transact({'from': owner})
-        testerchain.wait_for_receipt(tx)
-
-    # Creator must know the secret
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(interface_v2.address, secret2, secret2_hash).transact({'from': creator})
-        testerchain.wait_for_receipt(tx)
-
-    # Creator can't use the same secret again because it's insecure
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(interface_v2.address, secret, secret_hash).transact({'from': creator})
-        testerchain.wait_for_receipt(tx)
-
-    assert interface_v1.address == router_contract.functions.target().call()
-    tx = router_contract.functions.upgrade(interface_v2.address, secret, secret2_hash).transact({'from': creator})
+    # Deposit some tokens to the staking escrow
+    stake = 1500
+    tx = staking_contract_interface.functions.depositAsStaker(stake, 5).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
-    assert interface_v2.address == router_contract.functions.target().call()
+    assert staking_contract.address == escrow.functions.node().call()
+    assert escrow.functions.value().call() == stake
+    assert escrow.functions.lockedValue().call() == stake
+    assert escrow.functions.periods().call() == 5
+    assert token.functions.balanceOf(escrow.address).call() == 10000 + stake
+    assert token.functions.balanceOf(staking_contract.address).call() == value - stake
 
-    # Method with old signature is not working
+    events = staker_deposits.get_all_entries()
+    assert len(events) == 1
+    event_args = events[-1]['args']
+    assert event_args['sender'] == owner
+    assert event_args['value'] == stake
+    assert event_args['periods'] == 5
+
+    # Owner can't use the staking interface directly
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = preallocation_escrow_interface_v1.functions.firstMethod().transact({'from': owner})
+        tx = staking_interface.functions.lock(100, 1).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
-    # Method with old signature that available in new ABI is working
-    assert 15 == preallocation_escrow_interface_v1.functions.secondMethod().call({'from': owner})
-
-    # New ABI is working
-    assert 15 == preallocation_escrow_interface_v2.functions.secondMethod().call({'from': owner})
-    tx = preallocation_escrow_interface_v2.functions.firstMethod(10).transact({'from': owner})
-    testerchain.wait_for_receipt(tx)
-    tx = preallocation_escrow_interface_v2.functions.thirdMethod().transact({'from': owner})
-    testerchain.wait_for_receipt(tx)
-
-    # And can send and withdraw ETH
-    tx = testerchain.client.send_transaction(
-        {'from': owner, 'to': preallocation_escrow_contract.address, 'value': 1, 'gas_price': 0})
-    testerchain.wait_for_receipt(tx)
-    assert 1 == testerchain.client.get_balance(preallocation_escrow_contract.address)
-    # Only user can send ETH
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = testerchain.client.send_transaction(
-            {'from': testerchain.client.coinbase,
-             'to': preallocation_escrow_contract.address,
-             'value': 1,
-             'gas_price': 0})
+        tx = staking_interface.functions.divideStake(1, 100, 1).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
-    assert 1 == testerchain.client.get_balance(preallocation_escrow_contract.address)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.mint().transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.withdrawAsStaker(100).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.setReStake(True).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.lockReStake(0).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.setWorker(owner).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.prolongStake(2, 2).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.setWindDown(True).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
 
-    rewards = preallocation_escrow_contract.events.ETHWithdrawn.createFilter(fromBlock='latest')
-    owner_balance = testerchain.client.get_balance(owner)
-    tx = preallocation_escrow_contract.functions.withdrawETH().transact({'from': owner, 'gas_price': 0})
+    locks = staking_contract_interface.events.Locked.createFilter(fromBlock='latest')
+    divides = staking_contract_interface.events.Divided.createFilter(fromBlock='latest')
+    mints = staking_contract_interface.events.Mined.createFilter(fromBlock='latest')
+    staker_withdraws = staking_contract_interface.events.WithdrawnAsStaker.createFilter(fromBlock='latest')
+    re_stakes = staking_contract_interface.events.ReStakeSet.createFilter(fromBlock='latest')
+    re_stake_locks = staking_contract_interface.events.ReStakeLocked.createFilter(fromBlock='latest')
+    worker_logs = staking_contract_interface.events.WorkerSet.createFilter(fromBlock='latest')
+    prolong_logs = staking_contract_interface.events.Prolonged.createFilter(fromBlock='latest')
+    wind_down_logs = staking_contract_interface.events.WindDownSet.createFilter(fromBlock='latest')
+
+    # Use stakers methods through the preallocation escrow
+    tx = staking_contract_interface.functions.lock(100, 1).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
-    assert owner_balance + 1 == testerchain.client.get_balance(owner)
-    assert 0 == testerchain.client.get_balance(preallocation_escrow_contract.address)
+    assert 1500 == escrow.functions.value().call()
+    assert 1600 == escrow.functions.lockedValue().call()
+    assert 6 == escrow.functions.periods().call()
+    tx = staking_contract_interface.functions.divideStake(1, 100, 1).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert 1500 == escrow.functions.value().call()
+    assert 1700 == escrow.functions.lockedValue().call()
+    assert 1 == escrow.functions.index().call()
+    assert 7 == escrow.functions.periods().call()
+    tx = staking_contract_interface.functions.mint().transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert 2500 == escrow.functions.value().call()
+    tx = staking_contract_interface.functions.withdrawAsStaker(1500).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert 1000 == escrow.functions.value().call()
+    assert 10000 == token.functions.balanceOf(escrow.address).call()
+    assert 2000 == token.functions.balanceOf(staking_contract.address).call()
+    tx = staking_contract_interface.functions.withdrawAsStaker(1000).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert 0 == escrow.functions.value().call()
+    assert 9000 == token.functions.balanceOf(escrow.address).call()
+    assert 3000 == token.functions.balanceOf(staking_contract.address).call()
+    tx = staking_contract_interface.functions.prolongStake(2, 2).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert 2 == escrow.functions.index().call()
+    assert 9 == escrow.functions.periods().call()
 
-    events = rewards.get_all_entries()
+    # Test re-stake methods
+    tx = staking_contract_interface.functions.setReStake(True).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.reStake().call()
+    tx = staking_contract_interface.functions.lockReStake(123).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert 123 == escrow.functions.lockReStakeUntilPeriod().call()
+
+    # Test setting worker
+    tx = staking_contract_interface.functions.setWorker(owner).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert owner == escrow.functions.worker().call()
+
+    # Test wind-down
+    tx = staking_contract_interface.functions.setWindDown(True).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.windDown().call()
+
+    events = locks.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert owner == event_args['owner']
-    assert 1 == event_args['value']
+    assert owner == event_args['sender']
+    assert 100 == event_args['value']
+    assert 1 == event_args['periods']
+
+    events = divides.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['sender']
+    assert 1 == event_args['index']
+    assert 100 == event_args['newValue']
+    assert 1 == event_args['periods']
+
+    events = mints.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['sender']
+
+    events = staker_withdraws.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['sender']
+    assert 1500 == event_args['value']
+    event_args = events[1]['args']
+    assert owner == event_args['sender']
+    assert 1000 == event_args['value']
+
+    events = re_stakes.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['sender']
+    assert event_args['reStake']
+
+    events = re_stake_locks.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['sender']
+    assert 123 == event_args['lockUntilPeriod']
+
+    events = worker_logs.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['sender']
+    assert owner == event_args['worker']
+
+    events = prolong_logs.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['sender']
+    assert 2 == event_args['index']
+    assert 2 == event_args['periods']
+
+    events = wind_down_logs.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['sender']
+    assert event_args['windDown']
 
 
 @pytest.mark.slow
-def test_interface_selfdestruct(testerchain, token, deploy_contract, escrow):
+def test_policy(testerchain, policy_manager, staking_contract, staking_contract_interface):
+    """
+    Test policy manager functions in the staking interface
+    """
     creator = testerchain.client.accounts[0]
-    account = testerchain.client.accounts[1]
+    owner = testerchain.client.accounts[1]
+    owner_balance = testerchain.client.get_balance(owner)
 
+    # Nothing to withdraw
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_contract_interface.functions.withdrawPolicyReward().transact({'from': owner, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
+    assert owner_balance == testerchain.client.get_balance(owner)
+    assert 0 == testerchain.client.get_balance(staking_contract.address)
+
+    # Send ETH to the policy manager as a reward for the owner
+    tx = testerchain.client.send_transaction(
+        {'from': testerchain.client.coinbase, 'to': policy_manager.address, 'value': 10000})
+    testerchain.wait_for_receipt(tx)
+
+    staker_reward = staking_contract_interface.events.PolicyRewardWithdrawn.createFilter(fromBlock='latest')
+
+    # Only owner can withdraw reward
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_contract_interface.functions.withdrawPolicyReward().transact({'from': creator, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
+
+    # Owner withdraws reward
+    tx = staking_contract_interface.functions.withdrawPolicyReward().transact({'from': owner, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert 10000 == testerchain.client.get_balance(staking_contract.address)
+    assert owner_balance == testerchain.client.get_balance(owner)
+    assert 0 == testerchain.client.get_balance(policy_manager.address)
+    assert 10000 == testerchain.client.get_balance(staking_contract.address)
+
+    events = staker_reward.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['sender']
+    assert 10000 == event_args['value']
+
+    # Only owner can set min reward rate
+    min_reward_sets = staking_contract_interface.events.MinRewardRateSet.createFilter(fromBlock='latest')
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_contract_interface.functions.setMinRewardRate(333).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    tx = staking_contract_interface.functions.setMinRewardRate(222).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert 222 == policy_manager.functions.minRewardRate().call()
+
+    events = min_reward_sets.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['sender']
+    assert 222 == event_args['value']
+
+
+@pytest.mark.slow
+def test_worklock(testerchain, worklock, staking_contract, staking_contract_interface, staking_interface):
+    """
+    Test worklock functions in the staking interface
+    """
+    creator = testerchain.client.accounts[0]
+    owner = testerchain.client.accounts[1]
+
+    bids = staking_contract_interface.events.Bid.createFilter(fromBlock='latest')
+    claims = staking_contract_interface.events.Claimed.createFilter(fromBlock='latest')
+    refunds = staking_contract_interface.events.Refund.createFilter(fromBlock='latest')
+    cancellations = staking_contract_interface.events.BidCanceled.createFilter(fromBlock='latest')
+    compensations = staking_contract_interface.events.CompensationWithdrawn.createFilter(fromBlock='latest')
+
+    # Owner can't use the staking interface directly
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.bid(0).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.cancelBid().transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.withdrawCompensation().transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.claim().transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.refund().transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+
+    # Send ETH to to the escrow
+    bid = 10000
+    tx = testerchain.client.send_transaction(
+        {'from': testerchain.client.coinbase, 'to': staking_contract.address, 'value': 2 * bid})
+    testerchain.wait_for_receipt(tx)
+
+    # Bid
+    assert worklock.functions.depositedETH().call() == 0
+    assert testerchain.client.get_balance(staking_contract.address) == 2 * bid
+    tx = staking_contract_interface.functions.bid(bid).transact({'from': owner, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.depositedETH().call() == bid
+    assert testerchain.client.get_balance(staking_contract.address) == bid
+
+    events = bids.get_all_entries()
+    assert len(events) == 1
+    event_args = events[0]['args']
+    assert event_args['sender'] == owner
+    assert event_args['depositedETH'] == bid
+
+    # Cancel bid
+    tx = staking_contract_interface.functions.cancelBid().transact({'from': owner, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.depositedETH().call() == 0
+    assert testerchain.client.get_balance(staking_contract.address) == 2 * bid
+
+    events = cancellations.get_all_entries()
+    assert len(events) == 1
+    event_args = events[0]['args']
+    assert event_args['sender'] == owner
+
+    # Withdraw compensation
+    compensation = 11000
+    tx = worklock.functions.sendCompensation().transact({'from': creator, 'value': compensation, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.compensation().call() == compensation
+    tx = staking_contract_interface.functions.withdrawCompensation().transact({'from': owner, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.compensation().call() == 0
+    assert testerchain.client.get_balance(staking_contract.address) == 2 * bid + compensation
+
+    events = compensations.get_all_entries()
+    assert len(events) == 1
+    event_args = events[0]['args']
+    assert event_args['sender'] == owner
+
+    # Claim
+    assert worklock.functions.claimed().call() == 0
+    tx = staking_contract_interface.functions.claim().transact({'from': owner, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.claimed().call() == 1
+
+    events = claims.get_all_entries()
+    assert len(events) == 1
+    event_args = events[0]['args']
+    assert event_args['sender'] == owner
+    assert event_args['claimedTokens'] == 1
+
+    # Withdraw refund
+    refund = 12000
+    tx = worklock.functions.sendRefund().transact({'from': creator, 'value': refund, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.refundETH().call() == refund
+    tx = staking_contract_interface.functions.refund().transact({'from': owner, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.refundETH().call() == 0
+    assert testerchain.client.get_balance(staking_contract.address) == 2 * bid + compensation + refund
+
+    events = refunds.get_all_entries()
+    assert len(events) == 1
+    event_args = events[0]['args']
+    assert event_args['sender'] == owner
+    assert event_args['refundETH'] == refund
+
+
+@pytest.mark.slow
+def test_interface_without_worklock(testerchain, deploy_contract, token, escrow, policy_manager, worklock):
+    creator = testerchain.client.accounts[0]
+    owner = testerchain.client.accounts[1]
+
+    staking_interface, _ = deploy_contract(
+        'StakingInterface', token.address, escrow.address, policy_manager.address, worklock.address)
     secret = os.urandom(32)
     secret_hash = keccak(secret)
+    router, _ = deploy_contract('StakingInterfaceRouter', staking_interface.address, secret_hash)
+
+    staking_contract, _ = deploy_contract('SimpleStakingContract', router.address)
+    # Transfer ownership
+    tx = staking_contract.functions.transferOwnership(owner).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    staking_contract_interface = testerchain.client.get_contract(
+        abi=staking_interface.abi,
+        address=staking_contract.address,
+        ContractFactoryClass=Contract)
+
+    # All worklock methods work
+    tx = staking_contract_interface.functions.bid(0).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    tx = staking_contract_interface.functions.cancelBid().transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    tx = staking_contract_interface.functions.withdrawCompensation().transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    tx = staking_contract_interface.functions.claim().transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    tx = staking_contract_interface.functions.refund().transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+
+    # Test interface without worklock
     secret2 = os.urandom(32)
     secret2_hash = keccak(secret2)
-
-    # Deploy interface and destroy it
-    interface1, _ = deploy_contract('DestroyableStakingInterface')
-    assert 15 == interface1.functions.method().call()
-    tx = interface1.functions.destroy().transact()
+    staking_interface, _ = deploy_contract(
+        'StakingInterface', token.address, escrow.address, policy_manager.address, BlockchainInterface.NULL_ADDRESS)
+    tx = router.functions.upgrade(staking_interface.address, secret, secret2_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    with pytest.raises((BadFunctionCallOutput, ValueError)):
-        interface1.functions.method().call()
 
-    # Can't create router using address without contract
+    # Current version of interface doesn't have worklock contract
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('StakingInterfaceRouter', BlockchainInterface.NULL_ADDRESS, secret_hash)
-    with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('StakingInterfaceRouter', account, secret_hash)
-    with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('StakingInterfaceRouter', interface1.address, secret_hash)
-
-    # Deploy contract again with a router targeting it
-    interface2, _ = deploy_contract('DestroyableStakingInterface')
-    router_contract, _ = deploy_contract(
-        'StakingInterfaceRouter', interface2.address, secret_hash)
-    assert interface2.address == router_contract.functions.target().call()
-
-    # Can't create user escrow using wrong contracts
-    with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('PreallocationEscrow', router_contract.address, router_contract.address, router_contract.address)
-    with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('PreallocationEscrow', token.address, token.address, token.address)
-
-    # Deploy preallocation escrow
-    preallocation_escrow_contract, _ = deploy_contract(
-        'PreallocationEscrow', router_contract.address, token.address, escrow.address)
-    preallocation_escrow_interface = testerchain.client.get_contract(
-        abi=interface1.abi,
-        address=preallocation_escrow_contract.address,
-        ContractFactoryClass=Contract)
-    assert 15 == preallocation_escrow_interface.functions.method().call()
-
-    # Can't upgrade to an address without contract
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(BlockchainInterface.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
+        tx = staking_contract_interface.functions.bid(0).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(account, secret, secret2_hash).transact({'from': creator})
+        tx = staking_contract_interface.functions.cancelBid().transact({'from': owner})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(interface1.address, secret, secret2_hash).transact({'from': creator})
-        testerchain.wait_for_receipt(tx)
-
-    # Destroy library
-    tx = interface2.functions.destroy().transact()
-    testerchain.wait_for_receipt(tx)
-    # Preallocation escrow must determine that there is no contract
-    with pytest.raises((TransactionFailed, ValueError)):
-        preallocation_escrow_interface.functions.method().call()
-
-    # Can't upgrade to an address without contract
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(BlockchainInterface.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
+        tx = staking_contract_interface.functions.withdrawCompensation().transact({'from': owner})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(account, secret, secret2_hash).transact({'from': creator})
+        tx = staking_contract_interface.functions.claim().transact({'from': owner})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(interface1.address, secret, secret2_hash).transact({'from': creator})
+        tx = staking_contract_interface.functions.refund().transact({'from': owner})
         testerchain.wait_for_receipt(tx)
-
-    # Deploy the same contract again and upgrade to this contract
-    contract3_lib, _ = deploy_contract('DestroyableStakingInterface')
-    tx = router_contract.functions.upgrade(contract3_lib.address, secret, secret2_hash).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    assert 15 == preallocation_escrow_interface.functions.method().call()

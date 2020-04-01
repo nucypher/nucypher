@@ -194,7 +194,7 @@ contract PolicyManager is Upgradeable {
     /**
     * @notice Get the minimum reward rate acceptable by node
     */
-    function getMinRewardRate(NodeInfo storage _nodeInfo) internal returns (uint256) {
+    function getMinRewardRate(NodeInfo storage _nodeInfo) internal view returns (uint256) {
         // if minRewardRate has not been set or is outside the acceptable range
         if (_nodeInfo.minRewardRate == 0 ||
             _nodeInfo.minRewardRate < minRewardRateRange.min ||
@@ -208,7 +208,7 @@ contract PolicyManager is Upgradeable {
     /**
     * @notice Get the minimum reward rate acceptable by node
     */
-    function getMinRewardRate(address _node) public returns (uint256) {
+    function getMinRewardRate(address _node) public view returns (uint256) {
         NodeInfo storage nodeInfo = nodes[_node];
         return getMinRewardRate(nodeInfo);
     }

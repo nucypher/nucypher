@@ -206,7 +206,9 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics, mock
 
     mock_transacting_power_activation(account=agent.beneficiary, password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    receipt = agent.collect_policy_reward(collector_address=agent.beneficiary)
+    receipt = agent.collect_policy_reward()
+    assert receipt['status'] == 1, "Transaction Rejected"
+    receipt = agent.withdraw_eth()
     assert receipt['status'] == 1, "Transaction Rejected"
     assert testerchain.client.get_balance(account=agent.beneficiary) > old_balance
 

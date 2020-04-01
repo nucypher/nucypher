@@ -588,11 +588,7 @@ def test_collect_rewards_integration(click_runner,
     # WHERES THE MONEY URSULA?? - Collecting Rewards
     #
 
-    # The address the client wants Ursula to send policy rewards to
-    burner_wallet = testerchain.w3.eth.account.create(INSECURE_DEVELOPMENT_PASSWORD)
-
-    # The policy rewards wallet is initially empty, because it is freshly created
-    assert testerchain.client.get_balance(burner_wallet.address) == 0
+    balance = testerchain.client.get_balance(beneficiary)
 
     # Rewards will be unlocked after the
     # final confirmed period has passed (+1).
@@ -609,7 +605,7 @@ def test_collect_rewards_integration(click_runner,
                        '--config-file', stakeholder_configuration_file_location,
                        '--policy-reward',
                        '--no-staking-reward',
-                       '--withdraw-address', burner_wallet.address,
+                       '--withdraw-address', beneficiary,
                        '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                        '--force')
 
@@ -620,9 +616,8 @@ def test_collect_rewards_integration(click_runner,
     assert result.exit_code == 0
 
     # Policy Reward
-    collected_policy_reward = testerchain.client.get_balance(burner_wallet.address)
-    expected_collection = policy_rate * 30
-    assert collected_policy_reward == expected_collection
+    collected_policy_reward = testerchain.client.get_balance(beneficiary)
+    assert collected_policy_reward > balance
 
     #
     # Collect Staking Reward

@@ -1126,8 +1126,10 @@ class Staker(NucypherTokenActor):
     def collect_policy_reward(self, collector_address=None) -> dict:
         """Collect rewarded ETH."""
         if self.is_contract:
-            withdraw_address = collector_address or self.beneficiary_address
-            receipt = self.preallocation_escrow_agent.collect_policy_reward(collector_address=withdraw_address)
+            if collector_address and collector_address != self.beneficiary_address:
+                raise ValueError("Policy rewards must be withdrawn to the beneficiary address")
+            self.preallocation_escrow_agent.collect_policy_reward()  # TODO save receipt
+            receipt = self.preallocation_escrow_agent.withdraw_eth()
         else:
             withdraw_address = collector_address or self.checksum_address
             receipt = self.policy_agent.collect_policy_reward(collector_address=withdraw_address,
