@@ -17,5 +17,5 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 # Hardcoded bootstrapping teacher nodes keyed by network domain
 TEACHER_NODES = {
-    'cassandra': ('https://discover.nucypher.network:9151', )
+    'gemini': ('https://discover.nucypher.network:9151', )
 }
