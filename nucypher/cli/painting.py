@@ -138,7 +138,11 @@ def paint_node_status(emitter, ursula, start_time):
         stats.extend([current_period, worker_address])
 
     if ursula._availability_sensor:
-        score = 'Availability Score .. {} ({} responders)'.format(ursula._availability_sensor.score, len(ursula._availability_sensor.responders))
+        if ursula._availability_sensor.running:
+            score = 'Availability Score .. {} ({} responders)'.format(ursula._availability_sensor.score, len(ursula._availability_sensor.responders))
+        else:
+            score = 'Availability Score .. Disabled'
+
         stats.append(score)
 
     emitter.echo('\n' + '\n'.join(stats) + '\n')
