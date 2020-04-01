@@ -438,7 +438,7 @@ def test_registry():
     return registry
 
 
-def _make_testerchain():
+def _make_testerchain() -> TesterBlockchain:
     """
     https://github.com/ethereum/eth-tester     # available-backends
     """
@@ -469,13 +469,13 @@ def _make_testerchain():
 
 
 @pytest.fixture(scope='session')
-def _testerchain():
+def _testerchain() -> TesterBlockchain:
     testerchain = _make_testerchain()
     yield testerchain
 
 
 @pytest.fixture(scope='module')
-def testerchain(_testerchain):
+def testerchain(_testerchain) -> TesterBlockchain:
     testerchain = _testerchain
 
     # Reset chain state
