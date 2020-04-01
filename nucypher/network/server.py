@@ -204,8 +204,7 @@ def make_rest_app(
 
                 try:
                     node.verify_node(this_node.network_middleware.client,
-                                     registry=this_node.registry,
-                                     )
+                                     registry=this_node.registry)
 
                 # Suspicion
                 except node.SuspiciousActivity as e:

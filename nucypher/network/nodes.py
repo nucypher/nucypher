@@ -323,7 +323,7 @@ class Learner:
     def __init__(self,
                  domains: set,
                  node_class: object = None,
-                 network_middleware: RestMiddleware = __DEFAULT_MIDDLEWARE_CLASS(),
+                 network_middleware: RestMiddleware = None,
                  start_learning_now: bool = False,
                  learn_on_same_thread: bool = False,
                  known_nodes: tuple = None,
@@ -337,7 +337,11 @@ class Learner:
         self.log = Logger("learning-loop")  # type: Logger
 
         self.learning_domains = domains
-        self.network_middleware = network_middleware
+        if not self.federated_only:
+            default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS(registry=self.registry)
+        else:
+            default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS()
+        self.network_middleware = network_middleware or default_middleware
         self.save_metadata = save_metadata
         self.start_learning_now = start_learning_now
         self.learn_on_same_thread = learn_on_same_thread
@@ -1148,6 +1152,7 @@ class Teacher:
             if registry:
                 if not self._worker_is_bonded_to_staker(registry=registry):  # <-- Blockchain CALL
                     message = f"Worker {self.worker_address} is not bonded to staker {self.checksum_address}"
+                    self.log.debug(message)
                     raise self.DetachedWorker(message)
 
                 if self._staker_is_really_staking(registry=registry):  # <-- Blockchain CALL
@@ -1208,7 +1213,11 @@ class Teacher:
                            "on-chain Staking verification will not be performed.")
 
         # This is both the stamp's client signature and interface metadata check; May raise InvalidNode
-        self.validate_metadata(registry=registry)
+        try:
+            self.validate_metadata(registry=registry)
+        except self.DetachedWorker:
+            self.verified_node = False
+            return False
 
         # The node's metadata is valid; let's be sure the interface is in order.
         if not certificate_filepath:
@@ -1218,8 +1227,8 @@ class Teacher:
                 certificate_filepath = self.certificate_filepath
 
         response_data = network_middleware_client.node_information(host=self.rest_interface.host,
-                                                            port=self.rest_interface.port,
-                                                            certificate_filepath=certificate_filepath)
+                                                                   port=self.rest_interface.port,
+                                                                   certificate_filepath=certificate_filepath)
 
         version, node_bytes = self.version_splitter(response_data, return_remainder=True)
 

@@ -1302,7 +1302,7 @@ class Ursula(Teacher, Character, Worker):
                                  ) -> 'Ursula':
 
         if network_middleware is None:
-            network_middleware = RestMiddleware()
+            network_middleware = RestMiddleware(registry=registry)
 
         #
         # WARNING: xxx Poison xxx

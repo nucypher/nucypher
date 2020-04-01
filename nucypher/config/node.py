@@ -120,11 +120,6 @@ class CharacterConfiguration(BaseConfiguration):
         self.is_me = True
         self.checksum_address = checksum_address
 
-        # Network
-        self.controller_port = controller_port or self.DEFAULT_CONTROLLER_PORT
-        self.network_middleware = network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE()
-        self.interface_signature = interface_signature
-
         # Keyring
         self.crypto_power = crypto_power
         self.keyring = keyring or NO_KEYRING_ATTACHED
@@ -227,6 +222,11 @@ class CharacterConfiguration(BaseConfiguration):
             self.config_root = config_root or self.DEFAULT_CONFIG_ROOT
             self._cache_runtime_filepaths()
             self.__setup_node_storage(node_storage=node_storage)
+
+        # Network
+        self.controller_port = controller_port or self.DEFAULT_CONTROLLER_PORT
+        self.network_middleware = network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(registry=self.registry)
+        self.interface_signature = interface_signature
 
         super().__init__(filepath=self.config_file_location, config_root=self.config_root)
 
