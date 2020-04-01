@@ -47,7 +47,7 @@ contract WorkLock is Ownable {
     /*
     * @dev WorkLock calculations:
     * bid = minBid + bonusETHPart
-    * bonusTokenSupply = tokenSupply - bidders.length * minBid
+    * bonusTokenSupply = tokenSupply - bidders.length * minAllowableLockedTokens
     * bonusDepositRate = bonusTokenSupply / bonusETHSupply
     * claimedTokens = minAllowableLockedTokens + bonusETHPart * bonusDepositRate
     * bonusRefundRate = bonusDepositRate * SLOWING_REFUND / boostingRefund
