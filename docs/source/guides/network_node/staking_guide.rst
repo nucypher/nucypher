@@ -231,7 +231,7 @@ Using clef with nucypher commands
 
 .. code:: bash
 
-    $ nucypher <COMMAND> <ACTION> --signer <CLEF IPC PATH>
+    $ nucypher <COMMAND> <ACTION> --signer <CLEF IPC PATH> --hw-wallet
 
 Some examples:
 
@@ -280,7 +280,7 @@ Once you have configured nucypher for staking, you can proceed with stake initia
 This operation will transfer an amount of tokens to nucypher's staking escrow contract and lock them for
 the commitment period.
 
-.. note:: Use ``--hw-wallet`` if you are using a hardware wallet to prevent password prompts.
+.. note:: Use ``--hw-wallet`` if you are using a hardware wallet or clef to prevent password prompts.
 
 .. code:: bash
 
