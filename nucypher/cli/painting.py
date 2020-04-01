@@ -413,7 +413,7 @@ Registry  ................ {registry.filepath}
         emitter.echo(f"[{i}] {owner}")
 
 
-def paint_multisig_proposed_transaction(emitter, proposal, contract=None):
+def paint_multisig_proposed_transaction(emitter, proposal, contract=None, registry=None):
 
     info = f"""
 Trustee address: .... {proposal.trustee_address}
@@ -425,13 +425,13 @@ Unsigned TX hash: ... {proposal.digest.hex()}
 """
     emitter.echo(info)
 
-    if contract:
-        paint_decoded_transaction(emitter, proposal.data, contract)
+    if contract or registry:
+        paint_decoded_transaction(emitter, proposal, contract, registry)
 
 
-def paint_decoded_transaction(emitter, raw_transaction_data, contract):
+def paint_decoded_transaction(emitter, proposal, contract, registry):
     emitter.echo("Decoded transaction:\n")
-    contract_function, params = contract.decode_function_input(raw_transaction_data)
+    contract_function, params = proposal.decode_transaction_data(contract, registry)
     emitter.echo(str(contract_function), color='yellow', bold=True)
     for param, value in params.items():
         emitter.echo(f"  {param}", color='green', nl=False)

@@ -17,12 +17,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
 from collections import namedtuple
-from typing import List
+from typing import Any, Dict, Tuple
 
 from bytestring_splitter import BytestringSplitter
 from eth_abi.packed import encode_single_packed
 from eth_account import Account
 from web3 import Web3
+from web3.contract import Contract, ContractFunction
+
+from nucypher.blockchain.eth.agents import ContractAgency, MultiSigAgent
 
 
 class Proposal:
@@ -74,6 +77,23 @@ class Proposal:
         packed_elements = b''.join([encode_single_packed(t, e) for t, e in typed_elements])
         return packed_elements
 
+    def decode_transaction_data(self, contract: Contract = None, registry=None) -> Tuple[ContractFunction, Dict[str, Any]]:
+        if self.data:
+            if not contract:
+                agent = ContractAgency.get_agent(MultiSigAgent, registry=registry)
+                registry = agent.registry
+                blockchain = agent.blockchain
+
+                name, version, address, abi = registry.search(contract_address=self.target_address)
+                contract = blockchain.client.w3.eth.contract(abi=abi,
+                                                             address=address,
+                                                             version=version,
+                                                             ContractFactoryClass=blockchain._contract_factory)
+            contract_function, params = contract.decode_function_input(self.data)
+            return contract_function, params
+        else:
+            raise ValueError("This proposed TX doesn't have data")
+
     def write(self, filepath: str = None) -> str:
         elements = vars(self)  # TODO: @kprasch, @jmyles  wdyt of using vars here?
         elements['data'] = elements['data'].hex()
@@ -114,14 +134,8 @@ class Authorization:
         signing_account = Account.recoverHash(message_hash=proposal.digest, signature=self.serialize())
         return signing_account
 
-
     def __bytes__(self):
-        pass
-
-    @property
-    def id(self):
-        # TODO - Unique ID
-        pass
+        return self.serialize()
 
     def serialize(self) -> bytes:
         return self.components.r + self.components.s + self.components.v
@@ -147,11 +161,5 @@ class Authorization:
             data = file.read()
         return cls.deserialize(data=data)
 
-
-class ExecutiveBoard:
-    """A collection of Executives plus a Trustee."""
-
-    def __init__(self, executives: List['Executive']):
-        self.executives = executives
 
 
