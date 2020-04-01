@@ -193,15 +193,20 @@ class AvailabilitySensor:
                 # Ignore this measurement and move on because the remote node is not compatible.
                 self.record(None, reason={"error": "Remote node did not support 'ping' endpoint."})
 
-            except (*NodeSeemsToBeDown, self._ursula.NotStaking, self._ursula.network_middleware.UnexpectedResponse):
-                # This node is not available, does not support uptime checks, or is not staking - do nothing.
+            except (*NodeSeemsToBeDown,
+                    self._ursula.NotStaking,
+                    self._ursula.node_storage.InvalidNodeCertificate,
+                    self._ursula.network_middleware.UnexpectedResponse):
+                # This node is either not an Ursula, not available, does not support uptime checks, or is not staking...
+                # ...do nothing and move on without changing the score.
                 continue
 
             else:
                 # Record response
+                self.responders.add(ursula.checksum_address)
                 if response.status_code == 200:
-                    self.responders.add(ursula.checksum_address)
                     self.record(True)
+                elif response.status_code == 400:
+                    self.record(False)
                 else:
-                    # TODO: Were not sure how this can ever happen....
                     self.record(None, reason={"error": f"{ursula.rest_url} returned {response.status_code} from 'ping' endpoint."})
