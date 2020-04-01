@@ -58,3 +58,4 @@ NUCYPHER_SENTRY_ENDPOINT = f"https://{NUCYPHER_SENTRY_PUBLIC_KEY}@sentry.io/{NUC
 
 # Web
 TEMPLATES_DIR = os.path.join(abspath(dirname(cli.__file__)), 'templates')
+MAX_UPLOAD_CONTENT_LENGTH = 1024 * 50

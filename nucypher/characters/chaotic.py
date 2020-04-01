@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
-from nucypher.config.constants import TEMPLATES_DIR
+from nucypher.config.constants import TEMPLATES_DIR, MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.powers import SigningPower, TransactingPower
 from nucypher.datastore.threading import ThreadedSession
 
@@ -139,6 +139,8 @@ class Felix(Character, NucypherTokenActor):
         short_name = bytes(self.stamp).hex()[:6]
         self.rest_app = Flask(f"faucet-{short_name}", template_folder=TEMPLATES_DIR)
         self.rest_app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{self.db_filepath}'
+        self.rest_app.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_CONTENT_LENGTH
+
         try:
             self.rest_app.secret_key = sha256(os.environ['NUCYPHER_FELIX_DB_SECRET'].encode())  # uses envvar
         except KeyError:
@@ -333,7 +335,7 @@ class Felix(Character, NucypherTokenActor):
             self.log.info(
                 f"Disbursement #{self.__disbursement} OK | {txhash.hex()[-6:]} |"
                 f"({str(NU(disbursement, 'NuNit'))} -> {recipient_address}")
-                
+
         return txhash
 
     def airdrop_tokens(self):

@@ -1,11 +1,19 @@
 import datetime
 import maya
 import pytest
+import io
+import os
+import requests
+from twisted.internet import threads
+import pytest_twisted
+from werkzeug.exceptions import RequestEntityTooLarge
 
 from nucypher.network.nodes import Learner
 from nucypher.policy.collections import TreasureMap
 from nucypher.policy.policies import Policy
-from nucypher.utilities.sandbox.middleware import NodeIsDownMiddleware
+from nucypher.utilities.sandbox.middleware import NodeIsDownMiddleware, EvilMiddleWare
+from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+from bytestring_splitter import BytestringSplittingError
 from functools import partial
 
 
@@ -117,3 +125,62 @@ def test_node_has_changed_cert(federated_alice, federated_ursulas):
 
     # Cool - we didn't crash because of SSLError.
     # TODO: Assertions and such.
+
+
+def test_huge_treasure_maps_are_rejected(federated_alice, federated_ursulas):
+    federated_alice.network_middleware = EvilMiddleWare()
+
+    firstula = list(federated_ursulas)[0]
+
+    ok_amount = 10 * 1024  # 10k
+    ok_data = os.urandom(ok_amount)
+
+    with pytest.raises(BytestringSplittingError):
+        federated_alice.network_middleware.upload_arbitrary_data(
+            firstula, 'consider_arrangement', ok_data
+        )
+
+    """
+    TODO:  the following does not work because of this issue: https://github.com/pallets/werkzeug/issues/1513
+
+    it is implemented at a lower level through hendrix
+    but would be nice if it could be configurable through
+    flask as well and thus, testable here...
+
+    evil_amount = 5000 * 1024
+    evil_data = os.urandom(evil_amount)
+    with pytest.raises(RequestEntityTooLarge):
+        federated_alice.network_middleware.upload_arbitrary_data(
+            firstula, 'consider_arrangement', evil_data
+        )
+    """
+
+@pytest_twisted.inlineCallbacks
+def test_hendrix_handles_content_length_validation(ursula_federated_test_config):
+    node = make_federated_ursulas(ursula_config=ursula_federated_test_config, quantity=1).pop()
+    node_deployer = node.get_deployer()
+
+    node_deployer.addServices()
+    node_deployer.catalogServers(node_deployer.hendrix)
+    node_deployer.start()
+
+    def check_node_rejects_large_posts(node):
+        too_much_data = os.urandom(100 * 1024)
+        response = requests.post(
+            "https://{}/consider_arrangement".format(node.rest_url()),
+            data=too_much_data, verify=False)
+        assert response.status_code > 400
+        assert response.reason == "Request Entity Too Large"
+        return node
+
+    def check_node_accepts_normal_posts(node):
+        a_normal_arrangement = os.urandom(49 * 1024)  # 49K, the limit is 50K
+        response = requests.post(
+            "https://{}/consider_arrangement".format(node.rest_url()),
+            data=a_normal_arrangement, verify=False)
+        assert response.status_code >= 500  # it still fails because we are sending random bytes
+        assert response.reason != "Request Entity Too Large"  # but now we are running nucypher code
+        return node
+
+    yield threads.deferToThread(check_node_rejects_large_posts, node)
+    yield threads.deferToThread(check_node_accepts_normal_posts, node)

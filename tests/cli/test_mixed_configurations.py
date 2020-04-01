@@ -23,8 +23,8 @@ def test_destroy_with_no_configurations(click_runner, custom_filepath):
     destruction_args = ('ursula', 'destroy', '--config-file', ursula_file_location)
     result = click_runner.invoke(nucypher_cli, destruction_args, catch_exceptions=False)
     assert result.exit_code == 2
-    assert 'Error: Invalid value for "--config-file":'
-    assert f'"{ursula_file_location}" does not exist.' in result.output
+    assert "Error: Invalid value for '--config-file':" in result.output
+    assert ursula_file_location in result.output
 
 
 def test_coexisting_configurations(click_runner,

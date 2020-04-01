@@ -28,6 +28,7 @@ from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature, Signer
 
+from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto import api as API
 from nucypher.crypto.api import generate_teacher_certificate
 from nucypher.crypto.kits import MessageKit
@@ -195,4 +196,7 @@ class HostingKeypair(Keypair):
                                 context_factory=ExistingKeyTLSContextFactory,
                                 context_factory_kwargs={"curve_name": self.curve.name,
                                                         "sslmethod": TLSv1_2_METHOD},
-                                options={"wsgi": rest_app, "https_port": port})
+                                options={
+                                    "wsgi": rest_app,
+                                    "https_port": port,
+                                    "max_upload_bytes": MAX_UPLOAD_CONTENT_LENGTH})
