@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import csv
 import json
 import os
@@ -113,7 +112,8 @@ class NucypherTokenActor:
         self.registry = registry
         if domains:  # StakeHolder config inherits from character config, which has 'domains' - #1580
             self.network = list(domains)[0]
-        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)  # type: NucypherTokenAgent
+        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent,
+                                                    registry=self.registry)  # type: NucypherTokenAgent
         self._saved_receipts = list()  # track receipts of transmitted transactions
 
     def __repr__(self):
@@ -658,7 +658,6 @@ class ContractAdministrator(NucypherTokenActor):
 
 
 class MultiSigActor(NucypherTokenActor):
-
     class UnknownExecutive(Exception):
         """
         Raised when Executive is not listed as a owner of the MultiSig.
@@ -737,15 +736,28 @@ class Trustee(MultiSigActor):
                                               data=proposal.data)
         return receipt
 
-    def change_threshold(self, new_threshold: int) -> dict:
-        # TODO: Implement Agent method for change threshold for function binding
-        receipt = self.multisig_agent.execute()
-        return receipt
-
     def create_transaction_proposal(self, transaction):
         proposal = Proposal.from_transaction(transaction,
                                              multisig_agent=self.multisig_agent,
                                              trustee_address=self.checksum_address)
+        return proposal
+
+    # MultiSig management proposals
+
+    def propose_adding_owner(self, new_owner_address: str, evidence: str) -> Proposal:
+        # TODO: Use evidence to ascertain new owner can transact with this address
+        tx = self.multisig_agent.build_add_owner_tx(new_owner_address=new_owner_address)
+        proposal = self.create_transaction_proposal(tx)
+        return proposal
+
+    def propose_removing_owner(self, owner_address: str) -> Proposal:
+        tx = self.multisig_agent.build_remove_owner_tx(owner_address=owner_address)
+        proposal = self.create_transaction_proposal(tx)
+        return proposal
+
+    def propose_changing_threshold(self, new_threshold: int) -> Proposal:
+        tx = self.multisig_agent.build_change_threshold_tx(new_threshold)
+        proposal = self.create_transaction_proposal(tx)
         return proposal
 
 
@@ -803,8 +815,10 @@ class Staker(NucypherTokenActor):
         self.__worker_address = None
 
         # Blockchain
-        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)   # type: PolicyManagerAgent
-        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)  # type: StakingEscrowAgent
+        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent,
+                                                     registry=self.registry)  # type: PolicyManagerAgent
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent,
+                                                      registry=self.registry)  # type: StakingEscrowAgent
         self.economics = EconomicsFactory.get_economics(registry=self.registry)
 
         # Staking via contract
