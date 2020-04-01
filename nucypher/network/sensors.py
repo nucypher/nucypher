@@ -48,6 +48,7 @@ class AvailabilitySensor:
 
         self._start_time = None
         self.__task = LoopingCall(self.maintain)
+        self.responders = set()
 
     def mild_warning(self) -> None:
         self.log.info(f'[UNREACHABLE NOTICE] This node was recently reported as unreachable.')
@@ -170,6 +171,8 @@ class AvailabilitySensor:
         ursulas = self.sample(quantity=self.SAMPLE_SIZE)
         for ursula in ursulas:
 
+            ursula.mature()
+
             # Fetch and store teacher certificate
             responding_ursula_address, responding_ursula_port = tuple(ursula.rest_interface)
 
@@ -190,13 +193,14 @@ class AvailabilitySensor:
                 # Ignore this measurement and move on because the remote node is not compatible.
                 self.record(None, reason={"error": "Remote node did not support 'ping' endpoint."})
 
-            except (*NodeSeemsToBeDown, self._ursula.NotStaking, ursula.network_middleware.UnexpectedResponse):
+            except (*NodeSeemsToBeDown, self._ursula.NotStaking, self._ursula.network_middleware.UnexpectedResponse):
                 # This node is not available, does not support uptime checks, or is not staking - do nothing.
                 continue
 
             else:
                 # Record response
                 if response.status_code == 200:
+                    self.responders.add(ursula.checksum_address)
                     self.record(True)
                 else:
                     # TODO: Were not sure how this can ever happen....
