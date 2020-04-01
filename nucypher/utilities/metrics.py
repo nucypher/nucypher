@@ -5,7 +5,7 @@ except ImportError:
 from twisted.internet import reactor, task
 
 import nucypher
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, WorkLockAgent
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, WorkLockAgent, PolicyManagerAgent
 from nucypher.blockchain.eth.token import NU
 from typing import List
 
@@ -41,6 +41,8 @@ def collect_prometheus_metrics(ursula, event_metrics_collectors: List[EventMetri
             event_metrics_collector.collect()
 
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=ursula.registry)
+        work_lock_agent = ContractAgency.get_agent(WorkLockAgent, registry=ursula.registry)
+
         locked = staking_agent.get_locked_tokens(staker_address=ursula.checksum_address, periods=1)
         locked_in_nu = round(NU.from_nunits(locked), 2)
 
@@ -55,6 +57,10 @@ def collect_prometheus_metrics(ursula, event_metrics_collectors: List[EventMetri
         node_metrics["unlocked_tokens_gauge"].set(unlocked_in_nu)
 
         node_metrics["owned_tokens_gauge"].set(owned_in_nu)
+
+        node_metrics["available_refund"].set(work_lock_agent.get_available_refund(checksum_address=ursula.checksum_address))
+
+        node_metrics["policies_held_gauge"].set(len(ursula.datastore.get_all_policy_arrangements()))
 
         missing_confirmations = staking_agent.get_missing_confirmations(
             checksum_address=ursula.checksum_address)  # TODO: lol
@@ -75,6 +81,7 @@ def get_event_metrics_collectors(ursula, metrics_prefix):
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=ursula.registry)
     work_lock_agent = ContractAgency.get_agent(WorkLockAgent, registry=ursula.registry)
+    policy_manager_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=ursula.registry)
 
     event_collectors_config = (
         {
@@ -190,6 +197,11 @@ def get_event_metrics_collectors(ursula, metrics_prefix):
             "name": "work_lock_canceled", "contract_agent": work_lock_agent, "event": "Canceled",
             "argument_filters": {"sender": ursula.checksum_address},
             "metrics": {"value": Gauge(f'{metrics_prefix}_work_lock_canceled_value', 'Canceled value')}
+        },
+        {
+            "name": "policy_withdrawn_reward", "contract_agent": policy_manager_agent, "event": "Withdrawn",
+            "argument_filters": {"recipient": ursula.checksum_address},
+            "metrics": {"value": Gauge(f'{metrics_prefix}_policy_withdrawn_reward', 'Policy reward')}
         }
     )
 
@@ -219,7 +231,9 @@ def initialize_prometheus_exporter(ursula, listen_address, port: int, metrics_pr
         "active_stake_gauge": Gauge(f'{metrics_prefix}_active_stake', 'Active stake'),
         "owned_tokens_gauge": Gauge(f'{metrics_prefix}_owned_tokens', 'All tokens that belong to the staker, including '
                                                                       'locked, unlocked and rewards'),
-        "unlocked_tokens_gauge": Gauge(f'{metrics_prefix}_unlocked_tokens', 'Amount of unlocked tokens')
+        "unlocked_tokens_gauge": Gauge(f'{metrics_prefix}_unlocked_tokens', 'Amount of unlocked tokens'),
+        "available_refund_gauge": Gauge(f'{metrics_prefix}_available_refund', 'Available refund'),
+        "policies_held_gauge": Gauge(f'{metrics_prefix}_policies_held', 'Policies held')
     }
 
     event_metrics_collectors = get_event_metrics_collectors(ursula, metrics_prefix)
