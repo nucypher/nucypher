@@ -44,6 +44,9 @@ def nicename(symbol):
 
 
 def nickname_from_seed(seed, number_of_pairs=2):
+    # TODO: #1823 - Workaround for new nickname every restart
+    # if not seed:
+    #     raise ValueError("No checksum provided to derive nickname.")
     symbols = list(symbols_tuple)
 
     random.seed(seed)
