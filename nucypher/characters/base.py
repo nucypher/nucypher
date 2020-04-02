@@ -179,7 +179,6 @@ class Character(Learner):
 
         if is_me:
             self.treasure_maps = {}  # type: dict
-            self.network_middleware = network_middleware or RestMiddleware()
 
             #
             # Signing Power
@@ -199,6 +198,9 @@ class Character(Learner):
                 self.registry = registry or InMemoryContractRegistry.from_latest_publication(network=list(domains)[0])  #TODO: #1580
             else:
                 self.registry = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
+
+            # REST
+            self.network_middleware = network_middleware or RestMiddleware(registry=self.registry)
 
             #
             # Learner

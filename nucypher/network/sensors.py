@@ -43,31 +43,36 @@ class AvailabilitySensor:
             9: self.mild_warning,
             7: self.medium_warning,
             2: self.severe_warning,
-            0: self.shutdown_everything
+            1: self.shutdown_everything  # 0 is unobtainable
         }
 
         self._start_time = None
         self.__task = LoopingCall(self.maintain)
+        self.responders = set()
+
+    @property
+    def excuses(self):
+        return self.__excuses
 
     def mild_warning(self) -> None:
-        self.log.info(f'[UNREACHABLE NOTICE] This node was recently reported as unreachable.')
+        self.log.info(f'[UNREACHABLE NOTICE (SCORE {self.score})] This node was recently reported as unreachable.')
 
     def medium_warning(self) -> None:
-        self.log.warn(f'[UNREACHABLE CAUTION] This node is reporting as unreachable.'
+        self.log.warn(f'[UNREACHABLE CAUTION (SCORE {self.score})] This node is reporting as unreachable.'
                       f'Please check your network and firewall configuration.')
 
     def severe_warning(self) -> None:
-        self.log.warn(f'[UNREACHABLE WARNING] '
+        self.log.warn(f'[UNREACHABLE WARNING (SCORE {self.score})] '
                       f'Please check your network and firewall configuration.'
                       f'Auto-shutdown will commence soon if the services do not become available.')
 
     def shutdown_everything(self, reason=None, halt_reactor=True):
-        self.log.warn(f'[NODE IS UNREACHABLE] Commencing auto-shutdown sequence...')
+        self.log.warn(f'[NODE IS UNREACHABLE (SCORE {self.score})] Commencing auto-shutdown sequence...')
         self._ursula.stop(halt_reactor=False)
         try:
             if reason:
                 raise reason(reason.message)
-            raise self.Unreachable(f'{self._ursula} is unreachable.')
+            raise self.Unreachable(f'{self._ursula} is unreachable (score {self.score}).')
         finally:
             if halt_reactor:
                 self._halt_reactor()
@@ -170,6 +175,8 @@ class AvailabilitySensor:
         ursulas = self.sample(quantity=self.SAMPLE_SIZE)
         for ursula in ursulas:
 
+            ursula.mature()
+
             # Fetch and store teacher certificate
             responding_ursula_address, responding_ursula_port = tuple(ursula.rest_interface)
 
@@ -184,20 +191,27 @@ class AvailabilitySensor:
                                                                                    certificate_filepath=certificate_filepath)
 
             except RestMiddleware.BadRequest as e:
+                self.responders.add(ursula.checksum_address)
                 self.record(False, reason=e.reason)
 
             except self._ursula.network_middleware.NotFound:
                 # Ignore this measurement and move on because the remote node is not compatible.
                 self.record(None, reason={"error": "Remote node did not support 'ping' endpoint."})
 
-            except (*NodeSeemsToBeDown, self._ursula.NotStaking, ursula.network_middleware.UnexpectedResponse):
-                # This node is not available, does not support uptime checks, or is not staking - do nothing.
+            except (*NodeSeemsToBeDown,
+                    self._ursula.NotStaking,
+                    self._ursula.node_storage.InvalidNodeCertificate,
+                    self._ursula.network_middleware.UnexpectedResponse):
+                # This node is either not an Ursula, not available, does not support uptime checks, or is not staking...
+                # ...do nothing and move on without changing the score.
                 continue
 
             else:
                 # Record response
+                self.responders.add(ursula.checksum_address)
                 if response.status_code == 200:
                     self.record(True)
+                elif response.status_code == 400:
+                    self.record(False)
                 else:
-                    # TODO: Were not sure how this can ever happen....
                     self.record(None, reason={"error": f"{ursula.rest_url} returned {response.status_code} from 'ping' endpoint."})

@@ -37,6 +37,9 @@ class NucypherMiddlewareClient:
     library = requests
     timeout = 1.2
 
+    def __init__(self, registry=None, *args, **kwargs):
+        self.registry = registry
+
     @staticmethod
     def response_cleaner(response):
         return response
@@ -52,7 +55,7 @@ class NucypherMiddlewareClient:
             if node_or_sprout is not EXEMPT_FROM_VERIFICATION:
                 node_or_sprout.mature()  # Morph into a node.
                 node = node_or_sprout  # Definitely a node.
-                node.verify_node(network_middleware_client=self)
+                node.verify_node(network_middleware_client=self, registry=self.registry)
         return self.parse_node_or_host_and_port(node_or_sprout, host, port)
 
     def parse_node_or_host_and_port(self, node, host, port):
@@ -93,9 +96,8 @@ class NucypherMiddlewareClient:
 
     def __getattr__(self, method_name):
         # Quick sanity check.
-        if not method_name in ("post", "get", "put", "patch", "delete"):
-            raise TypeError(
-                f"This client is for HTTP only - you need to use a real HTTP verb, not '{method_name}'.")
+        if method_name not in ("post", "get", "put", "patch", "delete"):
+            raise TypeError(f"This client is for HTTP only - you need to use a real HTTP verb, not '{method_name}'.")
 
         def method_wrapper(path,
                            node_or_sprout=None,
@@ -159,7 +161,7 @@ class RestMiddleware:
             super().__init__(message=reason, status=400, *args, **kwargs)
 
     def __init__(self, registry=None):
-        self.client = self._client_class()
+        self.client = self._client_class(registry)
 
     def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2,
                         current_attempt: int = 0):

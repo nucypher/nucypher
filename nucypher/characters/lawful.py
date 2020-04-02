@@ -1124,7 +1124,7 @@ class Ursula(Teacher, Character, Worker):
                 emitter.message(f"Connecting to {','.join(self.learning_domains)}", color='green', bold=True)
             self.start_learning_loop(now=self._start_learning_now)
 
-        if availability:
+        if self._availability_check and availability:
             self._availability_sensor.start(now=False)  # wait...
 
         if worker and not self.federated_only:
@@ -1302,7 +1302,7 @@ class Ursula(Teacher, Character, Worker):
                                  ) -> 'Ursula':
 
         if network_middleware is None:
-            network_middleware = RestMiddleware()
+            network_middleware = RestMiddleware(registry=registry)
 
         #
         # WARNING: xxx Poison xxx

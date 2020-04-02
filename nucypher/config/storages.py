@@ -50,6 +50,9 @@ class NodeStorage(ABC):
     class UnknownNode(NodeStorageError):
         pass
 
+    class InvalidNodeCertificate(RuntimeError):
+        """Raised when a TLS certificate is not a valid Teacher certificate."""
+
     def __init__(self,
                  federated_only: bool,  # TODO# 466
                  character_class=None,
@@ -99,17 +102,22 @@ class NodeStorage(ABC):
         if not host:
             host = common_name_on_certificate
 
-        pseudonym = certificate.subject.get_attributes_for_oid(NameOID.PSEUDONYM)[0]
-        checksum_address = pseudonym.value
+        try:
+            pseudonym = certificate.subject.get_attributes_for_oid(NameOID.PSEUDONYM)[0]
+        except IndexError:
+            raise self.InvalidNodeCertificate(f"Missing checksum address on certificate for host '{host}'. "
+                                              f"Does this certificate belong to an Ursula?")
+        else:
+            checksum_address = pseudonym.value
 
-        if not is_checksum_address(checksum_address):  # TODO: more?
-            raise RuntimeError("Invalid certificate checksum address encountered: {}".format(checksum_address))
+        if not is_checksum_address(checksum_address):
+            raise self.InvalidNodeCertificate("Invalid certificate wallet address encountered: {}".format(checksum_address))
 
         # Validate
         # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
         if host and (host != common_name_on_certificate):
-            raise ValueError(
-                f"You passed a hostname ('{host}') that does not match the certificate's common name.")
+            raise ValueError(f"You passed a hostname ('{host}') that does not match the certificate's common name.")
+
         certificate_filepath = self.generate_certificate_filepath(checksum_address=checksum_address)
         certificate_already_exists = os.path.isfile(certificate_filepath)
         if force is False and certificate_already_exists:

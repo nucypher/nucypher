@@ -357,6 +357,7 @@ def make_cli_character(character_config,
     except CryptoError:
         raise character_config.keyring.AuthenticationFailed("Failed to unlock keyring. "
                                                             "Are you sure you provided the correct password?")
+
     #
     # Post-Init
     #

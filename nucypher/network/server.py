@@ -138,11 +138,11 @@ def make_rest_app(
         except ValueError:  # (ValueError)
             return Response({'error': 'Invalid Ursula'}, status=400)
         else:
-            requesting_ursula_address, requesting_ursula_port = tuple(requesting_ursula.rest_interface)
+            initiator_address, initiator_port = tuple(requesting_ursula.rest_interface)
 
         # Compare requester and posted Ursula information
         request_address = request.environ['REMOTE_ADDR']
-        if request_address != requesting_ursula_address:
+        if request_address != initiator_address:
             return Response({'error': 'Suspicious origin address'}, status=400)
 
         #
@@ -150,8 +150,12 @@ def make_rest_app(
         #
 
         try:
-            # Fetch and store requester's teacher certificate.
-            requesting_ursula_bytes = this_node.network_middleware.client.node_information(host=requesting_ursula_address, port=requesting_ursula_port)
+            # Fetch and store initiator's teacher certificate.
+            certificate = this_node.network_middleware.get_certificate(host=initiator_address, port=initiator_port)
+            certificate_filepath = this_node.node_storage.store_node_certificate(certificate=certificate)
+            requesting_ursula_bytes = this_node.network_middleware.client.node_information(host=initiator_address,
+                                                                                           port=initiator_port,
+                                                                                           certificate_filepath=certificate_filepath)
         except NodeSeemsToBeDown:
             return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
 
@@ -200,8 +204,7 @@ def make_rest_app(
 
                 try:
                     node.verify_node(this_node.network_middleware.client,
-                                     registry=this_node.registry,
-                                     )
+                                     registry=this_node.registry)
 
                 # Suspicion
                 except node.SuspiciousActivity as e:

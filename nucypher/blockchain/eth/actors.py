@@ -86,6 +86,7 @@ from nucypher.cli.painting import (
 )
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
+from nucypher.network.nicknames import nickname_from_seed
 
 
 class NucypherTokenActor:
@@ -1304,6 +1305,10 @@ class Worker(NucypherTokenActor):
             # Success and Escape
             if staking_address != BlockchainInterface.NULL_ADDRESS and ether_balance:
                 self._checksum_address = staking_address
+
+                # TODO: #1823 - Workaround for new nickname every restart
+                self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_address)
+
                 emitter.message(f"Starting services...", color='yellow', bold=True)
                 break
 

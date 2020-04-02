@@ -51,7 +51,6 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_teacher_uri,
     option_signer_uri)
-from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS
@@ -64,7 +63,8 @@ class UrsulaConfigOptions:
     __option_name__ = 'config_options'
 
     def __init__(self, geth, provider_uri, worker_address, federated_only, rest_host,
-                 rest_port, db_filepath, network, registry_filepath, dev, poa, light, gas_strategy, signer_uri):
+                 rest_port, db_filepath, network, registry_filepath, dev, poa, light,
+                 gas_strategy, signer_uri, availability_check):
 
         if federated_only:
             # TODO: consider rephrasing in a more universal voice.
@@ -96,6 +96,7 @@ class UrsulaConfigOptions:
         self.poa = poa
         self.light = light
         self.gas_strategy = gas_strategy
+        self.availability_check = availability_check
 
     def create_config(self, emitter, config_file):
         if self.dev:
@@ -114,7 +115,9 @@ class UrsulaConfigOptions:
                 federated_only=self.federated_only,
                 rest_host=self.rest_host,
                 rest_port=self.rest_port,
-                db_filepath=self.db_filepath)
+                db_filepath=self.db_filepath,
+                availability_check=self.availability_check
+            )
         else:
             try:
                 return UrsulaConfiguration.from_configuration_file(
@@ -131,7 +134,9 @@ class UrsulaConfigOptions:
                     db_filepath=self.db_filepath,
                     poa=self.poa,
                     light=self.light,
-                    federated_only=self.federated_only)
+                    federated_only=self.federated_only,
+                    availability_check=self.availability_check
+                )
             except FileNotFoundError:
                 return actions.handle_missing_configuration_file(character_config_class=UrsulaConfiguration,
                                                                  config_file=config_file)
@@ -175,7 +180,8 @@ class UrsulaConfigOptions:
                                             signer_uri=self.signer_uri,
                                             gas_strategy=self.gas_strategy,
                                             poa=self.poa,
-                                            light=self.light)
+                                            light=self.light,
+                                            availability_check=self.availability_check)
 
     def get_updates(self) -> dict:
         payload = dict(rest_host=self.rest_host,
@@ -189,7 +195,8 @@ class UrsulaConfigOptions:
                        signer_uri=self.signer_uri,
                        gas_strategy=self.gas_strategy,
                        poa=self.poa,
-                       light=self.light)
+                       light=self.light,
+                       availability_check=self.availability_check)
         # Depends on defaults being set on Configuration classes, filtrates None values
         updates = {k: v for k, v in payload.items() if v is not None}
         return updates
@@ -210,7 +217,8 @@ group_config_options = group_options(
     registry_filepath=option_registry_filepath,
     poa=option_poa,
     light=option_light,
-    dev=option_dev
+    dev=option_dev,
+    availability_check=click.option('--availability-check/--disable-availability-check', help="Enable or disable self-health checks while running", is_flag=True, default=None)
 )
 
 

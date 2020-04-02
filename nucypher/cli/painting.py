@@ -138,7 +138,11 @@ def paint_node_status(emitter, ursula, start_time):
         stats.extend([current_period, worker_address])
 
     if ursula._availability_sensor:
-        score = 'Availability Score .. {}'.format(ursula._availability_sensor.score)
+        if ursula._availability_sensor.running:
+            score = 'Availability Score .. {} ({} responders)'.format(ursula._availability_sensor.score, len(ursula._availability_sensor.responders))
+        else:
+            score = 'Availability Score .. Disabled'
+
         stats.append(score)
 
     emitter.echo('\n' + '\n'.join(stats) + '\n')
@@ -517,7 +521,12 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
         missing = staker.missing_confirmations
         min_reward_rate = prettify_eth_amount(staker.min_reward_rate)
 
-        staker_data = [f'Missing {missing} confirmation{"s" if missing > 1 else ""}' if missing else f'Confirmed #{last_confirmed}',
+        if missing == -1:
+            missing_info = "Never Confirmed (New Stake)"
+        else:
+            missing_info = f'Missing {missing} confirmation{"s" if missing > 1 else ""}' if missing else f'Confirmed #{last_confirmed}'
+
+        staker_data = [missing_info,
                        f'{"Yes" if staker.is_restaking else "No"} ({"Locked" if staker.restaking_lock_enabled else "Unlocked"})',
                        "Yes" if bool(staker.is_winding_down) else "No",
                        pretty_fees,
