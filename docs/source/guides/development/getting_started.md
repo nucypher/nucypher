@@ -124,7 +124,7 @@ the role of a `Teacher`, or "seednode":
 ```python
 from nucypher.characters.lawful import Ursula
 
-seed_uri = "discover.nucypher.network:9151"
+seed_uri = "gemini.nucypher.network:9151"
 seed_uri2 = "104.248.215.144:9151"
 
 ursula = Ursula.from_seed_and_stake_info(seed_uri=seed_uri)
@@ -157,7 +157,7 @@ keyring = NucypherKeyring.generate(checksum_address='0x287A817426DD1AE78ea23e991
 ```python
 from nucypher.characters.lawful import Alice, Ursula
 
-ursula = Ursula.from_seed_and_stake_info(seed_uri='discover.nucypher.network:9151')
+ursula = Ursula.from_seed_and_stake_info(seed_uri='gemini.nucypher.network:9151')
 
 # Unlock Alice's Keyring
 keyring = NucypherKeyring(account='0x287A817426DD1AE78ea23e9918e2273b6733a43D')
@@ -244,7 +244,7 @@ from nucypher.characters.lawful import Alice, Bob, Enrico, Ursula
 # alice_verifying_key = <Side Channel>
 
 # Everyone!
-ursula = Ursula.from_seed_and_stake_info(seed_uri='discover.nucypher.network:9151')
+ursula = Ursula.from_seed_and_stake_info(seed_uri='gemini.nucypher.network:9151')
 alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
 enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
 
