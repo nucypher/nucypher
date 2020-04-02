@@ -1,5 +1,5 @@
 - name: "Install Docker"
-  hosts: "{{ nucypher_hosts | default('cassandra') }}"
+  hosts: "{{ play_hosts }}"
   remote_user: "{{default_user}}"
   become: yes
   gather_facts: no
