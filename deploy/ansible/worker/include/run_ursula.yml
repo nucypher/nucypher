@@ -11,7 +11,7 @@
         state: started
         image: "{{ nucypher_image | default('nucypher/nucypher:latest') }}"
         restart_policy: "unless-stopped"
-        command: "nucypher ursula run --teacher discover.nucypher.network:9151 --poa {{nucypher_ursula_run_options | default('')}}"
+        command: "nucypher ursula run --teacher gemini.nucypher.network:9151 --poa {{nucypher_ursula_run_options | default('')}}"
         volumes:
           - /home/nucypher:/root/.local/share/
         ports:

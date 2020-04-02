@@ -33,7 +33,7 @@ except IndexError:
 try:
     network = sys.argv[1]
 except IndexError:
-    network = "cassandra"
+    network = "gemini"
 
 
 BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri,

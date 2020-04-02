@@ -11,16 +11,16 @@
 
 5. ensure that you have installed nucypher with development tools. `pip install -r dev-requirements.txt`
 
-6. from /nucypher/deploy/ansible/worker run `ansible-playbook worker/setup_remote_workers.yml -i worker/inventory.yml -l cassandra`
+6. from /nucypher/deploy/ansible/worker run `ansible-playbook worker/setup_remote_workers.yml -i worker/inventory.yml -l gemini`
 
 #### single command line worker UPDATE
 
 updates all your existing nodes to the latest nucypher docker image
 
-1. from `/nucypher/deploy/ansible/` run `ansible-playbook worker/update_remote_workers.yml -i worker/inventory.yml -l cassandra`
+1. from `/nucypher/deploy/ansible/` run `ansible-playbook worker/update_remote_workers.yml -i worker/inventory.yml -l gemini`
 
 
 #### other commands to try 
 
-* `ansible-playbook worker/get_workers_status.yml -i ~/Documents/my_inventory.yml -l cassandra`
+* `ansible-playbook worker/get_workers_status.yml -i ~/Documents/my_inventory.yml -l gemini`
    * prints out some useful information about your nodes
