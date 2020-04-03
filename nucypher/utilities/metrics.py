@@ -47,20 +47,17 @@ def collect_prometheus_metrics(ursula, event_metrics_collectors: List[EventMetri
         work_lock_agent = ContractAgency.get_agent(WorkLockAgent, registry=ursula.registry)
 
         locked = staking_agent.get_locked_tokens(staker_address=ursula.checksum_address, periods=1)
-        locked_in_nu = round(NU.from_nunits(locked), 2)
 
-        node_metrics["active_stake_gauge"].set(locked_in_nu)
+        node_metrics["active_stake_gauge"].set(locked)
 
 
         owned_tokens = staking_agent.owned_tokens(ursula.checksum_address)
-        owned_in_nu = round(NU.from_nunits(owned_tokens), 2)
 
         unlocked_tokens = owned_tokens - locked
-        unlocked_in_nu = round(NU.from_nunits(unlocked_tokens), 2)
 
-        node_metrics["unlocked_tokens_gauge"].set(unlocked_in_nu)
+        node_metrics["unlocked_tokens_gauge"].set(unlocked_tokens)
 
-        node_metrics["owned_tokens_gauge"].set(owned_in_nu)
+        node_metrics["owned_tokens_gauge"].set(owned_tokens)
 
         node_metrics["available_refund"].set(work_lock_agent.get_available_refund(checksum_address=ursula.checksum_address))
 
@@ -204,12 +201,6 @@ def get_event_metrics_collectors(ursula, metrics_prefix):
                 "completedWork": Gauge(f'{metrics_prefix}_worklock_refund_completedWork', 'Completed work'),
                 "block_number": Gauge(f'{metrics_prefix}_worklock_refund_block_number', 'Block number')
             }
-        },
-        {
-            "name": "work_lock_burnt", "contract_agent": work_lock_agent, "event": "Burnt",
-            "argument_filters": {"sender": ursula.checksum_address},
-            "metrics": {"value": Gauge(f'{metrics_prefix}_worklock_burnt_value', 'Burnt value'),
-                        "block_number": Gauge(f'{metrics_prefix}_worklock_burnt_block_number', 'Block number')}
         },
         {
             "name": "work_lock_canceled", "contract_agent": work_lock_agent, "event": "Canceled",
