@@ -52,7 +52,7 @@ py-solc = {git = "https://github.com/nucypher/py-solc.git",ref = "v5.0.0-eol.0"}
 ansible = "*"
 bumpversion = "*"
 # Documentation
-sphinx = "*"
+sphinx = "==2.4.4"
 recommonmark = "*"
 sphinx_rtd_theme = "*"
 aafigure = "*"
