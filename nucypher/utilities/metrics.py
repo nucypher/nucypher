@@ -1,5 +1,5 @@
 try:
-    from prometheus_client import Gauge, Enum, Counter, Info
+    from prometheus_client import Gauge, Enum, Counter, Info, Histogram
 except ImportError:
     raise ImportError('prometheus_client is not installed - Install it and try again.')
 from twisted.internet import reactor, task
@@ -13,15 +13,23 @@ from typing import List
 class EventMetricsCollector:
 
     def __init__(self, contract_agent, event_name, argument_filters, metrics):
-        self.event_filter = contract_agent.contract.events[event_name].createFilter(fromBlock='latest')
+        self.event_filter = contract_agent.contract.events[event_name].createFilter(fromBlock='latest',
+                                                                                    argument_filters=argument_filters)
         self.metrics = metrics
 
-    def collect(self):
-        for event in self.event_filter.get_new_entries():
-            print("EVENTS", event)
+        self.collect(all_entries=True)
+
+    def collect(self, all_entries=False):
+        if all_entries:
+            events = self.event_filter.get_all_entries()
+        else:
+            events = self.event_filter.get_new_entries()
+        for event in events:
             for arg in self.metrics.keys():
-                self.metrics[arg].set(event['args'][arg])
-                self.metrics[arg].labels("block_number").set(event.block_number)
+                if type(self.metrics[arg]) is Histogram:
+                    self.metrics[arg].labels(block_number=event["blockNumber"]).observe(event['args'][arg])
+                else:
+                    self.metrics[arg].labels(block_number=event["blockNumber"]).set(event['args'][arg])
 
 
 def collect_prometheus_metrics(ursula, event_metrics_collectors: List[EventMetricsCollector], node_metrics):
@@ -44,10 +52,8 @@ def collect_prometheus_metrics(ursula, event_metrics_collectors: List[EventMetri
         node_metrics["eth_balance_gauge"].set(nucypher_token_actor.eth_balance)
         node_metrics["token_balance_gauge"].set(int(nucypher_token_actor.token_balance))
 
-        print("Start collecting events")
         for event_metrics_collector in event_metrics_collectors:
             event_metrics_collector.collect()
-        print("End for collecting events")
 
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=ursula.registry)
         work_lock_agent = ContractAgency.get_agent(WorkLockAgent, registry=ursula.registry)
@@ -96,115 +102,115 @@ def get_event_metrics_collectors(ursula, metrics_prefix):
         {
             "name": "deposited", "contract_agent": staking_agent, "event": "Deposited",
             "argument_filters": {"staker": ursula.checksum_address},
-            "metrics": {"value": Gauge(f'{metrics_prefix}_deposited_value', 'Deposited value'),
-                        "periods": Gauge(f'{metrics_prefix}_deposited_periods', 'Deposited periods')}
+            "metrics": {"value": Histogram(f'{metrics_prefix}_deposited_value', 'Deposited value', ["block_number"]),
+                        "periods": Histogram(f'{metrics_prefix}_deposited_periods', 'Deposited periods', ["block_number"])}
         },
         {
             "name": "locked", "contract_agent": staking_agent, "event": "Locked",
             "argument_filters": {"staker": ursula.checksum_address},
-            "metrics": {"value": Gauge(f'{metrics_prefix}_locked_value', 'Locked valued'),
-                        "periods": Gauge(f'{metrics_prefix}_locked_periods', 'Locked periods')}
+            "metrics": {"value": Gauge(f'{metrics_prefix}_locked_value', 'Locked valued', ["block_number"]),
+                        "periods": Gauge(f'{metrics_prefix}_locked_periods', 'Locked periods', ["block_number"])}
         },
         {
             "name": "divided", "contract_agent": staking_agent, "event": "Divided",
             "argument_filters": {"staker": ursula.checksum_address},
-            "metrics": {"newValue": Gauge(f'{metrics_prefix}_divided_new_value', 'New value of divided sub stake'),
+            "metrics": {"newValue": Gauge(f'{metrics_prefix}_divided_new_value', 'New value of divided sub stake', ["block_number"]),
                         "periods": Gauge(f'{metrics_prefix}_divided_periods',
-                                         'Amount of periods for extending sub stake')}
+                                         'Amount of periods for extending sub stake', ["block_number"])}
         },
         {
             "name": "prolonged", "contract_agent": staking_agent, "event": "Prolonged",
             "argument_filters": {"staker": ursula.checksum_address},
-            "metrics": {"value": Gauge(f'{metrics_prefix}_prolonged_value', 'Prolonged value'),
-                        "periods": Gauge(f'{metrics_prefix}_prolonged_periods', 'Prolonged periods')}
+            "metrics": {"value": Histogram(f'{metrics_prefix}_prolonged_value', 'Prolonged value', ["block_number"]),
+                        "periods": Histogram(f'{metrics_prefix}_prolonged_periods', 'Prolonged periods', ["block_number"])}
         },
         {
             "name": "withdrawn", "contract_agent": staking_agent, "event": "Withdrawn",
             "argument_filters": {"staker": ursula.checksum_address},
-            "metrics": {"value": Gauge(f'{metrics_prefix}_withdrawn_value', 'Withdrawn value')}
+            "metrics": {"value": Gauge(f'{metrics_prefix}_withdrawn_value', 'Withdrawn value', ["block_number"])}
         },
         {
             "name": "activity_confirmed", "contract_agent": staking_agent, "event": "ActivityConfirmed",
             "argument_filters": {"staker": ursula.checksum_address},
             "metrics": {"value": Gauge(f'{metrics_prefix}_activity_confirmed_value',
-                                       'Activity confirmed with value of locked tokens'),
+                                       'Activity confirmed with value of locked tokens', ["block_number"]),
                         "period": Gauge(f'{metrics_prefix}_activity_confirmed_period',
-                                        'Activity confirmed period')}
+                                        'Activity confirmed period', ["block_number"])}
         },
         {
             "name": "mined", "contract_agent": staking_agent, "event": "Mined",
             "argument_filters": {"staker": ursula.checksum_address},
-            "metrics": {"value": Gauge(f'{metrics_prefix}_mined_value', 'Mined value'),
-                        "period": Gauge(f'{metrics_prefix}_mined_period', 'Mined period')}
+            "metrics": {"value": Gauge(f'{metrics_prefix}_mined_value', 'Mined value', ["block_number"]),
+                        "period": Gauge(f'{metrics_prefix}_mined_period', 'Mined period', ["block_number"])}
         },
         {
             "name": "slashed_reward", "contract_agent": staking_agent, "event": "Slashed",
             "argument_filters": {"investigator": ursula.checksum_address},
-            "metrics": {"reward": Gauge(f'{metrics_prefix}_slashed_reward', 'Reward for investigating slasher')}
+            "metrics": {"reward": Gauge(f'{metrics_prefix}_slashed_reward', 'Reward for investigating slasher', ["block_number"])}
         },
         {
             "name": "slashed_penalty", "contract_agent": staking_agent, "event": "Slashed",
             "argument_filters": {"staker": ursula.checksum_address},
-            "metrics": {"penalty": Gauge(f'{metrics_prefix}_slashed_penalty', 'Penalty for slashing')}
+            "metrics": {"penalty": Gauge(f'{metrics_prefix}_slashed_penalty', 'Penalty for slashing', ["block_number"])}
         },
         {
             "name": "restake_set", "contract_agent": staking_agent, "event": "ReStakeSet",
             "argument_filters": {"staker": ursula.checksum_address},
-            "metrics": {"reStake": Gauge(f'{metrics_prefix}_restake_set', 'Restake set')}
+            "metrics": {"reStake": Gauge(f'{metrics_prefix}_restake_set', 'Restake set', ["block_number"])}
         },
         {
             "name": "restake_locked", "contract_agent": staking_agent, "event": "ReStakeLocked",
             "argument_filters": {"staker": ursula.checksum_address},
-            "metrics": {"lockUntilPeriod": Gauge(f'{metrics_prefix}_restake_locked_until_period', 'Restake locked')}
+            "metrics": {"lockUntilPeriod": Gauge(f'{metrics_prefix}_restake_locked_until_period', 'Restake locked', ["block_number"])}
         },
         {
             "name": "wind_down_set", "contract_agent": staking_agent, "event": "WindDownSet",
             "argument_filters": {"staker": ursula.checksum_address},
-            "metrics": {"windDown": Gauge(f'{metrics_prefix}_wind_down_set_wind_down', 'is windDown')}
+            "metrics": {"windDown": Gauge(f'{metrics_prefix}_wind_down_set_wind_down', 'is windDown', ["block_number"])}
         },
         {
             "name": "worker_set", "contract_agent": staking_agent, "event": "WorkerSet",
             "argument_filters": {"staker": ursula.checksum_address},
-            "metrics": {"startPeriod": Gauge(f'{metrics_prefix}_worker_set_start_period', 'New worker was set')}
+            "metrics": {"startPeriod": Gauge(f'{metrics_prefix}_worker_set_start_period', 'New worker was set', ["block_number"])}
         },
         {
             "name": "work_lock_deposited", "contract_agent": work_lock_agent, "event": "Deposited",
             "argument_filters": {"sender": ursula.checksum_address},
-            "metrics": {"value": Gauge(f'{metrics_prefix}_worklock_deposited_value', 'Deposited value')}
+            "metrics": {"value": Gauge(f'{metrics_prefix}_worklock_deposited_value', 'Deposited value', ["block_number"])}
         },
         {
             "name": "work_lock_bid", "contract_agent": work_lock_agent, "event": "Bid",
             "argument_filters": {"sender": ursula.checksum_address},
-            "metrics": {"depositedETH": Gauge(f'{metrics_prefix}_worklock_bid_depositedETH', 'Deposited ETH value')}
+            "metrics": {"depositedETH": Gauge(f'{metrics_prefix}_worklock_bid_depositedETH', 'Deposited ETH value', ["block_number"])}
         },
         {
             "name": "work_lock_claimed", "contract_agent": work_lock_agent, "event": "Claimed",
             "argument_filters": {"sender": ursula.checksum_address},
             "metrics": {
-                "claimedTokens": Gauge(f'{metrics_prefix}_worklock_claimed_claimedTokens', 'Claimed tokens value')}
+                "claimedTokens": Gauge(f'{metrics_prefix}_worklock_claimed_claimedTokens', 'Claimed tokens value', ["block_number"])}
         },
         {
             "name": "work_lock_refund", "contract_agent": work_lock_agent, "event": "Refund",
             "argument_filters": {"sender": ursula.checksum_address},
             "metrics": {
-                "refundETH": Gauge(f'{metrics_prefix}_worklock_refund_refundETH', 'Refunded ETH'),
-                "completedWork": Gauge(f'{metrics_prefix}_worklock_refund_completedWork', 'Completed work')
+                "refundETH": Gauge(f'{metrics_prefix}_worklock_refund_refundETH', 'Refunded ETH', ["block_number"]),
+                "completedWork": Gauge(f'{metrics_prefix}_worklock_refund_completedWork', 'Completed work', ["block_number"])
             }
         },
         {
             "name": "work_lock_canceled", "contract_agent": work_lock_agent, "event": "Canceled",
             "argument_filters": {"sender": ursula.checksum_address},
-            "metrics": {"value": Gauge(f'{metrics_prefix}_worklock_canceled_value', 'Canceled value')}
+            "metrics": {"value": Gauge(f'{metrics_prefix}_worklock_canceled_value', 'Canceled value', ["block_number"])}
         },
         {
             "name": "policy_withdrawn_reward", "contract_agent": policy_manager_agent, "event": "Withdrawn",
             "argument_filters": {"recipient": ursula.checksum_address},
-            "metrics": {"value": Gauge(f'{metrics_prefix}_policy_withdrawn_reward', 'Policy reward')}
+            "metrics": {"value": Gauge(f'{metrics_prefix}_policy_withdrawn_reward', 'Policy reward', ["block_number"])}
         }
     )
 
-    event_metrics_collectors = (EventMetricsCollector(config["contract_agent"], config["event"],
-                                config["argument_filters"], config["metrics"]) for config in event_collectors_config)
+    event_metrics_collectors = [EventMetricsCollector(config["contract_agent"], config["event"],
+                                config["argument_filters"], config["metrics"]) for config in event_collectors_config]
 
     return event_metrics_collectors
 
