@@ -83,11 +83,18 @@ class AvailabilitySensor:
         if reactor.running:
             reactor.stop()
 
-    def handle_measurement_errors(self, *args, **kwargs) -> None:
+    def handle_measurement_errors(self, crash_on_error: bool = False, *args, **kwargs) -> None:
         failure = args[0]
         cleaned_traceback = failure.getTraceback().replace('{', '').replace('}', '')  # FIXME: Amazing.
         self.log.warn("Unhandled error during availability check: {}".format(cleaned_traceback))
-        failure.raiseException()
+
+        if crash_on_error:
+            failure.raiseException()
+        else:
+            # Restart on failure
+            if not self.running:
+                self.log.debug(f"Availability check crashed, restarting...")
+                self.start(now=True)
 
     def status(self) -> bool:
         """Returns current indication of availability"""
@@ -134,8 +141,16 @@ class AvailabilitySensor:
                 self.__task.interval = self.SLOW_INTERVAL
                 return
 
-        # All systems go
-        self.measure()
+        if self.__active_measurement:
+            self.log.debug(f"Availability check already in progress - skipping this round (Score: {self.score}). ")
+            return  # Abort
+        self.log.debug(f"Continuing to measure availability (Score: {self.score}).")
+        self.__active_measurement = True
+        try:
+            self.measure()
+        finally:
+            self.__active_measurement = False
+
         delta = maya.now() - self._start_time
         self.log.info(f"Current availability score is {self.score} measured since {delta}")
         self.issue_warnings()
@@ -169,16 +184,9 @@ class AvailabilitySensor:
             self.__score = self.MAXIMUM_SCORE
         else:
             self.__score = score
+        self.log.debug(f"Recorded new uptime score ({self.score})")
 
     def measure(self) -> None:
-
-        # Throttle
-        if self.__active_measurement:
-            self.log.debug(f"Availability check already in progress - skipping this round (Score: {self.score}). ")
-            return
-        else:
-            self.log.debug(f"Continuing to measure availability (Score: {self.score}).")
-            self.__active_measurement = True
 
         ursulas = self.sample(quantity=self.SAMPLE_SIZE)
         for ursula_or_sprout in ursulas:
@@ -198,9 +206,10 @@ class AvailabilitySensor:
             except (*NodeSeemsToBeDown,
                     self._ursula.NotStaking,
                     self._ursula.node_storage.InvalidNodeCertificate,
-                    self._ursula.network_middleware.UnexpectedResponse):
+                    self._ursula.network_middleware.UnexpectedResponse) as e:
                 # This node is either not an Ursula, not available, does not support uptime checks, or is not staking...
                 # ...do nothing and move on without changing the score.
+                self.log.debug(f'{ursula_or_sprout} responded to uptime check with {str(e)}')
                 continue
 
             else:
@@ -212,6 +221,3 @@ class AvailabilitySensor:
                     self.record(False)
                 else:
                     self.record(None, reason={"error": f"{ursula_or_sprout.checksum_address} returned {response.status_code} from 'ping' endpoint."})
-        else:
-            # Unthrottle
-            self.__active_measurement = False
