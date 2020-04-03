@@ -13,12 +13,12 @@ from typing import List
 class EventMetricsCollector:
 
     def __init__(self, contract_agent, event_name, argument_filters, metrics):
-        self.event_filter = contract_agent.contract.events[event_name].createFilter(fromBlock='latest',
-                                                                                    argument_filters=argument_filters)
+        self.event_filter = contract_agent.contract.events[event_name].createFilter(fromBlock='latest')
         self.metrics = metrics
 
     def collect(self):
         for event in self.event_filter.get_new_entries():
+            print("EVENTS", event)
             for arg in self.metrics.keys():
                 self.metrics[arg].set(event['args'][arg])
                 self.metrics[arg].labels("block_number").set(event.block_number)
@@ -44,8 +44,10 @@ def collect_prometheus_metrics(ursula, event_metrics_collectors: List[EventMetri
         node_metrics["eth_balance_gauge"].set(nucypher_token_actor.eth_balance)
         node_metrics["token_balance_gauge"].set(int(nucypher_token_actor.token_balance))
 
+        print("Start collecting events")
         for event_metrics_collector in event_metrics_collectors:
             event_metrics_collector.collect()
+        print("End for collecting events")
 
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=ursula.registry)
         work_lock_agent = ContractAgency.get_agent(WorkLockAgent, registry=ursula.registry)
