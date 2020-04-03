@@ -59,7 +59,7 @@ def collect_prometheus_metrics(ursula, event_metrics_collectors: List[EventMetri
 
         node_metrics["owned_tokens_gauge"].set(owned_tokens)
 
-        node_metrics["available_refund"].set(work_lock_agent.get_available_refund(checksum_address=ursula.checksum_address))
+        node_metrics["available_refund_gauge"].set(work_lock_agent.get_available_refund(checksum_address=ursula.checksum_address))
 
         node_metrics["policies_held_gauge"].set(len(ursula.datastore.get_all_policy_arrangements()))
 
