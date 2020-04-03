@@ -47,6 +47,7 @@ class AvailabilitySensor:
         }
 
         self._start_time = None
+        self.__active_measurement = False
         self.__task = LoopingCall(self.maintain)
         self.responders = set()
 
@@ -111,7 +112,6 @@ class AvailabilitySensor:
             self.__task.stop()
 
     def maintain(self) -> None:
-        self.log.debug(f"Starting new sensor maintenance round")
         known_nodes_is_smaller_than_sample_size = len(self._ursula.known_nodes) < self.SAMPLE_SIZE
 
         # If there are no known nodes or too few known nodes, skip this round...
@@ -172,26 +172,23 @@ class AvailabilitySensor:
 
     def measure(self) -> None:
 
+        # Throttle
+        if self.__active_measurement:
+            self.log.debug(f"Availability check already in progress - skipping this round (Score: {self.score}). ")
+            return
+        else:
+            self.log.debug(f"Continuing to measure availability (Score: {self.score}).")
+            self.__active_measurement = True
+
         ursulas = self.sample(quantity=self.SAMPLE_SIZE)
-        for ursula in ursulas:
-
-            ursula.mature()
-
-            # Fetch and store teacher certificate
-            responding_ursula_address, responding_ursula_port = tuple(ursula.rest_interface)
+        for ursula_or_sprout in ursulas:
 
             # Request status check
             try:
-                certificate = self._ursula.network_middleware.get_certificate(host=responding_ursula_address,
-                                                                              port=responding_ursula_port)
-                certificate_filepath = self._ursula.node_storage.store_node_certificate(certificate=certificate)
-
-                response = self._ursula.network_middleware.check_rest_availability(requesting_ursula=self._ursula,
-                                                                                   responding_ursula=ursula,
-                                                                                   certificate_filepath=certificate_filepath)
-
+                response = self._ursula.network_middleware.check_rest_availability(initiator=self._ursula,
+                                                                                   responder=ursula_or_sprout)
             except RestMiddleware.BadRequest as e:
-                self.responders.add(ursula.checksum_address)
+                self.responders.add(ursula_or_sprout.checksum_address)
                 self.record(False, reason=e.reason)
 
             except self._ursula.network_middleware.NotFound:
@@ -208,10 +205,13 @@ class AvailabilitySensor:
 
             else:
                 # Record response
-                self.responders.add(ursula.checksum_address)
+                self.responders.add(ursula_or_sprout.checksum_address)
                 if response.status_code == 200:
                     self.record(True)
                 elif response.status_code == 400:
                     self.record(False)
                 else:
-                    self.record(None, reason={"error": f"{ursula.rest_url} returned {response.status_code} from 'ping' endpoint."})
+                    self.record(None, reason={"error": f"{ursula_or_sprout.checksum_address} returned {response.status_code} from 'ping' endpoint."})
+        else:
+            # Unthrottle
+            self.__active_measurement = False
