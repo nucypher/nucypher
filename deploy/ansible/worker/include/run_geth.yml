@@ -1,5 +1,5 @@
 - name: "Sync/Run Geth"
-  hosts: "{{ nucypher_hosts | default('cassandra') }}"
+  hosts: "{{ play_hosts }}"
   remote_user: "{{default_user}}"
   gather_facts: no
   tasks:

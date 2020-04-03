@@ -1,5 +1,5 @@
 - name: "Setup Ethereum"
-  hosts: "{{ nucypher_hosts | default('cassandra') }}"
+  hosts: "{{ play_hosts }}"
   remote_user: "{{default_user}}"
   gather_facts: no
   tasks:
@@ -104,14 +104,6 @@
       pause:
         prompt: |
           "Confirm ether funding for worker: https://{{etherscan_domain}}/address/{{hostvars[item]['worker_address']}}"
-          ------------------------------------------------------------------------------------------------------------------
-      with_items:
-      - "{{ ansible_play_batch }}"
-
-    - name: "Is worker {{hostvars[item]['worker_address']}} bonded?"
-      pause:
-        prompt: |
-          "Confirm bonded state (`nucypher stake set-worker`) for this worker: {{hostvars[item]['worker_address']}}"
           ------------------------------------------------------------------------------------------------------------------
       with_items:
       - "{{ ansible_play_batch }}"

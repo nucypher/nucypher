@@ -1,5 +1,5 @@
 - name: "Setup Remote Worker"
-  hosts: "{{ nucypher_hosts | default('cassandra') }}"
+  hosts: "{{ play_hosts }}"
   remote_user: "{{default_user}}"
 
 - import_playbook: include/setup_user.yml

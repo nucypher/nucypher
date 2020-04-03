@@ -1,5 +1,5 @@
 - name: "Setup Nucypher"
-  hosts: "{{ nucypher_hosts | default('cassandra') }}"
+  hosts: "{{ play_hosts }}"
   remote_user: "{{default_user}}"
   gather_facts: no
   tasks:
@@ -36,6 +36,6 @@
       become: yes
       become_user: nucypher
       when: ursula_check.stat.exists == False
-      command: "docker run -v /home/nucypher:/root/.local/share/ -e NUCYPHER_KEYRING_PASSWORD -it {{ nucypher_image | default('nucypher/nucypher:latest') }}  nucypher ursula init --provider /root/.local/share/geth/.ethereum/goerli/geth.ipc --poa --worker-address {{active_account.stdout}} --staker-address {{NUCYPHER_STAKER_ADDRESS}} --rest-host {{ip_response.content}} --network {{network_name}} {{nucypher_ursula_init_options | default('')}}"
+      command: "docker run -v /home/nucypher:/root/.local/share/ -e NUCYPHER_KEYRING_PASSWORD -it {{ nucypher_image | default('nucypher/nucypher:latest') }}  nucypher ursula init --provider /root/.local/share/geth/.ethereum/goerli/geth.ipc --poa --worker-address {{active_account.stdout}} --rest-host {{ip_response.content}} --network {{network_name}} {{nucypher_ursula_init_options | default('')}}"
       environment:
         NUCYPHER_KEYRING_PASSWORD: "{{NUCYPHER_KEYRING_PASSWORD}}"

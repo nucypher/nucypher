@@ -1,5 +1,5 @@
 - name: "Get All Worker Status"
-  hosts: "{{ nucypher_hosts | default('cassandra') }}"
+  hosts: "{{ play_hosts }}"
   remote_user: "{{default_user}}"
 
 - import_playbook: include/check_running_ursula.yml
