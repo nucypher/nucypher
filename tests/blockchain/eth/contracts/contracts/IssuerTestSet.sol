@@ -14,17 +14,23 @@ contract IssuerMock is Issuer {
     constructor(
         NuCypherToken _token,
         uint32 _hoursPerPeriod,
-        uint256 _miningCoefficient,
-        uint256 _lockedPeriodsCoefficient,
-        uint16 _rewardedPeriods
+        uint256 _secondPhaseMintingCoefficient,
+        uint256 _lockingDurationCoefficient1,
+        uint256 _lockingDurationCoefficient2,
+        uint16 _maxRewardedPeriods,
+        uint256 _firstPhaseTotalSupply,
+        uint256 _maxFirstPhaseReward
     )
         public
         Issuer(
             _token,
             _hoursPerPeriod,
-            _miningCoefficient,
-            _lockedPeriodsCoefficient,
-            _rewardedPeriods
+            _secondPhaseMintingCoefficient,
+            _lockingDurationCoefficient1,
+            _lockingDurationCoefficient2,
+            _maxRewardedPeriods,
+            _firstPhaseTotalSupply,
+            _maxFirstPhaseReward
         )
     {
     }
@@ -70,17 +76,23 @@ contract IssuerV2Mock is Issuer {
     constructor(
         NuCypherToken _token,
         uint32 _hoursPerPeriod,
-        uint256 _miningCoefficient,
-        uint256 _lockedPeriodsCoefficient,
-        uint16 _rewardedPeriods
+        uint256 _secondPhaseMintingCoefficient,
+        uint256 _lockingDurationCoefficient1,
+        uint256 _lockingDurationCoefficient2,
+        uint16 _maxRewardedPeriods,
+        uint256 _firstPhaseTotalSupply,
+        uint256 _maxFirstPhaseReward
     )
         public
         Issuer(
             _token,
             _hoursPerPeriod,
-            _miningCoefficient,
-            _lockedPeriodsCoefficient,
-            _rewardedPeriods
+            _secondPhaseMintingCoefficient,
+            _lockingDurationCoefficient1,
+            _lockingDurationCoefficient2,
+            _maxRewardedPeriods,
+            _firstPhaseTotalSupply,
+            _maxFirstPhaseReward
         )
     {
     }
