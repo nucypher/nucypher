@@ -1116,19 +1116,28 @@ class Ursula(Teacher, Character, Worker):
         # Async loops ordered by schedule priority
         #
 
+        if emitter:
+            emitter.message(f"Starting services...", color='yellow')
+
         if pruning:
             self.__pruning_task = self._arrangement_pruning_task.start(interval=self._pruning_interval, now=True)
+            if emitter:
+                emitter.message(f"    ✓ Database pruning", color='green')
 
         if learning:
-            if emitter:
-                emitter.message(f"Connecting to {','.join(self.learning_domains)}", color='green', bold=True)
             self.start_learning_loop(now=self._start_learning_now)
+            if emitter:
+                emitter.message(f"    ✓ Node Discovery ({','.join(self.learning_domains)})", color='green')
 
         if self._availability_check and availability:
             self._availability_sensor.start(now=False)  # wait...
+            if emitter:
+                emitter.message(f"    ✓ Availability Checks", color='green')
 
         if worker and not self.federated_only:
             self.work_tracker.start(act_now=True, requirement_func=self._availability_sensor.status)
+            if emitter:
+                emitter.message(f"    ✓ Work Tracking", color='green')
 
         #
         # Non-order dependant services
@@ -1139,6 +1148,8 @@ class Ursula(Teacher, Character, Worker):
             # Local scoped to help prevent import without prometheus installed
             from nucypher.utilities.metrics import initialize_prometheus_exporter
             initialize_prometheus_exporter(ursula=self, port=self._metrics_port)
+            if emitter:
+                emitter.message(f"    ✓ Prometheus Exporter", color='green')
 
         if interactive and emitter:
             stdio.StandardIO(UrsulaCommandProtocol(ursula=self, emitter=emitter))
