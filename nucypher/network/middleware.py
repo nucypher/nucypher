@@ -181,6 +181,9 @@ class RestMiddleware:
             time.sleep(retry_rate)
             return self.get_certificate(host, port, timeout, retry_attempts, retry_rate, current_attempt + 1)
 
+        except OSError:
+            raise  # TODO: #1835
+
         else:
             certificate = x509.load_pem_x509_certificate(seednode_certificate.encode(),
                                                          backend=default_backend())

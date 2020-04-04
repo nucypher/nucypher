@@ -1,64 +1,68 @@
+import maya
+import pytest
+import time
+
 import pytest_twisted as pt
 import requests
 from flask import Response
 from twisted.internet import threads
 
 from nucypher.network.middleware import NucypherMiddlewareClient, RestMiddleware
-from nucypher.network.sensors import AvailabilitySensor
+from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 
 @pt.inlineCallbacks
-def test_availability_sensor_success(blockchain_ursulas):
+def test_availability_tracker_success(blockchain_ursulas):
 
     # Start up self-services
     ursula = blockchain_ursulas.pop()
     start_pytest_ursula_services(ursula=ursula)
 
-    ursula._availability_sensor = AvailabilitySensor(ursula=ursula)
+    ursula._availability_tracker = AvailabilityTracker(ursula=ursula)
 
     def measure():
-        ursula._availability_sensor.start()
-        assert ursula._availability_sensor.score == 10
-        ursula._availability_sensor.record(False)
-        assert ursula._availability_sensor.score == 9.0
+        ursula._availability_tracker.start()
+        assert ursula._availability_tracker.score == 10
+        ursula._availability_tracker.record(False)
+        assert ursula._availability_tracker.score == 9.0
         for i in range(7):
-            ursula._availability_sensor.record(True)
-        assert ursula._availability_sensor.score > 9.5
+            ursula._availability_tracker.record(True)
+        assert ursula._availability_tracker.score > 9.5
 
     def maintain():
-        sensor = ursula._availability_sensor
-        sensor.maintain()
+        tracker = ursula._availability_tracker
+        tracker.maintain()
 
         # The node goes offline for some time...
         for _ in range(10):
-            ursula._availability_sensor.record(False, reason={'error': 'fake failure reason'})
+            ursula._availability_tracker.record(False, reason={'error': 'fake failure reason'})
 
-        assert sensor.score < 4
-        assert sensor.status() == (sensor.score > (sensor.SENSOR_SENSITIVITY * sensor.MAXIMUM_SCORE))
-        assert not sensor.status()
+        assert tracker.score < 4
+        assert tracker.status() == (tracker.score > (tracker.SENSITIVITY * tracker.MAXIMUM_SCORE))
+        assert not tracker.status()
 
-        original_issuer = AvailabilitySensor.issue_warnings
+        original_issuer = AvailabilityTracker.issue_warnings
         warnings = dict()
-        def issue_warnings(sensor, *args, **kwargs):
-            result = original_issuer(sensor, *args, **kwargs)
-            warnings[sensor.score] = result
-        AvailabilitySensor.issue_warnings = issue_warnings
-        sensor.maintain()
+        def issue_warnings(tracker, *args, **kwargs):
+            result = original_issuer(tracker, *args, **kwargs)
+            warnings[tracker.score] = result
+        AvailabilityTracker.issue_warnings = issue_warnings
+        tracker.maintain()
         assert warnings
-        AvailabilitySensor.issue_warnings = original_issuer
+        AvailabilityTracker.issue_warnings = original_issuer
 
         # to keep this test fast, were just checking for a single entry
         # (technically there will be 10, but resolution is one second.)
-        assert len(sensor._AvailabilitySensor__excuses) > 0
+        assert len(tracker.excuses) > 0
 
     def raise_to_maximum():
-        sensor = ursula._availability_sensor
+        tracker = ursula._availability_tracker
         for i in range(150):
-            sensor.record(True)
-        assert sensor.score > 9.98
-        assert sensor.status() == bool(sensor.score > (sensor.SENSOR_SENSITIVITY * sensor.MAXIMUM_SCORE))
-        assert sensor.status()
+            tracker.record(True)
+        assert tracker.score > 9.98
+        assert tracker.status() == bool(tracker.score > (tracker.SENSITIVITY * tracker.MAXIMUM_SCORE))
+        assert tracker.status()
 
     # Run the Callbacks
     try:
@@ -69,22 +73,22 @@ def test_availability_sensor_success(blockchain_ursulas):
         d = threads.deferToThread(raise_to_maximum)
         yield d
     finally:
-        if ursula._availability_sensor:
-            ursula._availability_sensor.stop()
-            ursula._availability_sensor = None
+        if ursula._availability_tracker:
+            ursula._availability_tracker.stop()
+            ursula._availability_tracker = None
 
 
 @pt.inlineCallbacks
-def test_availability_sensor_integration(blockchain_ursulas, monkeypatch):
+def test_availability_tracker_integration(blockchain_ursulas, monkeypatch):
 
     # Start up self-services
     ursula = blockchain_ursulas.pop()
     start_pytest_ursula_services(ursula=ursula)
 
-    ursula._availability_sensor = AvailabilitySensor(ursula=ursula)
+    ursula._availability_tracker = AvailabilityTracker(ursula=ursula)
 
     def maintain():
-        sensor = ursula._availability_sensor
+        tracker = ursula._availability_tracker
 
         def mock_node_information_endpoint(middleware, port, *args, **kwargs):
             ursula_were_looking_for = ursula.rest_interface.port == port
@@ -99,18 +103,27 @@ def test_availability_sensor_integration(blockchain_ursulas, monkeypatch):
                             NucypherMiddlewareClient.node_information.__name__,
                             mock_node_information_endpoint)
 
-        ursula._availability_sensor.start()
-        sensor.measure()  # This makes a REST Call
+        ursula._availability_tracker.start()
+        tracker.measure_sample()  # This makes a REST Call
 
-        # to keep this test fast, were just checking for a single entry
-        # (technically there will be 10, but resolution is one second.)
-        assert len(sensor._AvailabilitySensor__excuses) > 0
+        start, timeout = maya.now(), 1  # seconds
+        while True:
+            try:
+                assert len(tracker.excuses)
+            except AssertionError:
+                now = maya.now()
+                if (now - start).total_seconds() > timeout:
+                    pytest.fail()
+                time.sleep(0.1)
+                continue
+            else:
+                break
 
     # Run the Callbacks
     try:
         d = threads.deferToThread(maintain)
         yield d
     finally:
-        if ursula._availability_sensor:
-            ursula._availability_sensor.stop()
-            ursula._availability_sensor = None
+        if ursula._availability_tracker:
+            ursula._availability_tracker.stop()
+            ursula._availability_tracker = None
