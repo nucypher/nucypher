@@ -121,16 +121,9 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
     - ``http://localhost:8545`` - Geth/Parity RPC-HTTP
     - ``ws://0.0.0.0:8080``     - Websocket Provider
 
-``<YOUR STAKER ADDRESS>`` is the address you've staked from when following the :ref:`staking-guide`.
-
 ``<NETWORK_NAME>`` is the name of the NuCypher network domain where the node will run.
 
 .. note:: If you're participating in NuCypher's incentivized testnet, this name is ``gemini``.
-
-
-.. note:: If you're a preallocation user, recall that you're using a contract to stake.
-  Replace ``<YOUR STAKER ADDRESS>`` with the contract address.
-  If you don't know this address, you'll find it in the preallocation file.
 
 Create a password when prompted
 
