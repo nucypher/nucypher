@@ -428,7 +428,7 @@ class StakingEscrowAgent(EthereumContractAgent):
 
     @validate_checksum_address
     def release_worker(self, staker_address: str):
-        return self.set_worker(staker_address=staker_address, worker_address=BlockchainInterface.NULL_ADDRESS)
+        return self.set_worker(staker_address=staker_address, worker_address=NULL_ADDRESS)
 
     @validate_checksum_address
     def confirm_activity(self, worker_address: str):
@@ -900,7 +900,7 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         return receipt
 
     def release_worker(self):
-        receipt = self.set_worker(worker_address=BlockchainInterface.NULL_ADDRESS)
+        receipt = self.set_worker(worker_address=NULL_ADDRESS)
         return receipt
 
     def mint(self):

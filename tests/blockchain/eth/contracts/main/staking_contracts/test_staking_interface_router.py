@@ -15,15 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import os
-
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 from web3.exceptions import BadFunctionCallOutput
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
 
 @pytest.mark.slow
@@ -109,7 +106,7 @@ def test_interface_selfdestruct(testerchain, token, deploy_contract, escrow):
 
     # Can't create router using address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('StakingInterfaceRouter', BlockchainInterface.NULL_ADDRESS)
+        deploy_contract('StakingInterfaceRouter', NULL_ADDRESS)
     with pytest.raises((TransactionFailed, ValueError)):
         deploy_contract('StakingInterfaceRouter', account)
     with pytest.raises((TransactionFailed, ValueError)):
@@ -136,7 +133,7 @@ def test_interface_selfdestruct(testerchain, token, deploy_contract, escrow):
 
     # Can't upgrade to an address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(BlockchainInterface.NULL_ADDRESS).transact({'from': creator})
+        tx = router_contract.functions.upgrade(NULL_ADDRESS).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = router_contract.functions.upgrade(account).transact({'from': creator})
@@ -154,7 +151,7 @@ def test_interface_selfdestruct(testerchain, token, deploy_contract, escrow):
 
     # Can't upgrade to an address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(BlockchainInterface.NULL_ADDRESS).transact({'from': creator})
+        tx = router_contract.functions.upgrade(NULL_ADDRESS).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = router_contract.functions.upgrade(account).transact({'from': creator})

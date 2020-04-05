@@ -52,7 +52,7 @@ from umbral.signing import Signature
 
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
@@ -1105,7 +1105,7 @@ class Teacher:
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
 
         staker_address = staking_agent.get_staker_from_worker(worker_address=self.worker_address)
-        if staker_address == BlockchainInterface.NULL_ADDRESS:
+        if staker_address == NULL_ADDRESS:
             raise self.DetachedWorker(f"Worker {self.worker_address} is detached")
         return staker_address == self.checksum_address
 

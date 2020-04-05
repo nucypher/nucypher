@@ -77,7 +77,6 @@ class BlockchainInterface:
     """
 
     TIMEOUT = 600  # seconds
-    NULL_ADDRESS = '0x' + '0' * 40
 
     DEFAULT_GAS_STRATEGY = 'medium'
     GAS_STRATEGIES = {'glacial': time_based.glacial_gas_price_strategy,     # 24h

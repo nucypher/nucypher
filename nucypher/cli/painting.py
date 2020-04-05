@@ -36,9 +36,9 @@ from nucypher.blockchain.eth.agents import (
     StakingEscrowAgent,
     PreallocationEscrowAgent,
     WorkLockAgent)
-from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME
+from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME, NULL_ADDRESS
 from nucypher.blockchain.eth.deployers import DispatcherDeployer, StakingInterfaceRouterDeployer, PolicyManagerDeployer
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
 from nucypher.blockchain.eth.token import NU
@@ -740,7 +740,7 @@ def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> N
                          f"(last time for period #{last_confirmed_period})", color='red')
 
         emitter.echo(f"{tab}  {'Worker:':10} ", nl=False)
-        if worker == BlockchainInterface.NULL_ADDRESS:
+        if worker == NULL_ADDRESS:
             emitter.echo(f"Worker not set", color='red')
         else:
             emitter.echo(f"{worker}")

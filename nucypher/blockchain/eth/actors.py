@@ -35,8 +35,7 @@ from constant_sorrow.constants import (
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak, is_checksum_address, to_checksum_address, to_canonical_address
 from twisted.logger import Logger
-from web3 import Web3, IPCProvider
-from web3.contract import ContractFunction
+from web3 import Web3
 
 from nucypher.blockchain.economics import StandardTokenEconomics, EconomicsFactory, BaseEconomics
 from nucypher.blockchain.eth.agents import (
@@ -49,8 +48,8 @@ from nucypher.blockchain.eth.agents import (
     MultiSigAgent,
     WorkLockAgent
 )
-from nucypher.blockchain.eth.decorators import only_me, save_receipt
-from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.decorators import only_me, save_receipt, validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
@@ -64,7 +63,6 @@ from nucypher.blockchain.eth.deployers import (
     MultiSigDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.registry import (
     AllocationRegistry,
@@ -852,7 +850,7 @@ class Staker(NucypherTokenActor):
 
     def to_dict(self) -> dict:
         stake_info = [stake.to_stake_info() for stake in self.stakes]
-        worker_address = self.worker_address or BlockchainInterface.NULL_ADDRESS
+        worker_address = self.worker_address or NULL_ADDRESS
         staker_funds = {'ETH': int(self.eth_balance), 'NU': int(self.token_balance)}
         staker_payload = {'staker': self.checksum_address,
                           'balances': staker_funds,
@@ -1099,7 +1097,7 @@ class Staker(NucypherTokenActor):
             worker_address = self.staking_agent.get_worker_from_staker(staker_address=self.checksum_address)
             self.__worker_address = worker_address
 
-        if self.__worker_address == BlockchainInterface.NULL_ADDRESS:
+        if self.__worker_address == NULL_ADDRESS:
             return NO_WORKER_ASSIGNED.bool_value(False)
         return self.__worker_address
 
@@ -1110,7 +1108,7 @@ class Staker(NucypherTokenActor):
             receipt = self.preallocation_escrow_agent.release_worker()
         else:
             receipt = self.staking_agent.release_worker(staker_address=self.checksum_address)
-        self.__worker_address = BlockchainInterface.NULL_ADDRESS
+        self.__worker_address = NULL_ADDRESS
         return receipt
 
     #
@@ -1307,7 +1305,7 @@ class Worker(NucypherTokenActor):
             ether_balance = client.get_balance(self.__worker_address)
 
             # Bonding
-            if (not bonded) and (staking_address != BlockchainInterface.NULL_ADDRESS):
+            if (not bonded) and (staking_address != NULL_ADDRESS):
                 bonded = True
                 emitter.message(f"Worker is bonded to ({staking_address})!", color='green', bold=True)
 
@@ -1317,7 +1315,7 @@ class Worker(NucypherTokenActor):
                 emitter.message(f"Worker is funded with {balance} ETH!", color='green', bold=True)
 
             # Success and Escape
-            if staking_address != BlockchainInterface.NULL_ADDRESS and ether_balance:
+            if staking_address != NULL_ADDRESS and ether_balance:
                 self._checksum_address = staking_address
 
                 # TODO: #1823 - Workaround for new nickname every restart
@@ -1329,7 +1327,7 @@ class Worker(NucypherTokenActor):
                 now = maya.now()
                 delta = now - start
                 if delta.total_seconds() >= timeout:
-                    if staking_address == BlockchainInterface.NULL_ADDRESS:
+                    if staking_address == NULL_ADDRESS:
                         raise self.DetachedWorker(f"Worker {self.__worker_address} not bonded after waiting {timeout} seconds.")
                     elif not ether_balance:
                         raise RuntimeError(f"Worker {self.__worker_address} has no ether after waiting {timeout} seconds.")

@@ -5,7 +5,7 @@ from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.actors import Bidder
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, WorkLockAgent
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
 
 def test_create_bidder(testerchain, test_registry, agency, token_economics):
@@ -163,4 +163,4 @@ def test_claim(testerchain, agency, token_economics, test_registry):
 
     # Confirm the stake is unbonded
     worker_address = staking_agent.get_worker_from_staker(staker_address=bidder.checksum_address)
-    assert worker_address == BlockchainInterface.NULL_ADDRESS
+    assert worker_address == NULL_ADDRESS

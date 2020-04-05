@@ -20,7 +20,7 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_wei
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
 
 @pytest.fixture()
@@ -722,7 +722,7 @@ def test_reentrancy(testerchain, token_economics, deploy_contract, escrow, workl
 
     # Do force refund and check bidders
     testerchain.time_travel(seconds=ONE_HOUR)
-    tx = reentrancy_contract.functions.setData(0, BlockchainInterface.NULL_ADDRESS, 0, b'').transact()
+    tx = reentrancy_contract.functions.setData(0, NULL_ADDRESS, 0, b'').transact()
     testerchain.wait_for_receipt(tx)
     tx = worklock.functions.forceRefund([contract_address]).transact()
     testerchain.wait_for_receipt(tx)
@@ -1002,7 +1002,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.forceRefund(group).transact()
         testerchain.wait_for_receipt(tx)
-    group = sorted([BlockchainInterface.NULL_ADDRESS, *whales], key=str.casefold)
+    group = sorted([NULL_ADDRESS, *whales], key=str.casefold)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.forceRefund(group).transact()
         testerchain.wait_for_receipt(tx)

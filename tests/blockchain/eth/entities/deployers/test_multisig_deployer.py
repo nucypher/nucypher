@@ -18,8 +18,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 
 from nucypher.blockchain.eth.agents import MultiSigAgent
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.deployers import MultiSigDeployer
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 
 @pytest.mark.slow()
@@ -40,7 +40,7 @@ def test_multisig_deployer_and_agent(testerchain,
 
     # Can't have the zero address as an owner
     with pytest.raises(ValueError):
-        owners = testerchain.unassigned_accounts[0:3] + [BlockchainInterface.NULL_ADDRESS]
+        owners = testerchain.unassigned_accounts[0:3] + [NULL_ADDRESS]
         _ = multisig_deployer.deploy(threshold=1, owners=owners)
 
     # Can't have repeated owners

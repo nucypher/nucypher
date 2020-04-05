@@ -21,9 +21,8 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
 from nucypher.blockchain.eth.actors import Staker, Investigator
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.token import NU
-from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
@@ -74,7 +73,7 @@ def test_investigator_requests_slashing(testerchain,
     assert staker.locked_tokens(periods=1) == locked_tokens
 
     # The staker hasn't set a worker yet
-    assert BlockchainInterface.NULL_ADDRESS == staking_agent.get_worker_from_staker(staker_address=staker_account)
+    assert NULL_ADDRESS == staking_agent.get_worker_from_staker(staker_address=staker_account)
 
     _txhash = staking_agent.set_worker(staker_address=staker_account,
                                        worker_address=worker_account)
