@@ -88,7 +88,7 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nicknames import nickname_from_seed
 
 
-class NucypherTokenActor:
+class BaseActor:
     """
     Concrete base class for any actor that will interface with NuCypher's ethereum smart contracts.
     """
@@ -112,8 +112,7 @@ class NucypherTokenActor:
         self.registry = registry
         if domains:  # StakeHolder config inherits from character config, which has 'domains' - #1580
             self.network = list(domains)[0]
-        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent,
-                                                    registry=self.registry)  # type: NucypherTokenAgent
+
         self._saved_receipts = list()  # track receipts of transmitted transactions
 
     def __repr__(self):
@@ -131,7 +130,18 @@ class NucypherTokenActor:
         """Return this actors's current ETH balance"""
         blockchain = BlockchainInterfaceFactory.get_interface()  # TODO: EthAgent?  #1509
         balance = blockchain.client.get_balance(self.checksum_address)
-        return blockchain.client.w3.fromWei(balance, 'ether')
+        return Web3.fromWei(balance, 'ether')
+
+
+class NucypherTokenActor(BaseActor):
+    """
+    Actor to interface with the NuCypherToken contract
+    """
+
+    def __init__(self, registry: BaseContractRegistry, **kwargs):
+        super().__init__(registry, **kwargs)
+        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent,
+                                                    registry=self.registry)  # type: NucypherTokenAgent
 
     @property
     def token_balance(self) -> NU:
@@ -657,7 +667,7 @@ class ContractAdministrator(NucypherTokenActor):
         return receipt
 
 
-class MultiSigActor(NucypherTokenActor):
+class MultiSigActor(BaseActor):
     class UnknownExecutive(Exception):
         """
         Raised when Executive is not listed as a owner of the MultiSig.
