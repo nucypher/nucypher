@@ -405,11 +405,10 @@ class ContractAdministrator(NucypherTokenActor):
         if not is_checksum_address(new_owner):
             raise ValueError(f"{new_owner} is an invalid EIP-55 checksum address.")
 
-        receipts = dict()
-
+        all_receipts = dict()
         for contract_deployer in self.ownable_deployer_classes:
             deployer = contract_deployer(registry=self.registry, deployer_address=self.deployer_address)
-            deployer.transfer_ownership(new_owner=new_owner, transaction_gas_limit=transaction_gas_limit)
+            receipts = deployer.transfer_ownership(new_owner=new_owner, transaction_gas_limit=transaction_gas_limit)
 
             if emitter:
                 emitter.echo(f"Transferred ownership of {deployer.contract_name} to {new_owner}")
@@ -417,9 +416,11 @@ class ContractAdministrator(NucypherTokenActor):
             if interactive:
                 click.pause(info="Press any key to continue")
 
-            receipts[contract_deployer.contract_name] = receipts
+            for tx_type, receipt in receipts.items():
+                receipt_name = f"{contract_deployer.contract_name}_{tx_type}"
+                all_receipts[receipt_name] = receipt
 
-        return receipts
+        return all_receipts
 
     def deploy_beneficiary_contracts(self,
                                      allocations: List[Dict[str, Union[str, int]]],
