@@ -173,17 +173,14 @@ class MultiSigOptions:
         client_password = None
         if transacting and not self.hw_wallet:
             client_password = get_client_password(checksum_address=self.checksum_address)
-        trustee = Trustee(checksum_address=self.checksum_address,
-                          registry=registry,
-                          #signer=ClefSigner(self.signer_uri),
-                          client_password=client_password)
+        trustee = Trustee(checksum_address=self.checksum_address, registry=registry, client_password=client_password)
         return trustee
 
-    def create_trustee(self, registry) -> Executive:
+    def create_trustee(self, registry) -> Trustee:
         return self.__create_trustee(registry, transacting=True)
 
-    # def create_transactingless_trustee(self, registry) -> Executive:
-    #     return self.__create_executive(registry, transacting=False)
+    def create_transactingless_trustee(self, registry) -> Trustee:
+        return self.__create_trustee(registry, transacting=False)
 
 
 group_multisig_options = group_options(
@@ -219,6 +216,52 @@ def inspect(general_config, blockchain_options):
 
     paint_multisig_contract_info(emitter, multisig_agent, token_agent)
     return
+
+
+@multisig.command()
+@group_general_config
+@group_blockchain_options
+@group_multisig_options
+def propose(general_config, blockchain_options, multisig_options):
+    """
+    Create a proposal of MultiSig transaction
+
+     - Add new MultiSig owner
+     - Remove MultiSig owner
+     - Change threshold of MultiSig
+     - Upgrade contract (in particular, retarget to a deployed one)
+     - Transfer ownership of contract
+     - Send ETH from MultiSig
+     - Send tokens from MultiSig
+     - Change min reward rate range in PolicyManager
+    """
+    # Init
+    emitter = general_config.emitter
+    #_ensure_config_root(actor_options.config_root)
+    blockchain = blockchain_options.connect_blockchain(emitter, general_config.debug)
+    registry = blockchain_options.get_registry()
+
+    if not multisig_options.checksum_address:
+        multisig_options.checksum_address = select_client_account(emitter=emitter,
+                                                                  provider_uri=blockchain_options.provider_uri,
+                                                                  poa=blockchain_options.poa,
+                                                                  network=blockchain_options.network,
+                                                                  registry=registry,
+                                                                  show_balances=True)
+
+    trustee = multisig_options.create_transactingless_trustee(registry)
+
+    # As a PoC, this command only allows to change the threshold
+    # TODO: Think in the UX for choosing between different types of proposals
+
+    new_threshold = click.prompt("New threshold", type=click.INT)
+    proposal = trustee.propose_changing_threshold(new_threshold)
+
+    paint_multisig_proposed_transaction(emitter=emitter, proposal=proposal, registry=registry)
+
+    filepath = f'proposal-changeThreshold-{trustee.multisig_agent.contract_address[:8]}-TX-{proposal.nonce}.json'
+    proposal.write(filepath=filepath)
+    emitter.echo(f"✅ Saved proposal to {filepath}", color='blue', bold=True)
 
 
 @multisig.command()
