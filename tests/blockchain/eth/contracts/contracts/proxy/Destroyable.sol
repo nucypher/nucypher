@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "contracts/proxy/Upgradeable.sol";
@@ -20,13 +20,13 @@ contract Destroyable is Upgradeable {
         functionValue = _functionValue;
     }
 
-    function verifyState(address _testTarget) public {
+    function verifyState(address _testTarget) public override {
         super.verifyState(_testTarget);
-        require(delegateGet(_testTarget, "constructorValue()") == constructorValue);
-        require(delegateGet(_testTarget, "functionValue()") == functionValue);
+        require(delegateGet(_testTarget, this.constructorValue.selector) == constructorValue);
+        require(delegateGet(_testTarget, this.functionValue.selector) == functionValue);
     }
 
-    function finishUpgrade(address _target) public {
+    function finishUpgrade(address _target) public override {
         super.finishUpgrade(_target);
         constructorValue = Destroyable(_target).constructorValue();
     }

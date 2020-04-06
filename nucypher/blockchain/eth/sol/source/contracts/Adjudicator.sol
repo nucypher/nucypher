@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 import "contracts/lib/ReEncryptionValidator.sol";
 import "contracts/lib/SignatureVerifier.sol";
@@ -187,24 +187,24 @@ contract Adjudicator is Upgradeable {
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
-    function verifyState(address _testTarget) public {
+    function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-        require(address(delegateGet(_testTarget, "escrow()")) == address(escrow));
-        require(SignatureVerifier.HashAlgorithm(delegateGet(_testTarget, "hashAlgorithm()")) == hashAlgorithm);
-        require(delegateGet(_testTarget, "basePenalty()") == basePenalty);
-        require(delegateGet(_testTarget, "penaltyHistoryCoefficient()") == penaltyHistoryCoefficient);
-        require(delegateGet(_testTarget, "percentagePenaltyCoefficient()") == percentagePenaltyCoefficient);
-        require(delegateGet(_testTarget, "rewardCoefficient()") == rewardCoefficient);
-        require(delegateGet(_testTarget, "penaltyHistory(address)", bytes32(bytes20(RESERVED_ADDRESS))) ==
+        require(address(delegateGet(_testTarget, this.escrow.selector)) == address(escrow));
+        require(SignatureVerifier.HashAlgorithm(delegateGet(_testTarget, this.hashAlgorithm.selector)) == hashAlgorithm);
+        require(delegateGet(_testTarget, this.basePenalty.selector) == basePenalty);
+        require(delegateGet(_testTarget, this.penaltyHistoryCoefficient.selector) == penaltyHistoryCoefficient);
+        require(delegateGet(_testTarget, this.percentagePenaltyCoefficient.selector) == percentagePenaltyCoefficient);
+        require(delegateGet(_testTarget, this.rewardCoefficient.selector) == rewardCoefficient);
+        require(delegateGet(_testTarget, this.penaltyHistory.selector, bytes32(bytes20(RESERVED_ADDRESS))) ==
             penaltyHistory[RESERVED_ADDRESS]);
         bytes32 evaluationCFragHash = SignatureVerifier.hash(
             abi.encodePacked(RESERVED_CAPSULE_AND_CFRAG_BYTES), hashAlgorithm);
-        require(delegateGet(_testTarget, "evaluatedCFrags(bytes32)", evaluationCFragHash) ==
+        require(delegateGet(_testTarget, this.evaluatedCFrags.selector, evaluationCFragHash) ==
             (evaluatedCFrags[evaluationCFragHash] ? 1 : 0));
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
-    function finishUpgrade(address _target) public {
+    function finishUpgrade(address _target) public override virtual {
         super.finishUpgrade(_target);
         Adjudicator targetContract = Adjudicator(_target);
         escrow = targetContract.escrow();

@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "contracts/Adjudicator.sol";
@@ -96,8 +96,8 @@ contract AdjudicatorV2Mock is Adjudicator {
         valueToCheck = _valueToCheck;
     }
 
-    function verifyState(address _testTarget) public {
+    function verifyState(address _testTarget) override public {
         super.verifyState(_testTarget);
-        require(uint256(delegateGet(_testTarget, "valueToCheck()")) == valueToCheck);
+        require(uint256(delegateGet(_testTarget, this.valueToCheck.selector)) == valueToCheck);
     }
 }

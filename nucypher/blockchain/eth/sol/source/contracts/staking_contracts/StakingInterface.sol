@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "contracts/staking_contracts/AbstractStakingContract.sol";
@@ -49,7 +49,7 @@ contract BaseStakingInterface {
     * @dev Assume that `this` is the staking contract
     */
     function getStateContract() internal view returns (BaseStakingInterface) {
-        address payable stakingContractAddress = address(bytes20(address(this)));
+        address payable stakingContractAddress = payable(address(this));
         StakingInterfaceRouter router = AbstractStakingContract(stakingContractAddress).router();
         return BaseStakingInterface(router.target());
     }
@@ -228,7 +228,7 @@ contract StakingInterface is BaseStakingInterface {
     function bid(uint256 _value) public payable {
         WorkLock workLockFromState = getStateContract().workLock();
         require(address(workLockFromState) != address(0));
-        workLockFromState.bid.value(_value)();
+        workLockFromState.bid{value: _value}();
         emit Bid(msg.sender, _value);
     }
 

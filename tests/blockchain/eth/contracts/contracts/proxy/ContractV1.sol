@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "contracts/proxy/Upgradeable.sol";
@@ -103,61 +103,61 @@ contract ContractV1 is Upgradeable {
         return mappingStructures[_index].arrayValues[_arrayIndex];
     }
 
-    function verifyState(address _testTarget) public {
+    function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-        require(delegateGet(_testTarget, "storageValue()") == storageValue);
-        bytes memory value = delegateGetBytes(_testTarget, "dynamicallySizedValue()");
+        require(delegateGet(_testTarget, this.storageValue.selector) == storageValue);
+        bytes memory value = delegateGetBytes(_testTarget, this.dynamicallySizedValue.selector);
         // WARNING: sometimes execution of keccak256(string storage) on a long string (more than 31 bytes)
         // leads to out of gas or exception
         require(value.length == bytes(dynamicallySizedValue).length &&
             keccak256(value) == keccak256(bytes(dynamicallySizedValue)));
 
-        require(delegateGet(_testTarget, "getArrayValueLength()") == arrayValues.length);
+        require(delegateGet(_testTarget, this.getArrayValueLength.selector) == arrayValues.length);
         for (uint256 i = 0; i < arrayValues.length; i++) {
-            require(delegateGet(_testTarget, "arrayValues(uint256)", bytes32(i)) == arrayValues[i]);
+            require(delegateGet(_testTarget, this.arrayValues.selector, bytes32(i)) == arrayValues[i]);
         }
         for (uint256 i = 0; i < mappingIndices.length; i++) {
             uint256 index = mappingIndices[i];
-            require(delegateGet(_testTarget, "mappingValues(uint256)", bytes32(index)) == mappingValues[index]);
+            require(delegateGet(_testTarget, this.mappingValues.selector, bytes32(index)) == mappingValues[index]);
         }
 
-        require(delegateGet(_testTarget, "getStructureLength1()") == arrayStructures.length);
+        require(delegateGet(_testTarget, this.getStructureLength1.selector) == arrayStructures.length);
         for (uint256 i = 0; i < arrayStructures.length; i++) {
-            require(delegateGet(_testTarget, "arrayStructures(uint256)", bytes32(i)) == arrayStructures[i].value);
+            require(delegateGet(_testTarget, this.arrayStructures.selector, bytes32(i)) == arrayStructures[i].value);
 
-            require(delegateGet(_testTarget, "getStructureArrayLength1(uint256)", bytes32(i)) ==
+            require(delegateGet(_testTarget, this.getStructureArrayLength1.selector, bytes32(i)) ==
                 arrayStructures[i].arrayValues.length);
             for (uint256 j = 0; j < arrayStructures[i].arrayValues.length; j++) {
                 require(delegateGet(
-                        _testTarget, "getStructureArrayValue1(uint256,uint256)", bytes32(i), bytes32(j)) ==
+                        _testTarget, this.getStructureArrayValue1.selector, bytes32(i), bytes32(j)) ==
                     arrayStructures[i].arrayValues[j]);
             }
         }
 
-        require(delegateGet(_testTarget, "getStructureLength2()") == mappingStructuresLength);
+        require(delegateGet(_testTarget, this.getStructureLength2.selector) == mappingStructuresLength);
         for (uint256 i = 0; i < mappingStructuresLength; i++) {
-            require(delegateGet(_testTarget, "mappingStructures(uint256)", bytes32(i)) == mappingStructures[i].value);
+            require(delegateGet(_testTarget, this.mappingStructures.selector, bytes32(i)) == mappingStructures[i].value);
 
-            require(delegateGet(_testTarget, "getStructureArrayLength2(uint256)", bytes32(i)) ==
+            require(delegateGet(_testTarget, this.getStructureArrayLength2.selector, bytes32(i)) ==
                 mappingStructures[i].arrayValues.length);
             for (uint256 j = 0; j < mappingStructures[i].arrayValues.length; j++) {
                 require(delegateGet(
-                        _testTarget, "getStructureArrayValue2(uint256,uint256)", bytes32(i), bytes32(j)) ==
+                        _testTarget, this.getStructureArrayValue2.selector, bytes32(i), bytes32(j)) ==
                     mappingStructures[i].arrayValues[j]);
             }
         }
     }
 
-    function delegateGetBytes(address _target, string memory _signature)
+    function delegateGetBytes(address _target, bytes4 _selector)
         internal returns (bytes memory result)
     {
-        bytes32 memoryAddress = delegateGetData(_target, _signature, 0, 0, 0);
+        bytes32 memoryAddress = delegateGetData(_target, _selector, 0, 0, 0);
         assembly {
             result := add(memoryAddress, mload(memoryAddress))
         }
     }
 
-    function finishUpgrade(address _target) public {
+    function finishUpgrade(address _target) public override {
         super.finishUpgrade(_target);
         storageValue = ContractV1(_target).storageValue();
     }

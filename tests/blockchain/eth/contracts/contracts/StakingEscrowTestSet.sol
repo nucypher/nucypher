@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "contracts/StakingEscrow.sol";
@@ -38,9 +38,7 @@ contract StakingEscrowBad is StakingEscrow {
     {
     }
 
-    function getSubStakeInfo(address, uint256) public view returns (uint16, uint16, uint16, uint256)
-    {
-    }
+    function getSubStakeInfo(address, uint256) public view override returns (uint16, uint16, uint16, uint256) {}
 
 }
 
@@ -86,12 +84,12 @@ contract StakingEscrowV2Mock is StakingEscrow {
         valueToCheck = _valueToCheck;
     }
 
-    function verifyState(address _testTarget) public {
+    function verifyState(address _testTarget) public override {
         super.verifyState(_testTarget);
-        require(delegateGet(_testTarget, "valueToCheck()") == valueToCheck);
+        require(delegateGet(_testTarget, this.valueToCheck.selector) == valueToCheck);
     }
 
-    function finishUpgrade(address _target) public onlyWhileUpgrading {
+    function finishUpgrade(address _target) public override onlyWhileUpgrading {
         StakingEscrowV2Mock escrow = StakingEscrowV2Mock(_target);
         valueToCheck = escrow.valueToCheck();
         isTestContract = escrow.isTestContract();

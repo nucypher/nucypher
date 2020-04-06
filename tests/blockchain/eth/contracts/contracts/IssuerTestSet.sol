@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "contracts/Issuer.sol";
@@ -95,8 +95,8 @@ contract IssuerV2Mock is Issuer {
         valueToCheck = _valueToCheck;
     }
 
-    function verifyState(address _testTarget) public {
+    function verifyState(address _testTarget) public override {
         super.verifyState(_testTarget);
-        require(delegateGet(_testTarget, "valueToCheck()") == valueToCheck);
+        require(delegateGet(_testTarget, this.valueToCheck.selector) == valueToCheck);
     }
 }

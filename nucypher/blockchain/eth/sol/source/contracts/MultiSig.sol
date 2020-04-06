@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "zeppelin/math/SafeMath.sol";
@@ -28,7 +28,9 @@ contract MultiSig {
         _;
     }
 
-    function () external payable {}
+    // TODO #1809
+//    receive() external payable {}
+    fallback() external payable {}
 
     /**
     * @param _required Number of required signings
@@ -103,7 +105,7 @@ contract MultiSig {
 
         emit Executed(msg.sender, nonce, _destination, _value);
         nonce = nonce.add(1);
-        (bool callSuccess,) = _destination.call.value(_value)(_data);
+        (bool callSuccess,) = _destination.call{value: _value}(_data);
         require(callSuccess);
     }
 
@@ -141,7 +143,7 @@ contract MultiSig {
                 break;
             }
         }
-        owners.length -= 1;
+        owners.pop();
         emit OwnerRemoved(_owner);
     }
 

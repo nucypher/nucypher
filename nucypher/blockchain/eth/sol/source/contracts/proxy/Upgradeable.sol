@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "zeppelin/ownership/Ownable.sol";
@@ -10,7 +10,7 @@ import "zeppelin/ownership/Ownable.sol";
 * (see verifyState(address) in Dispatcher). Also contract should implement finishUpgrade(address)
 * if it is using constructor parameters by coping this parameters to the dispatcher storage
 */
-contract Upgradeable is Ownable {
+abstract contract Upgradeable is Ownable {
 
     event StateVerified(address indexed testTarget, address sender);
     event UpgradeFinished(address indexed target, address sender);
@@ -55,7 +55,7 @@ contract Upgradeable is Ownable {
     * @dev Method for verifying storage state.
     * Should check that new target contract returns right storage value
     */
-    function verifyState(address _testTarget) public onlyWhileUpgrading {
+    function verifyState(address _testTarget) public virtual onlyWhileUpgrading {
         emit StateVerified(_testTarget, msg.sender);
     }
 
@@ -63,44 +63,43 @@ contract Upgradeable is Ownable {
     * @dev Copy values from the new target to the current storage
     * @param _target New target contract address
     */
-    function finishUpgrade(address _target) public onlyWhileUpgrading {
+    function finishUpgrade(address _target) public virtual onlyWhileUpgrading {
         emit UpgradeFinished(_target, msg.sender);
     }
 
     /**
     * @dev Base method to get data
     * @param _target Target to call
-    * @param _signature Method signature
+    * @param _selector Method selector
     * @param _numberOfArguments Number of used arguments
     * @param _argument1 First method argument
     * @param _argument2 Second method argument
-    * @return Address in memory where the data is located
+    * @return memoryAddress Address in memory where the data is located
     */
     function delegateGetData(
         address _target,
-        string memory _signature,
+        bytes4 _selector,
         uint8 _numberOfArguments,
         bytes32 _argument1,
         bytes32 _argument2
     )
         internal returns (bytes32 memoryAddress)
     {
-        bytes4 targetCall = bytes4(keccak256(bytes(_signature)));
         assembly {
             memoryAddress := mload(0x40)
-            mstore(memoryAddress, targetCall)
+            mstore(memoryAddress, _selector)
             if gt(_numberOfArguments, 0) {
                 mstore(add(memoryAddress, 0x04), _argument1)
             }
             if gt(_numberOfArguments, 1) {
                 mstore(add(memoryAddress, 0x24), _argument2)
             }
-            switch delegatecall(gas, _target, memoryAddress, add(0x04, mul(0x20, _numberOfArguments)), 0, 0)
+            switch delegatecall(gas(), _target, memoryAddress, add(0x04, mul(0x20, _numberOfArguments)), 0, 0)
                 case 0 {
                     revert(memoryAddress, 0)
                 }
                 default {
-                    returndatacopy(memoryAddress, 0x0, returndatasize)
+                    returndatacopy(memoryAddress, 0x0, returndatasize())
                 }
         }
     }
@@ -109,10 +108,10 @@ contract Upgradeable is Ownable {
     * @dev Call "getter" without parameters.
     * Result should not exceed 32 bytes
     */
-    function delegateGet(address _target, string memory _signature)
+    function delegateGet(address _target, bytes4 _selector)
         internal returns (uint256 result)
     {
-        bytes32 memoryAddress = delegateGetData(_target, _signature, 0, 0, 0);
+        bytes32 memoryAddress = delegateGetData(_target, _selector, 0, 0, 0);
         assembly {
             result := mload(memoryAddress)
         }
@@ -122,10 +121,10 @@ contract Upgradeable is Ownable {
     * @dev Call "getter" with one parameter.
     * Result should not exceed 32 bytes
     */
-    function delegateGet(address _target, string memory _signature, bytes32 _argument)
+    function delegateGet(address _target, bytes4 _selector, bytes32 _argument)
         internal returns (uint256 result)
     {
-        bytes32 memoryAddress = delegateGetData(_target, _signature, 1, _argument, 0);
+        bytes32 memoryAddress = delegateGetData(_target, _selector, 1, _argument, 0);
         assembly {
             result := mload(memoryAddress)
         }
@@ -137,13 +136,13 @@ contract Upgradeable is Ownable {
     */
     function delegateGet(
         address _target,
-        string memory _signature,
+        bytes4 _selector,
         bytes32 _argument1,
         bytes32 _argument2
     )
         internal returns (uint256 result)
     {
-        bytes32 memoryAddress = delegateGetData(_target, _signature, 2, _argument1, _argument2);
+        bytes32 memoryAddress = delegateGetData(_target, _selector, 2, _argument1, _argument2);
         assembly {
             result := mload(memoryAddress)
         }

@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "contracts/PolicyManager.sol";
@@ -13,9 +13,7 @@ contract PolicyManagerBad is PolicyManager {
     constructor(StakingEscrow _escrow) public PolicyManager(_escrow) {
     }
 
-    function getNodeRewardDelta(address, uint16) public view returns (int256)
-    {
-    }
+    function getNodeRewardDelta(address, uint16) public view override returns (int256) {}
 
 }
 
@@ -34,9 +32,9 @@ contract PolicyManagerV2Mock is PolicyManager {
         valueToCheck = _valueToCheck;
     }
 
-    function verifyState(address _testTarget) public {
+    function verifyState(address _testTarget) public override {
         super.verifyState(_testTarget);
-        require(delegateGet(_testTarget, "valueToCheck()") == valueToCheck);
+        require(delegateGet(_testTarget, this.valueToCheck.selector) == valueToCheck);
     }
 }
 

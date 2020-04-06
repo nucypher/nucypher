@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 import "zeppelin/token/ERC20/SafeERC20.sol";
@@ -33,20 +33,10 @@ contract PolicyManager is Upgradeable {
         uint64 endTimestamp,
         uint256 numberOfNodes
     );
-    event PolicyRevoked(
-        bytes16 indexed policyId,
-        address indexed sender,
-        uint256 value
-    );
     event ArrangementRevoked(
         bytes16 indexed policyId,
         address indexed sender,
         address indexed node,
-        uint256 value
-    );
-    event Withdrawn(
-        address indexed node,
-        address indexed recipient,
         uint256 value
     );
     event RefundForArrangement(
@@ -55,27 +45,14 @@ contract PolicyManager is Upgradeable {
         address indexed node,
         uint256 value
     );
-    event RefundForPolicy(
-        bytes16 indexed policyId,
-        address indexed sender,
-        uint256 value
-    );
-    event NodeBrokenState(
-        address indexed node,
-        uint16 period
-    );
-    event MinRewardRateSet(
-        address indexed node,
-        uint256 value
-    );
-    event MinRewardRateRangeSet(
-        address indexed sender,
-        // TODO #1501
-        // Range range
-        uint256 min,
-        uint256 defaultValue,
-        uint256 max
-    );
+    event PolicyRevoked(bytes16 indexed policyId, address indexed sender, uint256 value);
+    event RefundForPolicy(bytes16 indexed policyId, address indexed sender, uint256 value);
+    event NodeBrokenState(address indexed node, uint16 period);
+    event MinRewardRateSet(address indexed node, uint256 value);
+    // TODO #1501
+    // Range range
+    event MinRewardRateRangeSet(address indexed sender, uint256 min, uint256 defaultValue, uint256 max);
+    event Withdrawn(address indexed node, address indexed recipient, uint256 value);
 
     struct ArrangementInfo {
         address node;
@@ -636,9 +613,7 @@ contract PolicyManager is Upgradeable {
     * @notice Get number of arrangements in the policy
     * @param _policyId Policy id
     */
-    function getArrangementsLength(bytes16 _policyId)
-        external view returns (uint256)
-    {
+    function getArrangementsLength(bytes16 _policyId) external view returns (uint256) {
         return policies[_policyId].arrangements.length;
     }
 
@@ -648,7 +623,8 @@ contract PolicyManager is Upgradeable {
     * @param _period Period to get reward delta
     */
     function getNodeRewardDelta(address _node, uint16 _period)
-        external view returns (int256)
+        // TODO "virtual" only for tests, probably will be removed after #1512
+        external view virtual returns (int256)
     {
         return nodes[_node].rewardDelta[_period];
     }
@@ -674,7 +650,7 @@ contract PolicyManager is Upgradeable {
     function delegateGetPolicy(address _target, bytes16 _policyId)
         internal returns (Policy memory result)
     {
-        bytes32 memoryAddress = delegateGetData(_target, "policies(bytes16)", 1, bytes32(_policyId), 0);
+        bytes32 memoryAddress = delegateGetData(_target, this.policies.selector, 1, bytes32(_policyId), 0);
         assembly {
             result := memoryAddress
         }
@@ -687,7 +663,7 @@ contract PolicyManager is Upgradeable {
         internal returns (ArrangementInfo memory result)
     {
         bytes32 memoryAddress = delegateGetData(
-            _target, "getArrangementInfo(bytes16,uint256)", 2, bytes32(_policyId), bytes32(_index));
+            _target, this.getArrangementInfo.selector, 2, bytes32(_policyId), bytes32(_index));
         assembly {
             result := memoryAddress
         }
@@ -699,7 +675,7 @@ contract PolicyManager is Upgradeable {
     function delegateGetNodeInfo(address _target, address _node)
         internal returns (NodeInfo memory result)
     {
-        bytes32 memoryAddress = delegateGetData(_target, "nodes(address)", 1, bytes32(uint256(_node)), 0);
+        bytes32 memoryAddress = delegateGetData(_target, this.nodes.selector, 1, bytes32(uint256(_node)), 0);
         assembly {
             result := memoryAddress
         }
@@ -709,17 +685,17 @@ contract PolicyManager is Upgradeable {
     * @dev Get minRewardRateRange structure by delegatecall
     */
     function delegateGetMinRewardRateRange(address _target) internal returns (Range memory result) {
-        bytes32 memoryAddress = delegateGetData(_target, "minRewardRateRange()", 0, 0, 0);
+        bytes32 memoryAddress = delegateGetData(_target, this.minRewardRateRange.selector, 0, 0, 0);
         assembly {
             result := memoryAddress
         }
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
-    function verifyState(address _testTarget) public {
+    function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-        require(address(delegateGet(_testTarget, "escrow()")) == address(escrow));
-        require(uint32(delegateGet(_testTarget, "secondsPerPeriod()")) == secondsPerPeriod);
+        require(address(delegateGet(_testTarget, this.escrow.selector)) == address(escrow));
+        require(uint32(delegateGet(_testTarget, this.secondsPerPeriod.selector)) == secondsPerPeriod);
         Range memory rangeToCheck = delegateGetMinRewardRateRange(_testTarget);
         require(minRewardRateRange.min == rangeToCheck.min &&
             minRewardRateRange.defaultValue == rangeToCheck.defaultValue &&
@@ -733,7 +709,7 @@ contract PolicyManager is Upgradeable {
             policyToCheck.endTimestamp == policy.endTimestamp &&
             policyToCheck.disabled == policy.disabled);
 
-        require(delegateGet(_testTarget, "getArrangementsLength(bytes16)", RESERVED_POLICY_ID) ==
+        require(delegateGet(_testTarget, this.getArrangementsLength.selector, RESERVED_POLICY_ID) ==
             policy.arrangements.length);
         if (policy.arrangements.length > 0) {
             ArrangementInfo storage arrangement = policy.arrangements[0];
@@ -751,12 +727,12 @@ contract PolicyManager is Upgradeable {
             nodeInfoToCheck.lastMinedPeriod == nodeInfo.lastMinedPeriod &&
             nodeInfoToCheck.minRewardRate == nodeInfo.minRewardRate);
 
-        require(int256(delegateGet(_testTarget, "getNodeRewardDelta(address,uint16)",
+        require(int256(delegateGet(_testTarget, this.getNodeRewardDelta.selector,
             bytes32(bytes20(RESERVED_NODE)), bytes32(uint256(11)))) == nodeInfo.rewardDelta[11]);
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
-    function finishUpgrade(address _target) public {
+    function finishUpgrade(address _target) public override virtual {
         super.finishUpgrade(_target);
         PolicyManager policyManager = PolicyManager(_target);
         escrow = policyManager.escrow();

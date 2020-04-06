@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.6.1;
 
 
 /**
@@ -19,13 +19,15 @@ contract ReentrancyTest {
         data = _data;
     }
 
-    function () payable external {
-        // call only once
+    // TODO #1809
+//    receive() external payable {
+    fallback() external payable {
+        // call no more than maxDepth times
         if (lockCounter >= maxDepth) {
             return;
         }
         lockCounter++;
-        (bool callSuccess,) = target.call.value(value)(data);
+        (bool callSuccess,) = target.call{value: value}(data);
         require(callSuccess);
         lockCounter--;
     }
