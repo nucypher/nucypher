@@ -853,18 +853,18 @@ def test_verifying_correctness(testerchain, token_economics, escrow, deploy_cont
     # Too low value for remaining gas
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.verifyBiddingCorrectness(0)\
-            .transact({'from': bidder1, 'gas': gas_to_save_state + 35000})
+            .transact({'from': bidder1, 'gas': gas_to_save_state + 30000})
         testerchain.wait_for_receipt(tx)
 
     # Too low value for gas limit
     assert worklock.functions.nextBidderToCheck().call() == 0
-    tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state).transact({'gas': gas_to_save_state + 30000})
+    tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state).transact({'gas': gas_to_save_state + 25000})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.nextBidderToCheck().call() == 0
 
     # Set gas only for one check
     tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state)\
-        .transact({'gas': gas_to_save_state + 35000, 'gas_price': 0})
+        .transact({'gas': gas_to_save_state + 30000, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.nextBidderToCheck().call() == 1
 
@@ -1055,7 +1055,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     # But can verify only one of them
     assert worklock.functions.nextBidderToCheck().call() == 0
     tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state)\
-        .transact({'gas': gas_to_save_state + 35000, 'gas_price': 0})
+        .transact({'gas': gas_to_save_state + 30000, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.nextBidderToCheck().call() == 1
 
