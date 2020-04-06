@@ -1271,8 +1271,6 @@ class MultiSigAgent(EthereumContractAgent):
 
     registry_contract_name = MULTISIG_CONTRACT_NAME
 
-    MAX_OWNER_COUNT = 50  # TODO: See #954
-
     @property
     def nonce(self) -> int:
         nonce = self.contract.functions.nonce().call()
@@ -1303,7 +1301,8 @@ class MultiSigAgent(EthereumContractAgent):
 
     @validate_checksum_address
     def build_add_owner_tx(self, new_owner_address: str) -> dict:
-        if not self.number_of_owners < self.MAX_OWNER_COUNT:
+        max_owner_count = self.contract.functions.MAX_OWNER_COUNT().call()
+        if not self.number_of_owners < max_owner_count:
             raise self.RequirementError(f"MultiSig already has the maximum number of owners")
         if new_owner_address == NULL_ADDRESS:
             raise self.RequirementError(f"Invalid MultiSig owner address (NULL ADDRESS)")
