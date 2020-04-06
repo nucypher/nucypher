@@ -8,8 +8,8 @@ echo "Starting Up Heartbeat Demo Test..."
 
 # run some ursulas
 docker-compose up -d
-echo "Wait for Ursula learning to occur"
-sleep 30
+
+echo "wait a few seconds for initting and learning"
 
 # run alicia and bob all in one running of docker since we lack persistent disks in circle
 docker-compose run nucypher-circle-dev bash /code/scripts/circle/run_heartbeat_alicia_and_bob.sh
