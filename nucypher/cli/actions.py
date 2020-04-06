@@ -108,7 +108,7 @@ def get_nucypher_password(confirm: bool = False, envvar=NUCYPHER_ENVVAR_KEYRING_
 
 
 def unlock_nucypher_keyring(emitter, password: str, character_configuration: CharacterConfiguration):
-    emitter.message('Decrypting NuCypher keyring...', color='yellow')
+    emitter.message(f'Decrypting {character_configuration._NAME} keyring...', color='yellow')
     if character_configuration.dev_mode:
         return True  # Dev accounts are always unlocked
 
@@ -354,8 +354,8 @@ def make_cli_character(character_config,
         CHARACTER = character_config(known_nodes=teacher_nodes,
                                      network_middleware=character_config.network_middleware,
                                      **config_args)
-    except CryptoError:
-        raise character_config.keyring.AuthenticationFailed("Failed to unlock keyring. "
+    except (CryptoError, ValueError):
+        raise character_config.keyring.AuthenticationFailed(f"Failed to unlock nucypher keyring. "
                                                             "Are you sure you provided the correct password?")
 
     #

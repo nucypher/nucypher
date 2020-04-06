@@ -1,4 +1,5 @@
 import random
+from typing import Union
 
 import maya
 from twisted.internet import reactor
@@ -7,19 +8,20 @@ from twisted.logger import Logger
 
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
+from nucypher.network.nodes import NodeSprout
 
 
-class AvailabilitySensor:
+class AvailabilityTracker:
 
-    FAST_INTERVAL = 15          # Seconds
-    SLOW_INTERVAL = 60 * 5
+    FAST_INTERVAL = 15    # Seconds
+    SLOW_INTERVAL = 60 * 2
     SEEDING_DURATION = 60
     MAXIMUM_ALONE_TIME = 120
 
-    MAXIMUM_SCORE = 10.0       # Score
-    SAMPLE_SIZE = 1            # Ursulas
-    SENSOR_SENSITIVITY = 0.5   # Threshold
-    CHARGE_RATE = 0.9          # Measurement Multiplier
+    MAXIMUM_SCORE = 10.0  # Score
+    SAMPLE_SIZE = 1       # Ursulas
+    SENSITIVITY = 0.5     # Threshold
+    CHARGE_RATE = 0.9     # Measurement Multiplier
 
     class Unreachable(RuntimeError):
         pass
@@ -47,6 +49,7 @@ class AvailabilitySensor:
         }
 
         self._start_time = None
+        self.__active_measurement = False
         self.__task = LoopingCall(self.maintain)
         self.responders = set()
 
@@ -66,13 +69,13 @@ class AvailabilitySensor:
                       f'Please check your network and firewall configuration.'
                       f'Auto-shutdown will commence soon if the services do not become available.')
 
-    def shutdown_everything(self, reason=None, halt_reactor=True):
+    def shutdown_everything(self, reason=None, halt_reactor=False):
         self.log.warn(f'[NODE IS UNREACHABLE (SCORE {self.score})] Commencing auto-shutdown sequence...')
         self._ursula.stop(halt_reactor=False)
         try:
             if reason:
                 raise reason(reason.message)
-            raise self.Unreachable(f'{self._ursula} is unreachable (score {self.score}).')
+            raise self.Unreachable(f'{self._ursula} is unreachable (scored {self.score}).')
         finally:
             if halt_reactor:
                 self._halt_reactor()
@@ -82,15 +85,23 @@ class AvailabilitySensor:
         if reactor.running:
             reactor.stop()
 
-    def handle_measurement_errors(self, *args, **kwargs) -> None:
-        failure = args[0]
-        cleaned_traceback = failure.getTraceback().replace('{', '').replace('}', '')  # FIXME: Amazing.
-        self.log.warn("Unhandled error during availability check: {}".format(cleaned_traceback))
-        failure.raiseException()
+    def handle_measurement_errors(self, crash_on_error: bool = False, *args, **kwargs) -> None:
+
+        if args:
+            failure = args[0]
+            cleaned_traceback = failure.getTraceback().replace('{', '').replace('}', '')  # FIXME: Amazing.
+            self.log.warn("Unhandled error during availability check: {}".format(cleaned_traceback))
+            if crash_on_error:
+                failure.raiseException()
+        else:
+            # Restart on failure
+            if not self.running:
+                self.log.debug(f"Availability check crashed, restarting...")
+                self.start(now=True)
 
     def status(self) -> bool:
         """Returns current indication of availability"""
-        result = self.score > (self.SENSOR_SENSITIVITY*self.MAXIMUM_SCORE)
+        result = self.score > (self.SENSITIVITY * self.MAXIMUM_SCORE)
         if not result:
             for time, reason in self.__excuses.items():
                 self.log.info(f'[{time}] - {reason["error"]}')
@@ -111,7 +122,6 @@ class AvailabilitySensor:
             self.__task.stop()
 
     def maintain(self) -> None:
-        self.log.debug(f"Starting new sensor maintenance round")
         known_nodes_is_smaller_than_sample_size = len(self._ursula.known_nodes) < self.SAMPLE_SIZE
 
         # If there are no known nodes or too few known nodes, skip this round...
@@ -134,8 +144,18 @@ class AvailabilitySensor:
                 self.__task.interval = self.SLOW_INTERVAL
                 return
 
-        # All systems go
-        self.measure()
+        if self.__active_measurement:
+            self.log.debug(f"Availability check already in progress - skipping this round (Score: {self.score}). ")
+            return  # Abort
+        else:
+            self.log.debug(f"Continuing to measure availability (Score: {self.score}).")
+            self.__active_measurement = True
+
+        try:
+            self.measure_sample()
+        finally:
+            self.__active_measurement = False
+
         delta = maya.now() - self._start_time
         self.log.info(f"Current availability score is {self.score} measured since {delta}")
         self.issue_warnings()
@@ -169,49 +189,48 @@ class AvailabilitySensor:
             self.__score = self.MAXIMUM_SCORE
         else:
             self.__score = score
+        self.log.debug(f"Recorded new uptime score ({self.score})")
 
-    def measure(self) -> None:
+    def measure_sample(self, ursulas: list = None) -> None:
+        """
+        Measure self-availability from a sample of Ursulas or automatically from known nodes.
+        Handle the possibility of unreachable or invalid remote nodes in the sample.
+        """
 
-        ursulas = self.sample(quantity=self.SAMPLE_SIZE)
-        for ursula in ursulas:
+        # TODO: Relocate?
+        Unreachable = (*NodeSeemsToBeDown,
+                       self._ursula.NotStaking,
+                       self._ursula.node_storage.InvalidNodeCertificate,
+                       self._ursula.network_middleware.UnexpectedResponse)
 
-            ursula.mature()
+        if not ursulas:
+            ursulas = self.sample(quantity=self.SAMPLE_SIZE)
 
-            # Fetch and store teacher certificate
-            responding_ursula_address, responding_ursula_port = tuple(ursula.rest_interface)
-
-            # Request status check
+        for ursula_or_sprout in ursulas:
             try:
-                certificate = self._ursula.network_middleware.get_certificate(host=responding_ursula_address,
-                                                                              port=responding_ursula_port)
-                certificate_filepath = self._ursula.node_storage.store_node_certificate(certificate=certificate)
-
-                response = self._ursula.network_middleware.check_rest_availability(requesting_ursula=self._ursula,
-                                                                                   responding_ursula=ursula,
-                                                                                   certificate_filepath=certificate_filepath)
-
-            except RestMiddleware.BadRequest as e:
-                self.responders.add(ursula.checksum_address)
-                self.record(False, reason=e.reason)
-
+                self.measure(ursula_or_sprout=ursula_or_sprout)
             except self._ursula.network_middleware.NotFound:
                 # Ignore this measurement and move on because the remote node is not compatible.
                 self.record(None, reason={"error": "Remote node did not support 'ping' endpoint."})
-
-            except (*NodeSeemsToBeDown,
-                    self._ursula.NotStaking,
-                    self._ursula.node_storage.InvalidNodeCertificate,
-                    self._ursula.network_middleware.UnexpectedResponse):
+            except Unreachable as e:
                 # This node is either not an Ursula, not available, does not support uptime checks, or is not staking...
                 # ...do nothing and move on without changing the score.
+                self.log.debug(f'{ursula_or_sprout} responded to uptime check with {e.__class__.__name__}')
                 continue
 
+    def measure(self, ursula_or_sprout: Union['Ursula', NodeSprout]) -> None:
+        """Measure self-availability from a single remote node that participates uptime checks."""
+        try:
+            response = self._ursula.network_middleware.check_rest_availability(initiator=self._ursula, responder=ursula_or_sprout)
+        except RestMiddleware.BadRequest as e:
+            self.responders.add(ursula_or_sprout.checksum_address)
+            self.record(False, reason=e.reason)
+        else:
+            # Record response
+            self.responders.add(ursula_or_sprout.checksum_address)
+            if response.status_code == 200:
+                self.record(True)
+            elif response.status_code == 400:
+                self.record(False, reason={'failed': f"{ursula_or_sprout.checksum_address} reported unavailability."})
             else:
-                # Record response
-                self.responders.add(ursula.checksum_address)
-                if response.status_code == 200:
-                    self.record(True)
-                elif response.status_code == 400:
-                    self.record(False)
-                else:
-                    self.record(None, reason={"error": f"{ursula.rest_url} returned {response.status_code} from 'ping' endpoint."})
+                self.record(None, reason={"error": f"{ursula_or_sprout.checksum_address} returned {response.status_code} from 'ping' endpoint."})

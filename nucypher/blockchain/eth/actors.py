@@ -1283,7 +1283,7 @@ class Worker(NucypherTokenActor):
         start = maya.now()
 
         emitter = StdoutEmitter()  # TODO: Make injectable, or embed this logic into Ursula
-        emitter.message("Waiting for bonding and funding...")
+        emitter.message("Waiting for bonding and funding...", color='yellow')
 
         funded, bonded = False, False
         while True:
@@ -1308,8 +1308,6 @@ class Worker(NucypherTokenActor):
 
                 # TODO: #1823 - Workaround for new nickname every restart
                 self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_address)
-
-                emitter.message(f"Starting services...", color='yellow', bold=True)
                 break
 
             # Crash on Timeout

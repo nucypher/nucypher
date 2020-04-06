@@ -76,7 +76,7 @@ from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
-from nucypher.network.sensors import AvailabilitySensor
+from nucypher.network.trackers import AvailabilityTracker
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 
 
@@ -975,7 +975,7 @@ class Ursula(Teacher, Character, Worker):
 
             # Self-Health Checks
             self._availability_check = availability_check
-            self._availability_sensor = AvailabilitySensor(ursula=self)
+            self._availability_tracker = AvailabilityTracker(ursula=self)
 
             # Arrangement Pruning
             self.__pruning_task = None
@@ -1116,19 +1116,28 @@ class Ursula(Teacher, Character, Worker):
         # Async loops ordered by schedule priority
         #
 
+        if emitter:
+            emitter.message(f"Starting services...", color='yellow')
+
         if pruning:
             self.__pruning_task = self._arrangement_pruning_task.start(interval=self._pruning_interval, now=True)
+            if emitter:
+                emitter.message(f"✓ Database pruning", color='green')
 
         if learning:
-            if emitter:
-                emitter.message(f"Connecting to {','.join(self.learning_domains)}", color='green', bold=True)
             self.start_learning_loop(now=self._start_learning_now)
+            if emitter:
+                emitter.message(f"✓ Node Discovery ({','.join(self.learning_domains)})", color='green')
 
         if self._availability_check and availability:
-            self._availability_sensor.start(now=False)  # wait...
+            self._availability_tracker.start(now=False)  # wait...
+            if emitter:
+                emitter.message(f"✓ Availability Checks", color='green')
 
         if worker and not self.federated_only:
-            self.work_tracker.start(act_now=True, requirement_func=self._availability_sensor.status)
+            self.work_tracker.start(act_now=True, requirement_func=self._availability_tracker.status)
+            if emitter:
+                emitter.message(f"✓ Work Tracking", color='green')
 
         #
         # Non-order dependant services
@@ -1139,6 +1148,8 @@ class Ursula(Teacher, Character, Worker):
             # Local scoped to help prevent import without prometheus installed
             from nucypher.utilities.metrics import initialize_prometheus_exporter
             initialize_prometheus_exporter(ursula=self, port=self._metrics_port)
+            if emitter:
+                emitter.message(f"✓ Prometheus Exporter", color='green')
 
         if interactive and emitter:
             stdio.StandardIO(UrsulaCommandProtocol(ursula=self, emitter=emitter))
@@ -1171,7 +1182,7 @@ class Ursula(Teacher, Character, Worker):
 
     def stop(self, halt_reactor: bool = False) -> None:
         """Stop services"""
-        self._availability_sensor.stop()
+        self._availability_tracker.stop()
         if self._learning_task.running:
             self.stop_learning_loop()
         if not self.federated_only:

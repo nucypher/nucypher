@@ -21,7 +21,7 @@ from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.characters.control.emitters import WebEmitter
 from nucypher.cli.config import GroupGeneralConfig
 from nucypher.crypto.powers import TransactingPower
-from nucypher.network.sensors import AvailabilitySensor
+from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, TEMPORARY_DOMAIN
 
@@ -36,7 +36,7 @@ TransactingPower.lock_account = lambda *a, **k: True
 TEACHER_NODES = dict()
 
 # Prevent halting the reactor via health checks during tests
-AvailabilitySensor._halt_reactor = lambda *a, **kw: True
+AvailabilityTracker._halt_reactor = lambda *a, **kw: True
 
 ##########################################
 

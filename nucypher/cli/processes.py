@@ -120,14 +120,6 @@ class UrsulaCommandProtocol(LineReceiver):
         self.emitter.echo(line)
 
     def connectionMade(self):
-
-        message = 'Attached {}@{}'.format(
-                   self.ursula.checksum_address,
-                   self.ursula.rest_url())
-
-        self.emitter.echo(message, color='green')
-        self.emitter.echo('{} | {}'.format(self.ursula.nickname_icon, self.ursula.nickname), color='blue', bold=True)
-
         self.emitter.echo("\nType 'help' or '?' for help")
         self.transport.write(self.prompt)
 
@@ -135,9 +127,7 @@ class UrsulaCommandProtocol(LineReceiver):
         self.ursula.stop_learning_loop(reason=reason)
 
     def lineReceived(self, line):
-        """
-        Ursula Console REPL
-        """
+        """Ursula Console REPL"""
 
         # Read
         raw_line = line.decode(encoding=self.encoding)

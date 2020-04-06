@@ -181,6 +181,9 @@ class RestMiddleware:
             time.sleep(retry_rate)
             return self.get_certificate(host, port, timeout, retry_attempts, retry_rate, current_attempt + 1)
 
+        except OSError:
+            raise  # TODO: #1835
+
         else:
             certificate = x509.load_pem_x509_certificate(seednode_certificate.encode(),
                                                          backend=default_backend())
@@ -240,12 +243,12 @@ class RestMiddleware:
             path=f"kFrag/{id_as_hex}/reencrypt",
             data=payload, timeout=2)
 
-    def check_rest_availability(self, requesting_ursula, responding_ursula, certificate_filepath=None):
-        response = self.client.post(node_or_sprout=responding_ursula,
-                                    data=bytes(requesting_ursula),
+    def check_rest_availability(self, initiator, responder):
+        response = self.client.post(node_or_sprout=responder,
+                                    data=bytes(initiator),
                                     path="ping",
-                                    timeout=4,  # Two round trips are expected
-                                    certificate_filepath=certificate_filepath)
+                                    timeout=6,  # Two round trips are expected
+                                    )
         return response
 
     def get_nodes_via_rest(self,
