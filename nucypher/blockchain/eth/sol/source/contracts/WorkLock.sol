@@ -1,4 +1,4 @@
-pragma solidity ^0.6.1;
+pragma solidity ^0.6.5;
 
 
 import "zeppelin/math/SafeMath.sol";
@@ -37,12 +37,11 @@ contract WorkLock is Ownable {
         uint128 index;
     }
 
-    NuCypherToken public token;
-    StakingEscrow public escrow;
+    uint16 public constant SLOWING_REFUND = 100;
+    uint256 private constant MAX_ETH_SUPPLY = 2e10 ether;
 
-    uint256 public startBidDate;
-    uint256 public endBidDate;
-    uint256 public endCancellationDate;
+    NuCypherToken public immutable token;
+    StakingEscrow public immutable escrow;
 
     /*
     * @dev WorkLock calculations:
@@ -53,23 +52,25 @@ contract WorkLock is Ownable {
     * bonusRefundRate = bonusDepositRate * SLOWING_REFUND / boostingRefund
     * refundETH = completedWork / refundRate
     */
-    uint256 public boostingRefund;
-    uint16 public constant SLOWING_REFUND = 100;
-    uint256 private constant MAX_ETH_SUPPLY = 2e10 ether;
+    uint256 public immutable boostingRefund;
+    uint256 public immutable minAllowedBid;
+    uint16 public immutable stakingPeriods;
+    // copy from the escrow contract
+    uint256 public immutable maxAllowableLockedTokens;
+    uint256 public immutable minAllowableLockedTokens;
 
-    uint256 public minAllowedBid;
     uint256 public tokenSupply;
+    uint256 public startBidDate;
+    uint256 public endBidDate;
+    uint256 public endCancellationDate;
+
     uint256 public bonusETHSupply;
-    uint16 public stakingPeriods;
     mapping(address => WorkInfo) public workInfo;
     mapping(address => uint256) public compensation;
 
     address[] public bidders;
     // if value == bidders.length then WorkLock is fully checked
     uint256 public nextBidderToCheck;
-    // copy from the escrow contract
-    uint256 public maxAllowableLockedTokens;
-    uint256 public minAllowableLockedTokens;
 
     /**
     * @dev Checks timestamp regarding cancellation window
@@ -124,8 +125,8 @@ contract WorkLock is Ownable {
         boostingRefund = _boostingRefund;
         stakingPeriods = _stakingPeriods;
         minAllowedBid = _minAllowedBid;
-        maxAllowableLockedTokens = escrow.maxAllowableLockedTokens();
-        minAllowableLockedTokens = escrow.minAllowableLockedTokens();
+        maxAllowableLockedTokens = _escrow.maxAllowableLockedTokens();
+        minAllowableLockedTokens = _escrow.minAllowableLockedTokens();
     }
 
     /**
