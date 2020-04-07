@@ -12,36 +12,36 @@ import "contracts/staking_contracts/AbstractStakingContract.sol";
 contract PoolingStakingContract is AbstractStakingContract, Ownable {
     using SafeMath for uint256;
 
-    event TokensDeposited(address indexed sender, uint256 value, uint256 coefficient);
+    event TokensDeposited(address indexed sender, uint256 value, uint256 depositedTokens);
     event TokensWithdrawn(address indexed sender, uint256 value);
     event ETHWithdrawn(address indexed sender, uint256 value);
-    event ShareTransferred(address indexed previousOwner, address indexed newOwner, uint256 coefficient);
+    event ShareTransferred(address indexed previousOwner, address indexed newOwner, uint256 depositedTokens);
 
     struct Delegator {
-        uint256 coefficient;
+        uint256 depositedTokens;
         uint256 withdrawnTokens;
         uint256 withdrawnETH;
     }
 
-    uint256 public baseCoefficient;
-    uint256 public withdrawnTokens;
-    uint256 public withdrawnETH;
+    uint256 public totalDepositedTokens;
+    uint256 public totalWithdrawnTokens;
+    uint256 public totalWithdrawnETH;
 
     mapping (address => Delegator) public delegators;
 
     /**
     * @param _router Address of the StakingInterfaceRouter contract
-    * @param _ownerCoefficient Base owner's portion of reward
+    * @param _ownerReward Base owner's portion of reward
     */
     constructor(
         StakingInterfaceRouter _router,
-        uint256 _ownerCoefficient
+        uint256 _ownerReward
     )
         public AbstractStakingContract(_router)
     {
-        baseCoefficient = _ownerCoefficient;
+        totalDepositedTokens = _ownerReward;
         Delegator storage delegator = delegators[msg.sender];
-        delegator.coefficient = _ownerCoefficient;
+        delegator.depositedTokens = _ownerReward;
     }
 
     /**
@@ -51,12 +51,12 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
         Delegator storage ownerInfo = delegators[owner()];
         Delegator storage newOwnerInfo = delegators[_newOwner];
 
-        newOwnerInfo.coefficient = newOwnerInfo.coefficient.add(ownerInfo.coefficient);
+        newOwnerInfo.depositedTokens = newOwnerInfo.depositedTokens.add(ownerInfo.depositedTokens);
         newOwnerInfo.withdrawnTokens = newOwnerInfo.withdrawnTokens.add(ownerInfo.withdrawnTokens);
         newOwnerInfo.withdrawnETH = newOwnerInfo.withdrawnETH.add(ownerInfo.withdrawnETH);
-        emit ShareTransferred(owner(), _newOwner, ownerInfo.coefficient);
+        emit ShareTransferred(owner(), _newOwner, ownerInfo.depositedTokens);
 
-        ownerInfo.coefficient = 0;
+        ownerInfo.depositedTokens = 0;
         ownerInfo.withdrawnTokens = 0;
         ownerInfo.withdrawnETH = 0;
         super.transferOwnership(_newOwner);
@@ -68,11 +68,11 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
     */
     function depositTokens(uint256 _value) external {
         require(_value > 0, "Value must be not empty");
-        baseCoefficient = baseCoefficient.add(_value);
+        totalDepositedTokens = totalDepositedTokens.add(_value);
         Delegator storage delegator = delegators[msg.sender];
-        delegator.coefficient = delegator.coefficient.add(_value);
+        delegator.depositedTokens = delegator.depositedTokens.add(_value);
         token.safeTransferFrom(msg.sender, address(this), _value);
-        emit TokensDeposited(msg.sender, _value, delegator.coefficient);
+        emit TokensDeposited(msg.sender, _value, delegator.depositedTokens);
     }
 
     /**
@@ -81,7 +81,7 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
     function getAvailableTokens(address _delegator) public view returns (uint256) {
         Delegator storage delegator = delegators[_delegator];
         uint256 tokens = token.balanceOf(address(this));
-        uint256 maxAllowableTokens = tokens.add(withdrawnTokens).mul(delegator.coefficient).div(baseCoefficient);
+        uint256 maxAllowableTokens = tokens.add(totalWithdrawnTokens).mul(delegator.depositedTokens).div(totalDepositedTokens);
 
         uint256 availableTokens = maxAllowableTokens.sub(delegator.withdrawnTokens);
         // TODO maybe return full value even if it's more than contract balance?
@@ -102,7 +102,8 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
         Delegator storage delegator = delegators[msg.sender];
         delegator.withdrawnTokens = delegator.withdrawnTokens.add(_value);
 
-        withdrawnTokens = withdrawnTokens.add(_value);
+        // TODO fix this
+        totalWithdrawnTokens = totalWithdrawnTokens.add(_value);
         token.safeTransfer(msg.sender, _value);
         emit TokensWithdrawn(msg.sender, _value);
     }
@@ -113,7 +114,7 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
     function getAvailableETH(address _delegator) public view returns (uint256) {
         Delegator storage delegator = delegators[_delegator];
         uint256 balance = address(this).balance;
-        uint256 maxAllowableETH = balance.add(withdrawnETH).mul(delegator.coefficient).div(baseCoefficient);
+        uint256 maxAllowableETH = balance.add(totalWithdrawnETH).mul(delegator.depositedTokens).div(totalDepositedTokens);
 
         uint256 availableETH = maxAllowableETH.sub(delegator.withdrawnETH);
         if (availableETH > balance) {
@@ -132,7 +133,7 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
         Delegator storage delegator = delegators[msg.sender];
         delegator.withdrawnETH = delegator.withdrawnETH.add(availableETH);
 
-        withdrawnETH = withdrawnETH.add(availableETH);
+        totalWithdrawnETH = totalWithdrawnETH.add(availableETH);
         msg.sender.sendValue(availableETH);
         emit ETHWithdrawn(msg.sender, availableETH);
     }
