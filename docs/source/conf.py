@@ -52,6 +52,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'aafigure.sphinxext',
+    'recommonmark',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -60,11 +61,6 @@ templates_path = ['.templates']
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 #
-
-source_parsers = {
-    '.md': CommonMarkParser,
-}
-
 
 source_suffix = ['.rst', '.md', '.txt']
 
