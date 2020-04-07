@@ -101,10 +101,19 @@ class AvailabilityTracker:
 
     def status(self) -> bool:
         """Returns current indication of availability"""
-        result = self.score > (self.SENSITIVITY * self.MAXIMUM_SCORE)
+        threshold = (self.SENSITIVITY * self.MAXIMUM_SCORE)
+        result = self.score > threshold
         if not result:
+            self.log.info(f'Availability score {self.score} <= threshold ({threshold}); logging current availability issues')
             for time, reason in self.__excuses.items():
-                self.log.info(f'[{time}] - {reason["error"]}')
+                if 'error' in reason:
+                    self.log.info(f'Availability Issue: [{time}] - {reason["error"]}')
+                elif 'warn' in reason:
+                    self.log.info(f'Availability Issue (Ignored): [{time}] - {reason["warn"]}')
+
+                # prune excuse once logged
+                del self.__excuses[time]
+
         return result
 
     @property
@@ -189,7 +198,11 @@ class AvailabilityTracker:
             self.__score = self.MAXIMUM_SCORE
         else:
             self.__score = score
-        self.log.debug(f"Recorded new uptime score ({self.score})")
+
+        if result is False and reason:
+            self.log.debug(f"Availability check failed; availability score will decrease: {reason}")
+        self.log.debug(f"Recorded new availability score ({self.score})")
+
 
     def measure_sample(self, ursulas: list = None) -> None:
         """
@@ -211,7 +224,7 @@ class AvailabilityTracker:
                 self.measure(ursula_or_sprout=ursula_or_sprout)
             except self._ursula.network_middleware.NotFound:
                 # Ignore this measurement and move on because the remote node is not compatible.
-                self.record(None, reason={"error": "Remote node did not support 'ping' endpoint."})
+                self.record(None, reason={'warn': f"Remote node {ursula_or_sprout.checksum_address} does not support 'ping' endpoint."})
             except Unreachable as e:
                 # This node is either not an Ursula, not available, does not support uptime checks, or is not staking...
                 # ...do nothing and move on without changing the score.
@@ -224,13 +237,13 @@ class AvailabilityTracker:
             response = self._ursula.network_middleware.check_rest_availability(initiator=self._ursula, responder=ursula_or_sprout)
         except RestMiddleware.BadRequest as e:
             self.responders.add(ursula_or_sprout.checksum_address)
-            self.record(False, reason=e.reason)
+            self.record(False, reason={'error': f"{ursula_or_sprout.checksum_address} responded with {e.__class__.__name__} from 'ping' endpoint : {e.reason}."})
         else:
             # Record response
             self.responders.add(ursula_or_sprout.checksum_address)
             if response.status_code == 200:
                 self.record(True)
             elif response.status_code == 400:
-                self.record(False, reason={'failed': f"{ursula_or_sprout.checksum_address} reported unavailability."})
+                self.record(False, reason={'error': f"{ursula_or_sprout.checksum_address} reported unavailability."})
             else:
-                self.record(None, reason={"error": f"{ursula_or_sprout.checksum_address} returned {response.status_code} from 'ping' endpoint."})
+                self.record(None, reason={'warn': f"{ursula_or_sprout.checksum_address} returned {response.status_code} from 'ping' endpoint."})
