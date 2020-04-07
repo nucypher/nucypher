@@ -32,11 +32,12 @@ class AvailabilityTracker:
     class Lonely(Unreachable):
         message = "Cannot connect to enough teacher nodes."
 
-    def __init__(self, ursula, enforce_loneliness: bool = True):
+    def __init__(self, ursula, enforce_loneliness: bool = True, crash_on_error: bool = False):
 
         self.log = Logger(self.__class__.__name__)
         self._ursula = ursula
         self.enforce_loneliness = enforce_loneliness
+        self.crash_on_error = crash_on_error
 
         self.__excuses = dict()  # List of failure reasons
         self.__score = 10
@@ -49,7 +50,6 @@ class AvailabilityTracker:
         }
 
         self._start_time = None
-        self.__active_measurement = False
         self.__task = LoopingCall(self.maintain)
         self.responders = set()
 
@@ -85,19 +85,17 @@ class AvailabilityTracker:
         if reactor.running:
             reactor.stop()
 
-    def handle_measurement_errors(self, crash_on_error: bool = False, *args, **kwargs) -> None:
+    def handle_measurement_errors(self, *args, **kwargs) -> None:
+        failure = args[0]
+        cleaned_traceback = failure.getTraceback().replace('{', '').replace('}', '')  # FIXME: Amazing.
+        self.log.warn("Unhandled error during availability check: {}".format(cleaned_traceback))
+        if self.crash_on_error:
+            failure.raiseException()
 
-        if args:
-            failure = args[0]
-            cleaned_traceback = failure.getTraceback().replace('{', '').replace('}', '')  # FIXME: Amazing.
-            self.log.warn("Unhandled error during availability check: {}".format(cleaned_traceback))
-            if crash_on_error:
-                failure.raiseException()
-        else:
-            # Restart on failure
-            if not self.running:
-                self.log.debug(f"Availability check crashed, restarting...")
-                self.start(now=True)
+        # Restart on failure
+        if not self.running:
+            self.log.debug(f"Availability check crashed, restarting...")
+            self.start(now=True)
 
     def status(self) -> bool:
         """Returns current indication of availability"""
@@ -106,10 +104,7 @@ class AvailabilityTracker:
         if not result:
             self.log.info(f'Availability score {self.score} <= threshold ({threshold}); logging current availability issues')
             for time, reason in self.__excuses.items():
-                if 'error' in reason:
-                    self.log.info(f'Availability Issue: [{time}] - {reason["error"]}')
-                elif 'warn' in reason:
-                    self.log.info(f'Availability Issue (Ignored): [{time}] - {reason["warn"]}')
+                self.log.info(f'Availability Issue: [{time}] - {reason["error"]}')
 
                 # prune excuse once logged
                 del self.__excuses[time]
@@ -151,19 +146,8 @@ class AvailabilityTracker:
             if delta >= self.SEEDING_DURATION:
                 # Slow down
                 self.__task.interval = self.SLOW_INTERVAL
-                return
 
-        if self.__active_measurement:
-            self.log.debug(f"Availability check already in progress - skipping this round (Score: {self.score}). ")
-            return  # Abort
-        else:
-            self.log.debug(f"Continuing to measure availability (Score: {self.score}).")
-            self.__active_measurement = True
-
-        try:
-            self.measure_sample()
-        finally:
-            self.__active_measurement = False
+        self.measure_sample()
 
         delta = maya.now() - self._start_time
         self.log.info(f"Current availability score is {self.score} measured since {delta}")
@@ -189,18 +173,17 @@ class AvailabilityTracker:
 
     def record(self, result: bool = None, reason: dict = None) -> None:
         """Score the result and cache it."""
-        if (not result) and reason:
+        if reason:
             self.__excuses[maya.now().epoch] = reason
-        if result is None:
-            return  # Actually nevermind, dont score this one...
+
         score = int(result) + self.CHARGE_RATE * self.__score
         if score >= self.MAXIMUM_SCORE:
             self.__score = self.MAXIMUM_SCORE
         else:
             self.__score = score
 
-        if (result is False) and reason:
-            self.log.debug(f"Availability check failed; availability score will decrease: {reason['error']}")
+        if not result and reason:
+            self.log.info(f"Availability check failed; availability score will decrease: {reason['error']}")
         self.log.debug(f"Recorded new availability score ({self.score})")
 
 
@@ -214,7 +197,8 @@ class AvailabilityTracker:
         Unreachable = (*NodeSeemsToBeDown,
                        self._ursula.NotStaking,
                        self._ursula.node_storage.InvalidNodeCertificate,
-                       self._ursula.network_middleware.UnexpectedResponse)
+                       self._ursula.network_middleware.UnexpectedResponse,
+                       self._ursula.network_middleware.NotFound)
 
         if not ursulas:
             ursulas = self.sample(quantity=self.SAMPLE_SIZE)
@@ -222,13 +206,10 @@ class AvailabilityTracker:
         for ursula_or_sprout in ursulas:
             try:
                 self.measure(ursula_or_sprout=ursula_or_sprout)
-            except self._ursula.network_middleware.NotFound:
-                # Ignore this measurement and move on because the remote node is not compatible.
-                self.record(None, reason={'warn': f"Remote node {ursula_or_sprout.checksum_address} does not support 'ping' endpoint."})
             except Unreachable as e:
                 # This node is either not an Ursula, not available, does not support uptime checks, or is not staking...
                 # ...do nothing and move on without changing the score.
-                self.log.debug(f'{ursula_or_sprout} responded to uptime check with {e.__class__.__name__}')
+                self.log.debug(f"{ursula_or_sprout} responded to uptime check with {str(e).replace('{', '').replace('}', '')}")
                 continue
 
     def measure(self, ursula_or_sprout: Union['Ursula', NodeSprout]) -> None:
@@ -240,10 +221,8 @@ class AvailabilityTracker:
             self.record(False, reason={'error': f"{ursula_or_sprout.checksum_address} responded with {e.__class__.__name__} from 'ping' endpoint : {e.reason}."})
         else:
             # Record response
-            self.responders.add(ursula_or_sprout.checksum_address)
             if response.status_code == 200:
+                self.responders.add(ursula_or_sprout.checksum_address)
                 self.record(True)
-            elif response.status_code == 400:
-                self.record(False, reason={'error': f"{ursula_or_sprout.checksum_address} reported unavailability."})
             else:
-                self.record(None, reason={'warn': f"{ursula_or_sprout.checksum_address} returned {response.status_code} from 'ping' endpoint."})
+                self.log.debug(f"{ursula_or_sprout.checksum_address} returned {response.status_code} from 'ping' endpoint.")
