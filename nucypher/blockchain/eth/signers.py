@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import List
+import getpass
+from typing import List, Optional
 from urllib.parse import urlparse
 
+from eth_account import Account
+from eth_account.messages import encode_defunct
 from eth_utils import to_checksum_address, to_normalized_address, apply_formatters_to_dict
 from hexbytes import HexBytes
 from twisted.logger import Logger
@@ -22,6 +25,8 @@ class Signer(ABC):
     def from_signer_uri(cls, uri: str) -> 'Signer':
         if 'clef' in uri:
             signer = ClefSigner.from_signer_uri(uri=uri)
+        elif 'key_file' in uri:
+            signer = KeystoreSigner.from_signer_uri(uri=uri)
         else:
             signer = Web3Signer.from_signer_uri(uri=uri)
         return signer
@@ -191,3 +196,49 @@ class ClefSigner(Signer):
     @validate_checksum_address
     def lock_account(self, account: str):
         return True
+
+
+class KeystoreSigner(Signer):
+
+    def __init__(self, key: str):
+        # key_file=keystore.json,pass_file=password.txt
+        super().__init__()
+        self.registred_keys = {}
+        parsed = dict(part.split('=', 1) for part in key.split(','))
+        self.register_key_file(parsed.get('key_file'), parsed.get('pass_file'))
+    
+    @classmethod
+    def from_signer_uri(cls, uri: str) -> 'KeystoreSigner':
+        signer = cls(key=uri)
+        return signer
+
+    def register_key_file(self, key_file: str, pass_file: Optional[str] = None):
+        read_key = open(key_file).read()
+        if pass_file:
+            read_pass = open(pass_file).read().rstrip('\n')
+        else:
+            read_pass = getpass.getpass(prompt=f"Password for {key_file}: ")
+        priv = Account.decrypt(read_key, read_pass)
+        account = Account.from_key(priv)
+        self.registred_keys[account.address] = account
+
+    def is_device(self, account: str) -> bool:
+        return True
+
+    def accounts(self) -> List[str]:
+        return list(self.registred_keys)
+
+    def unlock_account(self, account: str, password: str, duration: int = None) -> bytes:
+        return True
+
+    def lock_account(self, account: str) -> str:
+        return True
+
+    def sign_transaction(self, transaction_dict: dict) -> HexBytes:
+        key = self.registred_keys[transaction_dict['from']]
+        return key.sign_transaction(transaction_dict).rawTransaction
+
+    def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
+        key = self.registred_keys[account]
+        data = encode_defunct(message)
+        return key.sign_message(data).signature
