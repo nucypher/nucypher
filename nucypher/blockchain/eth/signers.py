@@ -168,6 +168,8 @@ class ClefSigner(Signer):
         """
         See https://github.com/ethereum/go-ethereum/blob/a32a2b933ad6793a2fe4172cd46c5c5906da259a/signer/core/signed_data.go#L185
         """
+        if isinstance(message, bytes):
+            message = Web3.toHex(message)
         if not content_type:
             content_type = self.DEFAULT_CONTENT_TYPE
         elif content_type not in self.SIGN_DATA_CONTENT_TYPES:
@@ -182,7 +184,7 @@ class ClefSigner(Signer):
         else:
             raise NotImplementedError
 
-        return self.w3.manager.request_blocking("account_signData", [content_type, account, data])
+        return HexBytes(self.w3.manager.request_blocking("account_signData", [content_type, account, data]))
 
     @validate_checksum_address
     def unlock_account(self, account: str, password: str, duration: int = None) -> bool:
