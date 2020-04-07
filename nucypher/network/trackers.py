@@ -199,8 +199,8 @@ class AvailabilityTracker:
         else:
             self.__score = score
 
-        if result is False and reason:
-            self.log.debug(f"Availability check failed; availability score will decrease: {reason}")
+        if (result is False) and reason:
+            self.log.debug(f"Availability check failed; availability score will decrease: {reason['error']}")
         self.log.debug(f"Recorded new availability score ({self.score})")
 
 
