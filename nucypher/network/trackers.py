@@ -2,7 +2,8 @@ import random
 from typing import Union
 
 import maya
-from twisted.internet import reactor
+from twisted.internet import reactor, threads
+from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 
@@ -46,12 +47,15 @@ class AvailabilityTracker:
             9: self.mild_warning,
             7: self.medium_warning,
             2: self.severe_warning,
-            1: self.shutdown_everything  # 0 is unobtainable
+            # 1: self.shutdown_everything  # uncomment to enable auto-shutdown; 0 is unobtainable.
         }
 
         self._start_time = None
-        self.__task = LoopingCall(self.maintain)
-        self.responders = set()
+        self.__task = None
+        self.responders = set()  # track responders that support the endpoint
+        self.__responses = 0     # track all responses
+        self.__round = 0         # track the looping round itself
+        self.__active = None     # track tracking
 
     @property
     def excuses(self):
@@ -69,12 +73,12 @@ class AvailabilityTracker:
                       f'Please check your network and firewall configuration.'
                       f'Auto-shutdown will commence soon if the services do not become available.')
 
-    def shutdown_everything(self, reason=None, halt_reactor=False):
+    def shutdown_everything(self, failure=None, halt_reactor=False):
         self.log.warn(f'[NODE IS UNREACHABLE (SCORE {self.score})] Commencing auto-shutdown sequence...')
         self._ursula.stop(halt_reactor=False)
         try:
-            if reason:
-                raise reason(reason.message)
+            if failure:
+                raise failure(failure.message)
             raise self.Unreachable(f'{self._ursula} is unreachable (scored {self.score}).')
         finally:
             if halt_reactor:
@@ -97,35 +101,56 @@ class AvailabilityTracker:
             self.log.debug(f"Availability check crashed, restarting...")
             self.start(now=True)
 
-    def status(self) -> bool:
-        """Returns current indication of availability"""
+    @property
+    def __threshold(self) -> float:
         threshold = (self.SENSITIVITY * self.MAXIMUM_SCORE)
-        result = self.score > threshold
-        if not result:
-            self.log.info(f'Availability score {self.score} <= threshold ({threshold}); logging current availability issues')
-            for time, reason in self.__excuses.items():
-                self.log.info(f'Availability Issue: [{time}] - {reason["error"]}')
+        return threshold
 
-                # prune excuse once logged
-                del self.__excuses[time]
-
+    def status(self) -> bool:
+        """Returns bool current indication of availability based on sensitivity"""
+        result = self.score > self.__threshold
         return result
+
+    def describe(self):
+        self.log.info(f'Availability score {self.score} <= threshold ({self.__threshold}); logging current availability issues')
+        for time, reason in self.__excuses.items():
+            self.log.info(f'Availability Issue: [{time}] - {reason["error"]}')
+            # prune excuses once logged
+            del self.__excuses[time]
 
     @property
     def running(self) -> bool:
+        if not self.__task:
+            return False
         return self.__task.running
 
-    def start(self, now: bool = False):
+    def __start(self, now=True):
+        self.__task = LoopingCall(self.maintain)
+        task = self.__task.start(interval=self.FAST_INTERVAL, now=now)
+        task.addErrback(self.handle_measurement_errors)
+
+    def start(self, now: bool = True, on_main_thread: bool = False) -> Union[None, Deferred]:
         if not self.running:
             self._start_time = maya.now()
-            d = self.__task.start(interval=self.FAST_INTERVAL, now=now)
-            d.addErrback(self.handle_measurement_errors)
+            if on_main_thread:
+                self.__start(now=now)
+            else:
+                reactor.callFromThread(self.__start, now=now)
 
     def stop(self) -> None:
         if self.running:
             self.__task.stop()
 
     def maintain(self) -> None:
+
+        self.__round += 1
+
+        # one at a time
+        if self.__active:
+            return
+        else:
+            self.__active = True
+
         known_nodes_is_smaller_than_sample_size = len(self._ursula.known_nodes) < self.SAMPLE_SIZE
 
         # If there are no known nodes or too few known nodes, skip this round...
@@ -133,24 +158,27 @@ class AvailabilityTracker:
         if known_nodes_is_smaller_than_sample_size:
             if not self._ursula.lonely and self.enforce_loneliness:
                 now = maya.now().epoch
-                delta = now - self._start_time.epoch
-                if delta >= self.MAXIMUM_ALONE_TIME:
+                uptime = now - self._start_time.epoch
+                if uptime >= self.MAXIMUM_ALONE_TIME:
                     self.severe_warning()
                     reason = self.Solitary if not self._ursula.known_nodes else self.Lonely
-                    self.shutdown_everything(reason=reason)
+                    self.shutdown_everything(failure=reason)
             return
 
         if self.__task.interval == self.FAST_INTERVAL:
             now = maya.now().epoch
-            delta = now - self._start_time.epoch
-            if delta >= self.SEEDING_DURATION:
-                # Slow down
-                self.__task.interval = self.SLOW_INTERVAL
+            uptime = now - self._start_time.epoch
+            if uptime >= self.SEEDING_DURATION:
+                self.__task.interval = self.SLOW_INTERVAL  # Slow down
 
-        self.measure_sample()
+        try:
+            self.__responses += 1
+            self.measure_sample()
+        finally:
+            self.__active = False
 
-        delta = maya.now() - self._start_time
-        self.log.info(f"Current availability score is {self.score} measured since {delta}")
+        uptime = maya.now() - self._start_time
+        self.log.info(f"Current availability score is {self.score} measured since {uptime}")
         self.issue_warnings()
 
     def issue_warnings(self, cascade: bool = True) -> None:
@@ -183,9 +211,8 @@ class AvailabilityTracker:
             self.__score = score
 
         if not result and reason:
-            self.log.info(f"Availability check failed; availability score will decrease: {reason['error']}")
+            self.log.info(f"Availability check failed; availability score decreased: {reason.values()}")
         self.log.debug(f"Recorded new availability score ({self.score})")
-
 
     def measure_sample(self, ursulas: list = None) -> None:
         """
@@ -216,13 +243,13 @@ class AvailabilityTracker:
         """Measure self-availability from a single remote node that participates uptime checks."""
         try:
             response = self._ursula.network_middleware.check_rest_availability(initiator=self._ursula, responder=ursula_or_sprout)
+
         except RestMiddleware.BadRequest as e:
             self.responders.add(ursula_or_sprout.checksum_address)
-            self.record(False, reason={'error': f"{ursula_or_sprout.checksum_address} responded with {e.__class__.__name__} from 'ping' endpoint : {e.reason}."})
+            self.record(False, reason={'result': f"{ursula_or_sprout.checksum_address} cannot reach this node; Reason: {e.reason}."})
+
         else:
-            # Record response
             if response.status_code == 200:
                 self.responders.add(ursula_or_sprout.checksum_address)
                 self.record(True)
-            else:
-                self.log.debug(f"{ursula_or_sprout.checksum_address} returned {response.status_code} from 'ping' endpoint.")
+            self.log.debug(f"{ursula_or_sprout.checksum_address} returned {response.status_code} from 'ping' endpoint.")
