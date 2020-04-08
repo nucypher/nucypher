@@ -296,7 +296,7 @@ class KeyStoreSigner(Signer):
         if self.__account != account:
             return False
 
-        if self.__signer is None:
+        if not self.__signer:
             try:
                 self.__signer = Account.from_key(
                     Account.decrypt(self.__key, password)
@@ -319,6 +319,9 @@ class KeyStoreSigner(Signer):
 
     @validate_checksum_address
     def sign_transaction(self, transaction_dict: dict) -> HexBytes:
+        if not self.__signer:
+            raise ValueError('account is locked')
+
         # Do not include a 'to' field for contract creation.
         if not transaction_dict['to']:
             transaction_dict = dissoc(transaction_dict, 'to')
@@ -331,8 +334,11 @@ class KeyStoreSigner(Signer):
 
     @validate_checksum_address
     def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
+        if not self.__signer:
+            raise ValueError('account is locked')
+
         if self.__account != account:
-            return None
+            raise ValueError(f"account '{account}' is unknown")
 
         signature = self.__signer.sign_message(
                 signable_message=encode_defunct(primitive=message),
