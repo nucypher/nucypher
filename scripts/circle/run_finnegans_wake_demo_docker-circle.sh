@@ -12,8 +12,6 @@ echo "working in directory: $PWD"
 
 # run some ursulas
 docker-compose up -d
-echo "Wait for Ursula learning to occur"
-sleep 30
 
 # Run demo
 echo "Starting Demo"
