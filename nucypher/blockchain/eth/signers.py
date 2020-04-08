@@ -323,7 +323,7 @@ class KeyStoreSigner(Signer):
 
         return Account.sign_transaction(
                 transaction=transaction_dict,
-                key=self._private_key,
+                private_key=self._private_key,
             ).raw
 
     @validate_checksum_address
