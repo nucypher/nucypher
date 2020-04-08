@@ -6,7 +6,7 @@ apipkg==1.5
 attrs==19.3.0
 babel==2.8.0
 bumpversion==0.5.3
-certifi==2019.11.28
+certifi==2020.4.5.1
 cffi==1.14.0
 chardet==3.0.4
 commonmark==0.9.1
@@ -31,11 +31,11 @@ pluggy==0.13.1
 py==1.8.1
 pycparser==2.20
 pygments==2.6.1
-pyparsing==2.4.6
+pyparsing==3.0.0a1
 pytest-cov==2.8.1
 pytest-forked==1.1.3
 pytest-mock==3.0.0
-pytest-mypy==0.6.0
+pytest-mypy==0.6.1
 pytest-twisted==1.12
 pytest-xdist==1.31.0
 pytest==5.4.1
@@ -46,7 +46,7 @@ requests==2.23.0
 six==1.14.0
 snowballstemmer==2.0.0
 sphinx-rtd-theme==0.4.3
-sphinx==2.4.4
+sphinx==3.0.0
 sphinxcontrib-applehelp==1.0.2
 sphinxcontrib-devhelp==1.0.2
 sphinxcontrib-htmlhelp==1.0.3
