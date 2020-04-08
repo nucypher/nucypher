@@ -118,7 +118,7 @@ class Web3Signer(Signer):
 
 class ClefSigner(Signer):
 
-    DEFAULT_IPC_PATH = '~/Library/Signer/clef.ipc' if sys.platform == 'darwin' else '~/.clef/clef.ipc'
+    DEFAULT_IPC_PATH = '~/Library/Signer/clef.ipc' if sys.platform == 'darwin' else '~/.clef/clef.ipc'  #TODO: #1808
 
     SIGN_DATA_FOR_VALIDATOR = 'data/validator'   # a.k.a. EIP 191 version 0
     SIGN_DATA_FOR_CLIQUE = 'application/clique'  # not relevant for us
