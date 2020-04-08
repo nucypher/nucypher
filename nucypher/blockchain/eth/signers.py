@@ -21,7 +21,7 @@ from abc import ABC, abstractmethod
 from typing import List
 from urllib.parse import urlparse
 
-from eth_utils import to_checksum_address, apply_formatters_to_dict
+from eth_utils import is_address, to_checksum_address, apply_formatters_to_dict
 from hexbytes import HexBytes
 from twisted.logger import Logger
 from web3 import Web3, IPCProvider
@@ -261,70 +261,60 @@ class KeyStoreSigner(Signer):
 
     IS_SIGNER_LOCAL = True
 
-    def __init__(self, uri: str):
+    def __init__(self, path: str):
         super().__init__()
 
-        decoded_uri = urlparse(uri)
-        if decoded_uri.scheme not in ('key', 'keystore') or decoded_uri.netloc:
-            raise cls.InvalidSignerURI(uri)
-
-        with open(decoded_uri.path) as file_obj:
+        with open(path) as file_obj:
             key = json.load(file_obj)
 
         address = key['address']
-        if not Web3.isAddress(address):
-            raise ValueError(f"'{decoded_uri.path}' does not contain a valid address")
+        if not is_address(address):
+            raise ValueError(f"'{path}' does not contain a valid address")
 
-        self.key = key
-        self._account = Web3.toChecksumAddress(address)
-        self._signer = None
-
-    def _is_my_account(self, account) -> bool:
-        return Web3.isAddress(account) and \
-            self.account == Web3.toChecksumAddress(account)
+        self.__key = key
+        self.__account = to_checksum_address(address)
+        self.__signer = None
 
     @classmethod
     def from_signer_uri(cls, uri: str) -> 'Signer':
-        return cls(uri)
+        decoded_uri = urlparse(uri)
 
-    @property
-    def account(self) -> str:
-        return self._account
+        if decoded_uri.scheme not in ('key', 'keystore') or decoded_uri.netloc:
+            raise cls.InvalidSignerURI(uri)
+
+        return cls(path=decoded_uri.path)
 
     @validate_checksum_address
     def is_device(self, account: str) -> bool:
         return False
 
     def accounts(self) -> List[str]:
-        return [self.account]
+        return [self.__account]
 
     @validate_checksum_address
     def unlock_account(self, account: str, password: str, duration: int = None) -> bytes:
-        if not self._is_my_account(account):
+        if self.__account != account:
             return False
 
-        if self._signer is None:
+        if self.__signer is None:
             try:
-                self._signer = Account.from_key(
-                    Account.decrypt(self.key, password)
+                self.__signer = Account.from_key(
+                    Account.decrypt(self.__key, password)
                 )
             except ValueError:
                 return False
 
-            if self.account != self._signer.address:
-                raise ValueError("unexpected address '%s' recovered from private key; expected '%s'" % (
-                    self._signer.address,
-                    self.account,
-                ))
+            if self.__account != self.__signer.address:
+                raise ValueError(f"unexpected address '{self.__signer.address}' recovered from private key; expected '{self.__account}'")
 
         return True
 
     @validate_checksum_address
     def lock_account(self, account: str) -> str:
-        if not self._is_my_account(account):
+        if self.__account != account:
             return False
 
-        self._signer = None
+        self.__signer = None
         return True
 
     @validate_checksum_address
@@ -333,15 +323,19 @@ class KeyStoreSigner(Signer):
         if not transaction_dict['to']:
             transaction_dict = dissoc(transaction_dict, 'to')
 
-        return self._signer.sign_transaction(
+        raw_transaction = self.__signer.sign_transaction(
                 transaction=transaction_dict,
             ).raw
 
+        return raw_transaction
+
     @validate_checksum_address
     def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
-        if not self._is_my_account(account):
+        if self.__account != account:
             return None
 
-        return self._signer.sign_message(
+        signature = self.__signer.sign_message(
                 signable_message=encode_defunct(primitive=message),
             )['signature']
+
+        return signature
