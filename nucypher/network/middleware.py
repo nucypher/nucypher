@@ -21,6 +21,8 @@ import ssl
 
 import requests
 import time
+from cryptography.x509 import Certificate
+
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, EXEMPT_FROM_VERIFICATION
 from cryptography import x509
@@ -163,8 +165,14 @@ class RestMiddleware:
     def __init__(self, registry=None):
         self.client = self._client_class(registry)
 
-    def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2,
-                        current_attempt: int = 0):
+    def get_certificate(self,
+                        host: str,
+                        port: int,
+                        timeout: int = 2,
+                        retry_attempts: int = 2,
+                        retry_rate: int = 1,
+                        current_attempt: int = 0
+                        ) -> Certificate:
 
         socket.setdefaulttimeout(timeout)  # Set Socket Timeout
 
@@ -247,7 +255,7 @@ class RestMiddleware:
         response = self.client.post(node_or_sprout=responder,
                                     data=bytes(initiator),
                                     path="ping",
-                                    timeout=6,  # Two round trips are expected
+                                    timeout=10,  # Two round trips with retires on asymmetric unavailability
                                     )
         return response
 
