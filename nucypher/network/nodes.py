@@ -428,8 +428,18 @@ class Learner:
 
     def read_nodes_from_storage(self) -> None:
         stored_nodes = self.node_storage.all(federated_only=self.federated_only)  # TODO: #466
+        domain_inventory = defaultdict(int)
         for node in stored_nodes:
-            self.remember_node(node)
+            node.mature()
+            common_domain = set(self.learning_domains).intersection(set(node.serving_domains))
+            if common_domain:
+                self.remember_node(node)
+            for domain in set(node.serving_domains):
+                domain_inventory[domain] += 1
+
+        primary_learning_domain = list(self.learning_domains)[0]
+        domain_nodes = domain_inventory[primary_learning_domain]
+        self.log.info(f"Loaded {domain_nodes} {primary_learning_domain} nodes from disk ({domain_nodes} / {len(stored_nodes)})")
 
     def remember_node(self,
                       node,
