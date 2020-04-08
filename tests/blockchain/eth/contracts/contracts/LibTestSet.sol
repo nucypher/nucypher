@@ -183,15 +183,29 @@ contract ReEncryptionValidatorMock {
 
     using UmbralDeserializer for bytes;
 
-//    TODO: Test constants when https://github.com/ethereum/solidity/issues/1290 is solved
+    function UMBRAL_PARAMETER_U_SIGN() public pure returns (uint8) {
+        return ReEncryptionValidator.UMBRAL_PARAMETER_U_SIGN;
+    }
 
-//    uint8 public constant UMBRAL_PARAMETER_U_SIGN = ReEncryptionValidator.UMBRAL_PARAMETER_U_SIGN();
-//    uint256 public constant UMBRAL_PARAMETER_U_XCOORD = ReEncryptionValidator.UMBRAL_PARAMETER_U_XCOORD();
-//    uint256 public constant UMBRAL_PARAMETER_U_YCOORD = ReEncryptionValidator.UMBRAL_PARAMETER_U_YCOORD();
+    function UMBRAL_PARAMETER_U_XCOORD() public pure returns (uint256) {
+        return ReEncryptionValidator.UMBRAL_PARAMETER_U_XCOORD;
+    }
 
-//    uint256 constant FIELD_ORDER = ReEncryptionValidator.FIELD_ORDER;
-//    uint256 constant MINUS_2 = ReEncryptionValidator.MINUS_2;
-//    uint256 constant MINUS_ONE_HALF = ReEncryptionValidator.MINUS_ONE_HALF
+    function UMBRAL_PARAMETER_U_YCOORD() public pure returns (uint256) {
+        return ReEncryptionValidator.UMBRAL_PARAMETER_U_YCOORD;
+    }
+
+    function FIELD_ORDER() public pure returns (uint256) {
+        return ReEncryptionValidator.FIELD_ORDER;
+    }
+
+    function MINUS_2() public pure returns (uint256) {
+        return ReEncryptionValidator.MINUS_2;
+    }
+
+    function MINUS_ONE_HALF() public pure returns (uint256) {
+        return ReEncryptionValidator.MINUS_ONE_HALF;
+    }
 
     function validateCFrag(
         bytes memory _capsuleBytes,

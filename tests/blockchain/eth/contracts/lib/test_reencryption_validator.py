@@ -107,8 +107,6 @@ def test_ec_point_operations(testerchain, reencryption_validator):
     assert reencryption_validator.functions.eqAffineJacobian((P + P).to_affine(), P_plus_P).call()
 
 
-# TODO: Find a non-intrusive way of testing constants of a Solidity library #954
-@pytest.mark.skip(reason="no way of testing library constants for the moment")
 def test_umbral_constants(testerchain, reencryption_validator):
     umbral_params = default_params()
     u_xcoord, u_ycoord = umbral_params.u.to_affine()
@@ -116,6 +114,11 @@ def test_umbral_constants(testerchain, reencryption_validator):
     assert u_sign == reencryption_validator.functions.UMBRAL_PARAMETER_U_SIGN().call()
     assert u_xcoord == reencryption_validator.functions.UMBRAL_PARAMETER_U_XCOORD().call()
     assert u_ycoord == reencryption_validator.functions.UMBRAL_PARAMETER_U_YCOORD().call()
+
+    secp256k1_field_order = 2**256 - 0x1000003D1
+    assert secp256k1_field_order == reencryption_validator.functions.FIELD_ORDER().call()
+    assert secp256k1_field_order - 2 == reencryption_validator.functions.MINUS_2().call()
+    assert (secp256k1_field_order - 1) // 2 == reencryption_validator.functions.MINUS_ONE_HALF().call()
 
 
 @pytest.mark.slow
