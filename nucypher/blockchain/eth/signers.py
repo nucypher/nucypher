@@ -276,16 +276,20 @@ class KeyStoreSigner(Signer):
             raise ValueError(f"'{decoded_uri.path}' does not contain a valid address")
 
         self.key = key
-        self.account = Web3.toChecksumAddress(address)
-        self._private_key = None
+        self._account = Web3.toChecksumAddress(address)
+        self._signer = None
+
+    def _is_my_account(self, account) -> bool:
+        return Web3.isAddress(account) and \
+            self.account == Web3.toChecksumAddress(account)
 
     @classmethod
     def from_signer_uri(cls, uri: str) -> 'Signer':
         return cls(uri)
 
-    def _is_my_account(self, account) -> bool:
-        return Web3.isAddress(account) and \
-            self.account == Web3.toChecksumAddress(account)
+    @property
+    def account(self) -> str:
+        return self._account
 
     @validate_checksum_address
     def is_device(self, account: str) -> bool:
@@ -299,11 +303,19 @@ class KeyStoreSigner(Signer):
         if not self._is_my_account(account):
             return False
 
-        if self._private_key is None:
+        if self._signer is None:
             try:
-                self._private_key = Account.decrypt(self.key, password)
+                self._signer = Account.from_key(
+                    Account.decrypt(self.key, password)
+                )
             except ValueError:
                 return False
+
+            if self.account != self._signer.address:
+                raise ValueError("unexpected address '%s' recovered from private key; expected '%s'" % (
+                    self._signer.address,
+                    self.account,
+                ))
 
         return True
 
@@ -312,7 +324,7 @@ class KeyStoreSigner(Signer):
         if not self._is_my_account(account):
             return False
 
-        self._private_key = None
+        self._signer = None
         return True
 
     @validate_checksum_address
@@ -321,9 +333,8 @@ class KeyStoreSigner(Signer):
         if not transaction_dict['to']:
             transaction_dict = dissoc(transaction_dict, 'to')
 
-        return Account.sign_transaction(
+        return self._signer.sign_transaction(
                 transaction=transaction_dict,
-                private_key=self._private_key,
             ).raw
 
     @validate_checksum_address
@@ -331,7 +342,6 @@ class KeyStoreSigner(Signer):
         if not self._is_my_account(account):
             return None
 
-        return Account.sign_message(
+        return self._signer.sign_message(
                 signable_message=encode_defunct(primitive=message),
-                private_key=self._private_key,
             )['signature']
