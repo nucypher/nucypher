@@ -234,13 +234,13 @@ class AvailabilityTracker:
             try:
                 self.measure(ursula_or_sprout=ursula_or_sprout)
             except Unreachable as e:
-                # This node is either not an Ursula, not available, does not support uptime checks, or is not staking...
+                # This node is either not an Ursula, not available, does not support availability checks, or is not staking...
                 # ...do nothing and move on without changing the score.
-                self.log.debug(f"{ursula_or_sprout} responded to uptime check with {str(e).replace('{', '').replace('}', '')}")
+                self.log.debug(f"{ursula_or_sprout} responded to availability check with {str(e).replace('{', '').replace('}', '')}")
                 continue
 
     def measure(self, ursula_or_sprout: Union['Ursula', NodeSprout]) -> None:
-        """Measure self-availability from a single remote node that participates uptime checks."""
+        """Measure self-availability from a single remote node that participates availability checks."""
         try:
             response = self._ursula.network_middleware.check_rest_availability(initiator=self._ursula, responder=ursula_or_sprout)
 

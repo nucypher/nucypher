@@ -136,14 +136,14 @@ def make_rest_app(
             requesting_ursula = Ursula.from_bytes(request.data, registry=this_node.registry)
             requesting_ursula.mature()
         except ValueError:  # (ValueError)
-            return Response({'error': 'Invalid Ursula'}, status=400)
+            return Response(response='Invalid Ursula bytes', status=400)
         else:
             initiator_address, initiator_port = tuple(requesting_ursula.rest_interface)
 
         # Compare requester and posted Ursula information
         request_address = request.environ['REMOTE_ADDR']
         if request_address != initiator_address:
-            return Response({'error': 'Suspicious origin address'}, status=400)
+            return Response(response='Suspicious origin address', status=400)
 
         #
         # Make a Sandwich
@@ -157,13 +157,13 @@ def make_rest_app(
                                                                                            port=initiator_port,
                                                                                            certificate_filepath=certificate_filepath)
         except NodeSeemsToBeDown:
-            return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
+            return Response(response='Unreachable node', status=400)  # ... toasted
 
         # Compare the results of the outer POST with the inner GET... yum
         if requesting_ursula_bytes == request.data:
             return Response(status=200)
         else:
-            return Response({'error': 'Suspicious node'}, status=400)
+            return Response(response='Suspicious node - data mismatch', status=400)
 
     @rest_app.route('/node_metadata', methods=["GET"])
     def all_known_nodes():
