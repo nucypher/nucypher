@@ -22,6 +22,7 @@ import ssl
 import requests
 import time
 from cryptography.x509 import Certificate
+from flask import Response
 
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, EXEMPT_FROM_VERIFICATION
@@ -144,7 +145,11 @@ class NucypherMiddlewareClient:
 
 
 class RestMiddleware:
+
     log = Logger()
+    SOCKET_TIMEOUT = 2  # seconds
+    RETRY_ATTEMPTS = 2
+    RETRY_RATE = 1
 
     _client_class = NucypherMiddlewareClient
 
@@ -165,36 +170,22 @@ class RestMiddleware:
     def __init__(self, registry=None):
         self.client = self._client_class(registry)
 
-    def get_certificate(self,
-                        host: str,
-                        port: int,
-                        timeout: int = 2,
-                        retry_attempts: int = 2,
-                        retry_rate: int = 1,
-                        current_attempt: int = 0
-                        ) -> Certificate:
-
-        socket.setdefaulttimeout(timeout)  # Set Socket Timeout
-
+    def get_certificate(self, host: str, port: int, current_attempt: int = 0) -> Certificate:
+        socket.setdefaulttimeout(self.SOCKET_TIMEOUT)  # Set Socket Timeout
         try:
             self.log.info(f"Fetching seednode {host}:{port} TLS certificate")
             seednode_certificate = ssl.get_server_certificate(addr=(host, port))
-
         except socket.timeout:
-            if current_attempt == retry_attempts:
-                message = f"No Response from seednode {host}:{port} after {retry_attempts} attempts"
-                self.log.info(message)
+            if current_attempt == self.RETRY_ATTEMPTS:
+                self.log.info(f"No Response from seednode {host}:{port} after {self.RETRY_ATTEMPTS} attempts")
                 raise ConnectionRefusedError("No response from {}:{}".format(host, port))
-            self.log.info(f"No Response from seednode {host}:{port}. Retrying in {retry_rate} seconds...")
-            time.sleep(retry_rate)
-            return self.get_certificate(host, port, timeout, retry_attempts, retry_rate, current_attempt + 1)
-
+            self.log.info(f"No Response from seednode {host}:{port}. Retrying in {self.RETRY_RATE} seconds...")
+            time.sleep(self.RETRY_RATE)
+            return self.get_certificate(host=host, port=port, current_attempt=current_attempt + 1)
         except OSError:
             raise  # TODO: #1835
-
         else:
-            certificate = x509.load_pem_x509_certificate(seednode_certificate.encode(),
-                                                         backend=default_backend())
+            certificate = x509.load_pem_x509_certificate(seednode_certificate.encode(), backend=default_backend())
             return certificate
 
     def consider_arrangement(self, arrangement):
@@ -246,17 +237,19 @@ class RestMiddleware:
     def send_work_order_payload_to_ursula(self, work_order):
         payload = work_order.payload()
         id_as_hex = work_order.arrangement_id.hex()
-        return self.client.post(
-            node_or_sprout=work_order.ursula,
-            path=f"kFrag/{id_as_hex}/reencrypt",
-            data=payload, timeout=2)
+        response = self.client.post(node_or_sprout=work_order.ursula,
+                                    path=f"kFrag/{id_as_hex}/reencrypt",
+                                    data=payload,
+                                    timeout=2)
+        return response
 
-    def check_rest_availability(self, initiator, responder):
+    def check_rest_availability(self, initiator, responder) -> Response:
+        # Two round trips with retires on asymmetric unavailability
+        special_timeout = self.SOCKET_TIMEOUT * (self.RETRY_ATTEMPTS+self.RETRY_RATE)
         response = self.client.post(node_or_sprout=responder,
                                     data=bytes(initiator),
                                     path="ping",
-                                    timeout=10,  # Two round trips with retires on asymmetric unavailability
-                                    )
+                                    timeout=20)
         return response
 
     def get_nodes_via_rest(self,

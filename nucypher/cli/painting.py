@@ -139,7 +139,9 @@ def paint_node_status(emitter, ursula, start_time):
 
     if ursula._availability_tracker:
         if ursula._availability_tracker.running:
-            score = 'Availability Score .. {} ({} responders)'.format(ursula._availability_tracker.score, len(ursula._availability_tracker.responders))
+            score = 'Availability Score .. {} ({} responders, round {})'.format(ursula._availability_tracker.score,
+                                                                                len(ursula._availability_tracker.responders),
+                                                                                ursula._availability_tracker.round)
         else:
             score = 'Availability Score .. Disabled'
 
@@ -541,7 +543,7 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
             if not stake.is_active and not paint_inactive:
                 # This stake is inactive.
                 continue
-            rows.append(list(stake.describe().values()))
+            rows.append(list(stake.dump_excuses().values()))
         total_stakers += 1
         emitter.echo(tabulate.tabulate(rows, headers=headers, tablefmt="fancy_grid"))  # newline
 
