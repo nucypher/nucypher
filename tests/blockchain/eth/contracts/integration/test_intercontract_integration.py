@@ -35,12 +35,6 @@ WIND_DOWN_FIELD = 10
 
 DISABLED_FIELD = 5
 
-SECRET_LENGTH = 32
-escrow_secret = os.urandom(SECRET_LENGTH)
-policy_manager_secret = os.urandom(SECRET_LENGTH)
-router_secret = os.urandom(SECRET_LENGTH)
-adjudicator_secret = os.urandom(SECRET_LENGTH)
-
 
 def pytest_namespace():
     return {'escrow_supply': 0,
@@ -86,8 +80,7 @@ def escrow_bare(testerchain, token, token_economics, deploy_contract):
 
 @pytest.fixture(scope='module')
 def escrow_dispatcher(testerchain, escrow_bare, deploy_contract):
-    secret_hash = testerchain.w3.keccak(escrow_secret)
-    dispatcher, _ = deploy_contract('Dispatcher', escrow_bare.address, secret_hash)
+    dispatcher, _ = deploy_contract('Dispatcher', escrow_bare.address)
     return dispatcher
 
 
@@ -109,8 +102,7 @@ def policy_manager_bare(testerchain, escrow, deploy_contract):
 
 @pytest.fixture(scope='module')
 def policy_manager_dispatcher(testerchain, policy_manager_bare, deploy_contract):
-    secret_hash = testerchain.w3.keccak(policy_manager_secret)
-    dispatcher, _ = deploy_contract('Dispatcher', policy_manager_bare.address, secret_hash)
+    dispatcher, _ = deploy_contract('Dispatcher', policy_manager_bare.address)
 
     return dispatcher
 
@@ -140,8 +132,7 @@ def adjudicator_bare(testerchain, token_economics, escrow, deploy_contract):
 
 @pytest.fixture(scope='module')
 def adjudicator_dispatcher(testerchain, adjudicator_bare, deploy_contract):
-    secret_hash = testerchain.w3.keccak(adjudicator_secret)
-    dispatcher, _ = deploy_contract('Dispatcher', adjudicator_bare.address, secret_hash)
+    dispatcher, _ = deploy_contract('Dispatcher', adjudicator_bare.address)
     return dispatcher
 
 
@@ -189,9 +180,7 @@ def staking_interface(testerchain, token, escrow, policy_manager, worklock, depl
 
 @pytest.fixture(scope='module')
 def staking_interface_router(testerchain, staking_interface, deploy_contract):
-    secret_hash = testerchain.w3.keccak(router_secret)
-    router, _ = deploy_contract(
-        'StakingInterfaceRouter', staking_interface.address, secret_hash)
+    router, _ = deploy_contract('StakingInterfaceRouter', staking_interface.address)
     return router
 
 
@@ -931,10 +920,6 @@ def test_upgrading_and_rollback(testerchain,
     contracts_owners = sorted(contracts_owners)
 
     # Upgrade main contracts
-    escrow_secret2 = os.urandom(SECRET_LENGTH)
-    policy_manager_secret2 = os.urandom(SECRET_LENGTH)
-    escrow_secret2_hash = testerchain.w3.keccak(escrow_secret2)
-    policy_manager_secret2_hash = testerchain.w3.keccak(policy_manager_secret2)
     escrow_v1 = escrow.functions.target().call()
     policy_manager_v1 = policy_manager.functions.target().call()
     # Creator deploys the contracts as the second versions
@@ -944,30 +929,23 @@ def test_upgrading_and_rollback(testerchain,
     policy_manager_v2, _ = deploy_contract('PolicyManager', escrow.address)
     # Staker and Alice can't upgrade contracts, only owner can
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow_dispatcher.functions.upgrade(escrow_v2.address, escrow_secret, escrow_secret2_hash) \
-            .transact({'from': alice1})
+        tx = escrow_dispatcher.functions.upgrade(escrow_v2.address).transact({'from': alice1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow_dispatcher.functions.upgrade(escrow_v2.address, escrow_secret, escrow_secret2_hash) \
-            .transact({'from': staker1})
+        tx = escrow_dispatcher.functions.upgrade(escrow_v2.address).transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager_dispatcher.functions \
-            .upgrade(policy_manager_v2.address, policy_manager_secret, policy_manager_secret2_hash) \
-            .transact({'from': alice1})
+        tx = policy_manager_dispatcher.functions.upgrade(policy_manager_v2.address).transact({'from': alice1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager_dispatcher.functions \
-            .upgrade(policy_manager_v2.address, policy_manager_secret, policy_manager_secret2_hash) \
-            .transact({'from': staker1})
+        tx = policy_manager_dispatcher.functions.upgrade(policy_manager_v2.address).transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
     # Prepare transactions to upgrade contracts
-    tx1 = escrow_dispatcher.functions.upgrade(escrow_v2.address, escrow_secret, escrow_secret2_hash)\
-        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
-    tx2 = policy_manager_dispatcher.functions\
-        .upgrade(policy_manager_v2.address, policy_manager_secret, policy_manager_secret2_hash)\
-        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    tx1 = escrow_dispatcher.functions.upgrade(escrow_v2.address).buildTransaction({'from': multisig.address,
+                                                                                   'gasPrice': 0})
+    tx2 = policy_manager_dispatcher.functions.upgrade(policy_manager_v2.address).\
+        buildTransaction({'from': multisig.address, 'gasPrice': 0})
     # Staker and Alice can't sign this transactions
     with pytest.raises((TransactionFailed, ValueError)):
         execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], staker1], tx1)
@@ -985,30 +963,22 @@ def test_upgrading_and_rollback(testerchain,
     assert policy_manager_v2.address == policy_manager.functions.target().call()
 
     # Staker and Alice can't rollback contracts, only owner can
-    escrow_secret3 = os.urandom(SECRET_LENGTH)
-    policy_manager_secret3 = os.urandom(SECRET_LENGTH)
-    escrow_secret3_hash = testerchain.w3.keccak(escrow_secret3)
-    policy_manager_secret3_hash = testerchain.w3.keccak(policy_manager_secret3)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow_dispatcher.functions.rollback(escrow_secret2, escrow_secret3_hash).transact({'from': alice1})
+        tx = escrow_dispatcher.functions.rollback().transact({'from': alice1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow_dispatcher.functions.rollback(escrow_secret2, escrow_secret3_hash).transact({'from': staker1})
+        tx = escrow_dispatcher.functions.rollback().transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager_dispatcher.functions.rollback(policy_manager_secret2, policy_manager_secret3_hash) \
-            .transact({'from': alice1})
+        tx = policy_manager_dispatcher.functions.rollback().transact({'from': alice1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager_dispatcher.functions.rollback(policy_manager_secret2, policy_manager_secret3_hash) \
-            .transact({'from': staker1})
+        tx = policy_manager_dispatcher.functions.rollback().transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
     # Prepare transactions to rollback contracts
-    tx1 = escrow_dispatcher.functions.rollback(escrow_secret2, escrow_secret3_hash) \
-        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
-    tx2 = policy_manager_dispatcher.functions.rollback(policy_manager_secret2, policy_manager_secret3_hash) \
-        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    tx1 = escrow_dispatcher.functions.rollback().buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    tx2 = policy_manager_dispatcher.functions.rollback().buildTransaction({'from': multisig.address, 'gasPrice': 0})
     # Staker and Alice can't sign this transactions
     with pytest.raises((TransactionFailed, ValueError)):
         execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], staker1], tx1)
@@ -1029,23 +999,16 @@ def test_upgrading_and_rollback(testerchain,
     # Deploy the same contract as the second version
     staking_interface_v2, _ = deploy_contract(
         'StakingInterface', token.address, escrow.address, policy_manager.address, worklock.address)
-    router_secret2 = os.urandom(SECRET_LENGTH)
-    router_secret2_hash = testerchain.w3.keccak(router_secret2)
     # Staker and Alice can't upgrade library, only owner can
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = staking_interface_router.functions \
-            .upgrade(staking_interface_v2.address, router_secret, router_secret2_hash) \
-            .transact({'from': alice1})
+        tx = staking_interface_router.functions.upgrade(staking_interface_v2.address).transact({'from': alice1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = staking_interface_router.functions \
-            .upgrade(staking_interface_v2.address, router_secret, router_secret2_hash) \
-            .transact({'from': staker1})
+        tx = staking_interface_router.functions.upgrade(staking_interface_v2.address).transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
     # Prepare transactions to upgrade library
-    tx = staking_interface_router.functions \
-        .upgrade(staking_interface_v2.address, router_secret, router_secret2_hash)\
+    tx = staking_interface_router.functions.upgrade(staking_interface_v2.address)\
         .buildTransaction({'from': multisig.address, 'gasPrice': 0})
     # Staker and Alice can't sign this transactions
     with pytest.raises((TransactionFailed, ValueError)):
@@ -1187,23 +1150,16 @@ def test_upgrading_adjudicator(testerchain,
         'Adjudicator',
         escrow.address,
         *token_economics.slashing_deployment_parameters)
-    adjudicator_secret2 = os.urandom(SECRET_LENGTH)
-    adjudicator_secret2_hash = testerchain.w3.keccak(adjudicator_secret2)
     # Staker and Alice can't upgrade library, only owner can
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = adjudicator_dispatcher.functions \
-            .upgrade(adjudicator_v2.address, adjudicator_secret, adjudicator_secret2_hash) \
-            .transact({'from': alice1})
+        tx = adjudicator_dispatcher.functions.upgrade(adjudicator_v2.address).transact({'from': alice1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = adjudicator_dispatcher.functions \
-            .upgrade(adjudicator_v2.address, adjudicator_secret, adjudicator_secret2_hash) \
-            .transact({'from': staker1})
+        tx = adjudicator_dispatcher.functions.upgrade(adjudicator_v2.address).transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
     # Prepare transactions to upgrade contracts
-    tx = adjudicator_dispatcher.functions\
-        .upgrade(adjudicator_v2.address, adjudicator_secret, adjudicator_secret2_hash) \
+    tx = adjudicator_dispatcher.functions.upgrade(adjudicator_v2.address) \
         .buildTransaction({'from': multisig.address, 'gasPrice': 0})
     # Staker and Alice can't sign this transactions
     with pytest.raises((TransactionFailed, ValueError)):
@@ -1216,20 +1172,15 @@ def test_upgrading_adjudicator(testerchain,
     assert adjudicator_v2.address == adjudicator.functions.target().call()
 
     # Staker and Alice can't rollback contract, only owner can
-    adjudicator_secret3 = os.urandom(SECRET_LENGTH)
-    adjudicator_secret3_hash = testerchain.w3.keccak(adjudicator_secret3)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = adjudicator_dispatcher.functions.rollback(adjudicator_secret2, adjudicator_secret3_hash)\
-            .transact({'from': alice1})
+        tx = adjudicator_dispatcher.functions.rollback().transact({'from': alice1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = adjudicator_dispatcher.functions.rollback(adjudicator_secret2, adjudicator_secret3_hash)\
-            .transact({'from': staker1})
+        tx = adjudicator_dispatcher.functions.rollback().transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
     # Prepare transactions to rollback contracts
-    tx = adjudicator_dispatcher.functions.rollback(adjudicator_secret2, adjudicator_secret3_hash) \
-        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    tx = adjudicator_dispatcher.functions.rollback().buildTransaction({'from': multisig.address, 'gasPrice': 0})
     # Staker and Alice can't sign this transactions
     with pytest.raises((TransactionFailed, ValueError)):
         execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], staker1], tx)

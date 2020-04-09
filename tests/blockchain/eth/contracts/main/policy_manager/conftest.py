@@ -18,10 +18,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 from web3.contract import Contract
-from eth_utils import keccak
-
-
-secret = (123456).to_bytes(32, byteorder='big')
 
 
 @pytest.fixture()
@@ -44,8 +40,7 @@ def policy_manager(testerchain, escrow, request, deploy_contract):
     testerchain.wait_for_receipt(tx)
 
     if request.param:
-        secret_hash = keccak(secret)
-        dispatcher, _ = deploy_contract('Dispatcher', contract.address, secret_hash)
+        dispatcher, _ = deploy_contract('Dispatcher', contract.address)
 
         # Deploy second version of the government contract
         contract = testerchain.client.get_contract(

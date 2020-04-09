@@ -306,9 +306,6 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
     if not contract_name:
         raise click.BadArgumentUsage(message="--contract-name is required when using --upgrade")
 
-    existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True)
-    new_secret = click.prompt('Enter new contract upgrade secret', hide_input=True, confirmation_prompt=True)
-
     if multisig:
         if not target_address:
             raise click.BadArgumentUsage(message="--multisig requires using --target-address.")
@@ -317,8 +314,6 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
                           abort=True)
         transaction = ADMINISTRATOR.retarget_proxy(contract_name=contract_name,
                                                    target_address=target_address,
-                                                   existing_plaintext_secret=existing_secret,
-                                                   new_plaintext_secret=new_secret,
                                                    just_build_transaction=True)
 
         trustee = Trustee(registry=registry, checksum_address=ADMINISTRATOR.deployer_address)
@@ -340,17 +335,13 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
         if not actor_options.force:
             click.confirm(f"Confirm re-target {contract_name}'s proxy to {target_address}?", abort=True)
         receipt = ADMINISTRATOR.retarget_proxy(contract_name=contract_name,
-                                               target_address=target_address,
-                                               existing_plaintext_secret=existing_secret,
-                                               new_plaintext_secret=new_secret)
+                                               target_address=target_address)
         emitter.message(f"Successfully re-targeted {contract_name} proxy to {target_address}", color='green')
         paint_receipt_summary(emitter=emitter, receipt=receipt)
     else:
         if not actor_options.force:
             click.confirm(f"Confirm deploy new version of {contract_name} and retarget proxy?", abort=True)
         receipts = ADMINISTRATOR.upgrade_contract(contract_name=contract_name,
-                                                  existing_plaintext_secret=existing_secret,
-                                                  new_plaintext_secret=new_secret,
                                                   ignore_deployed=ignore_deployed)
         emitter.message(f"Successfully deployed and upgraded {contract_name}", color='green')
         for name, receipt in receipts.items():
@@ -369,11 +360,7 @@ def rollback(general_config, actor_options):
 
     if not actor_options.contract_name:
         raise click.BadArgumentUsage(message="--contract-name is required when using --rollback")
-    existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True)
-    new_secret = click.prompt('Enter new contract upgrade secret', hide_input=True, confirmation_prompt=True)
-    ADMINISTRATOR.rollback_contract(contract_name=actor_options.contract_name,
-                                    existing_plaintext_secret=existing_secret,
-                                    new_plaintext_secret=new_secret)
+    ADMINISTRATOR.rollback_contract(contract_name=actor_options.contract_name)
 
 
 @deploy.command()
@@ -440,24 +427,12 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
 
         # Deploy
         emitter.echo(f"Deploying {contract_name}")
-        if contract_deployer_class._upgradeable and deployment_mode is not BARE:
-            # NOTE: Bare deployments do not engage the proxy contract
-            secret = ADMINISTRATOR.collect_deployment_secret(deployer=contract_deployer_class)
-            receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
-                                                            plaintext_secret=secret,
-                                                            gas_limit=gas,
-                                                            deployment_mode=deployment_mode,
-                                                            ignore_deployed=ignore_deployed,
-                                                            confirmations=confirmations,
-                                                            deployment_parameters=deployment_parameters)
-        else:
-            # Non-Upgradeable or Bare
-            receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
-                                                            gas_limit=gas,
-                                                            deployment_mode=deployment_mode,
-                                                            ignore_deployed=ignore_deployed,
-                                                            confirmations=confirmations,
-                                                            deployment_parameters=deployment_parameters)
+        receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
+                                                        gas_limit=gas,
+                                                        deployment_mode=deployment_mode,
+                                                        ignore_deployed=ignore_deployed,
+                                                        confirmations=confirmations,
+                                                        deployment_parameters=deployment_parameters)
 
         # Report
         paint_contract_deployment(contract_name=contract_name,
@@ -483,7 +458,6 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
         os.remove(local_registry.filepath)
 
     # Stage Deployment
-    secrets = ADMINISTRATOR.collect_deployment_secrets()
     paint_staged_deployment(deployer_interface=deployer_interface, administrator=ADMINISTRATOR, emitter=emitter)
 
     # Confirm Trigger Deployment
@@ -494,8 +468,7 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
     paint_deployment_delay(emitter=emitter)
 
     # Execute Deployment
-    deployment_receipts = ADMINISTRATOR.deploy_network_contracts(secrets=secrets,
-                                                                 emitter=emitter,
+    deployment_receipts = ADMINISTRATOR.deploy_network_contracts(emitter=emitter,
                                                                  interactive=not actor_options.force,
                                                                  etherscan=actor_options.etherscan,
                                                                  ignore_deployed=ignore_deployed)

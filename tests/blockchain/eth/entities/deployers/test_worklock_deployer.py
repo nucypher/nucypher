@@ -17,22 +17,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import pytest
-from eth_utils import keccak
 
-from nucypher.blockchain.economics import StandardTokenEconomics, EconomicsFactory
-from nucypher.blockchain.eth.actors import Staker, Bidder
-from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency, NucypherTokenAgent
+from nucypher.blockchain.economics import EconomicsFactory
+from nucypher.blockchain.eth.agents import WorkLockAgent
 from nucypher.blockchain.eth.constants import WORKLOCK_CONTRACT_NAME
-from nucypher.blockchain.eth.deployers import WorklockDeployer, StakingInterfaceDeployer, AdjudicatorDeployer
-from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.sandbox.constants import STAKING_ESCROW_DEPLOYMENT_SECRET, INSECURE_DEPLOYMENT_SECRET_HASH, \
-    POLICY_MANAGER_DEPLOYMENT_SECRET, INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.blockchain.eth.deployers import WorklockDeployer
 
 
 @pytest.fixture(scope='module')
 def baseline_deployment(adjudicator_deployer):
-    adjudicator_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
+    adjudicator_deployer.deploy()
 
 
 @pytest.fixture(scope="module")

@@ -48,15 +48,6 @@ def click_runner():
 
 
 @pytest.fixture(scope='session')
-def deploy_user_input():
-    account_index = '0\n'
-    yes = 'Y\n'
-    deployment_secret = f'{INSECURE_DEVELOPMENT_PASSWORD}\n'
-    user_input = account_index + yes + (deployment_secret * 8) + 'DEPLOY'
-    return user_input
-
-
-@pytest.fixture(scope='session')
 def nominal_federated_configuration_fields():
     config = UrsulaConfiguration(dev_mode=True, federated_only=True)
     config_fields = config.static_payload()

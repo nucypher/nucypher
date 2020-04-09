@@ -224,10 +224,8 @@ class TesterBlockchain(BlockchainDeployerInterface):
                                          registry=registry, 
                                          economics=economics or cls._default_token_economics,
                                          staking_escrow_test_mode=True)
-        secrets = dict()
-        for deployer_class in deployer.upgradeable_deployer_classes:
-            secrets[deployer_class.contract_name] = INSECURE_DEVELOPMENT_PASSWORD
-        _receipts = deployer.deploy_network_contracts(secrets=secrets, interactive=False)
+
+        _receipts = deployer.deploy_network_contracts(interactive=False)
         return testerchain, registry
 
     @property

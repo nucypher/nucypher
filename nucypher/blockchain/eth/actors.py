@@ -257,27 +257,9 @@ class ContractAdministrator(NucypherTokenActor):
             raise self.UnknownContract(contract_name)
         return Deployer
 
-    @staticmethod
-    def collect_deployment_secret(deployer) -> str:
-        secret = click.prompt(f'Enter {deployer.contract_name} Deployment Secret',
-                              hide_input=True,
-                              confirmation_prompt=True)
-        return secret
-
-    def collect_deployment_secrets(self) -> dict:
-        secrets = dict()
-        for deployer in self.upgradeable_deployer_classes:
-            secrets[deployer.contract_name] = self.collect_deployment_secret(deployer)
-
-        if len(secrets.values()) != len(set(secrets.values())):  # i.e., if there are duplicated secrets
-            raise ValueError("You can't use the same secret for multiple contracts")
-
-        return secrets
-
     def deploy_contract(self,
                         contract_name: str,
                         gas_limit: int = None,
-                        plaintext_secret: str = None,
                         deployment_mode=FULL,
                         ignore_deployed: bool = False,
                         progress=None,
@@ -299,14 +281,7 @@ class ContractAdministrator(NucypherTokenActor):
 
         self.transacting_power.activate()  # Activate the TransactingPower in case too much time has passed
         if Deployer._upgradeable:
-            is_initial_deployment = deployment_mode != BARE  # i.e., we also deploy a dispatcher
-            if is_initial_deployment and not plaintext_secret:
-                raise ValueError("An upgrade secret must be passed to perform initial deployment of a Dispatcher.")
-            secret_hash = None
-            if plaintext_secret:
-                secret_hash = keccak(bytes(plaintext_secret, encoding='utf-8'))
-            receipts = deployer.deploy(secret_hash=secret_hash,
-                                       gas_limit=gas_limit,
+            receipts = deployer.deploy(gas_limit=gas_limit,
                                        progress=progress,
                                        ignore_deployed=ignore_deployed,
                                        confirmations=confirmations,
@@ -322,50 +297,36 @@ class ContractAdministrator(NucypherTokenActor):
 
     def upgrade_contract(self,
                          contract_name: str,
-                         existing_plaintext_secret: str,
-                         new_plaintext_secret: str,
                          ignore_deployed: bool = False
                          ) -> dict:
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
-        new_secret_hash = keccak(bytes(new_plaintext_secret, encoding='utf-8'))
-        receipts = deployer.upgrade(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
-                                    new_secret_hash=new_secret_hash,
-                                    ignore_deployed=ignore_deployed)
+        receipts = deployer.upgrade(ignore_deployed=ignore_deployed)
         return receipts
 
     def retarget_proxy(self,
                        contract_name: str,
                        target_address: str,
-                       existing_plaintext_secret: str,
-                       new_plaintext_secret: str,
                        just_build_transaction: bool = False):
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
-        new_secret_hash = keccak(bytes(new_plaintext_secret, encoding='utf-8'))
         result = deployer.retarget(target_address=target_address,
-                                   existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
-                                   new_secret_hash=new_secret_hash,
                                    just_build_transaction=just_build_transaction)
         return result
 
-    def rollback_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str):
+    def rollback_contract(self, contract_name: str):
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
-        new_secret_hash = keccak(bytes(new_plaintext_secret, encoding='utf-8'))
-        receipts = deployer.rollback(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
-                                     new_secret_hash=new_secret_hash)
+        receipts = deployer.rollback()
         return receipts
 
     def deploy_network_contracts(self,
-                                 secrets: dict,
                                  interactive: bool = True,
                                  emitter: StdoutEmitter = None,
                                  etherscan: bool = False,
                                  ignore_deployed: bool = False) -> dict:
         """
 
-        :param secrets: Contract upgrade secrets dictionary
         :param interactive: If True, wait for keypress after each contract deployment
         :param emitter: A console output emitter instance. If emitter is None, no output will be echoed to the console.
         :param etherscan: Open deployed contracts in Etherscan
@@ -404,7 +365,6 @@ class ContractAdministrator(NucypherTokenActor):
                                                               progress=bar)
                 else:
                     receipts, deployer = self.deploy_contract(contract_name=deployer_class.contract_name,
-                                                              plaintext_secret=secrets[deployer_class.contract_name],
                                                               gas_limit=gas_limit,
                                                               progress=bar,
                                                               ignore_deployed=ignore_deployed)

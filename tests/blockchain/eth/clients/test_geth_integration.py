@@ -67,8 +67,4 @@ def test_geth_deployment_integration(instant_geth_dev_node, test_registry):
     assert int(blockchain.client.chain_id) == 1337
 
     # Deploy
-    secrets = dict()
-    for deployer_class in administrator.upgradeable_deployer_classes:
-        secrets[deployer_class.contract_name] = INSECURE_DEVELOPMENT_PASSWORD
-
-    administrator.deploy_network_contracts(secrets=secrets, interactive=False)
+    administrator.deploy_network_contracts(interactive=False)

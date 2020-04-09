@@ -18,8 +18,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import pytest
-from eth_utils import keccak
-from web3.contract import Contract
 
 from nucypher.blockchain.eth.token import NU
 
@@ -65,7 +63,5 @@ def staking_interface(testerchain, token, escrow, policy_manager, worklock, depl
 
 @pytest.fixture()
 def router(testerchain, staking_interface, deploy_contract):
-    secret = os.urandom(32)
-    secret_hash = keccak(secret)
-    contract, _ = deploy_contract('StakingInterfaceRouter', staking_interface.address, secret_hash)
+    contract, _ = deploy_contract('StakingInterfaceRouter', staking_interface.address)
     return contract

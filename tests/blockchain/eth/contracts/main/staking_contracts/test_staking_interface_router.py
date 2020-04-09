@@ -20,7 +20,6 @@ import os
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import keccak
 from web3.contract import Contract
 from web3.exceptions import BadFunctionCallOutput
 
@@ -35,14 +34,9 @@ def test_upgrading(testerchain, token, deploy_contract, escrow):
         {'from': testerchain.client.coinbase, 'to': owner, 'value': 1})
     testerchain.wait_for_receipt(tx)
 
-    secret = os.urandom(32)
-    secret2 = os.urandom(32)
-    secret_hash = keccak(secret)
-    secret2_hash = keccak(secret2)
-
     interface_v1, _ = deploy_contract('StakingInterfaceMockV1')
     interface_v2, _ = deploy_contract('StakingInterfaceMockV2')
-    router_contract, _ = deploy_contract('StakingInterfaceRouter', interface_v1.address, secret_hash)
+    router_contract, _ = deploy_contract('StakingInterfaceRouter', interface_v1.address)
     staking_contract_contract, _ = deploy_contract('SimpleStakingContract', router_contract.address)
     # Transfer ownership
     tx = staking_contract_contract.functions.transferOwnership(owner).transact({'from': creator})
@@ -77,21 +71,11 @@ def test_upgrading(testerchain, token, deploy_contract, escrow):
 
     # Only creator can update a library
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(interface_v2.address, secret, secret2_hash).transact({'from': owner})
-        testerchain.wait_for_receipt(tx)
-
-    # Creator must know the secret
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(interface_v2.address, secret2, secret2_hash).transact({'from': creator})
-        testerchain.wait_for_receipt(tx)
-
-    # Creator can't use the same secret again because it's insecure
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(interface_v2.address, secret, secret_hash).transact({'from': creator})
+        tx = router_contract.functions.upgrade(interface_v2.address).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
 
     assert interface_v1.address == router_contract.functions.target().call()
-    tx = router_contract.functions.upgrade(interface_v2.address, secret, secret2_hash).transact({'from': creator})
+    tx = router_contract.functions.upgrade(interface_v2.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert interface_v2.address == router_contract.functions.target().call()
 
@@ -115,11 +99,6 @@ def test_interface_selfdestruct(testerchain, token, deploy_contract, escrow):
     creator = testerchain.client.accounts[0]
     account = testerchain.client.accounts[1]
 
-    secret = os.urandom(32)
-    secret_hash = keccak(secret)
-    secret2 = os.urandom(32)
-    secret2_hash = keccak(secret2)
-
     # Deploy interface and destroy it
     interface1, _ = deploy_contract('DestroyableStakingInterface')
     assert 15 == interface1.functions.method().call()
@@ -130,22 +109,22 @@ def test_interface_selfdestruct(testerchain, token, deploy_contract, escrow):
 
     # Can't create router using address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('StakingInterfaceRouter', BlockchainInterface.NULL_ADDRESS, secret_hash)
+        deploy_contract('StakingInterfaceRouter', BlockchainInterface.NULL_ADDRESS)
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('StakingInterfaceRouter', account, secret_hash)
+        deploy_contract('StakingInterfaceRouter', account)
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('StakingInterfaceRouter', interface1.address, secret_hash)
+        deploy_contract('StakingInterfaceRouter', interface1.address)
 
     # Deploy contract again with a router targeting it
     interface2, _ = deploy_contract('DestroyableStakingInterface')
-    router_contract, _ = deploy_contract('StakingInterfaceRouter', interface2.address, secret_hash)
+    router_contract, _ = deploy_contract('StakingInterfaceRouter', interface2.address)
     assert interface2.address == router_contract.functions.target().call()
 
     # Can't create contracts using wrong addresses
     with pytest.raises((TransactionFailed, ValueError)):
         deploy_contract('BaseStakingInterface', token.address, token.address, token.address, token.address)
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('StakingInterfaceRouter', token.address, secret_hash)
+        deploy_contract('StakingInterfaceRouter', token.address)
 
     # Deploy staking contract
     staking_contract, _ = deploy_contract('SimpleStakingContract', router_contract.address)
@@ -157,13 +136,13 @@ def test_interface_selfdestruct(testerchain, token, deploy_contract, escrow):
 
     # Can't upgrade to an address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(BlockchainInterface.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
+        tx = router_contract.functions.upgrade(BlockchainInterface.NULL_ADDRESS).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(account, secret, secret2_hash).transact({'from': creator})
+        tx = router_contract.functions.upgrade(account).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(interface1.address, secret, secret2_hash).transact({'from': creator})
+        tx = router_contract.functions.upgrade(interface1.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     # Destroy library
@@ -175,17 +154,17 @@ def test_interface_selfdestruct(testerchain, token, deploy_contract, escrow):
 
     # Can't upgrade to an address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(BlockchainInterface.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
+        tx = router_contract.functions.upgrade(BlockchainInterface.NULL_ADDRESS).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(account, secret, secret2_hash).transact({'from': creator})
+        tx = router_contract.functions.upgrade(account).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = router_contract.functions.upgrade(interface1.address, secret, secret2_hash).transact({'from': creator})
+        tx = router_contract.functions.upgrade(interface1.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     # Deploy the same contract again and upgrade to this contract
     contract3_lib, _ = deploy_contract('DestroyableStakingInterface')
-    tx = router_contract.functions.upgrade(contract3_lib.address, secret, secret2_hash).transact({'from': creator})
+    tx = router_contract.functions.upgrade(contract3_lib.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 15 == staking_contract_interface.functions.method().call()

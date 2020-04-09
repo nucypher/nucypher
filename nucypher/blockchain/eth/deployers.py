@@ -44,12 +44,13 @@ from nucypher.blockchain.eth.agents import (
     ContractAgency
 )
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME
-from nucypher.blockchain.eth.decorators import validate_secret, validate_checksum_address
+from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import (
     BlockchainDeployerInterface,
     BlockchainInterfaceFactory,
     VersionedContract,
-    BlockchainInterface)
+    BlockchainInterface
+)
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 
@@ -248,7 +249,6 @@ class UpgradeableContractMixin:
         pass
     
     def deploy(self,
-               secret_hash: bytes,
                deployment_mode=FULL,
                gas_limit: int = None,
                progress=None,
@@ -294,8 +294,6 @@ class UpgradeableContractMixin:
 
     def retarget(self,
                  target_address: str,
-                 existing_secret_plaintext: bytes,
-                 new_secret_hash: bytes,
                  gas_limit: int = None,
                  just_build_transaction: bool = False
                  ):
@@ -313,20 +311,14 @@ class UpgradeableContractMixin:
         # 2 - Retarget (or build retarget transaction)
         if just_build_transaction:
             transaction = proxy_deployer.build_retarget_transaction(new_target=target_address,
-                                                                    existing_secret_plaintext=existing_secret_plaintext,
-                                                                    new_secret_hash=new_secret_hash,
                                                                     gas_limit=gas_limit)
             return transaction
         else:
             receipt = proxy_deployer.retarget(new_target=target_address,
-                                              existing_secret_plaintext=existing_secret_plaintext,
-                                              new_secret_hash=new_secret_hash,
                                               gas_limit=gas_limit)
             return receipt
 
     def upgrade(self,
-                existing_secret_plaintext: bytes,
-                new_secret_hash: bytes,
                 gas_limit: int = None,
                 contract_version: str = "latest",
                 ignore_deployed: bool = False,
@@ -354,8 +346,6 @@ class UpgradeableContractMixin:
 
         # 5 - Set the new Dispatcher target
         upgrade_receipt = proxy_deployer.retarget(new_target=new_contract.address,
-                                                  existing_secret_plaintext=existing_secret_plaintext,
-                                                  new_secret_hash=new_secret_hash,
                                                   gas_limit=gas_limit)
 
         # 6 - Respond
@@ -363,7 +353,7 @@ class UpgradeableContractMixin:
         self._contract = wrapped_contract  # Switch the contract for the wrapped one
         return upgrade_transaction
 
-    def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
+    def rollback(self, gas_limit: int = None):
         """
         Execute an existing deployment's proxy contract, engaging the upgrade rollback interfaces,
         modifying the proxy's on-chain contract target to the most recent previous target.
@@ -373,9 +363,7 @@ class UpgradeableContractMixin:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
 
         proxy_deployer = self.get_proxy_deployer()
-        rollback_receipt = proxy_deployer.rollback(existing_secret_plaintext=existing_secret_plaintext,
-                                                   new_secret_hash=new_secret_hash,
-                                                   gas_limit=gas_limit)
+        rollback_receipt = proxy_deployer.rollback(gas_limit=gas_limit)
 
         return rollback_receipt
 
@@ -435,7 +423,6 @@ class ProxyContractDeployer(BaseContractDeployer):
     contract_name = NotImplemented
     deployment_steps = ('contract_deployment',)
     _upgradeable = False
-    _secret_length = 32
 
     def __init__(self, target_contract: Contract, bare: bool = False, *args, **kwargs):
         self.target_contract = target_contract
@@ -445,8 +432,8 @@ class ProxyContractDeployer(BaseContractDeployer):
                                                                 target_address=self.target_contract.address,
                                                                 proxy_name=self.contract_name)
 
-    def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None, confirmations: int = 0,) -> dict:
-        constructor_args = (self.target_contract.address, bytes(secret_hash))
+    def deploy(self, gas_limit: int = None, progress=None, confirmations: int = 0,) -> dict:
+        constructor_args = (self.target_contract.address,)
         proxy_contract, receipt = self.blockchain.deploy_contract(self.deployer_address,
                                                                   self.registry,
                                                                   self.contract_name,
@@ -467,39 +454,32 @@ class ProxyContractDeployer(BaseContractDeployer):
         if new_target == self._contract.address:
             raise self.ContractDeploymentError(f"{self.contract_name} {self._contract.address} cannot target itself.")
 
-    @validate_secret
     def retarget(self,
                  new_target: str,
-                 existing_secret_plaintext: bytes,
-                 new_secret_hash: bytes,
                  gas_limit: int = None) -> dict:
         self._validate_retarget(new_target)
-        upgrade_function = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash)
+        upgrade_function = self._contract.functions.upgrade(new_target)
         upgrade_receipt = self.blockchain.send_transaction(contract_function=upgrade_function,
                                                            sender_address=self.deployer_address,
                                                            transaction_gas_limit=gas_limit)
         return upgrade_receipt
 
-    @validate_secret
     def build_retarget_transaction(self,
                                    new_target: str,
-                                   existing_secret_plaintext: bytes,
-                                   new_secret_hash: bytes,
                                    gas_limit: int = None) -> dict:
         self._validate_retarget(new_target)
-        upgrade_function = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash)
+        upgrade_function = self._contract.functions.upgrade(new_target)
         unsigned_transaction = self.blockchain.build_transaction(contract_function=upgrade_function,
                                                                  sender_address=self.deployer_address,
                                                                  transaction_gas_limit=gas_limit)
         return unsigned_transaction
 
-    @validate_secret
-    def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None) -> dict:
+    def rollback(self, gas_limit: int = None) -> dict:
         origin_args = {}  # TODO: Gas management - #842
         if gas_limit:
             origin_args.update({'gas': gas_limit})
 
-        rollback_function = self._contract.functions.rollback(existing_secret_plaintext, new_secret_hash)
+        rollback_function = self._contract.functions.rollback()
         rollback_receipt = self.blockchain.send_transaction(contract_function=rollback_function,
                                                             sender_address=self.deployer_address,
                                                             payload=origin_args)
@@ -569,7 +549,6 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
     def deploy(self,
                deployment_mode=FULL,
-               secret_hash: bytes = None,
                gas_limit: int = None,
                progress=None,
                contract_version: str = "latest",
@@ -592,10 +571,6 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
         if deployment_mode not in (BARE, IDLE, FULL):
             raise ValueError(f"Invalid deployment mode ({deployment_mode})")
-
-        if deployment_mode is not BARE and not secret_hash:
-            raise ValueError(f"An upgrade secret hash is required to perform an initial"
-                             f" deployment series for {self.contract_name}.")
 
         # Raise if not all-systems-go
         self.check_deployment_readiness(contract_version=contract_version, ignore_deployed=ignore_deployed)
@@ -625,7 +600,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                                                  target_contract=the_escrow_contract,
                                                  deployer_address=self.deployer_address)
 
-        dispatcher_receipts = dispatcher_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+        dispatcher_receipts = dispatcher_deployer.deploy(gas_limit=gas_limit)
         dispatcher_deploy_receipt = dispatcher_receipts[dispatcher_deployer.deployment_steps[0]]
         if progress:
             progress.update(1)
@@ -740,7 +715,6 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
     def deploy(self,
                deployment_mode=FULL,
-               secret_hash: bytes = None,
                gas_limit: int = None,
                progress=None,
                contract_version: str = "latest",
@@ -750,10 +724,6 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
         if deployment_mode not in (BARE, IDLE, FULL):
             raise ValueError(f"Invalid deployment mode ({deployment_mode})")
-
-        if deployment_mode is not BARE and not secret_hash:
-            raise ValueError(f"An upgrade secret hash is required to perform an initial"
-                             f" deployment series for {self.contract_name}.")
 
         self.check_deployment_readiness(contract_version=contract_version, ignore_deployed=ignore_deployed)
 
@@ -775,7 +745,7 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                                               target_contract=policy_manager_contract,
                                               deployer_address=self.deployer_address)
 
-        proxy_deploy_receipt = proxy_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+        proxy_deploy_receipt = proxy_deployer.deploy(gas_limit=gas_limit)
         proxy_deploy_receipt = proxy_deploy_receipt[proxy_deployer.deployment_steps[0]]
         if progress:
             progress.update(1)
@@ -839,7 +809,7 @@ class StakingInterfaceRouterDeployer(OwnableContractMixin, ProxyContractDeployer
     contract_name = 'StakingInterfaceRouter'
 
     # Overwrites rollback method from ProxyContractDeployer since StakingInterfaceRouter doesn't support rollback
-    def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None) -> dict:
+    def rollback(self, gas_limit: int = None) -> dict:
         raise NotImplementedError
 
 
@@ -896,7 +866,6 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
 
     def deploy(self,
                deployment_mode=FULL,
-               secret_hash: bytes = None,
                gas_limit: int = None,
                progress=None,
                contract_version: str = "latest",
@@ -911,9 +880,6 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
         if deployment_mode not in (BARE, IDLE, FULL):
             raise ValueError(f"Invalid deployment mode ({deployment_mode})")
 
-        if deployment_mode is not BARE and not secret_hash:
-            raise ValueError(f"An upgrade secret hash is required to perform an initial"
-                             f" deployment series for {self.contract_name}.")
         self.check_deployment_readiness(contract_version=contract_version, ignore_deployed=ignore_deployed)
 
         # 1 - StakingInterface
@@ -935,7 +901,7 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
                                                deployer_address=self.deployer_address,
                                                target_contract=staking_interface_contract)
 
-        router_deployment_receipts = router_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+        router_deployment_receipts = router_deployer.deploy(gas_limit=gas_limit)
         router_deployment_receipt = router_deployment_receipts[router_deployer.deployment_steps[0]]
         if progress:
             progress.update(1)
@@ -1088,7 +1054,6 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
 
     def deploy(self,
                deployment_mode=FULL,
-               secret_hash: bytes = None,
                gas_limit: int = None,
                progress=None,
                contract_version: str = "latest",
@@ -1097,10 +1062,6 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
 
         if deployment_mode not in (BARE, IDLE, FULL):
             raise ValueError(f"Invalid deployment mode ({deployment_mode})")
-
-        if deployment_mode is not BARE and not secret_hash:
-            raise ValueError(f"An upgrade secret hash is required to perform an initial"
-                             f" deployment series for {self.contract_name}.")
 
         self.check_deployment_readiness(contract_version=contract_version, ignore_deployed=ignore_deployed)
 
@@ -1121,7 +1082,7 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
                                               target_contract=adjudicator_contract,
                                               deployer_address=self.deployer_address)
 
-        proxy_deploy_receipts = proxy_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+        proxy_deploy_receipts = proxy_deployer.deploy(gas_limit=gas_limit)
         proxy_deploy_receipt = proxy_deploy_receipts[proxy_deployer.deployment_steps[0]]
         if progress:
             progress.update(1)

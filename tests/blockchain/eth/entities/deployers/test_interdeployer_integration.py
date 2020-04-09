@@ -61,7 +61,6 @@ def test_deploy_ethereum_contracts(testerchain,
     #
     # StakingEscrow
     #
-    stakers_escrow_secret = os.urandom(DispatcherDeployer._secret_length)
     staking_escrow_deployer = StakingEscrowDeployer(
         registry=test_registry,
         deployer_address=origin)
@@ -71,7 +70,7 @@ def test_deploy_ethereum_contracts(testerchain,
         assert staking_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not staking_escrow_deployer.is_deployed()
 
-    staking_escrow_deployer.deploy(secret_hash=keccak(stakers_escrow_secret), progress=deployment_progress)
+    staking_escrow_deployer.deploy(progress=deployment_progress)
     assert staking_escrow_deployer.is_deployed()
     assert len(staking_escrow_deployer.contract_address) == 42
 
@@ -87,7 +86,6 @@ def test_deploy_ethereum_contracts(testerchain,
     #
     # Policy Manager
     #
-    policy_manager_secret = os.urandom(DispatcherDeployer._secret_length)
     policy_manager_deployer = PolicyManagerDeployer(
         registry=test_registry,
         deployer_address=origin)
@@ -98,7 +96,7 @@ def test_deploy_ethereum_contracts(testerchain,
         assert policy_manager_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not policy_manager_deployer.is_deployed()
 
-    policy_manager_deployer.deploy(secret_hash=keccak(policy_manager_secret), progress=deployment_progress)
+    policy_manager_deployer.deploy(progress=deployment_progress)
     assert policy_manager_deployer.is_deployed()
     assert len(policy_manager_deployer.contract_address) == 42
 
@@ -114,7 +112,6 @@ def test_deploy_ethereum_contracts(testerchain,
     #
     # Adjudicator
     #
-    adjudicator_secret = os.urandom(DispatcherDeployer._secret_length)
     adjudicator_deployer = AdjudicatorDeployer(
         registry=test_registry,
         deployer_address=origin)
@@ -125,7 +122,7 @@ def test_deploy_ethereum_contracts(testerchain,
         assert adjudicator_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not adjudicator_deployer.is_deployed()
 
-    adjudicator_deployer.deploy(secret_hash=keccak(adjudicator_secret), progress=deployment_progress)
+    adjudicator_deployer.deploy(progress=deployment_progress)
     assert adjudicator_deployer.is_deployed()
     assert len(adjudicator_deployer.contract_address) == 42
 

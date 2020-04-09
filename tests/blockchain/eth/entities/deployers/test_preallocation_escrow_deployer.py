@@ -28,11 +28,6 @@ from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer
 )
 from nucypher.crypto.api import keccak_digest
-from nucypher.utilities.sandbox.constants import (
-    STAKING_INTERFACE_DEPLOYMENT_SECRET,
-    INSECURE_DEPLOYMENT_SECRET_PLAINTEXT,
-    INSECURE_DEPLOYMENT_SECRET_HASH
-)
 
 preallocation_escrow_contracts = list()
 NUMBER_OF_PREALLOCATIONS = 50
@@ -51,21 +46,20 @@ def test_staking_interface_deployer(testerchain, deployment_progress, test_regis
     token_deployer.deploy()
 
     staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
-    staking_escrow_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
+    staking_escrow_deployer.deploy()
 
     policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin, registry=test_registry)
-    policy_manager_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
+    policy_manager_deployer.deploy()
 
     adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry)
-    adjudicator_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
+    adjudicator_deployer.deploy()
 
     #
     # Test
     #
 
     staking_interface_deployer = StakingInterfaceDeployer(deployer_address=origin, registry=test_registry)
-    staking_interface_receipts = staking_interface_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH,
-                                                                   progress=deployment_progress)
+    staking_interface_receipts = staking_interface_deployer.deploy(progress=deployment_progress)
 
     # deployment steps must match expected number of steps
     assert deployment_progress.num_steps == len(staking_interface_deployer.deployment_steps) == 2
@@ -105,10 +99,8 @@ def test_deploy_multiple_preallocations(testerchain, test_registry):
 @pytest.mark.slow()
 def test_upgrade_staking_interface(testerchain, test_registry):
 
-    old_secret = INSECURE_DEPLOYMENT_SECRET_PLAINTEXT
-    new_secret = 'new' + STAKING_INTERFACE_DEPLOYMENT_SECRET
-    new_secret_hash = keccak_digest(new_secret.encode())
-    router = testerchain.get_contract_by_name(registry=test_registry, contract_name=StakingInterfaceRouterDeployer.contract_name)
+    router = testerchain.get_contract_by_name(registry=test_registry,
+                                              contract_name=StakingInterfaceRouterDeployer.contract_name)
 
     contract = testerchain.get_contract_by_name(registry=test_registry,
                                                 contract_name=StakingInterfaceDeployer.contract_name,
@@ -121,9 +113,7 @@ def test_upgrade_staking_interface(testerchain, test_registry):
     staking_interface_deployer = StakingInterfaceDeployer(deployer_address=testerchain.etherbase_account,
                                                           registry=test_registry)
 
-    receipts = staking_interface_deployer.upgrade(existing_secret_plaintext=old_secret,
-                                                  new_secret_hash=new_secret_hash,
-                                                  ignore_deployed=True)
+    receipts = staking_interface_deployer.upgrade(ignore_deployed=True)
 
     assert len(receipts) == 2
 

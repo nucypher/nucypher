@@ -20,8 +20,6 @@ import os
 import pytest
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.deployers import DispatcherDeployer
-from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
@@ -40,9 +38,7 @@ def adjudicator(testerchain, escrow, request, token_economics, deploy_contract):
         *token_economics.slashing_deployment_parameters)
 
     if request.param:
-        secret = os.urandom(DispatcherDeployer._secret_length)
-        secret_hash = testerchain.w3.keccak(secret)
-        dispatcher, _ = deploy_contract('Dispatcher', contract.address, secret_hash)
+        dispatcher, _ = deploy_contract('Dispatcher', contract.address)
 
         # Deploy second version of the government contract
         contract = testerchain.client.get_contract(
