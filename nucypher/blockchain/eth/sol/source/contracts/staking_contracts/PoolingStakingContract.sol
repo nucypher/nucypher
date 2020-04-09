@@ -15,6 +15,7 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
     event TokensDeposited(address indexed sender, uint256 value, uint256 depositedTokens);
     event TokensWithdrawn(address indexed sender, uint256 value, uint256 depositedTokens);
     event ETHWithdrawn(address indexed sender, uint256 value);
+    event DepositSet(address indexed sender, bool value);
 
     struct Delegator {
         uint256 depositedTokens;
@@ -22,7 +23,8 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
         uint256 withdrawnETH;
     }
 
-    StakingEscrow public escrow;
+    StakingEscrow public immutable escrow;
+
     uint256 public totalDepositedTokens;
     uint256 public totalWithdrawnReward;
     uint256 public totalWithdrawnETH;
@@ -32,6 +34,7 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
     uint256 public ownerWithdrawnETH;
 
     mapping (address => Delegator) public delegators;
+    bool depositIsEnabled = true;
 
     /**
     * @param _router Address of the StakingInterfaceRouter contract
@@ -48,10 +51,27 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
     }
 
     /**
+    * @notice Enabled deposit
+    */
+    function enableDeposit() external onlyOwner {
+        depositIsEnabled = true;
+        emit DepositSet(msg.sender, depositIsEnabled);
+    }
+
+    /**
+    * @notice Disable deposit
+    */
+    function disableDeposit() external onlyOwner {
+        depositIsEnabled = false;
+        emit DepositSet(msg.sender, depositIsEnabled);
+    }
+
+    /**
     * @notice Transfer tokens as delegator
     * @param _value Amount of tokens to transfer
     */
     function depositTokens(uint256 _value) external {
+        require(depositIsEnabled, "Deposit must be enabled");
         require(_value > 0, "Value must be not empty");
         totalDepositedTokens = totalDepositedTokens.add(_value);
         Delegator storage delegator = delegators[msg.sender];

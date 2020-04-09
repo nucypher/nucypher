@@ -102,6 +102,41 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     assert pooling_contract.functions.getAvailableOwnerReward().call() == 0
     assert pooling_contract.functions.getAvailableReward().call() == 0
 
+    # Disable deposit
+    log = pooling_contract.events.DepositSet.createFilter(fromBlock='latest')
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = pooling_contract.functions.disableDeposit().transact({'from': delegators[0]})
+        testerchain.wait_for_receipt(tx)
+    tx = pooling_contract.functions.disableDeposit().transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    events = log.get_all_entries()
+    assert len(events) == 1
+    event_args = events[-1]['args']
+    assert event_args['sender'] == owner
+    assert not event_args['value']
+
+    delegator = delegators[0]
+    tokens = token.functions.balanceOf(delegator).call()
+    tx = token.functions.approve(pooling_contract.address, tokens).transact({'from': delegator})
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = pooling_contract.functions.depositTokens(tokens).transact({'from': delegator})
+        testerchain.wait_for_receipt(tx)
+    tx = token.functions.approve(pooling_contract.address, 0).transact({'from': delegator})
+    testerchain.wait_for_receipt(tx)
+
+    # Enable deposit
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = pooling_contract.functions.enableDeposit().transact({'from': delegators[0]})
+        testerchain.wait_for_receipt(tx)
+    tx = pooling_contract.functions.enableDeposit().transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    events = log.get_all_entries()
+    assert len(events) == 2
+    event_args = events[-1]['args']
+    assert event_args['sender'] == owner
+    assert event_args['value']
+
     # Delegators deposit tokens to the pooling contract again
     for index, delegator in enumerate(delegators):
         tokens = token.functions.balanceOf(delegator).call()
@@ -409,3 +444,5 @@ def test_reentrancy(testerchain, pooling_contract, token, deploy_contract):
         tx = testerchain.client.send_transaction({'to': contract_address})
         testerchain.wait_for_receipt(tx)
     assert testerchain.w3.eth.getBalance(contract_address) == balance
+
+    # TODO reentrancy test for owner
