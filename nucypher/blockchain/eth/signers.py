@@ -342,6 +342,6 @@ class KeyStoreSigner(Signer):
 
         signature = self.__signer.sign_message(
                 signable_message=encode_defunct(primitive=message),
-            )['signature']
+            ).signature
 
         return signature
