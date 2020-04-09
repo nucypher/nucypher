@@ -328,7 +328,7 @@ class KeyStoreSigner(Signer):
 
         raw_transaction = self.__signer.sign_transaction(
                 transaction=transaction_dict,
-            ).raw
+            ).rawTransaction
 
         return raw_transaction
 
