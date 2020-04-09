@@ -13,53 +13,38 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
     using SafeMath for uint256;
 
     event TokensDeposited(address indexed sender, uint256 value, uint256 depositedTokens);
-    event TokensWithdrawn(address indexed sender, uint256 value);
+    event TokensWithdrawn(address indexed sender, uint256 value, uint256 depositedTokens);
     event ETHWithdrawn(address indexed sender, uint256 value);
-    event ShareTransferred(address indexed previousOwner, address indexed newOwner, uint256 depositedTokens);
 
     struct Delegator {
         uint256 depositedTokens;
-        uint256 withdrawnTokens;
+        uint256 withdrawnReward;
         uint256 withdrawnETH;
     }
 
+    StakingEscrow public escrow;
     uint256 public totalDepositedTokens;
-    uint256 public totalWithdrawnTokens;
+    uint256 public totalWithdrawnReward;
     uint256 public totalWithdrawnETH;
+
+    uint256 public ownerFraction;
+    uint256 public ownerWithdrawnReward;
+    uint256 public ownerWithdrawnETH;
 
     mapping (address => Delegator) public delegators;
 
     /**
     * @param _router Address of the StakingInterfaceRouter contract
-    * @param _ownerReward Base owner's portion of reward
+    * @param _ownerFraction Base owner's portion of reward
     */
     constructor(
         StakingInterfaceRouter _router,
-        uint256 _ownerReward
+        uint256 _ownerFraction
     )
         public AbstractStakingContract(_router)
     {
-        totalDepositedTokens = _ownerReward;
-        Delegator storage delegator = delegators[msg.sender];
-        delegator.depositedTokens = _ownerReward;
-    }
-
-    /**
-    * @notice Transfer ownership and right to get reward to the new owner
-    */
-    function transferOwnership(address _newOwner) public override onlyOwner {
-        Delegator storage ownerInfo = delegators[owner()];
-        Delegator storage newOwnerInfo = delegators[_newOwner];
-
-        newOwnerInfo.depositedTokens = newOwnerInfo.depositedTokens.add(ownerInfo.depositedTokens);
-        newOwnerInfo.withdrawnTokens = newOwnerInfo.withdrawnTokens.add(ownerInfo.withdrawnTokens);
-        newOwnerInfo.withdrawnETH = newOwnerInfo.withdrawnETH.add(ownerInfo.withdrawnETH);
-        emit ShareTransferred(owner(), _newOwner, ownerInfo.depositedTokens);
-
-        ownerInfo.depositedTokens = 0;
-        ownerInfo.withdrawnTokens = 0;
-        ownerInfo.withdrawnETH = 0;
-        super.transferOwnership(_newOwner);
+        escrow = _router.target().escrow();
+        ownerFraction = _ownerFraction;
     }
 
     /**
@@ -70,25 +55,79 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
         require(_value > 0, "Value must be not empty");
         totalDepositedTokens = totalDepositedTokens.add(_value);
         Delegator storage delegator = delegators[msg.sender];
-        delegator.depositedTokens = delegator.depositedTokens.add(_value);
+        delegator.depositedTokens += _value;
         token.safeTransferFrom(msg.sender, address(this), _value);
         emit TokensDeposited(msg.sender, _value, delegator.depositedTokens);
     }
 
     /**
-    * @notice Get available tokens for delegator
+    * @notice Get available reward for all delegators and owner
     */
-    function getAvailableTokens(address _delegator) public view returns (uint256) {
-        Delegator storage delegator = delegators[_delegator];
-        uint256 tokens = token.balanceOf(address(this));
-        uint256 maxAllowableTokens = tokens.add(totalWithdrawnTokens).mul(delegator.depositedTokens).div(totalDepositedTokens);
-
-        uint256 availableTokens = maxAllowableTokens.sub(delegator.withdrawnTokens);
-        // TODO maybe return full value even if it's more than contract balance?
-        if (availableTokens > tokens) {
-            availableTokens = tokens;
+    function getAvailableReward() public view returns (uint256) {
+        uint256 stakedTokens = escrow.getAllTokens(address(this));
+        uint256 freeTokens = token.balanceOf(address(this));
+        uint256 reward = stakedTokens + freeTokens - totalDepositedTokens;
+        if (reward > freeTokens) {
+            return freeTokens;
         }
-        return availableTokens;
+        return reward;
+    }
+
+    /**
+    * @notice Get cumulative reward
+    */
+    function getCumulativeReward() public view returns (uint256) {
+        return getAvailableReward().add(totalWithdrawnReward);
+    }
+
+    /**
+    * @notice Get available reward in tokens for pool owner
+    */
+    function getAvailableOwnerReward() public view returns (uint256) {
+        uint256 reward = getCumulativeReward();
+
+        uint256 maxAllowableReward;
+        if (totalDepositedTokens != 0) {
+            maxAllowableReward = reward.mul(ownerFraction).div(totalDepositedTokens.add(ownerFraction));
+        } else {
+            maxAllowableReward = reward;
+        }
+
+        return maxAllowableReward.sub(ownerWithdrawnReward);
+    }
+
+    /**
+    * @notice Get available reward in tokens for delegator
+    */
+    function getAvailableReward(address _delegator) public view returns (uint256) {
+        if (totalDepositedTokens == 0) {
+            return 0;
+        }
+
+        uint256 reward = getCumulativeReward();
+        Delegator storage delegator = delegators[_delegator];
+        uint256 maxAllowableReward = reward.mul(delegator.depositedTokens)
+            .div(totalDepositedTokens.add(ownerFraction));
+
+        return maxAllowableReward > delegator.withdrawnReward ? maxAllowableReward - delegator.withdrawnReward : 0;
+    }
+
+    /**
+    * @notice Withdraw reward in tokens to owner
+    */
+    function withdrawOwnerReward() public onlyOwner {
+        uint256 balance = token.balanceOf(address(this));
+        uint256 availableReward = getAvailableOwnerReward();
+
+        if (availableReward > balance) {
+            availableReward = balance;
+        }
+        require(availableReward > 0, "There is no available reward to withdraw");
+        ownerWithdrawnReward  = ownerWithdrawnReward.add(availableReward);
+        totalWithdrawnReward = totalWithdrawnReward.add(availableReward);
+
+        token.safeTransfer(msg.sender, availableReward);
+        emit TokensWithdrawn(msg.sender, availableReward, 0);
     }
 
     /**
@@ -96,16 +135,52 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
     * @param _value Amount of tokens to withdraw
     */
     function withdrawTokens(uint256 _value) public override {
-        uint256 availableTokens = getAvailableTokens(msg.sender);
-        require(_value <= availableTokens, "Requested amount of tokens exceeded allowed portion");
+        uint256 balance = token.balanceOf(address(this));
+        require(_value <= balance, "Not enough tokens in the contract");
+
+        uint256 availableReward = getAvailableReward(msg.sender);
 
         Delegator storage delegator = delegators[msg.sender];
-        delegator.withdrawnTokens = delegator.withdrawnTokens.add(_value);
+        require(_value <= availableReward + delegator.depositedTokens,
+            "Requested amount of tokens exceeded allowed portion");
 
-        // TODO fix this
-        totalWithdrawnTokens = totalWithdrawnTokens.add(_value);
+        if (_value <= availableReward) {
+            delegator.withdrawnReward += _value;
+            totalWithdrawnReward += _value;
+        } else {
+            delegator.withdrawnReward = delegator.withdrawnReward.add(availableReward);
+            totalWithdrawnReward = totalWithdrawnReward.add(availableReward);
+
+            uint256 depositToWithdraw = _value - availableReward;
+            uint256 newDepositedTokens = delegator.depositedTokens - depositToWithdraw;
+            uint256 newWithdrawnReward = delegator.withdrawnReward.mul(newDepositedTokens).div(delegator.depositedTokens);
+            uint256 newWithdrawnETH = delegator.withdrawnETH.mul(newDepositedTokens).div(delegator.depositedTokens);
+            totalDepositedTokens -= depositToWithdraw;
+            totalWithdrawnReward -= (delegator.withdrawnReward - newWithdrawnReward);
+            totalWithdrawnETH -= (delegator.withdrawnETH - newWithdrawnETH);
+            delegator.depositedTokens = newDepositedTokens;
+            delegator.withdrawnReward = newWithdrawnReward;
+            delegator.withdrawnETH = delegator.withdrawnETH.mul(newDepositedTokens).div(delegator.depositedTokens);
+        }
+
         token.safeTransfer(msg.sender, _value);
-        emit TokensWithdrawn(msg.sender, _value);
+        emit TokensWithdrawn(msg.sender, _value, delegator.depositedTokens);
+    }
+
+    /**
+    * @notice Get available ether for owner
+    */
+    function getAvailableOwnerETH() public view returns (uint256) {
+        // TODO boilerplate code
+        uint256 balance = address(this).balance;
+        balance = balance.add(totalWithdrawnETH);
+        uint256 maxAllowableETH = balance.mul(ownerFraction).div(totalDepositedTokens.add(ownerFraction));
+
+        uint256 availableETH = maxAllowableETH.sub(ownerWithdrawnETH);
+        if (availableETH > balance) {
+            availableETH = balance;
+        }
+        return availableETH;
     }
 
     /**
@@ -113,14 +188,31 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
     */
     function getAvailableETH(address _delegator) public view returns (uint256) {
         Delegator storage delegator = delegators[_delegator];
+        // TODO boilerplate code
         uint256 balance = address(this).balance;
-        uint256 maxAllowableETH = balance.add(totalWithdrawnETH).mul(delegator.depositedTokens).div(totalDepositedTokens);
+        balance = balance.add(totalWithdrawnETH);
+        uint256 maxAllowableETH = balance.mul(delegator.depositedTokens)
+            .div(totalDepositedTokens.add(ownerFraction));
 
         uint256 availableETH = maxAllowableETH.sub(delegator.withdrawnETH);
         if (availableETH > balance) {
             availableETH = balance;
         }
         return availableETH;
+    }
+
+    /**
+    * @notice Withdraw available amount of ETH to delegator
+    */
+    function withdrawOwnerETH() public onlyOwner {
+        uint256 availableETH = getAvailableOwnerETH();
+        require(availableETH > 0, "There is no available ETH to withdraw");
+
+        ownerWithdrawnETH = ownerWithdrawnETH.add(availableETH);
+        totalWithdrawnETH = totalWithdrawnETH.add(availableETH);
+
+        msg.sender.sendValue(availableETH);
+        emit ETHWithdrawn(msg.sender, availableETH);
     }
 
     /**
