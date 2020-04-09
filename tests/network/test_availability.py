@@ -42,15 +42,15 @@ def test_availability_tracker_success(blockchain_ursulas):
         assert tracker.status() == (tracker.score > (tracker.SENSITIVITY * tracker.MAXIMUM_SCORE))
         assert not tracker.status()
 
-        original_issuer = AvailabilityTracker.issue_warnings
+        original_issuer = AvailabilityTracker.issue_alerts
         warnings = dict()
         def issue_warnings(tracker, *args, **kwargs):
             result = original_issuer(tracker, *args, **kwargs)
             warnings[tracker.score] = result
-        AvailabilityTracker.issue_warnings = issue_warnings
+        AvailabilityTracker.issue_alerts = issue_warnings
         tracker.maintain()
         assert warnings
-        AvailabilityTracker.issue_warnings = original_issuer
+        AvailabilityTracker.issue_alerts = original_issuer
 
         # to keep this test fast, were just checking for a single entry
         # (technically there will be 10, but resolution is one second.)

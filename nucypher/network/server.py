@@ -134,16 +134,16 @@ def make_rest_app(
 
         try:
             requesting_ursula = Ursula.from_bytes(request.data, registry=this_node.registry)
-            requesting_ursula.mature()
-        except ValueError:  # (ValueError)
-            return Response(response='Invalid Ursula bytes', status=400)
+        except ValueError:
+            return Response(response='Invalid initiator metadata', status=400)
         else:
+            requesting_ursula.mature()
             initiator_address, initiator_port = tuple(requesting_ursula.rest_interface)
 
         # Compare requester and posted Ursula information
         request_address = request.environ['REMOTE_ADDR']
         if request_address != initiator_address:
-            return Response(response='Suspicious origin address', status=400)
+            return Response(response='Initiator metadata and request address mismatch.', status=400)
 
         #
         # Make a Sandwich
@@ -157,13 +157,13 @@ def make_rest_app(
                                                                                            port=initiator_port,
                                                                                            certificate_filepath=certificate_filepath)
         except NodeSeemsToBeDown:
-            return Response(response='Unreachable node', status=400)  # ... toasted
+            return Response(response='Unreachable initiator', status=400)  # ... toasted
 
         # Compare the results of the outer POST with the inner GET... yum
         if requesting_ursula_bytes == request.data:
             return Response(status=200)
         else:
-            return Response(response='Suspicious node - data mismatch', status=400)
+            return Response(response='Inconsistent initiator metadata', status=400)
 
     @rest_app.route('/node_metadata', methods=["GET"])
     def all_known_nodes():
@@ -188,8 +188,7 @@ def make_rest_app(
             signature = this_node.stamp(payload)
             return Response(bytes(signature) + payload, headers=headers)
 
-        sprouts = _node_class.batch_from_bytes(request.data,
-                                             registry=this_node.registry)
+        sprouts = _node_class.batch_from_bytes(request.data, registry=this_node.registry)
 
         # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.
         # Let's find a better way.  #555
