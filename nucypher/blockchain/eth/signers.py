@@ -1,3 +1,4 @@
+import sys
 from abc import ABC, abstractmethod
 from typing import List
 from urllib.parse import urlparse
@@ -117,7 +118,7 @@ class Web3Signer(Signer):
 
 class ClefSigner(Signer):
 
-    DEFAULT_IPC_PATH = '~/.clef/clef.ipc'
+    DEFAULT_IPC_PATH = '~/Library/Signer/clef.ipc' if sys.platform == 'darwin' else '~/.clef/clef.ipc'  #TODO: #1808
 
     SIGN_DATA_FOR_VALIDATOR = 'data/validator'   # a.k.a. EIP 191 version 0
     SIGN_DATA_FOR_CLIQUE = 'application/clique'  # not relevant for us
@@ -164,10 +165,12 @@ class ClefSigner(Signer):
         return HexBytes(signed.raw)
 
     @validate_checksum_address
-    def sign_message(self, account: str, message: bytes, content_type: str = None, validator_address: str = None, **kwargs) -> str:
+    def sign_message(self, account: str, message: bytes, content_type: str = None, validator_address: str = None, **kwargs) -> HexBytes:
         """
         See https://github.com/ethereum/go-ethereum/blob/a32a2b933ad6793a2fe4172cd46c5c5906da259a/signer/core/signed_data.go#L185
         """
+        if isinstance(message, bytes):
+            message = Web3.toHex(message)
         if not content_type:
             content_type = self.DEFAULT_CONTENT_TYPE
         elif content_type not in self.SIGN_DATA_CONTENT_TYPES:
@@ -182,7 +185,7 @@ class ClefSigner(Signer):
         else:
             raise NotImplementedError
 
-        return self.w3.manager.request_blocking("account_signData", [content_type, account, data])
+        return HexBytes(self.w3.manager.request_blocking("account_signData", [content_type, account, data]))
 
     @validate_checksum_address
     def unlock_account(self, account: str, password: str, duration: int = None) -> bool:
