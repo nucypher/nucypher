@@ -12,29 +12,22 @@ import "contracts/staking_contracts/StakingInterface.sol";
 */
 contract StakingInterfaceRouter is Ownable {
     BaseStakingInterface public target;
-    bytes32 public secretHash;
 
     /**
     * @param _target Address of the interface contract
-    * @param _newSecretHash Secret hash (keccak256)
     */
-    constructor(BaseStakingInterface _target, bytes32 _newSecretHash) public {
+    constructor(BaseStakingInterface _target) public {
         require(address(_target.token()) != address(0));
         target = _target;
-        secretHash = _newSecretHash;
     }
 
     /**
     * @notice Upgrade interface
     * @param _target New contract address
-    * @param _secret Secret for proof of contract owning
-    * @param _newSecretHash New secret hash (keccak256)
     */
-    function upgrade(BaseStakingInterface _target, bytes calldata _secret, bytes32 _newSecretHash) external onlyOwner {
+    function upgrade(BaseStakingInterface _target) external onlyOwner {
         require(address(_target.token()) != address(0));
-        require(keccak256(_secret) == secretHash && _newSecretHash != secretHash);
         target = _target;
-        secretHash = _newSecretHash;
     }
 
 }
