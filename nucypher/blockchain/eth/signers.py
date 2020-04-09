@@ -27,6 +27,7 @@ from twisted.logger import Logger
 from web3 import Web3, IPCProvider
 from eth_account import Account
 from eth_account.messages import encode_defunct
+from cytoolz.dicttoolz import dissoc
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -292,7 +293,7 @@ class KeyStoreSigner(Signer):
         return [self.__account]
 
     @validate_checksum_address
-    def unlock_account(self, account: str, password: str, duration: int = None) -> bytes:
+    def unlock_account(self, account: str, password: str, duration: int = None) -> bool:
         if self.__account != account:
             return False
 
@@ -310,7 +311,7 @@ class KeyStoreSigner(Signer):
         return True
 
     @validate_checksum_address
-    def lock_account(self, account: str) -> str:
+    def lock_account(self, account: str) -> bool:
         if self.__account != account:
             return False
 
@@ -327,7 +328,7 @@ class KeyStoreSigner(Signer):
             transaction_dict = dissoc(transaction_dict, 'to')
 
         raw_transaction = self.__signer.sign_transaction(
-                transaction=transaction_dict,
+                transaction_dict=transaction_dict,
             ).rawTransaction
 
         return raw_transaction
