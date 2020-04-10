@@ -20,7 +20,7 @@ Initialize Alice and Bob
 ------------------------
 .. code::
 
-    (nucypher)$ nucypher alice init --provider <YOUR PROVIDER URI> --poa
+    (nucypher)$ nucypher alice init --provider <YOUR PROVIDER URI>
 
     (nucypher)$ nucypher bob init --provider <YOUR PROVIDER URI>
 

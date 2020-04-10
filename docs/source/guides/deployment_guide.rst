@@ -23,7 +23,7 @@ Additional flags can be set up to increase the block gas limit.
 
 .. code:: bash
 
-    (nucypher)$ nucypher-deploy contracts --provider ipc:///tmp/geth.ipc --poa
+    (nucypher)$ nucypher-deploy contracts --provider ipc:///tmp/geth.ipc
     ...
 
 This will deploy the main NuCypher contracts, namely ``NuCypherToken``, ``StakingEscrow``, ``PolicyManager`` and ``Adjudicator``,
