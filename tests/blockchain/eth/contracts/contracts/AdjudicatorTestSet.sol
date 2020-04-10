@@ -1,4 +1,4 @@
-pragma solidity ^0.6.1;
+pragma solidity ^0.6.5;
 
 
 import "contracts/Adjudicator.sol";
@@ -12,7 +12,7 @@ import "contracts/proxy/Upgradeable.sol";
 */
 contract StakingEscrowForAdjudicatorMock {
 
-    uint32 public secondsPerPeriod = 1;
+    uint32 public immutable secondsPerPeriod = 1;
     mapping (address => uint256) public stakerInfo;
     mapping (address => uint256) public rewardInfo;
     mapping (address => address) public workerToStaker;
@@ -53,12 +53,6 @@ contract StakingEscrowForAdjudicatorMock {
 */
 contract AdjudicatorBad is Upgradeable {
 
-    StakingEscrow public escrow;
-    SignatureVerifier.HashAlgorithm public hashAlgorithm;
-    uint256 public basePenalty;
-    uint256 public penaltyHistoryCoefficient;
-    uint256 public percentagePenalty;
-    uint256 public rewardCoefficient;
     mapping (bytes32 => bool) public evaluatedCFrags;
     mapping (address => uint256) public penaltyHistory;
 

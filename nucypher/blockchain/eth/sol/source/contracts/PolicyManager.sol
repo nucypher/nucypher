@@ -1,4 +1,4 @@
-pragma solidity ^0.6.1;
+pragma solidity ^0.6.5;
 
 
 import "zeppelin/token/ERC20/SafeERC20.sol";
@@ -14,7 +14,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 /**
 * @notice Contract holds policy data and locks fees
-* @dev |v2.2.1|
+* @dev |v3.1.1|
 */
 contract PolicyManager is Upgradeable {
     using SafeERC20 for NuCypherToken;
@@ -97,8 +97,9 @@ contract PolicyManager is Upgradeable {
     // controlled overflow to get max int256
     int256 public constant DEFAULT_REWARD_DELTA = int256((uint256(0) - 1) >> 1);
 
-    StakingEscrow public escrow;
-    uint32 public secondsPerPeriod;
+    StakingEscrow public immutable escrow;
+    uint32 public immutable secondsPerPeriod;
+
     mapping (bytes16 => Policy) public policies;
     mapping (address => NodeInfo) public nodes;
     Range public minRewardRateRange;
@@ -109,8 +110,9 @@ contract PolicyManager is Upgradeable {
     */
     constructor(StakingEscrow _escrow) public {
         // if the input address is not the StakingEscrow then calling `secondsPerPeriod` will throw error
-        secondsPerPeriod = _escrow.secondsPerPeriod();
-        require(secondsPerPeriod > 0);
+        uint32 localSecondsPerPeriod = _escrow.secondsPerPeriod();
+        require(localSecondsPerPeriod > 0);
+        secondsPerPeriod = localSecondsPerPeriod;
         escrow = _escrow;
     }
 
@@ -694,8 +696,6 @@ contract PolicyManager is Upgradeable {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-        require(address(delegateGet(_testTarget, this.escrow.selector)) == address(escrow));
-        require(uint32(delegateGet(_testTarget, this.secondsPerPeriod.selector)) == secondsPerPeriod);
         Range memory rangeToCheck = delegateGetMinRewardRateRange(_testTarget);
         require(minRewardRateRange.min == rangeToCheck.min &&
             minRewardRateRange.defaultValue == rangeToCheck.defaultValue &&
@@ -734,9 +734,6 @@ contract PolicyManager is Upgradeable {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
     function finishUpgrade(address _target) public override virtual {
         super.finishUpgrade(_target);
-        PolicyManager policyManager = PolicyManager(_target);
-        escrow = policyManager.escrow();
-        secondsPerPeriod = policyManager.secondsPerPeriod();
         // Create fake Policy and NodeInfo to use them in verifyState(address)
         Policy storage policy = policies[RESERVED_POLICY_ID];
         policy.sponsor = msg.sender;

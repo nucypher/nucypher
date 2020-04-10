@@ -1,4 +1,4 @@
-pragma solidity ^0.6.1;
+pragma solidity ^0.6.5;
 
 
 import "contracts/Issuer.sol";
@@ -34,7 +34,7 @@ interface WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v2.3.1|
+* @dev |v3.1.1|
 */
 contract StakingEscrow is Issuer {
     using AdditionalMath for uint256;
@@ -113,19 +113,20 @@ contract StakingEscrow is Issuer {
     uint16 public constant MAX_SUB_STAKES = 30;
     uint16 constant MAX_UINT16 = 65535;
 
+    uint16 public immutable minLockedPeriods;
+    uint16 public immutable minWorkerPeriods;
+    uint256 public immutable minAllowableLockedTokens;
+    uint256 public immutable maxAllowableLockedTokens;
+    bool public immutable isTestContract;
+
     mapping (address => StakerInfo) public stakerInfo;
     address[] public stakers;
     mapping (address => address) public workerToStaker;
 
     mapping (uint16 => uint256) public lockedPerPeriod;
-    uint16 public minLockedPeriods;
-    uint16 public minWorkerPeriods; // TODO: What's a good minimum time to allow stakers to change/unset worker? (#1073)
-    uint256 public minAllowableLockedTokens;
-    uint256 public maxAllowableLockedTokens;
     PolicyManagerInterface public policyManager;
     AdjudicatorInterface public adjudicator;
     WorkLockInterface public workLock;
-    bool public isTestContract;
 
     /**
     * @notice Constructor sets address of token contract and coefficients for mining
@@ -1352,10 +1353,6 @@ contract StakingEscrow is Issuer {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-        require((delegateGet(_testTarget, this.isTestContract.selector) == 0) == !isTestContract);
-        require(uint16(delegateGet(_testTarget, this.minWorkerPeriods.selector)) == minWorkerPeriods);
-        require(delegateGet(_testTarget, this.minAllowableLockedTokens.selector) == minAllowableLockedTokens);
-        require(delegateGet(_testTarget, this.maxAllowableLockedTokens.selector) == maxAllowableLockedTokens);
         require(address(delegateGet(_testTarget, this.policyManager.selector)) == address(policyManager));
         require(address(delegateGet(_testTarget, this.adjudicator.selector)) == address(adjudicator));
         require(address(delegateGet(_testTarget, this.workLock.selector)) == address(workLock));
@@ -1413,13 +1410,6 @@ contract StakingEscrow is Issuer {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
     function finishUpgrade(address _target) public override virtual {
         super.finishUpgrade(_target);
-        StakingEscrow escrow = StakingEscrow(_target);
-        minLockedPeriods = escrow.minLockedPeriods();
-        minAllowableLockedTokens = escrow.minAllowableLockedTokens();
-        maxAllowableLockedTokens = escrow.maxAllowableLockedTokens();
-        minWorkerPeriods = escrow.minWorkerPeriods();
-        isTestContract = escrow.isTestContract();
-
         // Create fake period
         lockedPerPeriod[RESERVED_PERIOD] = 111;
 

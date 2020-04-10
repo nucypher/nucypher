@@ -1,4 +1,4 @@
-pragma solidity ^0.6.1;
+pragma solidity ^0.6.5;
 
 
 import "contracts/staking_contracts/AbstractStakingContract.sol";
@@ -13,10 +13,11 @@ import "contracts/WorkLock.sol";
 */
 contract BaseStakingInterface {
 
-    NuCypherToken public token;
-    StakingEscrow public escrow;
-    PolicyManager public policyManager;
-    WorkLock public workLock;
+    address public immutable stakingInterfaceAddress;
+    NuCypherToken public immutable token;
+    StakingEscrow public immutable escrow;
+    PolicyManager public immutable policyManager;
+    WorkLock public immutable workLock;
 
     /**
     * @notice Constructor sets addresses of the contracts
@@ -37,21 +38,30 @@ contract BaseStakingInterface {
             _escrow.secondsPerPeriod() > 0 &&
             _policyManager.secondsPerPeriod() > 0 &&
             // in case there is no worklock contract
-            (address(_workLock) == address(0) || _workLock.startBidDate() > 0));
+            (address(_workLock) == address(0) || _workLock.boostingRefund() > 0));
         token = _token;
         escrow = _escrow;
         policyManager = _policyManager;
         workLock = _workLock;
+        stakingInterfaceAddress = address(this);
     }
 
     /**
-    * @notice Get contract which stores state
-    * @dev Assume that `this` is the staking contract
+    * @dev Checks executing through delegate call
     */
-    function getStateContract() internal view returns (BaseStakingInterface) {
-        address payable stakingContractAddress = payable(address(this));
-        StakingInterfaceRouter router = AbstractStakingContract(stakingContractAddress).router();
-        return BaseStakingInterface(router.target());
+    modifier onlyDelegateCall()
+    {
+        require(stakingInterfaceAddress != address(this));
+        _;
+    }
+
+    /**
+    * @dev Checks the existence of the worklock contract
+    */
+    modifier workLockSet()
+    {
+        require(address(workLock) != address(0));
+        _;
     }
 
 }
@@ -59,9 +69,8 @@ contract BaseStakingInterface {
 
 /**
 * @notice Interface for accessing main contracts from a staking contract
-* @dev All methods must be stateless because this code will be executed by delegatecall call.
-* If state is needed - use getStateContract() method to access state of this contract.
-* @dev |v1.4.1|
+* @dev All methods must be stateless because this code will be executed by delegatecall call, use immutable fields.
+* @dev |v1.4.2|
 */
 contract StakingInterface is BaseStakingInterface {
 
@@ -104,8 +113,8 @@ contract StakingInterface is BaseStakingInterface {
     * @notice Set `worker` parameter in the staking escrow
     * @param _worker Worker address
     */
-    function setWorker(address _worker) public {
-        getStateContract().escrow().setWorker(_worker);
+    function setWorker(address _worker) public onlyDelegateCall {
+        escrow.setWorker(_worker);
         emit WorkerSet(msg.sender, _worker);
     }
 
@@ -113,8 +122,8 @@ contract StakingInterface is BaseStakingInterface {
     * @notice Set `reStake` parameter in the staking escrow
     * @param _reStake Value for parameter
     */
-    function setReStake(bool _reStake) public {
-        getStateContract().escrow().setReStake(_reStake);
+    function setReStake(bool _reStake) public onlyDelegateCall {
+        escrow.setReStake(_reStake);
         emit ReStakeSet(msg.sender, _reStake);
     }
 
@@ -122,8 +131,8 @@ contract StakingInterface is BaseStakingInterface {
     * @notice Lock `reStake` parameter in the staking escrow
     * @param _lockReStakeUntilPeriod Can't change `reStake` value until this period
     */
-    function lockReStake(uint16 _lockReStakeUntilPeriod) public {
-        getStateContract().escrow().lockReStake(_lockReStakeUntilPeriod);
+    function lockReStake(uint16 _lockReStakeUntilPeriod) public onlyDelegateCall {
+        escrow.lockReStake(_lockReStakeUntilPeriod);
         emit ReStakeLocked(msg.sender, _lockReStakeUntilPeriod);
     }
 
@@ -132,13 +141,10 @@ contract StakingInterface is BaseStakingInterface {
     * @param _value Amount of token to deposit
     * @param _periods Amount of periods during which tokens will be locked
     */
-    function depositAsStaker(uint256 _value, uint16 _periods) public {
-        BaseStakingInterface state = getStateContract();
-        NuCypherToken tokenFromState = state.token();
-        require(tokenFromState.balanceOf(address(this)) >= _value);
-        StakingEscrow escrowFromState = state.escrow();
-        tokenFromState.approve(address(escrowFromState), _value);
-        escrowFromState.deposit(_value, _periods);
+    function depositAsStaker(uint256 _value, uint16 _periods) public onlyDelegateCall {
+        require(token.balanceOf(address(this)) >= _value);
+        token.approve(address(escrow), _value);
+        escrow.deposit(_value, _periods);
         emit DepositedAsStaker(msg.sender, _value, _periods);
     }
 
@@ -146,8 +152,8 @@ contract StakingInterface is BaseStakingInterface {
     * @notice Withdraw available amount of tokens from the staking escrow to the staking contract
     * @param _value Amount of token to withdraw
     */
-    function withdrawAsStaker(uint256 _value) public {
-        getStateContract().escrow().withdraw(_value);
+    function withdrawAsStaker(uint256 _value) public onlyDelegateCall {
+        escrow.withdraw(_value);
         emit WithdrawnAsStaker(msg.sender, _value);
     }
 
@@ -156,8 +162,8 @@ contract StakingInterface is BaseStakingInterface {
     * @param _value Amount of tokens which should lock
     * @param _periods Amount of periods during which tokens will be locked
     */
-    function lock(uint256 _value, uint16 _periods) public {
-        getStateContract().escrow().lock(_value, _periods);
+    function lock(uint256 _value, uint16 _periods) public onlyDelegateCall {
+        escrow.lock(_value, _periods);
         emit Locked(msg.sender, _value, _periods);
     }
 
@@ -172,33 +178,33 @@ contract StakingInterface is BaseStakingInterface {
         uint256 _newValue,
         uint16 _periods
     )
-        public
+        public onlyDelegateCall
     {
-        getStateContract().escrow().divideStake(_index, _newValue, _periods);
+        escrow.divideStake(_index, _newValue, _periods);
         emit Divided(msg.sender, _index, _newValue, _periods);
     }
 
     /**
     * @notice Mint tokens in the staking escrow
     */
-    function mint() public {
-        getStateContract().escrow().mint();
+    function mint() public onlyDelegateCall {
+        escrow.mint();
         emit Mined(msg.sender);
     }
 
     /**
     * @notice Withdraw available reward from the policy manager to the staking contract
     */
-    function withdrawPolicyReward() public {
-        uint256 value = getStateContract().policyManager().withdraw();
+    function withdrawPolicyReward() public onlyDelegateCall {
+        uint256 value = policyManager.withdraw();
         emit PolicyRewardWithdrawn(msg.sender, value);
     }
 
     /**
     * @notice Set the minimum reward that the staker will take in the policy manager
     */
-    function setMinRewardRate(uint256 _minRewardRate) public {
-        getStateContract().policyManager().setMinRewardRate(_minRewardRate);
+    function setMinRewardRate(uint256 _minRewardRate) public onlyDelegateCall {
+        policyManager.setMinRewardRate(_minRewardRate);
         emit MinRewardRateSet(msg.sender, _minRewardRate);
     }
 
@@ -208,8 +214,8 @@ contract StakingInterface is BaseStakingInterface {
     * @param _index Index of the sub stake
     * @param _periods Amount of periods for extending sub stake
     */
-    function prolongStake(uint256 _index, uint16 _periods) public {
-        getStateContract().escrow().prolongStake(_index, _periods);
+    function prolongStake(uint256 _index, uint16 _periods) public onlyDelegateCall {
+        escrow.prolongStake(_index, _periods);
         emit Prolonged(msg.sender, _index, _periods);
     }
 
@@ -217,58 +223,48 @@ contract StakingInterface is BaseStakingInterface {
     * @notice Set `windDown` parameter in the staking escrow
     * @param _windDown Value for parameter
     */
-    function setWindDown(bool _windDown) public {
-        getStateContract().escrow().setWindDown(_windDown);
+    function setWindDown(bool _windDown) public onlyDelegateCall {
+        escrow.setWindDown(_windDown);
         emit WindDownSet(msg.sender, _windDown);
     }
 
     /**
     * @notice Bid for tokens by transferring ETH
     */
-    function bid(uint256 _value) public payable {
-        WorkLock workLockFromState = getStateContract().workLock();
-        require(address(workLockFromState) != address(0));
-        workLockFromState.bid{value: _value}();
+    function bid(uint256 _value) public payable onlyDelegateCall workLockSet {
+        workLock.bid{value: _value}();
         emit Bid(msg.sender, _value);
     }
 
     /**
     * @notice Cancel bid and refund deposited ETH
     */
-    function cancelBid() public {
-        WorkLock workLockFromState = getStateContract().workLock();
-        require(address(workLockFromState) != address(0));
-        workLockFromState.cancelBid();
+    function cancelBid() public onlyDelegateCall workLockSet {
+        workLock.cancelBid();
         emit BidCanceled(msg.sender);
     }
 
     /**
     * @notice Withdraw compensation after force refund
     */
-    function withdrawCompensation() public {
-        WorkLock workLockFromState = getStateContract().workLock();
-        require(address(workLockFromState) != address(0));
-        workLockFromState.withdrawCompensation();
+    function withdrawCompensation() public onlyDelegateCall workLockSet {
+        workLock.withdrawCompensation();
         emit CompensationWithdrawn(msg.sender);
     }
 
     /**
     * @notice Claimed tokens will be deposited and locked as stake in the StakingEscrow contract.
     */
-    function claim() public {
-        WorkLock workLockFromState = getStateContract().workLock();
-        require(address(workLockFromState) != address(0));
-        uint256 claimedTokens = workLockFromState.claim();
+    function claim() public onlyDelegateCall workLockSet {
+        uint256 claimedTokens = workLock.claim();
         emit Claimed(msg.sender, claimedTokens);
     }
 
     /**
     * @notice Refund ETH for the completed work
     */
-    function refund() public {
-        WorkLock workLockFromState = getStateContract().workLock();
-        require(address(workLockFromState) != address(0));
-        uint256 refundETH = workLockFromState.refund();
+    function refund() public onlyDelegateCall workLockSet {
+        uint256 refundETH = workLock.refund();
         emit Refund(msg.sender, refundETH);
     }
 

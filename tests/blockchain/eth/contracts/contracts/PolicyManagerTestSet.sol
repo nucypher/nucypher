@@ -1,4 +1,4 @@
-pragma solidity ^0.6.1;
+pragma solidity ^0.6.5;
 
 
 import "contracts/PolicyManager.sol";
@@ -49,8 +49,9 @@ contract StakingEscrowForPolicyMock {
         uint16 endPeriod;
     }
 
+    uint32 public immutable secondsPerPeriod;
+
     PolicyManager public policyManager;
-    uint32 public secondsPerPeriod;
     uint16 public lastActivePeriod;
     Downtime[] public downtime;
 

@@ -1,4 +1,4 @@
-pragma solidity ^0.6.1;
+pragma solidity ^0.6.5;
 
 
 import "zeppelin/ownership/Ownable.sol";
@@ -50,16 +50,17 @@ abstract contract AbstractStakingContract {
     using Address for address payable;
     using SafeERC20 for NuCypherToken;
 
-    StakingInterfaceRouter public router;
-    NuCypherToken public token;
+    StakingInterfaceRouter public immutable router;
+    NuCypherToken public immutable token;
 
     /**
     * @param _router Interface router contract address
     */
     constructor(StakingInterfaceRouter _router) public {
         router = _router;
-        token = _router.target().token();
-        require(address(token) != address(0));
+        NuCypherToken localToken = _router.target().token();
+        require(address(localToken) != address(0));
+        token = localToken;
     }
 
     /**

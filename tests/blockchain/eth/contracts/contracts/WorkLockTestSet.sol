@@ -1,4 +1,4 @@
-pragma solidity ^0.6.1;
+pragma solidity ^0.6.5;
 
 
 import "contracts/NuCypherToken.sol";
@@ -16,11 +16,12 @@ contract StakingEscrowForWorkLockMock {
         uint16 periods;
     }
 
-    NuCypherToken token;
-    uint32 public secondsPerPeriod = 1;
-    uint256 public minAllowableLockedTokens;
-    uint256 public maxAllowableLockedTokens;
-    uint16 public minLockedPeriods;
+    NuCypherToken immutable token;
+    uint32 public immutable secondsPerPeriod = 1;
+    uint256 public immutable minAllowableLockedTokens;
+    uint256 public immutable maxAllowableLockedTokens;
+    uint16 public immutable minLockedPeriods;
+
     mapping (address => StakerInfo) public stakerInfo;
 
     constructor(
