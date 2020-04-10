@@ -116,8 +116,6 @@ class FleetStateTracker:
         if self._tracking:
             self.log.info("Updating fleet state after saving node {}".format(value))
             self.record_fleet_state()
-        else:
-            self.log.debug("Not updating fleet state.")
 
     def __getitem__(self, item):
         return self._nodes[item]
@@ -507,8 +505,6 @@ class Learner:
 
         listeners = self._learning_listeners.pop(node.checksum_address, tuple())
 
-        self.log.info(
-            "Remembering {} ({}), popping {} listeners.".format(node.nickname, node.checksum_address, len(listeners)))
         for listener in listeners:
             listener.add(node.checksum_address)
         self._node_ids_to_learn_about_immediately.discard(node.checksum_address)
