@@ -459,29 +459,6 @@ class Learner:
         if self.save_metadata:
             self.node_storage.store_node_metadata(node=node)
 
-        try:
-            stranger_certificate = node.certificate
-        except AttributeError:
-            # Probably a sprout.
-            try:
-                if grow_node_sprout_into_node:
-                    node.mature()
-                    stranger_certificate = node.certificate
-                else:
-                    # TODO: Well, why?  What about eagerness, popping listeners, etc?  We not doing that stuff? NRN
-                    return node
-            except Exception as e:
-                # Whoops, we got an Alice, Bob, or something totally wrong...
-                raise self.NotATeacher(f"{node.__class__.__name__} does not have a certificate and cannot be remembered.")
-
-        # Store node's certificate - It has been seen.
-        certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate)
-
-        # In some cases (seed nodes or other temp stored certs),
-        # this will update the filepath from the temp location to this one.
-        node.certificate_filepath = certificate_filepath
-
-        self.log.info(f"Saved TLS certificate for {node.nickname}: {certificate_filepath}")
         if eager:
             try:
                 node.verify_node(force=force_verification_recheck,
