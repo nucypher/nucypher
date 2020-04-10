@@ -237,17 +237,17 @@ class NodeSprout(PartiallyKwargifiedBytes):
 
     def __init__(self, node_metadata):
         super().__init__(node_metadata)
-        self.checksum_address = to_checksum_address(node_metadata['public_address'][0])
+        self.checksum_address = to_checksum_address(self.public_address)
         self.nickname = nickname_from_seed(self.checksum_address)[0]
-        self.timestamp = maya.MayaDT(int.from_bytes(node_metadata['timestamp'][0], byteorder="big"))
-        self._hash = int.from_bytes(bytes(node_metadata['verifying_key'][0]), byteorder="big")
+        self.timestamp = maya.MayaDT(self.timestamp)  # Weird for this to be in init. maybe this belongs in the splitter also.
+        self._hash = int.from_bytes(self.public_address, byteorder="big")  # stop-propagation logic (ie, only propagate verified, staked nodes) keeps this unique and BFT.
+        self._repr = f"({self.__class__.__name__})⇀{self.nickname}↽ ({self.checksum_address})"
 
     def __hash__(self):
         return self._hash
 
     def __repr__(self):
-        r = f"({self.__class__.__name__})⇀{self.nickname}↽ ({self.checksum_address})"
-        return r
+        return self._repr
 
     def __bytes__(self):
         b = super().__bytes__()
@@ -1208,10 +1208,10 @@ class Teacher:
 
         sprout = self.internal_splitter(node_bytes, partial=True)
 
-        verifying_keys_match = sprout['verifying_key'] == self.public_keys(SigningPower)
-        encrypting_keys_match = sprout['encrypting_key'] == self.public_keys(DecryptingPower)
-        addresses_match = sprout['public_address'] == self.canonical_public_address
-        evidence_matches = sprout['decentralized_identity_evidence'] == self.__decentralized_identity_evidence
+        verifying_keys_match = sprout.verifying_key == self.public_keys(SigningPower)
+        encrypting_keys_match = sprout.encrypting_key == self.public_keys(DecryptingPower)
+        addresses_match = sprout.public_address == self.canonical_public_address
+        evidence_matches = sprout.decentralized_identity_evidence == self.__decentralized_identity_evidence
 
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
             # Failure
