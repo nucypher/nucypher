@@ -37,7 +37,6 @@ except IndexError:
 
 
 BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri,
-                                                poa=True,
                                                 light=False,
                                                 sync=False,
                                                 emitter=emitter)

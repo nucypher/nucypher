@@ -111,7 +111,7 @@ Running an Ursula via CLI (Interactive)
 
 .. code:: bash
 
-    (nucypher)$ nucypher ursula init --provider <YOUR PROVIDER URI> --poa --network <NETWORK_NAME>
+    (nucypher)$ nucypher ursula init --provider <YOUR PROVIDER URI> --network <NETWORK_NAME>
 
 
 Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:

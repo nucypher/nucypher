@@ -100,7 +100,7 @@ class CharacterConfiguration(BaseConfiguration):
                  save_metadata: bool = True,
 
                  # Blockchain
-                 poa: bool = False,
+                 poa: bool = None,
                  light: bool = False,
                  sync: bool = False,
                  provider_uri: str = None,
