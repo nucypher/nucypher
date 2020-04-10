@@ -40,6 +40,7 @@ class Web3ClientConnectionFailed(Web3ClientError):
 class Web3ClientUnexpectedVersionString(Web3ClientError):
     pass
 
+# TODO: Consider creating a ChainInventory class and/or moving this to a separate module
 
 PUBLIC_CHAINS = {0: "Olympic",
                  1: "Mainnet",
@@ -61,6 +62,15 @@ PUBLIC_CHAINS = {0: "Olympic",
 
 LOCAL_CHAINS = {1337: "GethDev",
                 5777: "Ganache/TestRPC"}
+
+POA_CHAINS = {  # TODO: This list is incomplete, but it suffices for the moment - See #1857
+    4,  # Rinkeby
+    5,  # Goerli
+    42,  # Kovan
+    77,  # Sokol
+    99,  # Core
+    100,  # xDAI
+}
 
 
 class EthereumClient:

@@ -46,7 +46,7 @@ from web3.exceptions import ValidationError
 from web3.gas_strategies import time_based
 from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.eth.clients import EthereumClient
+from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
     _get_tester_pyevm,
@@ -111,9 +111,9 @@ class BlockchainInterface:
 
     def __init__(self,
                  emitter = None,  # TODO # 1754
-                 poa: bool = False,
+                 poa: bool = None,
                  light: bool = False,
-                 provider_process = NO_PROVIDER_PROCESS,
+                 provider_process=NO_PROVIDER_PROCESS,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
                  provider: Web3Providers = NO_BLOCKCHAIN_CONNECTION,
                  gas_strategy: Union[str, Callable] = DEFAULT_GAS_STRATEGY):
@@ -230,6 +230,10 @@ class BlockchainInterface:
         return gas_strategy
 
     def attach_middleware(self):
+        if self.poa is None:  # If POA is not set explicitly, try to autodetect from chain id
+            chain_id = int(self.client.chain_id)
+            self.poa = chain_id in POA_CHAINS
+            self.log.debug(f'Autodetecting POA chain ({self.client.chain_name})')
 
         # For use with Proof-Of-Authority test-blockchains
         if self.poa is True:
@@ -237,7 +241,6 @@ class BlockchainInterface:
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
         # Gas Price Strategy
-        # TODO: Do we need to use all of these at once, perhaps chhose one?
         self.client.w3.eth.setGasPriceStrategy(self.gas_strategy)
         self.client.w3.middleware_onion.add(middleware.time_based_cache_middleware)
         self.client.w3.middleware_onion.add(middleware.latest_block_based_cache_middleware)

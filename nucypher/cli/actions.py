@@ -398,14 +398,14 @@ def select_stake(stakeholder, emitter, divisible: bool = False, staker_address: 
 
 def select_client_account(emitter,
                           provider_uri: str = None,
-                          wallet = None,
+                          wallet=None,
                           prompt: str = None,
                           default: int = 0,
                           registry=None,
                           show_balances: bool = True,
                           show_staking: bool = False,
                           network: str = None,
-                          poa: bool = False
+                          poa: bool = None
                           ) -> str:
     """
     Note: Setting show_balances to True, causes an eager contract and blockchain connection.
