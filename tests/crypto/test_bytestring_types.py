@@ -15,8 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import pytest
-from bytestring_splitter import BytestringSplitter, BytestringSplittingError
+from bytestring_splitter import BytestringSplitter, BytestringKwargifier, BytestringSplittingError,\
+    VariableLengthBytestring
+from nucypher.crypto.splitters import key_splitter, capsule_splitter
 
+from constant_sorrow.constants import UNKNOWN_SENDER, NOT_SIGNED
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.api import secure_random
 from nucypher.crypto.kits import UmbralMessageKit
@@ -76,3 +79,87 @@ def test_message_kit_serialization_via_enrico(enacted_federated_policy, federate
     # Confirm
     assert message_kit_bytes == the_same_message_kit.to_bytes()
 
+
+def test_message_kit_versions(enacted_federated_policy, federated_alice):
+    """
+    Some day, for whatever reason, we need to insert some unforseeen
+    relevant piece of data into the middle of the MessageKit.
+    Can we add a new version of MessageKit that interoperates with bytestrings
+    produced by existing previous versions that are already circulating in the wild?
+    """
+
+    class MessageKitVersion19(UmbralMessageKit):
+
+        version = 19
+
+        def __init__(self,
+                     capsule,
+                     pandemic=None,
+                     sender_verifying_key=None,
+                     ciphertext=None,
+                     signature=NOT_SIGNED) -> None:
+
+            self.pandemic = pandemic
+            self.ciphertext = ciphertext
+            self.capsule = capsule
+            self.sender_verifying_key = sender_verifying_key
+            self._signature = signature
+
+        def __bytes__(self):
+            return super().add_version(
+                bytes(self.capsule) + bytes(
+                    self.sender_verifying_key
+                ) + bytes(
+                    self.pandemic, 'utf-8'  # insert the prevailing pandemic here
+                ) + VariableLengthBytestring(self.ciphertext))
+
+        @classmethod
+        def splitter(cls, *args, **kwargs):
+            return BytestringKwargifier(
+                MessageKitVersion19,
+                capsule=capsule_splitter,
+                sender_verifying_key=key_splitter,
+                pandemic=BytestringSplitter(8),
+                ciphertext=VariableLengthBytestring)
+
+        def set_pandemic(self, string):
+            self.pandemic = string
+
+    enrico = Enrico.from_alice(federated_alice, label=enacted_federated_policy.label)
+    message = 'this is a message'
+    plaintext_bytes = bytes(message, encoding='utf-8')
+
+    # the very existence of a subclass of UmbralMessageKit versioned 19 will make that the highest version
+    # and it will now what is used for all newly created message kits
+
+    mkit, signature = enrico.encrypt_message(message=plaintext_bytes)
+    assert mkit.version == 19
+
+    # set the prevailing pandemic of the day
+    mkit.set_pandemic('covid-19')
+
+    # and convert to bytes
+    v19_mkit_bytes = bytes(mkit)
+
+    # when instantiating from bytes we get an instance of MessageKitVersion19
+    mkit19 = UmbralMessageKit.from_bytes(v19_mkit_bytes)
+    assert mkit19.pandemic == b'covid-19'
+
+
+    v1 = (1).to_bytes(2, 'little')
+
+    # along come some bytes representing an old message kit created during a more innocent time
+    V1_mkit_bytes = (
+        v1 + bytes(mkit.capsule) + bytes(mkit.sender_verifying_key) + VariableLengthBytestring(mkit.ciphertext))
+
+    # lets just throw them into our base class
+    v1_mkit = UmbralMessageKit.from_bytes(V1_mkit_bytes)
+
+    # we have a good old fashioned version one UmbralMessageKit
+    assert v1_mkit.version == 1
+    assert hasattr(v1_mkit, 'pandemic') is False
+
+    # and just to make sure we're not crazy...
+    new_mkit19 = UmbralMessageKit.from_bytes(v19_mkit_bytes)
+    assert new_mkit19.version == 19
+    assert mkit19.pandemic == b'covid-19'

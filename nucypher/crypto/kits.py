@@ -17,9 +17,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from constant_sorrow.constants import UNKNOWN_SENDER, NOT_SIGNED
 from bytestring_splitter import BytestringKwargifier, VariableLengthBytestring
 from nucypher.crypto.splitters import key_splitter, capsule_splitter
+from nucypher.primitives import VersionedBytes
 
 
-class CryptoKit:
+class CryptoKit(VersionedBytes):
     """
     A package of discrete items, meant to be sent over the wire or saved to disk (in either case, as bytes),
     capable of performing a distinct cryptological function.
@@ -35,7 +36,8 @@ class CryptoKit:
         return splitter(some_bytes)
 
     @classmethod
-    def from_bytes(cls, some_bytes):
+    def from_bytes(cls, input_bytes):
+        cls, some_bytes = super().parse_version(input_bytes)
         return cls.split_bytes(some_bytes)
 
 
@@ -65,7 +67,7 @@ class MessageKit(CryptoKit):
             as_bytes += bytes(self.sender_verifying_key)
 
         as_bytes += VariableLengthBytestring(self.ciphertext)
-        return as_bytes
+        return super().add_version(as_bytes)
 
     @classmethod
     def splitter(cls, *args, **kwargs):
@@ -79,13 +81,18 @@ class MessageKit(CryptoKit):
         return self._signature
 
     def __bytes__(self):
-        return bytes(self.capsule) + VariableLengthBytestring(self.ciphertext)
+        return super().add_version(bytes(self.capsule) + VariableLengthBytestring(self.ciphertext))
+
+
+class MessageKitV1(MessageKit):
+    version = 1
 
 
 class PolicyMessageKit(MessageKit):
     """
     A MessageKit which includes sufficient additional information to be retrieved on the NuCypher Network.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._sender = UNKNOWN_SENDER.bool_value(False)
@@ -102,6 +109,10 @@ class PolicyMessageKit(MessageKit):
 
     def __bytes__(self):
         return super().to_bytes(include_alice_pubkey=True)
+
+
+class PolicyMessageKitV1(PolicyMessageKit):
+    version = 1
 
 
 UmbralMessageKit = PolicyMessageKit  # Temporarily, until serialization w/ Enrico's
