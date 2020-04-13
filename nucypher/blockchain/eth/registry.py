@@ -96,11 +96,11 @@ class GithubRegistrySource(CanonicalRegistrySource):
         return registry_data
 
 
-class InPackageRegistrySource(CanonicalRegistrySource):
+class EmbeddedRegistrySource(CanonicalRegistrySource):
     _HERE = os.path.abspath(os.path.dirname(__file__))
     _REGISTRY_DIR = os.path.join(_HERE, "contract_registry")
 
-    name = "In-Package Registry Source"
+    name = "Embeded Registry Source"
     is_primary = False
 
     def get_publication_endpoint(self) -> str:
@@ -130,7 +130,7 @@ class RegistrySourceManager:
     )  # type: Tuple[Type[CanonicalRegistrySource]]
 
     _LOCAL_SOURCES = (
-        InPackageRegistrySource,
+        EmbeddedRegistrySource,
     )  # type: Tuple[Type[CanonicalRegistrySource]]
 
     _FALLBACK_CHAIN = _REMOTE_SOURCES + _LOCAL_SOURCES
