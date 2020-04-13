@@ -532,7 +532,12 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
                        pretty_fees,
                        min_reward_rate]
 
-        emitter.echo(f"\nStaker {staker.checksum_address} ════", bold=True, color='red' if missing else 'green')
+        line_width = 54
+        if staker.registry.source:
+            network_snippet = f"\nNetwork {staker.registry.source.network.capitalize()} "
+            snippet_with_line = network_snippet + '═'*(line_width-len(network_snippet)+1)
+            emitter.echo(snippet_with_line, bold=True)
+        emitter.echo(f"Staker {staker.checksum_address} ════", bold=True, color='red' if missing else 'green')
         emitter.echo(f"Worker {staker.worker_address} ════")
         emitter.echo(tabulate.tabulate(zip(staker_headers, staker_data), floatfmt="fancy_grid"))
 

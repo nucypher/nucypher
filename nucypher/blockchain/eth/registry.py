@@ -202,6 +202,8 @@ class BaseContractRegistry(ABC):
     REGISTRY_NAME = 'contract_registry.json'  # TODO: #1511 Save registry with ID-time-based filename
     DEVELOPMENT_REGISTRY_NAME = 'dev_contract_registry.json'
 
+    NO_REGISTRY_SOURCE.bool_value(False)
+
     class RegistryError(Exception):
         pass
 
