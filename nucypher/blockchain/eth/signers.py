@@ -162,8 +162,15 @@ class ClefSigner(Signer):
             'chainId': Web3.toHex,
             'from': to_checksum_address
         }
-        transaction_dict = apply_formatters_to_dict(formatters, transaction_dict)
-        signed = self.w3.manager.request_blocking("account_signTransaction", [transaction_dict])
+
+        # FIXME: Workaround for contract creation TXs
+        if transaction_dict['to'] == b'':
+            transaction_dict['to'] = None
+        else:
+            formatters['to'] = to_checksum_address
+
+        formatted_transaction = apply_formatters_to_dict(formatters, transaction_dict)
+        signed = self.w3.manager.request_blocking("account_signTransaction", [formatted_transaction])
         return HexBytes(signed.raw)
 
     @validate_checksum_address
