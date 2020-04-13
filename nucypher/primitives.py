@@ -21,13 +21,17 @@ class VersionedBytes:
 
     @classmethod
     def __get_class(cls, klass, version):
-        v = int.from_bytes(version, 'little')
+        v = int.from_bytes(version, 'big')
 
         if getattr(klass, 'version', None) == v:
             return klass
 
         versioned_subclasses = VersionedBytes.__get_versioned_subclasses(klass)
-        outclass = next(iter([c for c in versioned_subclasses if c.version == v]))
+        try:
+            outclass = next(iter([c for c in versioned_subclasses if c.version == v]))
+        except StopIteration:
+            # if we can't find the right version, just return the base class.
+            return klass
         return outclass
 
     @classmethod
@@ -36,4 +40,4 @@ class VersionedBytes:
         return VersionedBytes.__get_class(cls, version_bytes), some_bytes[2:]
 
     def add_version(self, some_bytes):
-        return (self.version).to_bytes(2, 'little') + some_bytes
+        return (self.version).to_bytes(2, 'big') + some_bytes

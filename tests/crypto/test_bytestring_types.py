@@ -145,8 +145,7 @@ def test_message_kit_versions(enacted_federated_policy, federated_alice):
     mkit19 = UmbralMessageKit.from_bytes(v19_mkit_bytes)
     assert mkit19.pandemic == b'covid-19'
 
-
-    v1 = (1).to_bytes(2, 'little')
+    v1 = (1).to_bytes(2, 'big')
 
     # along come some bytes representing an old message kit created during a more innocent time
     V1_mkit_bytes = (
