@@ -127,9 +127,11 @@ class ClefSigner(Signer):
     DEFAULT_CONTENT_TYPE = SIGN_DATA_FOR_ECRECOVER
     SIGN_DATA_CONTENT_TYPES = (SIGN_DATA_FOR_VALIDATOR, SIGN_DATA_FOR_CLIQUE, SIGN_DATA_FOR_ECRECOVER)
 
-    def __init__(self, ipc_path: str = DEFAULT_IPC_PATH):
+    TIMEOUT = 60  # Default timeout for Clef of 60 seconds
+
+    def __init__(self, ipc_path: str = DEFAULT_IPC_PATH, timeout: int = TIMEOUT):
         super().__init__()
-        w3 = Web3(provider=IPCProvider(ipc_path=ipc_path))  # TODO: Unify with clients or build error handling
+        w3 = Web3(provider=IPCProvider(ipc_path=ipc_path, timeout=timeout))  # TODO: Unify with clients or build error handling
         self.w3 = w3
 
     @classmethod
