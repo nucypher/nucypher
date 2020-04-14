@@ -22,7 +22,7 @@ of security than software wallets.
 Staking Procedure:
 
 1) Install ``nucypher`` on Staker's machine (see :doc:`/guides/installation_guide`)
-2) Establish ethereum account, provider, and signer (see `Staking`_)
+2) Establish ethereum account, provider, and, optionally, signer (see `Staking`_)
 3) Request testnet tokens by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and type ``.getfunded <YOUR_STAKER_ETH_ADDRESS>`` in the #testnet-faucet channel
 4) Initialize a new StakeHolder and Stake (see `Initialize a new stakeholder`_)
 5) Initialize a new stake (see `Initialize a new stake`_)
@@ -177,7 +177,7 @@ Clef Setup
 We'll quickly walk through setup steps below, but additional in-depth documentation on clef can
 be found in the source repository here https://github.com/ethereum/go-ethereum/tree/master/cmd/clef
 
-Clef is typically installed alongside geth.  If you already have geth installed on you system you
+Clef is typically installed alongside geth.  If you already have geth installed on your system you
 may already have clef installed.  To check for an existing installation run:
 
 .. code:: bash
@@ -250,8 +250,60 @@ Some examples:
 Interacting with clef
 *********************
 
-Requests for account management, and signing will be directed at clef, with a 10 second timeout.
+Requests for account management, and signing will be directed at clef, with a 60 second timeout.
 Be alert for user-interactive requests and confirmations from the clef CLI.
+
+
+By default, all requests to the clef signer require manual confirmation.
+This include not only transactions, but also more innocuous requests such as listing the accounts
+that the signer is handling. This means, for example, that a command like ``nucypher stake accounts`` will first
+ask for user confirmation in the clef CLI before showing the staker accounts.
+
+To overcome this, Clef allows to define rules to automate the confirmation of certain transactions,
+or more generally, of some requests to the signer.
+In particular, we recommend users using a Clef signer with nucypher that define the following rules file,
+which simply approves the listing of accounts:
+
+.. code:: javascript
+
+    function ApproveListing() {
+        return "Approve"
+    }
+
+The sha256 digest of this particular 3-line file is ``8d089001fbb55eb8d9661b04be36ce3285ffa940e5cdf248d0071620cf02ebcd``.
+We will use this digest to attest that we trust these rules:
+
+.. code:: bash
+
+    $ clef attest 8d089001fbb55eb8d9661b04be36ce3285ffa940e5cdf248d0071620cf02ebcd
+
+    WARNING!
+
+    Clef is an account management tool. It may, like any software, contain bugs.
+
+    Please take care to
+    - backup your keystore files,
+    - verify that the keystore(s) can be opened with your password.
+
+    Clef is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+    PURPOSE. See the GNU General Public License for more details.
+
+    Enter 'ok' to proceed:
+    > ok
+
+    Decrypt master seed of clef
+    Password:
+    INFO [04-14|02:00:54.740] Ruleset attestation updated    sha256=8d089001fbb55eb8d9661b04be36ce3285ffa940e5cdf248d0071620cf02ebcd
+
+
+Once the rules file is attested, we can run Clef with the ``--rules rules.js`` flag,
+to indicate which are the automated rules (in our case, allowing listing of accounts):
+
+.. code:: bash
+
+    $ clef --keystore /path/to/keystore --chainid 5 --advanced --rules rules.js
+
 
 
 Initialize a new stakeholder
