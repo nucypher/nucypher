@@ -564,7 +564,8 @@ def transfer_tokens(general_config, actor_options, target_address, value):
     emitter = general_config.emitter
     ADMINISTRATOR, deployer_address, _, local_registry = actor_options.create_actor(emitter)
 
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=local_registry)
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=local_registry)  # type: NucypherTokenAgent
+    emitter.echo(f"Deployer NU balance: {NU.from_nunits(token_agent.get_balance(deployer_address))}")
     if not target_address:
         target_address = click.prompt("Enter recipient's checksum address", type=EIP55_CHECKSUM_ADDRESS)
     if not value:
