@@ -143,6 +143,7 @@ def test_message_kit_versions(enacted_federated_policy, federated_alice):
 
     # when instantiating from bytes we get an instance of MessageKitVersion19
     mkit19 = UmbralMessageKit.from_bytes(v19_mkit_bytes)
+    assert mkit19.version == 19
     assert mkit19.pandemic == b'covid-19'
 
     v1 = (1).to_bytes(2, 'big')
@@ -154,11 +155,6 @@ def test_message_kit_versions(enacted_federated_policy, federated_alice):
     # lets just throw them into our base class
     v1_mkit = UmbralMessageKit.from_bytes(V1_mkit_bytes)
 
-    # we have a good old fashioned version one UmbralMessageKit
+    # we have a good old fashioned version one UmbralMessageKit with no weird attributes from the future
     assert v1_mkit.version == 1
     assert hasattr(v1_mkit, 'pandemic') is False
-
-    # and just to make sure we're not crazy...
-    new_mkit19 = UmbralMessageKit.from_bytes(v19_mkit_bytes)
-    assert new_mkit19.version == 19
-    assert mkit19.pandemic == b'covid-19'

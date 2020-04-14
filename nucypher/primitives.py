@@ -4,9 +4,9 @@ class VersionedBytes:
         """
         When instantiating a specific version of a versioned Bytestring,
         we want to automatically instantiate the latest version without
-        requiring implementers to have to deal with any of this.
+        requiring implementors to have to deal with any of this.
 
-        If we are instantiating a specificly versioned class, allow for that also
+        If we are instantiating a specifically versioned class, allow for that also
         """
 
         if not hasattr(cls, 'version'):
@@ -20,8 +20,8 @@ class VersionedBytes:
         return [cls for cls in klass.__subclasses__() if hasattr(cls, 'version')]
 
     @classmethod
-    def __get_class(cls, klass, version):
-        v = int.from_bytes(version, 'big')
+    def __get_class(cls, klass, version_bytes):
+        v = int.from_bytes(version_bytes, 'big')
 
         if getattr(klass, 'version', None) == v:
             return klass
