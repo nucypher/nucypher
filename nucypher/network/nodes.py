@@ -459,6 +459,16 @@ class Learner:
             self.node_storage.store_node_metadata(node=node)
 
         if eager:
+            node.mature()
+            stranger_certificate = node.certificate
+
+            # Store node's certificate - It has been seen.
+            certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate)
+
+            # In some cases (seed nodes or other temp stored certs),
+            # this will update the filepath from the temp location to this one.
+            node.certificate_filepath = certificate_filepath
+
             try:
                 node.verify_node(force=force_verification_recheck,
                                  network_middleware_client=self.network_middleware.client,
@@ -792,6 +802,12 @@ class Learner:
         except NodeSeemsToBeDown as e:
             unresponsive_nodes.add(current_teacher)
             self.log.info("Bad Response from teacher: {}:{}.".format(current_teacher, e))
+            return
+        except current_teacher.InvalidNode as e:
+            # Ugh.  The teacher is invalid.  Rough.
+            # TODO: Bucket separately and report.
+            unresponsive_nodes.add(current_teacher)
+            self.log.info("Teacher is invalid: {}:{}.".format(current_teacher, e))
             return
 
         finally:
