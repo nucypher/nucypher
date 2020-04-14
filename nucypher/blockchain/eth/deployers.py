@@ -293,8 +293,7 @@ class UpgradeableContractMixin:
     def retarget(self,
                  target_address: str,
                  gas_limit: int = None,
-                 just_build_transaction: bool = False
-                 ):
+                 just_build_transaction: bool = False):
         """
         Directly engage a proxy contract for an existing deployment, executing the proxy's
         upgrade interfaces to verify upgradeability and modify the on-chain contract target.

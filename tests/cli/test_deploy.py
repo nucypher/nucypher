@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 
 import pytest
 from eth_utils import to_checksum_address
@@ -108,15 +109,14 @@ def test_nucypher_deploy_contracts(click_runner,
     assert AdjudicatorAgent(registry=registry)
 
 
-def test_deploy_single_contract_on_existing_network(click_runner, registry_filepath):
+def test_deploy_single_contract(click_runner, tempfile_path):
 
     # Perform the Test
     command = ['contracts',
-               '--contract-name', StakingEscrowAgent.registry_contract_name,
-               '--registry-infile', registry_filepath,
+               '--contract-name', NucypherTokenAgent.registry_contract_name,
+               '--registry-infile', tempfile_path,
                '--provider', TEST_PROVIDER_URI,
-               '--debug',
-               '--ignore-deployed']
+               '--debug']
 
     user_input = '0\n' + 'Y\n'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
@@ -156,7 +156,7 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
     #
 
     # Check the existing state of the registry before the meat and potatoes
-    expected_enrollments = 10
+    expected_enrollments = 9
     with open(registry_filepath, 'r') as file:
         raw_registry_data = file.read()
         registry_data = json.loads(raw_registry_data)
