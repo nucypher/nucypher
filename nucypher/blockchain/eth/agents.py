@@ -16,16 +16,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import importlib
-import math
 import random
 from typing import Generator, List, Tuple, Union
 
+import math
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
 from eth_utils.address import to_checksum_address
-from eth_tester.exceptions import TransactionFailed
 from twisted.logger import Logger
 from web3.contract import Contract
-from web3.exceptions import BadFunctionCallOutput
 
 from nucypher.blockchain.eth.constants import (
     DISPATCHER_CONTRACT_NAME,
@@ -37,12 +35,12 @@ from nucypher.blockchain.eth.constants import (
     ADJUDICATOR_CONTRACT_NAME,
     NUCYPHER_TOKEN_CONTRACT_NAME,
     MULTISIG_CONTRACT_NAME,
-    SEEDER_CONTRACT_NAME,
     ETH_ADDRESS_BYTE_LENGTH,
-    NULL_ADDRESS)
+    NULL_ADDRESS
+)
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.events import ContractEvents
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
 from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.crypto.api import sha256_digest
@@ -1236,37 +1234,6 @@ class WorkLockAgent(EthereumContractAgent):
         return parameters
 
 
-class SeederAgent(EthereumContractAgent):
-
-    registry_contract_name = SEEDER_CONTRACT_NAME
-
-    def enroll(self, sender_address: str, seed_address: str, ip: str, port: int) -> dict:
-        # TODO: Protection for over-enrollment
-        contract_function = self.contract.functions.enroll(seed_address, ip, port)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=sender_address)
-        return receipt
-
-    def refresh(self, sender_address: str, ip: str, port: int) -> dict:
-        contract_function = self.contract.functions.refresh(ip, port)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=sender_address)
-        return receipt
-
-    def get_entries(self) -> int:
-        length = self.contract.functions.getSeedArrayLength().call()
-        return length
-
-    def dump(self) -> list:
-        total = self.get_entries()
-        entries = list()
-        for index in range(total):
-            ip = self.contract.functions.seedArray(index).call()
-            entry = self.contract.functions.seeds(ip).call()
-            entries.append(entry)
-        return entries
-
-
 class MultiSigAgent(EthereumContractAgent):
 
     registry_contract_name = MULTISIG_CONTRACT_NAME
@@ -1363,4 +1330,3 @@ class MultiSigAgent(EthereumContractAgent):
         contract_function = self.contract.functions.execute(v, r, s, destination, value, data)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return receipt
-

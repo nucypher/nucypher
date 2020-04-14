@@ -113,7 +113,7 @@ def test_deploy_single_contract(click_runner, registry_filepath):
 
     # Perform the Test
     command = ['contracts',
-               '--contract-name', 'Seeder',
+               '--contract-name', 'NuCypherToken',
                '--registry-infile', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
                '--poa',

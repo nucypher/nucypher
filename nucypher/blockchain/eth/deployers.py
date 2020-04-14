@@ -39,7 +39,6 @@ from nucypher.blockchain.eth.agents import (
     PreallocationEscrowAgent,
     AdjudicatorAgent,
     WorkLockAgent,
-    SeederAgent,
     MultiSigAgent,
     ContractAgency
 )
@@ -1200,30 +1199,6 @@ class WorklockDeployer(BaseContractDeployer):
             progress.update(1)
 
         return approve_receipt, funding_receipt
-
-
-class SeederDeployer(BaseContractDeployer, OwnableContractMixin):
-
-    agency = SeederAgent
-    contract_name = agency.registry_contract_name
-    deployment_steps = ('contract_deployment', )
-    _upgradeable = False
-
-    MAX_SEEDS = 10  # TODO: Move to economics?
-
-    def deploy(self, gas_limit: int = None, progress: int = None, **overrides) -> dict:
-        self.check_deployment_readiness()
-        constructor_args = (self.MAX_SEEDS,)
-        seeder_contract, receipt = self.blockchain.deploy_contract(self.deployer_address,
-                                                                   self.registry,
-                                                                   self.contract_name,
-                                                                   *constructor_args,
-                                                                   gas_limit=gas_limit)
-        self._contract = seeder_contract
-        if progress:
-            progress.update(1)
-        self.deployment_receipts.update({self.deployment_steps[0]: receipt})
-        return self.deployment_receipts
 
 
 class MultiSigDeployer(BaseContractDeployer):
