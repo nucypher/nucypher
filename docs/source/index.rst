@@ -181,6 +181,7 @@ Whitepapers
    :maxdepth: 1
    :caption: Support
 
+   support/node_providers
    support/community
    support/troubleshooting
    support/faq

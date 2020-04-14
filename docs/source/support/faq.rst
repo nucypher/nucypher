@@ -313,6 +313,7 @@ Q: This all seems too complex for me, can I still participate in some way?
 
 We highly recommend delegating to an experienced staker rather than doing it yourself, if
 you are not super familiar with running nodes for other networks.
+See :ref:`node-providers`.
 
 Q: Why is my node is labelled as "*Idle*" in the status monitor?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
