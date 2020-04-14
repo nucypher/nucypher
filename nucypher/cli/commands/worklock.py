@@ -29,7 +29,7 @@ from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import prettify_eth_amount
 from nucypher.characters.banners import WORKLOCK_BANNER
-from nucypher.cli.actions import get_client_password
+from nucypher.cli.actions import get_client_password, connect_to_blockchain
 from nucypher.cli.actions import select_client_account
 from nucypher.cli.commands.status import group_registry_options
 from nucypher.cli.config import group_general_config
@@ -37,7 +37,7 @@ from nucypher.cli.options import (
     option_force,
     group_options,
     option_hw_wallet,
-    option_signer_uri
+    option_signer_uri, option_provider_uri, option_poa, option_registry_filepath, option_network
 )
 from nucypher.cli.painting import (
     paint_receipt_summary,
@@ -63,15 +63,17 @@ class WorkLockOptions:
 
     __option_name__ = 'worklock_options'
 
-    def __init__(self, bidder_address: str, signer_uri):
+    def __init__(self, bidder_address: str, signer_uri: str, provider_uri: str):
         self.bidder_address = bidder_address
         self.signer_uri = signer_uri
+        self.provider_uri = provider_uri
 
     def __create_bidder(self,
                         registry,
                         signer: Optional[Signer] = None,
                         transacting: bool = True,
-                        hw_wallet: bool = False):
+                        hw_wallet: bool = False) -> Bidder:
+
         client_password = None
         if transacting and not signer and not hw_wallet:
             client_password = get_client_password(checksum_address=self.bidder_address)
@@ -93,7 +95,8 @@ class WorkLockOptions:
 group_worklock_options = group_options(
     WorkLockOptions,
     bidder_address=option_bidder_address,
-    signer_uri=option_signer_uri
+    signer_uri=option_signer_uri,
+    provider_uri=option_provider_uri(required=True),
 )
 
 
@@ -112,8 +115,11 @@ def worklock():
 def status(general_config, registry_options, worklock_options):
     """Show current WorkLock information"""
 
+    # Setup
     emitter = _setup_emitter(general_config)
     registry = registry_options.get_registry(emitter, general_config.debug)
+    connect_to_blockchain(emitter=emitter, provider_uri=registry_options.provider_uri)
+
     paint_worklock_status(emitter=emitter, registry=registry)
     if worklock_options.bidder_address:
         bidder = worklock_options.create_transactionless_bidder(registry=registry)

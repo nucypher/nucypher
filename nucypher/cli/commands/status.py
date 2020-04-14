@@ -59,41 +59,16 @@ class RegistryOptions:
         self.light = light
         self.network = network
 
-    def get_registry(self, emitter, debug):
-        try:
-            eth_node = None
-            if self.geth:
-                eth_node = get_provider_process()
-
-            # Note: For test compatibility.
-            if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri):
-                BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
-                                                                provider_process=eth_node,
-                                                                poa=self.poa,
-                                                                light=self.light,
-                                                                sync=False,
-                                                                emitter=emitter)
-
-            blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=self.provider_uri)
-
-            emitter.echo(message="Reading Latest Chaindata...")
-            blockchain.connect()
-        except Exception as e:
-            if debug:
-                raise
-            click.secho(str(e), bold=True, fg='red')
-            raise click.Abort
+    def get_registry(self):
         if self.registry_filepath:
             registry = LocalContractRegistry(filepath=self.registry_filepath)
         else:
             registry = InMemoryContractRegistry.from_latest_publication(network=self.network)
-
         return registry
 
 
 group_registry_options = group_options(
     RegistryOptions,
-    provider_uri=option_provider_uri(),
     geth=option_geth,
     poa=option_poa,
     light=option_light,

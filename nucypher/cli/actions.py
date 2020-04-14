@@ -729,3 +729,23 @@ def select_network(emitter) -> str:
     choice = click.prompt("Select Network", default=0, type=click.IntRange(0, len(NetworksInventory.NETWORKS)-1))
     network = NetworksInventory.NETWORKS[choice]
     return network
+
+
+def connect_to_blockchain(provider_uri, emitter, debug: bool = False, light: bool = False) -> None:
+    try:
+        # Note: For test compatibility.
+        if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
+            BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri,
+                                                            light=light,
+                                                            sync=False,
+                                                            emitter=emitter)
+
+        blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
+
+        emitter.echo(message="Reading Latest Chaindata...")
+        blockchain.connect()
+    except Exception as e:
+        if debug:
+            raise
+        click.secho(str(e), bold=True, fg='red')
+        raise click.Abort

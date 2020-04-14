@@ -873,6 +873,7 @@ def echo_solidity_version(ctx, param, value):
 
 def paint_worklock_status(emitter, registry: BaseContractRegistry):
     from maya import MayaDT
+
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
     blockchain = worklock_agent.blockchain
 
@@ -883,24 +884,30 @@ def paint_worklock_status(emitter, registry: BaseContractRegistry):
 
     bidding_duration = bidding_end - bidding_start
     cancellation_duration = cancellation_end - bidding_start
+
     now = maya.now()
     bidding_remaining = bidding_end - now if bidding_end > now else timedelta()
     cancellation_remaining = cancellation_end - now if cancellation_end > now else timedelta()
+
 
     payload = f"""
 
 Time
 ======================================================
+
+Bidding open .................. {'Yes' if bidding_open else 'No'} 
 Bidding Start Date ................... {bidding_start}
 Bidding End Date ..................... {bidding_end}
 Bidding Duration ..................... {bidding_duration}
 Bidding Time Remaining ............... {bidding_remaining} 
 
+------------------------------------------------------
+
+Claiming open .................. {'Yes' if worklock_agent.is_claiming_available() else 'No'}
 Cancellation Window End Date ......... {cancellation_end}
 Cancellation Window Duration ......... {cancellation_duration}
 Cancellation Window Time Remaining ... {cancellation_remaining}
  
-Claiming phase open .................. {'Yes' if worklock_agent.is_claiming_available() else 'No'} 
 
 Economics
 ======================================================        
