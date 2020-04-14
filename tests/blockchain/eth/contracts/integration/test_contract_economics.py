@@ -42,7 +42,9 @@ def test_reward(testerchain, agency, token_economics, mock_transacting_power_act
                                            sender_address=ursula)
     _txhash = staking_agent.deposit_tokens(amount=token_economics.minimum_allowed_locked,
                                            lock_periods=100 * token_economics.maximum_rewarded_periods,
-                                           sender_address=ursula)
+                                           sender_address=ursula,
+                                           staker_address=ursula)
+
     _txhash = staking_agent.set_worker(staker_address=ursula, worker_address=ursula)
     _txhash = staking_agent.set_restaking(staker_address=ursula, value=False)
 

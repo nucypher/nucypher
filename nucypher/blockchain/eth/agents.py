@@ -384,11 +384,10 @@ class StakingEscrowAgent(EthereumContractAgent):
             yield self.get_substake_info(staker_address=staker_address, stake_index=stake_index)
 
     @validate_checksum_address
-    def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str):
-        """Send tokens to the escrow from the staker's address"""
-        contract_function = self.contract.functions.deposit(amount, lock_periods)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=sender_address)
+    def deposit_tokens(self, amount: int, lock_periods: int, staker_address: str, sender_address: str) -> dict:
+        """Send tokens to the escrow from the sender's address to be locked on behalf of the staker address"""
+        contract_function = self.contract.functions.deposit(staker_address, amount, lock_periods)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return receipt
 
     @validate_checksum_address
