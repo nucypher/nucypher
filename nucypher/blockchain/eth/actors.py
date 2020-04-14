@@ -1505,8 +1505,7 @@ class Wallet:
                  client_addresses: set = None,
                  signer=None):
 
-        self.__local_accounts = dict()  # FIXME: This attribute is never set
-        self.__client_accounts = set()  # Note: Account index is meaningless here
+        self.__client_accounts = list()
         self.__transacting_powers = dict()
 
         # Blockchain
@@ -1514,10 +1513,11 @@ class Wallet:
         self.blockchain = BlockchainInterfaceFactory.get_interface()
         self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
 
-        self.__signer = signer or Web3Signer(client=self.blockchain.client)
+        self.__signer = signer
+
         self.__get_accounts()
         if client_addresses:
-            self.__client_accounts.update(client_addresses)
+            self.__client_accounts.extend([a for a in client_addresses if a not in self.__client_accounts])
 
     @validate_checksum_address
     def __contains__(self, checksum_address: str) -> bool:
@@ -1530,13 +1530,13 @@ class Wallet:
     def __get_accounts(self) -> None:
         if self.__signer:
             signer_accounts = self.__signer.accounts
-            self.__client_accounts.update(signer_accounts)
+            self.__client_accounts.extend([a for a in signer_accounts if a not in self.__client_accounts])
         client_accounts = self.blockchain.client.accounts  # Accounts via connected provider
-        self.__client_accounts.update(client_accounts)
+        self.__client_accounts.extend([a for a in client_accounts if a not in self.__client_accounts])
 
     @property
-    def accounts(self) -> set:
-        return {*self.__client_accounts, *self.__local_accounts}
+    def accounts(self) -> Tuple:
+        return tuple(self.__client_accounts)
 
     @validate_checksum_address
     def activate_account(self, checksum_address: str, password: str = None) -> None:
@@ -1547,7 +1547,7 @@ class Wallet:
         try:
             transacting_power = self.__transacting_powers[checksum_address]
         except KeyError:
-            transacting_power = TransactingPower(signer=self.__signer,
+            transacting_power = TransactingPower(signer=self.__signer or Web3Signer(client=self.blockchain.client),
                                                  password=password,
                                                  account=checksum_address)
             self.__transacting_powers[checksum_address] = transacting_power
