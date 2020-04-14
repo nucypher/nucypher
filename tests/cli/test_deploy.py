@@ -112,7 +112,7 @@ def test_deploy_single_contract_on_existing_network(click_runner, registry_filep
 
     # Perform the Test
     command = ['contracts',
-               '--contract-name', StakingEscrowAgent.contract_name,
+               '--contract-name', StakingEscrowAgent.registry_contract_name,
                '--registry-infile', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
                '--debug',
