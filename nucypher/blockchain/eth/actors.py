@@ -1493,76 +1493,80 @@ class Investigator(NucypherTokenActor):
         return receipt
 
 
+class Wallet:
+    """
+    Account management abstraction on top of blockchain providers and external signers
+    """
+    class UnknownAccount(KeyError):
+        pass
+
+    def __init__(self,
+                 registry: BaseContractRegistry,
+                 client_addresses: set = None,
+                 signer=None):
+
+        self.__local_accounts = dict()  # FIXME: This attribute is never set
+        self.__client_accounts = set()  # Note: Account index is meaningless here
+        self.__transacting_powers = dict()
+
+        # Blockchain
+        self.registry = registry
+        self.blockchain = BlockchainInterfaceFactory.get_interface()
+        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
+
+        self.__signer = signer or Web3Signer(client=self.blockchain.client)
+        self.__get_accounts()
+        if client_addresses:
+            self.__client_accounts.update(client_addresses)
+
+    @validate_checksum_address
+    def __contains__(self, checksum_address: str) -> bool:
+        return bool(checksum_address in self.accounts)
+
+    @property
+    def active_account(self) -> str:
+        return self.blockchain.transacting_power.account
+
+    def __get_accounts(self) -> None:
+        if self.__signer:
+            signer_accounts = self.__signer.accounts
+            self.__client_accounts.update(signer_accounts)
+        client_accounts = self.blockchain.client.accounts  # Accounts via connected provider
+        self.__client_accounts.update(client_accounts)
+
+    @property
+    def accounts(self) -> set:
+        return {*self.__client_accounts, *self.__local_accounts}
+
+    @validate_checksum_address
+    def activate_account(self, checksum_address: str, password: str = None) -> None:
+        if checksum_address not in self:
+            self.__get_accounts()
+            if checksum_address not in self:
+                raise self.UnknownAccount
+        try:
+            transacting_power = self.__transacting_powers[checksum_address]
+        except KeyError:
+            transacting_power = TransactingPower(signer=self.__signer,
+                                                 password=password,
+                                                 account=checksum_address)
+            self.__transacting_powers[checksum_address] = transacting_power
+        transacting_power.activate(password=password)
+
+    @property
+    def balances(self) -> Dict:
+        balances = dict()
+        for account in self.accounts:
+            funds = {'ETH': self.blockchain.client.get_balance(account),
+                     'NU': self.token_agent.get_balance(account)}
+            balances.update({account: funds})
+        return balances
+
+
 class StakeHolder(Staker):
 
     banner = STAKEHOLDER_BANNER
 
-    class StakingWallet:
-
-        class UnknownAccount(KeyError):
-            pass
-
-        def __init__(self,
-                     registry: BaseContractRegistry,
-                     client_addresses: set = None,
-                     signer=None):
-
-            self.__local_accounts = dict()
-            self.__client_accounts = set()  # Note: Account index is meaningless here
-            self.__transacting_powers = dict()
-
-            # Blockchain
-            self.registry = registry
-            self.blockchain = BlockchainInterfaceFactory.get_interface()
-            self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
-
-            self.__signer = signer or Web3Signer(client=self.blockchain.client)
-            self.__get_accounts()
-            if client_addresses:
-                self.__client_accounts.update(client_addresses)
-
-        @validate_checksum_address
-        def __contains__(self, checksum_address: str) -> bool:
-            return bool(checksum_address in self.accounts)
-
-        @property
-        def active_account(self) -> str:
-            return self.blockchain.transacting_power.account
-
-        def __get_accounts(self) -> None:
-            if self.__signer:
-                signer_accounts = self.__signer.accounts
-                self.__client_accounts.update(signer_accounts)
-            client_accounts = self.blockchain.client.accounts  # Accounts via connected provider
-            self.__client_accounts.update(client_accounts)
-
-        @property
-        def accounts(self) -> set:
-            return {*self.__client_accounts, *self.__local_accounts}
-
-        @validate_checksum_address
-        def activate_account(self, checksum_address: str, password: str = None) -> None:
-            if checksum_address not in self:
-                self.__get_accounts()
-                if checksum_address not in self:
-                    raise self.UnknownAccount
-            try:
-                transacting_power = self.__transacting_powers[checksum_address]
-            except KeyError:
-                transacting_power = TransactingPower(signer=self.__signer,
-                                                     password=password,
-                                                     account=checksum_address)
-                self.__transacting_powers[checksum_address] = transacting_power
-            transacting_power.activate(password=password)
-
-        @property
-        def balances(self) -> Dict:
-            balances = dict()
-            for account in self.accounts:
-                funds = {'ETH': self.blockchain.client.get_balance(account),
-                         'NU': self.token_agent.get_balance(account)}
-                balances.update({account: funds})
-            return balances
 
     #
     # StakeHolder
@@ -1582,16 +1586,16 @@ class StakeHolder(Staker):
         self.log = Logger(f"stakeholder")
 
         # Wallet
-        self.wallet = self.StakingWallet(registry=self.registry,
-                                         client_addresses=checksum_addresses,
-                                         signer=signer)
+        self.wallet = Wallet(registry=self.registry,
+                             client_addresses=checksum_addresses,
+                             signer=signer)
         if initial_address:
             # If an initial address was passed,
             # it is safe to understand that it has already been used at a higher level.
             if initial_address not in self.wallet:
                 message = f"Account {initial_address} is not known by this Ethereum client. Is it a HW account? " \
                           f"If so, make sure that your device is plugged in and you use the --hw-wallet flag."
-                raise self.StakingWallet.UnknownAccount(message)
+                raise Wallet.UnknownAccount(message)
             self.assimilate(checksum_address=initial_address, password=password)
 
     @validate_checksum_address
