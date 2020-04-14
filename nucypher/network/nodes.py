@@ -433,8 +433,7 @@ class Learner:
                       node,
                       force_verification_recheck=False,
                       record_fleet_state=True,
-                      eager: bool = False,
-                      grow_node_sprout_into_node=False):
+                      eager: bool = False):
 
         # UNPARSED
         # PARSED
@@ -862,8 +861,7 @@ class Learner:
                 node_or_false = self.remember_node(sprout,
                                                    record_fleet_state=False,
                                                    # Do we want both of these to be decided by `eager`?
-                                                   eager=eager,
-                                                   grow_node_sprout_into_node=eager)
+                                                   eager=eager)
                 if node_or_false is not False:
                     remembered.append(node_or_false)
 
