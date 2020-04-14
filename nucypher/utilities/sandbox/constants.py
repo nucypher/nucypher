@@ -21,10 +21,10 @@ import os
 import socket
 import string
 import tempfile
-import time
 from datetime import datetime
 from random import SystemRandom
 
+import time
 from web3 import Web3
 
 from nucypher.blockchain.eth.token import NU

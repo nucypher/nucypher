@@ -55,7 +55,6 @@ def test_nucypher_deploy_contracts(click_runner,
     command = ['contracts',
                '--registry-outfile', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa',
                '--se-test-mode']
 
     user_input = '0\n' + 'Y\n' + 'DEPLOY'
@@ -140,8 +139,7 @@ def test_transfer_tokens(click_runner, registry_filepath):
                '--target-address', recipient_address,
                '--value', 42,
                '--registry-infile', registry_filepath,
-               '--provider', TEST_PROVIDER_URI,
-               '--poa']
+               '--provider', TEST_PROVIDER_URI]
 
     user_input = '0\n' + 'Y\n' + 'Y\n'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
@@ -169,7 +167,7 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
     #
 
     cli_action = 'upgrade'
-    base_command = ('--registry-infile', registry_filepath, '--provider', TEST_PROVIDER_URI, '--poa')
+    base_command = ('--registry-infile', registry_filepath, '--provider', TEST_PROVIDER_URI)
     yes = 'Y\n'  # :-)
 
     #
@@ -179,16 +177,16 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
     contracts_to_upgrade = ('StakingEscrow',      # v1 -> v2
                             'PolicyManager',      # v1 -> v2
                             'Adjudicator',        # v1 -> v2
-                            'StakingInterface',    # v1 -> v2
+                            'StakingInterface',   # v1 -> v2
 
                             'StakingEscrow',      # v2 -> v3
                             'StakingEscrow',      # v3 -> v4
 
                             'Adjudicator',        # v2 -> v3
                             'PolicyManager',      # v2 -> v3
-                            'StakingInterface',    # v2 -> v3
+                            'StakingInterface',   # v2 -> v3
 
-                            'StakingInterface',    # v3 -> v4
+                            'StakingInterface',   # v3 -> v4
                             'PolicyManager',      # v3 -> v4
                             'Adjudicator',        # v3 -> v4
 
@@ -297,8 +295,7 @@ def test_rollback(click_runner, testerchain, registry_filepath):
         command = ('rollback',
                    '--contract-name', contract_name,
                    '--registry-infile', registry_filepath,
-                   '--provider', TEST_PROVIDER_URI,
-                   '--poa')
+                   '--provider', TEST_PROVIDER_URI)
 
         user_input = '0\n' + yes
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
@@ -346,8 +343,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
                       '--registry-infile', registry_filepath,
                       '--allocation-infile', mock_allocation_infile,
                       '--allocation-outfile', MOCK_ALLOCATION_REGISTRY_FILEPATH,
-                      '--provider', TEST_PROVIDER_URI,
-                      '--poa')
+                      '--provider', TEST_PROVIDER_URI)
 
     account_index = '0\n'
     yes = 'Y\n'

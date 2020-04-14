@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.commands.status import status
-from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI
+from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI, TEMPORARY_DOMAIN
 from tests.fixtures import MIN_REWARD_RATE_RANGE
 
 
@@ -36,7 +36,7 @@ def test_nucypher_status_network(click_runner, testerchain, agency_local_registr
     network_command = ('network',
                        '--registry-filepath', agency_local_registry.filepath,
                        '--provider', TEST_PROVIDER_URI,
-                       '--poa')
+                       '--network', TEMPORARY_DOMAIN)
 
     result = click_runner.invoke(status, network_command, catch_exceptions=False)
     assert result.exit_code == 0
@@ -61,7 +61,7 @@ def test_nucypher_status_stakers(click_runner, agency_local_registry, stakers):
     stakers_command = ('stakers',
                        '--registry-filepath', agency_local_registry.filepath,
                        '--provider', TEST_PROVIDER_URI,
-                       '--poa')
+                       '--network', TEMPORARY_DOMAIN)
 
     result = click_runner.invoke(status, stakers_command, catch_exceptions=False)
     assert result.exit_code == 0
@@ -79,7 +79,7 @@ def test_nucypher_status_stakers(click_runner, agency_local_registry, stakers):
     stakers_command = ('stakers', '--staking-address', staking_address,
                        '--registry-filepath', agency_local_registry.filepath,
                        '--provider', TEST_PROVIDER_URI,
-                       '--poa')
+                       '--network', TEMPORARY_DOMAIN)
 
     result = click_runner.invoke(status, stakers_command, catch_exceptions=False)
     assert result.exit_code == 0
@@ -101,7 +101,7 @@ def test_nucypher_status_reward_range(click_runner, agency_local_registry, stake
     stakers_command = ('reward-range',
                        '--registry-filepath', agency_local_registry.filepath,
                        '--provider', TEST_PROVIDER_URI,
-                       '--poa')
+                       '--network', TEMPORARY_DOMAIN)
 
     result = click_runner.invoke(status, stakers_command, catch_exceptions=False)
     assert result.exit_code == 0
@@ -123,7 +123,7 @@ def test_nucypher_status_locked_tokens(click_runner, testerchain, agency_local_r
     status_command = ('locked-tokens',
                       '--registry-filepath', agency_local_registry.filepath,
                       '--provider', TEST_PROVIDER_URI,
-                      '--poa',
+                      '--network', TEMPORARY_DOMAIN,
                       '--periods', periods)
     light_parameter = [False, True]
     for light in light_parameter:

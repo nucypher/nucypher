@@ -24,7 +24,7 @@ def test_geth_EIP_191_client_signature_integration(instant_geth_dev_node):
         pytest.skip("Do not run Geth nodes in CI")
 
     # Start a geth process
-    blockchain = BlockchainInterface(provider_process=instant_geth_dev_node)
+    blockchain = BlockchainInterface(provider_process=instant_geth_dev_node, poa=True)
     blockchain.connect()
 
     # Sign a message (RPC) and verify it.
@@ -43,7 +43,7 @@ def test_geth_create_new_account(instant_geth_dev_node):
     if 'CIRCLECI' in os.environ:
         pytest.skip("Do not run Geth nodes in CI")
 
-    blockchain = BlockchainInterface(provider_process=instant_geth_dev_node)
+    blockchain = BlockchainInterface(provider_process=instant_geth_dev_node, poa=True)
     blockchain.connect()
     new_account = blockchain.client.new_account(password=INSECURE_DEVELOPMENT_PASSWORD)
     assert is_checksum_address(new_account)
@@ -55,7 +55,7 @@ def test_geth_deployment_integration(instant_geth_dev_node, test_registry):
     if 'CIRCLECI' in os.environ:
         pytest.skip("Do not run Geth nodes in CI")
 
-    blockchain = BlockchainDeployerInterface(provider_process=instant_geth_dev_node)
+    blockchain = BlockchainDeployerInterface(provider_process=instant_geth_dev_node, poa=True)  # always poa here.
     BlockchainInterfaceFactory.register_interface(interface=blockchain)
 
     # Make Deployer
