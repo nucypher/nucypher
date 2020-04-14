@@ -1,5 +1,8 @@
 class VersionedBytes:
 
+    class NucypherNeedsUpdateException(BaseException):
+        """This node cannot instantiate a class from data created by a newer version of NuCypher."""
+
     def __new__(cls, *args, **kwargs):
         """
         When instantiating a specific version of a versioned Bytestring,
@@ -30,8 +33,20 @@ class VersionedBytes:
         try:
             outclass = next(iter([c for c in versioned_subclasses if c.version == v]))
         except StopIteration:
-            # if we can't find the right version, just return the base class.
+
+            if len(versioned_subclasses) and v > 1:
+                # We have received data that was clearly created by a newer version of Nucypher,
+                # TODO:  I don't know exactly what to do here.
+                # would a bob be receiving this?  Or an Alice?
+                # Who needs to know about this?
+                # can we notify the staker of a node that their Worker needs an update?
+
+                raise VersionedBytes.NucypherNeedsUpdateException("This node is running outdated NuCypher code")
+
+            # if we don't have versioned subclasses or the version == 1, it's just really soon.
+            # lets not get ahead of ourselves, we can probably move on with life.
             return klass
+
         return outclass
 
     @classmethod

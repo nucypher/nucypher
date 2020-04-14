@@ -25,6 +25,8 @@ from nucypher.crypto.api import secure_random
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.signing import Signature
 
+from nucypher.primitives import VersionedBytes
+
 
 def test_split_two_signatures():
     """
@@ -158,3 +160,22 @@ def test_message_kit_versions(enacted_federated_policy, federated_alice):
     # we have a good old fashioned version one UmbralMessageKit with no weird attributes from the future
     assert v1_mkit.version == 1
     assert hasattr(v1_mkit, 'pandemic') is False
+
+
+def test_newer_version_than_installed_code_can_accomodate(enacted_federated_policy, federated_alice):
+
+    """ This test will fail if we ever have a MessageKit version 99 """
+
+    enrico = Enrico.from_alice(federated_alice, label=enacted_federated_policy.label)
+    message = "I haven't been outside in days..."
+    plaintext_bytes = bytes(message, encoding='utf-8')
+    mkit, signature = enrico.encrypt_message(message=plaintext_bytes)
+    # simulate an enrico from the future creating a message kit unsupported by this install
+
+    v99 = (99).to_bytes(2, 'big')
+    V99_mkit_bytes = (
+        v99 + bytes(mkit.capsule) + bytes(mkit.sender_verifying_key) + VariableLengthBytestring(mkit.ciphertext))
+
+    with pytest.raises(VersionedBytes.NucypherNeedsUpdateException):
+        # we should catch this NucypherNeedsUpdateException here
+        UmbralMessageKit.from_bytes(V99_mkit_bytes)
