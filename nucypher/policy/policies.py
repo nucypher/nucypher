@@ -37,9 +37,11 @@ from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
+from nucypher.primitives import VersionedBytes
 
 
-class Arrangement:
+
+class Arrangement(VersionedBytes):
     """
     A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
     """
@@ -82,10 +84,13 @@ class Arrangement:
         self.ursula = ursula
 
     def __bytes__(self):
-        return bytes(self.alice.stamp) + self.id + bytes(VariableLengthBytestring(self.expiration.iso8601().encode()))
+
+        return super().add_version(
+            bytes(self.alice.stamp) + self.id + bytes(VariableLengthBytestring(self.expiration.iso8601().encode())))
 
     @classmethod
     def from_bytes(cls, arrangement_as_bytes):
+        cls, arrangement_as_bytes = super().parse_version(arrangement_as_bytes)
         alice_verifying_key, arrangement_id, expiration_bytes = cls.splitter(arrangement_as_bytes)
         expiration = maya.MayaDT.from_iso8601(iso8601_string=expiration_bytes.decode())
         alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
@@ -105,6 +110,10 @@ class Arrangement:
         Revoke arrangement.
         """
         raise NotImplementedError
+
+
+class ArrangementV1(Arrangement):
+    version = 1
 
 
 class BlockchainArrangement(Arrangement):
@@ -158,6 +167,10 @@ class BlockchainArrangement(Arrangement):
     def payload(self):
         partial_payload = super().payload()
         return bytes(self.publish_transaction) + partial_payload
+
+
+class BlockchainArrangementV1(BlockchainArrangement):
+    version = 1
 
 
 class Policy(ABC):

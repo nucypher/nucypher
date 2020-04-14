@@ -45,9 +45,10 @@ from nucypher.crypto.utils import (canonical_address_from_umbral_key,
                                    get_coordinates_as_bytes,
                                    get_signature_recovery_value)
 from nucypher.network.middleware import RestMiddleware
+from nucypher.primitives import VersionedBytes
 
 
-class TreasureMap:
+class TreasureMap(VersionedBytes):
     from nucypher.policy.policies import Arrangement
     ID_LENGTH = Arrangement.ID_LENGTH  # TODO: Unify with Policy / Arrangement - or is this ok?
 
@@ -130,7 +131,7 @@ class TreasureMap:
         if self._payload is None:
             self._set_payload()
 
-        return self._payload
+        return super().add_version(self._payload)
 
     @property
     def _verifying_key(self):
@@ -174,6 +175,8 @@ class TreasureMap:
 
     @classmethod
     def from_bytes(cls, bytes_representation, verify=True):
+
+        cls, bytes_representation = super().parse_version(bytes_representation)
         signature, hrac, tmap_message_kit = cls.splitter(bytes_representation)
 
         treasure_map = cls(
@@ -229,6 +232,10 @@ class TreasureMap:
 
     def __repr__(self):
         return f"{self.__class__.__name__}:{self.public_id()[:6]}"
+
+
+class TreasureMapV1(TreasureMap):
+    version = 1
 
 
 class PolicyCredential:
@@ -292,7 +299,7 @@ class PolicyCredential:
                 (self.policy_pubkey == other.policy_pubkey))
 
 
-class WorkOrder:
+class WorkOrder(VersionedBytes):
 
     class PRETask:
         def __init__(self, capsule, signature, cfrag=None, cfrag_signature=None):
@@ -313,10 +320,11 @@ class WorkOrder:
             data = bytes(self.capsule) + bytes(self.signature)
             if self.cfrag and self.cfrag_signature:
                 data += bytes(self.cfrag) + bytes(self.cfrag_signature)
-            return data
+            return super().add_version(data)
 
         @classmethod
         def from_bytes(cls, data: bytes):
+            cls, data = super().parse_version(data)
             item_splitter = capsule_splitter + signature_splitter
             capsule, signature, remainder = item_splitter(data, return_remainder=True)
             if remainder:
@@ -468,6 +476,10 @@ class WorkOrder:
     def sanitize(self):
         for task in self.tasks.values():
             task.cfrag = CFRAG_NOT_RETAINED
+
+
+class WorkOrderV1(WorkOrder):
+    version = 1
 
 
 class WorkOrderHistory:
