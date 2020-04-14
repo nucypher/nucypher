@@ -143,7 +143,7 @@ group_config_options = group_options(
     poa=option_poa,
     light=option_light,
     registry_filepath=option_registry_filepath,
-    network=option_network,
+    network=option_network(),
     signer_uri=option_signer_uri
 )
 
@@ -261,11 +261,9 @@ def stake():
 @option_force
 @group_config_options
 @group_general_config
-@option_network
+@option_network(required=True)
 def init_stakeholder(general_config, config_root, force, config_options):
-    """
-    Create a new stakeholder configuration.
-    """
+    """Create a new stakeholder configuration."""
     emitter = _setup_emitter(general_config)
     new_stakeholder = config_options.generate_config(config_root)
     filepath = new_stakeholder.to_configuration_file(override=force)
@@ -277,9 +275,7 @@ def init_stakeholder(general_config, config_root, force, config_options):
 @group_general_config
 @group_config_options
 def config(general_config, config_file, config_options):
-    """
-    View and optionally update existing StakeHolder's configuration.
-    """
+    """View and optionally update existing StakeHolder's configuration."""
     emitter = _setup_emitter(general_config)
     configuration_file_location = config_file or StakeHolderConfiguration.default_filepath()
     emitter.echo(f"StakeHolder Configuration {configuration_file_location} \n {'='*55}")

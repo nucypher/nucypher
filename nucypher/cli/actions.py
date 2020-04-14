@@ -41,7 +41,7 @@ from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainInterface
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
@@ -61,6 +61,10 @@ from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Teacher
 from nucypher.network.teachers import TEACHER_NODES
+
+"""
+This module is for common functions that support CLI operation.
+"""
 
 NO_BLOCKCHAIN_CONNECTION.bool_value(False)
 
@@ -715,7 +719,7 @@ def select_config_file(emitter,
     return config_file
 
 
-def issue_stake_suggestions(value: NU = None, lock_periods: int = None):
+def issue_stake_suggestions(value: NU = None, lock_periods: int = None) -> None:
     if value and (value > NU.from_tokens(150000)):
         click.confirm(f"Wow, {value} - That's a lot of NU - Are you sure this is correct?", abort=True)
     if lock_periods and (lock_periods > 365):
@@ -731,21 +735,29 @@ def select_network(emitter) -> str:
     return network
 
 
-def connect_to_blockchain(provider_uri, emitter, debug: bool = False, light: bool = False) -> None:
+def get_registry(network: str, registry_filepath: str = None) -> BaseContractRegistry:
+    if registry_filepath:
+        registry = LocalContractRegistry(filepath=registry_filepath)
+    else:
+        registry = InMemoryContractRegistry.from_latest_publication(network=network)
+    return registry
+
+
+def connect_to_blockchain(provider_uri, emitter, debug: bool = False, light: bool = False) -> BlockchainInterface:
     try:
-        # Note: For test compatibility.
+        # Note: Conditional for test compatibility.
         if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
             BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri,
                                                             light=light,
                                                             sync=False,
                                                             emitter=emitter)
-
         blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
-
         emitter.echo(message="Reading Latest Chaindata...")
         blockchain.connect()
+        return blockchain
     except Exception as e:
         if debug:
             raise
         click.secho(str(e), bold=True, fg='red')
         raise click.Abort
+

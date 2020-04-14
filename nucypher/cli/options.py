@@ -49,7 +49,6 @@ option_light = click.option('--light', help="Indicate that node is light", is_fl
 option_m = click.option('--m', help="M-Threshold KFrags", type=click.INT)
 option_min_stake = click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 option_n = click.option('--n', help="N-Total KFrags", type=click.INT)
-option_network = click.option('--network', help="Network Domain Name", type=click.STRING)  # TODO
 option_poa = click.option('--poa/--disable-poa', help="Inject POA middleware", is_flag=True, default=None)
 option_registry_filepath = click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 option_staking_address = click.option('--staking-address', help="Address of a NuCypher staker", type=EIP55_CHECKSUM_ADDRESS)
@@ -96,6 +95,14 @@ def option_message_kit(required: bool = False):
         required=required)
 
 
+def option_network(required: bool = False):
+    return click.option(
+        '--network',
+        help="Network Domain Name",
+        type=click.STRING,
+        required=required)
+
+
 def option_policy_encrypting_key(required: bool = False):
     return click.option(
         '--policy-encrypting-key',
@@ -110,7 +117,8 @@ def option_provider_uri(default=os.environ.get("NUCYPHER_PROVIDER_URI"), require
         help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'",
         type=click.STRING,
         required=required,
-        default=default)
+        default=default
+    )
 
 
 def group_options(option_class, **options):

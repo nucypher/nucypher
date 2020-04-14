@@ -95,7 +95,7 @@ group_config_options = group_options(
     FelixConfigOptions,
     geth=option_geth,
     dev=option_dev,
-    network=option_network,
+    network=option_network(),
     provider_uri=option_provider_uri(),
     host=click.option('--host', help="The host to run Felix HTTP services on", type=click.STRING, default='127.0.0.1'),
     db_filepath=option_db_filepath,

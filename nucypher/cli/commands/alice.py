@@ -144,7 +144,7 @@ class AliceConfigOptions:
 group_config_options = group_options(
     AliceConfigOptions,
     dev=option_dev,
-    network=option_network,
+    network=option_network(),
     provider_uri=option_provider_uri(),
     signer_uri=option_signer_uri,
     gas_strategy=option_gas_strategy,
