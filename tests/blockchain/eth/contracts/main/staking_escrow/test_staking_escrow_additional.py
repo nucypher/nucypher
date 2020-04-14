@@ -125,7 +125,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     testerchain.wait_for_receipt(tx)
     # Check constructor and storage values
     assert contract_library_v2.address == dispatcher.functions.target().call()
-    assert token_economics.maximum_allowed_locked == contract.functions.maxAllowableLockedTokens().call()
+    assert 2 == contract.functions.maxAllowableLockedTokens().call()
     assert policy_manager.address == contract.functions.policyManager().call()
     assert 2 == contract.functions.valueToCheck().call()
     assert not contract.functions.isTestContract().call()

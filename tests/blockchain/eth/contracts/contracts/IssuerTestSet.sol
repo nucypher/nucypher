@@ -1,4 +1,4 @@
-pragma solidity ^0.6.1;
+pragma solidity ^0.6.5;
 
 
 import "contracts/Issuer.sol";
@@ -53,13 +53,7 @@ contract IssuerMock is Issuer {
 */
 contract IssuerBad is Upgradeable {
 
-    address public token;
-    uint256 public miningCoefficient;
-    uint256 public lockedPeriodsCoefficient;
-    uint32 public secondsPerPeriod;
-    uint16 public rewardedPeriods;
-
-    uint16 public lastMintedPeriod;
+    uint16 public currentMintingPeriod;
 //    uint256 public currentSupply1;
     uint256 public currentSupply2;
 

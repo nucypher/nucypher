@@ -1,4 +1,4 @@
-pragma solidity ^0.6.1;
+pragma solidity ^0.6.5;
 
 
 import "zeppelin/ownership/Ownable.sol";
@@ -17,9 +17,10 @@ contract PreallocationEscrow is AbstractStakingContract, Ownable {
     event TokensWithdrawn(address indexed owner, uint256 value);
     event ETHWithdrawn(address indexed owner, uint256 value);
 
+    StakingEscrow public immutable stakingEscrow;
+
     uint256 public lockedValue;
     uint256 public endLockTimestamp;
-    StakingEscrow public stakingEscrow;
 
     /**
     * @param _router Address of the StakingInterfaceRouter contract

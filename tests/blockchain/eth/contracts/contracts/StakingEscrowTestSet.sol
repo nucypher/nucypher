@@ -1,4 +1,4 @@
-pragma solidity ^0.6.1;
+pragma solidity ^0.6.5;
 
 
 import "contracts/StakingEscrow.sol";
@@ -92,7 +92,6 @@ contract StakingEscrowV2Mock is StakingEscrow {
     function finishUpgrade(address _target) public override onlyWhileUpgrading {
         StakingEscrowV2Mock escrow = StakingEscrowV2Mock(_target);
         valueToCheck = escrow.valueToCheck();
-        isTestContract = escrow.isTestContract();
         emit UpgradeFinished(_target, msg.sender);
     }
 }
@@ -103,7 +102,7 @@ contract StakingEscrowV2Mock is StakingEscrow {
 */
 contract PolicyManagerForStakingEscrowMock {
 
-    StakingEscrow public escrow;
+    StakingEscrow public immutable escrow;
     mapping (address => uint16[]) public nodes;
 
     constructor(address, StakingEscrow _escrow) public {
@@ -138,7 +137,7 @@ contract PolicyManagerForStakingEscrowMock {
 */
 contract AdjudicatorForStakingEscrowMock {
 
-    StakingEscrow public escrow;
+    StakingEscrow public immutable escrow;
 
     constructor(StakingEscrow _escrow) public {
         escrow = _escrow;
@@ -161,8 +160,8 @@ contract AdjudicatorForStakingEscrowMock {
 */
 contract Intermediary {
 
-    NuCypherToken token;
-    StakingEscrow escrow;
+    NuCypherToken immutable token;
+    StakingEscrow immutable escrow;
 
     constructor(NuCypherToken _token, StakingEscrow _escrow) public {
         token = _token;
@@ -190,7 +189,7 @@ contract Intermediary {
 */
 contract WorkLockForStakingEscrowMock {
 
-    StakingEscrow public escrow;
+    StakingEscrow public immutable escrow;
 
     constructor(StakingEscrow _escrow) public {
         escrow = _escrow;

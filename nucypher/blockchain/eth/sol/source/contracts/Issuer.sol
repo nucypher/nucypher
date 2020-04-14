@@ -1,4 +1,4 @@
-pragma solidity ^0.6.1;
+pragma solidity ^0.6.5;
 
 
 import "contracts/NuCypherToken.sol";
@@ -10,8 +10,8 @@ import "zeppelin/token/ERC20/SafeERC20.sol";
 
 
 /**
-* @notice Contract for calculate issued tokens
-* @dev |v1.1.4|
+* @notice Contract for calculation of issued tokens
+* @dev |v2.1.1|
 */
 abstract contract Issuer is Upgradeable {
     using SafeERC20 for NuCypherToken;
@@ -22,14 +22,15 @@ abstract contract Issuer is Upgradeable {
     /// Issuer is initialized with a reserved reward
     event Initialized(uint256 reservedReward);
 
-    NuCypherToken public token;
-    uint256 public miningCoefficient;
-    uint256 public lockedPeriodsCoefficient;
-    uint32 public secondsPerPeriod;
-    uint16 public rewardedPeriods;
+    NuCypherToken public immutable token;
+    uint256 public immutable totalSupply;
+
+    uint256 public immutable miningCoefficient;
+    uint256 public immutable lockedPeriodsCoefficient;
+    uint32 public immutable secondsPerPeriod;
+    uint16 public immutable rewardedPeriods;
 
     uint16 public currentMintingPeriod;
-    uint256 public totalSupply;
     /**
     * Current supply is used in the mining formula and is stored to prevent different calculation
     * for stakers which get reward in the same period. There are two values -
@@ -60,8 +61,8 @@ abstract contract Issuer is Upgradeable {
     )
         public
     {
-        totalSupply = _token.totalSupply();
-        require(totalSupply > 0 &&
+        uint256 localTotalSupply = _token.totalSupply();
+        require(localTotalSupply > 0 &&
             _miningCoefficient != 0 &&
             _hoursPerPeriod != 0 &&
             _lockedPeriodsCoefficient != 0 &&
@@ -69,16 +70,17 @@ abstract contract Issuer is Upgradeable {
         uint256 maxLockedPeriods = _rewardedPeriods + _lockedPeriodsCoefficient;
         require(maxLockedPeriods > _rewardedPeriods &&
             // worst case for `totalLockedValue * k2`, when totalLockedValue == totalSupply
-            totalSupply * miningCoefficient / totalSupply == miningCoefficient &&
+            localTotalSupply * _miningCoefficient / localTotalSupply == _miningCoefficient &&
             // worst case for `(totalSupply - currentSupply) * lockedValue * (k1 + allLockedPeriods)`,
             // when currentSupply == 0, lockedValue == totalSupply
-            totalSupply * totalSupply * maxLockedPeriods / totalSupply / totalSupply == maxLockedPeriods,
+            localTotalSupply * localTotalSupply * maxLockedPeriods / localTotalSupply / localTotalSupply == maxLockedPeriods,
             "Specified parameters cause overflow");
         token = _token;
         miningCoefficient = _miningCoefficient;
         secondsPerPeriod = _hoursPerPeriod.mul32(1 hours);
         lockedPeriodsCoefficient = _lockedPeriodsCoefficient;
         rewardedPeriods = _rewardedPeriods;
+        totalSupply = localTotalSupply;
     }
 
     /**
@@ -192,26 +194,9 @@ abstract contract Issuer is Upgradeable {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-        require(address(uint160(delegateGet(_testTarget, this.token.selector))) == address(token));
-        require(delegateGet(_testTarget, this.miningCoefficient.selector) == miningCoefficient);
-        require(delegateGet(_testTarget, this.lockedPeriodsCoefficient.selector) == lockedPeriodsCoefficient);
-        require(uint32(delegateGet(_testTarget, this.secondsPerPeriod.selector)) == secondsPerPeriod);
-        require(uint16(delegateGet(_testTarget, this.rewardedPeriods.selector)) == rewardedPeriods);
         require(uint16(delegateGet(_testTarget, this.currentMintingPeriod.selector)) == currentMintingPeriod);
         require(delegateGet(_testTarget, this.currentSupply1.selector) == currentSupply1);
         require(delegateGet(_testTarget, this.currentSupply2.selector) == currentSupply2);
-        require(delegateGet(_testTarget, this.totalSupply.selector) == totalSupply);
     }
 
-    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
-    function finishUpgrade(address _target) public override virtual {
-        super.finishUpgrade(_target);
-        Issuer issuer = Issuer(_target);
-        totalSupply = issuer.totalSupply();
-        token = issuer.token();
-        miningCoefficient = issuer.miningCoefficient();
-        secondsPerPeriod = issuer.secondsPerPeriod();
-        lockedPeriodsCoefficient = issuer.lockedPeriodsCoefficient();
-        rewardedPeriods = issuer.rewardedPeriods();
-    }
 }

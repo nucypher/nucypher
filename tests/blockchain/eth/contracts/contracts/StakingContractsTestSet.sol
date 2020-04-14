@@ -1,4 +1,4 @@
-pragma solidity ^0.6.1;
+pragma solidity ^0.6.5;
 
 
 import "contracts/NuCypherToken.sol";
@@ -10,7 +10,7 @@ import "contracts/staking_contracts/AbstractStakingContract.sol";
 */
 contract StakingEscrowForStakingContractMock {
 
-    NuCypherToken token;
+    NuCypherToken immutable token;
     uint32 public secondsPerPeriod = 1;
     address public node;
     uint256 public value;
@@ -94,7 +94,7 @@ contract StakingEscrowForStakingContractMock {
 */
 contract PolicyManagerForStakingContractMock {
 
-    uint32 public secondsPerPeriod = 1;
+    uint32 public immutable secondsPerPeriod = 1;
     uint256 public minRewardRate;
 
     function withdraw() public returns (uint256) {
@@ -123,7 +123,7 @@ contract PolicyManagerForStakingContractMock {
 */
 contract WorkLockForStakingContractMock {
 
-    uint256 public startBidDate = 1;
+    uint256 public immutable boostingRefund = 1;
     uint256 public claimed;
     uint256 public depositedETH;
     uint256 public compensation;
@@ -173,8 +173,8 @@ contract WorkLockForStakingContractMock {
 */
 contract StakingInterfaceMockV1 {
 
-    address public token = address(1);
-    address public escrow = address(1);
+    address public immutable token = address(1);
+    address public immutable escrow = address(1);
 
     function firstMethod() public pure {}
 
@@ -190,8 +190,8 @@ contract StakingInterfaceMockV1 {
 */
 contract StakingInterfaceMockV2 {
 
-    address public token = address(1);
-    address public escrow = address(1);
+    address public immutable token = address(1);
+    address public immutable escrow = address(1);
 
     // TODO #1809
 //    receive() external payable {}
@@ -216,8 +216,8 @@ contract StakingInterfaceMockV2 {
 */
 contract DestroyableStakingInterface {
 
-    address public token = address(1);
-    address public escrow = address(1);
+    address public immutable token = address(1);
+    address public immutable escrow = address(1);
 
     function method() public pure returns (uint256) {
         return 15;
