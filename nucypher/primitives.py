@@ -34,7 +34,7 @@ class VersionedBytes:
             outclass = next(iter([c for c in versioned_subclasses if c.version == v]))
         except StopIteration:
 
-            if len(versioned_subclasses) and v > 1:
+            if len(versioned_subclasses) and 99 >= v > 1:
                 # We have received data that was clearly created by a newer version of Nucypher,
                 # TODO:  I don't know exactly what to do here.
                 # would a bob be receiving this?  Or an Alice?
@@ -43,8 +43,9 @@ class VersionedBytes:
 
                 raise VersionedBytes.NucypherNeedsUpdateException("This node is running outdated NuCypher code")
 
-            # if we don't have versioned subclasses or the version == 1, it's just really soon.
+            # if the 1st two bytes aren't between 1 and 99, or if we have some weird broken data,
             # lets not get ahead of ourselves, we can probably move on with life.
+            # return the base class and let it fail or succeed...
             return klass
 
         return outclass
@@ -52,7 +53,14 @@ class VersionedBytes:
     @classmethod
     def parse_version(cls, some_bytes):
         version_bytes = some_bytes[:2]
-        return VersionedBytes.__get_class(cls, version_bytes), some_bytes[2:]
+        output_class = VersionedBytes.__get_class(cls, version_bytes)
+
+        output_bytes = some_bytes if output_class is cls and not hasattr(cls, 'version') else some_bytes[2:]
+        # if we got an unversioned base class, it means we probably could not parse a version
+        # and we have some legacy pre-versioned data here.  Lets just let it fail or succeed
+        # in whatever ensuing bytesplitter this data may encounter
+
+        return output_class, output_bytes
 
     def add_version(self, some_bytes):
         return (self.version).to_bytes(2, 'big') + some_bytes
