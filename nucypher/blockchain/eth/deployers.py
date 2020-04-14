@@ -1022,7 +1022,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
                ) -> dict:
 
         """Deploy a new instance of PreallocationEscrow to the blockchain."""
-        self.check_deployment_readiness()
+        self.check_deployment_readiness(ignore_deployed=ignore_deployed)
         router_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                contract_name=self._router_deployer.contract_name)
         constructor_args = (router_contract.address,)

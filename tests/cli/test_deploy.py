@@ -109,15 +109,15 @@ def test_nucypher_deploy_contracts(click_runner,
     assert AdjudicatorAgent(registry=registry)
 
 
-def test_deploy_single_contract(click_runner, registry_filepath):
+def test_deploy_single_contract_on_existing_network(click_runner, registry_filepath):
 
     # Perform the Test
     command = ['contracts',
-               '--contract-name', 'NuCypherToken',
+               '--contract-name', StakingEscrowAgent.contract_name,
                '--registry-infile', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa',
-               '--debug']
+               '--debug',
+               '--ignore-deployed']
 
     user_input = '0\n' + 'Y\n'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
