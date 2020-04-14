@@ -19,7 +19,6 @@ from nucypher.cli.commands.deploy import deploy
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
     INSECURE_DEVELOPMENT_PASSWORD,
-    INSECURE_DEPLOYMENT_SECRET_PLAINTEXT
 )
 
 ALTERNATE_REGISTRY_FILEPATH = '/tmp/nucypher-test-registry-alternate.json'
@@ -199,9 +198,8 @@ def test_manual_proxy_retargeting(testerchain, click_runner, token_economics):
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH,
                '--poa')
 
-    # Reveal the secret and upgrade
-    old_secret = INSECURE_DEPLOYMENT_SECRET_PLAINTEXT.decode()
-    user_input = '0\n' + 'Y\n' + f'{old_secret}\n' + (f'{INSECURE_DEVELOPMENT_PASSWORD}\n' * 2) + 'Y\n'
+    # Upgrade
+    user_input = '0\n' + 'Y\n' + 'Y\n'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -243,8 +241,7 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2,
                '--poa')
 
-    secret = INSECURE_DEPLOYMENT_SECRET_PLAINTEXT.decode()
-    user_input = '0\n' + 'Y\n' + (f'{secret}\n' * 2)
+    user_input = '0\n' + 'Y\n'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -258,7 +255,7 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2,
                '--poa')
 
-    user_input = '0\n' + 'Y\n' + (f'{secret}\n' * 2)
+    user_input = '0\n' + 'Y\n'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -272,7 +269,7 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2,
                '--poa')
 
-    user_input = '0\n' + 'Y\n' + (f'{secret}\n' * 2)
+    user_input = '0\n' + 'Y\n'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 

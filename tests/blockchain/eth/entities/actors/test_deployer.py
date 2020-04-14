@@ -57,11 +57,7 @@ def test_rapid_deployment(token_economics, test_registry, tmpdir):
     administrator = ContractAdministrator(deployer_address=deployer_address,
                                           registry=test_registry)
 
-    secrets = dict()
-    for deployer_class in administrator.upgradeable_deployer_classes:
-        secrets[deployer_class.contract_name] = INSECURE_DEVELOPMENT_PASSWORD
-
-    administrator.deploy_network_contracts(secrets=secrets, emitter=StdoutEmitter())
+    administrator.deploy_network_contracts(emitter=StdoutEmitter())
 
     all_yall = blockchain.unassigned_accounts
 

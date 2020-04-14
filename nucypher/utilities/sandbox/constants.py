@@ -100,19 +100,6 @@ __valid_password_chars = string.ascii_uppercase + string.ascii_lowercase + strin
 
 INSECURE_DEVELOPMENT_PASSWORD = ''.join(SystemRandom().choice(__valid_password_chars) for _ in range(16))
 
-STAKING_ESCROW_DEPLOYMENT_SECRET = INSECURE_DEVELOPMENT_PASSWORD + str(os.urandom(16))
-
-POLICY_MANAGER_DEPLOYMENT_SECRET = INSECURE_DEVELOPMENT_PASSWORD + str(os.urandom(16))
-
-STAKING_INTERFACE_DEPLOYMENT_SECRET = INSECURE_DEVELOPMENT_PASSWORD + str(os.urandom(16))
-
-ADJUDICATOR_DEPLOYMENT_SECRET = INSECURE_DEVELOPMENT_PASSWORD + str(os.urandom(16))
-
-INSECURE_DEPLOYMENT_SECRET_PLAINTEXT = bytes(''.join(SystemRandom().choice(__valid_password_chars) for _ in range(16)), encoding='utf-8')
-
-INSECURE_DEPLOYMENT_SECRET_HASH = keccak_digest(INSECURE_DEPLOYMENT_SECRET_PLAINTEXT)
-
-
 #
 # Temporary Directories and Files
 #

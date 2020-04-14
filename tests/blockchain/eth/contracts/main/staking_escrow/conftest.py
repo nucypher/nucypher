@@ -15,16 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import pytest
-from eth_utils import keccak
 from web3.contract import Contract
 
 from nucypher.blockchain.economics import BaseEconomics
 
 VALUE_FIELD = 0
-
-secret = (123456).to_bytes(32, byteorder='big')
 
 
 @pytest.fixture()
@@ -58,8 +54,7 @@ def escrow_contract(testerchain, token, token_economics, request, deploy_contrac
         contract, _ = deploy_contract('StakingEscrow', token.address, *deploy_parameters)
 
         if request.param:
-            secret_hash = keccak(secret)
-            dispatcher, _ = deploy_contract('Dispatcher', contract.address, secret_hash)
+            dispatcher, _ = deploy_contract('Dispatcher', contract.address)
             contract = testerchain.client.get_contract(
                 abi=contract.abi,
                 address=dispatcher.address,

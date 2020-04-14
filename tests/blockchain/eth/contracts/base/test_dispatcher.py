@@ -14,17 +14,13 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import keccak
 from web3.contract import Contract
 from web3.exceptions import BadFunctionCallOutput
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-
-SECRET_LENGTH = 16
 
 
 @pytest.mark.slow
@@ -32,20 +28,13 @@ def test_dispatcher(testerchain, deploy_contract):
     creator = testerchain.client.accounts[0]
     account = testerchain.client.accounts[1]
 
-    secret = os.urandom(SECRET_LENGTH)
-    secret_hash = keccak(secret)
-    secret2 = os.urandom(SECRET_LENGTH)
-    secret2_hash = keccak(secret2)
-    secret3 = os.urandom(SECRET_LENGTH)
-    secret3_hash = keccak(secret3)
-
     # Try to deploy broken libraries and dispatcher for them
     contract0_bad_lib, _ = deploy_contract('BadDispatcherStorage')
     contract2_bad_verify_state_lib, _ = deploy_contract('ContractV2BadVerifyState')
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('Dispatcher', contract0_bad_lib.address, secret_hash)
+        deploy_contract('Dispatcher', contract0_bad_lib.address)
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('Dispatcher', contract2_bad_verify_state_lib.address, secret_hash)
+        deploy_contract('Dispatcher', contract2_bad_verify_state_lib.address)
 
     # Deploy contracts and dispatcher for them
     contract1_lib, _ = deploy_contract('ContractV1', 1)
@@ -53,7 +42,7 @@ def test_dispatcher(testerchain, deploy_contract):
     contract3_lib, _ = deploy_contract('ContractV3', 2)
     contract4_lib, _ = deploy_contract('ContractV4', 3)
     contract2_bad_storage_lib, _ = deploy_contract('ContractV2BadStorage')
-    dispatcher, _ = deploy_contract('Dispatcher', contract1_lib.address, secret_hash)
+    dispatcher, _ = deploy_contract('Dispatcher', contract1_lib.address)
     assert contract1_lib.address == dispatcher.functions.target().call()
 
     upgrades = dispatcher.events.Upgraded.createFilter(fromBlock=0)
@@ -135,32 +124,22 @@ def test_dispatcher(testerchain, deploy_contract):
 
     # Only owner can change target address for the dispatcher
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract2_lib.address, secret, secret2_hash).transact({'from': account})
-        testerchain.wait_for_receipt(tx)
-
-    # Owner must know the secret
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract2_lib.address, secret2, secret2_hash).transact({'from': creator})
-        testerchain.wait_for_receipt(tx)
-
-    # Owner can't use the same secret again because it's insecure
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract2_lib.address, secret, secret_hash).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract2_lib.address).transact({'from': account})
         testerchain.wait_for_receipt(tx)
 
     # Can't upgrade to the bad version
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions\
-            .upgrade(contract2_bad_storage_lib.address, secret, secret2_hash).transact({'from': creator})
+            .upgrade(contract2_bad_storage_lib.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions\
-            .upgrade(contract2_bad_verify_state_lib.address, secret, secret2_hash).transact({'from': creator})
+            .upgrade(contract2_bad_verify_state_lib.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     # Upgrade contract
     assert contract1_lib.address == dispatcher.functions.target().call()
-    tx = dispatcher.functions.upgrade(contract2_lib.address, secret, secret2_hash).transact({'from': creator})
+    tx = dispatcher.functions.upgrade(contract2_lib.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert contract2_lib.address == dispatcher.functions.target().call()
 
@@ -233,17 +212,17 @@ def test_dispatcher(testerchain, deploy_contract):
 
     # Can't downgrade to the first version due to new storage variables
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract1_lib.address, secret2, secret3_hash).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract1_lib.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     # And can't upgrade to the bad version
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions\
-            .upgrade(contract2_bad_storage_lib.address, secret2, secret3_hash).transact({'from': creator})
+            .upgrade(contract2_bad_storage_lib.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions\
-            .upgrade(contract2_bad_verify_state_lib.address, secret2, secret3_hash).transact({'from': creator})
+            .upgrade(contract2_bad_verify_state_lib.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     assert contract2_lib.address == dispatcher.functions.target().call()
 
@@ -251,21 +230,11 @@ def test_dispatcher(testerchain, deploy_contract):
 
     # Only owner can rollback
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.rollback(secret2, secret3_hash).transact({'from': account})
-        testerchain.wait_for_receipt(tx)
-
-    # Owner must know the secret
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.rollback(secret3, secret3_hash).transact({'from': account})
-        testerchain.wait_for_receipt(tx)
-
-    # Owner can't use the same secret again because it's insecure
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.rollback(secret2, secret2_hash).transact({'from': account})
+        tx = dispatcher.functions.rollback().transact({'from': account})
         testerchain.wait_for_receipt(tx)
 
     # Can rollback to the first version
-    tx = dispatcher.functions.rollback(secret2, secret3_hash).transact({'from': creator})
+    tx = dispatcher.functions.rollback().transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert contract1_lib.address == dispatcher.functions.target().call()
     assert 2 == contract_instance.functions.getArrayValueLength().call()
@@ -298,11 +267,11 @@ def test_dispatcher(testerchain, deploy_contract):
     # Can't upgrade to the bad version
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions\
-            .upgrade(contract2_bad_storage_lib.address, secret3, secret_hash).transact({'from': creator})
+            .upgrade(contract2_bad_storage_lib.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions\
-            .upgrade(contract2_bad_verify_state_lib.address, secret3, secret_hash).transact({'from': creator})
+            .upgrade(contract2_bad_verify_state_lib.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     assert contract1_lib.address == dispatcher.functions.target().call()
 
@@ -319,9 +288,9 @@ def test_dispatcher(testerchain, deploy_contract):
     assert 33 == events[0]['args']['value']
 
     # Upgrade to the version 3
-    tx = dispatcher.functions.upgrade(contract2_lib.address, secret3, secret_hash).transact({'from': creator})
+    tx = dispatcher.functions.upgrade(contract2_lib.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = dispatcher.functions.upgrade(contract3_lib.address, secret, secret2_hash).transact({'from': creator})
+    tx = dispatcher.functions.upgrade(contract3_lib.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     contract_instance = testerchain.client.get_contract(
         abi=contract3_lib.abi,
@@ -399,7 +368,7 @@ def test_dispatcher(testerchain, deploy_contract):
     assert 33 == events[0]['args']['value']
 
     # Check upgrading to the contract with explicit storage slots
-    tx = dispatcher.functions.upgrade(contract4_lib.address, secret2, secret3_hash).transact({'from': creator})
+    tx = dispatcher.functions.upgrade(contract4_lib.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     contract_instance = testerchain.client.get_contract(
         abi=contract4_lib.abi,
@@ -440,7 +409,7 @@ def test_dispatcher(testerchain, deploy_contract):
     assert creator == event_args['sender']
 
     # Upgrade to the previous version - check that new `verifyState` can handle old contract
-    tx = dispatcher.functions.upgrade(contract3_lib.address, secret3, secret_hash).transact({'from': creator})
+    tx = dispatcher.functions.upgrade(contract3_lib.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert contract3_lib.address == dispatcher.functions.target().call()
     assert 20 == contract_instance.functions.returnValue().call()
@@ -476,13 +445,6 @@ def test_selfdestruct(testerchain, deploy_contract):
     creator = testerchain.client.accounts[0]
     account = testerchain.client.accounts[1]
 
-    secret = os.urandom(SECRET_LENGTH)
-    secret_hash = keccak(secret)
-    secret2 = os.urandom(SECRET_LENGTH)
-    secret2_hash = keccak(secret2)
-    secret3 = os.urandom(SECRET_LENGTH)
-    secret3_hash = keccak(secret3)
-
     # Deploy contract and destroy it
     contract1_lib, _ = deploy_contract('Destroyable', 22)
     assert 22 == contract1_lib.functions.constructorValue().call()
@@ -493,15 +455,15 @@ def test_selfdestruct(testerchain, deploy_contract):
 
     # Can't create dispatcher using address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('Dispatcher', BlockchainInterface.NULL_ADDRESS, secret_hash)
+        deploy_contract('Dispatcher', BlockchainInterface.NULL_ADDRESS)
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('Dispatcher', account, secret_hash)
+        deploy_contract('Dispatcher', account)
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('Dispatcher', contract1_lib.address, secret_hash)
+        deploy_contract('Dispatcher', contract1_lib.address)
 
     # Deploy contract again with a dispatcher targeting it
     contract2_lib, _ = deploy_contract('Destroyable', 23)
-    dispatcher, _ = deploy_contract('Dispatcher', contract2_lib.address, secret_hash)
+    dispatcher, _ = deploy_contract('Dispatcher', contract2_lib.address)
     assert contract2_lib.address == dispatcher.functions.target().call()
 
     contract_instance = testerchain.client.get_contract(
@@ -515,13 +477,13 @@ def test_selfdestruct(testerchain, deploy_contract):
 
     # Can't upgrade to an address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(BlockchainInterface.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(BlockchainInterface.NULL_ADDRESS).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(account, secret, secret2_hash).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(account).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract1_lib.address, secret, secret2_hash).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract1_lib.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     # Destroy library
@@ -533,25 +495,25 @@ def test_selfdestruct(testerchain, deploy_contract):
 
     # Can't upgrade to an address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(BlockchainInterface.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(BlockchainInterface.NULL_ADDRESS).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(account, secret, secret2_hash).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(account).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract1_lib.address, secret, secret2_hash).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract1_lib.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     # Deploy the same contract again and upgrade to this contract
     contract3_lib, _ = deploy_contract('Destroyable', 24)
-    tx = dispatcher.functions.upgrade(contract3_lib.address, secret, secret2_hash).transact({'from': creator})
+    tx = dispatcher.functions.upgrade(contract3_lib.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 24 == contract_instance.functions.constructorValue().call()
     assert 34 == contract_instance.functions.functionValue().call()
 
     # Can't rollback because the previous version is destroyed
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.rollback(secret2, secret3_hash).transact({'from': account})
+        tx = dispatcher.functions.rollback().transact({'from': account})
         testerchain.wait_for_receipt(tx)
 
     # Destroy again
@@ -562,15 +524,15 @@ def test_selfdestruct(testerchain, deploy_contract):
 
     # Still can't rollback because the previous version is destroyed
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.rollback(secret2, secret3_hash).transact({'from': account})
+        tx = dispatcher.functions.rollback().transact({'from': account})
         testerchain.wait_for_receipt(tx)
 
     # Deploy the same contract twice and upgrade to the latest contract
     contract4_lib, _ = deploy_contract('Destroyable', 25)
     contract5_lib, _ = deploy_contract('Destroyable', 26)
-    tx = dispatcher.functions.upgrade(contract4_lib.address, secret2, secret3_hash).transact({'from': creator})
+    tx = dispatcher.functions.upgrade(contract4_lib.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = dispatcher.functions.upgrade(contract5_lib.address, secret3, secret_hash).transact({'from': creator})
+    tx = dispatcher.functions.upgrade(contract5_lib.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 26 == contract_instance.functions.constructorValue().call()
     assert 34 == contract_instance.functions.functionValue().call()
@@ -579,12 +541,12 @@ def test_selfdestruct(testerchain, deploy_contract):
     tx = contract4_lib.functions.destroy().transact()
     testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.rollback(secret, secret2_hash).transact({'from': account})
+        tx = dispatcher.functions.rollback().transact({'from': account})
         testerchain.wait_for_receipt(tx)
 
     # Deploy the same contract again and upgrade
     contract6_lib, _ = deploy_contract('Destroyable', 27)
-    tx = dispatcher.functions.upgrade(contract6_lib.address, secret, secret2_hash).transact({'from': creator})
+    tx = dispatcher.functions.upgrade(contract6_lib.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 27 == contract_instance.functions.constructorValue().call()
     assert 34 == contract_instance.functions.functionValue().call()
@@ -593,7 +555,7 @@ def test_selfdestruct(testerchain, deploy_contract):
     tx = contract6_lib.functions.destroy().transact()
     testerchain.wait_for_receipt(tx)
     # Now rollback must work, the previous version is fine
-    tx = dispatcher.functions.rollback(secret2, secret3_hash).transact({'from': creator})
+    tx = dispatcher.functions.rollback().transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 26 == contract_instance.functions.constructorValue().call()
     assert 34 == contract_instance.functions.functionValue().call()

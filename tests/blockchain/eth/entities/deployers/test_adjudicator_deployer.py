@@ -15,16 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
 import pytest
-from eth_utils import keccak
 
 from nucypher.blockchain.eth.agents import AdjudicatorAgent
 from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     NucypherTokenDeployer,
     StakingEscrowDeployer,
-    DispatcherDeployer
 )
 
 
@@ -39,15 +36,13 @@ def test_adjudicator_deployer(testerchain,
     token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)
     token_deployer.deploy()
 
-    stakers_escrow_secret = os.urandom(DispatcherDeployer._secret_length)
     staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
 
-    staking_escrow_deployer.deploy(secret_hash=keccak(stakers_escrow_secret))
+    staking_escrow_deployer.deploy()
     staking_agent = staking_escrow_deployer.make_agent()  # 2 Staker Escrow
 
     deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry)
-    deployment_receipts = deployer.deploy(secret_hash=os.urandom(DispatcherDeployer._secret_length),
-                                          progress=deployment_progress)
+    deployment_receipts = deployer.deploy(progress=deployment_progress)
 
     # deployment steps must match expected number of steps
     assert deployment_progress.num_steps == len(deployer.deployment_steps) == len(deployment_receipts) == 3

@@ -15,22 +15,22 @@ contract ContractV4 is Upgradeable {
 
     // slot allocation costs nothing
     /// uint256 public storageValue;
-    uint256 reservedSlot5;
+    uint256 reservedSlot3;
     /// string public dynamicallySizedValue;
-    uint256 reservedSlot6;
+    uint256 reservedSlot4;
     /// uint256[] public arrayValues;
-    uint256 reservedSlot7;
+    uint256 reservedSlot5;
     /// mapping (uint256 => uint256) public mappingValues;
-    uint256 reservedSlot8;
+    uint256 reservedSlot6;
     /// uint256[] public mappingIndices;
-    uint256 reservedSlot9;
+    uint256 reservedSlot7;
 
     struct Structure1 {
         uint256 value;
         uint256[] arrayValues;
     }
     /// Structure1[] public arrayStructures;
-    uint256 reservedSlot10;
+    uint256 reservedSlot8;
 
     struct Structure2 {
         uint256 value;
@@ -38,12 +38,12 @@ contract ContractV4 is Upgradeable {
         uint256 valueToCheck;
     }
     /// mapping (uint256 => Structure2) public mappingStructures;
-    uint256 reservedSlot11;
+    uint256 reservedSlot9;
     /// uint256 public mappingStructuresLength;
-    uint256 reservedSlot12;
+    uint256 reservedSlot10;
 
     /// uint256 public storageValueToCheck;
-    uint256 reservedSlot13;
+    uint256 reservedSlot11;
     uint256 public anotherStorageValue;
 
     constructor(uint256 _storageValueToCheck) public {
@@ -91,12 +91,12 @@ contract ContractV4 is Upgradeable {
 
 
     function storageValue() public view returns (uint256 value) {
-        // storageValue in the slot number 5
-        return getValue(5);
+        // storageValue in the slot number 3
+        return getValue(3);
     }
 
     function dynamicallySizedValue() public view returns (string memory value) {
-        uint256 slotValue = getValue(6);
+        uint256 slotValue = getValue(4);
         // https://solidity.readthedocs.io/en/latest/miscellaneous.html#bytes-and-string
         uint8 lowestBit = uint8(slotValue & 1);
         if (lowestBit == 0) {
@@ -111,7 +111,7 @@ contract ContractV4 is Upgradeable {
             value = new string(length);
             uint256 wordsCount = (length - 1) / 32 + 1;
             for (uint256 i = 0; i < wordsCount; i++) {
-                uint256 word = getArrayValue(6, i);
+                uint256 word = getArrayValue(4, i);
                 uint256 offset = 32 * (i + 1);
                 assembly {
                     mstore(add(value, offset), word)
@@ -121,92 +121,92 @@ contract ContractV4 is Upgradeable {
     }
 
     function getArrayValueLength() public view returns (uint256) {
-        // length of the array in the slot number 7
-        return getValue(7);
+        // length of the array in the slot number 5
+        return getValue(5);
     }
     function arrayValues(uint256 _index) public view returns (uint256) {
         require(_index < getArrayValueLength());
-        // base slot for this array is 7
-        return getArrayValue(7, _index);
+        // base slot for this array is 5
+        return getArrayValue(5, _index);
     }
 
 
     function mappingValues(uint256 _index) public view returns (uint256) {
-        // base slot for this mapping is 8
-        return getMappingValue(8, _index);
+        // base slot for this mapping is 6
+        return getMappingValue(6, _index);
     }
     function getMappingIndicesLength() public view returns (uint256) {
-        // length of the array in the slot number 9
-        return getValue(9);
+        // length of the array in the slot number
+        return getValue(7);
     }
     function mappingIndices(uint256 _index) public view returns (uint256) {
         require(_index < getMappingIndicesLength());
-        return getArrayValue(9, _index);
+        return getArrayValue(7, _index);
     }
 
 
     function getStructureLength1() public view returns (uint256) {
-        // length of the array in the slot number 10
-        return getValue(10);
+        // length of the array in the slot number 8
+        return getValue(8);
     }
     function arrayStructures(uint256 _index) public view returns (uint256) {
         require(_index < getStructureLength1());
         // base slot for this array is 10
         // one value in this array is `value` and the length of the inner `arrayValues`
         // so each index represents 2 slots
-        return getArrayValue(10, 2 * _index);
+        return getArrayValue(8, 2 * _index);
     }
     function getStructureArrayLength1(uint256 _index) public view returns (uint256) {
         require(_index < getStructureLength1());
         // same as above except accessing second part of the value
-        return getArrayValue(10, 2 * _index + 1);
+        return getArrayValue(8, 2 * _index + 1);
     }
     /// @dev Array data is in the slot keccak256(keccak256(10) + 2 * _index + 1) + _arrayIndex
     function getStructureArrayValue1(uint256 _index, uint256 _arrayIndex) public view returns (uint256) {
         require(_arrayIndex < getStructureArrayLength1(_index));
-        uint256 baseSlot = getArraySlot(10, 2 * _index + 1);
+        uint256 baseSlot = getArraySlot(8, 2 * _index + 1);
         return getArrayValue(baseSlot, _arrayIndex);
     }
     function getStructure1ArrayValues(uint256 _index) public view returns (uint256[] memory result) {
         result = new uint256[](getStructureArrayLength1(_index));
-        uint256 baseSlot = getArraySlot(10, 2 * _index + 1);
+        uint256 baseSlot = getArraySlot(8, 2 * _index + 1);
         for (uint256 i = 0; i < result.length; i++) {
             result[i] = getArrayValue(baseSlot, i);
         }
     }
 
     function getStructureLength2() public view returns (uint256) {
-        return getValue(12);
+        return getValue(10);
     }
     function mappingStructures(uint256 _index) public view returns (uint256 value, uint256 valueToCheck) {
-        uint256 baseMappingSlot = getMappingSlot(11, _index);
+        uint256 baseMappingSlot = getMappingSlot(9, _index);
         // one mapping value is `value`,  the length of the inner `arrayValues` and `valueToCheck`
         value = getValue(baseMappingSlot);
         valueToCheck = getValue(baseMappingSlot + 2);
     }
     function getStructureArrayLength2(uint256 _index) public view returns (uint256) {
-        return getValue(getMappingSlot(11, _index) + 1);
+        return getValue(getMappingSlot(9, _index) + 1);
     }
     /// @dev Array data is in the slot keccak256(keccak256(concat(_index, 11)) + 1) + _arrayIndex
     function getStructureArrayValue2(uint256 _index, uint256 _arrayIndex) public view returns (uint256) {
         require(_arrayIndex < getStructureArrayLength2(_index));
-        uint256 baseArraySlot = getMappingSlot(11, _index) + 1;
+        uint256 baseArraySlot = getMappingSlot(9, _index) + 1;
         return getArrayValue(baseArraySlot, _arrayIndex);
     }
     function getStructure2ArrayValues(uint256 _index) public view returns (uint256[] memory result) {
         result = new uint256[](getStructureArrayLength2(_index));
-        uint256 baseArraySlot = getMappingSlot(11, _index) + 1;
+        uint256 baseArraySlot = getMappingSlot(9, _index) + 1;
         for (uint256 i = 0; i < result.length; i++) {
             result[i] = getArrayValue(baseArraySlot, i);
         }
     }
 
     function storageValueToCheck() public view returns (uint256) {
-        return getValue(13);
+        return getValue(11);
     }
     function setStorageValueToCheck(uint256 _value) public {
         assembly {
-            sstore(13, _value)
+            sstore(11, _value)
         }
     }
 

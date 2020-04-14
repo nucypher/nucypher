@@ -28,11 +28,6 @@ abstract contract Upgradeable is Ownable {
     address public previousTarget;
 
     /**
-    * @dev Secret hash to proof that user owns previous version of a contract
-    */
-    bytes32 public secretHash;
-
-    /**
     * @dev Upgrade status. Explicit `uint8` type is used instead of `bool` to save gas by excluding 0 value
     */
     uint8 public isUpgrade;

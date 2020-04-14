@@ -19,7 +19,6 @@ import os
 
 import pytest
 import requests
-from eth_utils import keccak
 from web3.exceptions import ValidationError
 
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, StakingEscrowDeployer, PolicyManagerDeployer, \
@@ -28,8 +27,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, Block
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler, SourceDirs
 from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, STAKING_ESCROW_DEPLOYMENT_SECRET, \
-    POLICY_MANAGER_DEPLOYMENT_SECRET, ADJUDICATOR_DEPLOYMENT_SECRET
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 USER = "nucypher"
 REPO = "nucypher"
@@ -74,8 +72,7 @@ CONSTRUCTOR_OVERRIDES = {
 
 
 def deploy_earliest_contract(blockchain_interface: BlockchainDeployerInterface,
-                             deployer: BaseContractDeployer,
-                             secret: str):
+                             deployer: BaseContractDeployer):
     contract_name = deployer.contract_name
     latest_version, _data = blockchain_interface.find_raw_contract_data(contract_name, "latest")
     try:
@@ -83,17 +80,9 @@ def deploy_earliest_contract(blockchain_interface: BlockchainDeployerInterface,
     except KeyError:
         overrides = dict()
     try:
-        deployer.deploy(secret_hash=keccak(text=secret),  contract_version="earliest", **overrides)
+        deployer.deploy(contract_version="earliest", **overrides)
     except ValidationError:
         pass  # Skip errors related to initialization
-
-
-def upgrade_to_latest_contract(deployer, secret: str):
-    old_secret = bytes(secret, encoding='utf-8')
-    new_secret_hash = keccak(b'new' + old_secret)
-    deployer.upgrade(existing_secret_plaintext=old_secret,
-                     new_secret_hash=new_secret_hash,
-                     contract_version="latest")
 
 
 @pytest.mark.slow
@@ -132,19 +121,19 @@ def test_upgradeability(temp_dir_path, token_economics):
         token_deployer.deploy()
 
         staking_escrow_deployer = StakingEscrowDeployer(registry=registry, deployer_address=origin)
-        deploy_earliest_contract(blockchain_interface, staking_escrow_deployer, secret=STAKING_ESCROW_DEPLOYMENT_SECRET)
+        deploy_earliest_contract(blockchain_interface, staking_escrow_deployer)
         if test_staking_escrow:
-            upgrade_to_latest_contract(staking_escrow_deployer, secret=STAKING_ESCROW_DEPLOYMENT_SECRET)
+            staking_escrow_deployer.upgrade(contract_version="latest")
 
         if test_policy_manager:
             policy_manager_deployer = PolicyManagerDeployer(registry=registry, deployer_address=origin)
-            deploy_earliest_contract(blockchain_interface, policy_manager_deployer, secret=POLICY_MANAGER_DEPLOYMENT_SECRET)
-            upgrade_to_latest_contract(policy_manager_deployer, secret=POLICY_MANAGER_DEPLOYMENT_SECRET)
+            deploy_earliest_contract(blockchain_interface, policy_manager_deployer)
+            policy_manager_deployer.upgrade(contract_version="latest")
 
         if test_adjudicator:
             adjudicator_deployer = AdjudicatorDeployer(registry=registry, deployer_address=origin)
-            deploy_earliest_contract(blockchain_interface, adjudicator_deployer, secret=ADJUDICATOR_DEPLOYMENT_SECRET)
-            upgrade_to_latest_contract(adjudicator_deployer, secret=ADJUDICATOR_DEPLOYMENT_SECRET)
+            deploy_earliest_contract(blockchain_interface, adjudicator_deployer)
+            adjudicator_deployer.upgrade(contract_version="latest")
 
     finally:
         # Unregister interface

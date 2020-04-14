@@ -1,7 +1,5 @@
 import json
 import os
-from random import SystemRandom
-from string import ascii_uppercase, digits
 
 import pytest
 from eth_utils import to_checksum_address
@@ -13,8 +11,6 @@ from nucypher.blockchain.eth.agents import (
     PreallocationEscrowAgent,
     PolicyManagerAgent,
     AdjudicatorAgent,
-    EthereumContractAgent,
-    MultiSigAgent,
     ContractAgency
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -28,15 +24,8 @@ from nucypher.utilities.sandbox.constants import (
 )
 
 
-def generate_insecure_secret() -> str:
-    insecure_secret = ''.join(SystemRandom().choice(ascii_uppercase + digits) for _ in range(16))
-    formatted_secret = insecure_secret + '\n'
-    return formatted_secret
-
-
 PLANNED_UPGRADES = 4
 CONTRACTS_TO_UPGRADE = ('StakingEscrow', 'PolicyManager', 'Adjudicator', 'StakingInterface')
-INSECURE_SECRETS = {c: {v + 1: generate_insecure_secret() for v in range(PLANNED_UPGRADES)} for c in CONTRACTS_TO_UPGRADE}
 
 
 @pytest.fixture(scope="module")
@@ -69,10 +58,7 @@ def test_nucypher_deploy_contracts(click_runner,
                '--poa',
                '--se-test-mode']
 
-    version_1_secrets = (INSECURE_SECRETS[c][1] * 2 for c in CONTRACTS_TO_UPGRADE)
-    secrets_input = ''.join(version_1_secrets)
-
-    user_input = '0\n' + 'Y\n' + secrets_input + 'DEPLOY'
+    user_input = '0\n' + 'Y\n' + 'DEPLOY'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -241,9 +227,7 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
 
         # Select upgrade interactive input scenario
         current_version = version_tracker[contract_name]
-        new_version = current_version + 1
-        contract_secrets = INSECURE_SECRETS[contract_name]
-        user_input = '0\n' + yes + contract_secrets[current_version] + (contract_secrets[new_version] * 2) + yes
+        user_input = '0\n' + yes + yes
 
         # Execute upgrade (Meat)
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
@@ -307,9 +291,6 @@ def test_rollback(click_runner, testerchain, registry_filepath):
                              'Adjudicator',    # v4 -> v3
                              )
 
-    last_secret = {c: INSECURE_SECRETS[c][PLANNED_UPGRADES] for c in contracts_to_rollback}
-    input_secrets = {c: last_secret[c] + generate_insecure_secret() * 2 for c in contracts_to_rollback}
-
     # Execute Rollbacks
     for contract_name in contracts_to_rollback:
 
@@ -319,7 +300,7 @@ def test_rollback(click_runner, testerchain, registry_filepath):
                    '--provider', TEST_PROVIDER_URI,
                    '--poa')
 
-        user_input = '0\n' + yes + input_secrets[contract_name]
+        user_input = '0\n' + yes
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
         assert result.exit_code == 0
 

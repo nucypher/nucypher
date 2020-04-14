@@ -20,7 +20,7 @@ import os
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import keccak, to_canonical_address
+from eth_utils import to_canonical_address
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -36,11 +36,6 @@ REWARD_FIELD = 0
 REWARD_RATE_FIELD = 1
 LAST_MINED_PERIOD_FIELD = 2
 MIN_REWARD_RATE_FIELD = 3
-
-
-secret = (123456).to_bytes(32, byteorder='big')
-secret2 = (654321).to_bytes(32, byteorder='big')
-
 
 POLICY_ID_LENGTH = 16
 
@@ -524,9 +519,6 @@ def test_create_revoke(testerchain, escrow, policy_manager):
 def test_upgrading(testerchain, deploy_contract):
     creator = testerchain.client.accounts[0]
 
-    secret_hash = keccak(secret)
-    secret2_hash = keccak(secret2)
-
     # Only escrow contract is allowed in PolicyManager constructor
     with pytest.raises((TransactionFailed, ValueError)):
         deploy_contract('PolicyManager', creator)
@@ -537,7 +529,7 @@ def test_upgrading(testerchain, deploy_contract):
     address1 = escrow1.address
     address2 = escrow2.address
     contract_library_v1, _ = deploy_contract('PolicyManager', address1)
-    dispatcher, _ = deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
+    dispatcher, _ = deploy_contract('Dispatcher', contract_library_v1.address)
 
     # Deploy second version of the contract
     contract_library_v2, _ = deploy_contract('PolicyManagerV2Mock', address2)
@@ -558,7 +550,7 @@ def test_upgrading(testerchain, deploy_contract):
 
     # Upgrade to the second version
     assert address1 == contract.functions.escrow().call()
-    tx = dispatcher.functions.upgrade(contract_library_v2.address, secret, secret2_hash).transact({'from': creator})
+    tx = dispatcher.functions.upgrade(contract_library_v2.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     # Check constructor and storage values
     assert contract_library_v2.address == dispatcher.functions.target().call()
@@ -571,16 +563,14 @@ def test_upgrading(testerchain, deploy_contract):
     # Can't upgrade to the previous version or to the bad version
     contract_library_bad, _ = deploy_contract('PolicyManagerBad', address2)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract_library_v1.address, secret2, secret_hash)\
-            .transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract_library_v1.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract_library_bad.address, secret2, secret_hash)\
-            .transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract_library_bad.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     # But can rollback
-    tx = dispatcher.functions.rollback(secret2, secret_hash).transact({'from': creator})
+    tx = dispatcher.functions.rollback().transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert contract_library_v1.address == dispatcher.functions.target().call()
     assert address1 == contract.functions.escrow().call()
@@ -591,8 +581,7 @@ def test_upgrading(testerchain, deploy_contract):
 
     # Try to upgrade to the bad version
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract_library_bad.address, secret, secret2_hash)\
-            .transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract_library_bad.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     events = dispatcher.events.StateVerified.createFilter(fromBlock=0).get_all_entries()

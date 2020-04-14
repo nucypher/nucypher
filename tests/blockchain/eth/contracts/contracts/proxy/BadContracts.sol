@@ -13,7 +13,6 @@ contract BadDispatcherStorage {
     address public owner;
     address public target;
 //    address public previousTarget;
-    bytes32 public secretHash;
     uint8 public isUpgrade;
 
     function verifyState(address _testTarget) public {}

@@ -16,12 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
-from eth_utils import keccak
 
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
-                                               StakingEscrowDeployer, PolicyManagerDeployer, AdjudicatorDeployer,
+                                               StakingEscrowDeployer,
+                                               PolicyManagerDeployer,
+                                               AdjudicatorDeployer,
                                                StakingInterfaceDeployer)
-from nucypher.utilities.sandbox.constants import STAKING_ESCROW_DEPLOYMENT_SECRET, INSECURE_DEPLOYMENT_SECRET_HASH
 
 
 @pytest.fixture(scope="module")
@@ -41,7 +41,7 @@ def staking_escrow_deployer(testerchain, token_deployer, test_registry):
 
 @pytest.fixture(scope="module")
 def policy_manager_deployer(staking_escrow_deployer, testerchain, test_registry):
-    staking_escrow_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
+    staking_escrow_deployer.deploy()
     policy_manager_deployer = PolicyManagerDeployer(registry=test_registry,
                                                     deployer_address=testerchain.etherbase_account)
     return policy_manager_deployer
@@ -56,7 +56,7 @@ def staking_interface_deployer(staking_escrow_deployer, testerchain, test_regist
 
 @pytest.fixture(scope="module")
 def adjudicator_deployer(policy_manager_deployer, testerchain, test_registry):
-    policy_manager_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
+    policy_manager_deployer.deploy()
     adjudicator_deployer = AdjudicatorDeployer(registry=test_registry,
                                                deployer_address=testerchain.etherbase_account)
     return adjudicator_deployer

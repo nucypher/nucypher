@@ -25,17 +25,13 @@ from nucypher.blockchain.eth.deployers import (
     PolicyManagerDeployer,
     DispatcherDeployer
 )
-from nucypher.utilities.sandbox.constants import (POLICY_MANAGER_DEPLOYMENT_SECRET,
-                                                  STAKING_ESCROW_DEPLOYMENT_SECRET)
-from tests.fixtures import MIN_REWARD_RATE_RANGE
 
 
 def test_policy_manager_deployment(policy_manager_deployer, staking_escrow_deployer, deployment_progress):
 
     assert policy_manager_deployer.contract_name == POLICY_MANAGER_CONTRACT_NAME
 
-    deployment_receipts = policy_manager_deployer.deploy(secret_hash=keccak(text=POLICY_MANAGER_DEPLOYMENT_SECRET),
-                                                         progress=deployment_progress)
+    deployment_receipts = policy_manager_deployer.deploy(progress=deployment_progress)
 
     # deployment steps must match expected number of steps
     steps = policy_manager_deployer.deployment_steps
@@ -90,10 +86,6 @@ def test_policy_manager_has_dispatcher(policy_manager_deployer, testerchain, tes
 
 
 def test_upgrade(testerchain, test_registry):
-    wrong_secret = b"on second thoughts..."
-    old_secret = bytes(POLICY_MANAGER_DEPLOYMENT_SECRET, encoding='utf-8')
-    new_secret_hash = keccak(b'new' + old_secret)
-
     deployer = PolicyManagerDeployer(registry=test_registry,
                                      deployer_address=testerchain.etherbase_account)
 
@@ -103,13 +95,7 @@ def test_upgrade(testerchain, test_registry):
                                                      use_proxy_address=False)
     old_address = bare_contract.address
 
-    with pytest.raises(deployer.ContractDeploymentError):
-        deployer.upgrade(existing_secret_plaintext=wrong_secret,
-                         new_secret_hash=new_secret_hash)
-
-    receipts = deployer.upgrade(existing_secret_plaintext=old_secret,
-                                new_secret_hash=new_secret_hash,
-                                ignore_deployed=True)
+    receipts = deployer.upgrade(ignore_deployed=True)
 
     bare_contract = testerchain.get_contract_by_name(registry=test_registry,
                                                      contract_name=PolicyManagerDeployer.contract_name,
@@ -128,9 +114,6 @@ def test_upgrade(testerchain, test_registry):
 
 
 def test_rollback(testerchain, test_registry):
-    old_secret = bytes('new' + POLICY_MANAGER_DEPLOYMENT_SECRET, encoding='utf-8')
-    new_secret_hash = keccak(text="third time's the charm")
-
     deployer = PolicyManagerDeployer(registry=test_registry,
                                      deployer_address=testerchain.etherbase_account)
 
@@ -138,9 +121,7 @@ def test_rollback(testerchain, test_registry):
     current_target = policy_manager_agent.contract.functions.target().call()
 
     # Let's do one more upgrade
-    receipts = deployer.upgrade(existing_secret_plaintext=old_secret,
-                                new_secret_hash=new_secret_hash,
-                                ignore_deployed=True)
+    receipts = deployer.upgrade(ignore_deployed=True)
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
 
@@ -148,17 +129,8 @@ def test_rollback(testerchain, test_registry):
     current_target = policy_manager_agent.contract.functions.target().call()
     assert current_target != old_target
 
-    # It's time to rollback. But first...
-    wrong_secret = b"WRONG!!"
-    with pytest.raises(deployer.ContractDeploymentError):
-        deployer.rollback(existing_secret_plaintext=wrong_secret,
-                          new_secret_hash=new_secret_hash)
-
-    # OK, *now* is time for rollback
-    old_secret = b"third time's the charm"
-    new_secret_hash = keccak(text="...maybe not.")
-    receipt = deployer.rollback(existing_secret_plaintext=old_secret,
-                                new_secret_hash=new_secret_hash)
+    # It's time to rollback.
+    receipt = deployer.rollback()
     assert receipt['status'] == 1
 
     new_target = policy_manager_agent.contract.functions.target().call()

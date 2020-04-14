@@ -27,8 +27,7 @@ Additional flags can be set up to increase the block gas limit.
     ...
 
 This will deploy the main NuCypher contracts, namely ``NuCypherToken``, ``StakingEscrow``, ``PolicyManager`` and ``Adjudicator``,
-along with their proxies (or ``Dispatchers``), as well as executing initialization transactions. You will need to enter
-the contract's upgrade secrets, which can be any alphanumeric string.
+along with their proxies (or ``Dispatchers``), as well as executing initialization transactions.
 
 A summary of deployed contract addresses, transactions, and gas usage will be displayed on success, and a
 ``contract_registry.json`` file will be generated in your nucypher application directory.
@@ -42,15 +41,6 @@ A summary of deployed contract addresses, transactions, and gas usage will be di
     Selected 0x53Ecb3C7AFc7D5337a89CBd792398cd4DfAc7CE0 - Continue? [y/N]: y
 
     Deployer ETH balance: 115792089237.31
-
-    Enter StakingEscrow Deployment Secret:
-    Repeat for confirmation:
-    Enter PolicyManager Deployment Secret:
-    Repeat for confirmation:
-    Enter StakingInterface Deployment Secret:
-    Repeat for confirmation:
-    Enter Adjudicator Deployment Secret:
-    Repeat for confirmation:
 
 
 

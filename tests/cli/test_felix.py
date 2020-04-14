@@ -32,7 +32,7 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
 
 
 @pytest_twisted.inlineCallbacks
-def test_run_felix(click_runner, testerchain, agency_local_registry, deploy_user_input):
+def test_run_felix(click_runner, testerchain, agency_local_registry):
 
     clock = Clock()
     Felix._CLOCK = clock

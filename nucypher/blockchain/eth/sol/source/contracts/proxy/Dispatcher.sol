@@ -27,16 +27,14 @@ contract Dispatcher is Upgradeable {
 
     /**
     * @param _target Target contract address
-    * @param _newSecretHash Secret hash (keccak256)
     */
-    constructor(address _target, bytes32 _newSecretHash) public upgrading {
+    constructor(address _target) public upgrading {
         require(_target.isContract());
         // Checks that target contract inherits Dispatcher state
         verifyState(_target);
         // `verifyState` must work with its contract
         verifyUpgradeableState(_target, _target);
         target = _target;
-        secretHash = _newSecretHash;
         finishUpgrade();
         emit Upgraded(address(0), _target, msg.sender);
     }
@@ -44,12 +42,9 @@ contract Dispatcher is Upgradeable {
     /**
     * @notice Verify new contract storage and upgrade target
     * @param _target New target contract address
-    * @param _secret Secret for proof of contract owning
-    * @param _newSecretHash New secret hash (keccak256)
     */
-    function upgrade(address _target, bytes memory _secret, bytes32 _newSecretHash) public onlyOwner upgrading {
+    function upgrade(address _target) public onlyOwner upgrading {
         require(_target.isContract());
-        require(keccak256(_secret) == secretHash && _newSecretHash != secretHash);
         // Checks that target contract has "correct" (as much as possible) state layout
         verifyState(_target);
         //`verifyState` must work with its contract
@@ -59,7 +54,6 @@ contract Dispatcher is Upgradeable {
         }
         previousTarget = target;
         target = _target;
-        secretHash = _newSecretHash;
         finishUpgrade();
         emit Upgraded(previousTarget, _target, msg.sender);
     }
@@ -67,12 +61,9 @@ contract Dispatcher is Upgradeable {
     /**
     * @notice Rollback to previous target
     * @dev Test storage carefully before upgrade again after rollback
-    * @param _secret Secret for proof of contract owning
-    * @param _newSecretHash New secret hash (keccak256)
     */
-    function rollback(bytes memory _secret, bytes32 _newSecretHash) public onlyOwner upgrading {
+    function rollback() public onlyOwner upgrading {
         require(previousTarget.isContract());
-        require(keccak256(_secret) == secretHash && _newSecretHash != secretHash);
         emit RolledBack(target, previousTarget, msg.sender);
         // should be always true because layout previousTarget -> target was already checked
         // but `verifyState` is not 100% accurate so check again
@@ -82,7 +73,6 @@ contract Dispatcher is Upgradeable {
         }
         target = previousTarget;
         previousTarget = address(0);
-        secretHash = _newSecretHash;
         finishUpgrade();
     }
 
@@ -107,7 +97,6 @@ contract Dispatcher is Upgradeable {
         require(address(uint160(delegateGet(_testTarget, this.owner.selector))) == owner());
         require(address(uint160(delegateGet(_testTarget, this.target.selector))) == target);
         require(address(uint160(delegateGet(_testTarget, this.previousTarget.selector))) == previousTarget);
-        require(bytes32(delegateGet(_testTarget, this.secretHash.selector)) == secretHash);
         require(uint8(delegateGet(_testTarget, this.isUpgrade.selector)) == isUpgrade);
     }
 

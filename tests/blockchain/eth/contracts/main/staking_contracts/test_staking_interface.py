@@ -15,10 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import os
 import pytest
-from eth_utils import keccak
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 
@@ -423,9 +420,7 @@ def test_interface_without_worklock(testerchain, deploy_contract, token, escrow,
 
     staking_interface, _ = deploy_contract(
         'StakingInterface', token.address, escrow.address, policy_manager.address, worklock.address)
-    secret = os.urandom(32)
-    secret_hash = keccak(secret)
-    router, _ = deploy_contract('StakingInterfaceRouter', staking_interface.address, secret_hash)
+    router, _ = deploy_contract('StakingInterfaceRouter', staking_interface.address)
 
     staking_contract, _ = deploy_contract('SimpleStakingContract', router.address)
     # Transfer ownership
@@ -450,11 +445,9 @@ def test_interface_without_worklock(testerchain, deploy_contract, token, escrow,
     testerchain.wait_for_receipt(tx)
 
     # Test interface without worklock
-    secret2 = os.urandom(32)
-    secret2_hash = keccak(secret2)
     staking_interface, _ = deploy_contract(
         'StakingInterface', token.address, escrow.address, policy_manager.address, BlockchainInterface.NULL_ADDRESS)
-    tx = router.functions.upgrade(staking_interface.address, secret, secret2_hash).transact({'from': creator})
+    tx = router.functions.upgrade(staking_interface.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Current version of interface doesn't have worklock contract

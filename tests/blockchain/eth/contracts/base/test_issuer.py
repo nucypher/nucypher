@@ -14,16 +14,13 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 
-from nucypher.blockchain.economics import StandardTokenEconomics, BaseEconomics
-from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.economics import BaseEconomics
 
-SECRET_LENGTH = 32
 INITIAL_SUPPLY = 10 ** 26
 TOTAL_SUPPLY = 2 * 10 ** 36
 
@@ -224,11 +221,6 @@ def test_inflation_rate(testerchain, token, deploy_contract):
 def test_upgrading(testerchain, token, deploy_contract):
     creator = testerchain.client.accounts[0]
 
-    secret = os.urandom(SECRET_LENGTH)
-    secret_hash = testerchain.w3.keccak(secret)
-    secret2 = os.urandom(SECRET_LENGTH)
-    secret2_hash = testerchain.w3.keccak(secret2)
-
     # Deploy contract
     contract_library_v1, _ = deploy_contract(
         contract_name='IssuerMock',
@@ -238,7 +230,7 @@ def test_upgrading(testerchain, token, deploy_contract):
         _lockedPeriodsCoefficient=1,
         _rewardedPeriods=1
     )
-    dispatcher, _ = deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
+    dispatcher, _ = deploy_contract('Dispatcher', contract_library_v1.address)
 
     # Deploy second version of the contract
     contract_library_v2, _ = deploy_contract(
@@ -271,7 +263,7 @@ def test_upgrading(testerchain, token, deploy_contract):
     # Upgrade to the second version, check new and old values of variables
     period = contract.functions.currentMintingPeriod().call()
     assert 1 == contract.functions.miningCoefficient().call()
-    tx = dispatcher.functions.upgrade(contract_library_v2.address, secret, secret2_hash).transact({'from': creator})
+    tx = dispatcher.functions.upgrade(contract_library_v2.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert contract_library_v2.address == dispatcher.functions.target().call()
     assert 2 == contract.functions.miningCoefficient().call()
@@ -295,16 +287,14 @@ def test_upgrading(testerchain, token, deploy_contract):
         _rewardedPeriods=2
     )
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract_library_v1.address, secret2, secret_hash)\
-            .transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract_library_v1.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract_library_bad.address, secret2, secret_hash)\
-            .transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract_library_bad.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     # But can rollback
-    tx = dispatcher.functions.rollback(secret2, secret_hash).transact({'from': creator})
+    tx = dispatcher.functions.rollback().transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     # Check old values
     assert contract_library_v1.address == dispatcher.functions.target().call()
@@ -321,8 +311,7 @@ def test_upgrading(testerchain, token, deploy_contract):
 
     # Try to upgrade to the bad version again
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract_library_bad.address, secret, secret2_hash)\
-            .transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract_library_bad.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     events = dispatcher.events.StateVerified.createFilter(fromBlock=0).get_all_entries()

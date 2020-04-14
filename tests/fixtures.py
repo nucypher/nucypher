@@ -73,9 +73,6 @@ from nucypher.policy.collections import IndisputableEvidence, WorkOrder
 from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
-    BASE_TEMP_PREFIX,
-    BASE_TEMP_DIR,
-    DATETIME_FORMAT,
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
     MIN_STAKE_FOR_TESTS,
@@ -88,7 +85,6 @@ from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
     INSECURE_DEVELOPMENT_PASSWORD,
     TEST_GAS_LIMIT,
-    INSECURE_DEPLOYMENT_SECRET_HASH,
 )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.middleware import MockRestMiddlewareForLargeFleetTests
@@ -526,22 +522,22 @@ def _make_agency(testerchain, test_registry, token_economics):
                                                     economics=token_economics,
                                                     registry=test_registry,
                                                     test_mode=True)
-    staking_escrow_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
+    staking_escrow_deployer.deploy()
 
     policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin,
                                                     economics=token_economics,
                                                     registry=test_registry)
-    policy_manager_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
+    policy_manager_deployer.deploy()
 
     adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin,
                                                economics=token_economics,
                                                registry=test_registry)
-    adjudicator_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
+    adjudicator_deployer.deploy()
 
     staking_interface_deployer = StakingInterfaceDeployer(deployer_address=origin,
                                                           economics=token_economics,
                                                           registry=test_registry)
-    staking_interface_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
+    staking_interface_deployer.deploy()
 
     worklock_deployer = WorklockDeployer(deployer_address=origin,
                                          economics=token_economics,
