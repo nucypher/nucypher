@@ -451,9 +451,7 @@ class BlockchainInterface:
         # Sign
         #
 
-        # TODO: Show the USD Price
-        # Price Oracle
-        # https://api.coinmarketcap.com/v1/ticker/ethereum/
+        # TODO: Show the USD Price:  https://api.coinmarketcap.com/v1/ticker/ethereum/
         price = unsigned_transaction['gasPrice']
         cost_wei = price * unsigned_transaction['gas']
         cost = Web3.fromWei(cost_wei, 'gwei')

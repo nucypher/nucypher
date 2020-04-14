@@ -100,7 +100,7 @@ class EmbeddedRegistrySource(CanonicalRegistrySource):
     _HERE = os.path.abspath(os.path.dirname(__file__))
     _REGISTRY_DIR = os.path.join(_HERE, "contract_registry")
 
-    name = "Embeded Registry Source"
+    name = "Embedded Registry Source"
     is_primary = False
 
     def get_publication_endpoint(self) -> str:
