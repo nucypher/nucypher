@@ -144,7 +144,7 @@ def bid(general_config, worklock_options, registry_options, force, hw_wallet, va
                                                                 poa=registry_options.poa,
                                                                 network=registry_options.network,
                                                                 registry=registry,
-                                                                show_balances=True)
+                                                                show_eth_balance=True)
 
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
 
@@ -205,7 +205,7 @@ def cancel_bid(general_config, registry_options, worklock_options, force, hw_wal
                                                                 provider_uri=registry_options.provider_uri,
                                                                 poa=registry_options.poa,
                                                                 network=registry_options.network,
-                                                                show_balances=True,
+                                                                show_eth_balance=True,
                                                                 registry=registry)
 
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
@@ -240,7 +240,7 @@ def claim(general_config, worklock_options, registry_options, force, hw_wallet):
                                                                 poa=registry_options.poa,
                                                                 network=registry_options.network,
                                                                 registry=registry,
-                                                                show_balances=True)
+                                                                show_eth_balance=True)
 
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
 
@@ -291,7 +291,7 @@ def remaining_work(general_config, worklock_options, registry_options):
                                                                 poa=registry_options.poa,
                                                                 network=registry_options.network,
                                                                 registry=registry,
-                                                                show_balances=True)
+                                                                show_eth_balance=True)
 
     bidder = worklock_options.create_transactionless_bidder(registry=registry)
     _remaining_work = bidder.remaining_work
@@ -315,7 +315,7 @@ def refund(general_config, worklock_options, registry_options, force, hw_wallet)
                                                                 poa=registry_options.poa,
                                                                 network=registry_options.network,
                                                                 registry=registry,
-                                                                show_balances=True)
+                                                                show_eth_balance=True)
     if not force:
         click.confirm(f"Collect ETH refund for bidder {worklock_options.bidder_address}?", abort=True)
     emitter.echo("Submitting WorkLock refund request...")
@@ -343,7 +343,7 @@ def enable_claiming(general_config, registry_options, worklock_options, force, h
                                                                 provider_uri=registry_options.provider_uri,
                                                                 network=registry_options.network,
                                                                 registry=registry,
-                                                                show_balances=True)
+                                                                show_eth_balance=True)
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
 
     whales = bidder.get_whales()

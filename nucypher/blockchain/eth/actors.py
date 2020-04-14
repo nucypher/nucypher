@@ -1490,7 +1490,7 @@ class StakeHolder(Staker):
                      client_addresses: set = None,
                      signer=None):
 
-            self.__local_accounts = dict()
+            self.__local_accounts = dict()  # FIXME: This attribute is never set
             self.__client_accounts = set()  # Note: Account index is meaningless here
             self.__transacting_powers = dict()
 

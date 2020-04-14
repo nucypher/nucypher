@@ -153,10 +153,7 @@ class UrsulaConfigOptions:
         if (not worker_address) and not self.federated_only:
             if not worker_address:
                 prompt = "Select worker account"
-                worker_address = select_client_account(emitter=emitter,
-                                                       prompt=prompt,
-                                                       provider_uri=self.provider_uri,
-                                                       show_balances=False)
+                worker_address = select_client_account(emitter=emitter, prompt=prompt, provider_uri=self.provider_uri)
 
         rest_host = self.rest_host
         if not rest_host:

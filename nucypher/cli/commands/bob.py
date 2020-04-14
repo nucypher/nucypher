@@ -81,9 +81,7 @@ class BobConfigOptions:
 
         checksum_address = self.checksum_address
         if not checksum_address and not self.federated_only:
-            checksum_address = select_client_account(emitter=emitter,
-                                                     provider_uri=self.provider_uri,
-                                                     show_balances=False)
+            checksum_address = select_client_account(emitter=emitter, provider_uri=self.provider_uri)
 
         return BobConfiguration.generate(
             password=get_nucypher_password(confirm=True),
