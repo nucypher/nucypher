@@ -299,7 +299,7 @@ class PolicyCredential:
                 (self.policy_pubkey == other.policy_pubkey))
 
 
-class WorkOrder(VersionedBytes):
+class WorkOrder:
 
     class PRETask:
         def __init__(self, capsule, signature, cfrag=None, cfrag_signature=None):
@@ -320,11 +320,10 @@ class WorkOrder(VersionedBytes):
             data = bytes(self.capsule) + bytes(self.signature)
             if self.cfrag and self.cfrag_signature:
                 data += bytes(self.cfrag) + bytes(self.cfrag_signature)
-            return super().add_version(data)
+            return data
 
         @classmethod
         def from_bytes(cls, data: bytes):
-            cls, data = super().parse_version(data)
             item_splitter = capsule_splitter + signature_splitter
             capsule, signature, remainder = item_splitter(data, return_remainder=True)
             if remainder:
@@ -476,10 +475,6 @@ class WorkOrder(VersionedBytes):
     def sanitize(self):
         for task in self.tasks.values():
             task.cfrag = CFRAG_NOT_RETAINED
-
-
-class WorkOrderV1(WorkOrder):
-    version = 1
 
 
 class WorkOrderHistory:
