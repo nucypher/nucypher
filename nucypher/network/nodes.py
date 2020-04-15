@@ -271,6 +271,7 @@ class NodeSprout(PartiallyKwargifiedBytes):
 
         self.__class__ = mature_node.__class__
         self.__dict__ = mature_node.__dict__
+        return self  # To reduce the awkwardity of renaming; this is always the weird part of polymorphism for me.
 
 
 class Learner:
@@ -1011,6 +1012,8 @@ class Teacher:
         """
         This is the most mature form, so we do nothing.
         """
+        return self
+
     @classmethod
     def set_federated_mode(cls, federated_only: bool):
         cls._federated_only_instances = federated_only
