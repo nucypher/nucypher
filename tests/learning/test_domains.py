@@ -39,4 +39,4 @@ def test_learner_learns_about_domains_separately(ursula_federated_test_config, c
         assert not set(second_domain_learners).intersection(set(new_first_domain_learner.known_nodes))
 
         # However, it learned about *all* of the nodes in its own domain.
-        assert set(first_domain_learners).intersection(set(new_first_domain_learner.known_nodes)) == first_domain_learners
+        assert set(first_domain_learners).intersection(set(n.mature() for n in new_first_domain_learner.known_nodes)) == first_domain_learners
