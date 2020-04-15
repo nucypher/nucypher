@@ -269,7 +269,7 @@ def propose(general_config, blockchain_options, multisig_options):
 @group_blockchain_options
 @group_multisig_options
 @click.option('--proposal', help="Filepath to a JSON file containing a multisig transaction data",
-              type=EXISTING_READABLE_FILE)
+              type=EXISTING_READABLE_FILE, required=True)
 def sign(general_config, blockchain_options, multisig_options, proposal):
     """
     Sign a proposed transaction before being sent to the MultiSig contract for execution
@@ -279,9 +279,6 @@ def sign(general_config, blockchain_options, multisig_options, proposal):
     #_ensure_config_root(actor_options.config_root)
     blockchain = blockchain_options.connect_blockchain(emitter, general_config.debug)
     registry = blockchain_options.get_registry()
-
-    if not proposal:
-        raise click.MissingParameter("nucypher multisig sign requires the use of --proposal")
 
     proposal = Proposal.from_file(proposal)
 
@@ -314,7 +311,7 @@ def sign(general_config, blockchain_options, multisig_options, proposal):
 @group_blockchain_options
 @group_multisig_options
 @click.option('--proposal', help="Filepath to a JSON file containing a multisig transaction data",
-              type=EXISTING_READABLE_FILE)
+              type=EXISTING_READABLE_FILE, required=True)
 def execute(general_config, blockchain_options, multisig_options, proposal):
     """
     Collect authorizations from executives and execute transaction through MultiSig contract
@@ -324,9 +321,6 @@ def execute(general_config, blockchain_options, multisig_options, proposal):
     #_ensure_config_root(actor_options.config_root)
     blockchain = blockchain_options.connect_blockchain(emitter, general_config.debug)
     registry = blockchain_options.get_registry()
-
-    if not proposal:
-        raise click.MissingParameter("nucypher multisig execute requires the use of --proposal")
 
     proposal = Proposal.from_file(proposal)
 
@@ -355,8 +349,7 @@ def execute(general_config, blockchain_options, multisig_options, proposal):
         executive_address = trustee.add_authorization(authorization, proposal)
         emitter.echo(f"Added authorization from executive {executive_address}", color='green')
 
-    click.confirm("\nCollected enough authorizations. Proceed with execution?", abort=True)
+    click.confirm("\nCollected required authorizations. Proceed with execution?", abort=True)
 
     receipt = trustee.execute(proposal)
     paint_receipt_summary(emitter, receipt)
-

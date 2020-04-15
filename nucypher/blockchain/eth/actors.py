@@ -702,9 +702,9 @@ class Trustee(MultiSigActor):
     def add_authorization(self, authorization, proposal: Proposal) -> str:
         executive_address = authorization.recover_executive_address(proposal)
         if executive_address not in self.executive_addresses:
-            raise self.UnknownExecutive(f"Executive {executive_address} is not listed as owner of the MultiSig.")
+            raise self.UnknownExecutive(f"Executive {executive_address} is not listed as an owner of the MultiSig.")
         if executive_address in self.authorizations:
-            raise ValueError(f"We already have an authorization from executive {executive_address}")
+            raise ValueError(f"There is already an authorization from executive {executive_address}")
 
         self.authorizations[executive_address] = authorization
         return executive_address
@@ -783,7 +783,7 @@ class Executive(MultiSigActor):
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
 
         if checksum_address not in self.multisig_agent.owners:
-            raise self.UnknownExecutive(f"Executive {checksum_address} is not listed as a owner of the MultiSig. "
+            raise self.UnknownExecutive(f"Executive {checksum_address} is not listed as an owner of the MultiSig. "
                                         f"Current owners are {self.multisig_agent.owners}")
         self.signer = signer
         if signer:
