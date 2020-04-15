@@ -72,8 +72,8 @@ group_registry_options = group_options(
     poa=option_poa,
     light=option_light,
     registry_filepath=option_registry_filepath,
-    network=option_network(required=True),
-    provider_uri=option_provider_uri(required=True),
+    network=option_network(),
+    provider_uri=option_provider_uri(),
 )
 
 

@@ -261,7 +261,6 @@ def stake():
 @option_force
 @group_config_options
 @group_general_config
-@option_network(required=True)
 def init_stakeholder(general_config, config_root, force, config_options):
     """Create a new stakeholder configuration."""
     emitter = _setup_emitter(general_config)

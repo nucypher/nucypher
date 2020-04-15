@@ -155,7 +155,7 @@ class ClefSigner(Signer):
         try:
             response = self.w3.manager.request_blocking(endpoint, request_args)
         except FileNotFoundError:
-            raise FileNotFoundError(f'Clef IPC fle not found. Is clef running and available at "{self.ipc_path}"?')
+            raise FileNotFoundError(f'Clef IPC file not found. Is clef running and available at "{self.ipc_path}"?')
         except ConnectionRefusedError:
             raise ConnectionRefusedError(f'Clef refused connection. Is clef running and available at "{self.ipc_path}"?')
         return response

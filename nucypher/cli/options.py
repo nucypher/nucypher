@@ -95,12 +95,13 @@ def option_message_kit(required: bool = False):
         required=required)
 
 
-def option_network(required: bool = False):
+def option_network(required: bool = False, default=os.environ.get("NUCYPHER_NETWORK")):
     return click.option(
         '--network',
-        help="Network Domain Name",
+        help="Nucypher Network/Domain Name",
         type=click.STRING,
-        required=required)
+        required=required,
+        default=default)
 
 
 def option_policy_encrypting_key(required: bool = False):

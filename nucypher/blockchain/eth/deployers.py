@@ -647,7 +647,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
         # 3 - Approve transferring the reward supply tokens to StakingEscrow #
         if emitter:
-            emitter.message(f"\nNext Transaction: Transfer Tokens to {self.contract_name}", color='blue', bold=True)
+            emitter.message(f"\nNext Transaction: Approve Transfer to {self.contract_name}", color='blue', bold=True)
         approve_reward_function = self.token_contract.functions.approve(self._contract.address,
                                                                         self.economics.erc20_reward_supply)
 

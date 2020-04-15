@@ -533,7 +533,7 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
                        min_reward_rate]
 
         line_width = 54
-        if staker.registry.source:
+        if staker.registry.source:  # TODO: #1580 - Registry source might be Falsy in tests.
             network_snippet = f"\nNetwork {staker.registry.source.network.capitalize()} "
             snippet_with_line = network_snippet + '═'*(line_width-len(network_snippet)+1)
             emitter.echo(snippet_with_line, bold=True)
