@@ -225,16 +225,18 @@ def inspect(general_config, blockchain_options):
 def propose(general_config, blockchain_options, multisig_options):
     """
     Create a proposal of MultiSig transaction
-
-     - Add new MultiSig owner
-     - Remove MultiSig owner
-     - Change threshold of MultiSig
-     - Upgrade contract (in particular, retarget to a deployed one)
-     - Transfer ownership of contract
-     - Send ETH from MultiSig
-     - Send tokens from MultiSig
-     - Change min reward rate range in PolicyManager
     """
+    # TODO: Extend this command to cover this list of proposals
+    #  - Add new MultiSig owner
+    #  - Remove MultiSig owner
+    #  - Change threshold of MultiSig
+    #  - Upgrade contract (in particular, retarget to a deployed one)
+    #  - Transfer ownership of contract
+    #  - Send ETH from MultiSig
+    #  - Send tokens from MultiSig
+    #  - Change min reward rate range in PolicyManager
+    #  - Send raw transaction
+
     # Init
     emitter = general_config.emitter
     #_ensure_config_root(actor_options.config_root)
