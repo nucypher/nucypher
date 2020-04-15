@@ -1211,9 +1211,8 @@ class Teacher:
         # The node's metadata is valid; let's be sure the interface is in order.
         if not certificate_filepath:
             if self.certificate_filepath is CERTIFICATE_NOT_SAVED:
-                raise TypeError("We haven't saved a certificate for this node yet.")
-            else:
-                certificate_filepath = self.certificate_filepath
+                self.certificate_filepath = self._cert_store_function(self.certificate)
+            certificate_filepath = self.certificate_filepath
 
         response_data = network_middleware_client.node_information(host=self.rest_interface.host,
                                                                    port=self.rest_interface.port,
