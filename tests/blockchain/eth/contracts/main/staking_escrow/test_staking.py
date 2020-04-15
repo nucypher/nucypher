@@ -37,9 +37,9 @@ def test_mining(testerchain, token, escrow_contract, token_economics):
     current_supply = token_economics.erc20_initial_supply
 
     def calculate_reward(locked, total_locked, locked_periods):
-        return (token_economics.erc20_total_supply - current_supply) * locked * \
-               (locked_periods + token_economics.locked_periods_coefficient) // \
-               (total_locked * token_economics.staking_coefficient)
+        return token_economics.first_phase_stable_issuance * locked * \
+               (locked_periods + token_economics.locking_duration_coefficient_1) // \
+               (total_locked * token_economics.locking_duration_coefficient_2)
 
     staking_log = escrow.events.Mined.createFilter(fromBlock='latest')
     deposit_log = escrow.events.Deposited.createFilter(fromBlock='latest')

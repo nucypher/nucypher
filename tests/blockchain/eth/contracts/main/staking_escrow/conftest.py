@@ -26,9 +26,12 @@ VALUE_FIELD = 0
 @pytest.fixture()
 def token_economics():
     economics = BaseEconomics(initial_supply=10 ** 9,
+                              first_phase_supply=int(1.5 * 10 ** 9),
                               total_supply=2 * 10 ** 9,
-                              staking_coefficient=8 * 10 ** 7,
-                              locked_periods_coefficient=4,
+                              first_phase_stable_issuance=1500,
+                              second_phase_coefficient=10 ** 7,
+                              locking_duration_coefficient_1=4,
+                              locking_duration_coefficient_2=8,
                               maximum_rewarded_periods=4,
                               hours_per_period=1,
                               minimum_locked_periods=2,
@@ -46,11 +49,14 @@ def token(deploy_contract, token_economics):
 
 @pytest.fixture(params=[False, True])
 def escrow_contract(testerchain, token, token_economics, request, deploy_contract):
-    def make_escrow(max_allowed_locked_tokens):
+    def make_escrow(max_allowed_locked_tokens, disable_reward: bool = False):
         # Creator deploys the escrow
         deploy_parameters = list(token_economics.staking_deployment_parameters)
         deploy_parameters[-2] = max_allowed_locked_tokens
         deploy_parameters.append(True)
+        if disable_reward:
+            deploy_parameters[5] = 0
+            deploy_parameters[6] = 0
         contract, _ = deploy_contract('StakingEscrow', token.address, *deploy_parameters)
 
         if request.param:
@@ -66,6 +72,7 @@ def escrow_contract(testerchain, token, token_economics, request, deploy_contrac
         tx = contract.functions.setPolicyManager(policy_manager.address).transact()
         testerchain.wait_for_receipt(tx)
         assert policy_manager.address == contract.functions.policyManager().call()
+
         # Travel to the start of the next period to prevent problems with unexpected overflow first period
         testerchain.time_travel(hours=1)
         return contract

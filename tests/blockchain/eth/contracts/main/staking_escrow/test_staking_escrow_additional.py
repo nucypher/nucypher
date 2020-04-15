@@ -46,9 +46,12 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
         contract_name='StakingEscrowV2Mock',
         _token=token.address,
         _hoursPerPeriod=2,
-        _miningCoefficient=4,
-        _lockedPeriodsCoefficient=2,
-        _rewardedPeriods=2,
+        _secondPhaseMintingCoefficient=2,
+        _lockingDurationCoefficient1=2,
+        _lockingDurationCoefficient2=4,
+        _maxRewardedPeriods=2,
+        _firstPhaseTotalSupply=2,
+        _maxFirstPhaseReward=2,
         _minLockedPeriods=2,
         _minAllowableLockedTokens=2,
         _maxAllowableLockedTokens=2,
@@ -142,9 +145,12 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
         contract_name='StakingEscrowBad',
         _token=token.address,
         _hoursPerPeriod=2,
-        _miningCoefficient=4,
-        _lockedPeriodsCoefficient=2,
-        _rewardedPeriods=2,
+        _secondPhaseMintingCoefficient=2,
+        _lockingDurationCoefficient1=2,
+        _lockingDurationCoefficient2=4,
+        _maxRewardedPeriods=2,
+        _firstPhaseTotalSupply=2,
+        _maxFirstPhaseReward=2,
         _minLockedPeriods=2,
         _minAllowableLockedTokens=2,
         _maxAllowableLockedTokens=2,
@@ -556,7 +562,7 @@ def test_re_stake(testerchain, token, escrow_contract):
 
 @pytest.mark.slow
 def test_worker(testerchain, token, escrow_contract, deploy_contract):
-    escrow = escrow_contract(10000)
+    escrow = escrow_contract(10000, disable_reward=True)
     creator, ursula1, ursula2, ursula3, worker1, worker2, worker3, *everyone_else = \
         testerchain.client.accounts
 

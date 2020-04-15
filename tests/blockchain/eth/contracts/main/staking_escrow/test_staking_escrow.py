@@ -31,7 +31,7 @@ def test_staking(testerchain, token, escrow_contract):
     Tests for staking methods: deposit, lock and stake division
     """
 
-    escrow = escrow_contract(1500)
+    escrow = escrow_contract(1500, disable_reward=True)
     creator = testerchain.client.accounts[0]
     staker1 = testerchain.client.accounts[1]
     staker2 = testerchain.client.accounts[2]
@@ -548,7 +548,7 @@ def test_staking(testerchain, token, escrow_contract):
 
 @pytest.mark.slow
 def test_max_sub_stakes(testerchain, token, escrow_contract):
-    escrow = escrow_contract(10000)
+    escrow = escrow_contract(10000, disable_reward=True)
     creator = testerchain.client.accounts[0]
     staker = testerchain.client.accounts[1]
 
@@ -617,7 +617,7 @@ def test_max_sub_stakes(testerchain, token, escrow_contract):
 def test_allowable_locked_tokens(testerchain, token_economics, token, escrow_contract, deploy_contract):
     maximum_allowed = 1500
     minimum_allowed = token_economics.minimum_allowed_locked
-    escrow = escrow_contract(maximum_allowed)
+    escrow = escrow_contract(maximum_allowed, disable_reward=True)
     creator, staker1, staker2, *everyone_else = testerchain.client.accounts
 
     # Initialize Escrow contract
@@ -717,7 +717,7 @@ def test_allowable_locked_tokens(testerchain, token_economics, token, escrow_con
 
 @pytest.mark.slow
 def test_batch_deposit(testerchain, token, escrow_contract, deploy_contract):
-    escrow = escrow_contract(1500)
+    escrow = escrow_contract(1500, disable_reward=True)
     policy_manager_interface = testerchain.get_contract_factory('PolicyManagerForStakingEscrowMock')
     policy_manager = testerchain.client.get_contract(
         abi=policy_manager_interface.abi,
