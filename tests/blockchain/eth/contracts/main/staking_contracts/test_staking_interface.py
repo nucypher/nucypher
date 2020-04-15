@@ -19,7 +19,7 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
 
 @pytest.fixture()
@@ -446,7 +446,7 @@ def test_interface_without_worklock(testerchain, deploy_contract, token, escrow,
 
     # Test interface without worklock
     staking_interface, _ = deploy_contract(
-        'StakingInterface', token.address, escrow.address, policy_manager.address, BlockchainInterface.NULL_ADDRESS)
+        'StakingInterface', token.address, escrow.address, policy_manager.address, NULL_ADDRESS)
     tx = router.functions.upgrade(staking_interface.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 

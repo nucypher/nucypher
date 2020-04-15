@@ -22,7 +22,7 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     ContractAgency
 )
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import FELIX_BANNER, NU_BANNER
@@ -103,7 +103,7 @@ class Felix(Character, NucypherTokenActor):
 
         self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
         self.blockchain = self.token_agent.blockchain
-        self.reserved_addresses = [self.checksum_address, BlockchainInterface.NULL_ADDRESS]
+        self.reserved_addresses = [self.checksum_address, NULL_ADDRESS]
 
         # Update reserved addresses with deployed contracts
         existing_entries = list(registry.enrolled_addresses)

@@ -77,7 +77,6 @@ class BlockchainInterface:
     """
 
     TIMEOUT = 600  # seconds
-    NULL_ADDRESS = '0x' + '0' * 40
 
     DEFAULT_GAS_STRATEGY = 'medium'
     GAS_STRATEGIES = {'glacial': time_based.glacial_gas_price_strategy,     # 24h
@@ -406,6 +405,8 @@ class BlockchainInterface:
 
         payload_pprint = dict(payload)
         payload_pprint['from'] = to_checksum_address(payload['from'])
+        if not deployment:
+            payload_pprint['to'] = to_checksum_address(contract_function.address)
         payload_pprint.update({f: prettify_eth_amount(v) for f, v in payload.items() if f in ('gasPrice', 'value')})
         payload_pprint = ', '.join("{}: {}".format(k, v) for k, v in payload_pprint.items())
         self.log.debug(f"[TX-{transaction_name}] | {payload_pprint}")

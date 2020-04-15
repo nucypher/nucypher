@@ -18,10 +18,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from collections import Counter
 
-from nucypher.blockchain.economics import StandardTokenEconomics, BaseEconomics
+from nucypher.blockchain.economics import BaseEconomics
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
+from nucypher.blockchain.eth.constants import NULL_ADDRESS, STAKING_ESCROW_CONTRACT_NAME
 
 
 @pytest.fixture()
@@ -124,7 +123,7 @@ def test_sampling_distribution(testerchain, token, deploy_contract):
     while sampled < SAMPLES:
         try:
             addresses = set(staking_agent.sample(quantity=quantity, additional_ursulas=1, duration=1))
-            addresses.discard(BlockchainInterface.NULL_ADDRESS)
+            addresses.discard(NULL_ADDRESS)
         except staking_agent.NotEnoughStakers:
             failed += 1
             continue

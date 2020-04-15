@@ -22,7 +22,9 @@ contract MultiSig {
     mapping (address => bool) public isOwner;
     address[] public owners;
 
-    // @notice Only this contract can call method
+    /**
+    * @notice Only this contract can call method
+    */
     modifier onlyThisContract() {
         require(msg.sender == address(this));
         _;
@@ -145,6 +147,13 @@ contract MultiSig {
         }
         owners.pop();
         emit OwnerRemoved(_owner);
+    }
+
+    /**
+    * @notice Returns the number of owners of this MultiSig
+    */
+    function getNumberOfOwners() external view returns (uint256) {
+        return owners.length;
     }
 
     /**

@@ -23,7 +23,7 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
 SPONSOR_FIELD = 0
 OWNER_FIELD = 1
@@ -120,7 +120,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     assert policy_sponsor_balance - 200 == testerchain.client.get_balance(policy_sponsor)
     policy = policy_manager.functions.policies(policy_id).call()
     assert policy_sponsor == policy[SPONSOR_FIELD]
-    assert BlockchainInterface.NULL_ADDRESS == policy[OWNER_FIELD]
+    assert NULL_ADDRESS == policy[OWNER_FIELD]
     assert rate == policy[RATE_FIELD]
     assert current_timestamp == policy[START_TIMESTAMP_FIELD]
     assert end_timestamp == policy[END_TIMESTAMP_FIELD]
@@ -218,7 +218,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         testerchain.wait_for_receipt(tx)
     # Can't revoke null arrangement (also it's nonexistent)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.revokeArrangement(policy_id_2, BlockchainInterface.NULL_ADDRESS).transact({'from': policy_sponsor})
+        tx = policy_manager.functions.revokeArrangement(policy_id_2, NULL_ADDRESS).transact({'from': policy_sponsor})
         testerchain.wait_for_receipt(tx)
 
     # Policy sponsor can't revoke policy, only owner can
@@ -251,7 +251,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         testerchain.wait_for_receipt(tx)
     # Can't revoke null arrangement (it's nonexistent)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.revokeArrangement(policy_id_2, BlockchainInterface.NULL_ADDRESS).transact({'from': policy_sponsor})
+        tx = policy_manager.functions.revokeArrangement(policy_id_2, NULL_ADDRESS).transact({'from': policy_sponsor})
         testerchain.wait_for_receipt(tx)
 
     # Revoke policy with remaining arrangements
@@ -392,7 +392,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     # Create new policy
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     tx = policy_manager.functions.createPolicy(
-        policy_id_3, BlockchainInterface.NULL_ADDRESS, end_timestamp, [node1, node2]) \
+        policy_id_3, NULL_ADDRESS, end_timestamp, [node1, node2]) \
         .transact({'from': policy_sponsor, 'value': 2 * value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
@@ -400,7 +400,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     assert policy_sponsor_balance - 2 * value == testerchain.client.get_balance(policy_sponsor)
     policy = policy_manager.functions.policies(policy_id_3).call()
     assert policy_sponsor == policy[SPONSOR_FIELD]
-    assert BlockchainInterface.NULL_ADDRESS == policy[OWNER_FIELD]
+    assert NULL_ADDRESS == policy[OWNER_FIELD]
     assert rate == policy[RATE_FIELD]
     assert current_timestamp == policy[START_TIMESTAMP_FIELD]
     assert end_timestamp == policy[END_TIMESTAMP_FIELD]
@@ -434,12 +434,12 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     assert value == testerchain.client.get_balance(policy_manager.address)
     assert policy_sponsor_balance - value == testerchain.client.get_balance(policy_sponsor)
     assert not policy_manager.functions.policies(policy_id_3).call()[DISABLED_FIELD]
-    assert BlockchainInterface.NULL_ADDRESS == policy_manager.functions.getArrangementInfo(policy_id_3, 0).call()[0]
+    assert NULL_ADDRESS == policy_manager.functions.getArrangementInfo(policy_id_3, 0).call()[0]
     assert node2 == policy_manager.functions.getArrangementInfo(policy_id_3, 1).call()[0]
 
-    data = policy_id_3 + to_canonical_address(BlockchainInterface.NULL_ADDRESS)
+    data = policy_id_3 + to_canonical_address(NULL_ADDRESS)
     signature = testerchain.client.sign_message(account=policy_sponsor, message=data)
-    tx = policy_manager.functions.revoke(policy_id_3, BlockchainInterface.NULL_ADDRESS, signature)\
+    tx = policy_manager.functions.revoke(policy_id_3, NULL_ADDRESS, signature)\
         .transact({'from': creator, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert policy_manager.functions.policies(policy_id_3).call()[DISABLED_FIELD]
@@ -451,15 +451,15 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         .transact({'from': policy_sponsor, 'value': 3 * value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
 
-    data = policy_id_4 + to_canonical_address(BlockchainInterface.NULL_ADDRESS)
+    data = policy_id_4 + to_canonical_address(NULL_ADDRESS)
     wrong_signature = testerchain.client.sign_message(account=policy_sponsor, message=data)
     # Only owner's signature can be used
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.revoke(policy_id_4, BlockchainInterface.NULL_ADDRESS, wrong_signature)\
+        tx = policy_manager.functions.revoke(policy_id_4, NULL_ADDRESS, wrong_signature)\
             .transact({'from': policy_owner, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
     signature = testerchain.client.sign_message(account=policy_owner, message=data)
-    tx = policy_manager.functions.revoke(policy_id_4, BlockchainInterface.NULL_ADDRESS, signature)\
+    tx = policy_manager.functions.revoke(policy_id_4, NULL_ADDRESS, signature)\
         .transact({'from': creator, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert policy_manager.functions.policies(policy_id_4).call()[DISABLED_FIELD]
@@ -500,17 +500,17 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     policy_id_5 = os.urandom(POLICY_ID_LENGTH)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions\
-            .createPolicy(policy_id_5, BlockchainInterface.NULL_ADDRESS, end_timestamp, [node1]) \
+            .createPolicy(policy_id_5, NULL_ADDRESS, end_timestamp, [node1]) \
             .transact({'from': policy_sponsor, 'value': default_rate - 1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions\
-            .createPolicy(policy_id_5, BlockchainInterface.NULL_ADDRESS, end_timestamp, [node2]) \
+            .createPolicy(policy_id_5, NULL_ADDRESS, end_timestamp, [node2]) \
             .transact({'from': policy_sponsor, 'value': default_rate - 1})
         testerchain.wait_for_receipt(tx)
 
     tx = policy_manager.functions \
-        .createPolicy(policy_id_5, BlockchainInterface.NULL_ADDRESS, end_timestamp, [node1, node2]) \
+        .createPolicy(policy_id_5, NULL_ADDRESS, end_timestamp, [node1, node2]) \
         .transact({'from': policy_sponsor, 'value': 2 * default_rate})
     testerchain.wait_for_receipt(tx)
 

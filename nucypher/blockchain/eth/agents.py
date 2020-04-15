@@ -25,6 +25,7 @@ from eth_utils.address import to_checksum_address
 from eth_tester.exceptions import TransactionFailed
 from twisted.logger import Logger
 from web3.contract import Contract
+from web3.exceptions import BadFunctionCallOutput
 
 from nucypher.blockchain.eth.constants import (
     DISPATCHER_CONTRACT_NAME,
@@ -37,8 +38,8 @@ from nucypher.blockchain.eth.constants import (
     NUCYPHER_TOKEN_CONTRACT_NAME,
     MULTISIG_CONTRACT_NAME,
     SEEDER_CONTRACT_NAME,
-    ETH_ADDRESS_BYTE_LENGTH
-)
+    ETH_ADDRESS_BYTE_LENGTH,
+    NULL_ADDRESS)
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.events import ContractEvents
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
@@ -55,13 +56,20 @@ class ContractAgency:
     @classmethod
     def get_agent(cls,
                   agent_class,
-                  registry: BaseContractRegistry,
+                  registry: BaseContractRegistry = None,
                   provider_uri: str = None,
                   ) -> 'EthereumContractAgent':
 
         if not issubclass(agent_class, EthereumContractAgent):
             raise TypeError(f"Only agent subclasses can be used from the agency.")
-        registry_id = registry.id
+
+        if not registry:
+            if len(cls.__agents) == 1:
+                registry = list(cls.__agents.keys()).pop()
+            else:
+                raise ValueError("Need to specify a registry in order to get an agent from the ContractAgency")
+        else:
+            registry_id = registry.id
         try:
             return cls.__agents[registry_id][agent_class]
         except KeyError:
@@ -101,6 +109,12 @@ class EthereumContractAgent:
 
     class ContractNotDeployed(Exception):
         pass
+
+    class RequirementError(Exception):
+        """
+        Raised when an agent discovers a failed requirement in an invocation to a contract function,
+        usually, a failed `require()`.
+        """
 
     def __init__(self,
                  registry: BaseContractRegistry,
@@ -414,7 +428,7 @@ class StakingEscrowAgent(EthereumContractAgent):
 
     @validate_checksum_address
     def release_worker(self, staker_address: str):
-        return self.set_worker(staker_address=staker_address, worker_address=BlockchainInterface.NULL_ADDRESS)
+        return self.set_worker(staker_address=staker_address, worker_address=NULL_ADDRESS)
 
     @validate_checksum_address
     def confirm_activity(self, worker_address: str):
@@ -886,7 +900,7 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         return receipt
 
     def release_worker(self):
-        receipt = self.set_worker(worker_address=BlockchainInterface.NULL_ADDRESS)
+        receipt = self.set_worker(worker_address=NULL_ADDRESS)
         return receipt
 
     def mint(self):
@@ -1257,8 +1271,6 @@ class MultiSigAgent(EthereumContractAgent):
 
     registry_contract_name = MULTISIG_CONTRACT_NAME
 
-    Vector = List[str]
-
     @property
     def nonce(self) -> int:
         nonce = self.contract.functions.nonce().call()
@@ -1269,19 +1281,13 @@ class MultiSigAgent(EthereumContractAgent):
         return owner
 
     @property
+    def number_of_owners(self):
+        number = self.contract.functions.getNumberOfOwners().call()
+        return number
+
+    @property
     def owners(self) -> Tuple[str]:
-        i = 0
-        owners = list()
-        array_is_within_bounds = True
-        while array_is_within_bounds:
-            try:
-                owner = self.get_owner(i)
-            except (TransactionFailed, ValueError):
-                array_is_within_bounds = False
-            else:
-                owners.append(owner)
-                i += 1
-        return tuple(owners)
+        return tuple(self.get_owner(i) for i in range(self.number_of_owners))
 
     @property
     def threshold(self) -> int:
@@ -1293,18 +1299,41 @@ class MultiSigAgent(EthereumContractAgent):
         result = self.contract.functions.isOwner(checksum_address).call()
         return result
 
-    def add_owner(self, new_owner_address: str, sender_address: str) -> dict:
+    @validate_checksum_address
+    def build_add_owner_tx(self, new_owner_address: str) -> dict:
+        max_owner_count = self.contract.functions.MAX_OWNER_COUNT().call()
+        if not self.number_of_owners < max_owner_count:
+            raise self.RequirementError(f"MultiSig already has the maximum number of owners")
+        if new_owner_address == NULL_ADDRESS:
+            raise self.RequirementError(f"Invalid MultiSig owner address (NULL ADDRESS)")
+        if self.is_owner(new_owner_address):
+            raise self.RequirementError(f"{new_owner_address} is already an owner of the MultiSig.")
         transaction_function = self.contract.functions.addOwner(new_owner_address)
-        receipt = self.blockchain.send_transaction(contract_function=transaction_function,
-                                                   sender_address=sender_address)
-        return receipt
+        transaction = self.blockchain.build_transaction(contract_function=transaction_function,
+                                                        sender_address=self.contract_address)
+        return transaction
 
     @validate_checksum_address
-    def remove_owner(self, checksum_address: str, sender_address: str):
-        transaction_function = self.contract.functions.removeOwner(checksum_address)
-        receipt = self.blockchain.send_transaction(contract_function=transaction_function,
-                                                   sender_address=sender_address)
-        return receipt
+    def build_remove_owner_tx(self, owner_address: str) -> dict:
+        if not self.number_of_owners > self.threshold:
+            raise self.RequirementError(f"Need at least one owner above the threshold to remove an owner.")
+        if not self.is_owner(owner_address):
+            raise self.RequirementError(f"{owner_address} is not owner of the MultiSig.")
+
+        transaction_function = self.contract.functions.removeOwner(owner_address)
+        transaction = self.blockchain.build_transaction(contract_function=transaction_function,
+                                                        sender_address=self.contract_address)
+        return transaction
+
+    @validate_checksum_address
+    def build_change_threshold_tx(self, threshold: int) -> dict:
+        if not 0 < threshold <= self.number_of_owners:
+            raise self.RequirementError(f"New threshold {threshold} doesn't satisfy "
+                                        f"0 < threshold ≤ number of owners = {self.number_of_owners}")
+        transaction_function = self.contract.functions.changeRequirement(threshold)
+        transaction = self.blockchain.build_transaction(contract_function=transaction_function,
+                                                        sender_address=self.contract_address)
+        return transaction
 
     def get_unsigned_transaction_hash(self,
                                       trustee_address: str,
@@ -1323,18 +1352,15 @@ class MultiSigAgent(EthereumContractAgent):
         return transaction_hash
 
     def execute(self,
-                v: Vector,
-                r: Vector,
-                s: Vector,
-                transaction_function,
+                v: List[str],
+                r: List[str],
+                s: List[str],
+                destination: str,
                 value: int,
+                data: bytes,
                 sender_address: str
                 ) -> dict:
-        contract_function = self.contract.functions.execute(v, r, s,
-                                                            transaction_function.address,
-                                                            value,
-                                                            transaction_function.data)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=sender_address)
+        contract_function = self.contract.functions.execute(v, r, s, destination, value, data)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return receipt
 

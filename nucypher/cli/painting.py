@@ -36,9 +36,9 @@ from nucypher.blockchain.eth.agents import (
     StakingEscrowAgent,
     PreallocationEscrowAgent,
     WorkLockAgent)
-from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME
+from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME, NULL_ADDRESS
 from nucypher.blockchain.eth.deployers import DispatcherDeployer, StakingInterfaceRouterDeployer, PolicyManagerDeployer
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
 from nucypher.blockchain.eth.token import NU
@@ -413,31 +413,31 @@ Registry  ................ {registry.filepath}
         emitter.echo(f"[{i}] {owner}")
 
 
-def paint_multisig_proposed_transaction(emitter, data_for_multisig_executives, contract=None):
-    executive_summary = data_for_multisig_executives['parameters']
-    data_to_sign = data_for_multisig_executives['digest']
-    raw_data = executive_summary['data']
+def paint_multisig_proposed_transaction(emitter, proposal, contract=None, registry=None):
 
     info = f"""
-Trustee address: .... {executive_summary['trustee_address']}
-Target address: ..... {executive_summary['target_address']}
-Value: .............. {Web3.fromWei(executive_summary['value'], 'ether')} ETH
-Nonce: .............. {executive_summary['nonce']}
-Raw TX data: ........ {raw_data}
-Unsigned TX hash: ... {data_to_sign}
+Trustee address: .... {proposal.trustee_address}
+Target address: ..... {proposal.target_address}
+Value: .............. {Web3.fromWei(proposal.value, 'ether')} ETH
+Nonce: .............. {proposal.nonce}
+Raw TX data: ........ {proposal.data.hex()}
+Unsigned TX hash: ... {proposal.digest.hex()}
 """
     emitter.echo(info)
 
-    if contract:
-        paint_decoded_transaction(emitter, raw_data, contract)
+    if contract or registry:
+        paint_decoded_transaction(emitter, proposal, contract, registry)
 
 
-def paint_decoded_transaction(emitter, raw_transaction_data, contract):
+def paint_decoded_transaction(emitter, proposal, contract, registry):
     emitter.echo("Decoded transaction:\n")
-    contract_function, params = contract.decode_function_input(raw_transaction_data)
-    emitter.echo(str(contract_function))
+    contract_function, params = proposal.decode_transaction_data(contract, registry)
+    emitter.echo(str(contract_function), color='yellow', bold=True)
     for param, value in params.items():
-        emitter.echo(f"  {param}={value}")
+        emitter.echo(f"  {param}", color='green', nl=False)
+        emitter.echo(" = ", nl=False)
+        emitter.echo(str(value), color='green')
+    emitter.echo()
 
 
 def paint_staged_stake(emitter,
@@ -740,7 +740,7 @@ def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> N
                          f"(last time for period #{last_confirmed_period})", color='red')
 
         emitter.echo(f"{tab}  {'Worker:':10} ", nl=False)
-        if worker == BlockchainInterface.NULL_ADDRESS:
+        if worker == NULL_ADDRESS:
             emitter.echo(f"Worker not set", color='red')
         else:
             emitter.echo(f"{worker}")

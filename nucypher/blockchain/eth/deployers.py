@@ -43,13 +43,12 @@ from nucypher.blockchain.eth.agents import (
     MultiSigAgent,
     ContractAgency
 )
-from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME
+from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import (
     BlockchainDeployerInterface,
     BlockchainInterfaceFactory,
     VersionedContract,
-    BlockchainInterface
 )
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -849,7 +848,7 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
 
     def _deploy_essential(self, contract_version: str, gas_limit: int = None, confirmations: int = 0):
         """Note: These parameters are order-sensitive"""
-        worklock_address = self.worklock_contract.address if self.worklock_contract else BlockchainInterface.NULL_ADDRESS
+        worklock_address = self.worklock_contract.address if self.worklock_contract else NULL_ADDRESS
         constructor_args = (self.token_contract.address,
                             self.staking_contract.address,
                             self.policy_contract.address,
@@ -1240,7 +1239,7 @@ class MultiSigDeployer(BaseContractDeployer):
         if not (0 < threshold <= len(owners) <= self.MAX_OWNER_COUNT):
             raise ValueError(f"Parameters threshold={threshold} and len(owners)={len(owners)} don't satisfy inequality "
                              f"0 < threshold <= len(owners) <= {self.MAX_OWNER_COUNT}")
-        if BlockchainDeployerInterface.NULL_ADDRESS in owners:
+        if NULL_ADDRESS in owners:
             raise ValueError("The null address is not allowed as an owner")
         if len(owners) != len(set(owners)):
             raise ValueError("Can't use the same owner address more than once")

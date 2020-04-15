@@ -20,7 +20,7 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
 
 def sign_hash(testerchain, account: str, data_hash: bytes) -> dict:
@@ -45,7 +45,7 @@ def test_execute(testerchain, deploy_contract):
 
     # Can't create the contract with the address 0x0 (address 0x0 is restricted for use)
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('MultiSig', 3, owners + [BlockchainInterface.NULL_ADDRESS])
+        deploy_contract('MultiSig', 3, owners + [NULL_ADDRESS])
     # Owners must be no less than the threshold value
     with pytest.raises((TransactionFailed, ValueError)):
         deploy_contract('MultiSig', 6, owners)
@@ -333,7 +333,7 @@ def test_owners_management(testerchain, deploy_contract):
         multisig.functions.addOwner(owners[0]).buildTransaction({'from': multisig.address, 'gasPrice': 0})
     # Can't add the address 0x0 as an owner
     with pytest.raises((TransactionFailed, ValueError)):
-        multisig.functions.addOwner(BlockchainInterface.NULL_ADDRESS).buildTransaction({'from': multisig.address, 'gasPrice': 0})
+        multisig.functions.addOwner(NULL_ADDRESS).buildTransaction({'from': multisig.address, 'gasPrice': 0})
 
     # Can't remove nonexistent owner
     with pytest.raises((TransactionFailed, ValueError)):

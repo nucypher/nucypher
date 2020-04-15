@@ -26,7 +26,7 @@ from umbral.signing import Signer
 from web3.contract import Contract
 
 from nucypher.blockchain.economics import BaseEconomics
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.crypto.api import sha256_digest
 from nucypher.crypto.signing import SignatureStamp
 
@@ -768,7 +768,7 @@ def test_policy(testerchain,
 
     policy_id_3 = os.urandom(16)
     tx = policy_manager.functions.createPolicy(
-        policy_id_3, BlockchainInterface.NULL_ADDRESS, end_timestamp, [staker1, preallocation_escrow_1.address]) \
+        policy_id_3, NULL_ADDRESS, end_timestamp, [staker1, preallocation_escrow_1.address]) \
         .transact({'from': alice2, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     policy_manager_balance += value

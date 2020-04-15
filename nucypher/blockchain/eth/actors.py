@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import csv
 import json
 import os
@@ -34,10 +33,9 @@ from constant_sorrow.constants import (
     FULL
 )
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import keccak, is_checksum_address, to_checksum_address
+from eth_utils import keccak, is_checksum_address, to_checksum_address, to_canonical_address
 from twisted.logger import Logger
-from web3 import Web3, IPCProvider
-from web3.contract import ContractFunction
+from web3 import Web3
 
 from nucypher.blockchain.economics import StandardTokenEconomics, EconomicsFactory, BaseEconomics
 from nucypher.blockchain.eth.agents import (
@@ -50,8 +48,8 @@ from nucypher.blockchain.eth.agents import (
     MultiSigAgent,
     WorkLockAgent
 )
-from nucypher.blockchain.eth.decorators import only_me, save_receipt
-from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.decorators import only_me, save_receipt, validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
@@ -65,8 +63,7 @@ from nucypher.blockchain.eth.deployers import (
     MultiSigDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.multisig import Authorization
+from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.registry import (
     AllocationRegistry,
     BaseContractRegistry,
@@ -89,7 +86,7 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nicknames import nickname_from_seed
 
 
-class NucypherTokenActor:
+class BaseActor:
     """
     Concrete base class for any actor that will interface with NuCypher's ethereum smart contracts.
     """
@@ -113,7 +110,7 @@ class NucypherTokenActor:
         self.registry = registry
         if domains:  # StakeHolder config inherits from character config, which has 'domains' - #1580
             self.network = list(domains)[0]
-        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)  # type: NucypherTokenAgent
+
         self._saved_receipts = list()  # track receipts of transmitted transactions
 
     def __repr__(self):
@@ -131,7 +128,18 @@ class NucypherTokenActor:
         """Return this actors's current ETH balance"""
         blockchain = BlockchainInterfaceFactory.get_interface()  # TODO: EthAgent?  #1509
         balance = blockchain.client.get_balance(self.checksum_address)
-        return blockchain.client.w3.fromWei(balance, 'ether')
+        return Web3.fromWei(balance, 'ether')
+
+
+class NucypherTokenActor(BaseActor):
+    """
+    Actor to interface with the NuCypherToken contract
+    """
+
+    def __init__(self, registry: BaseContractRegistry, **kwargs):
+        super().__init__(registry, **kwargs)
+        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent,
+                                                    registry=self.registry)  # type: NucypherTokenAgent
 
     @property
     def token_balance(self) -> NU:
@@ -197,6 +205,7 @@ class ContractAdministrator(NucypherTokenActor):
                  client_password: str = None,
                  signer: Signer = None,
                  staking_escrow_test_mode: bool = False,
+                 is_transacting: bool = True,  # FIXME: Workaround to be able to build MultiSig TXs
                  economics: BaseEconomics = None):
         """
         Note: super() is not called here to avoid setting the token agent.  TODO: call super but use "bare mode" without token agent.  #1510
@@ -213,12 +222,16 @@ class ContractAdministrator(NucypherTokenActor):
         self.deployers = {d.contract_name: d for d in self.all_deployer_classes}
 
         # Powers
-        self.deployer_power = TransactingPower(signer=signer,
-                                               password=client_password,
-                                               account=deployer_address,
-                                               cache=True)
-        self.transacting_power = self.deployer_power
-        self.transacting_power.activate()
+        if is_transacting:
+            self.deployer_power = TransactingPower(signer=signer,
+                                                   password=client_password,
+                                                   account=deployer_address,
+                                                   cache=True)
+            self.transacting_power = self.deployer_power
+            self.transacting_power.activate()
+        else:
+            self.deployer_power = None
+            self.transacting_power = None
 
         self.sidekick_power = None
         self.sidekick_address = None
@@ -392,11 +405,10 @@ class ContractAdministrator(NucypherTokenActor):
         if not is_checksum_address(new_owner):
             raise ValueError(f"{new_owner} is an invalid EIP-55 checksum address.")
 
-        receipts = dict()
-
+        all_receipts = dict()
         for contract_deployer in self.ownable_deployer_classes:
             deployer = contract_deployer(registry=self.registry, deployer_address=self.deployer_address)
-            deployer.transfer_ownership(new_owner=new_owner, transaction_gas_limit=transaction_gas_limit)
+            receipts = deployer.transfer_ownership(new_owner=new_owner, transaction_gas_limit=transaction_gas_limit)
 
             if emitter:
                 emitter.echo(f"Transferred ownership of {deployer.contract_name} to {new_owner}")
@@ -404,9 +416,11 @@ class ContractAdministrator(NucypherTokenActor):
             if interactive:
                 click.pause(info="Press any key to continue")
 
-            receipts[contract_deployer.contract_name] = receipts
+            for tx_type, receipt in receipts.items():
+                receipt_name = f"{contract_deployer.contract_name}_{tx_type}"
+                all_receipts[receipt_name] = receipt
 
-        return receipts
+        return all_receipts
 
     def deploy_beneficiary_contracts(self,
                                      allocations: List[Dict[str, Union[str, int]]],
@@ -652,7 +666,11 @@ class ContractAdministrator(NucypherTokenActor):
         return receipt
 
 
-class MultiSigActor(NucypherTokenActor):
+class MultiSigActor(BaseActor):
+    class UnknownExecutive(Exception):
+        """
+        Raised when Executive is not listed as a owner of the MultiSig.
+        """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -669,56 +687,87 @@ class Trustee(MultiSigActor):
     class NoAuthorizations(RuntimeError):
         """Raised when there are zero authorizations."""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self,
+                 checksum_address: str,
+                 client_password: str = None,
+                 *args, **kwargs):
+        super().__init__(checksum_address=checksum_address, *args, **kwargs)
         self.authorizations = dict()
+        self.executive_addresses = tuple(self.multisig_agent.owners)
+        if client_password:  # TODO: Consider a is_transacting parameter
+            self.transacting_power = TransactingPower(password=client_password,
+                                                      account=checksum_address)
+            self.transacting_power.activate()
 
-    def add_authorization(self, authorization):
-        self.authorizations[authorization.trustee_address] = authorization
+    def add_authorization(self, authorization, proposal: Proposal) -> str:
+        executive_address = authorization.recover_executive_address(proposal)
+        if executive_address not in self.executive_addresses:
+            raise self.UnknownExecutive(f"Executive {executive_address} is not listed as an owner of the MultiSig.")
+        if executive_address in self.authorizations:
+            raise ValueError(f"There is already an authorization from executive {executive_address}")
 
-    def combine_authorizations(self) -> Tuple[List[bytes], ...]:
+        self.authorizations[executive_address] = authorization
+        return executive_address
+
+    def _combine_authorizations(self) -> Tuple[List[bytes], ...]:
         if not self.authorizations:
             raise self.NoAuthorizations
 
         all_v, all_r, all_s = list(), list(), list()
-        # Authorizations (i.e., signatures) must be provided in increasing order by signing address
-        for trustee_address, authorization in sorted(self.authorizations.items()):
-            v, r, s = authorization.get_components()
-            all_v.append(v)
+
+        def order_by_address(executive_address_to_sort):
+            """
+            Authorizations (i.e., signatures) must be provided to the MultiSig in increasing order by signing address
+            """
+            return Web3.toInt(to_canonical_address(executive_address_to_sort))
+
+        for executive_address in sorted(self.authorizations.keys(), key=order_by_address):
+            authorization = self.authorizations[executive_address]
+            r, s, v = authorization.components
+            all_v.append(Web3.toInt(v))  # v values are passed to the contract as ints, not as bytes
             all_r.append(r)
             all_s.append(s)
 
-        # TODO: check for inconsistencies (nonce, etc.)
-        return all_v, all_r, all_s
+        return all_r, all_s, all_v
 
-    def execute(self, contract_function: ContractFunction) -> dict:
-        v, r, s = self.combine_authorizations()
+    def execute(self, proposal: Proposal) -> dict:
+
+        if proposal.trustee_address != self.checksum_address:
+            raise ValueError(f"This proposal is meant to be executed by trustee {proposal.trustee_address}, "
+                             f"not by this trustee ({self.checksum_address})")
+        # TODO: check for inconsistencies (nonce, etc.)
+
+        r, s, v = self._combine_authorizations()
         receipt = self.multisig_agent.execute(sender_address=self.checksum_address,
                                               v=v, r=r, s=s,
-                                              transaction_function=contract_function,
-                                              value=None)  # TODO: Design Flaw...
+                                              destination=proposal.target_address,
+                                              value=proposal.value,
+                                              data=proposal.data)
         return receipt
 
-    def change_threshold(self, new_threshold: int) -> dict:
-        # TODO: Implement Agent method for change threshold for function binding
-        receipt = self.multisig_agent.execute()
-        return receipt
+    def create_transaction_proposal(self, transaction):
+        proposal = Proposal.from_transaction(transaction,
+                                             multisig_agent=self.multisig_agent,
+                                             trustee_address=self.checksum_address)
+        return proposal
 
-    def produce_data_to_sign(self, transaction):
-        data_to_sign = dict(trustee_address=transaction['from'],
-                            target_address=transaction['to'],
-                            value=transaction['value'],
-                            data=transaction['data'],
-                            nonce=self.multisig_agent.nonce)
+    # MultiSig management proposals
 
-        unsigned_digest = self.multisig_agent.get_unsigned_transaction_hash(**data_to_sign)
+    def propose_adding_owner(self, new_owner_address: str, evidence: str) -> Proposal:
+        # TODO: Use evidence to ascertain new owner can transact with this address
+        tx = self.multisig_agent.build_add_owner_tx(new_owner_address=new_owner_address)
+        proposal = self.create_transaction_proposal(tx)
+        return proposal
 
-        data_for_multisig_executives = {
-            'parameters': data_to_sign,
-            'digest': unsigned_digest.hex()
-        }
+    def propose_removing_owner(self, owner_address: str) -> Proposal:
+        tx = self.multisig_agent.build_remove_owner_tx(owner_address=owner_address)
+        proposal = self.create_transaction_proposal(tx)
+        return proposal
 
-        return data_for_multisig_executives
+    def propose_changing_threshold(self, new_threshold: int) -> Proposal:
+        tx = self.multisig_agent.build_change_threshold_tx(new_threshold)
+        proposal = self.create_transaction_proposal(tx)
+        return proposal
 
 
 class Executive(MultiSigActor):
@@ -726,27 +775,29 @@ class Executive(MultiSigActor):
     An actor having the power to authorize transaction executions to a delegated trustee.
     """
 
-    def sign_hash(self, unsigned_hash: bytes) -> bytes:
-        blockchain = self.multisig_agent.blockchain
-        signed_hash = blockchain.transacting_power.sign_hash(unsigned_hash=unsigned_hash)
-        return signed_hash
+    def __init__(self,
+                 checksum_address: str,
+                 signer: Signer = None,
+                 client_password: str = None,
+                 *args, **kwargs):
+        super().__init__(checksum_address=checksum_address, *args, **kwargs)
 
-    def authorize(self, trustee, contract_function: ContractFunction) -> Authorization:
-        try:
-            transaction = contract_function.buildTransaction()
-        except (TransactionFailed, ValueError):
-            # TODO - Handle Validation Failure
-            raise
-        unsigned_transaction_hash = self.multisig_agent.get_unsigned_transaction_hash(
-            trustee_address=trustee.checksum_address,
-            target_address=contract_function.address,
-            value=transaction['value'],
-            data=transaction['data'],
-            nonce=trustee.current_nonce
-        )
-        signed_transaction_hash = self.sign_hash(unsigned_hash=unsigned_transaction_hash)
-        authorization = self.Authorization(trustee_address=trustee.checksum_address,
-                                           signed_transaction_hash=signed_transaction_hash)
+        if checksum_address not in self.multisig_agent.owners:
+            raise self.UnknownExecutive(f"Executive {checksum_address} is not listed as an owner of the MultiSig. "
+                                        f"Current owners are {self.multisig_agent.owners}")
+        self.signer = signer
+        if signer:
+            self.transacting_power = TransactingPower(signer=signer,
+                                                      password=client_password,
+                                                      account=checksum_address)
+            self.transacting_power.activate()
+
+    def authorize_proposal(self, proposal) -> Authorization:
+        # TODO: Double-check that the digest corresponds to the real data to sign
+        signature = self.signer.sign_data_for_validator(account=self.checksum_address,
+                                                        message=proposal.application_specific_data,
+                                                        validator_address=self.multisig_agent.contract_address)
+        authorization = Authorization.deserialize(data=Web3.toBytes(hexstr=signature))
         return authorization
 
 
@@ -773,8 +824,10 @@ class Staker(NucypherTokenActor):
         self.__worker_address = None
 
         # Blockchain
-        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)   # type: PolicyManagerAgent
-        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)  # type: StakingEscrowAgent
+        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent,
+                                                     registry=self.registry)  # type: PolicyManagerAgent
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent,
+                                                      registry=self.registry)  # type: StakingEscrowAgent
         self.economics = EconomicsFactory.get_economics(registry=self.registry)
 
         # Staking via contract
@@ -798,7 +851,7 @@ class Staker(NucypherTokenActor):
 
     def to_dict(self) -> dict:
         stake_info = [stake.to_stake_info() for stake in self.stakes]
-        worker_address = self.worker_address or BlockchainInterface.NULL_ADDRESS
+        worker_address = self.worker_address or NULL_ADDRESS
         staker_funds = {'ETH': int(self.eth_balance), 'NU': int(self.token_balance)}
         staker_payload = {'staker': self.checksum_address,
                           'balances': staker_funds,
@@ -1045,7 +1098,7 @@ class Staker(NucypherTokenActor):
             worker_address = self.staking_agent.get_worker_from_staker(staker_address=self.checksum_address)
             self.__worker_address = worker_address
 
-        if self.__worker_address == BlockchainInterface.NULL_ADDRESS:
+        if self.__worker_address == NULL_ADDRESS:
             return NO_WORKER_ASSIGNED.bool_value(False)
         return self.__worker_address
 
@@ -1056,7 +1109,7 @@ class Staker(NucypherTokenActor):
             receipt = self.preallocation_escrow_agent.release_worker()
         else:
             receipt = self.staking_agent.release_worker(staker_address=self.checksum_address)
-        self.__worker_address = BlockchainInterface.NULL_ADDRESS
+        self.__worker_address = NULL_ADDRESS
         return receipt
 
     #
@@ -1253,7 +1306,7 @@ class Worker(NucypherTokenActor):
             ether_balance = client.get_balance(self.__worker_address)
 
             # Bonding
-            if (not bonded) and (staking_address != BlockchainInterface.NULL_ADDRESS):
+            if (not bonded) and (staking_address != NULL_ADDRESS):
                 bonded = True
                 emitter.message(f"Worker is bonded to ({staking_address})!", color='green', bold=True)
 
@@ -1263,7 +1316,7 @@ class Worker(NucypherTokenActor):
                 emitter.message(f"Worker is funded with {balance} ETH!", color='green', bold=True)
 
             # Success and Escape
-            if staking_address != BlockchainInterface.NULL_ADDRESS and ether_balance:
+            if staking_address != NULL_ADDRESS and ether_balance:
                 self._checksum_address = staking_address
 
                 # TODO: #1823 - Workaround for new nickname every restart
@@ -1275,7 +1328,7 @@ class Worker(NucypherTokenActor):
                 now = maya.now()
                 delta = now - start
                 if delta.total_seconds() >= timeout:
-                    if staking_address == BlockchainInterface.NULL_ADDRESS:
+                    if staking_address == NULL_ADDRESS:
                         raise self.DetachedWorker(f"Worker {self.__worker_address} not bonded after waiting {timeout} seconds.")
                     elif not ether_balance:
                         raise RuntimeError(f"Worker {self.__worker_address} has no ether after waiting {timeout} seconds.")
