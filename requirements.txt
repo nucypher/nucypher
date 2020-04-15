@@ -91,7 +91,7 @@ umbral==0.1.3a2
 urllib3==1.25.9
 varint==1.0.2
 watchdog==0.10.2
-web3==5.7.0
+web3==5.8.0
 websockets==8.1
 werkzeug==1.0.1
 zipp==3.1.0

@@ -11,3 +11,4 @@ if ! eMSG=$(circleci config validate -c .circleci/config.yml); then
 	exit 1
 fi
 echo "CircleCI config is valid."
+exit 0

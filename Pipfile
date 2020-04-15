@@ -42,6 +42,9 @@ pytest-twisted = "*"
 pytest-cov = "*"
 pytest-mock = "*"
 # Tools
+pre-commit = "*"
+pyflakes = "*"
+bandit = "*"
 mypy = "*"
 coverage = "*"
 # Deployment
