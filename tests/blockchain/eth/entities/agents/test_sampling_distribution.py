@@ -103,7 +103,7 @@ def test_sampling_distribution(testerchain, token, deploy_contract):
         tx = token.functions.approve(staking_escrow_contract.address, balance).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
 
-        staking_agent.deposit_tokens(amount=balance, lock_periods=10, sender_address=staker)
+        staking_agent.deposit_tokens(amount=balance, lock_periods=10, sender_address=staker, staker_address=staker)
         staking_agent.set_worker(staker_address=staker, worker_address=staker)
         staking_agent.confirm_activity(staker)
 

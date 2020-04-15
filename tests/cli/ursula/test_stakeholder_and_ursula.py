@@ -57,7 +57,6 @@ def test_new_stakeholder(click_runner,
                          testerchain):
 
     init_args = ('stake', 'init-stakeholder',
-                 '--poa',
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
                  '--network', TEMPORARY_DOMAIN,
@@ -165,9 +164,7 @@ def test_staker_divide_stakes(click_runner,
                                  env=dict(NUCYPHER_KEYRING_PASSWORD=INSECURE_DEVELOPMENT_PASSWORD))
     assert result.exit_code == 0
 
-    stake_args = ('stake', 'list',
-                  '--config-file', stakeholder_configuration_file_location,
-                  '--poa')
+    stake_args = ('stake', 'list', '--config-file', stakeholder_configuration_file_location)
 
     user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
@@ -239,7 +236,6 @@ def test_ursula_init(click_runner,
                      testerchain):
 
     init_args = ('ursula', 'init',
-                 '--poa',
                  '--network', TEMPORARY_DOMAIN,
                  '--worker-address', manual_worker,
                  '--config-root', custom_filepath,

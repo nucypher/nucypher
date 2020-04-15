@@ -47,7 +47,7 @@ DEFAULT_CONFIG_ROOT = os.getenv('NUCYPHER_CONFIG_ROOT', default=APP_DIR.user_dat
 USER_LOG_DIR = os.getenv('NUCYPHER_USER_LOG_DIR', default=APP_DIR.user_log_dir)
 
 
-# Static Seednodes (Not from seeder contract)
+# Static Seednodes
 SeednodeMetadata = namedtuple('seednode', ['checksum_address', 'rest_host', 'rest_port'])
 SEEDNODES = tuple()
 

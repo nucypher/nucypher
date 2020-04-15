@@ -50,7 +50,6 @@ def test_deploy_multisig_contract(click_runner,
     command = ['contracts',
                '--registry-infile', new_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa',
                '--contract-name', 'MultiSig',
                '--parameters', multisig_parameters_filepath]
 

@@ -20,7 +20,7 @@ from abc import ABC, abstractmethod
 from typing import List
 from urllib.parse import urlparse
 
-from eth_utils import to_checksum_address, to_normalized_address, apply_formatters_to_dict
+from eth_utils import to_checksum_address, apply_formatters_to_dict
 from hexbytes import HexBytes
 from twisted.logger import Logger
 from web3 import Web3, IPCProvider
@@ -147,8 +147,18 @@ class ClefSigner(Signer):
 
     def __init__(self, ipc_path: str = DEFAULT_IPC_PATH):
         super().__init__()
-        w3 = Web3(provider=IPCProvider(ipc_path=ipc_path))  # TODO: Unify with clients or build error handling
-        self.w3 = w3
+        self.w3 = Web3(provider=IPCProvider(ipc_path=ipc_path))  # TODO: Unify with clients or build error handling
+        self.ipc_path = ipc_path
+
+    def __ipc_request(self, endpoint: str, *request_args):
+        """Error handler for clef IPC requests  # TODO: Use web3 RequestHandler"""
+        try:
+            response = self.w3.manager.request_blocking(endpoint, request_args)
+        except FileNotFoundError:
+            raise FileNotFoundError(f'Clef IPC file not found. Is clef running and available at "{self.ipc_path}"?')
+        except ConnectionRefusedError:
+            raise ConnectionRefusedError(f'Clef refused connection. Is clef running and available at "{self.ipc_path}"?')
+        return response
 
     @classmethod
     def from_signer_uri(cls, uri: str) -> 'ClefSigner':
@@ -164,7 +174,7 @@ class ClefSigner(Signer):
         return True  # TODO: Detect HW v. SW Wallets via clef API - #1772
     
     def accounts(self) -> List[str]:
-        normalized_addresses = self.w3.manager.request_blocking("account_list", [])
+        normalized_addresses = self.__ipc_request(endpoint="account_list")
         checksum_addresses = [to_checksum_address(addr) for addr in normalized_addresses]
         return checksum_addresses
 
@@ -179,7 +189,7 @@ class ClefSigner(Signer):
             'from': to_checksum_address
         }
         transaction_dict = apply_formatters_to_dict(formatters, transaction_dict)
-        signed = self.w3.manager.request_blocking("account_signTransaction", [transaction_dict])
+        signed = self.__ipc_request("account_signTransaction", transaction_dict)
         return HexBytes(signed.raw)
 
     @validate_checksum_address
@@ -204,7 +214,8 @@ class ClefSigner(Signer):
         else:
             raise NotImplementedError
 
-        return HexBytes(self.w3.manager.request_blocking("account_signData", [content_type, account, data]))
+        signed_data = self.__ipc_request("account_signData", content_type, account, data)
+        return HexBytes(signed_data)
 
     def sign_data_for_validator(self, account: str, message: bytes, validator_address: str):
         signature = self.sign_message(account=account,

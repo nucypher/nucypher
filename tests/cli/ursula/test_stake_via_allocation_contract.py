@@ -126,7 +126,6 @@ def test_stake_via_contract(click_runner,
 
     # Let's not forget to create a stakeholder
     init_args = ('stake', 'init-stakeholder',
-                 '--poa',
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
                  '--network', TEMPORARY_DOMAIN,
@@ -410,7 +409,6 @@ def test_ursula_init(click_runner,
                      testerchain):
 
     init_args = ('ursula', 'init',
-                 '--poa',
                  '--network', TEMPORARY_DOMAIN,
                  '--worker-address', manual_worker,
                  '--config-root', custom_filepath,

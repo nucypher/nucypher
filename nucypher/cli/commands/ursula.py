@@ -213,7 +213,7 @@ group_config_options = group_options(
     rest_host=click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING),
     rest_port=click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT),
     db_filepath=option_db_filepath,
-    network=option_network,
+    network=option_network(),
     registry_filepath=option_registry_filepath,
     poa=option_poa,
     light=option_light,

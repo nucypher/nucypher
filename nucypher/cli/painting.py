@@ -532,7 +532,12 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
                        pretty_fees,
                        min_reward_rate]
 
-        emitter.echo(f"\nStaker {staker.checksum_address} ════", bold=True, color='red' if missing else 'green')
+        line_width = 54
+        if staker.registry.source:  # TODO: #1580 - Registry source might be Falsy in tests.
+            network_snippet = f"\nNetwork {staker.registry.source.network.capitalize()} "
+            snippet_with_line = network_snippet + '═'*(line_width-len(network_snippet)+1)
+            emitter.echo(snippet_with_line, bold=True)
+        emitter.echo(f"Staker {staker.checksum_address} ════", bold=True, color='red' if missing else 'green')
         emitter.echo(f"Worker {staker.worker_address} ════")
         emitter.echo(tabulate.tabulate(zip(staker_headers, staker_data), floatfmt="fancy_grid"))
 
@@ -868,6 +873,7 @@ def echo_solidity_version(ctx, param, value):
 
 def paint_worklock_status(emitter, registry: BaseContractRegistry):
     from maya import MayaDT
+
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
     blockchain = worklock_agent.blockchain
 
@@ -878,38 +884,53 @@ def paint_worklock_status(emitter, registry: BaseContractRegistry):
 
     bidding_duration = bidding_end - bidding_start
     cancellation_duration = cancellation_end - bidding_start
+
     now = maya.now()
-    bidding_remaining = bidding_end - now if bidding_end > now else timedelta()
-    cancellation_remaining = cancellation_end - now if cancellation_end > now else timedelta()
+    bidding_remaining = bidding_end - now if bidding_end > now else 'Closed'
+    cancellation_remaining = cancellation_end - now if cancellation_end > now else "Closed"
+
+    cancellation_open = bidding_start <= now <= cancellation_end
+    bidding_open = bidding_start <= now <= bidding_end
 
     payload = f"""
-
 Time
-======================================================
-Bidding Start Date ................... {bidding_start}
-Bidding End Date ..................... {bidding_end}
-Bidding Duration ..................... {bidding_duration}
-Bidding Time Remaining ............... {bidding_remaining} 
+══════════════════════════════════════════════════════
 
-Cancellation Window End Date ......... {cancellation_end}
-Cancellation Window Duration ......... {cancellation_duration}
-Cancellation Window Time Remaining ... {cancellation_remaining}
+Contribution ({'Open' if bidding_open else 'Closed'})
+------------------------------------------------------
+Claims Available ...... {'Yes' if worklock_agent.is_claiming_available() else 'No'}
+Start Date ............ {bidding_start}
+End Date .............. {bidding_end}
+Duration .............. {bidding_duration}
+Time Remaining ........ {bidding_remaining} 
+
+Cancellation ({'Open' if cancellation_open else 'Closed'})
+------------------------------------------------------
+End Date .............. {cancellation_end}
+Duration .............. {cancellation_duration}
+Time Remaining ........ {cancellation_remaining}
  
-Claiming phase open .................. {'Yes' if worklock_agent.is_claiming_available() else 'No'} 
-
+ 
 Economics
-======================================================        
-Min allowed bid ....... {prettify_eth_amount(worklock_agent.minimum_allowed_bid)}
+══════════════════════════════════════════════════════
+
+Participation
+------------------------------------------------------
+Lot Size .............. {NU.from_nunits(worklock_agent.lot_value)} 
+Min. Allowed Bid ...... {prettify_eth_amount(worklock_agent.minimum_allowed_bid)}
+Participants .......... {worklock_agent.get_bidders_population()}
 ETH Pool .............. {prettify_eth_amount(blockchain.client.get_balance(worklock_agent.contract_address))}
 ETH Supply ............ {prettify_eth_amount(worklock_agent.get_eth_supply())}
-Bonus ETH Supply ...... {prettify_eth_amount(worklock_agent.get_bonus_eth_supply())}
 
-Number of bidders...... {worklock_agent.get_bidders_population()}
-Lot Size .............. {NU.from_nunits(worklock_agent.lot_value)} 
-Bonus Lot Size ........ {NU.from_nunits(worklock_agent.get_bonus_lot_value())} 
-
+Refunds
+------------------------------------------------------
 Boosting Refund ....... {worklock_agent.contract.functions.boostingRefund().call()}
 Slowing Refund ........ {worklock_agent.contract.functions.SLOWING_REFUND().call()}
+
+Bonus
+------------------------------------------------------
+Bonus ETH Supply ...... {prettify_eth_amount(worklock_agent.get_bonus_eth_supply())}
+Bonus Lot Size ........ {NU.from_nunits(worklock_agent.get_bonus_lot_value())}
 Bonus Refund Rate ..... {worklock_agent.get_bonus_refund_rate()}
 Bonus Deposit Rate .... {worklock_agent.get_bonus_deposit_rate()}
     """
@@ -987,7 +1008,7 @@ Successfully claimed WorkLock tokens for {bidder_address}.
 
 You can check that the stake was created correctly by running:
 
-  nucypher status stakers --staking-address {bidder_address} --network {network} --provider {provider_uri} --poa
+  nucypher status stakers --staking-address {bidder_address} --network {network} --provider {provider_uri}
 
 Next Steps for WorkLock Winners
 ===============================

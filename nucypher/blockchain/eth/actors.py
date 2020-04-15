@@ -59,7 +59,6 @@ from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     BaseContractDeployer,
     WorklockDeployer,
-    SeederDeployer,
     MultiSigDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
@@ -180,7 +179,6 @@ class ContractAdministrator(NucypherTokenActor):
     aux_deployer_classes = (
         WorklockDeployer,
         MultiSigDeployer,
-        SeederDeployer
     )
 
     # For ownership relinquishment series.
@@ -278,6 +276,7 @@ class ContractAdministrator(NucypherTokenActor):
                         progress=None,
                         confirmations: int = 0,
                         deployment_parameters: dict = None,
+                        emitter=None,
                         *args, **kwargs,
                         ) -> Tuple[dict, BaseContractDeployer]:
 
@@ -299,12 +298,15 @@ class ContractAdministrator(NucypherTokenActor):
                                        ignore_deployed=ignore_deployed,
                                        confirmations=confirmations,
                                        deployment_mode=deployment_mode,
+                                       emitter=emitter,
                                        **deployment_parameters)
         else:
             receipts = deployer.deploy(gas_limit=gas_limit,
                                        progress=progress,
                                        confirmations=confirmations,
                                        deployment_mode=deployment_mode,
+                                       ignore_deployed=ignore_deployed,
+                                       emitter=emitter,
                                        **deployment_parameters)
         return receipts, deployer
 
@@ -375,12 +377,14 @@ class ContractAdministrator(NucypherTokenActor):
                 if deployer_class in self.standard_deployer_classes:
                     receipts, deployer = self.deploy_contract(contract_name=deployer_class.contract_name,
                                                               gas_limit=gas_limit,
-                                                              progress=bar)
+                                                              progress=bar,
+                                                              emitter=emitter)
                 else:
                     receipts, deployer = self.deploy_contract(contract_name=deployer_class.contract_name,
                                                               gas_limit=gas_limit,
                                                               progress=bar,
-                                                              ignore_deployed=ignore_deployed)
+                                                              ignore_deployed=ignore_deployed,
+                                                              emitter=emitter)
 
                 if emitter:
                     blockchain = BlockchainInterfaceFactory.get_interface()

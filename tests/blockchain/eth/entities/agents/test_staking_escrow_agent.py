@@ -65,7 +65,8 @@ def test_deposit_tokens(testerchain, agency, token_economics, mock_transacting_p
 
     receipt = staking_agent.deposit_tokens(amount=locked_tokens,
                                            lock_periods=token_economics.minimum_locked_periods,
-                                           sender_address=staker_account)
+                                           sender_address=staker_account,
+                                           staker_address=staker_account)
 
     # Check the receipt for the contract address success code
     assert receipt['status'] == 1, "Transaction Rejected"
@@ -207,7 +208,8 @@ def test_divide_stake(agency, token_economics):
     # Deposit
     _txhash = agent.deposit_tokens(amount=token_economics.minimum_allowed_locked*2,
                                    lock_periods=token_economics.minimum_locked_periods,
-                                   sender_address=someone)
+                                   sender_address=someone,
+                                   staker_address=someone)
 
     # Confirm Activity
     _txhash = agent.confirm_activity(node_address=someone)

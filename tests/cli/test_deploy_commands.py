@@ -29,8 +29,7 @@ def test_nucypher_deploy_inspect_no_deployments(click_runner, testerchain, new_l
 
     status_command = ('inspect',
                       '--provider', TEST_PROVIDER_URI,
-                      '--registry-infile', new_local_registry.filepath,
-                      '--poa')
+                      '--registry-infile', new_local_registry.filepath)
 
     result = click_runner.invoke(deploy, status_command, catch_exceptions=False)
     assert result.exit_code == 0
@@ -43,7 +42,6 @@ def test_set_range(click_runner, testerchain, agency_local_registry):
     status_command = ('set-range',
                       '--provider', TEST_PROVIDER_URI,
                       '--registry-infile', agency_local_registry.filepath,
-                      '--poa',
                       '--minimum', minimum,
                       '--default', default,
                       '--maximum', maximum)
@@ -68,8 +66,7 @@ def test_nucypher_deploy_inspect_fully_deployed(click_runner, agency_local_regis
 
     status_command = ('inspect',
                       '--registry-infile', agency_local_registry.filepath,
-                      '--provider', TEST_PROVIDER_URI,
-                      '--poa')
+                      '--provider', TEST_PROVIDER_URI)
 
     result = click_runner.invoke(deploy,
                                  status_command,
@@ -101,8 +98,7 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
     ownership_command = ('transfer-ownership',
                          '--registry-infile', agency_local_registry.filepath,
                          '--provider', TEST_PROVIDER_URI,
-                         '--target-address', maclane,
-                         '--poa')
+                         '--target-address', maclane)
 
     account_index = '0\n'
     yes = 'Y\n'
@@ -125,8 +121,7 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
                          '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
                          '--registry-infile', agency_local_registry.filepath,
                          '--provider', TEST_PROVIDER_URI,
-                         '--target-address', michwill,
-                         '--poa')
+                         '--target-address', michwill)
 
     user_input = yes
     result = click_runner.invoke(deploy,
@@ -150,7 +145,6 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_loc
                '--provider', TEST_PROVIDER_URI,
                '--registry-infile', agency_local_registry.filepath,
                '--registry-outfile', ALTERNATE_REGISTRY_FILEPATH,
-               '--poa',
                '--ignore-deployed')
 
     user_input = '0\n' + 'Y\n' + 'DEPLOY'
@@ -195,8 +189,7 @@ def test_manual_proxy_retargeting(testerchain, click_runner, token_economics):
                '--contract-name', StakingEscrowDeployer.contract_name,
                '--target-address', untargeted_deployment.address,
                '--provider', TEST_PROVIDER_URI,
-               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH,
-               '--poa')
+               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH)
 
     # Upgrade
     user_input = '0\n' + 'Y\n' + 'Y\n'
@@ -220,8 +213,7 @@ def test_manual_deployment_of_idle_network(click_runner):
     command = ('contracts',
                '--contract-name', NUCYPHER_TOKEN_CONTRACT_NAME,
                '--provider', TEST_PROVIDER_URI,
-               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2,
-               '--poa')
+               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
     user_input = '0\n' + 'Y\n' + INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
@@ -238,8 +230,7 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
                '--mode', 'idle',
                '--provider', TEST_PROVIDER_URI,
-               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2,
-               '--poa')
+               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
     user_input = '0\n' + 'Y\n'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
@@ -252,8 +243,7 @@ def test_manual_deployment_of_idle_network(click_runner):
     command = ('contracts',
                '--contract-name', POLICY_MANAGER_CONTRACT_NAME,
                '--provider', TEST_PROVIDER_URI,
-               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2,
-               '--poa')
+               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
     user_input = '0\n' + 'Y\n'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
@@ -266,8 +256,7 @@ def test_manual_deployment_of_idle_network(click_runner):
     command = ('contracts',
                '--contract-name', ADJUDICATOR_CONTRACT_NAME,
                '--provider', TEST_PROVIDER_URI,
-               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2,
-               '--poa')
+               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
     user_input = '0\n' + 'Y\n'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
@@ -281,8 +270,7 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
                '--activate',
                '--provider', TEST_PROVIDER_URI,
-               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2,
-               '--poa')
+               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
     user_input = '0\n' + 'Y\n' + 'Y\n'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)

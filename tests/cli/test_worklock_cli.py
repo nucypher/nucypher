@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import random
 
 import pytest
@@ -32,7 +34,7 @@ from nucypher.utilities.sandbox.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     TEST_PROVIDER_URI,
     MOCK_IP_ADDRESS,
-    select_test_port
+    select_test_port, TEMPORARY_DOMAIN
 )
 
 
@@ -55,13 +57,13 @@ def test_status(click_runner, testerchain, agency_local_registry, token_economic
     command = ('status',
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa',)
+               '--network', TEMPORARY_DOMAIN)
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
 
     assert result.exit_code == 0
-    assert f"Lot Size .............. {NU.from_nunits(token_economics.worklock_supply)}" in result.output
-    assert f"Min allowed bid ....... {Web3.fromWei(token_economics.worklock_min_allowed_bid, 'ether')} ETH" in result.output
+    assert str(NU.from_nunits(token_economics.worklock_supply)) in result.output
+    assert str(Web3.fromWei(token_economics.worklock_min_allowed_bid, 'ether')) in result.output
 
 
 def test_bid(click_runner, testerchain, agency_local_registry, token_economics, bids):
@@ -72,7 +74,7 @@ def test_bid(click_runner, testerchain, agency_local_registry, token_economics, 
     base_command = ('bid',
                     '--registry-filepath', agency_local_registry.filepath,
                     '--provider', TEST_PROVIDER_URI,
-                    '--poa',
+                    '--network', TEMPORARY_DOMAIN,
                     '--force')
 
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
@@ -106,7 +108,7 @@ def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_econ
                '--bidder-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa',
+               '--network', TEMPORARY_DOMAIN,
                '--force')
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + 'Y\n'
@@ -122,7 +124,7 @@ def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_econ
                '--bidder-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa',
+               '--network', TEMPORARY_DOMAIN,
                '--force')
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + 'Y\n'
@@ -145,8 +147,8 @@ def test_post_initialization(click_runner, testerchain, agency_local_registry, t
                '--bidder-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa',
                '--force',
+               '--network', TEMPORARY_DOMAIN,
                '--gas-limit', 100000)
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + 'Y\n'
@@ -164,7 +166,7 @@ def test_claim(click_runner, testerchain, agency_local_registry, token_economics
                '--bidder-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa',
+               '--network', TEMPORARY_DOMAIN,
                '--force')
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + 'Y\n'
@@ -177,7 +179,7 @@ def test_claim(click_runner, testerchain, agency_local_registry, token_economics
                '--bidder-address', whale,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa',
+               '--network', TEMPORARY_DOMAIN,
                '--force')
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + 'Y\n'
@@ -200,7 +202,7 @@ def test_remaining_work(click_runner, testerchain, agency_local_registry, token_
                '--bidder-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa')
+               '--network', TEMPORARY_DOMAIN)
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
@@ -247,7 +249,7 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
                '--bidder-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa',
+               '--network', TEMPORARY_DOMAIN,
                '--force')
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + 'Y\n'
@@ -266,7 +268,7 @@ def test_participant_status(click_runner, testerchain, agency_local_registry, to
                '--registry-filepath', agency_local_registry.filepath,
                '--bidder-address', bidder.checksum_address,
                '--provider', TEST_PROVIDER_URI,
-               '--poa')
+               '--network', TEMPORARY_DOMAIN)
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0

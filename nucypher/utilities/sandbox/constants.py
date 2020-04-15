@@ -21,10 +21,10 @@ import os
 import socket
 import string
 import tempfile
-import time
 from datetime import datetime
 from random import SystemRandom
 
+import time
 from web3 import Web3
 
 from nucypher.blockchain.eth.token import NU
@@ -76,8 +76,6 @@ NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS
 #
 
 TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
-
-MAX_TEST_SEEDER_ENTRIES = 20
 
 ONE_YEAR_IN_SECONDS = ((60 * 60) * 24) * 365
 

@@ -28,9 +28,9 @@ import requests
 from constant_sorrow.constants import REGISTRY_COMMITTED, NO_REGISTRY_SOURCE
 from twisted.logger import Logger
 
+from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 
 
 class CanonicalRegistrySource(ABC):
@@ -96,11 +96,11 @@ class GithubRegistrySource(CanonicalRegistrySource):
         return registry_data
 
 
-class InPackageRegistrySource(CanonicalRegistrySource):
+class EmbeddedRegistrySource(CanonicalRegistrySource):
     _HERE = os.path.abspath(os.path.dirname(__file__))
     _REGISTRY_DIR = os.path.join(_HERE, "contract_registry")
 
-    name = "In-Package Registry Source"
+    name = "Embedded Registry Source"
     is_primary = False
 
     def get_publication_endpoint(self) -> str:
@@ -130,7 +130,7 @@ class RegistrySourceManager:
     )  # type: Tuple[Type[CanonicalRegistrySource]]
 
     _LOCAL_SOURCES = (
-        InPackageRegistrySource,
+        EmbeddedRegistrySource,
     )  # type: Tuple[Type[CanonicalRegistrySource]]
 
     _FALLBACK_CHAIN = _REMOTE_SOURCES + _LOCAL_SOURCES
@@ -201,6 +201,8 @@ class BaseContractRegistry(ABC):
     # Registry
     REGISTRY_NAME = 'contract_registry.json'  # TODO: #1511 Save registry with ID-time-based filename
     DEVELOPMENT_REGISTRY_NAME = 'dev_contract_registry.json'
+
+    NO_REGISTRY_SOURCE.bool_value(False)
 
     class RegistryError(Exception):
         pass
