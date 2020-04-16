@@ -62,5 +62,5 @@ class ByteVersioningMixin:
 
         return output_class, output_bytes
 
-    def add_version(self, some_bytes):
+    def prepend_version(self, some_bytes):
         return (self.version).to_bytes(2, 'big') + some_bytes

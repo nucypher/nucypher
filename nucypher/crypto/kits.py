@@ -67,7 +67,7 @@ class MessageKit(CryptoKit):
             as_bytes += bytes(self.sender_verifying_key)
 
         as_bytes += VariableLengthBytestring(self.ciphertext)
-        return super().add_version(as_bytes)
+        return super().prepend_version(as_bytes)
 
     @classmethod
     def splitter(cls, *args, **kwargs):
@@ -81,7 +81,7 @@ class MessageKit(CryptoKit):
         return self._signature
 
     def __bytes__(self):
-        return super().add_version(bytes(self.capsule) + VariableLengthBytestring(self.ciphertext))
+        return super().prepend_version(bytes(self.capsule) + VariableLengthBytestring(self.ciphertext))
 
 
 class MessageKitV1(MessageKit):

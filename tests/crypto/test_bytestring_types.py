@@ -108,7 +108,7 @@ def test_message_kit_versions(enacted_federated_policy, federated_alice):
             self._signature = signature
 
         def __bytes__(self):
-            return super().add_version(
+            return super().prepend_version(
                 bytes(self.capsule) + bytes(
                     self.sender_verifying_key
                 ) + bytes(

@@ -131,7 +131,7 @@ class TreasureMap(ByteVersioningMixin):
         if self._payload is None:
             self._set_payload()
 
-        return super().add_version(self._payload)
+        return super().prepend_version(self._payload)
 
     @property
     def _verifying_key(self):

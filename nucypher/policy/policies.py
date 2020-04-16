@@ -85,7 +85,7 @@ class Arrangement(ByteVersioningMixin):
 
     def __bytes__(self):
 
-        return super().add_version(
+        return super().prepend_version(
             bytes(self.alice.stamp) + self.id + bytes(VariableLengthBytestring(self.expiration.iso8601().encode())))
 
     @classmethod
