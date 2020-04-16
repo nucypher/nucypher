@@ -1,6 +1,6 @@
 class ByteVersioningMixin:
 
-    class NucypherNeedsUpdateException(BaseException):
+    class UnknownVersionException(BaseException):
         """This node cannot instantiate a class from data created by a newer version of NuCypher."""
 
     def __new__(cls, *args, **kwargs):
@@ -40,12 +40,13 @@ class ByteVersioningMixin:
                 # would a bob be receiving this?  Or an Alice?
                 # Who needs to know about this?
                 # can we notify the staker of a node that their Worker needs an update?
-
-                raise ByteVersioningMixin.NucypherNeedsUpdateException("This node is running outdated NuCypher code")
+                versions = [c.version for c in versioned_subclasses]
+                raise ByteVersioningMixin.UnknownVersionException(
+                    f"Unable to instantiate version: "
+                    f"{v} of {klass}. Available versions: {versions}")
 
             # if the 1st two bytes aren't between 1 and 99, or if we have some weird broken data,
-            # lets not get ahead of ourselves, we can probably move on with life.
-            # return the base class and let it fail or succeed...
+            # return the base class and let it fail or succeed in its own Bytesplitter.
             return klass
 
         return outclass

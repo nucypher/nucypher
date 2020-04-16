@@ -176,6 +176,9 @@ def test_newer_version_than_installed_code_can_accomodate(enacted_federated_poli
     V99_mkit_bytes = (
         v99 + bytes(mkit.capsule) + bytes(mkit.sender_verifying_key) + VariableLengthBytestring(mkit.ciphertext))
 
-    with pytest.raises(ByteVersioningMixin.NucypherNeedsUpdateException):
-        # we should catch this NucypherNeedsUpdateException here
+    with pytest.raises(ByteVersioningMixin.UnknownVersionException) as excinfo:
+        # we should catch this UnknownVersionException here
         UmbralMessageKit.from_bytes(V99_mkit_bytes)
+
+    assert "version: 99" in str(excinfo.value)
+    print(str(excinfo.value))
