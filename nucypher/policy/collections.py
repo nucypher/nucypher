@@ -45,10 +45,10 @@ from nucypher.crypto.utils import (canonical_address_from_umbral_key,
                                    get_coordinates_as_bytes,
                                    get_signature_recovery_value)
 from nucypher.network.middleware import RestMiddleware
-from nucypher.primitives import VersionedBytes
+from nucypher.utilities.versioning import ByteVersioningMixin
 
 
-class TreasureMap(VersionedBytes):
+class TreasureMap(ByteVersioningMixin):
     from nucypher.policy.policies import Arrangement
     ID_LENGTH = Arrangement.ID_LENGTH  # TODO: Unify with Policy / Arrangement - or is this ok?
 

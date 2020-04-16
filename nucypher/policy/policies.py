@@ -37,11 +37,11 @@ from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
-from nucypher.primitives import VersionedBytes
+from nucypher.utilities.versioning import ByteVersioningMixin
 
 
 
-class Arrangement(VersionedBytes):
+class Arrangement(ByteVersioningMixin):
     """
     A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
     """

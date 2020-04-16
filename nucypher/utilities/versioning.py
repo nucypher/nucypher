@@ -1,4 +1,4 @@
-class VersionedBytes:
+class ByteVersioningMixin:
 
     class NucypherNeedsUpdateException(BaseException):
         """This node cannot instantiate a class from data created by a newer version of NuCypher."""
@@ -13,10 +13,10 @@ class VersionedBytes:
         """
 
         if not hasattr(cls, 'version'):
-            versioned_subclasses = VersionedBytes.__get_versioned_subclasses(cls)
+            versioned_subclasses = ByteVersioningMixin.__get_versioned_subclasses(cls)
             # take the highest
             cls = sorted(versioned_subclasses, key=lambda x: x.version)[-1]
-        return super(VersionedBytes, cls).__new__(cls)
+        return super(ByteVersioningMixin, cls).__new__(cls)
 
     @classmethod
     def __get_versioned_subclasses(cls, klass):
@@ -29,7 +29,7 @@ class VersionedBytes:
         if getattr(klass, 'version', None) == v:
             return klass
 
-        versioned_subclasses = VersionedBytes.__get_versioned_subclasses(klass)
+        versioned_subclasses = ByteVersioningMixin.__get_versioned_subclasses(klass)
         try:
             outclass = next(iter([c for c in versioned_subclasses if c.version == v]))
         except StopIteration:
@@ -41,7 +41,7 @@ class VersionedBytes:
                 # Who needs to know about this?
                 # can we notify the staker of a node that their Worker needs an update?
 
-                raise VersionedBytes.NucypherNeedsUpdateException("This node is running outdated NuCypher code")
+                raise ByteVersioningMixin.NucypherNeedsUpdateException("This node is running outdated NuCypher code")
 
             # if the 1st two bytes aren't between 1 and 99, or if we have some weird broken data,
             # lets not get ahead of ourselves, we can probably move on with life.
@@ -53,7 +53,7 @@ class VersionedBytes:
     @classmethod
     def parse_version(cls, some_bytes):
         version_bytes = some_bytes[:2]
-        output_class = VersionedBytes.__get_class(cls, version_bytes)
+        output_class = ByteVersioningMixin.__get_class(cls, version_bytes)
 
         output_bytes = some_bytes if output_class is cls and not hasattr(cls, 'version') else some_bytes[2:]
         # if we got an unversioned base class, it means we probably could not parse a version

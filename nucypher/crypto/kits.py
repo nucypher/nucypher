@@ -17,10 +17,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from constant_sorrow.constants import UNKNOWN_SENDER, NOT_SIGNED
 from bytestring_splitter import BytestringKwargifier, VariableLengthBytestring
 from nucypher.crypto.splitters import key_splitter, capsule_splitter
-from nucypher.primitives import VersionedBytes
+from nucypher.utilities.versioning import ByteVersioningMixin
 
 
-class CryptoKit(VersionedBytes):
+class CryptoKit(ByteVersioningMixin):
     """
     A package of discrete items, meant to be sent over the wire or saved to disk (in either case, as bytes),
     capable of performing a distinct cryptological function.
