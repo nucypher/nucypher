@@ -758,5 +758,5 @@ def connect_to_blockchain(provider_uri, emitter, debug: bool = False, light: boo
     except Exception as e:
         if debug:
             raise
-        emitter.echo(str(e), bold=True, fg='red')
+        emitter.secho(str(e), bold=True, fg='red')
         raise click.Abort

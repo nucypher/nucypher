@@ -36,6 +36,7 @@ from constant_sorrow.constants import (
     READ_ONLY_INTERFACE
 )
 from eth_tester import EthereumTester
+from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_checksum_address
 from twisted.logger import Logger
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider, middleware
@@ -414,18 +415,27 @@ class BlockchainInterface:
         # Build transaction payload
         try:
             unsigned_transaction = contract_function.buildTransaction(payload)
-        except (ValidationError, ValueError) as e:
-            # TODO: #1504 - Handle validation failures for gas limits, invalid fields, etc.
-            # Note: Geth raises ValueError in the same condition that pyevm raises ValidationError here.
-            # Treat this condition as "Transaction Failed".
-            error = str(e).replace("{", "").replace("}", "")  # See #724
-            self.log.critical(f"Validation error: {error}")
-            raise
+        except (ValidationError, ValueError) as error:
+            return self.__handle_errors(error=error)
         else:
             if deployment:
                 self.log.info(f"Deploying contract: {len(unsigned_transaction['data'])} bytes")
 
         return unsigned_transaction
+
+    def __handle_errors(self, error):
+        # TODO: #1504 - Handle validation failures for gas limits, invalid fields, etc.
+        # Note: Geth raises ValueError in the same condition that pyevm raises ValidationError here.
+        # Treat this condition as "Transaction Failed".
+        message = str(error)
+        if error.args:
+            code, message = error.args[0].values()
+            if int(code) == -3200:
+                pass
+            if 'insufficient funds' in message:
+                pass
+        self.log.critical(f"Validation error: {message}")
+        raise
 
     def sign_and_broadcast_transaction(self,
                                        unsigned_transaction,
@@ -465,7 +475,12 @@ class BlockchainInterface:
         #
 
         emitter.message(f'Broadcasting {transaction_name} Transaction ({cost} gwei @ {price})...', color='yellow')
-        txhash = self.client.send_raw_transaction(signed_raw_transaction)
+
+        try:
+            txhash = self.client.send_raw_transaction(signed_raw_transaction)
+        except (TransactionFailed, ValueError) as error:
+            return self.__handle_errors(error=error)
+
         try:
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT)
         except TimeExhausted:
@@ -536,6 +551,7 @@ class BlockchainInterface:
                                              payload=payload,
                                              transaction_gas_limit=transaction_gas_limit)
 
+        # Get transaction name
         try:
             transaction_name = contract_function.fn_name.upper()
         except AttributeError:
