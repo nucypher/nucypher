@@ -43,6 +43,7 @@ contract StakingEscrow is Issuer {
     using AdditionalMath for uint256;
     using AdditionalMath for uint16;
     using Bits for uint256;
+    using Checkpointing for Checkpointing.Checkpoint[];
 
     event Deposited(address indexed staker, uint256 value, uint16 periods);
     event Locked(address indexed staker, uint256 value, uint16 firstPeriod, uint16 periods);
@@ -101,6 +102,8 @@ contract StakingEscrow is Issuer {
 
         Downtime[] pastDowntime;
         SubStakeInfo[] subStakes;
+        Checkpointing.Checkpoint[] history;
+
     }
 
     // used only for upgrading
@@ -126,6 +129,8 @@ contract StakingEscrow is Issuer {
     mapping (address => address) public workerToStaker;
 
     mapping (uint16 => uint256) public lockedPerPeriod;
+    Checkpointing.Checkpoint[] balanceHistory;
+
     PolicyManagerInterface public policyManager;
     AdjudicatorInterface public adjudicator;
     WorkLockInterface public workLock;
@@ -580,6 +585,7 @@ contract StakingEscrow is Issuer {
             _periods.length == subStakesLength);
         uint16 previousPeriod = getCurrentPeriod() - 1;
         uint16 nextPeriod = previousPeriod + 2;
+        uint64 block_number = uint64(block.number);
         uint256 sumValue = 0;
 
         uint256 j = 0;
@@ -605,9 +611,11 @@ contract StakingEscrow is Issuer {
                 emit Locked(staker, value, nextPeriod, periods);
             }
             require(info.value <= maxAllowableLockedTokens);
+            info.history.add64(block_number, info.value);
         }
         require(j == subStakesLength);
-
+        uint256 lastGlobalBalance = uint256(balanceHistory.getLatestValue());
+        balanceHistory.add64(block_number, lastGlobalBalance + sumValue);
         token.safeTransferFrom(msg.sender, address(this), sumValue);
     }
 
@@ -688,8 +696,13 @@ contract StakingEscrow is Issuer {
             policyManager.register(_staker, getCurrentPeriod() - 1);
         }
         token.safeTransferFrom(_payer, address(this), _value);
-        info.value += _value;
+        uint256 newValue = info.value += _value;
         lock(_staker, _value, _periods);
+
+        uint64 block_number = uint64(block.number);
+        info.history.add64(block_number, newValue);
+        uint256 lastGlobalBalance = uint256(balanceHistory.getLatestValue());
+        balanceHistory.add64(block_number, lastGlobalBalance + newValue);
         emit Deposited(_staker, _value, _periods);
     }
 
@@ -835,6 +848,12 @@ contract StakingEscrow is Issuer {
             getLockedTokens(info, currentPeriod, currentPeriod));
         require(_value <= info.value.sub(lockedTokens));
         info.value -= _value;
+
+        uint64 block_number = uint64(block.number);
+        info.history.add64(block_number, info.value);
+        uint256 lastGlobalBalance = uint256(balanceHistory.getLatestValue());
+        balanceHistory.add64(block_number, lastGlobalBalance - _value);
+
         token.safeTransfer(msg.sender, _value);
         emit Withdrawn(msg.sender, _value);
     }
@@ -944,6 +963,11 @@ contract StakingEscrow is Issuer {
         if (info.flags.bitSet(MEASURE_WORK_INDEX)) {
             info.completedWork += reward;
         }
+
+        uint64 block_number = uint64(block.number);
+        info.history.add64(block_number, info.value);
+        uint256 lastGlobalBalance = uint256(balanceHistory.getLatestValue());
+        balanceHistory.add64(block_number, lastGlobalBalance + reward);
         emit Mined(_staker, previousPeriod, reward);
     }
 
@@ -1034,14 +1058,17 @@ contract StakingEscrow is Issuer {
         }
 
         emit Slashed(_staker, _penalty, _investigator, _reward);
-        _penalty -= _reward;
-        if (_penalty > 0) {
-            unMint(_penalty);
+        if (_penalty > _reward) {
+            unMint(_penalty - _reward);
         }
         // TODO change to withdrawal pattern (#1499)
         if (_reward > 0) {
             token.safeTransfer(_investigator, _reward);
         }
+        uint64 block_number = uint64(block.number);
+        info.history.add64(block_number, info.value);
+        uint256 lastGlobalBalance = uint256(balanceHistory.getLatestValue());
+        balanceHistory.add64(block_number, lastGlobalBalance - _penalty);
     }
 
     /**
@@ -1385,6 +1412,8 @@ contract StakingEscrow is Issuer {
                 subStakeInfoToCheck.periods == subStakeInfo.periods &&
                 subStakeInfoToCheck.lockedValue == subStakeInfo.lockedValue);
         }
+
+        // TODO: add here validation of history
 
         if (info.worker != address(0)) {
             require(address(delegateGet(_testTarget, this.workerToStaker.selector, bytes32(uint256(info.worker)))) ==
