@@ -15,5 +15,5 @@ Node as a Service Providers
 
 The following staking pools and node infrastructure providers support the NuCypher Network (alphabetical order):
 
+* `Figment Networks <https://figment.network/>`_
 * `Provider Name <https://example.com/>`_
-
