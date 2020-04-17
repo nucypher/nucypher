@@ -41,6 +41,7 @@ class SolidityCompiler:
 
     __compiled_contracts_dir = 'contracts'
     __zeppelin_library_dir = 'zeppelin'
+    __aragon_library_dir = 'aragon'
 
     optimization_runs = 200
 
@@ -154,9 +155,11 @@ class SolidityCompiler:
 
         # Compile with remappings: https://github.com/ethereum/py-solc
         zeppelin_dir = os.path.join(root_source_dir, self.__zeppelin_library_dir)
+        aragon_dir = os.path.join(root_source_dir, self.__aragon_library_dir)
 
         remappings = ("contracts={}".format(contracts_dir),
                       "zeppelin={}".format(zeppelin_dir),
+                      "aragon={}".format(aragon_dir),
                       )
 
         self.log.info("Compiling with import remappings {}".format(", ".join(remappings)))

@@ -1,6 +1,6 @@
 pragma solidity ^0.6.5;
 
-
+import "aragon/staking/Checkpointing.sol";
 import "contracts/Issuer.sol";
 import "contracts/lib/Bits.sol";
 import "zeppelin/math/SafeMath.sol";

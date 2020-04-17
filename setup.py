@@ -118,7 +118,9 @@ PACKAGE_DATA = ['network/templates/basic_status.j2',
                 'blockchain/eth/sol/source/zeppelin/math/*',
                 'blockchain/eth/sol/source/zeppelin/utils/*',
                 'blockchain/eth/sol/source/zeppelin/ownership/*',
-                'blockchain/eth/sol/source/zeppelin/token/ERC20/*']
+                'blockchain/eth/sol/source/zeppelin/token/ERC20/*',
+                'blockchain/eth/sol/source/aragon/staking/*'
+                ]
 
 setup(name=ABOUT['__title__'],
       url=ABOUT['__url__'],
