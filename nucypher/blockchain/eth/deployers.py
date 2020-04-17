@@ -521,13 +521,16 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         args = self.economics.staking_deployment_parameters
         constructor_kwargs = {
             "_hoursPerPeriod": args[0],
-            "_miningCoefficient": args[1],
-            "_lockedPeriodsCoefficient": args[2],
-            "_rewardedPeriods": args[3],
-            "_minLockedPeriods": args[4],
-            "_minAllowableLockedTokens": args[5],
-            "_maxAllowableLockedTokens": args[6],
-            "_minWorkerPeriods": args[7],
+            "_secondPhaseMintingCoefficient": args[1],
+            "_lockingDurationCoefficient1": args[2],
+            "_lockingDurationCoefficient2": args[3],
+            "_maxRewardedPeriods": args[4],
+            "_firstPhaseTotalSupply": args[5],
+            "_maxFirstPhaseReward": args[6],
+            "_minLockedPeriods": args[7],
+            "_minAllowableLockedTokens": args[8],
+            "_maxAllowableLockedTokens": args[9],
+            "_minWorkerPeriods": args[10],
             "_isTestContract": self.test_mode
         }
         constructor_kwargs.update(overrides)

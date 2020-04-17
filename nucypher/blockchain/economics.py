@@ -84,13 +84,13 @@ class BaseEconomics:
 
                  # StakingEscrow
                  initial_supply: int,
-                 first_phase_supply: int,
                  total_supply: int,
-                 first_phase_stable_issuance: int,
                  second_phase_coefficient: int,
                  locking_duration_coefficient_1: int,
                  locking_duration_coefficient_2: int,
                  maximum_rewarded_periods: int,
+                 first_phase_supply: int,
+                 first_phase_stable_issuance: int,
                  hours_per_period: int = _default_hours_per_period,
                  minimum_locked_periods: int = _default_minimum_locked_periods,
                  minimum_allowed_locked: int = _default_minimum_allowed_locked,
@@ -431,7 +431,10 @@ class EconomicsFactory:
         # Staking Escrow
         staking_parameters = list(staking_agent.staking_parameters())
         seconds_per_period = staking_parameters.pop(0)
-        staking_parameters.insert(3, seconds_per_period // 60 // 60)  # hours_per_period
+        staking_parameters.insert(6, seconds_per_period // 60 // 60)  # hours_per_period
+        minting_coefficient = staking_parameters[0]
+        locking_duration_coefficient_2 = staking_parameters[2]
+        staking_parameters[0] = minting_coefficient // locking_duration_coefficient_2  # second_phase_coefficient
 
         # Adjudicator
         slashing_parameters = adjudicator_agent.slashing_parameters()

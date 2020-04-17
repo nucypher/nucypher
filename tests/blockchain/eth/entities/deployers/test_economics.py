@@ -19,7 +19,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from decimal import Decimal, localcontext
 from math import log
 
-from nucypher.blockchain.economics import LOG2, StandardTokenEconomics
+import pytest
+
+from nucypher.blockchain.economics import LOG2, StandardTokenEconomics, EconomicsFactory
 
 
 def test_rough_economics():
@@ -185,11 +187,22 @@ def test_economic_parameter_aliases():
 
     e = StandardTokenEconomics()
 
-    assert e.locked_periods_coefficient == 365
-    assert int(e.staking_coefficient) == 768812
+    assert e.locking_duration_coefficient_1 == 365
+    assert e.locking_duration_coefficient_2 == 2 * 365
+    assert int(e.second_phase_coefficient) == 768812 // e.locking_duration_coefficient_2
     assert e.maximum_rewarded_periods == 365
 
     deployment_params = e.staking_deployment_parameters
     assert isinstance(deployment_params, tuple)
     for parameter in deployment_params:
         assert isinstance(parameter, int)
+
+
+@pytest.mark.usefixtures('agency')
+def test_retrieving_from_blockchain(token_economics, test_registry):
+
+    economics = EconomicsFactory.get_economics(registry=test_registry)
+
+    assert economics.staking_deployment_parameters == token_economics.staking_deployment_parameters
+    assert economics.slashing_deployment_parameters == token_economics.slashing_deployment_parameters
+    assert economics.worklock_deployment_parameters == token_economics.worklock_deployment_parameters

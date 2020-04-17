@@ -601,15 +601,18 @@ class StakingEscrowAgent(EthereumContractAgent):
             'secondsPerPeriod',  # Seconds in single period
 
             # Coefficients
-            'miningCoefficient',         # Staking coefficient (k2)
-            'lockedPeriodsCoefficient',  # Locked periods coefficient (k1)
-            'rewardedPeriods',           # Max periods that will be additionally rewarded (awarded_periods)
+            'mintingCoefficient',           # Staking coefficient (k2 * k3)
+            'lockingDurationCoefficient1',  # Locked periods coefficient (k1)
+            'lockingDurationCoefficient2',  # Locked periods coefficient (k3)
+            'maxRewardedPeriods',           # Max periods that will be additionally rewarded (awarded_periods)
+            'firstPhaseTotalSupply',        # Total supply for the first phase
+            'maxFirstPhaseReward',          # Max possible reward for one period for all stakers in the first phase
 
             # Constraints
-            'minLockedPeriods',          # Min amount of periods during which tokens can be locked
-            'minAllowableLockedTokens',  # Min amount of tokens that can be locked
-            'maxAllowableLockedTokens',  # Max amount of tokens that can be locked
-            'minWorkerPeriods'           # Min amount of periods while a worker can't be changed
+            'minLockedPeriods',             # Min amount of periods during which tokens can be locked
+            'minAllowableLockedTokens',     # Min amount of tokens that can be locked
+            'maxAllowableLockedTokens',     # Max amount of tokens that can be locked
+            'minWorkerPeriods'              # Min amount of periods while a worker can't be changed
         )
 
         def _call_function_by_name(name: str):
