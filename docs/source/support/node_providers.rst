@@ -17,3 +17,5 @@ The following staking pools and node infrastructure providers support the NuCyph
 
 * `Provider Name <https://example.com/>`_
 
+* `Thu-cdfa <http://cdfa.sem.tsinghua.edu.cn/>`_
+
