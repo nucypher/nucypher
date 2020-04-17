@@ -7,14 +7,19 @@ WorkLock Guide
 Overview
 --------
 
-`WorkLock` is a novel, permissionless token distribution mechanism, developed at NuCypher, which requires participants to stake ETH and maintain NuCypher nodes in order to receive NU tokens.
+`WorkLock` is a novel, permissionless token distribution mechanism, developed at NuCypher, which requires participants
+to stake ETH and maintain NuCypher nodes in order to receive NU tokens.
 
-WorkLock offers specific advantages over ICO or airdrop as a distribution mechanism, chiefly: it selects for participants who are most likely to strengthen the network because they commit to staking and running nodes.
+WorkLock offers specific advantages over ICO or airdrop as a distribution mechanism, chiefly: it selects for participants
+who are most likely to strengthen the network because they commit to staking and running nodes.
 
-The WorkLock begins with an open bidding period, during which anyone seeking to participate can send ETH to the WorkLock contract to be escrowed on-chain.
+The WorkLock begins with an open bidding or `contribution` period, during which anyone seeking to participate can send
+ETH to the WorkLock contract to be escrowed on-chain.
 At any time, WorkLock participants can cancel their bid to forgo NU and recoup their escrowed ETH immediately.
-Once the bidding period closes, the WorkLock contract does not accept more bids, but it will still accept cancellations during an additional time window.
-At the end of this cancellation period, stake-locked NU will be distributed according to the following principles:
+Once the contribution period closes, the WorkLock contract does not accept more bids, but it will still accept
+cancellations during an additional time window. At the end of this cancellation period, the claiming window opens and
+stake-locked NU token allocations can be claimed by participants. Stake-locked NU will be distributed according to
+the following principles:
 
  - All of the tokens held by WorkLock will be distributed.
  - All bids must be greater than or equal to the minimum allowed bid.
@@ -282,7 +287,7 @@ the maximum stake amount (4,000,000 NU).
 
 .. note::
 
-    In Scenario 1 and 2, you will notice that the ETH bonus pool has been reduced. This produces a very subtle situation -
+    In Scenarios 1 and 2, you will notice that the ETH bonus pool has been reduced. This produces a very subtle situation -
     for previous non-whale bids (bids that in the original ETH bonus pool that did not produce a stake larger than the
     maximum stake) their bids remained unchanged, but the ETH bonus pool was reduced. This means that some bids that
     were not whales, may become whales once the ETH bonus pool is reduced since their proportion of the bonus pool
@@ -319,11 +324,120 @@ You can obtain information about the current state of WorkLock by running:
     (nucypher)$ nucypher worklock status --network <NETWORK> --provider <YOUR PROVIDER URI>
 
 
-If you want to see detailed information about your current bid, you can specify your bidder address with the ``--bidder-address`` flag:
+The following is an example output of the ``status`` command (hypothetical values):
+
+.. code::
+
+     _    _               _     _                   _
+    | |  | |             | |   | |                 | |
+    | |  | |  ___   _ __ | | __| |      ___    ___ | | __
+    | |/\| | / _ \ | '__|| |/ /| |     / _ \  / __|| |/ /
+    \  /\  /| (_) || |   |   < | |____| (_) || (__ |   <
+     \/  \/  \___/ |_|   |_|\_\\_____/ \___/  \___||_|\_\
+
+    ══ <NETWORK> ══
+
+    Reading Latest Chaindata...
+
+    Time
+    ══════════════════════════════════════════════════════
+
+    Contribution (Closed)
+    ------------------------------------------------------
+    Claims Available ...... Yes
+    Start Date ............ 2020-03-25 00:00:00+00:00
+    End Date .............. 2020-03-31 23:59:59+00:00
+    Duration .............. 6 days, 23:59:59
+    Time Remaining ........ Closed
+
+    Cancellation (Open)
+    ------------------------------------------------------
+    End Date .............. 2020-04-01 23:59:59+00:00
+    Duration .............. 7 days, 23:59:59
+    Time Remaining ........ 1 day, 2:47:32
+
+
+    Economics
+    ══════════════════════════════════════════════════════
+
+    Participation
+    ------------------------------------------------------
+    Lot Size .............. 280000000 NU
+    Min. Allowed Bid ...... 15 ETH
+    Participants .......... 1000
+    ETH Supply ............ 50000 ETH
+    ETH Pool .............. 50000 ETH
+
+    Refunds
+    ------------------------------------------------------
+    Refund Rate Multiple .. 4.00
+
+    Bonus
+    ------------------------------------------------------
+    Bonus ETH Supply ...... 35000 ETH
+    Bonus Lot Size ........ 265000000 NU
+    Bonus Deposit Rate .... 7571.43
+    Bonus Refund Rate ..... 1892.86
+
+
+For the less obvious values in the output, here are some definitions:
+
+    - Lot Size
+        NU tokens to be distributed by WorkLock
+    - ETH Supply
+        Sum of all ETH bids that have been placed
+    - ETH Pool
+        Current ETH balance of WorkLock that accounts for refunded ETH for whales i.e. `ETH Supply` - `Whale Refunds`
+    - Refund Rate Multiple
+        Indicates how quickly your ETH is unlocked relative to the deposit rate e.g. a value of ``4`` means that you get your ETH refunded 4x faster than the rate used when you received NU.
+    - Bonus ETH Supply
+        Sum of all ETH bonus bids that have been placed i.e. sum of all ETH above minimum bid
+    - Bonus Lot Size
+        Amount of NU tokens tokens that are available to be distributed based on the bonus part of bids
+    - Bonus Deposit Rate
+        Amount of bonus NU to be received per bonus ETH in WorkLock
+    - Bonus Refund Rate
+        ETH unlocked for each NU minted as a result of work performed
+
+
+If you want to see specific information about your current bid, you can specify your bidder address with the ``--bidder-address`` flag:
 
 .. code::
 
     (nucypher)$ nucypher worklock status --bidder-address <YOUR BIDDER ADDRESS> --network <NETWORK> --provider <YOUR PROVIDER URI>
+
+The following output is an example of what is included when ``--bidder-address`` is used
+
+.. code::
+
+    WorkLock Participant <BIDDER ADDRESS>
+    =====================================================
+    Total Bid ............ 22 ETH
+    Tokens Allocated ..... 68000 NU
+    Tokens Claimed? ...... No
+
+    Completed Work ....... 0
+    Available Refund ..... 0 ETH
+
+    Refunded Work ........ 0
+    Remaining Work ....... <>
+
+where,
+
+    - Total Bid
+        Submitted WorkLock bid and ETH escrowed
+    - Tokens Allocated
+        Allocation of NU tokens
+    - Tokens Claimed
+        Whether the allocation of NU tokens have been claimed or not
+    - Completed Work
+        Work already completed by the bidder
+    - Available Refund
+        ETH portion available to be refunded due to completed work
+    - Refunded Work
+        Work that has been completed and already refunded
+    - Remaining Work
+        Pending amount of work required before all of the participant's ETH locked will be refunded
 
 
 Place a bid
