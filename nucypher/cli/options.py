@@ -15,21 +15,19 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from collections import namedtuple
 import functools
 import os
+from collections import namedtuple
 
 import click
 
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE,
     NETWORK_PORT,
     WEI
 )
-
 
 # Alphabetical
 option_checksum_address = click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)

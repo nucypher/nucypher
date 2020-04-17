@@ -15,10 +15,8 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
-import types
 from os.path import dirname, abspath
 
-import maya
 import pytest
 
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
@@ -230,5 +228,3 @@ def test_block_confirmations(testerchain, test_registry):
     #     _ = testerchain.send_transaction(contract_function=tx_function,
     #                                      sender_address=origin,
     #                                      confirmations=10)
-
-

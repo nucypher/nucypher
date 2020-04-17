@@ -85,7 +85,7 @@ MIN_STAKE_FOR_TESTS = NU(750_000, 'NU').to_nunits()
 
 BONUS_TOKENS_FOR_TESTS = NU(150_000, 'NU').to_nunits()
 
-DEVELOPMENT_ETH_AIRDROP_AMOUNT = int(Web3().toWei(1, 'ether'))
+DEVELOPMENT_ETH_AIRDROP_AMOUNT = int(Web3().toWei(100, 'ether'))
 
 NUMBER_OF_ALLOCATIONS_IN_TESTS = 100  # TODO: Move to constants
 
