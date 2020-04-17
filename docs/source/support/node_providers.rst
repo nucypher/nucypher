@@ -15,5 +15,6 @@ Node as a Service Providers
 
 The following staking pools and node infrastructure providers support the NuCypher Network (alphabetical order):
 
+* `Inotel <https://inotel.ro>`
 * `Provider Name <https://example.com/>`_
 
