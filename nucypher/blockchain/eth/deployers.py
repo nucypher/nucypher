@@ -148,22 +148,21 @@ class BaseContractDeployer:
             contract_version, _data = self.blockchain.find_raw_contract_data(contract_name=self.contract_name,
                                                                              requested_version=contract_version)
 
-        if not additional_rules:
-            additional_rules = tuple()
+        # Compile rules
         rules = [
             (ignore_deployed or not self.is_deployed(contract_version), f'Contract {self.contract_name}:{contract_version} already deployed'),
             (self.deployer_address is not None, 'No deployer address set.'),
             (self.deployer_address is not NO_DEPLOYER_CONFIGURED, 'No deployer address set.'),
-            *additional_rules
         ]
+        if additional_rules:
+            rules.append(additional_rules)
 
         disqualifications = list()
         for rule_is_satisfied, failure_reason in rules:
-            if not rule_is_satisfied:                        # If this rule fails...
+            if not rule_is_satisfied:                      # If this rule fails...
                 if fail:
                     raise self.ContractDeploymentError(failure_reason)
-                else:
-                    disqualifications.append(failure_reason)   # ... here's why
+                disqualifications.append(failure_reason)   # ... here's why
 
         is_ready = len(disqualifications) == 0
         return is_ready, disqualifications
