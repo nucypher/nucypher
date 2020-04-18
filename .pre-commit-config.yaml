@@ -35,17 +35,23 @@ repos:
       - id: detect-private-key
 
       # Docs
-      - id: check-docstring-first
       - id: check-vcs-permalinks
 
-  - repo: https://github.com/PyCQA/bandit
-    rev: '1.6.2'
-    hooks:
-      - id: bandit
-        args: [--recursive, --ini, .bandit, aggregate, file]
-        files: .py$
+# TODO: Will be incrementally introduced
+#  - repo: https://github.com/PyCQA/bandit
+#    rev: '1.6.2'
+#    hooks:
+#      - id: bandit
+#        args: [--recursive, --ini, .bandit, aggregate, file]
+#        files: .py$
+#
+#  - repo: https://gitlab.com/pycqa/flake8
+#    rev: '3.7.9'
+#    hooks:
+#      - id: flake8
 
-  - repo: https://gitlab.com/pycqa/flake8
-    rev: '3.7.9'
-    hooks:
-      - id: flake8
+#  - repo: https://github.com/psf/black
+#    rev: stable
+#    hooks:
+#      - id: black
+#        language_version: python3.6

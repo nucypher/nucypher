@@ -13,9 +13,7 @@ GNU Affero General Public License for more details.
 
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
-
 """
-
 
 import click
 
@@ -32,27 +30,26 @@ def nucypher_cli():
 #
 # Character CLI Entry Points (Fan Out Input)
 #
-
-r"""
-            ursula
-              |
-              | 
-              |
-              |
-stdin --> cli.main --- alice
-              | \
-              |  \
-              |  bob
-              |
-            enrico
-
-
-
-New character CLI modules must be added here
-for the entry point to be attached to the nucypher base command.
-
-Inversely, commenting out an entry point here will disable it.
-"""
+#
+#             ursula
+#               |
+#               |
+#               |
+#               |
+# stdin --> cli.main --- alice
+#               | \
+#               |  \
+#               |  bob
+#               |
+#             enrico
+#
+#
+#
+# New character CLI modules must be added here
+# for the entry point to be attached to the nucypher base command.
+#
+# Inversely, commenting out an entry point here will disable it.
+#
 
 ENTRY_POINTS = (
 

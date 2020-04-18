@@ -182,9 +182,13 @@ $ pipenv shell
 If this is successful, your terminal command prompt will be prepended with `(nucypher)`
 
 Install the Solidity compiler (solc):
-
 ```bash
-$(nucypher) pipenv run install-solc
+$(nucypher) python ./scripts/installation/install_solc.sh
+```
+
+Finally, configure nucypher's pre-commit hooks.
+```bash
+$(nucypher) pre-commit install
 ```
 
 ### Pip Development Installation
@@ -192,8 +196,9 @@ $(nucypher) pipenv run install-solc
 Alternately, you can install the development dependencies with pip:
 
 ```bash
-$ pip3 install -e .[development]
-$ ./scripts/installation/install_solc.sh
+$ pip3 install -e . -r dev-requirements.txt
+$ python ./scripts/installation/install_solc.sh
+$ pre-commit install
 ```
 
 ### Development Docker Installation
