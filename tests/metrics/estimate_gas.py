@@ -98,7 +98,7 @@ class AnalyzeGas:
 
     @staticmethod
     def paint_line(label: str, estimates: str, gas_used: str) -> None:
-        print('{label} {estimates:7,}|{gas:7,}'.format(
+        print('{label} {estimates:7,} | {gas:7,}'.format(
             label=label.ljust(72, '.'), estimates=int(estimates), gas=int(gas_used)))
 
     def to_json_file(self) -> None:
@@ -199,12 +199,21 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
         tx = function.transact(transaction)
         testerchain.wait_for_receipt(tx)
 
-        #
+    #
     # Give Ursula and Alice some coins
     #
     transact_and_log("Transfer tokens", token_functions.transfer(ursula1, MIN_ALLOWED_LOCKED * 10), {'from': origin})
     transact(token_functions.transfer(ursula2, MIN_ALLOWED_LOCKED * 10), {'from': origin})
     transact(token_functions.transfer(ursula3, MIN_ALLOWED_LOCKED * 10), {'from': origin})
+
+    #
+    # Ursula and Alice give Escrow rights to transfer
+    #
+    transact_and_log("Approving transfer",
+                     token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6),
+                     {'from': ursula1})
+    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6), {'from': ursula2})
+    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6), {'from': ursula3})
 
     #
     # Batch deposit tokens
@@ -216,15 +225,6 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                                                    [MIN_ALLOWED_LOCKED] * 10,
                                                    [MIN_LOCKED_PERIODS] * 10),
                      {'from': origin})
-
-    #
-    # Ursula and Alice give Escrow rights to transfer
-    #
-    transact_and_log("Approving transfer",
-                     token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6),
-                     {'from': ursula1})
-    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6), {'from': ursula2})
-    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6), {'from': ursula3})
 
     #
     # Ursula and Alice transfer some tokens to the escrow and lock them
