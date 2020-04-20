@@ -2,6 +2,7 @@ pragma solidity ^0.6.5;
 
 
 import "contracts/Issuer.sol";
+import "zeppelin/math/SafeMath.sol";
 
 
 /**
@@ -34,9 +35,10 @@ interface WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v3.1.1|
+* @dev |v4.1.1|
 */
 contract StakingEscrow is Issuer {
+    using SafeMath for uint256;
     using AdditionalMath for uint256;
     using AdditionalMath for uint16;
 
@@ -251,7 +253,7 @@ contract StakingEscrow is Issuer {
             return _subStake.lastPeriod;
         }
         uint32 lastPeriod = uint32(_startPeriod) + _subStake.periods;
-        if (lastPeriod > MAX_UINT16) {
+        if (lastPeriod > uint32(MAX_UINT16)) {
             return MAX_UINT16;
         }
         return uint16(lastPeriod);
