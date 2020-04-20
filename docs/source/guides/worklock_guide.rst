@@ -15,7 +15,7 @@ who are most likely to strengthen the network because they commit to staking and
 
 The WorkLock begins with an open bidding or `contribution` period, during which anyone seeking to participate can send
 ETH to the WorkLock contract to be escrowed on-chain.
-At any time, WorkLock participants can cancel their bid to forgo NU and recoup their escrowed ETH immediately.
+At any time during the contribution period, WorkLock participants can cancel their bid to forgo NU and recoup their escrowed ETH immediately.
 Once the contribution period closes, the WorkLock contract does not accept more bids, but it will still accept
 cancellations during an additional time window. At the end of this cancellation period, the claiming window opens and
 stake-locked NU token allocations can be claimed by participants. Stake-locked NU will be distributed according to
