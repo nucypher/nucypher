@@ -963,7 +963,7 @@ WorkLock Participant {bidder.checksum_address}
     if bidder._has_claimed:
         message += f"""
 Tokens Claimed? ...... Yes
-Current Locked ETH ... {prettify_eth_amount(bidder.get_deposited_eth)}"""
+Locked ETH ........... {prettify_eth_amount(bidder.get_deposited_eth)}"""
     else:
         message += f"""
 Tokens Claimed? ...... No
