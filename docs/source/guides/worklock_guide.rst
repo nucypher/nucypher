@@ -47,8 +47,8 @@ For each scenario, assume that:
  #. For our purposes, a `whale` bid is a bid that causes the calculated stake size to be larger than the maximum stake size (4,000,000 NU).
 
 
-Scenario 1: Resulting stake size does not exceed maximum stake size
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Scenario 1: Resulting stake size does not exceed maximum stake size (no whale bids)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **You submit a bid of 22 ETH i.e. 15 ETH minimum bid + 7 ETH bonus.**
 
@@ -394,7 +394,7 @@ For the less obvious values in the output, here are some definitions:
     - ETH Supply
         Sum of all ETH bids that have been placed
     - ETH Pool
-        Current ETH balance of WorkLock that accounts for refunded ETH for whales i.e. `ETH Supply` - `Whale Refunds`
+        Current ETH balance of WorkLock that accounts for refunded ETH for work performed i.e. `ETH Supply` - `Refunds for Work`
     - Refund Rate Multiple
         Indicates how quickly your ETH is unlocked relative to the deposit rate e.g. a value of ``4`` means that you get your ETH refunded 4x faster than the rate used when you received NU
     - Base Deposit Rate
@@ -433,7 +433,7 @@ The following output is an example of what is included when ``--bidder-address``
     Available Refund ..... 0 ETH
 
     Refunded Work ........ 0
-    Remaining Work ....... <>
+    Remaining Work ....... <REMAINING WORK>
 
 Alternatively, when the allocated tokens have been claimed, the following is an example of the output
 
@@ -448,18 +448,20 @@ Alternatively, when the allocated tokens have been claimed, the following is an 
     Available Refund ..... 0 ETH
 
     Refunded Work ........ 0
-    Remaining Work ....... <>
+    Remaining Work ....... <REMAINING WORK>
 
 where,
 
     - Total Bid
-        Submitted WorkLock bid and ETH escrowed
+        WorkLock Bid
     - Base ETH
         Minimum required bid
     - Bonus ETH
         Surplus over minimum bid
     - Tokens Allocated
         Allocation of NU tokens
+    - Current Locked ETH
+        Remaining ETH to be unlocked via completion of work
     - Tokens Claimed
         Whether the allocation of NU tokens have been claimed or not
     - Completed Work
