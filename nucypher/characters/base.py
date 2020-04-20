@@ -485,7 +485,29 @@ class Character(Learner):
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
 
-    def _set_checksum_address(self):
+    def _set_checksum_address(self, checksum_address=None):
+
+        if checksum_address is not None:
+
+            #
+            # Decentralized
+            #
+            if not self.federated_only:
+                self._checksum_address = checksum_address  # TODO: Check that this matches TransactingPower
+
+            #
+            # Federated
+            #
+            elif self.federated_only:  # TODO: What are we doing here?
+                try:
+                    self._set_checksum_address()  # type: str
+                except NoSigningPower:
+                    self._checksum_address = NO_BLOCKCHAIN_CONNECTION
+                if checksum_address:
+                    # We'll take a checksum address, as long as it matches their singing key
+                    if not checksum_address == self.checksum_address:
+                        error = "Federated-only Characters derive their address from their Signing key; got {} instead."
+                        raise self.SuspiciousActivity(error.format(checksum_address))
 
         if self.federated_only:
             verifying_key = self.public_keys(SigningPower)
