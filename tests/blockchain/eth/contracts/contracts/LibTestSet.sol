@@ -2,6 +2,7 @@ pragma solidity ^0.6.1;
 
 
 import "contracts/lib/SignatureVerifier.sol";
+import "contracts/lib/Snapshot.sol";
 import "contracts/lib/UmbralDeserializer.sol";
 import "contracts/lib/ReEncryptionValidator.sol";
 
@@ -275,4 +276,42 @@ contract ReEncryptionValidatorMock {
     function doubleJacobian(uint[3] memory P) public pure returns (uint[3] memory) {
         return ReEncryptionValidator.doubleJacobian(P);
     }
+}
+
+/**
+* @notice Contract for using Snapshot library
+*/
+contract SnapshotMock {
+
+    uint128[] public history;
+    function length() public view returns(uint256){
+        return history.length;
+    }
+
+
+    function encodeSnapshot(uint32 _time, uint96 _value) public pure returns(uint128) {
+        return Snapshot.encodeSnapshot(_time, _value);
+    }
+
+    function decodeSnapshot(uint128 _snapshot) public pure returns(uint32, uint96){
+        return Snapshot.decodeSnapshot(_snapshot);
+    }
+
+    function addSnapshot(uint256 _time, uint256 _value) public {
+        Snapshot.addSnapshot(history, _time, _value);
+    }
+
+    function getValueAt(uint256 _time) public view returns (uint96) {
+        return Snapshot.getValueAt(history, _time);
+    }
+
+    function lastSnapshot() public view returns (uint32, uint96) {
+        return Snapshot.lastSnapshot(history);
+    }
+
+    function lastValue() public view returns (uint96) {
+        return Snapshot.lastValue(history);
+    }
+
+
 }
