@@ -116,8 +116,6 @@ class FleetStateTracker:
         if self._tracking:
             self.log.info("Updating fleet state after saving node {}".format(value))
             self.record_fleet_state()
-        else:
-            self.log.debug("Not updating fleet state.")
 
     def __getitem__(self, item):
         return self._nodes[item]
@@ -239,17 +237,17 @@ class NodeSprout(PartiallyKwargifiedBytes):
 
     def __init__(self, node_metadata):
         super().__init__(node_metadata)
-        self.checksum_address = to_checksum_address(node_metadata['public_address'][0])
+        self.checksum_address = to_checksum_address(self.public_address)
         self.nickname = nickname_from_seed(self.checksum_address)[0]
-        self.timestamp = maya.MayaDT(int.from_bytes(node_metadata['timestamp'][0], byteorder="big"))
-        self._hash = int.from_bytes(bytes(node_metadata['verifying_key'][0]), byteorder="big")
+        self.timestamp = maya.MayaDT(self.timestamp)  # Weird for this to be in init. maybe this belongs in the splitter also.
+        self._hash = int.from_bytes(self.public_address, byteorder="big")  # stop-propagation logic (ie, only propagate verified, staked nodes) keeps this unique and BFT.
+        self._repr = f"({self.__class__.__name__})⇀{self.nickname}↽ ({self.checksum_address})"
 
     def __hash__(self):
         return self._hash
 
     def __repr__(self):
-        r = f"({self.__class__.__name__})⇀{self.nickname}↽ ({self.checksum_address})"
-        return r
+        return self._repr
 
     def __bytes__(self):
         b = super().__bytes__()
@@ -273,6 +271,7 @@ class NodeSprout(PartiallyKwargifiedBytes):
 
         self.__class__ = mature_node.__class__
         self.__dict__ = mature_node.__dict__
+        return self  # To reduce the awkwardity of renaming; this is always the weird part of polymorphism for me.
 
 
 class Learner:
@@ -435,8 +434,7 @@ class Learner:
                       node,
                       force_verification_recheck=False,
                       record_fleet_state=True,
-                      eager: bool = False,
-                      grow_node_sprout_into_node=False):
+                      eager: bool = False):
 
         # UNPARSED
         # PARSED
@@ -461,30 +459,17 @@ class Learner:
         if self.save_metadata:
             self.node_storage.store_node_metadata(node=node)
 
-        try:
-            stranger_certificate = node.certificate
-        except AttributeError:
-            # Probably a sprout.
-            try:
-                if grow_node_sprout_into_node:
-                    node.mature()
-                    stranger_certificate = node.certificate
-                else:
-                    # TODO: Well, why?  What about eagerness, popping listeners, etc?  We not doing that stuff? NRN
-                    return node
-            except Exception as e:
-                # Whoops, we got an Alice, Bob, or something totally wrong...
-                raise self.NotATeacher(f"{node.__class__.__name__} does not have a certificate and cannot be remembered.")
-
-        # Store node's certificate - It has been seen.
-        certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate)
-
-        # In some cases (seed nodes or other temp stored certs),
-        # this will update the filepath from the temp location to this one.
-        node.certificate_filepath = certificate_filepath
-
-        self.log.info(f"Saved TLS certificate for {node.nickname}: {certificate_filepath}")
         if eager:
+            node.mature()
+            stranger_certificate = node.certificate
+
+            # Store node's certificate - It has been seen.
+            certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate)
+
+            # In some cases (seed nodes or other temp stored certs),
+            # this will update the filepath from the temp location to this one.
+            node.certificate_filepath = certificate_filepath
+
             try:
                 node.verify_node(force=force_verification_recheck,
                                  network_middleware_client=self.network_middleware.client,
@@ -507,8 +492,6 @@ class Learner:
 
         listeners = self._learning_listeners.pop(node.checksum_address, tuple())
 
-        self.log.info(
-            "Remembering {} ({}), popping {} listeners.".format(node.nickname, node.checksum_address, len(listeners)))
         for listener in listeners:
             listener.add(node.checksum_address)
         self._node_ids_to_learn_about_immediately.discard(node.checksum_address)
@@ -664,7 +647,8 @@ class Learner:
 
             # The rest of the fucking owl
             round_finish = maya.now()
-            if (round_finish - start).seconds > timeout:
+            elapsed = (round_finish - start).seconds
+            if elapsed > timeout:
                 if not self._learning_task.running:
                     raise RuntimeError("Learning loop is not running.  Start it with start_learning().")
                 elif not reactor.running and not learn_on_this_thread:
@@ -820,6 +804,12 @@ class Learner:
             unresponsive_nodes.add(current_teacher)
             self.log.info("Bad Response from teacher: {}:{}.".format(current_teacher, e))
             return
+        except current_teacher.InvalidNode as e:
+            # Ugh.  The teacher is invalid.  Rough.
+            # TODO: Bucket separately and report.
+            unresponsive_nodes.add(current_teacher)
+            self.log.info("Teacher is invalid: {}:{}.".format(current_teacher, e))
+            return
 
         finally:
             # Is cycling happening in the right order?
@@ -888,8 +878,7 @@ class Learner:
                 node_or_false = self.remember_node(sprout,
                                                    record_fleet_state=False,
                                                    # Do we want both of these to be decided by `eager`?
-                                                   eager=eager,
-                                                   grow_node_sprout_into_node=eager)
+                                                   eager=eager)
                 if node_or_false is not False:
                     remembered.append(node_or_false)
 
@@ -1023,6 +1012,8 @@ class Teacher:
         """
         This is the most mature form, so we do nothing.
         """
+        return self
+
     @classmethod
     def set_federated_mode(cls, federated_only: bool):
         cls._federated_only_instances = federated_only
@@ -1223,9 +1214,8 @@ class Teacher:
         # The node's metadata is valid; let's be sure the interface is in order.
         if not certificate_filepath:
             if self.certificate_filepath is CERTIFICATE_NOT_SAVED:
-                raise TypeError("We haven't saved a certificate for this node yet.")
-            else:
-                certificate_filepath = self.certificate_filepath
+                self.certificate_filepath = self._cert_store_function(self.certificate)
+            certificate_filepath = self.certificate_filepath
 
         response_data = network_middleware_client.node_information(host=self.rest_interface.host,
                                                                    port=self.rest_interface.port,
@@ -1235,10 +1225,10 @@ class Teacher:
 
         sprout = self.internal_splitter(node_bytes, partial=True)
 
-        verifying_keys_match = sprout['verifying_key'] == self.public_keys(SigningPower)
-        encrypting_keys_match = sprout['encrypting_key'] == self.public_keys(DecryptingPower)
-        addresses_match = sprout['public_address'] == self.canonical_public_address
-        evidence_matches = sprout['decentralized_identity_evidence'] == self.__decentralized_identity_evidence
+        verifying_keys_match = sprout.verifying_key == self.public_keys(SigningPower)
+        encrypting_keys_match = sprout.encrypting_key == self.public_keys(DecryptingPower)
+        addresses_match = sprout.public_address == self.canonical_public_address
+        evidence_matches = sprout.decentralized_identity_evidence == self.__decentralized_identity_evidence
 
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
             # Failure

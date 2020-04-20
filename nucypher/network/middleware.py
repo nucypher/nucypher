@@ -53,8 +53,7 @@ class NucypherMiddlewareClient:
         """
         if node_or_sprout:
             if node_or_sprout is not EXEMPT_FROM_VERIFICATION:
-                node_or_sprout.mature()  # Morph into a node.
-                node = node_or_sprout  # Definitely a node.
+                node = node_or_sprout.mature()  # Morph into a node.
                 node.verify_node(network_middleware_client=self, registry=self.registry)
         return self.parse_node_or_host_and_port(node_or_sprout, host, port)
 
