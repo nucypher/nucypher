@@ -1158,6 +1158,19 @@ class WorkLockAgent(EthereumContractAgent):
         refund_rate = self.get_bonus_deposit_rate() * slowing_refund / boosting_refund
         return refund_rate
 
+    def get_base_refund_rate(self) -> int:
+        f = self.contract.functions
+        slowing_refund = f.SLOWING_REFUND().call()
+        boosting_refund = f.boostingRefund().call()
+        refund_rate = self.get_base_deposit_rate() * slowing_refund / boosting_refund
+        return refund_rate
+
+    def get_base_deposit_rate(self) -> int:
+        f = self.contract.functions
+        min_allowed_locked_tokens = f.minAllowableLockedTokens().call()
+        deposit_rate = min_allowed_locked_tokens // self.minimum_allowed_bid  # should never divide by 0
+        return deposit_rate
+
     def get_bonus_deposit_rate(self) -> int:
         try:
             deposit_rate = self.get_bonus_lot_value() // self.get_bonus_eth_supply()

@@ -23,7 +23,7 @@ the following principles:
 
  - All of the tokens held by WorkLock will be distributed.
  - All bids must be greater than or equal to the minimum allowed bid.
- - For each bid, the surplus above the minimum allowed bid is called the `bonus`; all bids are composed of a minimum bid (fixed amount) and a `bonus` (variable amount).
+ - For each bid, the surplus above the minimum allowed bid is called the `bonus`; all bids are composed of a `base` bid (fixed minimum bid) and a `bonus` bid (variable amount).
  - Each bidder will receive at least the minimum amount of NU needed to stake.
  - Once all bidders have been assigned the minimum amount of NU, each bidder with a `bonus` will receive a portion of the remaining NU, distributed pro rata across all participants, taking into consideration only their bonus amounts.
  - If the resulting NU amount distributed to a bidder is above the maximum allowed NU to stake, then such a bidder has their bid partially refunded until the corresponding amount of NU is within the allowed limits.
@@ -368,16 +368,23 @@ The following is an example output of the ``status`` command (hypothetical value
     ETH Supply ............ 50000 ETH
     ETH Pool .............. 50000 ETH
 
-    Refunds
+    Base (minimum bid)
     ------------------------------------------------------
-    Refund Rate Multiple .. 4.00
+    Base Deposit Rate ..... 1000 NU per base ETH
 
-    Bonus
+    Bonus (surplus over minimum bid)
     ------------------------------------------------------
     Bonus ETH Supply ...... 35000 ETH
     Bonus Lot Size ........ 265000000 NU
-    Bonus Deposit Rate .... 7571.43
-    Bonus Refund Rate ..... 1892.86
+    Bonus Deposit Rate .... 7571.43 NU per bonus ETH
+
+    Refunds
+    ------------------------------------------------------
+    Refund Rate Multiple .. 4.00
+    Bonus Refund Rate ..... 1892.86 units of work to unlock 1 bonus ETH
+    Base Refund Rate ...... 250.0 units of work to unlock 1 base ETH
+
+        * NOTE: bonus ETH is refunded before base ETH
 
 
 For the less obvious values in the output, here are some definitions:
@@ -389,15 +396,19 @@ For the less obvious values in the output, here are some definitions:
     - ETH Pool
         Current ETH balance of WorkLock that accounts for refunded ETH for whales i.e. `ETH Supply` - `Whale Refunds`
     - Refund Rate Multiple
-        Indicates how quickly your ETH is unlocked relative to the deposit rate e.g. a value of ``4`` means that you get your ETH refunded 4x faster than the rate used when you received NU.
+        Indicates how quickly your ETH is unlocked relative to the deposit rate e.g. a value of ``4`` means that you get your ETH refunded 4x faster than the rate used when you received NU
+    - Base Deposit Rate
+        Amount of NU to be received per base ETH in WorkLock
     - Bonus ETH Supply
         Sum of all ETH bonus bids that have been placed i.e. sum of all ETH above minimum bid
     - Bonus Lot Size
         Amount of NU tokens tokens that are available to be distributed based on the bonus part of bids
     - Bonus Deposit Rate
-        Amount of bonus NU to be received per bonus ETH in WorkLock
+        Amount of NU to be received per bonus ETH in WorkLock
     - Bonus Refund Rate
-        ETH unlocked for each NU minted as a result of work performed
+        Units of work to unlock 1 bonus ETH
+    - Base Refund Rate
+        Units of work to unlock 1 base ETH
 
 
 If you want to see specific information about your current bid, you can specify your bidder address with the ``--bidder-address`` flag:
@@ -412,9 +423,26 @@ The following output is an example of what is included when ``--bidder-address``
 
     WorkLock Participant <BIDDER ADDRESS>
     =====================================================
-    Total Bid ............ 22 ETH
-    Tokens Allocated ..... 68000 NU
     Tokens Claimed? ...... No
+    Total Bid ............ 22 ETH
+        Base ETH ......... 15 ETH
+        Bonus ETH ........ 7 ETH
+    Tokens Allocated ..... 68000 NU
+
+    Completed Work ....... 0
+    Available Refund ..... 0 ETH
+
+    Refunded Work ........ 0
+    Remaining Work ....... <>
+
+Alternatively, when the allocated tokens have been claimed, the following is an example of the output
+
+.. code::
+
+    WorkLock Participant <BIDDER ADDRESS>
+    =====================================================
+    Tokens Claimed? ...... Yes
+    Current Locked ETH ... 22 ETH
 
     Completed Work ....... 0
     Available Refund ..... 0 ETH
@@ -426,6 +454,10 @@ where,
 
     - Total Bid
         Submitted WorkLock bid and ETH escrowed
+    - Base ETH
+        Minimum required bid
+    - Bonus ETH
+        Surplus over minimum bid
     - Tokens Allocated
         Allocation of NU tokens
     - Tokens Claimed

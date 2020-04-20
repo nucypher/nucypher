@@ -42,6 +42,21 @@ def test_get_deposited_eth(testerchain, agency, token_economics, test_registry):
     assert bid == small_bid
 
 
+def test_get_base_deposit_rate(agency, token_economics, test_registry):
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    base_deposit_rate = agent.get_base_deposit_rate()
+    assert base_deposit_rate == token_economics.minimum_allowed_locked / token_economics.worklock_min_allowed_bid
+
+
+def test_get_base_refund_rate(testerchain, agency, token_economics, test_registry):
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    base_refund_rate = agent.get_base_refund_rate()
+
+    slowing_refund = agent.contract.functions.SLOWING_REFUND().call()
+    assert base_refund_rate == (token_economics.minimum_allowed_locked / token_economics.worklock_min_allowed_bid) * \
+           (slowing_refund / token_economics.worklock_boosting_refund_rate)
+
+
 def test_cancel_bid(testerchain, agency, token_economics, test_registry):
     bidder = testerchain.client.accounts[1]
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
