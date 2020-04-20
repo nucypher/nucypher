@@ -242,6 +242,8 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact(staker_functions.setWorker(ursula3), {'from': ursula3})
     transact(staker_functions.setReStake(False), {'from': ursula1})
     transact(staker_functions.setReStake(False), {'from': ursula2})
+    transact(staker_functions.setWindDown(True), {'from': ursula1})
+    transact(staker_functions.setWindDown(True), {'from': ursula2})
     transact(staker_functions.confirmActivity(), {'from': ursula1})
     transact(staker_functions.confirmActivity(), {'from': ursula2})
 
