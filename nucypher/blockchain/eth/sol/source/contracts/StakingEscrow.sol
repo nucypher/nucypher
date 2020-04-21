@@ -1,8 +1,8 @@
 pragma solidity ^0.6.5;
 
-import "aragon/staking/Checkpointing.sol";
 import "contracts/Issuer.sol";
 import "contracts/lib/Bits.sol";
+import "contracts/lib/Snapshot.sol";
 import "zeppelin/math/SafeMath.sol";
 
 
@@ -43,7 +43,7 @@ contract StakingEscrow is Issuer {
     using AdditionalMath for uint256;
     using AdditionalMath for uint16;
     using Bits for uint256;
-    using Checkpointing for Checkpointing.Checkpoint[];
+    using Snapshot for uint128[];
 
     event Deposited(address indexed staker, uint256 value, uint16 periods);
     event Locked(address indexed staker, uint256 value, uint16 firstPeriod, uint16 periods);
@@ -102,7 +102,7 @@ contract StakingEscrow is Issuer {
 
         Downtime[] pastDowntime;
         SubStakeInfo[] subStakes;
-        Checkpointing.Checkpoint[] history;
+        uint128[] history;
 
     }
 
@@ -129,7 +129,7 @@ contract StakingEscrow is Issuer {
     mapping (address => address) public workerToStaker;
 
     mapping (uint16 => uint256) public lockedPerPeriod;
-    Checkpointing.Checkpoint[] balanceHistory;
+    uint128[] public balanceHistory;
 
     PolicyManagerInterface public policyManager;
     AdjudicatorInterface public adjudicator;
@@ -585,7 +585,6 @@ contract StakingEscrow is Issuer {
             _periods.length == subStakesLength);
         uint16 previousPeriod = getCurrentPeriod() - 1;
         uint16 nextPeriod = previousPeriod + 2;
-        uint64 block_number = uint64(block.number);
         uint256 sumValue = 0;
 
         uint256 j = 0;
@@ -611,11 +610,11 @@ contract StakingEscrow is Issuer {
                 emit Locked(staker, value, nextPeriod, periods);
             }
             require(info.value <= maxAllowableLockedTokens);
-            info.history.add64(block_number, info.value);
+            info.history.addSnapshot(info.value);
         }
         require(j == subStakesLength);
-        uint256 lastGlobalBalance = uint256(balanceHistory.getLatestValue());
-        balanceHistory.add64(block_number, lastGlobalBalance + sumValue);
+        uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
+        balanceHistory.addSnapshot(lastGlobalBalance + sumValue);
         token.safeTransferFrom(msg.sender, address(this), sumValue);
     }
 
@@ -699,10 +698,9 @@ contract StakingEscrow is Issuer {
         uint256 newValue = info.value += _value;
         lock(_staker, _value, _periods);
 
-        uint64 block_number = uint64(block.number);
-        info.history.add64(block_number, newValue);
-        uint256 lastGlobalBalance = uint256(balanceHistory.getLatestValue());
-        balanceHistory.add64(block_number, lastGlobalBalance + newValue);
+        info.history.addSnapshot(newValue);
+        uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
+        balanceHistory.addSnapshot(lastGlobalBalance + newValue);
         emit Deposited(_staker, _value, _periods);
     }
 
@@ -849,10 +847,9 @@ contract StakingEscrow is Issuer {
         require(_value <= info.value.sub(lockedTokens));
         info.value -= _value;
 
-        uint64 block_number = uint64(block.number);
-        info.history.add64(block_number, info.value);
-        uint256 lastGlobalBalance = uint256(balanceHistory.getLatestValue());
-        balanceHistory.add64(block_number, lastGlobalBalance - _value);
+        info.history.addSnapshot(info.value);
+        uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
+        balanceHistory.addSnapshot(lastGlobalBalance - _value);
 
         token.safeTransfer(msg.sender, _value);
         emit Withdrawn(msg.sender, _value);
@@ -964,10 +961,9 @@ contract StakingEscrow is Issuer {
             info.completedWork += reward;
         }
 
-        uint64 block_number = uint64(block.number);
-        info.history.add64(block_number, info.value);
-        uint256 lastGlobalBalance = uint256(balanceHistory.getLatestValue());
-        balanceHistory.add64(block_number, lastGlobalBalance + reward);
+        info.history.addSnapshot(info.value);
+        uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
+        balanceHistory.addSnapshot(lastGlobalBalance + reward);
         emit Mined(_staker, previousPeriod, reward);
     }
 
@@ -1065,10 +1061,10 @@ contract StakingEscrow is Issuer {
         if (_reward > 0) {
             token.safeTransfer(_investigator, _reward);
         }
-        uint64 block_number = uint64(block.number);
-        info.history.add64(block_number, info.value);
-        uint256 lastGlobalBalance = uint256(balanceHistory.getLatestValue());
-        balanceHistory.add64(block_number, lastGlobalBalance - _penalty);
+
+        info.history.addSnapshot(info.value);
+        uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
+        balanceHistory.addSnapshot(lastGlobalBalance - _penalty);
     }
 
     /**
