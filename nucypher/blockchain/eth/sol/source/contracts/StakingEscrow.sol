@@ -1,5 +1,6 @@
 pragma solidity ^0.6.5;
 
+import "aragon/interfaces/IERC900History.sol";
 import "contracts/Issuer.sol";
 import "contracts/lib/Bits.sol";
 import "contracts/lib/Snapshot.sol";
@@ -38,11 +39,12 @@ interface WorkLockInterface {
 * Each staker that locks their tokens will receive some compensation
 * @dev |v4.1.1|
 */
-contract StakingEscrow is Issuer {
-    using SafeMath for uint256;
+contract StakingEscrow is Issuer, IERC900History {
+
     using AdditionalMath for uint256;
     using AdditionalMath for uint16;
     using Bits for uint256;
+    using SafeMath for uint256;
     using Snapshot for uint128[];
 
     event Deposited(address indexed staker, uint256 value, uint16 periods);
@@ -1320,6 +1322,19 @@ contract StakingEscrow is Issuer {
         endPeriod = downtime.endPeriod;
     }
 
+    //------------------ ERC900 connectors ----------------------
+
+    function totalStakedForAt(address _owner, uint256 _blockNumber) external view override returns (uint256){
+        return stakerInfo[_owner].history.getValueAt(_blockNumber);
+    }
+
+    function totalStakedAt(uint256 _blockNumber) external view override returns (uint256){
+        return balanceHistory.getValueAt(_blockNumber);
+    }
+
+    function supportsHistory() public pure override returns (bool){
+        return true;
+    }
 
     //------------------------Upgradeable------------------------
     /**
