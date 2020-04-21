@@ -61,8 +61,8 @@ class BaseTestNodeStorageBackends:
         all_known_nodes.add(ursula)
         assert len(all_known_nodes) == len(all_stored_nodes)
 
-        known_checksums = sorted([n.checksum_address for n in all_known_nodes])
-        stored_checksums = sorted([n.checksum_address for n in all_stored_nodes])
+        known_checksums = sorted(n.checksum_address for n in all_known_nodes)
+        stored_checksums = sorted(n.checksum_address for n in all_stored_nodes)
 
         assert known_checksums == stored_checksums
 
