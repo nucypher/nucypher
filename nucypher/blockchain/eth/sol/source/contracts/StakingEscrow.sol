@@ -66,6 +66,7 @@ contract StakingEscrow is Issuer, IERC900History {
     event WorkerSet(address indexed staker, address indexed worker, uint16 indexed startPeriod);
     event WorkMeasurementSet(address indexed staker, bool measureWork);
     event WindDownSet(address indexed staker, bool windDown);
+    event SnapshotSet(address indexed staker, bool snapshotsEnabled);
 
     struct SubStakeInfo {
         uint16 firstPeriod;
@@ -119,6 +120,7 @@ contract StakingEscrow is Issuer, IERC900History {
     uint8 internal constant RE_STAKE_DISABLED_INDEX = 0;
     uint8 internal constant WIND_DOWN_INDEX = 1;
     uint8 internal constant MEASURE_WORK_INDEX = 2;
+    uint8 internal constant SNAPSHOTS_DISABLED_INDEX = 3;
 
     uint16 public immutable minLockedPeriods;
     uint16 public immutable minWorkerPeriods;
@@ -566,6 +568,29 @@ contract StakingEscrow is Issuer, IERC900History {
     }
 
     /**
+    * @notice Activate/deactivate taking snapshots of balances
+    * @param _enableSnapshots True to activate snapshots, False to deactivate
+    */
+    function setSnapshots(bool _enableSnapshots) external {
+        StakerInfo storage info = stakerInfo[msg.sender];
+        if (info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX) == !_enableSnapshots) {
+            return;
+        }
+
+        uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
+        if(_enableSnapshots){
+            info.history.addSnapshot(info.value);
+            balanceHistory.addSnapshot(lastGlobalBalance + info.value);
+        } else {
+            info.history.addSnapshot(0);
+            balanceHistory.addSnapshot(lastGlobalBalance - info.value);
+        }
+        info.flags = info.flags.toggleBit(SNAPSHOTS_DISABLED_INDEX);
+
+        emit SnapshotSet(msg.sender, _enableSnapshots);
+    }
+
+    /**
     * @notice Batch deposit. Allowed only initial deposit for each staker
     * @param _stakers Stakers
     * @param _numberOfSubStakes Number of sub-stakes which belong to staker in _values and _periods arrays
@@ -700,9 +725,12 @@ contract StakingEscrow is Issuer, IERC900History {
         uint256 newValue = info.value += _value;
         lock(_staker, _value, _periods);
 
-        info.history.addSnapshot(newValue);
-        uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
-        balanceHistory.addSnapshot(lastGlobalBalance + newValue);
+        if(!info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX)){
+            info.history.addSnapshot(newValue);
+            uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
+            balanceHistory.addSnapshot(lastGlobalBalance + newValue);
+        }
+
         emit Deposited(_staker, _value, _periods);
     }
 
@@ -849,9 +877,11 @@ contract StakingEscrow is Issuer, IERC900History {
         require(_value <= info.value.sub(lockedTokens));
         info.value -= _value;
 
-        info.history.addSnapshot(info.value);
-        uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
-        balanceHistory.addSnapshot(lastGlobalBalance - _value);
+        if(!info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX)){
+            info.history.addSnapshot(info.value);
+            uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
+            balanceHistory.addSnapshot(lastGlobalBalance - _value);
+        }
 
         token.safeTransfer(msg.sender, _value);
         emit Withdrawn(msg.sender, _value);
@@ -963,9 +993,12 @@ contract StakingEscrow is Issuer, IERC900History {
             info.completedWork += reward;
         }
 
-        info.history.addSnapshot(info.value);
-        uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
-        balanceHistory.addSnapshot(lastGlobalBalance + reward);
+        if(!info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX)){
+            info.history.addSnapshot(info.value);
+            uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
+            balanceHistory.addSnapshot(lastGlobalBalance + reward);
+        }
+
         emit Mined(_staker, previousPeriod, reward);
     }
 
@@ -1064,9 +1097,12 @@ contract StakingEscrow is Issuer, IERC900History {
             token.safeTransfer(_investigator, _reward);
         }
 
-        info.history.addSnapshot(info.value);
-        uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
-        balanceHistory.addSnapshot(lastGlobalBalance - _penalty);
+        if(!info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX)){
+            info.history.addSnapshot(info.value);
+            uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
+            balanceHistory.addSnapshot(lastGlobalBalance - _penalty);
+        }
+
     }
 
     /**
@@ -1424,7 +1460,7 @@ contract StakingEscrow is Issuer, IERC900History {
                 subStakeInfoToCheck.lockedValue == subStakeInfo.lockedValue);
         }
 
-        // TODO: add here validation of history
+        // TODO: add here validation of history (need help from @vzotova)
 
         if (info.worker != address(0)) {
             require(address(delegateGet(_testTarget, this.workerToStaker.selector, bytes32(uint256(info.worker)))) ==
