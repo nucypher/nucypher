@@ -267,13 +267,11 @@ class Policy(ABC):
 
         responses = dict()
         self.log.debug(f"Pushing {self.treasure_map} to all known nodes from {self.alice}")
-        for node in self.alice.known_nodes:
-            # TODO: # 342 - It's way overkill to push this to every node we know about.  Come up with a system.
+        treasure_map_id = self.treasure_map.public_id()
+
+        for node in self.bob.matching_nodes_among(self.alice.known_nodes):
 
             try:
-                treasure_map_id = self.treasure_map.public_id()
-
-                # TODO: Certificate filepath needs to be looked up and passed here
                 response = network_middleware.put_treasure_map_on_node(node=node,
                                                                        map_id=treasure_map_id,
                                                                        map_payload=bytes(self.treasure_map))
