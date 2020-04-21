@@ -16,6 +16,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
+import random
+from base64 import b64encode, b64decode
 from base64 import b64decode, b64encode
 from collections import OrderedDict
 from random import shuffle
@@ -72,6 +74,8 @@ from nucypher.datastore.threading import ThreadedSession
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
+from nucypher.network.nodes import NodeSprout, FleetStateTracker
+from nucypher.network.nodes import Teacher
 from nucypher.network.nodes import NodeSprout, Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
@@ -88,7 +92,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                  # Mode
                  is_me: bool = True,
                  federated_only: bool = False,
-                 signer = None,
+                 signer=None,
 
                  # Ownership
                  checksum_address: str = None,
@@ -191,7 +195,7 @@ class Alice(Character, BlockchainPolicyAuthor):
 
     def create_policy(self, bob: "Bob", label: bytes, **policy_params):
         """
-        Create a Policy to share uri with bob.
+        Create a Policy so that Bob has access to all resources under label.
         Generates KFrags and attaches them.
         """
 
@@ -563,7 +567,7 @@ class Bob(Character):
         map_id = keccak_digest(bytes(verifying_key) + hrac).hex()
         return hrac, map_id
 
-    def get_treasure_map_from_known_ursulas(self, network_middleware, map_id):
+    def get_treasure_map_from_known_ursulas(self, network_middleware, map_id, timeout=3):
         """
         Iterate through the nodes we know, asking for the TreasureMap.
         Return the first one who has it.
@@ -572,30 +576,35 @@ class Bob(Character):
             from nucypher.policy.collections import TreasureMap as _MapClass
         else:
             from nucypher.policy.collections import DecentralizedTreasureMap as _MapClass
-        for node in self.known_nodes.shuffled():
-            try:
-                response = network_middleware.get_treasure_map_from_node(node=node, map_id=map_id)
-            except NodeSeemsToBeDown:
-                continue
-            except network_middleware.NotFound:
-                self.log.info(f"Node {node} claimed not to have TreasureMap {map_id}")
-                continue
 
-            if response.status_code == 200 and response.content:
+        start = maya.now()
+        while True:
+            if (start - maya.now()).seconds > timeout:
+                raise _MapClass.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_id} ")
+
+            nodes_with_map = self.matching_nodes_among(self.known_nodes)
+            random.shuffle(nodes_with_map)
+
+            for node in nodes_with_map:
                 try:
-                    treasure_map = _MapClass.from_bytes(response.content)
-                except InvalidSignature:
-                    # TODO: What if a node gives a bunk TreasureMap?  NRN
-                    raise
-                break
-            else:
-                continue  # TODO: Actually, handle error case here.  NRN
-        else:
-            # TODO: Work out what to do in this scenario -
-            #       if Bob can't get the TreasureMap, he needs to rest on the learning mutex or something.  NRN
-            raise _MapClass.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_id} ")
+                    response = network_middleware.get_treasure_map_from_node(node=node, map_id=map_id)
+                except NodeSeemsToBeDown:
+                    continue
+                except network_middleware.NotFound:
+                    self.log.info(f"Node {node} claimed not to have TreasureMap {map_id}")
+                    continue
 
-        return treasure_map
+                if response.status_code == 200 and response.content:
+                    try:
+                        treasure_map = _MapClass.from_bytes(response.content)
+                        return treasure_map
+                    except InvalidSignature:
+                        # TODO: What if a node gives a bunk TreasureMap?  NRN
+                        raise
+                else:
+                    continue  # TODO: Actually, handle error case here.  NRN
+            else:
+                self.learn_from_teacher_node()
 
     def work_orders_for_capsules(self,
                                  *capsules,
@@ -900,7 +909,6 @@ class Bob(Character):
 
 
 class Ursula(Teacher, Character, Worker):
-
     banner = URSULA_BANNER
     _alice_class = Alice
 
@@ -938,7 +946,8 @@ class Ursula(Teacher, Character, Worker):
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
                  checksum_address: str = None,
                  worker_address: str = None,  # TODO: deprecate, and rename to "checksum_address"
-                 block_until_ready: bool = True,  # TODO: Must be true in order to set staker address - Allow for manual staker addr to be passed too!
+                 block_until_ready: bool = True,
+                 # TODO: Must be true in order to set staker address - Allow for manual staker addr to be passed too!
                  work_tracker: WorkTracker = None,
                  start_working_now: bool = True,
                  client_password: str = None,
@@ -971,7 +980,8 @@ class Ursula(Teacher, Character, Worker):
                            is_me=is_me,
                            checksum_address=checksum_address,
                            start_learning_now=False,  # Handled later in this function to avoid race condition
-                           federated_only=self._federated_only_instances,  # TODO: 'Ursula' object has no attribute '_federated_only_instances' if an is_me Ursula is not inited prior to this moment  NRN
+                           federated_only=self._federated_only_instances,
+                           # TODO: 'Ursula' object has no attribute '_federated_only_instances' if an is_me Ursula is not inited prior to this moment  NRN
                            crypto_power=crypto_power,
                            abort_on_learning_error=abort_on_learning_error,
                            known_nodes=known_nodes,
@@ -980,7 +990,6 @@ class Ursula(Teacher, Character, Worker):
                            **character_kwargs)
 
         if is_me:
-
             # In-Memory TreasureMap tracking
             self._stored_treasure_maps = dict()
 
@@ -1011,7 +1020,8 @@ class Ursula(Teacher, Character, Worker):
 
             # Use this power to substantiate the stamp
             self.substantiate_stamp()
-            self.log.debug(f"Created decentralized identity evidence: {self.decentralized_identity_evidence[:10].hex()}")
+            self.log.debug(
+                f"Created decentralized identity evidence: {self.decentralized_identity_evidence[:10].hex()}")
             decentralized_identity_evidence = self.decentralized_identity_evidence
 
             Worker.__init__(self,
@@ -1190,7 +1200,7 @@ class Ursula(Teacher, Character, Worker):
                 raise  # Crash :-(
 
         elif start_reactor:  # ... without hendrix
-            reactor.run()    # <--- Blocking Call (Reactor)
+            reactor.run()  # <--- Blocking Call (Reactor)
 
     def stop(self, halt_reactor: bool = False) -> None:
         """Stop services"""
