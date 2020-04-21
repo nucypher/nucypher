@@ -66,7 +66,7 @@ contract StakingEscrow is Issuer {
         uint16 firstPeriod;
         uint16 lastPeriod;
         uint16 periods;
-        uint256 lockedValue;
+        uint128 lockedValue;
     }
 
     struct Downtime {
@@ -586,7 +586,7 @@ contract StakingEscrow is Issuer {
                 uint16 periods = _periods[j];
                 require(value >= minAllowableLockedTokens && periods >= minLockedPeriods);
                 info.value = info.value.add(value);
-                info.subStakes.push(SubStakeInfo(nextPeriod, 0, periods, value));
+                info.subStakes.push(SubStakeInfo(nextPeriod, 0, periods, uint128(value)));
                 sumValue = sumValue.add(value);
                 emit Deposited(staker, value, periods);
                 emit Locked(staker, value, nextPeriod, periods);
@@ -751,12 +751,12 @@ contract StakingEscrow is Issuer {
                 subStake.firstPeriod = _firstPeriod;
                 subStake.lastPeriod = _lastPeriod;
                 subStake.periods = _periods;
-                subStake.lockedValue = _lockedValue;
+                subStake.lockedValue = uint128(_lockedValue);
                 return;
             }
         }
         require(_info.subStakes.length < MAX_SUB_STAKES);
-        _info.subStakes.push(SubStakeInfo(_firstPeriod, _lastPeriod, _periods, _lockedValue));
+        _info.subStakes.push(SubStakeInfo(_firstPeriod, _lastPeriod, _periods, uint128(_lockedValue)));
     }
 
     /**
@@ -775,7 +775,7 @@ contract StakingEscrow is Issuer {
         require(lastPeriod > currentPeriod, "The sub stake must active at least in the next period");
 
         uint256 oldValue = subStake.lockedValue;
-        subStake.lockedValue = oldValue.sub(_newValue);
+        subStake.lockedValue = uint128(oldValue.sub(_newValue));
         require(subStake.lockedValue >= minAllowableLockedTokens);
         uint16 requestedPeriods = subStake.periods.add16(_periods);
         saveSubStake(info, subStake.firstPeriod, 0, requestedPeriods, _newValue);
@@ -978,7 +978,7 @@ contract StakingEscrow is Issuer {
                     lastPeriod.sub16(mintingPeriod));
                 reward += subStakeReward;
                 if (!_info.reStakeDisabled) {
-                    subStake.lockedValue += subStakeReward;
+                    subStake.lockedValue += uint128(subStakeReward);
                 }
             }
         }
@@ -1155,7 +1155,7 @@ contract StakingEscrow is Issuer {
             }
             uint256 appliedPenalty = _penalty;
             if (_penalty < shortestSubStake.lockedValue) {
-                shortestSubStake.lockedValue -= _penalty;
+                shortestSubStake.lockedValue -= uint128(_penalty);
                 saveOldSubStake(_info, shortestSubStake.firstPeriod, _penalty, _decreasePeriod);
                 _penalty = 0;
             } else {
@@ -1254,7 +1254,7 @@ contract StakingEscrow is Issuer {
                 (crossConfirmedPeriod2 ==
                 (oldConfirmedPeriod2 && _info.confirmedPeriod2 >= subStake.firstPeriod))))
             {
-                subStake.lockedValue += _lockedValue;
+                subStake.lockedValue += uint128(_lockedValue);
                 return;
             }
         }
@@ -1283,7 +1283,7 @@ contract StakingEscrow is Issuer {
     // TODO change to structure when ABIEncoderV2 is released (#1501)
 //        public view returns (SubStakeInfo)
         // TODO "virtual" only for tests, probably will be removed after #1512
-        external view virtual returns (uint16 firstPeriod, uint16 lastPeriod, uint16 periods, uint256 lockedValue)
+        external view virtual returns (uint16 firstPeriod, uint16 lastPeriod, uint16 periods, uint128 lockedValue)
     {
         SubStakeInfo storage info = stakerInfo[_staker].subStakes[_index];
         firstPeriod = info.firstPeriod;
