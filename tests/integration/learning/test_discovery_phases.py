@@ -125,3 +125,12 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
     # TODO: Make some assertions about policy.
     total_verified = sum(node.verified_node for node in highperf_mocked_alice.known_nodes)
     assert total_verified == 30
+
+    with patch('umbral.keys.UmbralPublicKey.__eq__', lambda *args, **kwargs: True), mock_metadata_validation:
+            try:
+                policy.publish_treasure_map(network_middleware=highperf_mocked_alice.network_middleware)
+            except Exception as e:
+                raise
+
+def test_mass_treasure_map_placement(highperf_mocked_alice):
+    assert False
