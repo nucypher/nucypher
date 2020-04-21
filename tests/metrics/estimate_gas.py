@@ -24,6 +24,8 @@ import sys
 
 import io
 import re
+
+import tabulate
 import time
 from os.path import abspath, dirname
 from unittest.mock import Mock
@@ -33,6 +35,7 @@ from zope.interface import provider
 
 from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent, AdjudicatorAgent
+from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.policy.policies import Policy
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
@@ -68,7 +71,7 @@ class AnalyzeGas:
                           (.+)       # Any character sequence longer than 1; Captured
                           \s=\s      # Space-Equal-Space
                           (\d+)      # A sequence of digits; Captured
-                          \|
+                          \s\|\s     # Space-Slash-Space
                           (\d+)      # A sequence of digits; Captured
                           $          # Anchor at the end of the string
                           ''', re.VERBOSE)
@@ -167,6 +170,22 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain, registry = TesterBlockchain.bootstrap_network(economics=economics)
     web3 = testerchain.w3
 
+    print("\n********* SIZE OF MAIN CONTRACTS *********")
+    MAX_SIZE = 24576
+    rows = list()
+    for contract_name in NUCYPHER_CONTRACT_NAMES:
+        compiled_contract = testerchain._raw_contract_cache[contract_name]
+
+        version = list(compiled_contract).pop()
+        bin_runtime = compiled_contract[version]['bin-runtime']
+        bin_length_in_bytes = len(bin_runtime) // 2
+        percentage = int(100 * bin_length_in_bytes / MAX_SIZE)
+        bar = ('*'*(percentage//2)).ljust(50)
+        rows.append((contract_name, bin_length_in_bytes, f'{bar} {percentage}%'))
+
+    headers = ('Contract', 'Size (B)', f'% of max allowed contract size ({MAX_SIZE} B)')
+    print(tabulate.tabulate(rows, headers=headers, tablefmt="simple"), end="\n\n")
+
     # Accounts
     origin, ursula1, ursula2, ursula3, alice1, alice2, *everyone_else = testerchain.client.accounts
 
@@ -192,7 +211,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
         transaction.update(gas=estimates)
         tx = function.transact(transaction)
         receipt = testerchain.wait_for_receipt(tx)
-        log.info(f"{label} = {estimates}|{receipt['gasUsed']}")
+        log.info(f"{label} = {estimates} | {receipt['gasUsed']}")
 
     def transact(function, transaction):
         transaction.update(gas=1000000)
