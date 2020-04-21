@@ -39,7 +39,7 @@ Hypothetical Bidding Scenarios
     To reduce complexity, calculations are performed in a step-wise manner which may lead to minor rounding differences
     in the determined values.
 
-For each scenario, assume that:
+For each scenario, assume the following hypothetical WorkLock properties:
 
  #. WorkLock holds 280,000,000 NU tokens and the minimum bid is 15 ETH.
  #. The minimum amount of NU required to stake is 15,000 NU and the maximum stake size is 4,000,000 NU.
