@@ -399,6 +399,10 @@ class NotAPublicKey:
         self.__dict__ = _umbral_pubkey.__dict__
         self.__class__ = _umbral_pubkey.__class__
 
+    def to_cryptography_pubkey(self):
+        self.i_want_to_be_a_real_boy()
+        return self.to_cryptography_pubkey()
+
     @property
     def params(self):
         # Holy heck, metamock hacking.
