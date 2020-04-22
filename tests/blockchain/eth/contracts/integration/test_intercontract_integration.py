@@ -30,9 +30,6 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.crypto.api import sha256_digest
 from nucypher.crypto.signing import SignatureStamp
 
-DISABLE_RE_STAKE_FIELD = 3
-WIND_DOWN_FIELD = 10
-
 DISABLED_FIELD = 5
 
 
@@ -503,7 +500,8 @@ def test_worklock_phases(testerchain,
     assert escrow.functions.getCompletedWork(staker2).call() == 0
     tx = escrow.functions.setWindDown(True).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.stakerInfo(staker2).call()[WIND_DOWN_FIELD]
+    wind_down, _re_stake, _measure_work = escrow.functions.getFlags(staker2).call()
+    assert wind_down
 
     tx = worklock.functions.claim().transact({'from': staker1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
@@ -551,11 +549,13 @@ def test_staking(testerchain,
     assert 10000 == token.functions.balanceOf(staker1).call()
 
     # Set and lock re-stake parameter in first preallocation escrow
-    assert not escrow.functions.stakerInfo(preallocation_escrow_1.address).call()[DISABLE_RE_STAKE_FIELD]
+    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(preallocation_escrow_1.address).call()
+    assert re_stake
     current_period = escrow.functions.getCurrentPeriod().call()
     tx = preallocation_escrow_interface_1.functions.lockReStake(current_period + 22).transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
-    assert not escrow.functions.stakerInfo(preallocation_escrow_1.address).call()[DISABLE_RE_STAKE_FIELD]
+    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(preallocation_escrow_1.address).call()
+    assert re_stake
     # Can't unlock re-stake parameter now
     with pytest.raises((TransactionFailed, ValueError)):
         tx = preallocation_escrow_interface_1.functions.setReStake(False).transact({'from': staker3})
@@ -637,7 +637,8 @@ def test_staking(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWindDown(True).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.stakerInfo(staker1).call()[WIND_DOWN_FIELD]
+    wind_down, _re_stake, _measure_work = escrow.functions.getFlags(staker1).call()
+    assert wind_down
     tx = escrow.functions.confirmActivity().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     pytest.escrow_supply += 1000
@@ -695,7 +696,8 @@ def test_policy(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = preallocation_escrow_interface_1.functions.setWindDown(True).transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.stakerInfo(preallocation_escrow_interface_1.address).call()[WIND_DOWN_FIELD]
+    wind_down, _re_stake, _measure_work = escrow.functions.getFlags(preallocation_escrow_interface_1.address).call()
+    assert wind_down
     tx = escrow.functions.confirmActivity().transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
     pytest.escrow_supply += 1000
@@ -737,10 +739,12 @@ def test_policy(testerchain,
     testerchain.wait_for_receipt(tx)
 
     # Turn on re-stake for staker1
-    assert escrow.functions.stakerInfo(staker1).call()[DISABLE_RE_STAKE_FIELD]
+    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker1).call()
+    assert not re_stake
     tx = escrow.functions.setReStake(True).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    assert not escrow.functions.stakerInfo(staker1).call()[DISABLE_RE_STAKE_FIELD]
+    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker1).call()
+    assert re_stake
 
     testerchain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': staker1})
@@ -856,10 +860,12 @@ def test_policy(testerchain,
     testerchain.wait_for_receipt(tx)
 
     # Turn off re-stake for staker1
-    assert not escrow.functions.stakerInfo(staker1).call()[DISABLE_RE_STAKE_FIELD]
+    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker1).call()
+    assert re_stake
     tx = escrow.functions.setReStake(False).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.stakerInfo(staker1).call()[DISABLE_RE_STAKE_FIELD]
+    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker1).call()
+    assert not re_stake
 
     testerchain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': staker1})
@@ -1275,7 +1281,8 @@ def test_withdraw(testerchain,
     # Now can turn off re-stake
     tx = preallocation_escrow_interface_1.functions.setReStake(False).transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.stakerInfo(preallocation_escrow_1.address).call()[DISABLE_RE_STAKE_FIELD]
+    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(preallocation_escrow_1.address).call()
+    assert not re_stake
 
     tx = escrow.functions.mint().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)

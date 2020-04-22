@@ -24,9 +24,7 @@ from web3.contract import Contract
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.token import NU
 
-DISABLE_RE_STAKE_FIELD = 3
 LOCK_RE_STAKE_UNTIL_PERIOD_FIELD = 4
-WIND_DOWN_FIELD = 10
 
 
 @pytest.mark.slow
@@ -206,7 +204,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
 def test_re_stake(testerchain, token, escrow_contract):
     escrow = escrow_contract(10000)
     creator = testerchain.client.accounts[0]
-    ursula = testerchain.client.accounts[1]
+    staker = testerchain.client.accounts[1]
     ursula2 = testerchain.client.accounts[2]
 
     re_stake_log = escrow.events.ReStakeSet.createFilter(fromBlock='latest')
@@ -220,125 +218,131 @@ def test_re_stake(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     # Set re-stake parameter even before initialization
-    assert not escrow.functions.stakerInfo(ursula).call()[DISABLE_RE_STAKE_FIELD]
-    tx = escrow.functions.setReStake(False).transact({'from': ursula})
+    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    assert re_stake
+    tx = escrow.functions.setReStake(False).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.stakerInfo(ursula).call()[DISABLE_RE_STAKE_FIELD]
-    tx = escrow.functions.setReStake(True).transact({'from': ursula})
+    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    assert not re_stake
+    tx = escrow.functions.setReStake(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert not escrow.functions.stakerInfo(ursula).call()[DISABLE_RE_STAKE_FIELD]
-    tx = escrow.functions.setReStake(True).transact({'from': ursula})
+    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    assert re_stake
+    tx = escrow.functions.setReStake(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert not escrow.functions.stakerInfo(ursula).call()[DISABLE_RE_STAKE_FIELD]
-    tx = escrow.functions.setReStake(False).transact({'from': ursula})
+    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    assert re_stake
+    tx = escrow.functions.setReStake(False).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.stakerInfo(ursula).call()[DISABLE_RE_STAKE_FIELD]
+    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    assert not re_stake
 
     events = re_stake_log.get_all_entries()
     assert 3 == len(events)
     event_args = events[0]['args']
-    assert ursula == event_args['staker']
+    assert staker == event_args['staker']
     assert not event_args['reStake']
     event_args = events[1]['args']
-    assert ursula == event_args['staker']
+    assert staker == event_args['staker']
     assert event_args['reStake']
     event_args = events[2]['args']
-    assert ursula == event_args['staker']
+    assert staker == event_args['staker']
     assert not event_args['reStake']
 
     # Lock re-stake parameter during 1 period
     period = escrow.functions.getCurrentPeriod().call()
-    tx = escrow.functions.lockReStake(period + 1).transact({'from': ursula})
+    tx = escrow.functions.lockReStake(period + 1).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     # Can't set re-stake parameter in the current period
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.setReStake(True).transact({'from': ursula})
+        tx = escrow.functions.setReStake(True).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
 
     events = re_stake_lock_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert ursula == event_args['staker']
+    assert staker == event_args['staker']
     assert period + 1 == event_args['lockUntilPeriod']
 
     # Ursula deposits some tokens and confirms activity
-    tx = token.functions.transfer(ursula, 10000).transact({'from': creator})
+    tx = token.functions.transfer(staker, 10000).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = token.functions.approve(escrow.address, 10000).transact({'from': ursula})
+    tx = token.functions.approve(escrow.address, 10000).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     sub_stake = 100
-    tx = escrow.functions.deposit(sub_stake, 10).transact({'from': ursula})
+    tx = escrow.functions.deposit(sub_stake, 10).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setWorker(ursula).transact({'from': ursula})
+    tx = escrow.functions.setWorker(staker).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmActivity().transact({'from': ursula})
+    tx = escrow.functions.confirmActivity().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
     period = escrow.functions.getCurrentPeriod().call()
-    assert sub_stake == escrow.functions.getAllTokens(ursula).call()
-    assert sub_stake == escrow.functions.getLockedTokens(ursula, 0).call()
+    assert sub_stake == escrow.functions.getAllTokens(staker).call()
+    assert sub_stake == escrow.functions.getLockedTokens(staker, 0).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period).call()
     assert 0 == escrow.functions.lockedPerPeriod(period + 1).call()
 
     # Confirm activity and try to mine without re-stake
-    tx = escrow.functions.confirmActivity().transact({'from': ursula})
+    tx = escrow.functions.confirmActivity().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
     period = escrow.functions.getCurrentPeriod().call()
-    assert sub_stake == escrow.functions.getAllTokens(ursula).call()
-    assert sub_stake == escrow.functions.getLockedTokens(ursula, 0).call()
+    assert sub_stake == escrow.functions.getAllTokens(staker).call()
+    assert sub_stake == escrow.functions.getLockedTokens(staker, 0).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period).call()
-    tx = escrow.functions.mint().transact({'from': ursula})
+    tx = escrow.functions.mint().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     # Reward is not locked and stake is not changed
-    assert sub_stake < escrow.functions.getAllTokens(ursula).call()
-    assert sub_stake == escrow.functions.getLockedTokens(ursula, 0).call()
+    assert sub_stake < escrow.functions.getAllTokens(staker).call()
+    assert sub_stake == escrow.functions.getLockedTokens(staker, 0).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period).call()
 
     # Prepare account, withdraw reward
-    balance = escrow.functions.getAllTokens(ursula).call()
-    tx = escrow.functions.withdraw(balance - sub_stake).transact({'from': ursula})
+    balance = escrow.functions.getAllTokens(staker).call()
+    tx = escrow.functions.withdraw(balance - sub_stake).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert sub_stake == escrow.functions.getAllTokens(ursula).call()
+    assert sub_stake == escrow.functions.getAllTokens(staker).call()
 
     # Set re-stake and lock parameter
-    tx = escrow.functions.setReStake(True).transact({'from': ursula})
+    tx = escrow.functions.setReStake(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert not escrow.functions.stakerInfo(ursula).call()[DISABLE_RE_STAKE_FIELD]
-    tx = escrow.functions.lockReStake(period + 6).transact({'from': ursula})
+    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    assert re_stake
+    tx = escrow.functions.lockReStake(period + 6).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     # Can't set re-stake parameter during 6 periods
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.setReStake(False).transact({'from': ursula})
+        tx = escrow.functions.setReStake(False).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
 
     events = re_stake_log.get_all_entries()
     assert 4 == len(events)
     event_args = events[3]['args']
-    assert ursula == event_args['staker']
+    assert staker == event_args['staker']
     assert event_args['reStake']
     events = re_stake_lock_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[1]['args']
-    assert ursula == event_args['staker']
+    assert staker == event_args['staker']
     assert period + 6 == event_args['lockUntilPeriod']
 
     # Confirm activity and try to mine with re-stake
-    tx = escrow.functions.confirmActivity().transact({'from': ursula})
+    tx = escrow.functions.confirmActivity().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
     period = escrow.functions.getCurrentPeriod().call()
-    assert sub_stake == escrow.functions.getAllTokens(ursula).call()
-    assert sub_stake == escrow.functions.getLockedTokens(ursula, 0).call()
+    assert sub_stake == escrow.functions.getAllTokens(staker).call()
+    assert sub_stake == escrow.functions.getLockedTokens(staker, 0).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period).call()
-    tx = escrow.functions.mint().transact({'from': ursula})
+    tx = escrow.functions.mint().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     # Entire reward is locked
-    balance = escrow.functions.getAllTokens(ursula).call()
-    new_sub_stake = escrow.functions.getLockedTokens(ursula, 0).call()
+    balance = escrow.functions.getAllTokens(staker).call()
+    new_sub_stake = escrow.functions.getLockedTokens(staker, 0).call()
     assert sub_stake < balance
     assert balance == new_sub_stake
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
@@ -348,15 +352,15 @@ def test_re_stake(testerchain, token, escrow_contract):
     testerchain.time_travel(hours=1)
     period = escrow.functions.getCurrentPeriod().call()
     sub_stake = new_sub_stake
-    assert sub_stake == escrow.functions.getAllTokens(ursula).call()
-    assert sub_stake == escrow.functions.getLockedTokens(ursula, 0).call()
+    assert sub_stake == escrow.functions.getAllTokens(staker).call()
+    assert sub_stake == escrow.functions.getLockedTokens(staker, 0).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
     assert 0 == escrow.functions.lockedPerPeriod(period).call()
-    tx = escrow.functions.mint().transact({'from': ursula})
+    tx = escrow.functions.mint().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     # Entire reward is locked
-    balance = escrow.functions.getAllTokens(ursula).call()
-    new_sub_stake = escrow.functions.getLockedTokens(ursula, 0).call()
+    balance = escrow.functions.getAllTokens(staker).call()
+    new_sub_stake = escrow.functions.getLockedTokens(staker, 0).call()
     assert sub_stake < balance
     assert balance == new_sub_stake
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
@@ -367,10 +371,10 @@ def test_re_stake(testerchain, token, escrow_contract):
     sub_stake_1 = new_sub_stake
     sub_stake_2 = sub_stake_1 // 2
     stake = sub_stake_1 + sub_stake_2
-    sub_stake_duration = escrow.functions.getSubStakeInfo(ursula, 0).call()[2]
-    tx = escrow.functions.deposit(sub_stake_2, sub_stake_duration).transact({'from': ursula})
+    sub_stake_duration = escrow.functions.getSubStakeInfo(staker, 0).call()[2]
+    tx = escrow.functions.deposit(sub_stake_2, sub_stake_duration).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmActivity().transact({'from': ursula})
+    tx = escrow.functions.confirmActivity().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     tx = token.functions.transfer(ursula2, stake).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -385,19 +389,19 @@ def test_re_stake(testerchain, token, escrow_contract):
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
-    tx = escrow.functions.confirmActivity().transact({'from': ursula})
+    tx = escrow.functions.confirmActivity().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=2)
     # Checks preparation
     period = escrow.functions.getCurrentPeriod().call()
-    assert stake == escrow.functions.getAllTokens(ursula).call()
+    assert stake == escrow.functions.getAllTokens(staker).call()
     assert stake == escrow.functions.getAllTokens(ursula2).call()
-    assert stake == escrow.functions.getLockedTokens(ursula, 0).call()
+    assert stake == escrow.functions.getLockedTokens(staker, 0).call()
     assert stake == escrow.functions.getLockedTokens(ursula2, 0).call()
-    assert sub_stake_1 == escrow.functions.getSubStakeInfo(ursula, 0).call()[3]
-    assert sub_stake_2 == escrow.functions.getSubStakeInfo(ursula, 1).call()[3]
+    assert sub_stake_1 == escrow.functions.getSubStakeInfo(staker, 0).call()[3]
+    assert sub_stake_2 == escrow.functions.getSubStakeInfo(staker, 1).call()[3]
     assert 2 * stake == escrow.functions.lockedPerPeriod(period - 2).call()
     assert 2 * stake == escrow.functions.lockedPerPeriod(period - 1).call()
     assert 0 == escrow.functions.lockedPerPeriod(period).call()
@@ -407,9 +411,9 @@ def test_re_stake(testerchain, token, escrow_contract):
     # (stake/lockedPerPeriod) and it will affect next mining
     tx = escrow.functions.mint().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.mint().transact({'from': ursula})
+    tx = escrow.functions.mint().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    ursula_reward = escrow.functions.getAllTokens(ursula).call() - stake
+    ursula_reward = escrow.functions.getAllTokens(staker).call() - stake
     ursula2_reward = escrow.functions.getAllTokens(ursula2).call() - stake
     assert 0 < ursula2_reward
     assert ursula_reward > ursula2_reward
@@ -421,9 +425,9 @@ def test_re_stake(testerchain, token, escrow_contract):
     re_stake_for_second_sub_stake = ursula_reward // 3
     re_stake_for_first_sub_stake = ursula_reward - re_stake_for_second_sub_stake
     # Check re-stake for Ursula1's sub stakes
-    assert stake + ursula_reward == escrow.functions.getLockedTokens(ursula, 0).call()
-    assert sub_stake_1 + re_stake_for_first_sub_stake == escrow.functions.getSubStakeInfo(ursula, 0).call()[3]
-    assert sub_stake_2 + re_stake_for_second_sub_stake == escrow.functions.getSubStakeInfo(ursula, 1).call()[3]
+    assert stake + ursula_reward == escrow.functions.getLockedTokens(staker, 0).call()
+    assert sub_stake_1 + re_stake_for_first_sub_stake == escrow.functions.getSubStakeInfo(staker, 0).call()[3]
+    assert sub_stake_2 + re_stake_for_second_sub_stake == escrow.functions.getSubStakeInfo(staker, 1).call()[3]
 
     # Ursula2's reward for both confirmed periods will be equal because of equal stakes for this periods
     # Also this reward will be equal to Ursula1's reward for the first period
@@ -436,39 +440,40 @@ def test_re_stake(testerchain, token, escrow_contract):
 
     # Can't turn off re-stake parameter during one more period
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.setReStake(False).transact({'from': ursula})
+        tx = escrow.functions.setReStake(False).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
 
     # Confirm activity and try to mine without re-stake
-    tx = escrow.functions.confirmActivity().transact({'from': ursula})
+    tx = escrow.functions.confirmActivity().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
 
     # Now turn off re-stake
-    tx = escrow.functions.setReStake(False).transact({'from': ursula})
+    tx = escrow.functions.setReStake(False).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.stakerInfo(ursula).call()[DISABLE_RE_STAKE_FIELD]
+    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    assert not re_stake
 
     events = re_stake_log.get_all_entries()
     assert 6 == len(events)
     event_args = events[5]['args']
-    assert ursula == event_args['staker']
+    assert staker == event_args['staker']
     assert not event_args['reStake']
 
     # Check before mining
     testerchain.time_travel(hours=1)
     period = escrow.functions.getCurrentPeriod().call()
-    sub_stake = escrow.functions.getLockedTokensInPast(ursula, 1).call()
-    assert sub_stake == escrow.functions.getLockedTokens(ursula, 0).call()
-    assert sub_stake == escrow.functions.getAllTokens(ursula).call()
+    sub_stake = escrow.functions.getLockedTokensInPast(staker, 1).call()
+    assert sub_stake == escrow.functions.getLockedTokens(staker, 0).call()
+    assert sub_stake == escrow.functions.getAllTokens(staker).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
-    tx = escrow.functions.mint().transact({'from': ursula})
+    tx = escrow.functions.mint().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
 
     # Reward is not locked and stake is not changed
-    assert sub_stake < escrow.functions.getAllTokens(ursula).call()
-    assert sub_stake == escrow.functions.getLockedTokensInPast(ursula, 1).call()
-    assert sub_stake == escrow.functions.getLockedTokens(ursula, 0).call()
+    assert sub_stake < escrow.functions.getAllTokens(staker).call()
+    assert sub_stake == escrow.functions.getLockedTokensInPast(staker, 1).call()
+    assert sub_stake == escrow.functions.getLockedTokens(staker, 0).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
 
 
@@ -872,16 +877,20 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     check_last_period()
 
     # Set wind-down parameter
-    assert not escrow.functions.stakerInfo(staker).call()[WIND_DOWN_FIELD]
+    wind_down, _re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    assert not wind_down
     tx = escrow.functions.setWindDown(False).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert not escrow.functions.stakerInfo(staker).call()[WIND_DOWN_FIELD]
+    wind_down, _re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    assert not wind_down
     tx = escrow.functions.setWindDown(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.stakerInfo(staker).call()[WIND_DOWN_FIELD]
+    wind_down, _re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    assert wind_down
     tx = escrow.functions.setWindDown(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.stakerInfo(staker).call()[WIND_DOWN_FIELD]
+    wind_down, _re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    assert wind_down
     check_events(wind_down=True, length=1)
 
     # Enabling wind-down will affect duration only after next confirm activity
@@ -899,10 +908,12 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     check_last_period()
 
     # Turn off wind-down and confirm activity, duration will be the same
-    assert escrow.functions.stakerInfo(staker).call()[WIND_DOWN_FIELD]
+    wind_down, _re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    assert wind_down
     tx = escrow.functions.setWindDown(False).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert not escrow.functions.stakerInfo(staker).call()[WIND_DOWN_FIELD]
+    wind_down, _re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    assert not wind_down
 
     check_events(wind_down=False, length=2)
 
@@ -917,7 +928,8 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     # Turn on wind-down and confirm activity, duration will be reduced in the next period
     tx = escrow.functions.setWindDown(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.stakerInfo(staker).call()[WIND_DOWN_FIELD]
+    wind_down, _re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    assert wind_down
     check_events(wind_down=True, length=3)
 
     check_last_period()

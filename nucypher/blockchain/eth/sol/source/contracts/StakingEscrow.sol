@@ -2,6 +2,7 @@ pragma solidity ^0.6.5;
 
 
 import "contracts/Issuer.sol";
+import "contracts/lib/Bits.sol";
 import "zeppelin/math/SafeMath.sol";
 
 
@@ -41,6 +42,7 @@ contract StakingEscrow is Issuer {
     using SafeMath for uint256;
     using AdditionalMath for uint256;
     using AdditionalMath for uint16;
+    using Bits for uint256;
 
     event Deposited(address indexed staker, uint256 value, uint16 periods);
     event Locked(address indexed staker, uint256 value, uint16 firstPeriod, uint16 periods);
@@ -84,16 +86,12 @@ contract StakingEscrow is Issuer {
         */
         uint16 currentConfirmedPeriod;
         uint16 nextConfirmedPeriod;
-        bool reStakeDisabled;
+        uint16 lastActivePeriod; // last confirmed active period
         uint16 lockReStakeUntilPeriod;
-        address worker;
-        // period when worker was set
-        uint16 workerStartPeriod;
-        // last confirmed active period
-        uint16 lastActivePeriod;
-        bool measureWork;
         uint256 completedWork;
-        bool windDown; // this slot has 31 bytes to store additional value
+        uint16 workerStartPeriod; // period when worker was set
+        address worker;
+        uint256 flags; // uint256 to acquire whole slot and minimize operations on it
 
         uint256 reservedSlot2;
         uint256 reservedSlot3;
@@ -104,11 +102,16 @@ contract StakingEscrow is Issuer {
     }
 
     // used only for upgrading
-    uint16 constant RESERVED_PERIOD = 0;
-    uint16 constant MAX_CHECKED_VALUES = 5;
+    uint16 internal constant RESERVED_PERIOD = 0;
+    uint16 internal constant MAX_CHECKED_VALUES = 5;
     // to prevent high gas consumption in loops for slashing
     uint16 public constant MAX_SUB_STAKES = 30;
-    uint16 constant MAX_UINT16 = 65535;
+    uint16 internal constant MAX_UINT16 = 65535;
+
+    // indices for flags
+    uint8 internal constant RE_STAKE_DISABLED_INDEX = 0;
+    uint8 internal constant WIND_DOWN_INDEX = 1;
+    uint8 internal constant MEASURE_WORK_INDEX = 2;
 
     uint16 public immutable minLockedPeriods;
     uint16 public immutable minWorkerPeriods;
@@ -220,6 +223,22 @@ contract StakingEscrow is Issuer {
     }
 
     /**
+    * @notice Get all flags for the staker
+    */
+    function getFlags(address _staker)
+        external view returns (
+            bool windDown,
+            bool reStake,
+            bool measureWork
+        )
+    {
+        StakerInfo storage info = stakerInfo[_staker];
+        windDown = info.flags.bitSet(WIND_DOWN_INDEX);
+        reStake = !info.flags.bitSet(RE_STAKE_DISABLED_INDEX);
+        measureWork = info.flags.bitSet(MEASURE_WORK_INDEX);
+    }
+
+    /**
     * @notice Get the start period. Use in the calculation of the last period of the sub stake
     * @param _info Staker structure
     * @param _currentPeriod Current period
@@ -228,7 +247,7 @@ contract StakingEscrow is Issuer {
         internal view returns (uint16)
     {
         // if the next period (after current) is confirmed
-        if (_info.windDown && _info.nextConfirmedPeriod > _currentPeriod) {
+        if (_info.flags.bitSet(WIND_DOWN_INDEX) && _info.nextConfirmedPeriod > _currentPeriod) {
             return _currentPeriod + 1;
         }
         return _currentPeriod;
@@ -432,7 +451,10 @@ contract StakingEscrow is Issuer {
     function setWorkMeasurement(address _staker, bool _measureWork) external returns (uint256) {
         require(msg.sender == address(workLock));
         StakerInfo storage info = stakerInfo[_staker];
-        info.measureWork = _measureWork;
+        if (info.flags.bitSet(MEASURE_WORK_INDEX) == _measureWork) {
+            return info.completedWork;
+        }
+        info.flags = info.flags.toggleBit(MEASURE_WORK_INDEX);
         emit WorkMeasurementSet(_staker, _measureWork);
         return info.completedWork;
     }
@@ -474,10 +496,10 @@ contract StakingEscrow is Issuer {
     function setReStake(bool _reStake) external {
         require(!isReStakeLocked(msg.sender));
         StakerInfo storage info = stakerInfo[msg.sender];
-        if (info.reStakeDisabled == !_reStake) {
+        if (info.flags.bitSet(RE_STAKE_DISABLED_INDEX) == !_reStake) {
             return;
         }
-        info.reStakeDisabled = !_reStake;
+        info.flags = info.flags.toggleBit(RE_STAKE_DISABLED_INDEX);
         emit ReStakeSet(msg.sender, _reStake);
     }
 
@@ -499,10 +521,10 @@ contract StakingEscrow is Issuer {
     */
     function setWindDown(bool _windDown) external onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
-        if (info.windDown == _windDown) {
+        if (info.flags.bitSet(WIND_DOWN_INDEX) == _windDown) {
             return;
         }
-        info.windDown = _windDown;
+        info.flags = info.flags.toggleBit(WIND_DOWN_INDEX);
 
         uint16 currentPeriod = getCurrentPeriod();
         uint16 nextPeriod = currentPeriod + 1;
@@ -700,7 +722,7 @@ contract StakingEscrow is Issuer {
         if (info.nextConfirmedPeriod == nextPeriod) {
             // if winding down is enabled and next period is confirmed
             // then sub-stakes duration were decreased
-            if (info.windDown) {
+            if (info.flags.bitSet(WIND_DOWN_INDEX)) {
                 duration -= 1;
             }
             lockedPerPeriod[nextPeriod] += _value;
@@ -855,7 +877,7 @@ contract StakingEscrow is Issuer {
     * @notice Decrease sub-stakes duration if `windDown` is enabled
     */
     function decreaseSubStakesDuration(StakerInfo storage _info, uint16 _nextPeriod) internal {
-        if (!_info.windDown) {
+        if (!_info.flags.bitSet(WIND_DOWN_INDEX)) {
             return;
         }
         for (uint256 index = 0; index < _info.subStakes.length; index++) {
@@ -903,20 +925,21 @@ contract StakingEscrow is Issuer {
 
         uint16 startPeriod = getStartPeriod(info, currentPeriod);
         uint256 reward = 0;
+        bool reStake = !info.flags.bitSet(RE_STAKE_DISABLED_INDEX);
         if (info.currentConfirmedPeriod != 0) {
-            reward = mint(_staker, info, info.currentConfirmedPeriod, currentPeriod, startPeriod);
+            reward = mint(_staker, info, info.currentConfirmedPeriod, currentPeriod, startPeriod, reStake);
             info.currentConfirmedPeriod = 0;
-            if (!info.reStakeDisabled) {
+            if (reStake) {
                 lockedPerPeriod[info.nextConfirmedPeriod] += reward;
             }
         }
         if (info.nextConfirmedPeriod <= previousPeriod) {
-            reward += mint(_staker, info, info.nextConfirmedPeriod, currentPeriod, startPeriod);
+            reward += mint(_staker, info, info.nextConfirmedPeriod, currentPeriod, startPeriod, reStake);
             info.nextConfirmedPeriod = 0;
         }
 
         info.value += reward;
-        if (info.measureWork) {
+        if (info.flags.bitSet(MEASURE_WORK_INDEX)) {
             info.completedWork += reward;
         }
         emit Mined(_staker, previousPeriod, reward);
@@ -935,7 +958,8 @@ contract StakingEscrow is Issuer {
         StakerInfo storage _info,
         uint16 _mintingPeriod,
         uint16 _currentPeriod,
-        uint16 _startPeriod
+        uint16 _startPeriod,
+        bool _reStake
     )
         internal returns (uint256 reward)
     {
@@ -950,7 +974,7 @@ contract StakingEscrow is Issuer {
                     lockedPerPeriod[_mintingPeriod],
                     lastPeriod.sub16(_mintingPeriod));
                 reward += subStakeReward;
-                if (!_info.reStakeDisabled) {
+                if (_reStake) {
                     subStake.lockedValue += uint128(subStakeReward);
                 }
             }
@@ -1334,14 +1358,12 @@ contract StakingEscrow is Issuer {
         require(infoToCheck.value == info.value &&
             infoToCheck.currentConfirmedPeriod == info.currentConfirmedPeriod &&
             infoToCheck.nextConfirmedPeriod == info.nextConfirmedPeriod &&
-            infoToCheck.reStakeDisabled == info.reStakeDisabled &&
+            infoToCheck.flags == info.flags &&
             infoToCheck.lockReStakeUntilPeriod == info.lockReStakeUntilPeriod &&
             infoToCheck.lastActivePeriod == info.lastActivePeriod &&
-            infoToCheck.measureWork == info.measureWork &&
             infoToCheck.completedWork == info.completedWork &&
             infoToCheck.worker == info.worker &&
-            infoToCheck.workerStartPeriod == info.workerStartPeriod &&
-            infoToCheck.windDown == info.windDown);
+            infoToCheck.workerStartPeriod == info.workerStartPeriod);
 
         require(delegateGet(_testTarget, this.getPastDowntimeLength.selector, staker) ==
             info.pastDowntime.length);
