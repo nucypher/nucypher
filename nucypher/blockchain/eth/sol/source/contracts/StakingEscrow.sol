@@ -93,9 +93,11 @@ contract StakingEscrow is Issuer {
         address worker;
         uint256 flags; // uint256 to acquire whole slot and minimize operations on it
 
+        uint256 reservedSlot1;
         uint256 reservedSlot2;
         uint256 reservedSlot3;
         uint256 reservedSlot4;
+        uint256 reservedSlot5;
 
         Downtime[] pastDowntime;
         SubStakeInfo[] subStakes;
