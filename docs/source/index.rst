@@ -147,6 +147,7 @@ Whitepapers
    :caption: Architecture
 
    architecture/character
+   architecture/worklock
    architecture/contracts
    architecture/upgradeable_proxy_contracts
    architecture/sub_stakes

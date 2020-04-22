@@ -891,11 +891,15 @@ def paint_worklock_status(emitter, registry: BaseContractRegistry):
     cancellation_open = bidding_start <= now <= cancellation_end
     bidding_open = bidding_start <= now <= bidding_end
 
+    # Refund
+    refund_multiple = worklock_agent.contract.functions.boostingRefund().call() \
+                      / worklock_agent.contract.functions.SLOWING_REFUND().call()
+
     payload = f"""
 Time
 ══════════════════════════════════════════════════════
 
-Contribution ({'Open' if bidding_open else 'Closed'})
+Contribution Period ({'Open' if bidding_open else 'Closed'})
 ------------------------------------------------------
 Claims Available ...... {'Yes' if worklock_agent.is_claiming_available() else 'No'}
 Start Date ............ {bidding_start}
@@ -903,7 +907,7 @@ End Date .............. {bidding_end}
 Duration .............. {bidding_duration}
 Time Remaining ........ {bidding_remaining} 
 
-Cancellation ({'Open' if cancellation_open else 'Closed'})
+Cancellation Period ({'Open' if cancellation_open else 'Closed'})
 ------------------------------------------------------
 End Date .............. {cancellation_end}
 Duration .............. {cancellation_duration}
@@ -918,20 +922,26 @@ Participation
 Lot Size .............. {NU.from_nunits(worklock_agent.lot_value)} 
 Min. Allowed Bid ...... {prettify_eth_amount(worklock_agent.minimum_allowed_bid)}
 Participants .......... {worklock_agent.get_bidders_population()}
-ETH Pool .............. {prettify_eth_amount(blockchain.client.get_balance(worklock_agent.contract_address))}
 ETH Supply ............ {prettify_eth_amount(worklock_agent.get_eth_supply())}
+ETH Pool .............. {prettify_eth_amount(blockchain.client.get_balance(worklock_agent.contract_address))}
 
-Refunds
+Base (minimum bid)
 ------------------------------------------------------
-Boosting Refund ....... {worklock_agent.contract.functions.boostingRefund().call()}
-Slowing Refund ........ {worklock_agent.contract.functions.SLOWING_REFUND().call()}
+Base Deposit Rate ..... {worklock_agent.get_base_deposit_rate()} NU per base ETH
 
-Bonus
+Bonus (surplus over minimum bid)
 ------------------------------------------------------
 Bonus ETH Supply ...... {prettify_eth_amount(worklock_agent.get_bonus_eth_supply())}
 Bonus Lot Size ........ {NU.from_nunits(worklock_agent.get_bonus_lot_value())}
-Bonus Refund Rate ..... {worklock_agent.get_bonus_refund_rate()}
-Bonus Deposit Rate .... {worklock_agent.get_bonus_deposit_rate()}
+Bonus Deposit Rate .... {worklock_agent.get_bonus_deposit_rate()} NU per bonus ETH
+
+Refunds
+------------------------------------------------------
+Refund Rate Multiple .. {refund_multiple:.2f}
+Bonus Refund Rate ..... {worklock_agent.get_bonus_refund_rate()} units of work to unlock 1 bonus ETH
+Base Refund Rate ...... {worklock_agent.get_base_refund_rate()} units of work to unlock 1 base ETH
+
+    * NOTE: bonus ETH is refunded before base ETH
     """
     emitter.echo(payload)
     return
@@ -942,12 +952,24 @@ def paint_bidder_status(emitter, bidder):
     if claim > bidder.economics.maximum_allowed_locked:
         claim = f"{claim} (Above the allowed max. The bid will be partially refunded)"
 
+    deposited_eth = bidder.get_deposited_eth
+    bonus_eth = deposited_eth - bidder.economics.worklock_min_allowed_bid
+
     message = f"""
 WorkLock Participant {bidder.checksum_address}
-=====================================================
-Total Bid ............ {prettify_eth_amount(bidder.get_deposited_eth)}
-Tokens Allocated ..... {claim}
-Tokens Claimed? ...... {"Yes" if bidder._has_claimed else "No"}"""
+====================================================="""
+
+    if bidder._has_claimed:
+        message += f"""
+Tokens Claimed? ...... Yes
+Locked ETH ........... {prettify_eth_amount(bidder.get_deposited_eth)}"""
+    else:
+        message += f"""
+Tokens Claimed? ...... No
+Total Bid ............ {prettify_eth_amount(deposited_eth)}
+    Base ETH ......... {prettify_eth_amount(bidder.economics.worklock_min_allowed_bid)}
+    Bonus ETH ........ {prettify_eth_amount(bonus_eth)}
+Tokens Allocated ..... {claim}"""
 
     compensation = bidder.available_compensation
     if compensation:

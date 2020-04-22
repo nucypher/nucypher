@@ -7,39 +7,25 @@ WorkLock Guide
 Overview
 --------
 
-`WorkLock` is a novel, permissionless token distribution mechanism, developed at NuCypher, which requires participants to stake ETH and maintain NuCypher nodes in order to receive NU tokens.
+:ref:`worklock-architecture` is the distribution mechanism for the NuCypher token.
 
-WorkLock offers specific advantages over ICO or airdrop as a distribution mechanism, chiefly: it selects for participants who are most likely to strengthen the network because they commit to staking and running nodes.
 
-The WorkLock begins with an open bidding period, during which anyone seeking to participate can send ETH to the WorkLock contract to be escrowed on-chain.
-At any time, WorkLock participants can cancel their bid to forgo NU and recoup their escrowed ETH immediately.
-Once the bidding period closes, the WorkLock contract doesn't accept more bids, although it still accepts cancellations during an additional time window.
-At the end of this cancellation period, stake-locked NU will be distributed according to the following principles:
-
- - Each bidder receives, at least, the minimum amount of NU needed to stake.
- - All bids will be greater or equal to the minimum allowed bid.
- - In addition to the minimum amount of NU, each bidder receives a portion of the remaining NU, distributed pro rata across all participants, taking into consideration their bid surplus with respect to the minimum bid.
- - If the resulting NU amount is above the maximum allowed NU to stake, then such a bidder has their bid partially refunded until the corresponding amount of NU is within the allowed limits.
-
-Finally, if WorkLock participants use that stake-locked NU to run a node, the NU will eventually unlock and their escrowed ETH will be returned in full.
-
+WorkLock CLI
+------------
 
 The ``nucypher worklock`` CLI command provides the ability to participate in WorkLock. To better understand the
 commands and their options, use the ``--help`` option.
-
-Common CLI flags
-----------------
 
 All ``nucypher worklock`` commands share a similar structure:
 
 .. code::
 
-    (nucypher)$ nucypher worklock <ACTION> [OPTIONS] --network <NETWORK> --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock <COMMAND> [OPTIONS] --network <NETWORK> --provider <YOUR PROVIDER URI>
 
 
 Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
 
-    - ``ipc:///home/ubuntu/.ethereum/goerli/geth.ipc`` - Geth Node on Görli testnet running under user ``ubuntu`` (most probably that's what you need).
+    - ``ipc:///home/ubuntu/.ethereum/goerli/geth.ipc`` - Geth Node on Görli testnet running under user ``ubuntu``.
 
 
 Show current WorkLock information
@@ -52,11 +38,154 @@ You can obtain information about the current state of WorkLock by running:
     (nucypher)$ nucypher worklock status --network <NETWORK> --provider <YOUR PROVIDER URI>
 
 
-If you want to see detailed information about your current bid, you can specify your bidder address with the ``--bidder-address`` flag:
+The following is an example output of the ``status`` command (hypothetical values):
+
+.. code::
+
+     _    _               _     _                   _
+    | |  | |             | |   | |                 | |
+    | |  | |  ___   _ __ | | __| |      ___    ___ | | __
+    | |/\| | / _ \ | '__|| |/ /| |     / _ \  / __|| |/ /
+    \  /\  /| (_) || |   |   < | |____| (_) || (__ |   <
+     \/  \/  \___/ |_|   |_|\_\\_____/ \___/  \___||_|\_\
+
+    ══ <NETWORK> ══
+
+    Reading Latest Chaindata...
+
+    Time
+    ══════════════════════════════════════════════════════
+
+    Contribution (Closed)
+    ------------------------------------------------------
+    Claims Available ...... Yes
+    Start Date ............ 2020-03-25 00:00:00+00:00
+    End Date .............. 2020-03-31 23:59:59+00:00
+    Duration .............. 6 days, 23:59:59
+    Time Remaining ........ Closed
+
+    Cancellation (Open)
+    ------------------------------------------------------
+    End Date .............. 2020-04-01 23:59:59+00:00
+    Duration .............. 7 days, 23:59:59
+    Time Remaining ........ 1 day, 2:47:32
+
+
+    Economics
+    ══════════════════════════════════════════════════════
+
+    Participation
+    ------------------------------------------------------
+    Lot Size .............. 280000000 NU
+    Min. Allowed Bid ...... 15 ETH
+    Participants .......... 1000
+    ETH Supply ............ 50000 ETH
+    ETH Pool .............. 50000 ETH
+
+    Base (minimum bid)
+    ------------------------------------------------------
+    Base Deposit Rate ..... 1000 NU per base ETH
+
+    Bonus (surplus over minimum bid)
+    ------------------------------------------------------
+    Bonus ETH Supply ...... 35000 ETH
+    Bonus Lot Size ........ 265000000 NU
+    Bonus Deposit Rate .... 7571.43 NU per bonus ETH
+
+    Refunds
+    ------------------------------------------------------
+    Refund Rate Multiple .. 4.00
+    Bonus Refund Rate ..... 1892.86 units of work to unlock 1 bonus ETH
+    Base Refund Rate ...... 250.0 units of work to unlock 1 base ETH
+
+        * NOTE: bonus ETH is refunded before base ETH
+
+
+For the less obvious values in the output, here are some definitions:
+
+    - Lot Size
+        NU tokens to be distributed by WorkLock
+    - ETH Supply
+        Sum of all ETH bids that have been placed
+    - ETH Pool
+        Current ETH balance of WorkLock that accounts for refunded ETH for work performed i.e. `ETH Supply` - `Refunds for Work`
+    - Refund Rate Multiple
+        Indicates how quickly your ETH is unlocked relative to the deposit rate e.g. a value of ``4`` means that you get your ETH refunded 4x faster than the rate used when you received NU
+    - Base Deposit Rate
+        Amount of NU to be received per base ETH in WorkLock
+    - Bonus ETH Supply
+        Sum of all bonus ETH bids that have been placed i.e. sum of all ETH above minimum bid
+    - Bonus Lot Size
+        Amount of NU tokens tokens that are available to be distributed based on the bonus part of bids
+    - Bonus Deposit Rate
+        Amount of NU to be received per bonus ETH in WorkLock
+    - Bonus Refund Rate
+        Units of work to unlock 1 bonus ETH
+    - Base Refund Rate
+        Units of work to unlock 1 base ETH
+
+
+If you want to see specific information about your current bid, you can specify your bidder address with the ``--bidder-address`` flag:
 
 .. code::
 
     (nucypher)$ nucypher worklock status --bidder-address <YOUR BIDDER ADDRESS> --network <NETWORK> --provider <YOUR PROVIDER URI>
+
+The following output is an example of what is included when ``--bidder-address`` is used
+
+.. code::
+
+    WorkLock Participant <BIDDER ADDRESS>
+    =====================================================
+    Tokens Claimed? ...... No
+    Total Bid ............ 22 ETH
+        Base ETH ......... 15 ETH
+        Bonus ETH ........ 7 ETH
+    Tokens Allocated ..... 68000 NU
+
+    Completed Work ....... 0
+    Available Refund ..... 0 ETH
+
+    Refunded Work ........ 0
+    Remaining Work ....... <REMAINING WORK>
+
+Alternatively, when the allocated tokens have been claimed, the following is an example of the output
+
+.. code::
+
+    WorkLock Participant <BIDDER ADDRESS>
+    =====================================================
+    Tokens Claimed? ...... Yes
+    Locked ETH ........... 22 ETH
+
+    Completed Work ....... 0
+    Available Refund ..... 0 ETH
+
+    Refunded Work ........ 0
+    Remaining Work ....... <REMAINING WORK>
+
+where,
+
+    - Total Bid
+        WorkLock Bid
+    - Base ETH
+        Minimum required bid
+    - Bonus ETH
+        Surplus over minimum bid
+    - Tokens Allocated
+        Allocation of NU tokens
+    - Locked ETH
+        Remaining ETH to be unlocked via completion of work
+    - Tokens Claimed
+        Whether the allocation of NU tokens have been claimed or not
+    - Completed Work
+        Work already completed by the bidder
+    - Available Refund
+        ETH portion available to be refunded due to completed work
+    - Refunded Work
+        Work that has been completed and already refunded
+    - Remaining Work
+        Pending amount of work required before all of the participant's ETH locked will be refunded
 
 
 Place a bid
