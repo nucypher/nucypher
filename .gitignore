@@ -39,3 +39,7 @@ variables*.yml
 /tests/metrics/results/
 /docs/build
 .python-version
+*.log
+*no datastore
+finnegans-wake.txt
+*venvs
