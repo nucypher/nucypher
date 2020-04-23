@@ -58,9 +58,7 @@ To reinforce the algorithm, consider the following example stake and different s
         * 3rd sub-stake = 100 tokens locked starting from the next period and locked for 5 periods. The 3rd sub-stake is locked for the next period but won't be used as a deposit for "work" until the next period begins.
         * 200 tokens in an unlocked state (still staked, but can be freely withdrawn).
 
-    .. aafig::
-        :proportional:
-        :textual:
+    .. code::
 
             stake
             ^
@@ -76,7 +74,6 @@ To reinforce the algorithm, consider the following example stake and different s
             |               1st                 |
             |                                   |   period
             +-----------------------------------+--->
-	
 
 Penalty Scenarios:
 
@@ -103,10 +100,8 @@ Penalty Scenarios:
         * 4rd sub-stake = 100 tokens for 1 period
         * Remaining 0 tokens
 
-    .. aafig::
-        :proportional:
-        :textual:
-		
+    .. code::
+
              stake
              ^
              |
@@ -122,11 +117,10 @@ Penalty Scenarios:
              |                                   |   period
              +-----------------------------------+--->
 
-		
              stake
              ^
              |
-             |     
+             |
         700- | - - +----+ - - - - - - - - - - - - -
              |     | 3rd|
           600+-----+----+-------------+
@@ -136,12 +130,11 @@ Penalty Scenarios:
              |               1st                 |
              |                                   |   period
              +-----------------------------------+--->
-			 
-		
+
              stake
              ^
              |
-             |     
+             |
         700- +-----+----+ - - - - - - - - - - - - -
              | 4th | 3rd|
           600+-----+----+-------------+
@@ -164,9 +157,7 @@ Penalty Scenarios:
         * 3rd sub-stake = 100 tokens locked starting from the next period
         * Remaining 0 tokens
 
-    .. aafig::
-        :proportional:
-        :textual:
+    .. code::
 
              stake
              ^
@@ -196,7 +187,7 @@ Penalty Scenarios:
              |               1st                 |
              |                                   |   period
              +-----------------------------------+--->
-			 
+
 
              stake
              ^
@@ -221,9 +212,7 @@ Penalty Scenarios:
         * 3rd sub-stake = 0 tokens locked starting from the next period
         * Remaining 0 tokens
 
-    .. aafig::
-        :proportional:
-        :textual:
+    .. code::
 
              stake
              ^
@@ -239,8 +228,7 @@ Penalty Scenarios:
              |               1st                 |
              |                                   |   period
              +-----------------------------------+--->
-			 
-			 
+
              stake
              ^
              |
@@ -251,8 +239,8 @@ Penalty Scenarios:
              |               1st                 |
              |                                   |   period
              +-----------------------------------+--->
-			 
-			 
+
+
              stake
              ^
              |
@@ -262,8 +250,8 @@ Penalty Scenarios:
              |               1st                 |
              |                                   |   period
              +-----------------------------------+--->
-			 
-			 
+
+
              stake
              ^
              |

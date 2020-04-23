@@ -93,7 +93,6 @@ DOCS_REQUIRE = [
     'sphinx',
     'sphinx-autobuild',
     'recommonmark',
-    'aafigure',
     'sphinx_rtd_theme'
 ]
 

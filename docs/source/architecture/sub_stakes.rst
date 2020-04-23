@@ -38,9 +38,7 @@ To become a staker, NU tokens must be transferred to the ``StakingEscrow`` contr
     A staker deposits 900 tokens:
         * 1st sub-stake = 900 tokens starting from the next period and a locking duration of 5 periods
 
-    .. aafig::
-        :proportional:
-        :textual:
+    .. code::
 
             stake
             ^
@@ -66,9 +64,7 @@ In order to increase the staking reward, as well as the possibility of obtaining
 		- After: 
 			* 1st sub-stake = 900 tokens with locking duration of 7 periods
 
-    .. aafig::
-        :proportional:
-        :textual:
+    .. code::
 
                          Before             
 
@@ -108,9 +104,7 @@ If necessary, stakers can extend the locking duration for only a portion of thei
 			* 1st sub-stake = 600 tokens with locking duration of 5 periods
 			* 2nd sub-stake = 300 tokens with locking duration of 7 periods
 
-    .. aafig::
-        :proportional:
-        :textual:
+    .. code::
 
                          Before             
 
@@ -178,9 +172,7 @@ However, when re-staking is enabled (default) then all staking rewards are re-lo
 			* 3rd sub-stake = 100 tokens locked starting from the next period and a locking duration of 5 periods
 			* 100 tokens in an unlocked state
 
-    .. aafig::
-        :proportional:
-        :textual:
+    .. code::
 
                              Before             
 
@@ -241,10 +233,8 @@ An enabled "winding down" parameter means that each call to ``confirmActivity()`
 			* 1st sub-stake = 400 tokens with locking duration of 7 periods
 			* 2nd sub-stake = 100 tokens locked starting from the current period and a locking duration of 4 future periods
 
-    .. aafig::
-        :proportional:
-        :textual:
-			
+    .. code::
+
                          Current period           
 
             stake
