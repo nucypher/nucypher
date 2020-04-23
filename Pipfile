@@ -32,30 +32,23 @@ py-geth = "*"
 appdirs = "*"
 click = ">=7.0"
 colorama = "*"
-flask-limiter = "*"
 tabulate = "*"
 
 [dev-packages]
 # Pytest
 pytest = "*"
 pytest-xdist = "*"
-pytest-mypy = "*"
 pytest-twisted = "*"
 pytest-cov = "*"
 pytest-mock = "*"
 # Tools
 mypy = "*"
-# Coverage
 coverage = "*"
 # Deployment
 py-solc = {git = "https://github.com/nucypher/py-solc.git",ref = "v5.0.0-eol.0"}
 ansible = "*"
 bumpversion = "*"
-# Documentation
-sphinx = "==3.0.1"
-recommonmark = "*"
-sphinx_rtd_theme = "*"
-aafigure = "*"
+
 
 [scripts]
 install-solc = "python3 scripts/installation/install_solc.py"

@@ -213,3 +213,6 @@ def setup(app):
             }, True)
     app.add_transform(AutoStructify)
     app.connect("autodoc-process-docstring", remove_module_docstring)
+
+
+autodoc_mock_imports = ["nucypher"]
