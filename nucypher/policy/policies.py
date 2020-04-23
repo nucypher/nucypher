@@ -370,8 +370,8 @@ class Policy(ABC):
             if publish is True:
                 return self.publish_treasure_map(network_middleware=network_middleware)
 
-    def consider_arrangement(self, network_middleware, ursula, arrangement) -> bool:
-        negotiation_response = network_middleware.consider_arrangement(arrangement=arrangement)
+    def propose_arrangement(self, network_middleware, ursula, arrangement) -> bool:
+        negotiation_response = network_middleware.propose_arrangement(arrangement=arrangement)
 
         # TODO: check out the response: need to assess the result and see if we're actually good to go.
         arrangement_is_accepted = negotiation_response.status_code == 200
@@ -397,9 +397,9 @@ class Policy(ABC):
                  the Policy.".format(self.n))
 
         # TODO: One of these layers needs to add concurrency.
-        self._consider_arrangements(network_middleware=network_middleware,
-                                    candidate_ursulas=sampled_ursulas,
-                                    *args, **kwargs)
+        self._propose_arrangements(network_middleware=network_middleware,
+                                   candidate_ursulas=sampled_ursulas,
+                                   *args, **kwargs)
 
         if len(self._accepted_arrangements) < self.n:
             raise self.Rejected(f'Selected Ursulas rejected too many arrangements '
@@ -425,19 +425,19 @@ class Policy(ABC):
 
         return selected_ursulas
 
-    def _consider_arrangements(self,
-                               network_middleware: RestMiddleware,
-                               candidate_ursulas: Set[Ursula],
-                               consider_everyone: bool = False,
-                               *args,
-                               **kwargs) -> None:
+    def _propose_arrangements(self,
+                              network_middleware: RestMiddleware,
+                              candidate_ursulas: Set[Ursula],
+                              consider_everyone: bool = False,
+                              *args,
+                              **kwargs) -> None:
 
         for index, selected_ursula in enumerate(candidate_ursulas):
             arrangement = self.make_arrangement(ursula=selected_ursula, *args, **kwargs)
             try:
-                is_accepted = self.consider_arrangement(ursula=selected_ursula,
-                                                        arrangement=arrangement,
-                                                        network_middleware=network_middleware)
+                is_accepted = self.propose_arrangement(ursula=selected_ursula,
+                                                       arrangement=arrangement,
+                                                       network_middleware=network_middleware)
 
             except NodeSeemsToBeDown as e:  # TODO: #355 Also catch InvalidNode here?
                 # This arrangement won't be added to the accepted bucket.

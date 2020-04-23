@@ -231,6 +231,6 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
     vladimir.node_storage.store_node_certificate(certificate=target.certificate)
 
     with pytest.raises(vladimir.InvalidNode):
-        idle_blockchain_policy.consider_arrangement(network_middleware=blockchain_alice.network_middleware,
-                                                    arrangement=FakeArrangement(),
-                                                    ursula=vladimir)
+        idle_blockchain_policy.propose_arrangement(network_middleware=blockchain_alice.network_middleware,
+                                                   arrangement=FakeArrangement(),
+                                                   ursula=vladimir)
