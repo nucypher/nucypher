@@ -1,7 +1,7 @@
 -i https://pypi.python.org/simple
 aafigure==0.6
 alabaster==0.7.12
-ansible==2.9.6
+ansible==2.9.7
 apipkg==1.5
 attrs==19.3.0
 babel==2.8.0
@@ -11,7 +11,7 @@ cffi==1.14.0
 chardet==3.0.4
 commonmark==0.9.1
 coverage==5.1
-cryptography==2.9
+cryptography==2.9.2
 decorator==4.4.2
 docutils==0.16
 execnet==1.7.1
@@ -34,7 +34,7 @@ pygments==2.6.1
 pyparsing==3.0.0a1
 pytest-cov==2.8.1
 pytest-forked==1.1.3
-pytest-mock==3.0.0
+pytest-mock==3.1.0
 pytest-mypy==0.6.1
 pytest-twisted==1.12
 pytest-xdist==1.31.0
@@ -55,6 +55,6 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.4
 typed-ast==1.4.1
 typing-extensions==3.7.4.2 ; python_version < '3.8'
-urllib3==1.25.8
+urllib3==1.25.9
 wcwidth==0.1.9
 zipp==3.1.0
