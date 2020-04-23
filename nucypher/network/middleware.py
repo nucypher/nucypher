@@ -186,7 +186,7 @@ class RestMiddleware:
                                                          backend=default_backend())
             return certificate
 
-    def consider_arrangement(self, arrangement):
+    def propose_arrangement(self, arrangement):
         node = arrangement.ursula
         response = self.client.post(node_or_sprout=node,
                                     path="consider_arrangement",
