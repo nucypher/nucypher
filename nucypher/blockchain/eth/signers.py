@@ -61,6 +61,9 @@ class Signer(ABC):
 
             return signer_cls.from_signer_uri(uri=uri)
 
+        except cls.InvalidSignerURI:
+            raise
+
         except Exception as exc:
             raise cls.InvalidSignerURI(uri, exc)
 
