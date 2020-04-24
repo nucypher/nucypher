@@ -2,10 +2,11 @@ alabaster==0.7.12
 Babel==2.8.0
 certifi==2020.4.5.1
 chardet==3.0.4
-commonmark==0.9.1
+click==7.1.1
 docutils==0.16
 idna==2.9
 imagesize==1.2.0
+incremental==17.5.0
 Jinja2==2.11.2
 MarkupSafe==1.1.1
 packaging==20.3
@@ -23,4 +24,6 @@ sphinxcontrib-htmlhelp==1.0.3
 sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.4
+toml==0.10.0
+towncrier==19.2.0
 urllib3==1.25.9
