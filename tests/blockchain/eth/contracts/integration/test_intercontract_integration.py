@@ -30,7 +30,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.crypto.api import sha256_digest
 from nucypher.crypto.signing import SignatureStamp
 
-DISABLED_FIELD = 5
+DISABLED_FIELD = 0
 
 
 def pytest_namespace():
