@@ -13,15 +13,13 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
-import sys
 
-from recommonmark.parser import CommonMarkParser
+import sys
 
 sys.path.insert(0, os.path.abspath('..'))
 
 
 # -- Project information -----------------------------------------------------
-from recommonmark.transform import AutoStructify
 
 project = 'NuCypher'
 copyright = '2019, NuCypher'
@@ -43,12 +41,11 @@ release = '2.1.0-beta.3'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.doctest',
-    'sphinx.ext.intersphinx',
     'sphinx.ext.napoleon',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.doctest',
     'sphinx.ext.mathjax',
-    'recommonmark',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -58,7 +55,7 @@ templates_path = ['.templates']
 # You can specify multiple suffix as a list of string:
 #
 
-source_suffix = ['.rst', '.md', '.txt']
+source_suffix = '.rst'
 
 # The master toctree document.
 master_doc = 'index'
@@ -187,28 +184,38 @@ epub_title = project
 epub_exclude_files = ['search.html']
 
 
-# -- Extension configuration -------------------------------------------------
+# -- Intersphinx configuration ------------------------------------------------
 
-# Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3.5', None),
+    'pyUbmbral': ('http://pyumbral.readthedocs.io/en/latest/', None),
+    'web3py': ('https://web3py.readthedocs.io/en/latest/', None),
+
+}
+
+# -- Autodoc configuration ----------------------------------------
 
 
-def remove_module_docstring(app, what, name, obj, options, lines):
+def remove_module_license(app, what, name, obj, options, lines):
     if what == "module":
         del lines[:]
 
 
-todo_include_todos = False
-
 def setup(app):
-    local_source_root = 'https://docs.nucypher.com/'
-
-    app.add_config_value('recommonmark_config', {
-            'url_resolver': lambda url: local_source_root + url,
-            'auto_toc_tree_section': 'Contents',
-            }, True)
-    app.add_transform(AutoStructify)
-    app.connect("autodoc-process-docstring", remove_module_docstring)
+    app.connect("autodoc-process-docstring", remove_module_license)
 
 
-autodoc_mock_imports = ["nucypher"]
+add_module_names = False
+autodoc_member_order = "bysource"
+
+
+# -- Doctest configuration ----------------------------------------
+
+import doctest
+
+doctest_default_flags = (0
+    | doctest.DONT_ACCEPT_TRUE_FOR_1
+    | doctest.ELLIPSIS
+    | doctest.IGNORE_EXCEPTION_DETAIL
+    | doctest.NORMALIZE_WHITESPACE
+)
