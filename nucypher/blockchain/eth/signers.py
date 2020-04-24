@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import sys
 import json
 from abc import ABC, abstractmethod
-from typing import List
+from typing import Dict, List
 from urllib.parse import urlparse
 
 from eth_utils import is_address, to_checksum_address, apply_formatters_to_dict
@@ -27,6 +27,7 @@ from twisted.logger import Logger
 from web3 import Web3, IPCProvider
 from eth_account import Account
 from eth_account.messages import encode_defunct
+from eth_account.signers.local import LocalAccount
 from cytoolz.dicttoolz import dissoc
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
@@ -35,40 +36,33 @@ from nucypher.blockchain.eth.decorators import validate_checksum_address
 
 class Signer(ABC):
 
+    log = Logger(__qualname__)
+
     class InvalidSignerURI(ValueError):
         """Raised when an invalid signer URI is detected"""
-        def __init__(self, uri=None, text=None):
-            args = []
-            if uri:
-                if text:
-                    text = ': ' + text
-                else:
-                    text = ' is not a valid signer URI'
-                text = f"'{uri}'{text}"
-            if text:
-                args.append(text)
-            super().__init__(*args)
 
     IS_SIGNER_LOCAL = False
 
-    def __init__(self):
-        self.log = Logger(self.__class__.__name__)
-
     @classmethod
     def from_signer_uri(cls, uri: str, local_signers_allowed: bool = False) -> 'Signer':
-        scheme = urlparse(uri).scheme
+        """Generic factory class method to create a Signer instance from a URI."""
+        try:
+            scheme = urlparse(uri).scheme
 
-        if scheme == 'clef':
-            signer_cls = ClefSigner
-        elif scheme.startswith('key'):
-            signer_cls = KeyStoreSigner
-        else:
-            signer_cls = Web3Signer
+            if scheme == 'clef':
+                signer_cls = ClefSigner
+            elif scheme.startswith('key'):
+                signer_cls = KeyStoreSigner
+            else:
+                signer_cls = Web3Signer
 
-        if not local_signers_allowed and signer_cls.IS_SIGNER_LOCAL:
-            raise cls.InvalidSignerURI(uri=uri, text='local signers are not allowed for this operation')
+            if not local_signers_allowed and signer_cls.IS_SIGNER_LOCAL:
+                raise cls.InvalidSignerURI(uri, 'local signers are not allowed for this operation')
 
-        return signer_cls.from_signer_uri(uri=uri)
+            return signer_cls.from_signer_uri(uri=uri)
+
+        except Exception as exc:
+            raise cls.InvalidSignerURI(uri, exc)
 
     @abstractmethod
     def is_device(self, account: str) -> bool:
@@ -259,8 +253,13 @@ class ClefSigner(Signer):
 
 
 class KeyStoreSigner(Signer):
+    """Local Web3 signer implementation supporting a single account/keystore file"""
 
     IS_SIGNER_LOCAL = True
+
+    __key: Dict
+    __account: str
+    __signer: LocalAccount
 
     def __init__(self, path: str):
         super().__init__()
@@ -299,14 +298,16 @@ class KeyStoreSigner(Signer):
 
         if not self.__signer:
             try:
-                self.__signer = Account.from_key(
+                signer: LocalAccount = Account.from_key(
                     Account.decrypt(self.__key, password)
                 )
             except ValueError:
                 return False
 
-            if self.__account != self.__signer.address:
-                raise ValueError(f"unexpected address '{self.__signer.address}' recovered from private key; expected '{self.__account}'")
+            if self.__account != signer.address:
+                raise ValueError(f"unexpected address '{signer.address}' recovered from private key; expected '{self.__account}'")
+
+            self.__signer = signer
 
         return True
 
