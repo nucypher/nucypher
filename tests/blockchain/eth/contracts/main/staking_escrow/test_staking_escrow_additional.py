@@ -218,23 +218,23 @@ def test_re_stake(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     # Set re-stake parameter even before initialization
-    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker).call()
     assert re_stake
     tx = escrow.functions.setReStake(False).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker).call()
     assert not re_stake
     tx = escrow.functions.setReStake(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker).call()
     assert re_stake
     tx = escrow.functions.setReStake(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker).call()
     assert re_stake
     tx = escrow.functions.setReStake(False).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker).call()
     assert not re_stake
 
     events = re_stake_log.get_all_entries()
@@ -309,7 +309,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     # Set re-stake and lock parameter
     tx = escrow.functions.setReStake(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker).call()
     assert re_stake
     tx = escrow.functions.lockReStake(period + 6).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
@@ -451,7 +451,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     # Now turn off re-stake
     tx = escrow.functions.setReStake(False).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    _wind_down, re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker).call()
     assert not re_stake
 
     events = re_stake_log.get_all_entries()
@@ -877,19 +877,19 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     check_last_period()
 
     # Set wind-down parameter
-    wind_down, _re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker).call()
     assert not wind_down
     tx = escrow.functions.setWindDown(False).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    wind_down, _re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker).call()
     assert not wind_down
     tx = escrow.functions.setWindDown(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    wind_down, _re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker).call()
     assert wind_down
     tx = escrow.functions.setWindDown(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    wind_down, _re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker).call()
     assert wind_down
     check_events(wind_down=True, length=1)
 
@@ -908,11 +908,11 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     check_last_period()
 
     # Turn off wind-down and confirm activity, duration will be the same
-    wind_down, _re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker).call()
     assert wind_down
     tx = escrow.functions.setWindDown(False).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    wind_down, _re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker).call()
     assert not wind_down
 
     check_events(wind_down=False, length=2)
@@ -928,7 +928,7 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     # Turn on wind-down and confirm activity, duration will be reduced in the next period
     tx = escrow.functions.setWindDown(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    wind_down, _re_stake, _measure_work = escrow.functions.getFlags(staker).call()
+    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker).call()
     assert wind_down
     check_events(wind_down=True, length=3)
 

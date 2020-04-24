@@ -240,13 +240,15 @@ contract StakingEscrow is Issuer, IERC900History {
         external view returns (
             bool windDown,
             bool reStake,
-            bool measureWork
+            bool measureWork,
+            bool snapshots
         )
     {
         StakerInfo storage info = stakerInfo[_staker];
         windDown = info.flags.bitSet(WIND_DOWN_INDEX);
         reStake = !info.flags.bitSet(RE_STAKE_DISABLED_INDEX);
         measureWork = info.flags.bitSet(MEASURE_WORK_INDEX);
+        snapshots = !info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX);
     }
 
     /**
