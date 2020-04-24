@@ -1,0 +1,12 @@
+include pyproject.toml
+include LICENSE
+include README.md
+include requirements.txt
+
+recursive-exclude * __pycache__
+global-exclude *.py[cod]
+
+#  recursive-include nucypher/blockchain/eth/sol/source * *.sol
+recursive-include nucypher/blockchain/eth/contract_registry *.json *.md
+recursive-include nucypher/network/templates *.html *.j2
+recursive-include nucypher/network/nicknames/ *json
