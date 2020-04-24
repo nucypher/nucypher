@@ -35,6 +35,15 @@ from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.powers import (
+    CryptoPower,
+    SigningPower,
+    DecryptingPower,
+    NoSigningPower,
+    CryptoPowerUp,
+    DelegatingPower, TransactingPower, NoTransactingPower
+)
+from nucypher.crypto.signing import signature_splitter, StrangerStamp, SignatureStamp
 from nucypher.crypto.powers import (CryptoPower, CryptoPowerUp, DecryptingPower, DelegatingPower, NoSigningPower,
                                     SigningPower)
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp, signature_splitter
@@ -175,7 +184,8 @@ class Character(Learner):
             #
             self.provider_uri = provider_uri
             if not self.federated_only:
-                self.registry = registry or InMemoryContractRegistry.from_latest_publication(network=list(domains)[0])  #TODO: #1580
+                self.registry = registry or InMemoryContractRegistry.from_latest_publication(
+                    network=list(domains)[0])  # TODO: #1580
             else:
                 self.registry = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
 
@@ -192,7 +202,7 @@ class Character(Learner):
                              *args, **kwargs)
 
         #
-        # Stranger-Character
+        # Stranger-Char acter
         #
 
         else:  # Feel like a stranger
@@ -207,25 +217,12 @@ class Character(Learner):
             self.keyring_root = STRANGER
             self.network_middleware = STRANGER
 
-        #
-        # Decentralized
-        #
-        if not federated_only:
-            self._checksum_address = checksum_address  # TODO: Check that this matches TransactingPower
-
-        #
-        # Federated
-        #
-        elif federated_only:
-            try:
-                self._set_checksum_address()
-            except NoSigningPower:
-                self._checksum_address = NO_BLOCKCHAIN_CONNECTION
-            if checksum_address:
-                # We'll take a checksum address, as long as it matches their singing key
-                if not checksum_address == self.checksum_address:
-                    error = "Federated-only Characters derive their address from their Signing key; got {} instead."
-                    raise self.SuspiciousActivity(error.format(checksum_address))
+        # TODO: Figure out when to do this.
+        try:
+            _transacting_power = self._crypto_power.power_ups(TransactingPower)
+            self._set_checksum_address(checksum_address)
+        except NoTransactingPower:
+            pass  # Hmm, so this Character has no checksum address at all.  Is that what we want?
 
         #
         # Nicknames
@@ -538,8 +535,8 @@ class Character(Learner):
     def make_cli_controller(self, crash_on_error: bool = False):
         app_name = bytes(self.stamp).hex()[:6]
         controller = CLIController(app_name=app_name,
-                                       crash_on_error=crash_on_error,
-                                       interface=self.interface)
+                                   crash_on_error=crash_on_error,
+                                   interface=self.interface)
 
         self.controller = controller
         return controller
