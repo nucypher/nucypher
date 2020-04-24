@@ -1,0 +1,57 @@
+repos:
+
+  - repo: local
+    hooks:
+
+      # Custom
+      - id: Validate CircleCI
+        name: Validate CircleCI Config
+        entry: ./scripts/hooks/validate_circleci_config.sh
+        language: script
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.5.0
+    hooks:
+
+      # Git
+      - id: no-commit-to-branch
+        args: ['--branch', 'master']
+      - id: forbid-new-submodules
+
+      # Files
+      - id: check-byte-order-marker
+      - id: check-executables-have-shebangs
+      - id: check-added-large-files
+      - id: check-symlinks
+
+      # Syntax
+      - id: check-yaml
+      - id: check-toml
+      - id: check-ast
+
+      # Code
+      - id: check-merge-conflict
+      - id: debug-statements
+      - id: detect-private-key
+
+      # Docs
+      - id: check-vcs-permalinks
+
+# TODO: Will be incrementally introduced
+#  - repo: https://github.com/PyCQA/bandit
+#    rev: '1.6.2'
+#    hooks:
+#      - id: bandit
+#        args: [--recursive, --ini, .bandit, aggregate, file]
+#        files: .py$
+#
+#  - repo: https://gitlab.com/pycqa/flake8
+#    rev: '3.7.9'
+#    hooks:
+#      - id: flake8
+
+#  - repo: https://github.com/psf/black
+#    rev: stable
+#    hooks:
+#      - id: black
+#        language_version: python3.6

@@ -1,0 +1,3 @@
+[bandit]
+exclude: tests, examples, demo, scripts, setup.py
+skips: B504,B610,B611,B703

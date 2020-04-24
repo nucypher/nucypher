@@ -1,0 +1,23 @@
+[flake8]
+# it's not a bug that we aren't using all of hacking, ignore:
+# F812: list comprehension redefines ...
+# H101: Use TODO(NAME)
+# H202: assertRaises Exception too broad
+# H233: Python 3.x incompatible use of print operator
+# H301: one import per line
+# H306: imports not in alphabetical order (time, os)
+# H401: docstring should not start with a space
+# H403: multi line docstrings should end on a new line
+# H404: multi line docstring should start without a leading new line
+# H405: multi line docstring summary not separated with an empty line
+# E - PEP8
+# W - Whitespace
+ignore = F812,H101,H202,H233,H301,H306,H401,H403,H404,H405,E,W,C
+select = F
+exclude =
+    .git,
+    __pycache__,
+    docs/source/conf.py,
+    old,
+    build,
+    dist
