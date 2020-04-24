@@ -6,7 +6,7 @@ import "zeppelin/utils/Address.sol";
 
 
 /**
-* @notice ERC897
+* @notice ERC897 - ERC DelegateProxy
 */
 interface ERCProxy {
     function proxyType() external pure returns (uint256);

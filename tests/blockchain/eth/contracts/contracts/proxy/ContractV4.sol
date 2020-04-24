@@ -91,7 +91,7 @@ contract ContractV4 is Upgradeable {
 
 
     function storageValue() public view returns (uint256 value) {
-        // storageValue in the slot number 3
+        // storageValue in the slot number 4
         return getValue(4);
     }
 

@@ -140,8 +140,6 @@ contract WorkLock is Ownable {
         token.safeTransferFrom(msg.sender, address(this), _value);
         tokenSupply += _value;
         emit Deposited(msg.sender, _value);
-        // total supply is already less than max uint128, see Issuer
-        // require(tokenSupply / minAllowableLockedTokens <= uint128(0) - 1, "Potential overflow for bidder index");
     }
 
     /**
