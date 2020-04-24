@@ -76,11 +76,13 @@ lock: clean
 
 env: lock
     # Relock dependencies and generate a pipenv virtualenv from the result
-	pipenv run pip install -e . -r dev-requirements.txt
-	pipenv run nucypher --version
+	pipenv run pip install -e .[dev]
+	pipenv shell
+	nucypher --version
 
 install: clean
     # Development installation
-	pipenv run pip install -e . -r dev-requirements.txt
+	pipenv run pip install -e .[dev]
 	# Show installed version and verify entry point
-	pipenv run nucypher --version
+	pipenv shell
+	nucypher --version

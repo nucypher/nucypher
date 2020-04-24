@@ -94,15 +94,39 @@ class PostDevelopCommand(develop):
 #  Dependencies
 #
 
-with open(os.path.join(BASE_DIR, "requirements.txt")) as f:
-    _PIP_FLAGS, *INSTALL_REQUIRES = f.read().split('\n')
+def read_requirements(path):
+    with open(os.path.join(BASE_DIR, path)) as f:
+        _PIPENV_FLAGS, *REQUIREMENTS = f.read().split('\n')
+    return REQUIREMENTS
+
+
+INSTALL_REQUIRES = read_requirements('requirements.txt')
+DOCS_REQUIRE = read_requirements('docs-requirements.txt')
+DEV_REQUIRES = read_requirements('dev-requirements.txt')
+
+BENCHMARK_REQUIRES = [
+    'pytest-benchmark'
+]
+
+DEPLOY_REQUIRES = [
+    'bumpversion',
+    'ansible'
+]
+
+EXTRAS = {
+    'docs': DOCS_REQUIRE,
+    'dev': DEV_REQUIRES + DOCS_REQUIRE,
+    'benchmark': DEV_REQUIRES + BENCHMARK_REQUIRES
+}
+
 
 setup(
 
     # Requirements
     python_requires='>=3',
-    setup_requires=['pytest-runner'],  # required for `setup.py test`
+    setup_requires=['pytest-runner'],
     install_requires=INSTALL_REQUIRES,
+    extras_require=EXTRAS,
 
     # Package Data
     packages=find_packages(exclude=["tests"]),
