@@ -33,8 +33,6 @@ class BaseEconomics:
     A representation of a contract deployment set's constructor parameters, and the calculations
     used to generate those values from high-level human-understandable parameters.
 
-    --------------------------
-
     Formula for staking in one period:
     (totalSupply - currentSupply) * (lockedValue / totalLockedValue) * (k1 + allLockedPeriods) / k2
 
@@ -250,7 +248,6 @@ class BaseEconomics:
 
 class StandardTokenEconomics(BaseEconomics):
     """
-    --------------------------
 
     Formula for staking in one period:
     (totalSupply - currentSupply) * (lockedValue / totalLockedValue) * (k1 + allLockedPeriods) / k2
@@ -265,8 +262,6 @@ class StandardTokenEconomics(BaseEconomics):
 
     kappa = small_stake_multiplier + (1 - small_stake_multiplier) * min(T, T1) / T1
     where allLockedPeriods == min(T, T1)
-
-    --------------------------
 
     Academic Reference:
 

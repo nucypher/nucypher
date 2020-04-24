@@ -613,8 +613,10 @@ class StakingEscrowAgent(EthereumContractAgent):
         at least `duration` periods; a staker is selected if an input point is within its stake.
         For example:
 
+        ```
         Stakes: |----- S0 ----|--------- S1 ---------|-- S2 --|---- S3 ---|-S4-|----- S5 -----|
         Points: ....R0.......................R1..................R2...............R3...........
+        ```
 
         In this case, Stakers 0, 1, 3 and 5 will be selected.
 

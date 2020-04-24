@@ -120,8 +120,7 @@ class EthereumClient:
     def from_w3(cls, w3: Web3) -> 'EthereumClient':
         """
 
-        Client version strings
-        ======================
+        Client version strings:
 
         Geth    -> 'Geth/v1.4.11-stable-fed692f6/darwin/go1.7'
         Parity  -> 'Parity-Ethereum/v2.5.1-beta-e0141f8-20190510/x86_64-linux-gnu/rustc1.34.1'

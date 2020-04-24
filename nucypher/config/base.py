@@ -17,40 +17,37 @@ class BaseConfiguration(ABC):
     and restoring a subclass instance from the written JSON file by passing the deserialized
     values to the subclass's constructor.
 
-    Implementation
-    ==============
+    Implementation:
 
-    `_NAME` and `def static_payload` are required for subclasses, for example:
+    `NAME` and `def static_payload` are required for subclasses, for example:
 
+    .. code::
 
-        ```
         class MyItem(BaseConfiguration):
             _NAME = 'my-item'
 
-        ```
-        AND
+    AND
 
-        ```
+    .. code::
+
         def static_payload(self) -> dict:
             payload = dict(**super().static_payload(), key=value)
             return payload
-        ```
 
-        OR
+    OR
 
-        ```
+    .. code::
+
         def static_payload(self) -> dict:
             subclass_payload = {'key': 'value'}
             payload = {**super().static_payload(), **subclass_payload}
             return payload
-        ```
 
     Filepath Generation
-    ===================
 
     Default behavior *avoids* overwriting an existing configuration file:
 
-    - The name of the JSON file to write/read from is determined by `_NAME`.
+    - The name of the JSON file to write/read from is determined by `NAME`.
       When calling `to_configuration_file`.
 
     - If the default path (i.e. `my-item.json`) already  exists and, optionally,
@@ -61,12 +58,11 @@ class BaseConfiguration(ABC):
     If the subclass implementation has a global unique identifier, an additional method override
     to `to_configuration_file` will automate the renaming process.
 
-        ```
+    .. code::
+
         def to_configuration_file(*args, **kwargs) -> str:
             filepath = super().to_configuration_file(modifier=<MODIFIER>, *args, **kwargs)
             return filepath
-        ```
-
     """
 
     _NAME = NotImplemented
