@@ -20,6 +20,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import os
+import subprocess
 
 import sys
 from setuptools import setup, find_packages
@@ -86,13 +87,13 @@ class PostDevelopCommand(develop):
     """
     def run(self):
         develop.run(self)
-        print("Downloading solidity compiler binary")
         download_solc_binary()
-
+        subprocess.call(".circleci/install_circle_cli.sh")
 
 #
 #  Dependencies
 #
+
 
 def read_requirements(path):
     with open(os.path.join(BASE_DIR, path)) as f:
