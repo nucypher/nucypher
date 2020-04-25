@@ -683,8 +683,7 @@ jobs:
       - prepare_environment
       - run:
           name: Estimate Gas
-          command: |
-            python tests/metrics/estimate_gas.py
+          command: python tests/metrics/estimate_gas.py
       - store_artifacts:
           path: tests/metrics/results/
 
@@ -694,7 +693,7 @@ jobs:
       - prepare_environment
       - run:
           name: Install Documentation Build Dependencies
-          command: pip3 install -r docs/requirements.txt
+          command: pip3 install -r docs-requirements.txt
       - run:
           name: Build Sphinx Documentation
           command: make docs
@@ -711,9 +710,7 @@ jobs:
           command: pip install --user twine
       - run:
           name: Build Python Distribution Wheel
-          command: |
-            python setup.py sdist
-            python setup.py bdist_wheel
+          command: make dist
 
   build_docker:
     working_directory: ~/nucypher
@@ -771,9 +768,7 @@ jobs:
             echo -e "password: $TEST_PYPI_PASSWORD" >> ~/.pypirc
       - run:
           name: Build Python Wheel (Test Deploy)
-          command: |
-            python3 setup.py sdist
-            python3 setup.py bdist_wheel
+          command: make dist
       - run:
           name: upload to TestPyPI
           command: python3 -m twine upload --repository testpypi dist/* --verbose
