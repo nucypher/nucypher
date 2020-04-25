@@ -91,7 +91,7 @@ class PostDevelopCommand(develop):
         subprocess.call(".circleci/install_circle_cli.sh")
 
 #
-#  Dependencies
+#  Requirements
 #
 
 
@@ -111,7 +111,8 @@ BENCHMARK_REQUIRES = [
 
 DEPLOY_REQUIRES = [
     'bumpversion',
-    'ansible'
+    'ansible',
+    'twine'
 ]
 
 EXTRAS = {
@@ -136,13 +137,15 @@ setup(
 
     # Entry Points
     entry_points={'console_scripts': [
-      f'{PACKAGE_NAME} = {PACKAGE_NAME}.cli.main:nucypher_cli',
-      f'{PACKAGE_NAME}-deploy = {PACKAGE_NAME}.cli.commands.deploy:deploy',
+      'nucypher = nucypher.cli.main:nucypher_cli',
+      'nucypher-deploy = nucypher.cli.commands.deploy:deploy',
     ]},
 
     # Utilities
-    cmdclass={'verify': VerifyVersionCommand,
-              'develop': PostDevelopCommand},
+    cmdclass={
+        'verify': VerifyVersionCommand,
+        'develop': PostDevelopCommand
+    },
 
     # Metadata
     name=ABOUT['__title__'],
