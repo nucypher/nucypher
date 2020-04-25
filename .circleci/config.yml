@@ -393,12 +393,8 @@ commands:
     description: "Install NuCypher with Pip"
     steps:
       - run:
-          name: Install Python Dependencies with Pip
-          command: pip3 install --user -e . -r requirements.txt
-      - check_nucypher_entrypoints   # Ensure Standard Installation Entry-points Work
-      - run:
           name: Install Python Development Dependencies with Pip
-          command: pip3 install --user -e . -r dev-requirements.txt
+          command: pip3 install --user -e .[dev]
       - run:
           name: Install Solidity Compiler
           command: python3 ./scripts/installation/install_solc.py
@@ -693,7 +689,7 @@ jobs:
       - prepare_environment
       - run:
           name: Install Documentation Build Dependencies
-          command: pip3 install -r docs-requirements.txt
+          command: pip3 install --user .[docs]
       - run:
           name: Build Sphinx Documentation
           command: make docs
@@ -703,13 +699,12 @@ jobs:
   test_build:
     <<: *python_37_base
     steps:
-      - checkout
-      - pip_install
+      - prepare_environment
       - run:
-          name: Install Twine
-          command: pip install --user twine
+          name: Install Dependencies with deployment extra
+          command: pip3 install --user .[deploy]
       - run:
-          name: Build Python Distribution Wheel
+          name: Build Python Distribution
           command: make dist
 
   build_docker:
@@ -747,10 +742,9 @@ jobs:
     <<: *python_37_base
     steps:
       - checkout
-      - pip_install
       - run:
           name: Install Twine
-          command: pip3 install --user twine
+          command: pip3 install --user -e .[deploy]
       - run:
           name: Verify git tag == __version__ (Test Deploy)
           command: python setup.py verify
