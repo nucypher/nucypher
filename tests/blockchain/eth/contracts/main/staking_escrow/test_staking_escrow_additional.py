@@ -15,14 +15,17 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from bisect import bisect
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import keccak
+from eth_utils import to_canonical_address
+from web3 import Web3
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.token import NU
+from tests.utils.solidity import to_bytes32, get_mapping_entry_location, get_array_data_location
 
 LOCK_RE_STAKE_UNTIL_PERIOD_FIELD = 4
 
@@ -1085,3 +1088,312 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     tx = escrow.functions.setWindDown(False).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     check_last_period()
+
+
+@pytest.mark.slow
+def test_snapshots(testerchain, token, escrow_contract):
+
+    # HELPER FUNCTIONS #
+
+    class TestSnapshot:
+        """Mimics how our Snapshots library work in a contract"""
+        def __init__(self):
+            self.history = {0: 0}
+            self.timestamps = [0]
+
+        def add_value_at(self, time, value):
+            if self.timestamps[-1] == time:
+                self.history[time] = value
+                return
+            elif time < self.timestamps[-1]:
+                assert False
+            self.timestamps.append(time)
+            self.history[time] = value
+
+        def add_value(self, value):
+            self.add_value_at(testerchain.get_block_number(), value)
+
+        def last_value(self):
+            return self.history[self.timestamps[-1]]
+
+        def get_value_at(self, time):
+            if time > self.timestamps[-1]:
+                return self.last_value()
+            else:
+                return self.history[self.timestamps[bisect(self.timestamps, time) - 1]]
+
+        @classmethod
+        def from_list(cls, snapshots):
+            s = cls()
+            for t, v in snapshots:
+                s.timestamps.append(t)
+                s.history[t] = v
+            return s
+
+        def __str__(self):
+            return str(self.history)
+
+        def __eq__(self, other):
+            return self.history == other.history and self.timestamps == other.timestamps
+
+    def staker_has_snapshots_enabled(staker) -> bool:
+        _, _, _, snapshots_enabled = escrow.functions.getFlags(staker).call()
+        return snapshots_enabled
+
+    def decode_snapshots_from_slot(slot):
+        slot = to_bytes32(slot)
+        snapshot_2 = Web3.toInt(slot[:4]), Web3.toInt(slot[4:16])
+        snapshot_1 = Web3.toInt(slot[16:20]), Web3.toInt(slot[20:32])
+        return snapshot_1, snapshot_2
+
+    def get_staker_history_from_storage(staker):
+        STAKERS_MAPPING_SLOT = 6
+        HISTORY_SLOT_IN_STAKER_INFO = 12
+
+        # See https://solidity.readthedocs.io/en/latest/internals/layout_in_storage.html#mappings-and-dynamic-arrays
+        staker_location = get_mapping_entry_location(key=to_bytes32(hexstr=staker),
+                                                     mapping_location=STAKERS_MAPPING_SLOT)
+        length_position = staker_location + HISTORY_SLOT_IN_STAKER_INFO
+
+        data_position = get_array_data_location(length_position)
+
+        length = testerchain.read_storage_slot(escrow.address, length_position)
+        length_in_slots = (length + 1)//2
+        slots = [testerchain.read_storage_slot(escrow.address, data_position + i) for i in range(length_in_slots)]
+        snapshots = list()
+        for snapshot_1, snapshot_2 in map(decode_snapshots_from_slot, slots):
+            snapshots.append(snapshot_1)
+            if snapshot_2 != (0, 0):
+                snapshots.append(snapshot_2)
+        return TestSnapshot.from_list(snapshots)
+
+    def get_global_history_from_storage():
+        GLOBAL_HISTORY_SLOT_IN_CONTRACT = 10
+        # See https://solidity.readthedocs.io/en/latest/internals/layout_in_storage.html#mappings-and-dynamic-arrays
+        length = testerchain.read_storage_slot(escrow.address, GLOBAL_HISTORY_SLOT_IN_CONTRACT)
+
+        snapshots = list()
+        for i in range(length):
+            snapshot_bytes = Web3.toBytes(escrow.functions.balanceHistory(i).call()).rjust(16, b'\0')
+            snapshots.append((Web3.toInt(snapshot_bytes[:4]), Web3.toInt(snapshot_bytes[4:16])))
+        return TestSnapshot.from_list(snapshots)
+
+    #
+    # TEST STARTS HERE #
+    #
+
+    escrow = escrow_contract(10000)
+    creator = testerchain.client.accounts[0]
+    staker1 = testerchain.client.accounts[1]
+    staker2 = testerchain.client.accounts[2]
+
+    snapshot_log = escrow.events.SnapshotSet.createFilter(fromBlock='latest')
+
+    # Give Escrow tokens for reward and initialize contract
+    reward = 10 ** 9
+    tx = token.functions.approve(escrow.address, reward).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.initialize(reward).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    expected_staker1_balance = TestSnapshot()
+    expected_staker2_balance = TestSnapshot()
+    expected_global_balance = TestSnapshot()
+    assert expected_staker1_balance == get_staker_history_from_storage(staker1)
+    assert expected_staker2_balance == get_staker_history_from_storage(staker2)
+    assert expected_global_balance == get_global_history_from_storage()
+
+    # Set snapshot parameter even before initialization. Disabling snapshots always creates a new snapshot with value 0
+    assert staker_has_snapshots_enabled(staker1)
+    tx = escrow.functions.setSnapshots(False).transact({'from': staker1})
+    testerchain.wait_for_receipt(tx)
+    assert not staker_has_snapshots_enabled(staker1)
+    expected_staker1_balance.add_value(0)
+    expected_global_balance.add_value(0)
+    assert expected_staker1_balance == get_staker_history_from_storage(staker1)
+    assert expected_global_balance == get_global_history_from_storage()
+
+    # Activating the snapshots again will create a new snapshot with current balance, which is 0
+    tx = escrow.functions.setSnapshots(True).transact({'from': staker1})
+    testerchain.wait_for_receipt(tx)
+    assert staker_has_snapshots_enabled(staker1)
+    expected_staker1_balance.add_value(0)
+    expected_global_balance.add_value(0)
+    assert expected_staker1_balance == get_staker_history_from_storage(staker1)
+    assert expected_global_balance == get_global_history_from_storage()
+
+    # Check emitted events
+    events = snapshot_log.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[0]['args']
+    assert staker1 == event_args['staker']
+    assert not event_args['snapshotsEnabled']
+    event_args = events[1]['args']
+    assert staker1 == event_args['staker']
+    assert event_args['snapshotsEnabled']
+
+    # Staker disables restaking, deposits some tokens and confirms activity
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
+    assert re_stake
+    tx = escrow.functions.setReStake(False).transact({'from': staker1})
+    testerchain.wait_for_receipt(tx)
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
+    assert not re_stake
+
+    tx = token.functions.transfer(staker1, 10000).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = token.functions.approve(escrow.address, 10000).transact({'from': staker1})
+    testerchain.wait_for_receipt(tx)
+    initial_deposit = 100
+    tx = escrow.functions.deposit(initial_deposit, 10).transact({'from': staker1})
+    testerchain.wait_for_receipt(tx)
+
+    expected_staker1_balance.add_value(initial_deposit)
+    expected_global_balance.add_value(initial_deposit)
+    assert expected_staker1_balance == get_staker_history_from_storage(staker1)
+    assert expected_global_balance == get_global_history_from_storage()
+
+    now = testerchain.get_block_number()
+    assert escrow.functions.totalStakedForAt(staker1, now).call() == expected_staker1_balance.get_value_at(now)
+    assert escrow.functions.totalStakedAt(now).call() == expected_global_balance.get_value_at(now)
+
+    # Set worker doesn't affect snapshots
+    tx = escrow.functions.setWorker(staker1).transact({'from': staker1})
+    testerchain.wait_for_receipt(tx)
+    assert expected_staker1_balance == get_staker_history_from_storage(staker1)
+    assert expected_global_balance == get_global_history_from_storage()
+
+    # Now that we do have a positive balance, let's deactivate snapshots and check them
+    tx = escrow.functions.setSnapshots(False).transact({'from': staker1})
+    testerchain.wait_for_receipt(tx)
+    assert not staker_has_snapshots_enabled(staker1)
+    expected_staker1_balance.add_value(0)
+    expected_global_balance.add_value(0)
+    assert expected_staker1_balance == get_staker_history_from_storage(staker1)
+    assert expected_global_balance == get_global_history_from_storage()
+
+    assert initial_deposit == escrow.functions.getAllTokens(staker1).call()
+    now = testerchain.get_block_number()
+    assert 0 == escrow.functions.totalStakedForAt(staker1, now).call()
+    assert 0 == escrow.functions.totalStakedAt(now).call()
+    assert initial_deposit == escrow.functions.totalStakedForAt(staker1, now - 1).call()
+    assert initial_deposit == escrow.functions.totalStakedAt(now - 1).call()
+
+    # Activating the snapshots again will create a new snapshot with current balance (100)
+    tx = escrow.functions.setSnapshots(True).transact({'from': staker1})
+    testerchain.wait_for_receipt(tx)
+    assert staker_has_snapshots_enabled(staker1)
+    expected_staker1_balance.add_value(initial_deposit)
+    expected_global_balance.add_value(initial_deposit)
+    assert expected_staker1_balance == get_staker_history_from_storage(staker1)
+    assert expected_global_balance == get_global_history_from_storage()
+
+    now = testerchain.get_block_number()
+    assert initial_deposit == escrow.functions.totalStakedForAt(staker1, now).call()
+    assert initial_deposit == escrow.functions.totalStakedAt(now).call()
+    assert 0 == escrow.functions.totalStakedForAt(staker1, now - 1).call()
+    assert 0 == escrow.functions.totalStakedAt(now - 1).call()
+
+    # First confirm activity doesn't affect balance
+    tx = escrow.functions.confirmActivity().transact({'from': staker1})
+    testerchain.wait_for_receipt(tx)
+    assert expected_staker1_balance == get_staker_history_from_storage(staker1)
+    assert expected_global_balance == get_global_history_from_storage()
+
+    testerchain.time_travel(hours=1)
+    assert now < testerchain.get_block_number()
+    now = testerchain.get_block_number()
+    assert initial_deposit == escrow.functions.totalStakedForAt(staker1, now).call()
+    assert initial_deposit == escrow.functions.totalStakedAt(now).call()
+    assert initial_deposit == escrow.functions.getAllTokens(staker1).call()
+    assert expected_staker1_balance == get_staker_history_from_storage(staker1)
+    assert expected_global_balance == get_global_history_from_storage()
+
+    # 2nd confirm activity, still no change in balance
+    tx = escrow.functions.confirmActivity().transact({'from': staker1})
+    testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=1)
+    assert now < testerchain.get_block_number()
+    now = testerchain.get_block_number()
+    assert initial_deposit == escrow.functions.totalStakedForAt(staker1, now).call()
+    assert initial_deposit == escrow.functions.totalStakedAt(now).call()
+    assert initial_deposit == escrow.functions.getAllTokens(staker1).call()
+    assert expected_staker1_balance == get_staker_history_from_storage(staker1)
+    assert expected_global_balance == get_global_history_from_storage()
+
+    # Minting tokens should increase balance
+    tx = escrow.functions.mint().transact({'from': staker1})
+    testerchain.wait_for_receipt(tx)
+
+    balance_staker1 = escrow.functions.getAllTokens(staker1).call()
+    assert balance_staker1 > initial_deposit
+    expected_staker1_balance.add_value(balance_staker1)
+    expected_global_balance.add_value(balance_staker1)
+
+    now = testerchain.get_block_number()
+    assert balance_staker1 == escrow.functions.getAllTokens(staker1).call()
+    assert balance_staker1 == escrow.functions.totalStakedForAt(staker1, now).call()
+    assert balance_staker1 == escrow.functions.totalStakedAt(now).call()
+    assert expected_staker1_balance == get_staker_history_from_storage(staker1)
+    assert expected_global_balance == get_global_history_from_storage()
+
+    # A SECOND STAKER APPEARS:
+
+    # Disable snapshots even before initialization. This creates a new snapshot with value 0
+    assert staker_has_snapshots_enabled(staker2)
+    tx = escrow.functions.setSnapshots(False).transact({'from': staker2})
+    testerchain.wait_for_receipt(tx)
+    assert not staker_has_snapshots_enabled(staker2)
+    expected_staker2_balance.add_value(0)
+    expected_global_balance.add_value(balance_staker1)
+    assert expected_staker2_balance == get_staker_history_from_storage(staker2)
+    assert expected_global_balance == get_global_history_from_storage()
+
+    # Staker 2 deposits some tokens and confirms activity. Since snapshots are disabled, no changes in history
+    tx = token.functions.transfer(staker2, 10000).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = token.functions.approve(escrow.address, 10000).transact({'from': staker2})
+    testerchain.wait_for_receipt(tx)
+    deposit_staker2 = 100
+    tx = escrow.functions.deposit(deposit_staker2, 10).transact({'from': staker2})
+    testerchain.wait_for_receipt(tx)
+
+    assert deposit_staker2 == escrow.functions.getAllTokens(staker2).call()
+    assert expected_staker2_balance == get_staker_history_from_storage(staker2)
+    assert expected_global_balance == get_global_history_from_storage()
+
+    tx = escrow.functions.setWorker(staker2).transact({'from': staker2})
+    testerchain.wait_for_receipt(tx)
+
+    # Now that we do have a positive balance, let's activate snapshots and check them
+    tx = escrow.functions.setSnapshots(True).transact({'from': staker2})
+    testerchain.wait_for_receipt(tx)
+    assert staker_has_snapshots_enabled(staker2)
+    expected_staker2_balance.add_value(deposit_staker2)
+    expected_global_balance.add_value(balance_staker1 + deposit_staker2)
+    assert expected_staker2_balance == get_staker_history_from_storage(staker2)
+    assert expected_global_balance == get_global_history_from_storage()
+
+    now = testerchain.get_block_number()
+    assert deposit_staker2 == escrow.functions.totalStakedForAt(staker2, now).call()
+    assert deposit_staker2 + balance_staker1 == escrow.functions.totalStakedAt(now).call()
+    assert 0 == escrow.functions.totalStakedForAt(staker2, now - 1).call()
+    assert balance_staker1 == escrow.functions.totalStakedAt(now - 1).call()
+
+    # Finally, the first staker withdraws some tokens
+    withdrawal = 42
+    tx = escrow.functions.withdraw(withdrawal).transact({'from': staker1})
+    testerchain.wait_for_receipt(tx)
+    last_balance_staker1 = balance_staker1 - withdrawal
+    assert last_balance_staker1 == escrow.functions.getAllTokens(staker1).call()
+
+    expected_staker1_balance.add_value(last_balance_staker1)
+    expected_global_balance.add_value(last_balance_staker1 + deposit_staker2)
+    assert expected_staker1_balance == get_staker_history_from_storage(staker1)
+    assert expected_global_balance == get_global_history_from_storage()
+
+    now = testerchain.get_block_number()
+    assert last_balance_staker1 == escrow.functions.totalStakedForAt(staker1, now).call()
+    assert last_balance_staker1 + deposit_staker2 == escrow.functions.totalStakedAt(now).call()
+    assert balance_staker1 == escrow.functions.totalStakedForAt(staker1, now - 1).call()
+    assert balance_staker1 + deposit_staker2 == escrow.functions.totalStakedAt(now - 1).call()
