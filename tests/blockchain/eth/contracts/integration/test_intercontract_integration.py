@@ -29,6 +29,7 @@ from nucypher.blockchain.economics import BaseEconomics
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.crypto.api import sha256_digest
 from nucypher.crypto.signing import SignatureStamp
+from tests.utils.solidity import to_32byte_hex
 
 DISABLED_FIELD = 0
 
@@ -228,9 +229,6 @@ def multisig(testerchain, escrow, policy_manager, adjudicator, staking_interface
 
 def execute_multisig_transaction(testerchain, multisig, accounts, tx):
 
-    def to_32byte_hex(w3, value):
-        return w3.toHex(w3.toBytes(value).rjust(32, b'\0'))
-
     def sign_hash(testerchain, account: str, data_hash: bytes) -> dict:
         provider = testerchain.provider
         address = to_canonical_address(account)
@@ -244,8 +242,8 @@ def execute_multisig_transaction(testerchain, multisig, accounts, tx):
     w3 = testerchain.w3
     tx = multisig.functions.execute(
         [signature.v for signature in signatures],
-        [to_32byte_hex(w3, signature.r) for signature in signatures],
-        [to_32byte_hex(w3, signature.s) for signature in signatures],
+        [to_32byte_hex(signature.r) for signature in signatures],
+        [to_32byte_hex(signature.s) for signature in signatures],
         tx['to'],
         0,
         tx['data']
