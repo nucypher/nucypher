@@ -44,6 +44,8 @@ def test_dispatcher(testerchain, deploy_contract):
     contract2_bad_storage_lib, _ = deploy_contract('ContractV2BadStorage')
     dispatcher, _ = deploy_contract('Dispatcher', contract1_lib.address)
     assert contract1_lib.address == dispatcher.functions.target().call()
+    assert dispatcher.functions.implementation().call() == contract1_lib.address
+    assert dispatcher.functions.proxyType().call() == 2
 
     upgrades = dispatcher.events.Upgraded.createFilter(fromBlock=0)
     state_verifications = dispatcher.events.StateVerified.createFilter(fromBlock=0)

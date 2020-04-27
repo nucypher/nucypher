@@ -14,7 +14,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 /**
 * @notice Contract holds policy data and locks fees
-* @dev |v3.1.1|
+* @dev |v4.1.1|
 */
 contract PolicyManager is Upgradeable {
     using SafeERC20 for NuCypherToken;
@@ -61,13 +61,13 @@ contract PolicyManager is Upgradeable {
     }
 
     struct Policy {
+        bool disabled;
         address payable sponsor;
         address owner;
 
-        uint256 rewardRate;
+        uint128 rewardRate;
         uint64 startTimestamp;
         uint64 endTimestamp;
-        bool disabled;
 
         uint256 reservedSlot1;
         uint256 reservedSlot2;
@@ -79,21 +79,22 @@ contract PolicyManager is Upgradeable {
     }
 
     struct NodeInfo {
-        uint256 reward;
-        uint256 rewardRate;
+        uint128 reward;
         uint16 lastMinedPeriod;
-        mapping (uint16 => int256) rewardDelta;
+        uint256 rewardRate;
         uint256 minRewardRate;
+        mapping (uint16 => int256) rewardDelta;
     }
 
     struct Range {
-        uint256 min;
-        uint256 defaultValue;
-        uint256 max;
+        uint128 min;
+        uint128 defaultValue;
+        uint128 max;
     }
 
-    bytes16 constant RESERVED_POLICY_ID = bytes16(0);
-    address constant RESERVED_NODE = address(0);
+    bytes16 internal constant RESERVED_POLICY_ID = bytes16(0);
+    address internal constant RESERVED_NODE = address(0);
+    uint256 internal constant MAX_BALANCE = uint256(uint128(0) - 1);
     // controlled overflow to get max int256
     int256 public constant DEFAULT_REWARD_DELTA = int256((uint256(0) - 1) >> 1);
 
@@ -148,7 +149,7 @@ contract PolicyManager is Upgradeable {
     */
     // TODO # 1501
     // function setMinRewardRateRange(Range calldata _range) external onlyOwner {
-    function setMinRewardRateRange(uint256 _min, uint256 _default, uint256 _max) external onlyOwner {
+    function setMinRewardRateRange(uint128 _min, uint128 _default, uint128 _max) external onlyOwner {
         require(_min <= _default && _default <= _max);
         minRewardRateRange = Range(_min, _default, _max);
         emit MinRewardRateRangeSet(msg.sender, _min, _default, _max);
@@ -212,9 +213,11 @@ contract PolicyManager is Upgradeable {
         require(
             _policyId != RESERVED_POLICY_ID &&
             policy.rewardRate == 0 &&
+            !policy.disabled &&
             _endTimestamp > block.timestamp &&
             msg.value > 0
         );
+        require(address(this).balance <= MAX_BALANCE);
         uint16 currentPeriod = getCurrentPeriod();
         uint16 endPeriod = uint16(_endTimestamp / secondsPerPeriod) + 1;
         uint256 numberOfPeriods = endPeriod - currentPeriod;
@@ -222,7 +225,7 @@ contract PolicyManager is Upgradeable {
         policy.sponsor = msg.sender;
         policy.startTimestamp = uint64(block.timestamp);
         policy.endTimestamp = _endTimestamp;
-        policy.rewardRate = msg.value.div(_nodes.length) / numberOfPeriods;
+        policy.rewardRate = uint128(msg.value.div(_nodes.length) / numberOfPeriods);
         require(policy.rewardRate > 0 && policy.rewardRate * numberOfPeriods * _nodes.length  == msg.value);
         if (_policyOwner != msg.sender && _policyOwner != address(0)) {
             policy.owner = _policyOwner;
@@ -320,7 +323,7 @@ contract PolicyManager is Upgradeable {
             }
         }
         node.lastMinedPeriod = _period;
-        node.reward += node.rewardRate;
+        node.reward += uint128(node.rewardRate);
     }
 
     /**
@@ -463,9 +466,11 @@ contract PolicyManager is Upgradeable {
             if (numberOfActive == 0) {
                 policy.disabled = true;
                 // gas refund
-                // deletion more slots will increase gas usage instead of decreasing (in current code)
-                // because gas refund can be no more than half of all gas
                 policy.sponsor = address(0);
+                policy.owner = address(0);
+                policy.rewardRate = 0;
+                policy.startTimestamp = 0;
+                policy.endTimestamp = 0;
                 emit PolicyRevoked(_policyId, msg.sender, refundValue);
             } else {
                 emit RefundForPolicy(_policyId, msg.sender, refundValue);

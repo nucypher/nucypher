@@ -6,10 +6,19 @@ import "zeppelin/utils/Address.sol";
 
 
 /**
+* @notice ERC897 - ERC DelegateProxy
+*/
+interface ERCProxy {
+    function proxyType() external pure returns (uint256);
+    function implementation() external view returns (address);
+}
+
+
+/**
 * @notice Proxying requests to other contracts.
 * Client should use ABI of real contract and address of this contract
 */
-contract Dispatcher is Upgradeable {
+contract Dispatcher is Upgradeable, ERCProxy {
     using Address for address;
 
     event Upgraded(address indexed from, address indexed to, address owner);
@@ -38,6 +47,22 @@ contract Dispatcher is Upgradeable {
         finishUpgrade();
         emit Upgraded(address(0), _target, msg.sender);
     }
+
+    //------------------------ERC897------------------------
+    /**
+     * @notice ERC897, whether it is a forwarding (1) or an upgradeable (2) proxy
+     */
+    function proxyType() external pure override returns (uint256) {
+        return 2;
+    }
+
+    /**
+     * @notice ERC897, gets the address of the implementation where every call will be delegated
+     */
+    function implementation() external view override returns (address) {
+        return target;
+    }
+    //------------------------------------------------------------
 
     /**
     * @notice Verify new contract storage and upgrade target

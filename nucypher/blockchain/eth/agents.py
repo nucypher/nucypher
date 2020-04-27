@@ -480,9 +480,13 @@ class StakingEscrowAgent(EthereumContractAgent):
         return receipt
 
     @validate_checksum_address
+    def get_flags(self, staker_address: str) -> Tuple[bool, bool, bool]:
+        wind_down_flag, restake_flag, measure_work_flag = self.contract.functions.getFlags(staker_address).call()
+        return wind_down_flag, restake_flag, measure_work_flag
+
+    @validate_checksum_address
     def is_restaking(self, staker_address: str) -> bool:
-        staker_info = self.get_staker_info(staker_address)
-        restake_flag = not bool(staker_info[3])  # TODO: #1348 Use constant or enum
+        _winddown_flag, restake_flag, _measure_work_flag = self.get_flags(staker_address)
         return restake_flag
 
     @validate_checksum_address
@@ -517,8 +521,7 @@ class StakingEscrowAgent(EthereumContractAgent):
 
     @validate_checksum_address
     def is_winding_down(self, staker_address: str) -> bool:
-        staker_info = self.get_staker_info(staker_address)
-        winddown_flag = bool(staker_info[10])  # TODO: #1348 Use constant or enum
+        winddown_flag, _restake_flag, _measure_work_flag = self.get_flags(staker_address)
         return winddown_flag
 
     @validate_checksum_address

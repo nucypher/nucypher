@@ -226,7 +226,7 @@ def test_upgrading(testerchain, token, deploy_contract):
         contract_name='IssuerMock',
         _token=token.address,
         _hoursPerPeriod=1,
-        _miningCoefficient=1,
+        _miningCoefficient=2,
         _lockedPeriodsCoefficient=1,
         _rewardedPeriods=1
     )
@@ -237,7 +237,7 @@ def test_upgrading(testerchain, token, deploy_contract):
         contract_name='IssuerV2Mock',
         _token=token.address,
         _hoursPerPeriod=2,
-        _miningCoefficient=2,
+        _miningCoefficient=4,
         _lockedPeriodsCoefficient=2,
         _rewardedPeriods=2
     )
@@ -262,11 +262,11 @@ def test_upgrading(testerchain, token, deploy_contract):
 
     # Upgrade to the second version, check new and old values of variables
     period = contract.functions.currentMintingPeriod().call()
-    assert 1 == contract.functions.miningCoefficient().call()
+    assert 2 == contract.functions.miningCoefficient().call()
     tx = dispatcher.functions.upgrade(contract_library_v2.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert contract_library_v2.address == dispatcher.functions.target().call()
-    assert 2 == contract.functions.miningCoefficient().call()
+    assert 4 == contract.functions.miningCoefficient().call()
     assert 2 * 3600 == contract.functions.secondsPerPeriod().call()
     assert 2 == contract.functions.lockedPeriodsCoefficient().call()
     assert 2 == contract.functions.rewardedPeriods().call()
@@ -282,7 +282,7 @@ def test_upgrading(testerchain, token, deploy_contract):
         contract_name='IssuerBad',
         _token=token.address,
         _hoursPerPeriod=2,
-        _miningCoefficient=2,
+        _miningCoefficient=4,
         _lockedPeriodsCoefficient=2,
         _rewardedPeriods=2
     )
@@ -298,7 +298,7 @@ def test_upgrading(testerchain, token, deploy_contract):
     testerchain.wait_for_receipt(tx)
     # Check old values
     assert contract_library_v1.address == dispatcher.functions.target().call()
-    assert 1 == contract.functions.miningCoefficient().call()
+    assert 2 == contract.functions.miningCoefficient().call()
     assert 3600 == contract.functions.secondsPerPeriod().call()
     assert 1 == contract.functions.lockedPeriodsCoefficient().call()
     assert 1 == contract.functions.rewardedPeriods().call()

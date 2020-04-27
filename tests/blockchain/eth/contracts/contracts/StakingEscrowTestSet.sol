@@ -38,7 +38,7 @@ contract StakingEscrowBad is StakingEscrow {
     {
     }
 
-    function getSubStakeInfo(address, uint256) public view override returns (uint16, uint16, uint16, uint256) {}
+    function getSubStakeInfo(address, uint256) public view override returns (uint16, uint16, uint16, uint128) {}
 
 }
 

@@ -16,7 +16,7 @@ contract StakingEscrowForWorkLockMock {
         uint16 periods;
     }
 
-    NuCypherToken immutable token;
+    NuCypherToken public immutable token;
     uint32 public immutable secondsPerPeriod = 1;
     uint256 public immutable minAllowableLockedTokens;
     uint256 public immutable maxAllowableLockedTokens;
