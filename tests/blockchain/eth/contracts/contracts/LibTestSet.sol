@@ -283,12 +283,18 @@ contract ReEncryptionValidatorMock {
 */
 contract SnapshotMock {
 
+    // Helpers
     uint128[] public history;
+
     function length() public view returns(uint256){
         return history.length;
     }
 
+    function deleteHistory() public {
+        delete history;
+    }
 
+    // Mock functions
     function encodeSnapshot(uint32 _time, uint96 _value) public pure returns(uint128) {
         return Snapshot.encodeSnapshot(_time, _value);
     }

@@ -15,6 +15,8 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import itertools
+
 import pytest
 from web3 import Web3
 
@@ -25,10 +27,20 @@ def snapshot(testerchain, deploy_contract):
     return contract
 
 
-@pytest.mark.slow
-def test_snapshot(testerchain, snapshot):
+timestamps = (0x00000001,
+              0x00001000,
+              0xff000000,
+              0xffff0001)
 
-    assert snapshot.functions.length().call() == 0
+values = (0x000000000000000000000000,
+          0x000000000001000000000001,
+          0xff0000000000000000000000,
+          0xffff00000000000000000001)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize('block_number, value', itertools.product(timestamps, values))
+def test_snapshot(testerchain, snapshot, block_number, value):
 
     # Testing basic encoding and decoding of snapshots
     def encode(_time, _value):
@@ -36,10 +48,6 @@ def test_snapshot(testerchain, snapshot):
 
     def decode(_snapshot):
         return snapshot.functions.decodeSnapshot(_snapshot).call()
-
-    # TODO: Parametrize this test with different types of inputs
-    block_number = 42
-    value = int(3.99e27) + 1234123412341234
 
     encoded_snapshot = encode(block_number, value)
     assert decode(encoded_snapshot) == [block_number, value]
@@ -49,7 +57,7 @@ def test_snapshot(testerchain, snapshot):
     # Testing adding new snapshots
     account = testerchain.etherbase_account
 
-    data = [(block_number + i*10, value - i) for i in range(10)]
+    data = [(block_number + i*10, value + i) for i in range(10)]
     for i, (block_i, value_i) in enumerate(data):
         tx = snapshot.functions.addSnapshot(block_i, value_i).transact({'from': account})
         receipt = testerchain.wait_for_receipt(tx)
@@ -74,4 +82,6 @@ def test_snapshot(testerchain, snapshot):
     last_block, last_value = snapshot.functions.lastSnapshot().call()
     assert snapshot.functions.getValueAt(last_block + 100).call() == last_value
 
-
+    # Clear history for next test
+    tx = snapshot.functions.deleteHistory().transact({'from': account})
+    testerchain.wait_for_receipt(tx)
