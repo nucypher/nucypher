@@ -27,7 +27,7 @@ eth-hash[pycryptodome]==0.2.0
 eth-keyfile==0.5.1
 eth-keys==0.3.3
 eth-rlp==0.1.2
-eth-tester==0.4.0b2
+eth-tester>=0.1.0b39
 eth-typing==2.2.1
 eth-utils==1.9.0
 flask-sqlalchemy==2.4.1
