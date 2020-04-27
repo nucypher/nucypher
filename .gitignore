@@ -46,4 +46,4 @@ finnegans-wake.txt
 # Sphinx
 docs/build
 docs/source/modules.rst
-docs/source/api/nucypher.*
+docs/source/api/

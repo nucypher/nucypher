@@ -158,10 +158,8 @@ Whitepapers
    :caption: API
 
    api/modules
-   api/nucypher
    api/nucypher.blockchain
    api/nucypher.characters
-   api/nucypher.cli
    api/nucypher.config
    api/nucypher.crypto
    api/nucypher.datastore
