@@ -26,7 +26,7 @@ library Snapshot {
     function addSnapshot(uint128[] storage _self, uint256 _time, uint256 _value) internal {
         uint256 length = _self.length;
         if (length != 0) {
-            (uint32 currentTime, uint96 currentValue) = decodeSnapshot(_self[length - 1]);
+            (uint32 currentTime, ) = decodeSnapshot(_self[length - 1]);
             if (uint32(_time) == currentTime) {
                 _self[length - 1] = encodeSnapshot(uint32(_time), uint96(_value));
                 return;
