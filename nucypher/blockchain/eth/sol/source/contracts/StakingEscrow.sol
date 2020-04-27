@@ -1362,15 +1362,15 @@ contract StakingEscrow is Issuer, IERC900History {
 
     //------------------ ERC900 connectors ----------------------
 
-    function totalStakedForAt(address _owner, uint256 _blockNumber) external view override returns (uint256){
+    function totalStakedForAt(address _owner, uint256 _blockNumber) public view override returns (uint256){
         return stakerInfo[_owner].history.getValueAt(_blockNumber);
     }
 
-    function totalStakedAt(uint256 _blockNumber) external view override returns (uint256){
+    function totalStakedAt(uint256 _blockNumber) public view override returns (uint256){
         return balanceHistory.getValueAt(_blockNumber);
     }
 
-    function supportsHistory() public pure override returns (bool){
+    function supportsHistory() external pure override returns (bool){
         return true;
     }
 
@@ -1462,7 +1462,12 @@ contract StakingEscrow is Issuer, IERC900History {
                 subStakeInfoToCheck.lockedValue == subStakeInfo.lockedValue);
         }
 
-        // TODO: add here validation of history (need help from @vzotova)
+        // it's not perfect because checks not only slot value but also decoding
+        // at least without additional functions
+        require(delegateGet(_testTarget, this.totalStakedForAt.selector, staker, bytes32(block.number)) ==
+            totalStakedForAt(stakerAddress, block.number));
+        require(delegateGet(_testTarget, this.totalStakedAt.selector, bytes32(block.number)) ==
+            totalStakedAt(block.number));
 
         if (info.worker != address(0)) {
             require(address(delegateGet(_testTarget, this.workerToStaker.selector, bytes32(uint256(info.worker)))) ==
