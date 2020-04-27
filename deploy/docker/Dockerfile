@@ -7,6 +7,6 @@ RUN apt install gcc libffi-dev wget -y
 WORKDIR /code
 COPY . /code
 
-RUN pip3 install . -r requirements.txt
+RUN pip3 install .[ursula]
 
 CMD ["/bin/bash"]

@@ -115,7 +115,10 @@ DEPLOY_REQUIRES = [
     'twine'
 ]
 
+URSULA_REQUIRES = ['prometheus_client']
+
 EXTRAS = {
+    'ursula': URSULA_REQUIRES,
     'docs': DOCS_REQUIRE,
     'dev': DEV_REQUIRES + DOCS_REQUIRE,
     'benchmark': DEV_REQUIRES + BENCHMARK_REQUIRES
