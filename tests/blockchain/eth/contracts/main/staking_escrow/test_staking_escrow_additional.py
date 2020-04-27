@@ -19,7 +19,6 @@ from bisect import bisect
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import to_canonical_address
 from web3 import Web3
 from web3.contract import Contract
 
@@ -201,6 +200,81 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     event_args = events[2]['args']
     assert contract_library_v1.address == event_args['target']
     assert creator == event_args['sender']
+
+
+@pytest.mark.slow
+def test_flags(testerchain, token, escrow_contract):
+    escrow = escrow_contract(100)
+    creator = testerchain.client.accounts[0]
+    staker = testerchain.client.accounts[1]
+
+    wind_down_log = escrow.events.WindDownSet.createFilter(fromBlock='latest')
+    restake_log = escrow.events.ReStakeSet.createFilter(fromBlock='latest')
+    measure_work_log = escrow.events.WorkMeasurementSet.createFilter(fromBlock='latest')
+    snapshots_log = escrow.events.SnapshotSet.createFilter(fromBlock='latest')
+
+    # Give Escrow tokens for reward and initialize contract
+    tx = token.functions.approve(escrow.address, 1000).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.initialize(1000).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    # Check flag defaults
+    wind_down, re_stake, measure_work, snapshots = escrow.functions.getFlags(staker).call()
+    assert (not wind_down, re_stake, not measure_work, snapshots)
+
+    # There should be no events so far
+    assert 0 == len(wind_down_log.get_all_entries())
+    assert 0 == len(restake_log.get_all_entries())
+    assert 0 == len(measure_work_log.get_all_entries())
+    assert 0 == len(snapshots_log.get_all_entries())
+
+    # Setting the flags to their current values should not affect anything, not even events
+    tx = escrow.functions.setReStake(True).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setSnapshots(True).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+
+    wind_down, re_stake, measure_work, snapshots = escrow.functions.getFlags(staker).call()
+    assert (not wind_down, re_stake, not measure_work, snapshots)
+
+    # There should be no events so far
+    assert 0 == len(wind_down_log.get_all_entries())
+    assert 0 == len(restake_log.get_all_entries())
+    assert 0 == len(measure_work_log.get_all_entries())
+    assert 0 == len(snapshots_log.get_all_entries())
+
+    # Let's change the value of the restake flag: obviously, only this flag should be affected
+    tx = escrow.functions.setReStake(False).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+
+    wind_down, re_stake, measure_work, snapshots = escrow.functions.getFlags(staker).call()
+    assert (not wind_down, not re_stake, not measure_work, snapshots)
+
+    assert 0 == len(wind_down_log.get_all_entries())
+    assert 1 == len(restake_log.get_all_entries())
+    assert 0 == len(measure_work_log.get_all_entries())
+    assert 0 == len(snapshots_log.get_all_entries())
+
+    event_args = restake_log.get_all_entries()[-1]['args']
+    assert staker == event_args['staker'] == staker
+    assert not event_args['reStake']
+
+    # Let's do the same but with the snapshots flag
+    tx = escrow.functions.setSnapshots(False).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+
+    wind_down, re_stake, measure_work, snapshots = escrow.functions.getFlags(staker).call()
+    assert (not wind_down, not re_stake, not measure_work, not snapshots)
+
+    assert 0 == len(wind_down_log.get_all_entries())
+    assert 1 == len(restake_log.get_all_entries())
+    assert 0 == len(measure_work_log.get_all_entries())
+    assert 1 == len(snapshots_log.get_all_entries())
+
+    event_args = snapshots_log.get_all_entries()[-1]['args']
+    assert staker == event_args['staker'] == staker
+    assert not event_args['snapshotsEnabled']
 
 
 @pytest.mark.slow
