@@ -663,9 +663,7 @@ jobs:
           command: pip3 install -r docs/requirements.txt
       - run:
           name: Build Sphinx Documentation
-          command: |
-            cd docs
-            make html
+          command: make docs
       - store_artifacts:
           path: docs/build
 
