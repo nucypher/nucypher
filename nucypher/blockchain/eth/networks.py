@@ -23,6 +23,7 @@ class NetworksInventory:  # TODO: See #1564
     FRANCES = 'frances'
     CASSANDRA = 'cassandra'
     GEMINI = 'gemini'
+    IBEX = 'ibex'
 
     UNKNOWN = 'unknown'  # TODO: Is there a better way to signal an unknown network?
     DEFAULT = UNKNOWN  # TODO: This assumes we DON'T have a default. Is that OK?  - #1496
@@ -33,6 +34,7 @@ class NetworksInventory:  # TODO: See #1564
         FRANCES: 5,  # Goerli
         CASSANDRA: 5,  # Goerli
         GEMINI: 5,  # Goerli
+        IBEX: 4,  # Rinkeby
     }
 
     NETWORKS = tuple(__to_ethereum_chain_id.keys())
