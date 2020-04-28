@@ -14,7 +14,7 @@ echo "Starting installation."
 
 # GitHub's URL for the latest release, will redirect.
 LATEST_URL="https://github.com/CircleCI-Public/circleci-cli/releases/latest/"
-DESTDIR="${DESTDIR:-/usr/local/bin}"
+DESTDIR="${DESTDIR:-$HOME/.local/bin/}"
 
 if [ -z "$VERSION" ]; then
 	VERSION=$(curl -sLI -o /dev/null -w '%{url_effective}' $LATEST_URL | cut -d "v" -f 2)

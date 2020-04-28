@@ -27,8 +27,6 @@ from setuptools import setup, find_packages
 from setuptools.command.develop import develop
 from setuptools.command.install import install
 
-from .scripts.installation.install_solc import download_solc_binary
-
 #
 # Metadata
 #
@@ -83,11 +81,15 @@ class PostDevelopCommand(develop):
     """
     Post-installation for development mode.
     Execute manually with python setup.py develop or automatically included with
-    `pip install -e . -r dev-requirements.txt`
+    `pip install -e . -r dev-requirements.txt`.
     """
     def run(self):
+
+        # super
         develop.run(self)
-        download_solc_binary()
+
+        # development setup scripts (pre-requirements)
+        subprocess.call(f"scripts/installation/install_solc.py")
         subprocess.call(".circleci/install_circle_cli.sh")
 
 #
@@ -134,7 +136,7 @@ setup(
     extras_require=EXTRAS,
 
     # Package Data
-    packages=find_packages(exclude=["tests"]),
+    packages=find_packages(exclude=["tests", "scripts"]),
     include_package_data=True,
     zip_safe=False,
 
@@ -144,7 +146,7 @@ setup(
       'nucypher-deploy = nucypher.cli.commands.deploy:deploy',
     ]},
 
-    # Utilities
+    # setup.py commands
     cmdclass={
         'verify': VerifyVersionCommand,
         'develop': PostDevelopCommand
