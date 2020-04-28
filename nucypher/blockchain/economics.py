@@ -358,7 +358,13 @@ class StandardTokenEconomics(BaseEconomics):
                          maximum_rewarded_periods=maximum_rewarded_periods,
                          **kwargs)
 
-    # TODO change this
+    def second_phase_first_period(self) -> int:
+        S_0 = self.erc20_initial_supply
+        S_p1 = self.first_phase_supply
+        I_s_per_period = self.first_phase_stable_issuance  # per period
+        phase_switch_in_periods = (S_p1 - S_0) // I_s_per_period
+        return phase_switch_in_periods + 1
+
     def token_supply_at_period(self, period: int) -> int:
         if period < 0:
             raise ValueError("Period must be a positive integer")
@@ -366,21 +372,15 @@ class StandardTokenEconomics(BaseEconomics):
         with localcontext() as ctx:
             ctx.prec = self._precision
 
-            #
-            # Eq. 3 of the mining paper
-            # https://github.com/nucypher/mining-paper/blob/master/mining-paper.pdf
-            #
-
             t = Decimal(period)
             S_0 = self.erc20_initial_supply
             S_p1 = self.first_phase_supply
-            phase_switch = 5  # TODO: Make this a variable
-            phase_switch_in_periods = phase_switch * 365
             I_s_per_period = self.first_phase_stable_issuance  # per period
+            phase_switch_in_periods = self.second_phase_first_period()
             T_half = self.token_halving  # in years
             T_half_in_periods = T_half * 365
 
-            if t <= phase_switch_in_periods:
+            if t < phase_switch_in_periods:
                 S_t = S_0 + (t * I_s_per_period)
             else:
                 S_t = S_0 + S_p1 + I_s_per_period * (1 - 2 ** (-t / T_half_in_periods)) / LOG2
