@@ -18,7 +18,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import csv
 import webbrowser
 from collections import Counter
-from datetime import timedelta
 from typing import List
 
 import click
@@ -595,22 +594,18 @@ Staking address: {staking_address}
                        division_message=division_message)
 
 
-def paint_accounts(emitter, balances, registry):
+def paint_accounts(emitter, wallet, registry):
     from nucypher.blockchain.eth.actors import Staker
 
     rows = list()
-    max_eth_len, max_nu_len = 0, 0
-    for address, balances in sorted(balances.items()):
-        eth = str(Web3.fromWei(balances['ETH'], 'ether')) + " ETH"
-        nu = str(NU.from_nunits(balances['NU']))
+    for account in wallet.accounts:
+        eth = str(Web3.fromWei(wallet.eth_balance(account), 'ether')) + " ETH"
+        nu = str(NU.from_nunits(wallet.token_balance(account, registry)))
 
-        max_eth_len = max(max_eth_len, len(eth))
-        max_nu_len = max(max_nu_len, len(nu))
-
-        staker = Staker(is_me=True, checksum_address=address, registry=registry)
+        staker = Staker(is_me=True, checksum_address=account, registry=registry)
         staker.stakes.refresh()
         is_staking = 'Yes' if bool(staker.stakes) else 'No'
-        rows.append((is_staking, address, eth, nu))
+        rows.append((is_staking, account, eth, nu))
     headers = ('Staking', 'Account', 'ETH', 'NU')
     emitter.echo(tabulate.tabulate(rows, showindex=True, headers=headers, tablefmt="fancy_grid"))
 

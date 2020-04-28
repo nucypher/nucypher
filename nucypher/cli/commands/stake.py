@@ -308,7 +308,7 @@ def accounts(general_config, staker_options, config_file):
     """
     emitter = _setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
-    painting.paint_accounts(emitter=emitter, balances=STAKEHOLDER.wallet.balances, registry=STAKEHOLDER.registry)
+    painting.paint_accounts(emitter=emitter, wallet=STAKEHOLDER.wallet, registry=STAKEHOLDER.registry)
 
 
 @stake.command('set-worker')

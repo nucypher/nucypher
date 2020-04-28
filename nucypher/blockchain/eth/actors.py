@@ -1501,18 +1501,15 @@ class Wallet:
         pass
 
     def __init__(self,
-                 registry: BaseContractRegistry,
                  client_addresses: set = None,
+                 provider_uri: str = None,
                  signer=None):
 
         self.__client_accounts = list()
         self.__transacting_powers = dict()
 
         # Blockchain
-        self.registry = registry
-        self.blockchain = BlockchainInterfaceFactory.get_interface()
-        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
-
+        self.blockchain = BlockchainInterfaceFactory.get_interface(provider_uri)
         self.__signer = signer
 
         self.__get_accounts()
@@ -1553,14 +1550,12 @@ class Wallet:
             self.__transacting_powers[checksum_address] = transacting_power
         transacting_power.activate(password=password)
 
-    @property
-    def balances(self) -> Dict:
-        balances = dict()
-        for account in self.accounts:
-            funds = {'ETH': self.blockchain.client.get_balance(account),
-                     'NU': self.token_agent.get_balance(account)}
-            balances.update({account: funds})
-        return balances
+    def eth_balance(self, account: str) -> int:
+        return self.blockchain.client.get_balance(account)
+
+    def token_balance(self, account: str, registry: BaseContractRegistry) -> int:
+        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry)  # type: NucypherTokenAgent
+        return token_agent.get_balance(account)
 
 
 class StakeHolder(Staker):
@@ -1576,7 +1571,7 @@ class StakeHolder(Staker):
                  is_me: bool = True,
                  initial_address: str = None,
                  checksum_addresses: set = None,
-                 signer: str = None,
+                 signer: Signer = None,
                  password: str = None,
                  *args, **kwargs):
 
@@ -1586,9 +1581,7 @@ class StakeHolder(Staker):
         self.log = Logger(f"stakeholder")
 
         # Wallet
-        self.wallet = Wallet(registry=self.registry,
-                             client_addresses=checksum_addresses,
-                             signer=signer)
+        self.wallet = Wallet(client_addresses=checksum_addresses, signer=signer)
         if initial_address:
             # If an initial address was passed,
             # it is safe to understand that it has already been used at a higher level.
