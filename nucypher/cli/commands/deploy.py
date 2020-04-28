@@ -176,7 +176,7 @@ class ActorOptions:
                 deployer_address = select_client_account(emitter=emitter,
                                                          prompt=prompt,
                                                          provider_uri=self.provider_uri,
-                                                         show_balances=False)
+                                                         show_eth_balance=True)
 
             if not self.force:
                 click.confirm("Selected {} - Continue?".format(deployer_address), abort=True)
@@ -515,7 +515,7 @@ def allocations(general_config, actor_options, allocation_infile, allocation_out
                                                  prompt=prompt,
                                                  provider_uri=actor_options.provider_uri,
                                                  registry=local_registry,
-                                                 show_balances=True)
+                                                 show_eth_balance=True)
         if not actor_options.force:
             click.confirm(f"Selected {sidekick_account} - Continue?", abort=True)
 

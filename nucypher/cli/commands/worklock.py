@@ -157,7 +157,7 @@ def bid(general_config, worklock_options, force, hw_wallet, value):
                                                                 poa=worklock_options.poa,
                                                                 network=worklock_options.network,
                                                                 registry=registry,
-                                                                show_balances=True)
+                                                                show_eth_balance=True)
 
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
 
@@ -215,7 +215,7 @@ def cancel_bid(general_config, worklock_options, force, hw_wallet):
                                                                 provider_uri=worklock_options.provider_uri,
                                                                 poa=worklock_options.poa,
                                                                 network=worklock_options.network,
-                                                                show_balances=True,
+                                                                show_eth_balance=True,
                                                                 registry=registry)
 
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
@@ -247,7 +247,7 @@ def claim(general_config, worklock_options, force, hw_wallet):
                                                                 poa=worklock_options.poa,
                                                                 network=worklock_options.network,
                                                                 registry=registry,
-                                                                show_balances=True)
+                                                                show_eth_balance=True)
 
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
 
@@ -296,7 +296,7 @@ def remaining_work(general_config, worklock_options):
                                                                 poa=worklock_options.poa,
                                                                 network=worklock_options.network,
                                                                 registry=registry,
-                                                                show_balances=True)
+                                                                show_eth_balance=True)
 
     bidder = worklock_options.create_transactionless_bidder(registry=registry)
     _remaining_work = bidder.remaining_work
@@ -318,7 +318,7 @@ def refund(general_config, worklock_options, force, hw_wallet):
                                                                 poa=worklock_options.poa,
                                                                 network=worklock_options.network,
                                                                 registry=registry,
-                                                                show_balances=True)
+                                                                show_eth_balance=True)
     if not force:
         click.confirm(f"Collect ETH refund for bidder {worklock_options.bidder_address}?", abort=True)
     emitter.echo("Submitting WorkLock refund request...")
@@ -344,7 +344,7 @@ def enable_claiming(general_config, worklock_options, force, hw_wallet, gas_limi
                                                                 provider_uri=worklock_options.provider_uri,
                                                                 network=worklock_options.network,
                                                                 registry=registry,
-                                                                show_balances=True)
+                                                                show_eth_balance=True)
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
 
     whales = bidder.get_whales()

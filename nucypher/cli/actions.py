@@ -409,15 +409,15 @@ def select_client_account(emitter,
                           prompt: str = None,
                           default: int = 0,
                           registry=None,
-                          show_balances: bool = True,
+                          show_eth_balance: bool = False,
+                          show_nu_balance: bool = False,
                           show_staking: bool = False,
                           network: str = None,
                           poa: bool = None
                           ) -> str:
     """
-    Note: Setting show_balances to True, causes an eager contract and blockchain connection.
+    Note: Showing ETH and/or NU balances, causes an eager blockchain connection.
     """
-    # TODO: Break show_balances into show_eth_balance and show_token_balance
 
     if not (provider_uri or wallet):
         raise ValueError("Provider URI or wallet must be provided to select an account.")
@@ -430,9 +430,9 @@ def select_client_account(emitter,
         BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, emitter=emitter)
     blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
 
-    # Lazy connect to contracts
+    # Display accounts info
     token_agent = None
-    if show_balances or show_staking:
+    if show_nu_balance or show_staking:  # Lazy connect to token contract agent
         if not registry:
             registry = InMemoryContractRegistry.from_latest_publication(network=network)
         token_agent = NucypherTokenAgent(registry=registry)
@@ -450,8 +450,10 @@ def select_client_account(emitter,
     headers = ['Account']
     if show_staking:
         headers.append('Staking')
-    if show_balances:
-        headers.extend(('', ''))
+    if show_eth_balance:
+        headers.append('ETH')
+    if show_nu_balance:
+        headers.append('NU')
 
     rows = list()
     for index, account in enumerated_accounts.items():
@@ -461,10 +463,12 @@ def select_client_account(emitter,
             staker.stakes.refresh()
             is_staking = 'Yes' if bool(staker.stakes) else 'No'
             row.append(is_staking)
-        if show_balances:
-            token_balance = NU.from_nunits(token_agent.get_balance(address=account))
+        if show_eth_balance:
             ether_balance = Web3.fromWei(blockchain.client.get_balance(account=account), 'ether')
-            row.extend((token_balance, f'{ether_balance} ETH'))
+            row.append(f'{ether_balance} ETH')
+        if show_nu_balance:
+            token_balance = NU.from_nunits(token_agent.get_balance(address=account))
+            row.append(token_balance)
         rows.append(row)
     emitter.echo(tabulate(rows, headers=headers, showindex='always'))
 
