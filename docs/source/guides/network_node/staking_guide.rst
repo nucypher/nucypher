@@ -261,7 +261,7 @@ ask for user confirmation in the clef CLI before showing the staker accounts.
 
 To overcome this, Clef allows to define rules to automate the confirmation of certain transactions,
 or more generally, of some requests to the signer.
-In particular, we recommend users using a Clef signer with nucypher that define the following rules file,
+In particular, we recommend that users of a Clef signer with nucypher define the following rules file,
 which simply approves the listing of accounts:
 
 .. code:: javascript
