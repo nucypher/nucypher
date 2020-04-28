@@ -74,7 +74,7 @@ Here is the recommended procedure for setting up ``nucypher`` in this fashion:
 
    .. note::
 
-       Successful virtualenv activation is indicated by '(nucypher-venv)$' prepended to your console's prompt``
+       Successful virtualenv activation is indicated by ``(nucypher-venv)$`` prepended to your console's prompt
 
 
 #. Install Application Code with Pip
