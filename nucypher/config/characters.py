@@ -45,6 +45,7 @@ class UrsulaConfiguration(CharacterConfiguration):
     __DEFAULT_TLS_CURVE = ec.SECP384R1
     DEFAULT_DB_NAME = '{}.db'.format(_NAME)
     DEFAULT_AVAILABILITY_CHECKS = True
+    LOCAL_SIGNERS_ALLOWED = True
 
     def __init__(self,
                  worker_address: str = None,

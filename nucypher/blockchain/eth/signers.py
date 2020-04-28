@@ -16,14 +16,19 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import sys
+import json
 from abc import ABC, abstractmethod
-from typing import List
+from typing import Dict, List
 from urllib.parse import urlparse
 
-from eth_utils import to_checksum_address, apply_formatters_to_dict
+from eth_utils import is_address, to_checksum_address, apply_formatters_to_dict
 from hexbytes import HexBytes
 from twisted.logger import Logger
 from web3 import Web3, IPCProvider
+from eth_account import Account
+from eth_account.messages import encode_defunct
+from eth_account.signers.local import LocalAccount
+from cytoolz.dicttoolz import dissoc
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -31,19 +36,36 @@ from nucypher.blockchain.eth.decorators import validate_checksum_address
 
 class Signer(ABC):
 
+    log = Logger(__qualname__)
+
     class InvalidSignerURI(ValueError):
         """Raised when an invalid signer URI is detected"""
 
-    def __init__(self):
-        self.log = Logger(self.__class__.__name__)
+    IS_SIGNER_LOCAL = False
 
     @classmethod
-    def from_signer_uri(cls, uri: str) -> 'Signer':
-        if 'clef' in uri:
-            signer = ClefSigner.from_signer_uri(uri=uri)
-        else:
-            signer = Web3Signer.from_signer_uri(uri=uri)
-        return signer
+    def from_signer_uri(cls, uri: str, local_signers_allowed: bool = False) -> 'Signer':
+        """Generic factory class method to create a Signer instance from a URI."""
+        try:
+            scheme = urlparse(uri).scheme
+
+            if scheme == 'clef':
+                signer_cls = ClefSigner
+            elif scheme.startswith('key'):
+                signer_cls = KeyStoreSigner
+            else:
+                signer_cls = Web3Signer
+
+            if not local_signers_allowed and signer_cls.IS_SIGNER_LOCAL:
+                raise cls.InvalidSignerURI(uri, 'local signers are not allowed for this operation')
+
+            return signer_cls.from_signer_uri(uri=uri)
+
+        except cls.InvalidSignerURI:
+            raise
+
+        except Exception as exc:
+            raise cls.InvalidSignerURI(uri, exc)
 
     @abstractmethod
     def is_device(self, account: str) -> bool:
@@ -85,7 +107,7 @@ class Web3Signer(Signer):
         try:
             blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=uri)
         except BlockchainInterface.UnsupportedProvider:
-            raise cls.InvalidSignerURI(f"'{uri}' is not a valid signer URI")
+            raise cls.InvalidSignerURI(uri)
         signer = cls(client=blockchain.client)
         return signer
 
@@ -231,3 +253,100 @@ class ClefSigner(Signer):
     @validate_checksum_address
     def lock_account(self, account: str):
         return True
+
+
+class KeyStoreSigner(Signer):
+    """Local Web3 signer implementation supporting a single account/keystore file"""
+
+    IS_SIGNER_LOCAL = True
+
+    __key: Dict
+    __account: str
+    __signer: LocalAccount
+
+    def __init__(self, path: str):
+        super().__init__()
+
+        with open(path) as file_obj:
+            key = json.load(file_obj)
+
+        address = key['address']
+        if not is_address(address):
+            raise ValueError(f"'{path}' does not contain a valid address")
+
+        self.__key = key
+        self.__account = to_checksum_address(address)
+        self.__signer = None
+
+    @classmethod
+    def from_signer_uri(cls, uri: str) -> 'Signer':
+        decoded_uri = urlparse(uri)
+
+        if decoded_uri.scheme not in ('key', 'keystore') or decoded_uri.netloc:
+            raise cls.InvalidSignerURI(uri)
+
+        return cls(path=decoded_uri.path)
+
+    @validate_checksum_address
+    def is_device(self, account: str) -> bool:
+        return False
+
+    def accounts(self) -> List[str]:
+        return [self.__account]
+
+    @validate_checksum_address
+    def unlock_account(self, account: str, password: str, duration: int = None) -> bool:
+        if self.__account != account:
+            return False
+
+        if not self.__signer:
+            try:
+                signer: LocalAccount = Account.from_key(
+                    Account.decrypt(self.__key, password)
+                )
+            except ValueError:
+                return False
+
+            if self.__account != signer.address:
+                raise ValueError(f"unexpected address '{signer.address}' recovered from private key; expected '{self.__account}'")
+
+            self.__signer = signer
+
+        return True
+
+    @validate_checksum_address
+    def lock_account(self, account: str) -> bool:
+        if self.__account != account:
+            return False
+
+        self.__signer = None
+        return True
+
+    @validate_checksum_address
+    def sign_transaction(self, transaction_dict: dict) -> HexBytes:
+        if not self.__signer:
+            raise ValueError('account is locked')
+
+        # Do not include a 'to' field for contract creation.
+        if not transaction_dict['to']:
+            transaction_dict = dissoc(transaction_dict, 'to')
+
+        raw_transaction = self.__signer.sign_transaction(
+                transaction_dict=transaction_dict,
+            ).rawTransaction
+
+        return raw_transaction
+
+    @validate_checksum_address
+    def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
+        if not self.__signer:
+            raise ValueError('account is locked')
+
+        if self.__account != account:
+            raise ValueError(f"account '{account}' is unknown")
+
+        signature = self.__signer.sign_message(
+                signable_message=encode_defunct(primitive=message),
+            ).signature
+
+        return signature

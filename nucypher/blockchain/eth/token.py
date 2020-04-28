@@ -549,10 +549,12 @@ class WorkTracker:
     def handle_working_errors(self, *args, **kwargs) -> None:
         failure = args[0]
         if self._abort_on_error:
-            self.log.critical(f"Unhandled error during node work tracking. {failure}")
+            self.log.critical('Unhandled error during node work tracking. {failure!r}',
+                              failure=failure)
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
-            self.log.warn(f"Unhandled error during work tracking: {failure.getTraceback()}")
+            self.log.warn('Unhandled error during work tracking: {failure.getTraceback()!r}',
+                          failure=failure)
 
     def __check_work_requirement(self) -> bool:
         # TODO: Check for stake expiration and exit

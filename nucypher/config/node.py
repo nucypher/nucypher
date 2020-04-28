@@ -62,6 +62,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     # Gas
     DEFAULT_GAS_STRATEGY = 'fast'
+    LOCAL_SIGNERS_ALLOWED = False
 
     def __init__(self,
 
@@ -392,7 +393,9 @@ class CharacterConfiguration(BaseConfiguration):
         """Exported dynamic configuration values for initializing Ursula"""
         payload = dict()
         if not self.federated_only:
-            payload.update(dict(registry=self.registry, signer=Signer.from_signer_uri(self.signer_uri)))
+            payload.update(dict(registry=self.registry,
+                                signer=Signer.from_signer_uri(self.signer_uri,
+                                                              local_signers_allowed=self.LOCAL_SIGNERS_ALLOWED)))
 
         payload.update(dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
                             known_nodes=self.known_nodes,
