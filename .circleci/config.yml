@@ -678,6 +678,9 @@ jobs:
     steps:
       - prepare_environment
       - run:
+          name: Install Nucypher
+          command: pip3 install --user -e .[benchmark]
+      - run:
           name: Estimate Gas
           command: python tests/metrics/estimate_gas.py
       - store_artifacts:
@@ -699,10 +702,10 @@ jobs:
   test_build:
     <<: *python_37_base
     steps:
-      - prepare_environment
+      - checkout
       - run:
-          name: Install Dependencies with deployment extra
-          command: pip3 install --user .[deploy]
+          name: Install Twine
+          command: pip3 install --user twine
       - run:
           name: Build Python Distribution
           command: make dist
@@ -744,7 +747,7 @@ jobs:
       - checkout
       - run:
           name: Install Twine
-          command: pip3 install --user -e .[deploy]
+          command: pip3 install --user twine
       - run:
           name: Verify git tag == __version__ (Test Deploy)
           command: python setup.py verify
@@ -776,7 +779,6 @@ jobs:
     <<: *python_37_base
     steps:
       - checkout
-      - pip_install
       - run:
           name: Install Twine
           command: pip3 install --user twine
@@ -795,9 +797,7 @@ jobs:
             echo -e "password = $PYPI_PASSWORD" >> ~/.pypirc
       - run:
           name: Build Python Wheel
-          command: |
-            python3 setup.py sdist
-            python3 setup.py bdist_wheel
+          command: make dist
       - deploy:
           name: Upload to PyPI
           command: python3 -m twine upload dist/* --verbose

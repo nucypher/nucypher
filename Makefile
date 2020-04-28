@@ -20,12 +20,6 @@ clean-pyc:
 	find . -name '*.pyo' -exec rm -f {} +
 	find . -name '*~' -exec rm -f {} +
 
-lint:
-	flake8 nucypher
-
-test:
-	pytest tests
-
 build-docs:
 	sphinx-apidoc -fME -o docs/source/api -t docs/source/apidoc . setup.py "*conftest*" "tests" "nucypher/utilities/*" "scripts"
 	# sphinx-apidoc [OPTIONS] -o <OUTPUT_PATH> <MODULE_PATH> [EXCLUDE_PATTERN …]
