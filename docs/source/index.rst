@@ -157,14 +157,13 @@ Whitepapers
    :maxdepth: 1
    :caption: API
 
-   api/modules
    api/nucypher.blockchain
    api/nucypher.characters
    api/nucypher.config
-   api/nucypher.crypto
-   api/nucypher.datastore
-   api/nucypher.network
    api/nucypher.policy
+   api/nucypher.network
+   api/nucypher.datastore
+   api/nucypher.crypto
 
 .. toctree::
    :maxdepth: 1
