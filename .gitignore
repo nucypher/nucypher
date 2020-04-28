@@ -37,9 +37,13 @@ variables*.yml
 *ansible/inventory/*
 .env
 /tests/metrics/results/
-/docs/build
 .python-version
 *.log
 *no datastore
 finnegans-wake.txt
 *venvs
+
+# Sphinx
+docs/build
+docs/source/modules.rst
+docs/source/api/
