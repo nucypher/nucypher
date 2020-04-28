@@ -480,13 +480,14 @@ class StakingEscrowAgent(EthereumContractAgent):
         return receipt
 
     @validate_checksum_address
-    def get_flags(self, staker_address: str) -> Tuple[bool, bool, bool]:
-        wind_down_flag, restake_flag, measure_work_flag = self.contract.functions.getFlags(staker_address).call()
-        return wind_down_flag, restake_flag, measure_work_flag
+    def get_flags(self, staker_address: str) -> Tuple[bool, bool, bool, bool]:
+        flags = self.contract.functions.getFlags(staker_address).call()
+        wind_down_flag, restake_flag, measure_work_flag, snapshot_flag = flags
+        return wind_down_flag, restake_flag, measure_work_flag, snapshot_flag
 
     @validate_checksum_address
     def is_restaking(self, staker_address: str) -> bool:
-        _winddown_flag, restake_flag, _measure_work_flag = self.get_flags(staker_address)
+        _winddown_flag, restake_flag, _measure_work_flag, _snapshots_flag = self.get_flags(staker_address)
         return restake_flag
 
     @validate_checksum_address
@@ -521,7 +522,7 @@ class StakingEscrowAgent(EthereumContractAgent):
 
     @validate_checksum_address
     def is_winding_down(self, staker_address: str) -> bool:
-        winddown_flag, _restake_flag, _measure_work_flag = self.get_flags(staker_address)
+        winddown_flag, _restake_flag, _measure_work_flag, _snapshots_flag = self.get_flags(staker_address)
         return winddown_flag
 
     @validate_checksum_address
@@ -534,6 +535,23 @@ class StakingEscrowAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    sender_address=staker_address)
         # TODO: Handle WindDownSet event (see #1193)
+        return receipt
+
+    @validate_checksum_address
+    def is_taking_snapshots(self, staker_address: str) -> bool:
+        _winddown_flag, _restake_flag, _measure_work_flag, snapshots_flag = self.get_flags(staker_address)
+        return snapshots_flag
+
+    @validate_checksum_address
+    def set_snapshots(self, staker_address: str, activate: bool) -> dict:
+        """
+        Activate/deactivate taking balance snapshots.
+        If set to True, then each time the balance changes, a snapshot associated to current block number is stored.
+        """
+        contract_function = self.contract.functions.setSnapshots(activate)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=staker_address)
+        # TODO: Handle SnapshotSet event (see #1193)
         return receipt
 
     def staking_parameters(self) -> Tuple:

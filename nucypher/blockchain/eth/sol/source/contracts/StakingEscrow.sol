@@ -1,8 +1,9 @@
 pragma solidity ^0.6.5;
 
-
+import "aragon/interfaces/IERC900History.sol";
 import "contracts/Issuer.sol";
 import "contracts/lib/Bits.sol";
+import "contracts/lib/Snapshot.sol";
 import "zeppelin/math/SafeMath.sol";
 
 
@@ -38,11 +39,13 @@ interface WorkLockInterface {
 * Each staker that locks their tokens will receive some compensation
 * @dev |v4.1.1|
 */
-contract StakingEscrow is Issuer {
-    using SafeMath for uint256;
+contract StakingEscrow is Issuer, IERC900History {
+
     using AdditionalMath for uint256;
     using AdditionalMath for uint16;
     using Bits for uint256;
+    using SafeMath for uint256;
+    using Snapshot for uint128[];
 
     event Deposited(address indexed staker, uint256 value, uint16 periods);
     event Locked(address indexed staker, uint256 value, uint16 firstPeriod, uint16 periods);
@@ -63,6 +66,7 @@ contract StakingEscrow is Issuer {
     event WorkerSet(address indexed staker, address indexed worker, uint16 indexed startPeriod);
     event WorkMeasurementSet(address indexed staker, bool measureWork);
     event WindDownSet(address indexed staker, bool windDown);
+    event SnapshotSet(address indexed staker, bool snapshotsEnabled);
 
     struct SubStakeInfo {
         uint16 firstPeriod;
@@ -101,6 +105,8 @@ contract StakingEscrow is Issuer {
 
         Downtime[] pastDowntime;
         SubStakeInfo[] subStakes;
+        uint128[] history;
+
     }
 
     // used only for upgrading
@@ -114,6 +120,7 @@ contract StakingEscrow is Issuer {
     uint8 internal constant RE_STAKE_DISABLED_INDEX = 0;
     uint8 internal constant WIND_DOWN_INDEX = 1;
     uint8 internal constant MEASURE_WORK_INDEX = 2;
+    uint8 internal constant SNAPSHOTS_DISABLED_INDEX = 3;
 
     uint16 public immutable minLockedPeriods;
     uint16 public immutable minWorkerPeriods;
@@ -126,6 +133,8 @@ contract StakingEscrow is Issuer {
     mapping (address => address) public workerToStaker;
 
     mapping (uint16 => uint256) public lockedPerPeriod;
+    uint128[] public balanceHistory;
+
     PolicyManagerInterface public policyManager;
     AdjudicatorInterface public adjudicator;
     WorkLockInterface public workLock;
@@ -231,13 +240,15 @@ contract StakingEscrow is Issuer {
         external view returns (
             bool windDown,
             bool reStake,
-            bool measureWork
+            bool measureWork,
+            bool snapshots
         )
     {
         StakerInfo storage info = stakerInfo[_staker];
         windDown = info.flags.bitSet(WIND_DOWN_INDEX);
         reStake = !info.flags.bitSet(RE_STAKE_DISABLED_INDEX);
         measureWork = info.flags.bitSet(MEASURE_WORK_INDEX);
+        snapshots = !info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX);
     }
 
     /**
@@ -559,6 +570,44 @@ contract StakingEscrow is Issuer {
     }
 
     /**
+    * @notice Activate/deactivate taking snapshots of balances
+    * @param _enableSnapshots True to activate snapshots, False to deactivate
+    */
+    function setSnapshots(bool _enableSnapshots) external {
+        StakerInfo storage info = stakerInfo[msg.sender];
+        if (info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX) == !_enableSnapshots) {
+            return;
+        }
+
+        uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
+        if(_enableSnapshots){
+            info.history.addSnapshot(info.value);
+            balanceHistory.addSnapshot(lastGlobalBalance + info.value);
+        } else {
+            info.history.addSnapshot(0);
+            balanceHistory.addSnapshot(lastGlobalBalance - info.value);
+        }
+        info.flags = info.flags.toggleBit(SNAPSHOTS_DISABLED_INDEX);
+
+        emit SnapshotSet(msg.sender, _enableSnapshots);
+    }
+
+    /**
+    * @notice Adds a new snapshot to both the staker and global balance histories,
+    * assuming the staker's balance was already changed
+    * @param _info Reference to affected staker's struct
+    * @param _addition Variance in balance. It can be positive or negative.
+    */
+    function addSnapshot(StakerInfo storage _info, int256 _addition) internal {
+        if(!_info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX)){
+            _info.history.addSnapshot(_info.value);
+            uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
+            balanceHistory.addSnapshot(lastGlobalBalance.addSigned(_addition));
+        }
+    }
+
+
+    /**
     * @notice Batch deposit. Allowed only initial deposit for each staker
     * @param _stakers Stakers
     * @param _numberOfSubStakes Number of sub-stakes which belong to staker in _values and _periods arrays
@@ -605,9 +654,11 @@ contract StakingEscrow is Issuer {
                 emit Locked(staker, value, nextPeriod, periods);
             }
             require(info.value <= maxAllowableLockedTokens);
+            info.history.addSnapshot(info.value);
         }
         require(j == subStakesLength);
-
+        uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
+        balanceHistory.addSnapshot(lastGlobalBalance + sumValue);
         token.safeTransferFrom(msg.sender, address(this), sumValue);
     }
 
@@ -690,6 +741,8 @@ contract StakingEscrow is Issuer {
         token.safeTransferFrom(_payer, address(this), _value);
         info.value += _value;
         lock(_staker, _value, _periods);
+
+        addSnapshot(info, int256(_value));
         emit Deposited(_staker, _value, _periods);
     }
 
@@ -835,6 +888,8 @@ contract StakingEscrow is Issuer {
             getLockedTokens(info, currentPeriod, currentPeriod));
         require(_value <= info.value.sub(lockedTokens));
         info.value -= _value;
+
+        addSnapshot(info, - int256(_value));
         token.safeTransfer(msg.sender, _value);
         emit Withdrawn(msg.sender, _value);
     }
@@ -944,6 +999,8 @@ contract StakingEscrow is Issuer {
         if (info.flags.bitSet(MEASURE_WORK_INDEX)) {
             info.completedWork += reward;
         }
+
+        addSnapshot(info, int256(reward));
         emit Mined(_staker, previousPeriod, reward);
     }
 
@@ -1034,14 +1091,16 @@ contract StakingEscrow is Issuer {
         }
 
         emit Slashed(_staker, _penalty, _investigator, _reward);
-        _penalty -= _reward;
-        if (_penalty > 0) {
-            unMint(_penalty);
+        if (_penalty > _reward) {
+            unMint(_penalty - _reward);
         }
         // TODO change to withdrawal pattern (#1499)
         if (_reward > 0) {
             token.safeTransfer(_investigator, _reward);
         }
+
+        addSnapshot(info, - int256(_penalty));
+
     }
 
     /**
@@ -1297,6 +1356,19 @@ contract StakingEscrow is Issuer {
         endPeriod = downtime.endPeriod;
     }
 
+    //------------------ ERC900 connectors ----------------------
+
+    function totalStakedForAt(address _owner, uint256 _blockNumber) public view override returns (uint256){
+        return stakerInfo[_owner].history.getValueAt(_blockNumber);
+    }
+
+    function totalStakedAt(uint256 _blockNumber) public view override returns (uint256){
+        return balanceHistory.getValueAt(_blockNumber);
+    }
+
+    function supportsHistory() external pure override returns (bool){
+        return true;
+    }
 
     //------------------------Upgradeable------------------------
     /**
@@ -1385,6 +1457,13 @@ contract StakingEscrow is Issuer {
                 subStakeInfoToCheck.periods == subStakeInfo.periods &&
                 subStakeInfoToCheck.lockedValue == subStakeInfo.lockedValue);
         }
+
+        // it's not perfect because checks not only slot value but also decoding
+        // at least without additional functions
+        require(delegateGet(_testTarget, this.totalStakedForAt.selector, staker, bytes32(block.number)) ==
+            totalStakedForAt(stakerAddress, block.number));
+        require(delegateGet(_testTarget, this.totalStakedAt.selector, bytes32(block.number)) ==
+            totalStakedAt(block.number));
 
         if (info.worker != address(0)) {
             require(address(delegateGet(_testTarget, this.workerToStaker.selector, bytes32(uint256(info.worker)))) ==
