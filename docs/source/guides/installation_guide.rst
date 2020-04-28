@@ -95,7 +95,7 @@ Here is the recommended procedure for setting up ``nucypher`` in this fashion:
    You will see a list of possible usage options (\ ``--version``\ , ``-v``\ , ``--dev``\ , etc.) and commands (\ ``status``\ , ``ursula``\ , etc.).
    For example, you can use ``nucypher ursula destroy`` to delete all files associated with the node.
 
-   .. code-block::
+   .. code-block:: python
 
        import nucypher
 
@@ -133,13 +133,13 @@ Docker Installation
 #. (Optional) Follow these post install instructions: `https://docs.docker.com/install/linux/linux-postinstall/ <https://docs.docker.com/install/linux/linux-postinstall/>`_
 #. Get the latest nucypher image:
 
-   .. code-block::
+   .. code-block:: bash
 
        docker pull nucypher/nucypher:latest
 
    Any nucypher CLI command can be executed in docker using the following syntax:
 
-   .. code-block::
+   .. code-block:: bash
 
        docker run -it -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 nucypher/nucypher:latest nucypher`<ACTION>``<OPTIONS>`
 
@@ -305,6 +305,6 @@ Systemd Service Installation
 
 #. To restart your node service
 
-   .. code-block::
+   .. code-block:: bash
 
        $ sudo systemctl restart ursula
