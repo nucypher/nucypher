@@ -19,7 +19,7 @@ from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 def test_geth_EIP_191_client_signature_integration(instant_geth_dev_node):
 
-    # TODO: Move to decorator
+    # TODO: #1909 Move to decorator
     if 'CIRCLECI' in os.environ:
         pytest.skip("Do not run Geth nodes in CI")
 
@@ -39,7 +39,7 @@ def test_geth_EIP_191_client_signature_integration(instant_geth_dev_node):
 
 def test_geth_create_new_account(instant_geth_dev_node):
 
-    # TODO: Move to decorator
+    # TODO: #1909 Move to decorator
     if 'CIRCLECI' in os.environ:
         pytest.skip("Do not run Geth nodes in CI")
 
@@ -51,7 +51,7 @@ def test_geth_create_new_account(instant_geth_dev_node):
 
 def test_geth_deployment_integration(instant_geth_dev_node, test_registry):
 
-    # TODO: Move to decorator
+    # TODO: #1909 Move to decorator
     if 'CIRCLECI' in os.environ:
         pytest.skip("Do not run Geth nodes in CI")
 
@@ -67,4 +67,4 @@ def test_geth_deployment_integration(instant_geth_dev_node, test_registry):
     assert int(blockchain.client.chain_id) == 1337
 
     # Deploy
-    administrator.deploy_network_contracts(interactive=False)
+    administrator.deploy_network_contracts(interactive=False)  # just do it

@@ -42,7 +42,7 @@ from nucypher.blockchain.eth.agents import (
     MultiSigAgent,
     ContractAgency
 )
-from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, NULL_ADDRESS
+from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, NULL_ADDRESS, STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import (
     BlockchainDeployerInterface,
@@ -130,7 +130,8 @@ class BaseContractDeployer:
     def check_deployment_readiness(self,
                                    contract_version: str = None,
                                    ignore_deployed=False,
-                                   fail=True
+                                   fail=True,
+                                   additional_rules: tuple = None,
                                    ) -> Tuple[bool, list]:
         """
         Iterates through a set of rules required for an ethereum
@@ -147,19 +148,21 @@ class BaseContractDeployer:
             contract_version, _data = self.blockchain.find_raw_contract_data(contract_name=self.contract_name,
                                                                              requested_version=contract_version)
 
+        # Compile rules
         rules = [
             (ignore_deployed or not self.is_deployed(contract_version), f'Contract {self.contract_name}:{contract_version} already deployed'),
             (self.deployer_address is not None, 'No deployer address set.'),
             (self.deployer_address is not NO_DEPLOYER_CONFIGURED, 'No deployer address set.'),
         ]
+        if additional_rules:
+            rules.append(additional_rules)
 
         disqualifications = list()
         for rule_is_satisfied, failure_reason in rules:
-            if not rule_is_satisfied:                        # If this rule fails...
+            if not rule_is_satisfied:                      # If this rule fails...
                 if fail:
                     raise self.ContractDeploymentError(failure_reason)
-                else:
-                    disqualifications.append(failure_reason)   # ... here's why
+                disqualifications.append(failure_reason)   # ... here's why
 
         is_ready = len(disqualifications) == 0
         return is_ready, disqualifications
@@ -714,6 +717,14 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                                                                      contract_name=staking_contract_name,
                                                                      proxy_name=proxy_name)
 
+    def check_deployment_readiness(self, *args, **kwargs) -> Tuple[bool, list]:
+        staking_escrow_owner = self.staking_contract.functions.owner().call()
+        policy_manager_deployment_rules = (
+            (self.deployer_address == staking_escrow_owner,
+             f'{self.contract_name} must be deployed by the owner of {STAKING_ESCROW_CONTRACT_NAME} ({staking_escrow_owner})')
+        )
+        return super().check_deployment_readiness(additional_rules=policy_manager_deployment_rules, *args, **kwargs)
+
     def _deploy_essential(self, contract_version: str, gas_limit: int = None, confirmations: int = 0) -> tuple:
         constructor_kwargs = {"_escrow": self.staking_contract.address}
         policy_manager_contract, deploy_receipt = self.blockchain.deploy_contract(self.deployer_address,
@@ -1059,6 +1070,14 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
         self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                      contract_name=staking_contract_name,
                                                                      proxy_name=proxy_name)
+
+    def check_deployment_readiness(self, *args, **kwargs) -> Tuple[bool, list]:
+        staking_escrow_owner = self.staking_contract.functions.owner().call()
+        adjudicator_deployment_rules = (
+            (self.deployer_address == staking_escrow_owner,
+             f'{self.contract_name} must be deployed by the owner of {STAKING_ESCROW_CONTRACT_NAME} ({staking_escrow_owner})')
+        )
+        return super().check_deployment_readiness(additional_rules=adjudicator_deployment_rules, *args, **kwargs)
 
     def _deploy_essential(self, contract_version: str, gas_limit: int = None, **overrides):
         args = self.economics.slashing_deployment_parameters
