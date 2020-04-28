@@ -4,8 +4,8 @@ Getting Started with Characters
 
 * `Side Channels <#a-note-about-side-channels>`_
 * `Running an Ethereum Node <#running-an-ethereum-node>`_
-*  Connecting Nucypher to an Etheruem Node <#connecting-to-the-nucypher-network>`_
-*  Alice: Grant Access to a Secret <#alice-grant-access-to-a-secret>`_
+*  `Connecting Nucypher to an Etheruem Node <#connecting-to-the-nucypher-network>`_
+*  `Alice: Grant Access to a Secret <#alice-grant-access-to-a-secret>`_
     * `Setup Alice <#setup-alice>`_
     * `Grant <#grant>`_
 * `Enrico: Encrypt a Secret <#enrico-encrypt-a-secret>`_

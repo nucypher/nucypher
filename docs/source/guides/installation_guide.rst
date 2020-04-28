@@ -96,11 +96,7 @@ Here is the recommended procedure for setting up ``nucypher`` in this fashion:
 
     .. code-block::
 
-       In Python:
-
-       ```python
        import nucypher
-       ```
 
 Pipenv Installation
 ^^^^^^^^^^^^^^^^^^^
@@ -136,9 +132,11 @@ Docker Installation
 . (Optional) Follow these post install instructions: `https://docs.docker.com/install/linux/linux-postinstall/ <https://docs.docker.com/install/linux/linux-postinstall/>`_
 . Get the latest nucypher image:
 
-   ``docker pull nucypher/nucypher:latest``
+.. code-block::
 
-   Any nucypher CLI command can be executed in docker using the following syntax:
+   docker pull nucypher/nucypher:latest
+
+Any nucypher CLI command can be executed in docker using the following syntax:
 
 .. code-block::
 
@@ -253,7 +251,7 @@ Other cases:
 Systemd Service Installation
 ----------------------------
 
-. Use this template to create a file named ``ursula.service`` and place it in ``/etc/systemd/system/``.
+Use this template to create a file named ``ursula.service`` and place it in ``/etc/systemd/system/``.
 
    .. code-block::
 
@@ -270,8 +268,7 @@ Systemd Service Installation
        [Install]
        WantedBy=multi-user.target
 
-    Replace the following values with your own:
-
+Replace the following values with your own:
 
    * ``<YOUR_USER>`` - The host system's username to run the process with
    * ``<YOUR WORKER ADDRESS PASSWORD>`` - Worker's ETH account password
@@ -280,14 +277,14 @@ Systemd Service Installation
    * ``<SEEDNODE_URI>`` - A seednode URI of a node on the network you are connecting to
 
 
-. Enable Ursula System Service
+Enable Ursula System Service
 
    .. code-block::
 
        $ sudo systemctl enable ursula
 
 
-. Run Ursula System Service
+Run Ursula System Service
 
     To start Ursula services using systemd
 
@@ -296,13 +293,13 @@ Systemd Service Installation
        $ sudo systemctl start ursula
 
 
-. Check Ursula service status
+Check Ursula service status
 
    .. code-block::
 
        $ sudo systemctl status ursula
 
-. To restart your node service
+To restart your node service
 
     .. code-block::
 
