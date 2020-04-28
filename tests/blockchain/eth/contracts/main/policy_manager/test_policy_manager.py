@@ -25,16 +25,16 @@ from web3.contract import Contract
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
-SPONSOR_FIELD = 0
-OWNER_FIELD = 1
-RATE_FIELD = 2
-START_TIMESTAMP_FIELD = 3
-END_TIMESTAMP_FIELD = 4
-DISABLED_FIELD = 5
+DISABLED_FIELD = 0
+SPONSOR_FIELD = 1
+OWNER_FIELD = 2
+RATE_FIELD = 3
+START_TIMESTAMP_FIELD = 4
+END_TIMESTAMP_FIELD = 5
 
 REWARD_FIELD = 0
-REWARD_RATE_FIELD = 1
-LAST_MINED_PERIOD_FIELD = 2
+LAST_MINED_PERIOD_FIELD = 1
+REWARD_RATE_FIELD = 2
 MIN_REWARD_RATE_FIELD = 3
 
 POLICY_ID_LENGTH = 16
@@ -175,6 +175,11 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.revokeArrangement(policy_id, node1).transact({'from': policy_sponsor})
+        testerchain.wait_for_receipt(tx)
+    # Can't create policy with the same id even after revoking
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.createPolicy(policy_id, policy_sponsor, end_timestamp, [node1])\
+            .transact({'from': policy_sponsor, 'value': value})
         testerchain.wait_for_receipt(tx)
 
     # Create new policy
@@ -645,7 +650,7 @@ def test_handling_wrong_state(testerchain, deploy_contract):
         tx = escrow.functions.mint(current_period - 1, 1).transact({'from': node1})
         testerchain.wait_for_receipt(tx)
 
-    reward, reward_rate, last_mined_period, _min_reward_rate = policy_manager.functions.nodes(node1).call()
+    reward, last_mined_period, reward_rate, _min_reward_rate = policy_manager.functions.nodes(node1).call()
     assert reward == 0
     assert reward_rate == 0
     assert last_mined_period == current_period - 1
@@ -686,7 +691,7 @@ def test_handling_wrong_state(testerchain, deploy_contract):
         tx = escrow.functions.mint(current_period - 1, 1).transact({'from': node2})
         testerchain.wait_for_receipt(tx)
 
-    reward, reward_rate, last_mined_period, _min_reward_rate = policy_manager.functions.nodes(node2).call()
+    reward, last_mined_period, reward_rate, _min_reward_rate = policy_manager.functions.nodes(node2).call()
     assert reward == 50 * (number_of_periods - 2)
     assert reward_rate == 0
     assert last_mined_period == current_period - 1

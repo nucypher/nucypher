@@ -33,9 +33,11 @@ from constant_sorrow.constants import (
     NO_COMPILATION_PERFORMED,
     UNKNOWN_TX_STATUS,
     NO_PROVIDER_PROCESS,
-    READ_ONLY_INTERFACE
+    READ_ONLY_INTERFACE,
+    INSUFFICIENT_ETH
 )
 from eth_tester import EthereumTester
+from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import to_checksum_address
 from twisted.logger import Logger
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider, middleware
@@ -59,7 +61,7 @@ from nucypher.blockchain.eth.providers import (
 )
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.blockchain.eth.utils import prettify_eth_amount
+from nucypher.blockchain.eth.utils import prettify_eth_amount, get_transaction_name
 from nucypher.characters.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
 
@@ -108,6 +110,45 @@ class BlockchainInterface:
     class NotEnoughConfirmations(InterfaceError):
         pass
 
+    REASONS = {
+        INSUFFICIENT_ETH: 'insufficient funds for gas * price + value',
+    }
+
+    class TransactionFailed(InterfaceError):
+
+        IPC_CODE = -32000  # (geth)
+
+        def __init__(self,
+                     message: str,
+                     transaction_dict: dict,
+                     contract_function: Union[ContractFunction, ContractConstructor],
+                     *args):
+
+            self.base_message = message
+            self.name = get_transaction_name(contract_function=contract_function)
+            self.payload = transaction_dict
+            self.contract_function = contract_function
+            self.failures = {
+                BlockchainInterface.REASONS[INSUFFICIENT_ETH]: self.insufficient_eth
+            }
+            self.message = self.failures.get(self.base_message, self.default)
+            super().__init__(self.message, *args)
+
+        @property
+        def default(self) -> str:
+            message = f'{self.name} from {self.payload["from"][:6]} - {self.base_message}'
+            return message
+
+        @property
+        def insufficient_eth(self) -> str:
+            gas = (self.payload.get('gas', 1) * self.payload['gasPrice'])  # FIXME: If gas is not included...
+            cost = gas + self.payload.get('value', 0)
+            blockchain = BlockchainInterfaceFactory.get_interface()
+            balance = blockchain.client.get_balance(account=self.payload['from'])
+            message = f'{self.payload} from {self.payload["from"][:8]} - {self.base_message}.' \
+                      f'Calculated cost is {cost} but sender only has {balance}.'
+            return message
+
     def __init__(self,
                  emitter = None,  # TODO # 1754
                  poa: bool = None,
@@ -121,7 +162,7 @@ class BlockchainInterface:
         A blockchain "network interface"; The circumflex wraps entirely around the bounds of
         contract operations including compilation, deployment, and execution.
 
-        TODO: #1502 - Move me to docs.
+        TODO: #1502 - Move to API docs.
 
          Filesystem          Configuration           Node              Client                  EVM
         ================ ====================== =============== =====================  ===========================
@@ -372,6 +413,57 @@ class BlockchainInterface:
         else:
             self._provider = provider
 
+    def __transaction_failed(self,
+                             exception: Exception,
+                             transaction_dict: dict,
+                             contract_function: Union[ContractFunction, ContractConstructor]
+                             ) -> None:
+        """
+        Re-raising error handler and context manager for transaction broadcast or
+        build failure events at the interface layer. This method is a last line of defense
+        against unhandled exceptions caused by transaction failures and must raise an exception.
+        # TODO: #1504 - Additional Handling of validation failures (gas limits, invalid fields, etc.)
+        """
+
+        try:
+            # Assume this error is formatted as an IPC response
+            code, message = exception.args[0].values()
+
+        except (ValueError, IndexError, AttributeError):
+            # TODO: #1504 - Try even harder to determine if this is insufficient funds causing the issue,
+            #               This may be best handled at the agent or actor layer for registry and token interactions.
+            # Worst case scenario - raise the exception held in context implicitly
+            raise exception
+
+        else:
+            if int(code) != self.TransactionFailed.IPC_CODE:
+                # Only handle client-specific exceptions
+                # https://www.jsonrpc.org/specification Section 5.1
+                raise exception
+            self.log.critical(message)                     # simple context
+            raise self.TransactionFailed(message=message,  # rich error (best case)
+                                         contract_function=contract_function,
+                                         transaction_dict=transaction_dict)
+
+    def __log_transaction(self, transaction_dict: dict, contract_function: ContractFunction):
+        """
+        Format and log a transaction dict and return the transaction name string.
+        This method *must not* mutate the original transaction dict.
+        """
+        # Do not mutate the original transaction dict
+        tx = dict(transaction_dict).copy()
+
+        # Format
+        if tx.get('to'):
+            tx['to'] = to_checksum_address(contract_function.address)
+        tx['from'] = to_checksum_address(tx['from'])
+        tx.update({f: prettify_eth_amount(v) for f, v in tx.items() if f in ('gasPrice', 'value')})
+        payload_pprint = ', '.join("{}: {}".format(k, v) for k, v in tx.items())
+
+        # Log
+        transaction_name = get_transaction_name(contract_function=contract_function)
+        self.log.debug(f"[TX-{transaction_name}] | {payload_pprint}")
+
     @validate_checksum_address
     def build_transaction(self,
                           contract_function: ContractFunction,
@@ -381,54 +473,37 @@ class BlockchainInterface:
                           ) -> dict:
 
         #
-        # Build
+        # Build Payload
         #
 
+        base_payload = {'chainId': int(self.client.chain_id),
+                        'nonce': self.client.w3.eth.getTransactionCount(sender_address, 'pending'),
+                        'from': sender_address,
+                        'gasPrice': self.client.gas_price}
+
+        # Aggregate
         if not payload:
             payload = {}
-
-        nonce = self.client.w3.eth.getTransactionCount(sender_address, 'pending')
-        payload.update({'chainId': int(self.client.chain_id),
-                        'nonce': nonce,
-                        'from': sender_address,
-                        'gasPrice': self.client.gas_price})
-
+        payload.update(base_payload)
+        # Explicit gas override - will skip gas estimation in next operation.
         if transaction_gas_limit:
             payload['gas'] = int(transaction_gas_limit)
 
-        # Get transaction type
-        deployment = isinstance(contract_function, ContractConstructor)
-        try:
-            transaction_name = contract_function.fn_name.upper()
-        except AttributeError:
-            transaction_name = 'DEPLOY' if deployment else 'UNKNOWN'
+        #
+        # Build Transaction
+        #
 
-        payload_pprint = dict(payload)
-        payload_pprint['from'] = to_checksum_address(payload['from'])
-        if not deployment:
-            payload_pprint['to'] = to_checksum_address(contract_function.address)
-        payload_pprint.update({f: prettify_eth_amount(v) for f, v in payload.items() if f in ('gasPrice', 'value')})
-        payload_pprint = ', '.join("{}: {}".format(k, v) for k, v in payload_pprint.items())
-        self.log.debug(f"[TX-{transaction_name}] | {payload_pprint}")
-
-        # Build transaction payload
+        transaction_name = self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
         try:
-            unsigned_transaction = contract_function.buildTransaction(payload)
-        except (ValidationError, ValueError) as e:
-            # TODO: #1504 - Handle validation failures for gas limits, invalid fields, etc.
+            transaction_dict = contract_function.buildTransaction(payload)  # Gas estimation occurs here
+        except (TestTransactionFailed, ValidationError, ValueError) as error:
             # Note: Geth raises ValueError in the same condition that pyevm raises ValidationError here.
-            # Treat this condition as "Transaction Failed".
-            error = str(e).replace("{", "").replace("}", "")  # See #724
-            self.log.critical(f"Validation error: {error}")
-            raise
-        else:
-            if deployment:
-                self.log.info(f"Deploying contract: {len(unsigned_transaction['data'])} bytes")
-
-        return unsigned_transaction
+            # Treat this condition as "Transaction Failed" during gas estimation.
+            raise self.__transaction_failed(exception=error, transaction_dict=payload, contract_function=contract_function)
+        return transaction_dict
 
     def sign_and_broadcast_transaction(self,
-                                       unsigned_transaction,
+                                       transaction_dict,
                                        transaction_name: str = "",
                                        confirmations: int = 0
                                        ) -> dict:
@@ -437,8 +512,7 @@ class BlockchainInterface:
         # Setup
         #
 
-        # TODO # 1754
-        # TODO: Move this to singleton - I do not approve... nor does Bogdan?
+        # TODO # 1754 - Move this to singleton - I do not approve... nor does Bogdan?
         if GlobalLoggerSettings._json_ipc:
             emitter = JSONRPCStdoutEmitter()
         else:
@@ -452,20 +526,29 @@ class BlockchainInterface:
         #
 
         # TODO: Show the USD Price:  https://api.coinmarketcap.com/v1/ticker/ethereum/
-        price = unsigned_transaction['gasPrice']
-        cost_wei = price * unsigned_transaction['gas']
+        price = transaction_dict['gasPrice']
+        cost_wei = price * transaction_dict['gas']
         cost = Web3.fromWei(cost_wei, 'gwei')
-
         if self.transacting_power.is_device:
             emitter.message(f'Confirm transaction {transaction_name} on hardware wallet... ({cost} gwei @ {price})', color='yellow')
-        signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction)
+        signed_raw_transaction = self.transacting_power.sign_transaction(transaction_dict)
 
         #
         # Broadcast
         #
 
         emitter.message(f'Broadcasting {transaction_name} Transaction ({cost} gwei @ {price})...', color='yellow')
-        txhash = self.client.send_raw_transaction(signed_raw_transaction)
+        try:
+            txhash = self.client.send_raw_transaction(signed_raw_transaction)  # <--- BROADCAST
+        except (TestTransactionFailed, ValueError) as error:
+            raise self.__transaction_failed(exception=error,
+                                            transaction_dict=transaction_dict,
+                                            transaction_name=transaction_name)
+
+        #
+        # Receipt
+        #
+
         try:
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT)
         except TimeExhausted:
@@ -475,7 +558,7 @@ class BlockchainInterface:
             self.log.debug(f"[RECEIPT-{transaction_name}] | txhash: {receipt['transactionHash'].hex()}")
 
         #
-        # Confirm
+        # Confirmations
         #
 
         # Primary check
@@ -536,12 +619,13 @@ class BlockchainInterface:
                                              payload=payload,
                                              transaction_gas_limit=transaction_gas_limit)
 
+        # Get transaction name
         try:
             transaction_name = contract_function.fn_name.upper()
         except AttributeError:
             transaction_name = 'DEPLOY' if isinstance(contract_function, ContractConstructor) else 'UNKNOWN'
 
-        receipt = self.sign_and_broadcast_transaction(unsigned_transaction=transaction,
+        receipt = self.sign_and_broadcast_transaction(transaction_dict=transaction,
                                                       transaction_name=transaction_name,
                                                       confirmations=confirmations)
         return receipt

@@ -43,7 +43,7 @@ This simple example showcases many interesting and distinctive aspects of NuCyph
 The NuCypher Characters
 -----------------------
 
-The actors in this example can be mapped naturally to :doc:`Characters </api/characters>` in the NuCypher narrative:
+The actors in this example can be mapped naturally to :doc:`Characters </api/nucypher.characters>` in the NuCypher narrative:
 
 - Since Alicia is the only one capable of granting access,
   she retains full control over the data encrypted for her.

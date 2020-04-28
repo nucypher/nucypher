@@ -16,11 +16,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from decimal import Decimal
+from typing import Union
 
 import maya
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
 from eth_utils import is_address, to_checksum_address, is_hex
 from web3 import Web3
+from web3.contract import ContractConstructor, ContractFunction
 
 
 def epoch_to_period(epoch: int, seconds_per_period: int) -> int:
@@ -117,3 +119,12 @@ def prettify_eth_amount(amount, original_denomination: str = 'wei') -> str:
         pretty_amount = str(amount)
 
     return pretty_amount
+
+
+def get_transaction_name(contract_function: Union[ContractFunction, ContractConstructor]) -> str:
+    deployment = isinstance(contract_function, ContractConstructor)
+    try:
+        transaction_name = contract_function.fn_name.upper()
+    except AttributeError:
+        transaction_name = 'DEPLOY' if deployment else 'UNKNOWN'
+    return transaction_name

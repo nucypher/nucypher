@@ -22,6 +22,7 @@ from typing import Tuple
 
 import maya
 from eth_tester.exceptions import TransactionFailed
+from eth_utils import to_canonical_address
 from twisted.logger import Logger
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
@@ -273,3 +274,10 @@ class TesterBlockchain(BlockchainDeployerInterface):
             raise TransactionFailed()
         return result
 
+    def get_block_number(self) -> int:
+        return self.client.w3.eth.blockNumber
+
+    def read_storage_slot(self, address, slot):
+        # https://github.com/ethereum/web3.py/issues/1490
+        address = to_canonical_address(address)
+        return self.client.w3.provider.ethereum_tester.backend.chain.get_vm().state.get_storage(address, slot)

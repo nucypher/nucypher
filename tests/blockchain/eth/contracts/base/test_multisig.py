@@ -21,6 +21,7 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from tests.utils.solidity import to_32byte_hex
 
 
 def sign_hash(testerchain, account: str, data_hash: bytes) -> dict:
@@ -29,10 +30,6 @@ def sign_hash(testerchain, account: str, data_hash: bytes) -> dict:
     key = provider.ethereum_tester.backend._key_lookup[address]._raw_key
     signed_data = testerchain.w3.eth.account.signHash(data_hash, key)
     return signed_data
-
-
-def to_32byte_hex(w3, value):
-    return w3.toHex(w3.toBytes(value).rjust(32, b'\0'))
 
 
 @pytest.mark.slow
@@ -82,8 +79,8 @@ def test_execute(testerchain, deploy_contract):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = multisig.functions.execute(
             [signed_tx_hash_0.v, signed_tx_hash_1.v],
-            [to_32byte_hex(w3, signed_tx_hash_0.r), to_32byte_hex(w3, signed_tx_hash_1.r)],
-            [to_32byte_hex(w3, signed_tx_hash_0.s), to_32byte_hex(w3, signed_tx_hash_1.s)],
+            [to_32byte_hex(signed_tx_hash_0.r), to_32byte_hex(signed_tx_hash_1.r)],
+            [to_32byte_hex(signed_tx_hash_0.s), to_32byte_hex(signed_tx_hash_1.s)],
             others[0],
             100,
             w3.toBytes(0)
@@ -94,10 +91,10 @@ def test_execute(testerchain, deploy_contract):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = multisig.functions.execute(
             [signed_tx_hash_0.v, signed_tx_hash_1.v, signed_tx_hash_bad.v],
-            [to_32byte_hex(w3, signed_tx_hash_0.r), to_32byte_hex(w3, signed_tx_hash_1.r),
-             to_32byte_hex(w3, signed_tx_hash_bad.r)],
-            [to_32byte_hex(w3, signed_tx_hash_0.s), to_32byte_hex(w3, signed_tx_hash_1.s),
-             to_32byte_hex(w3, signed_tx_hash_bad.s)],
+            [to_32byte_hex(signed_tx_hash_0.r), to_32byte_hex(signed_tx_hash_1.r),
+             to_32byte_hex(signed_tx_hash_bad.r)],
+            [to_32byte_hex(signed_tx_hash_0.s), to_32byte_hex(signed_tx_hash_1.s),
+             to_32byte_hex(signed_tx_hash_bad.s)],
             others[0],
             100,
             w3.toBytes(0)
@@ -111,10 +108,10 @@ def test_execute(testerchain, deploy_contract):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = multisig.functions.execute(
             [signed_tx_hash_0.v, signed_tx_hash_1.v, signed_tx_hash_bad.v],
-            [to_32byte_hex(w3, signed_tx_hash_0.r), to_32byte_hex(w3, signed_tx_hash_1.r),
-             to_32byte_hex(w3, signed_tx_hash_bad.r)],
-            [to_32byte_hex(w3, signed_tx_hash_0.s), to_32byte_hex(w3, signed_tx_hash_1.s),
-             to_32byte_hex(w3, signed_tx_hash_bad.s)],
+            [to_32byte_hex(signed_tx_hash_0.r), to_32byte_hex(signed_tx_hash_1.r),
+             to_32byte_hex(signed_tx_hash_bad.r)],
+            [to_32byte_hex(signed_tx_hash_0.s), to_32byte_hex(signed_tx_hash_1.s),
+             to_32byte_hex(signed_tx_hash_bad.s)],
             others[0],
             100,
             w3.toBytes(0)
@@ -125,10 +122,10 @@ def test_execute(testerchain, deploy_contract):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = multisig.functions.execute(
             [signed_tx_hash_1.v, signed_tx_hash_2.v, signed_tx_hash_0.v],
-            [to_32byte_hex(w3, signed_tx_hash_1.r), to_32byte_hex(w3, signed_tx_hash_2.r),
-             to_32byte_hex(w3, signed_tx_hash_0.r)],
-            [to_32byte_hex(w3, signed_tx_hash_1.s), to_32byte_hex(w3, signed_tx_hash_2.s),
-             to_32byte_hex(w3, signed_tx_hash_0.s)],
+            [to_32byte_hex(signed_tx_hash_1.r), to_32byte_hex(signed_tx_hash_2.r),
+             to_32byte_hex(signed_tx_hash_0.r)],
+            [to_32byte_hex(signed_tx_hash_1.s), to_32byte_hex(signed_tx_hash_2.s),
+             to_32byte_hex(signed_tx_hash_0.s)],
             others[0],
             100,
             w3.toBytes(0)
@@ -139,10 +136,10 @@ def test_execute(testerchain, deploy_contract):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = multisig.functions.execute(
             [signed_tx_hash_0.v, signed_tx_hash_1.v, signed_tx_hash_2.v],
-            [to_32byte_hex(w3, signed_tx_hash_0.r), to_32byte_hex(w3, signed_tx_hash_1.r),
-             to_32byte_hex(w3, signed_tx_hash_2.r)],
-            [to_32byte_hex(w3, signed_tx_hash_0.s), to_32byte_hex(w3, signed_tx_hash_1.s),
-             to_32byte_hex(w3, signed_tx_hash_bad.s)],
+            [to_32byte_hex(signed_tx_hash_0.r), to_32byte_hex(signed_tx_hash_1.r),
+             to_32byte_hex(signed_tx_hash_2.r)],
+            [to_32byte_hex(signed_tx_hash_0.s), to_32byte_hex(signed_tx_hash_1.s),
+             to_32byte_hex(signed_tx_hash_bad.s)],
             others[0],
             100,
             w3.toBytes(0)
@@ -153,10 +150,10 @@ def test_execute(testerchain, deploy_contract):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = multisig.functions.execute(
             [signed_tx_hash_0.v, signed_tx_hash_1.v, signed_tx_hash_2.v],
-            [to_32byte_hex(w3, signed_tx_hash_0.r), to_32byte_hex(w3, signed_tx_hash_1.r),
-             to_32byte_hex(w3, signed_tx_hash_2.r)],
-            [to_32byte_hex(w3, signed_tx_hash_0.s), to_32byte_hex(w3, signed_tx_hash_1.s),
-             to_32byte_hex(w3, signed_tx_hash_2.s)],
+            [to_32byte_hex(signed_tx_hash_0.r), to_32byte_hex(signed_tx_hash_1.r),
+             to_32byte_hex(signed_tx_hash_2.r)],
+            [to_32byte_hex(signed_tx_hash_0.s), to_32byte_hex(signed_tx_hash_1.s),
+             to_32byte_hex(signed_tx_hash_2.s)],
             others[0],
             100,
             w3.toBytes(0)
@@ -167,10 +164,10 @@ def test_execute(testerchain, deploy_contract):
     assert 200 == w3.eth.getBalance(multisig.address)
     tx = multisig.functions.execute(
         [signed_tx_hash_0.v, signed_tx_hash_1.v, signed_tx_hash_2.v],
-        [to_32byte_hex(w3, signed_tx_hash_0.r), to_32byte_hex(w3, signed_tx_hash_1.r),
-         to_32byte_hex(w3, signed_tx_hash_2.r)],
-        [to_32byte_hex(w3, signed_tx_hash_0.s), to_32byte_hex(w3, signed_tx_hash_1.s),
-         to_32byte_hex(w3, signed_tx_hash_2.s)],
+        [to_32byte_hex(signed_tx_hash_0.r), to_32byte_hex(signed_tx_hash_1.r),
+         to_32byte_hex(signed_tx_hash_2.r)],
+        [to_32byte_hex(signed_tx_hash_0.s), to_32byte_hex(signed_tx_hash_1.s),
+         to_32byte_hex(signed_tx_hash_2.s)],
         others[0],
         100,
         w3.toBytes(0)
@@ -183,10 +180,10 @@ def test_execute(testerchain, deploy_contract):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = multisig.functions.execute(
             [signed_tx_hash_0.v, signed_tx_hash_1.v, signed_tx_hash_2.v],
-            [to_32byte_hex(w3, signed_tx_hash_0.r), to_32byte_hex(w3, signed_tx_hash_1.r),
-             to_32byte_hex(w3, signed_tx_hash_2.r)],
-            [to_32byte_hex(w3, signed_tx_hash_0.s), to_32byte_hex(w3, signed_tx_hash_1.s),
-             to_32byte_hex(w3, signed_tx_hash_2.s)],
+            [to_32byte_hex(signed_tx_hash_0.r), to_32byte_hex(signed_tx_hash_1.r),
+             to_32byte_hex(signed_tx_hash_2.r)],
+            [to_32byte_hex(signed_tx_hash_0.s), to_32byte_hex(signed_tx_hash_1.s),
+             to_32byte_hex(signed_tx_hash_2.s)],
             others[0],
             100,
             w3.toBytes(0)
@@ -208,10 +205,10 @@ def test_execute(testerchain, deploy_contract):
     signed_tx_hash_3 = sign_hash(testerchain, owners[4], tx_hash)
     tx = multisig.functions.execute(
         [signed_tx_hash_0.v, signed_tx_hash_1.v, signed_tx_hash_2.v, signed_tx_hash_3.v],
-        [to_32byte_hex(w3, signed_tx_hash_0.r), to_32byte_hex(w3, signed_tx_hash_1.r),
-         to_32byte_hex(w3, signed_tx_hash_2.r), to_32byte_hex(w3, signed_tx_hash_3.r)],
-        [to_32byte_hex(w3, signed_tx_hash_0.s), to_32byte_hex(w3, signed_tx_hash_1.s),
-         to_32byte_hex(w3, signed_tx_hash_2.s), to_32byte_hex(w3, signed_tx_hash_3.s)],
+        [to_32byte_hex(signed_tx_hash_0.r), to_32byte_hex(signed_tx_hash_1.r),
+         to_32byte_hex(signed_tx_hash_2.r), to_32byte_hex(signed_tx_hash_3.r)],
+        [to_32byte_hex(signed_tx_hash_0.s), to_32byte_hex(signed_tx_hash_1.s),
+         to_32byte_hex(signed_tx_hash_2.s), to_32byte_hex(signed_tx_hash_3.s)],
         token.address,
         0,
         tx['data']
@@ -225,11 +222,10 @@ def execute_transaction(testerchain, multisig, accounts, tx):
     nonce = multisig.functions.nonce().call()
     tx_hash = multisig.functions.getUnsignedTransactionHash(accounts[0], tx['to'], 0, tx['data'], nonce).call()
     signatures = [sign_hash(testerchain, account, tx_hash) for account in accounts]
-    w3 = testerchain.w3
     tx = multisig.functions.execute(
         [signature.v for signature in signatures],
-        [to_32byte_hex(w3, signature.r) for signature in signatures],
-        [to_32byte_hex(w3, signature.s) for signature in signatures],
+        [to_32byte_hex(signature.r) for signature in signatures],
+        [to_32byte_hex(signature.s) for signature in signatures],
         tx['to'],
         0,
         tx['data']

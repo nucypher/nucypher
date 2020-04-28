@@ -107,9 +107,11 @@ contract WorkLock is Ownable {
         uint256 totalSupply = _token.totalSupply();
         require(totalSupply > 0 &&                              // token contract is deployed and accessible
             _escrow.secondsPerPeriod() > 0 &&                   // escrow contract is deployed and accessible
+            _escrow.token() == _token &&                        // same token address for worklock and escrow
             _endBidDate > _startBidDate &&                      // bidding period lasts some time
             _endBidDate > block.timestamp &&                    // there is time to make a bid
             _endCancellationDate >= _endBidDate &&              // cancellation window includes bidding
+            _minAllowedBid > 0 &&                               // min allowed bid was set
             _boostingRefund > 0 &&                              // boosting coefficient was set
             _stakingPeriods >= _escrow.minLockedPeriods());     // staking duration is consistent with escrow contract
         // worst case for `ethToWork()` and `workToETH()`,
@@ -138,7 +140,6 @@ contract WorkLock is Ownable {
         token.safeTransferFrom(msg.sender, address(this), _value);
         tokenSupply += _value;
         emit Deposited(msg.sender, _value);
-        require(tokenSupply / minAllowableLockedTokens <= uint128(0) - 1, "Potential overflow for bidder index");
     }
 
     /**

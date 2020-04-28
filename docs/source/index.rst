@@ -157,18 +157,19 @@ Whitepapers
    :maxdepth: 1
    :caption: API
 
-   api/characters
-   api/config
-   api/crypto
-   api/keyring
-   api/datastore
-   api/network
-   api/policy
+   api/nucypher.blockchain
+   api/nucypher.characters
+   api/nucypher.config
+   api/nucypher.policy
+   api/nucypher.network
+   api/nucypher.datastore
+   api/nucypher.crypto
 
 .. toctree::
    :maxdepth: 1
    :caption: Release Notes
 
+   release_notes/releases.rst
    release_notes/genesis_release
    release_notes/pre_release_epics
 

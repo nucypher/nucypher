@@ -24,6 +24,8 @@ import sys
 
 import io
 import re
+
+import tabulate
 import time
 from os.path import abspath, dirname
 from unittest.mock import Mock
@@ -33,6 +35,7 @@ from zope.interface import provider
 
 from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent, AdjudicatorAgent
+from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.policy.policies import Policy
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
@@ -68,7 +71,7 @@ class AnalyzeGas:
                           (.+)       # Any character sequence longer than 1; Captured
                           \s=\s      # Space-Equal-Space
                           (\d+)      # A sequence of digits; Captured
-                          \|
+                          \s\|\s     # Space-Slash-Space
                           (\d+)      # A sequence of digits; Captured
                           $          # Anchor at the end of the string
                           ''', re.VERBOSE)
@@ -98,8 +101,8 @@ class AnalyzeGas:
 
     @staticmethod
     def paint_line(label: str, estimates: str, gas_used: str) -> None:
-        print('{label} {estimates:7,}|{gas:7,}'.format(
-            label=label.ljust(70, '.'), estimates=int(estimates), gas=int(gas_used)))
+        print('{label} {estimates:7,} | {gas:7,}'.format(
+            label=label.ljust(72, '.'), estimates=int(estimates), gas=int(gas_used)))
 
     def to_json_file(self) -> None:
         print('Saving JSON Output...')
@@ -167,6 +170,22 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain, registry = TesterBlockchain.bootstrap_network(economics=economics)
     web3 = testerchain.w3
 
+    print("\n********* SIZE OF MAIN CONTRACTS *********")
+    MAX_SIZE = 24576
+    rows = list()
+    for contract_name in NUCYPHER_CONTRACT_NAMES:
+        compiled_contract = testerchain._raw_contract_cache[contract_name]
+
+        version = list(compiled_contract).pop()
+        bin_runtime = compiled_contract[version]['bin-runtime']
+        bin_length_in_bytes = len(bin_runtime) // 2
+        percentage = int(100 * bin_length_in_bytes / MAX_SIZE)
+        bar = ('*'*(percentage//2)).ljust(50)
+        rows.append((contract_name, bin_length_in_bytes, f'{bar} {percentage}%'))
+
+    headers = ('Contract', 'Size (B)', f'% of max allowed contract size ({MAX_SIZE} B)')
+    print(tabulate.tabulate(rows, headers=headers, tablefmt="simple"), end="\n\n")
+
     # Accounts
     origin, ursula1, ursula2, ursula3, alice1, alice2, *everyone_else = testerchain.client.accounts
 
@@ -192,19 +211,28 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
         transaction.update(gas=estimates)
         tx = function.transact(transaction)
         receipt = testerchain.wait_for_receipt(tx)
-        log.info(f"{label} = {estimates}|{receipt['gasUsed']}")
+        log.info(f"{label} = {estimates} | {receipt['gasUsed']}")
 
     def transact(function, transaction):
         transaction.update(gas=1000000)
         tx = function.transact(transaction)
         testerchain.wait_for_receipt(tx)
 
-        #
+    #
     # Give Ursula and Alice some coins
     #
     transact_and_log("Transfer tokens", token_functions.transfer(ursula1, MIN_ALLOWED_LOCKED * 10), {'from': origin})
     transact(token_functions.transfer(ursula2, MIN_ALLOWED_LOCKED * 10), {'from': origin})
     transact(token_functions.transfer(ursula3, MIN_ALLOWED_LOCKED * 10), {'from': origin})
+
+    #
+    # Ursula and Alice give Escrow rights to transfer
+    #
+    transact_and_log("Approving transfer",
+                     token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6),
+                     {'from': ursula1})
+    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6), {'from': ursula2})
+    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6), {'from': ursula3})
 
     #
     # Batch deposit tokens
@@ -218,21 +246,12 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                      {'from': origin})
 
     #
-    # Ursula and Alice give Escrow rights to transfer
-    #
-    transact_and_log("Approving transfer",
-                     token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6),
-                     {'from': ursula1})
-    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6), {'from': ursula2})
-    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6), {'from': ursula3})
-
-    #
     # Ursula and Alice transfer some tokens to the escrow and lock them
     #
-    transact_and_log("Initial deposit tokens, 1st",
+    transact_and_log("Initial deposit tokens, first",
                      staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS),
                      {'from': ursula1})
-    transact_and_log("Initial deposit tokens, 2nd",
+    transact_and_log("Initial deposit tokens, other",
                      staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS),
                      {'from': ursula2})
     transact(staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS), {'from': ursula3})
@@ -242,6 +261,8 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact(staker_functions.setWorker(ursula3), {'from': ursula3})
     transact(staker_functions.setReStake(False), {'from': ursula1})
     transact(staker_functions.setReStake(False), {'from': ursula2})
+    transact(staker_functions.setWindDown(True), {'from': ursula1})
+    transact(staker_functions.setWindDown(True), {'from': ursula2})
     transact(staker_functions.confirmActivity(), {'from': ursula1})
     transact(staker_functions.confirmActivity(), {'from': ursula2})
 
@@ -249,24 +270,43 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     # Wait 1 period and confirm activity
     #
     testerchain.time_travel(periods=1)
-    transact_and_log("Confirm activity, 1st", staker_functions.confirmActivity(), {'from': ursula1})
-    transact_and_log("Confirm activity, 2nd", staker_functions.confirmActivity(), {'from': ursula2})
+    transact_and_log("Confirm activity, first", staker_functions.confirmActivity(), {'from': ursula1})
+    transact_and_log("Confirm activity, other", staker_functions.confirmActivity(), {'from': ursula2})
 
     #
     # Wait 1 period and mint tokens
     #
     testerchain.time_travel(periods=1)
-    transact_and_log("Mining (1 stake), 1st", staker_functions.mint(), {'from': ursula1})
-    transact_and_log("Mining (1 stake), 2nd", staker_functions.mint(), {'from': ursula2})
-    transact_and_log("Confirm activity again, 1st", staker_functions.confirmActivity(), {'from': ursula1})
-    transact_and_log("Confirm activity again, 2nd", staker_functions.confirmActivity(), {'from': ursula2})
+    transact_and_log("Mining (1 stake), first", staker_functions.mint(), {'from': ursula1})
+    transact_and_log("Mining (1 stake), other", staker_functions.mint(), {'from': ursula2})
+    transact_and_log("Confirm activity again, first", staker_functions.confirmActivity(), {'from': ursula1})
+    transact_and_log("Confirm activity again, other", staker_functions.confirmActivity(), {'from': ursula2})
+    transact(staker_functions.confirmActivity(), {'from': ursula3})
 
     #
     # Confirm again
     #
     testerchain.time_travel(periods=1)
-    transact_and_log("Confirm activity + mint, 1st", staker_functions.confirmActivity(), {'from': ursula1})
-    transact_and_log("Confirm activity + mint, 2nd", staker_functions.confirmActivity(), {'from': ursula2})
+    transact_and_log("Confirm activity + mint, first", staker_functions.confirmActivity(), {'from': ursula1})
+    transact_and_log("Confirm activity + mint, other", staker_functions.confirmActivity(), {'from': ursula2})
+
+    #
+    # Create policy
+    #
+    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    number_of_periods = 10
+    rate = 100
+    one_period = economics.hours_per_period * 60 * 60
+    value = number_of_periods * rate
+    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
+    transact_and_log("Creating policy (1 node, 10 periods, pre-confirmed), first",
+                     policy_functions.createPolicy(policy_id_1, alice1, end_timestamp, [ursula1]),
+                     {'from': alice1, 'value': value})
+    transact_and_log("Creating policy (1 node, 10 periods, pre-confirmed), other",
+                     policy_functions.createPolicy(policy_id_2, alice1, end_timestamp, [ursula1]),
+                     {'from': alice1, 'value': value})
 
     #
     # Get locked tokens
@@ -285,46 +325,28 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact(staker_functions.setReStake(True), {'from': ursula1})
     transact(staker_functions.setReStake(True), {'from': ursula2})
 
-    transact_and_log("Confirm activity + mint with re-stake, 1st",
-                     staker_functions.confirmActivity(),
-                     {'from': ursula1})
-    transact_and_log("Confirm activity + mint with re-stake, 2nd",
+    # Used to remove spending for first call in a day for mint and confirmActivity
+    transact(staker_functions.confirmActivity(), {'from': ursula3})
+
+    transact_and_log("Confirm activity + mint + re-stake",
                      staker_functions.confirmActivity(),
                      {'from': ursula2})
+    transact_and_log("Confirm activity + mint + re-stake + first reward + first reward rate",
+                     staker_functions.confirmActivity(),
+                     {'from': ursula1})
 
     transact(staker_functions.setReStake(False), {'from': ursula1})
     transact(staker_functions.setReStake(False), {'from': ursula2})
 
     #
-    # Wait 1 period
-    #
-    testerchain.time_travel(periods=1)
-
-    #
-    # Create policy
-    #
-    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    number_of_periods = 10
-    rate = 100
-    one_period = economics.hours_per_period * 60 * 60
-    value = number_of_periods * rate
-    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
-    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
-    transact_and_log("Creating policy (1 node, 10 periods, pre-confirmed), 1st",
-                     policy_functions.createPolicy(policy_id_1, alice1, end_timestamp, [ursula1]),
-                     {'from': alice1, 'value': value})
-    transact_and_log("Creating policy (1 node, 10 periods, pre-confirmed), 2nd",
-                     policy_functions.createPolicy(policy_id_2, alice1, end_timestamp, [ursula1]),
-                     {'from': alice1, 'value': value})
-
-    #
     # Wait 2 periods and confirm activity after downtime
     #
-    testerchain.time_travel(periods=1)
-    transact_and_log("Confirm activity after downtime, 1st", staker_functions.confirmActivity(), {'from': ursula1})
-    transact_and_log("Confirm activity after downtime, 2nd", staker_functions.confirmActivity(), {'from': ursula2})
+    testerchain.time_travel(periods=2)
     transact(staker_functions.confirmActivity(), {'from': ursula3})
+    transact_and_log("Confirm activity after downtime", staker_functions.confirmActivity(), {'from': ursula2})
+    transact_and_log("Confirm activity after downtime + updating reward",
+                     staker_functions.confirmActivity(),
+                     {'from': ursula1})
 
     #
     # Ursula and Alice deposit some tokens to the escrow again
@@ -354,14 +376,14 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     value = 3 * number_of_periods * rate
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
-    transact_and_log("Creating policy (3 nodes, 100 periods, pre-confirmed), 1st",
+    transact_and_log("Creating policy (3 nodes, 100 periods, pre-confirmed), first",
                      policy_functions.createPolicy(policy_id_1, alice1, end_timestamp, [ursula1, ursula2, ursula3]),
                      {'from': alice1, 'value': value})
-    transact_and_log("Creating policy (3 nodes, 100 periods, pre-confirmed), 2nd",
+    transact_and_log("Creating policy (3 nodes, 100 periods, pre-confirmed), other",
                      policy_functions.createPolicy(policy_id_2, alice1, end_timestamp, [ursula1, ursula2, ursula3]),
                      {'from': alice1, 'value': value})
     value = 2 * number_of_periods * rate
-    transact_and_log("Creating policy (2 nodes, 100 periods, pre-confirmed), 3rd",
+    transact_and_log("Creating policy (2 nodes, 100 periods, pre-confirmed), other",
                      policy_functions.createPolicy(policy_id_3, alice1, end_timestamp, [ursula1, ursula2]),
                      {'from': alice1, 'value': value})
 
@@ -369,8 +391,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     # Wait 1 period and mint tokens
     #
     testerchain.time_travel(periods=1)
-    transact_and_log("Mining with updating reward, 1st", staker_functions.mint(), {'from': ursula1})
-    transact_and_log("Mining with updating reward, 2nd", staker_functions.mint(), {'from': ursula2})
+    transact(staker_functions.mint(), {'from': ursula3})
+    transact_and_log("Last mining + updating reward + updating reward rate", staker_functions.mint(), {'from': ursula1})
+    transact_and_log("Last mining + first reward + first reward rate", staker_functions.mint(), {'from': ursula2})
 
     #
     # Create policy again without pre-confirmed nodes
@@ -382,16 +405,16 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     value = number_of_periods * rate
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
-    transact_and_log("Creating policy (1 node, 100 periods), 1st",
+    transact_and_log("Creating policy (1 node, 100 periods)",
                      policy_functions.createPolicy(policy_id_1, alice2, end_timestamp, [ursula2]),
                      {'from': alice1, 'value': value})
     testerchain.time_travel(periods=1)
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
-    transact_and_log("Creating policy (1 node, 100 periods), 2nd",
+    transact_and_log("Creating policy (1 node, 100 periods), next period",
                      policy_functions.createPolicy(policy_id_2, alice2, end_timestamp, [ursula2]),
                      {'from': alice1, 'value': value})
-    transact_and_log("Creating policy (1 node, 100 periods), 3rd",
+    transact_and_log("Creating policy (1 node, 100 periods), another node",
                      policy_functions.createPolicy(policy_id_3, alice2, end_timestamp, [ursula1]),
                      {'from': alice1, 'value': value})
 
@@ -400,18 +423,22 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     testerchain.time_travel(periods=10)
     transact(staker_functions.confirmActivity(), {'from': ursula1})
+    transact(staker_functions.confirmActivity(), {'from': ursula3})
 
     testerchain.time_travel(periods=2)
-    transact_and_log("Mining after downtime", staker_functions.mint(), {'from': ursula1})
+    transact(staker_functions.mint(), {'from': ursula3})
+    transact_and_log("Last mining after downtime + updating reward",
+                     staker_functions.mint(),
+                     {'from': ursula1})
 
     testerchain.time_travel(periods=10)
-    transact_and_log("Revoking policy after downtime, 1st",
+    transact_and_log("Revoking policy after downtime, 1st policy",
                      policy_functions.revokePolicy(policy_id_1),
                      {'from': alice2})
-    transact_and_log("Revoking policy after downtime, 2nd",
+    transact_and_log("Revoking policy after downtime, 2nd policy",
                      policy_functions.revokePolicy(policy_id_2),
                      {'from': alice2})
-    transact_and_log("Revoking policy after downtime, 3rd",
+    transact_and_log("Revoking policy after downtime, 3rd policy",
                      policy_functions.revokePolicy(policy_id_3),
                      {'from': alice2})
 

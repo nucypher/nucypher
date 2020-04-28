@@ -2,7 +2,6 @@ pragma solidity ^0.6.5;
 
 
 import "contracts/NuCypherToken.sol";
-import "zeppelin/math/SafeMath.sol";
 import "zeppelin/math/Math.sol";
 import "contracts/proxy/Upgradeable.sol";
 import "contracts/lib/AdditionalMath.sol";
@@ -11,35 +10,35 @@ import "zeppelin/token/ERC20/SafeERC20.sol";
 
 /**
 * @notice Contract for calculation of issued tokens
-* @dev |v2.1.1|
+* @dev |v3.1.1|
 */
 abstract contract Issuer is Upgradeable {
     using SafeERC20 for NuCypherToken;
-    using SafeMath for uint256;
     using AdditionalMath for uint32;
 
     event Burnt(address indexed sender, uint256 value);
     /// Issuer is initialized with a reserved reward
     event Initialized(uint256 reservedReward);
 
+    uint128 constant MAX_UINT128 = uint128(0) - 1;
+
     NuCypherToken public immutable token;
-    uint256 public immutable totalSupply;
+    uint128 public immutable totalSupply;
 
     uint256 public immutable miningCoefficient;
     uint256 public immutable lockedPeriodsCoefficient;
     uint32 public immutable secondsPerPeriod;
     uint16 public immutable rewardedPeriods;
 
-    uint16 public currentMintingPeriod;
     /**
     * Current supply is used in the mining formula and is stored to prevent different calculation
     * for stakers which get reward in the same period. There are two values -
     * supply for previous period (used in formula) and supply for current period which accumulates value
-    * before end of period. There is no order between them because of storage savings.
-    * So each time should check values of both variables.
+    * before end of period.
     */
-    uint256 public currentSupply1;
-    uint256 public currentSupply2;
+    uint128 public previousPeriodSupply;
+    uint128 public currentPeriodSupply;
+    uint16 public currentMintingPeriod;
 
     /**
     * @notice Constructor sets address of token contract and coefficients for mining
@@ -67,8 +66,10 @@ abstract contract Issuer is Upgradeable {
             _hoursPerPeriod != 0 &&
             _lockedPeriodsCoefficient != 0 &&
             _rewardedPeriods != 0);
+        require(localTotalSupply <= uint256(MAX_UINT128), "Token contract has supply more than supported");
         uint256 maxLockedPeriods = _rewardedPeriods + _lockedPeriodsCoefficient;
         require(maxLockedPeriods > _rewardedPeriods &&
+            _miningCoefficient >= maxLockedPeriods &&
             // worst case for `totalLockedValue * k2`, when totalLockedValue == totalSupply
             localTotalSupply * _miningCoefficient / localTotalSupply == _miningCoefficient &&
             // worst case for `(totalSupply - currentSupply) * lockedValue * (k1 + allLockedPeriods)`,
@@ -80,7 +81,7 @@ abstract contract Issuer is Upgradeable {
         secondsPerPeriod = _hoursPerPeriod.mul32(1 hours);
         lockedPeriodsCoefficient = _lockedPeriodsCoefficient;
         rewardedPeriods = _rewardedPeriods;
-        totalSupply = localTotalSupply;
+        totalSupply = uint128(localTotalSupply);
     }
 
     /**
@@ -106,9 +107,8 @@ abstract contract Issuer is Upgradeable {
         require(currentMintingPeriod == 0);
         token.safeTransferFrom(msg.sender, address(this), _reservedReward);
         currentMintingPeriod = getCurrentPeriod();
-        uint256 currentTotalSupply = totalSupply - _reservedReward;
-        currentSupply1 = currentTotalSupply;
-        currentSupply2 = currentTotalSupply;
+        currentPeriodSupply = totalSupply - uint128(_reservedReward);
+        previousPeriodSupply = currentPeriodSupply;
         emit Initialized(_reservedReward);
     }
 
@@ -128,41 +128,31 @@ abstract contract Issuer is Upgradeable {
     )
         internal returns (uint256 amount)
     {
-        if (currentSupply1 == totalSupply || currentSupply2 == totalSupply) {
+        if (currentPeriodSupply == totalSupply) {
             return 0;
         }
 
-        uint256 maxReward = getReservedReward();
-        uint256 currentReward = _currentPeriod <= currentMintingPeriod ?
-            totalSupply - Math.min(currentSupply1, currentSupply2) : maxReward;
+        if (_currentPeriod > currentMintingPeriod) {
+            previousPeriodSupply = currentPeriodSupply;
+            currentMintingPeriod = _currentPeriod;
+        }
+        uint128 currentReward = totalSupply - previousPeriodSupply;
 
         //(totalSupply - currentSupply) * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2)
         uint256 allLockedPeriods =
             AdditionalMath.min16(_allLockedPeriods, rewardedPeriods) + lockedPeriodsCoefficient;
-        amount = (currentReward * _lockedValue * allLockedPeriods) /
+        amount = (uint256(currentReward) * _lockedValue * allLockedPeriods) /
             (_totalLockedValue * miningCoefficient);
 
         // rounding the last reward
+        uint256 maxReward = getReservedReward();
         if (amount == 0) {
             amount = 1;
         } else if (amount > maxReward) {
             amount = maxReward;
         }
 
-        if (_currentPeriod <= currentMintingPeriod) {
-            if (currentSupply1 > currentSupply2) {
-                currentSupply1 += amount;
-            } else {
-                currentSupply2 += amount;
-            }
-        } else {
-            currentMintingPeriod = _currentPeriod;
-            if (currentSupply1 > currentSupply2) {
-                currentSupply2 = currentSupply1 + amount;
-            } else {
-                currentSupply1 = currentSupply2 + amount;
-            }
-        }
+        currentPeriodSupply += uint128(amount);
     }
 
     /**
@@ -170,8 +160,8 @@ abstract contract Issuer is Upgradeable {
     * @param _amount Amount of tokens
     */
     function unMint(uint256 _amount) internal {
-        currentSupply1 -= _amount;
-        currentSupply2 -= _amount;
+        previousPeriodSupply -= uint128(_amount);
+        currentPeriodSupply -= uint128(_amount);
     }
 
     /**
@@ -188,15 +178,15 @@ abstract contract Issuer is Upgradeable {
     * @notice Returns the number of tokens that can be mined
     */
     function getReservedReward() public view returns (uint256) {
-        return totalSupply - Math.max(currentSupply1, currentSupply2);
+        return totalSupply - currentPeriodSupply;
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
         require(uint16(delegateGet(_testTarget, this.currentMintingPeriod.selector)) == currentMintingPeriod);
-        require(delegateGet(_testTarget, this.currentSupply1.selector) == currentSupply1);
-        require(delegateGet(_testTarget, this.currentSupply2.selector) == currentSupply2);
+        require(uint128(delegateGet(_testTarget, this.previousPeriodSupply.selector)) == previousPeriodSupply);
+        require(uint128(delegateGet(_testTarget, this.currentPeriodSupply.selector)) == currentPeriodSupply);
     }
 
 }

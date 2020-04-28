@@ -32,6 +32,11 @@ abstract contract Upgradeable is Ownable {
     */
     uint8 public isUpgrade;
 
+    /**
+    * @dev Guarantees that next slot will be separated from the previous
+    */
+    uint256 stubSlot;
+
     /** Constants for `isUpgrade` field **/
     uint8 constant UPGRADE_FALSE = 1;
     uint8 constant UPGRADE_TRUE = 2;
