@@ -277,41 +277,46 @@ class ClefSigner(Signer):
 class KeystoreSigner(Signer):
     """Local Web3 signer implementation supporting a single account/keystore file"""
 
-    __key: Dict
-    __account: str
-    __signer: LocalAccount
+    __keys: Dict[str, dict]
+    __signers: Dict[str, LocalAccount]
 
     class InvalidKeyfile(ValueError):
-        pass
+        """
+        Raised when a keyfile is corrupt or otherwise invalid.
+        Keystore must be in the geth wallet format.
+        """
 
     def __init__(self, path: str):
         super().__init__()
-        self.path = path
-        self.__accounts = dict()
-        self.__signing_keys = dict()
+        self.__path = path
+        self.__keys = dict()
+        self.__signers = dict()
         self.__read_keystore(path=path)
 
     def __del__(self):
-        if self.__accounts:
-            for account in self.__accounts:
+        if self.__keys:
+            for account in self.__keys:
                 self.lock_account(account)
 
-    def __read_keystore(self, path: str):
+    def __read_keystore(self, path: str) -> None:
+        """Read the keystore directory from the disk and populate accounts."""
         try:
             files = os.listdir(path=path)
         except FileNotFoundError:
             raise self.InvalidSignerURI(f'No such keystore directory "{path}"')
         for keyfile in files:
             account, key_metadata = self.__handle_keyfile(path=keyfile)
-            self.__accounts[account] = key_metadata
+            self.__keys[account] = key_metadata
 
-    def __read_keyfile(self, path: str) -> tuple:
+    @staticmethod
+    def __read_keyfile(path: str) -> tuple:
+        """Read an individual keystore key file from the disk"""
         with open(path, 'r') as keyfile:
             key_metadata = json.load(keyfile)
         address = key_metadata['address']
         return address, key_metadata
 
-    def __handle_keyfile(self, path: str) -> tuple:
+    def __handle_keyfile(self, path: str) -> Tuple[str, dict]:
         """
         Read a single keystore file from the disk and return its decoded json contents then internally
         cache it on the keystore instance. Raises InvalidKeyfile if the keyfile is missing or corrupted.
@@ -334,17 +339,28 @@ class KeystoreSigner(Signer):
         return address, key_metadata
 
     @validate_checksum_address
-    def __get_signer(self, account: str) -> Account:
+    def __get_signer(self, account: str) -> LocalAccount:
+        """Lookup a known keystore account by its checksum address or raise an error"""
         try:
-            return self.__signing_keys[account]
+            return self.__signers[account]
         except KeyError:
-            if account not in self.__accounts:
+            if account not in self.__keys:
                 raise self.UnknownAccount(account=account)
             else:
                 raise self.AccountLocked(account=account)
 
+    #
+    # Public API
+    #
+
+    @property
+    def path(self) -> str:
+        """Read only access to the keystore path"""
+        return self.__path
+
     @classmethod
     def from_signer_uri(cls, uri: str) -> 'Signer':
+        """Return a keystore signer from URI string i.e. keystore:///my/path/keystore """
         decoded_uri = urlparse(uri)
         if decoded_uri.scheme not in ('key', 'keystore') or decoded_uri.netloc:
             raise cls.InvalidSignerURI(uri)
@@ -356,7 +372,8 @@ class KeystoreSigner(Signer):
 
     @property
     def accounts(self) -> List[str]:
-        return list(self.__accounts.keys())
+        """Return a list of known keystore accounts read from"""
+        return list(self.__keys.keys())
 
     @validate_checksum_address
     def unlock_account(self, account: str, password: str, duration: int = None) -> bool:
@@ -365,33 +382,44 @@ class KeystoreSigner(Signer):
         the keystore instance is decryption is successful.
         """
 
-        if not self.__signing_keys.get(account):
+        if not self.__signers.get(account):
             try:
-                key_metadata = self.__accounts[account]
+                key_metadata = self.__keys[account]
             except ValueError:
                 return False  # Decryption Failed
             except KeyError:
                 raise self.UnknownAccount(account=account)
             else:
                 signing_key = Account.from_key(Account.decrypt(key_metadata, password))
-                self.__signing_keys[account] = signing_key
+                self.__signers[account] = signing_key
 
         return True
 
     @validate_checksum_address
     def lock_account(self, account: str) -> bool:
+        """
+        Deletes a local signer by its checksum address or raises UnknownAccount if
+        the address is not a member of this keystore.  Returns True if the account is no longer
+        tracked and was successfully locked.
+        """
         try:
-            self.__signing_keys.pop(account)
+            self.__signers.pop(account)  # mutate
         except KeyError:
-            raise self.UnknownAccount(account=account)
-        else:
-            return account not in self.__signing_keys
+            if account not in self.accounts:
+                raise self.UnknownAccount(account=account)
+        return account not in self.__signers
 
     @validate_checksum_address
     def sign_transaction(self, transaction_dict: dict) -> HexBytes:
+        """
+        Produce a raw signed ethereum transaction signed by the account specified
+        in the 'from' field of the transaction dictionary.
+        """
+
         sender = transaction_dict['from']
         signer = self.__get_signer(account=sender)
 
+        # TODO: Handle this at a higher level?
         # Do not include a 'to' field for contract creation.
         if not transaction_dict['to']:
             transaction_dict = dissoc(transaction_dict, 'to')
