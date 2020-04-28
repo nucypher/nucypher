@@ -2,19 +2,24 @@ Getting Started with Characters
 ===============================
 
 
-* `Side Channels <#a-note-about-side-channels>`_
-* `Running an Ethereum Node <#running-an-ethereum-node>`_
-*  `Connecting Nucypher to an Etheruem Node <#connecting-to-the-nucypher-network>`_
-*  `Alice: Grant Access to a Secret <#alice-grant-access-to-a-secret>`_
-    * `Setup Alice <#setup-alice>`_
-    * `Grant <#grant>`_
-* `Enrico: Encrypt a Secret <#enrico-encrypt-a-secret>`_
-    * `Setup Enrico <#setup-enrico>`_
-    * `Encrypt <#encrypt>`_
-* `Bob: Decrypt a Secret <#bob-decrypt-a-secret>`_
-    * `Setup Bob <#setup-bob>`_
-    * `Join a Policy <#join-a-policy>`_
-    * `Decrypt <#retrieve-and-decrypt>`_
+* `A Note about Side Channels`_
+* `Running an Ethereum Node`_
+* `Connecting to The NuCypher Network`_
+* `Alice: Grant Access to a Secret`_
+
+    * `Setup Alice`_
+    * `Grant`_
+
+* `Enrico: Encrypt a Secret`_
+
+    * `Setup Enrico`_
+    * `Encrypt`_
+
+* `Bob: Decrypt a Secret`_
+
+    * `Setup Bob`_
+    * `Join a Policy`_
+    * `Retrieve and Decrypt`_
 
 
 A Note about Side Channels
@@ -30,18 +35,21 @@ to discover each other's public keys, and provide policy encrypting information 
 Side Channel Application Data
 -----------------------------
 
-
 * Secrets:
-  * Message Kits - Encrypted Messages, or "Ciphertexts"
+
+   * Message Kits - Encrypted Messages, or "Ciphertexts"
 
 * Identities:
-  * Alice Verifying Key - Public key used for verifying Alice
-  * Bob Encrypting Key - Public key used to encrypt for Bob
-  * Bob Verifying Key - Public key used to verify Bob
+
+    * Alice Verifying Key - Public key used for verifying Alice
+    * Bob Encrypting Key - Public key used to encrypt for Bob
+    * Bob Verifying Key - Public key used to verify Bob
 
 * Policies:
-  * Policy Encrypting Key - Public key used to encrypt messages for a Policy.
-  * Labels - A label for specifying a Policy's target, like a filepath
+
+    * Policy Encrypting Key - Public key used to encrypt messages for a Policy.
+    * Labels - A label for specifying a Policy's target, like a filepath
+
 
 Running an Ethereum Node
 ------------------------
@@ -233,7 +241,7 @@ Enrico: Encrypt a Secret
 Setup Enrico
 ^^^^^^^^^^^^
 
-First, A ``policy_encrypting_key`` must be retrieved from the application side channel, then 
+First, a ``policy_encrypting_key`` must be retrieved from the application side channel, then
 to encrypt a secret using Enrico:
 
 Encrypt
