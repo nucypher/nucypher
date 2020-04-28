@@ -36,6 +36,7 @@ from nucypher.blockchain.eth.registry import (
     RegistrySourceManager,
     GithubRegistrySource
 )
+from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.actions import (
     get_client_password,
@@ -176,6 +177,7 @@ class ActorOptions:
                 deployer_address = select_client_account(emitter=emitter,
                                                          prompt=prompt,
                                                          provider_uri=self.provider_uri,
+                                                         signer_uri=self.signer_uri,
                                                          show_eth_balance=True)
 
             if not self.force:
@@ -184,10 +186,12 @@ class ActorOptions:
             if not self.hw_wallet and not deployer_interface.client.is_local:
                 password = get_client_password(checksum_address=deployer_address)
         # Produce Actor
+        signer = Signer.from_signer_uri(self.signer_uri) if self.signer_uri else None
         ADMINISTRATOR = ContractAdministrator(registry=local_registry,
                                               client_password=password,
                                               deployer_address=deployer_address,
                                               is_transacting=is_transacting,
+                                              signer=signer,
                                               staking_escrow_test_mode=self.se_test_mode)
         # Verify ETH Balance
         emitter.echo(f"\n\nDeployer ETH balance: {ADMINISTRATOR.eth_balance}")
