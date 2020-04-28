@@ -1531,7 +1531,7 @@ class StakeHolder(Staker):
 
         def __get_accounts(self) -> None:
             if self.__signer:
-                signer_accounts = self.__signer.accounts()
+                signer_accounts = self.__signer.accounts
                 self.__client_accounts.update(signer_accounts)
             client_accounts = self.blockchain.client.accounts  # Accounts via connected provider
             self.__client_accounts.update(client_accounts)

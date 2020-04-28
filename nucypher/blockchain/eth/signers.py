@@ -51,6 +51,7 @@ class Signer(ABC):
         this method is implemented as a boolean to tell the difference."""
         return NotImplemented
 
+    @property
     @abstractmethod
     def accounts(self) -> List[str]:
         return NotImplemented
@@ -92,6 +93,7 @@ class Web3Signer(Signer):
     def is_connected(self) -> bool:
         return self.__client.w3.isConnected()
 
+    @property
     def accounts(self) -> List[str]:
         return self.__client.accounts
 
@@ -174,7 +176,8 @@ class ClefSigner(Signer):
     @validate_checksum_address
     def is_device(self, account: str):
         return True  # TODO: Detect HW v. SW Wallets via clef API - #1772
-    
+
+    @property
     def accounts(self) -> List[str]:
         normalized_addresses = self.__ipc_request(endpoint="account_list")
         checksum_addresses = [to_checksum_address(addr) for addr in normalized_addresses]
