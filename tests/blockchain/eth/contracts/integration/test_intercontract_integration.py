@@ -46,7 +46,7 @@ def pytest_namespace():
 def token_economics():
     economics = BaseEconomics(
         initial_supply=10 ** 9,
-        first_phase_supply=int(1.5 * 10 ** 9),
+        first_phase_supply=int(0.5 * 10 ** 9),
         total_supply=2 * 10 ** 9,
         first_phase_stable_issuance=200,
         second_phase_coefficient=10 ** 7,

@@ -156,6 +156,7 @@ class BaseEconomics:
         self.reward_supply = total_supply - initial_supply
         self.total_supply = total_supply
         self.first_phase_supply = first_phase_supply
+        self.first_phase_total_supply = initial_supply + first_phase_supply
         self.first_phase_stable_issuance = first_phase_stable_issuance
         self.second_phase_coefficient = second_phase_coefficient
         self.locking_duration_coefficient_1 = locking_duration_coefficient_1
@@ -200,10 +201,10 @@ class BaseEconomics:
 
             # Coefficients
             self.second_phase_coefficient,          # Second phase coefficient (k2)
-            self.locking_duration_coefficient_1,    # Numerator of he locking duration coefficient (k1)
+            self.locking_duration_coefficient_1,    # Numerator of the locking duration coefficient (k1)
             self.locking_duration_coefficient_2,    # Denominator of the locking duration coefficient (k3)
             self.maximum_rewarded_periods,          # Max periods that will be additionally rewarded (awarded_periods)
-            self.first_phase_supply,                # Total supply for the first phase
+            self.first_phase_total_supply,          # Total supply for the first phase
             self.first_phase_stable_issuance,       # Max possible reward for one period for all stakers in the first phase
 
             # Constraints
@@ -261,14 +262,15 @@ class BaseEconomics:
 class StandardTokenEconomics(BaseEconomics):
     """
 
-    Formula for staking in one period:
-    (totalSupply - currentSupply) * (lockedValue / totalLockedValue) * (k1 + allLockedPeriods) / k2
+    Formula for staking in one period for the second phase:
+    (totalSupply - currentSupply) * (lockedValue / totalLockedValue) * (k1 + allLockedPeriods) / k2 / k3
 
-    K2 - Staking coefficient
-    K1 - Locked periods coefficient
+    K2 - Second phase coefficient
+    K1 - Numerator of the locking duration coefficient
+    K3 - Denominator of the locking duration coefficient
 
     if allLockedPeriods > maximum_rewarded_periods then allLockedPeriods = maximum_rewarded_periods
-    kappa * log(2) / halving_delay === (k1 + allLockedPeriods) / k2
+    kappa * log(2) / halving_delay === (k1 + allLockedPeriods) / k2 / k3
 
     ...but also...
 
@@ -288,7 +290,7 @@ class StandardTokenEconomics(BaseEconomics):
     # Supply
     __default_initial_supply = NU(int(1_000_000_000), 'NU').to_nunits()
     __default_first_phase_supply = NU(int(1_829_579_800), 'NU').to_nunits()
-    __default_issuance = NU(int(365_915_960), 'NU').to_nunits()
+    __default_first_phase_duration = 5  # years
 
     __default_token_halving = 2      # years
     __default_reward_saturation = 1  # years
@@ -297,7 +299,7 @@ class StandardTokenEconomics(BaseEconomics):
     def __init__(self,
                  initial_supply: int = __default_initial_supply,
                  first_phase_supply: int = __default_first_phase_supply,
-                 stable_issuance: int = __default_issuance,
+                 first_phase_duration: int = __default_first_phase_duration,
                  halving_delay: int = __default_token_halving,
                  reward_saturation: int = __default_reward_saturation,
                  small_stake_multiplier: Decimal = __default_small_stake_multiplier,
@@ -305,7 +307,8 @@ class StandardTokenEconomics(BaseEconomics):
         """
         :param initial_supply: Tokens at t=0
         :param initial_supply: Number of tokens in circulating supply at t=0
-        ;param first_phase_supply: Number of tokens in circulating supply at phase switch (variable t)
+        :param first_phase_supply: Number of tokens in circulating supply at phase switch (variable t)
+        :param first_phase_duration: Minimal duration of the first phase
         :param halving_delay: Time for issuance to halve in years (in second phase only)
         :param reward_saturation: "saturation" time - if staking is longer than T_sat, the reward doesn't get any higher
         :param small_stake_multiplier: Fraction of maximum reward paid to those who are about to unlock tokens
@@ -322,9 +325,10 @@ class StandardTokenEconomics(BaseEconomics):
 
             first_phase_supply = Decimal(first_phase_supply)
 
-            # TODO finish this
+            first_phase_stable_issuance = first_phase_supply / first_phase_duration / 365
+
             # ERC20 Token parameter (See Equation 4 in Mining paper)
-            total_supply = initial_supply + first_phase_supply + stable_issuance * halving_delay / LOG2
+            total_supply = initial_supply + first_phase_supply + first_phase_stable_issuance * 365 * halving_delay / LOG2
 
             # Awarded periods- Escrow parameter
             maximum_rewarded_periods = reward_saturation * 365
@@ -338,7 +342,6 @@ class StandardTokenEconomics(BaseEconomics):
             # k2 - Escrow parameter
             second_phase_coefficient = 365 * halving_delay / LOG2
 
-            first_phase_stable_issuance = stable_issuance // 365
 
         #
         # Injected
@@ -358,12 +361,11 @@ class StandardTokenEconomics(BaseEconomics):
                          maximum_rewarded_periods=maximum_rewarded_periods,
                          **kwargs)
 
-    def second_phase_first_period(self) -> int:
-        S_0 = self.erc20_initial_supply
+    def first_phase_final_period(self) -> int:
         S_p1 = self.first_phase_supply
         I_s_per_period = self.first_phase_stable_issuance  # per period
-        phase_switch_in_periods = (S_p1 - S_0) // I_s_per_period
-        return phase_switch_in_periods + 1
+        phase_switch_in_periods = S_p1 // I_s_per_period
+        return phase_switch_in_periods
 
     def token_supply_at_period(self, period: int) -> int:
         if period < 0:
@@ -374,23 +376,26 @@ class StandardTokenEconomics(BaseEconomics):
 
             t = Decimal(period)
             S_0 = self.erc20_initial_supply
-            S_p1 = self.first_phase_supply
+            phase_switch_in_periods = self.first_phase_final_period()
             I_s_per_period = self.first_phase_stable_issuance  # per period
-            phase_switch_in_periods = self.second_phase_first_period()
-            T_half = self.token_halving  # in years
-            T_half_in_periods = T_half * 365
 
-            if t < phase_switch_in_periods:
+            if t <= phase_switch_in_periods:
+
                 S_t = S_0 + (t * I_s_per_period)
             else:
-                S_t = S_0 + S_p1 + I_s_per_period * (1 - 2 ** (-t / T_half_in_periods)) / LOG2
+                S_p1 = self.first_phase_supply
+                T_half = self.token_halving  # in years
+                T_half_in_periods = T_half * 365
+                t = t - phase_switch_in_periods
+
+                S_t = S_0 + S_p1 + I_s_per_period * T_half_in_periods * (1 - 2 ** (-t / T_half_in_periods)) / LOG2
             return int(S_t)
 
     def cumulative_rewards_at_period(self, period: int) -> int:
         return self.token_supply_at_period(period) - self.erc20_initial_supply
 
     def rewards_during_period(self, period: int) -> int:
-        return self.cumulative_rewards_at_period(period) - self.cumulative_rewards_at_period(period-1)
+        return self.token_supply_at_period(period) - self.token_supply_at_period(period-1)
 
 
 class EconomicsFactory:
@@ -434,6 +439,9 @@ class EconomicsFactory:
         staking_parameters.insert(6, seconds_per_period // 60 // 60)  # hours_per_period
         minting_coefficient = staking_parameters[0]
         locking_duration_coefficient_2 = staking_parameters[2]
+        first_phase_total_supply = staking_parameters[4]
+        first_phase_supply = first_phase_total_supply - initial_supply
+        staking_parameters[4] = first_phase_supply
         staking_parameters[0] = minting_coefficient // locking_duration_coefficient_2  # second_phase_coefficient
 
         # Adjudicator

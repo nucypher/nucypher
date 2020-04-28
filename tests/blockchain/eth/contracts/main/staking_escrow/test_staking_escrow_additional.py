@@ -210,7 +210,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
 
 @pytest.mark.slow
 def test_flags(testerchain, token, escrow_contract):
-    escrow = escrow_contract(100)
+    escrow = escrow_contract(100, disable_reward=True)
     creator = testerchain.client.accounts[0]
     staker = testerchain.client.accounts[1]
 
@@ -220,9 +220,7 @@ def test_flags(testerchain, token, escrow_contract):
     snapshots_log = escrow.events.SnapshotSet.createFilter(fromBlock='latest')
 
     # Give Escrow tokens for reward and initialize contract
-    tx = token.functions.approve(escrow.address, 1000).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.initialize(1000).transact({'from': creator})
+    tx = escrow.functions.initialize(0).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Check flag defaults

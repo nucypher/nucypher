@@ -57,7 +57,7 @@ abstract contract Issuer is Upgradeable {
     * @param _token Token contract
     * @param _hoursPerPeriod Size of period in hours
     * @param _secondPhaseMintingCoefficient Minting coefficient for the second phase (k2)
-    * @param _lockingDurationCoefficient1 Numerator of he locking duration coefficient (k1)
+    * @param _lockingDurationCoefficient1 Numerator of the locking duration coefficient (k1)
     * @param _lockingDurationCoefficient2 Denominator of the locking duration coefficient (k3)
     * @param _maxRewardedPeriods Max periods that will be additionally rewarded
     * @param _firstPhaseTotalSupply Total supply for the first phase
