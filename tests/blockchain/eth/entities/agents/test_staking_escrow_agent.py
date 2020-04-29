@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 
 import pytest
+from eth_tester.exceptions import TransactionFailed
 from eth_utils.address import to_checksum_address, is_address
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
@@ -343,3 +344,56 @@ def test_winding_down(agency, testerchain, test_registry, token_economics):
     check_last_period()
     staking_agent.confirm_activity(worker_address=worker_account)
     check_last_period()
+
+
+@pytest.mark.slow()
+def test_batch_deposit(testerchain,
+                       agency,
+                       token_economics,
+                       mock_transacting_power_activation,
+                       get_random_checksum_address):
+
+    token_agent, staking_agent, _policy_agent = agency
+
+    amount = token_economics.minimum_allowed_locked
+    lock_periods = token_economics.minimum_locked_periods
+
+    stakers = [get_random_checksum_address() for _ in range(4)]
+
+    N = 5
+    substakes = [(amount, lock_periods)] * N
+    deposits = {staker: substakes for staker in stakers}
+
+    batch_parameters = staking_agent.construct_batch_deposit_parameters(deposits=deposits)
+
+    assert batch_parameters[0] == stakers
+    assert batch_parameters[1] == [N] * len(stakers)
+    assert batch_parameters[2] == [amount] * (N * len(stakers))
+    assert batch_parameters[3] == [lock_periods] * (N * len(stakers))
+
+    mock_transacting_power_activation(account=testerchain.etherbase_account, password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    tokens_in_batch = sum(batch_parameters[2])
+
+    _receipt = token_agent.approve_transfer(amount=tokens_in_batch,
+                                            target_address=staking_agent.contract_address,
+                                            sender_address=testerchain.etherbase_account)
+
+    not_enough_gas = 800_000
+    with pytest.raises(TransactionFailed):
+        staking_agent.batch_deposit(*batch_parameters,
+                                    sender_address=testerchain.etherbase_account,
+                                    dry_run=True, gas_limit=not_enough_gas)
+
+    staking_agent.batch_deposit(*batch_parameters, sender_address=testerchain.etherbase_account, dry_run=True)
+
+    staking_agent.batch_deposit(*batch_parameters, sender_address=testerchain.etherbase_account)
+
+    for staker in stakers:
+        assert staking_agent.owned_tokens(staker_address=staker) == amount * N
+        staker_substakes = list(staking_agent.get_all_stakes(staker_address=staker))
+        assert N == len(staker_substakes)
+        for substake in staker_substakes:
+            first_period, last_period, locked_value = substake
+            assert last_period == first_period + lock_periods - 1
+            assert locked_value == amount

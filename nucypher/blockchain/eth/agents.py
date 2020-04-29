@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import importlib
 import random
-from typing import Generator, List, Tuple, Union
+from typing import Generator, List, Tuple, Union, Dict, Optional
 
 import math
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
@@ -395,6 +395,49 @@ class StakingEscrowAgent(EthereumContractAgent):
         contract_function = self.contract.functions.deposit(staker_address, amount, lock_periods)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return receipt
+
+    def construct_batch_deposit_parameters(self, deposits: Dict[str, List[Tuple[int, int]]]) -> Tuple[list, list, list, list]:
+        max_substakes = self.contract.functions.MAX_SUB_STAKES().call()
+        stakers, number_of_substakes, amounts, lock_periods = list(), list(), list(), list()
+        for staker, substakes in deposits.items():
+            if not 0 < len(substakes) <= max_substakes:
+                raise self.RequirementError(f"Number of substakes for staker {staker} must be >0 and ≤{max_substakes}")
+            # require(value >= minAllowableLockedTokens & & periods >= minLockedPeriods);
+            # require(info.value <= maxAllowableLockedTokens);
+            # require(info.subStakes.length == 0);
+            stakers.append(staker)
+            number_of_substakes.append(len(substakes))
+            staker_amounts, staker_periods = zip(*substakes)
+            amounts.extend(staker_amounts)
+            lock_periods.extend(staker_periods)
+
+        return stakers, number_of_substakes, amounts, lock_periods
+
+    @validate_checksum_address
+    def batch_deposit(self,
+                      stakers: list,
+                      number_of_substakes: list,
+                      amounts: list,
+                      lock_periods: list,
+                      sender_address: str,
+                      dry_run: bool = False,
+                      gas_limit: int = None) -> Optional[dict]:
+        min_gas_batch_deposit = 250_000
+        if gas_limit and gas_limit < min_gas_batch_deposit:
+            raise ValueError(f"{gas_limit} is not enough gas for any batch deposit")
+
+        contract_function = self.contract.functions.batchDeposit(stakers, number_of_substakes, amounts, lock_periods)
+        if dry_run:
+            payload = {'from': sender_address}
+            if gas_limit:
+                payload['gas'] = gas_limit
+            contract_function.call(payload)  # If TX is not correct, or there's not enough gas, this will fail.
+            return
+        else:
+            receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                       sender_address=sender_address,
+                                                       transaction_gas_limit=gas_limit)
+            return receipt
 
     @validate_checksum_address
     def divide_stake(self, staker_address: str, stake_index: int, target_value: int, periods: int) -> dict:

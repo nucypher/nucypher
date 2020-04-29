@@ -20,7 +20,7 @@ import json
 import os
 import random
 import tempfile
-from typing import Union
+from typing import Union, Tuple
 
 import maya
 import pytest
@@ -35,7 +35,7 @@ from web3 import Web3
 
 from nucypher.blockchain.economics import StandardTokenEconomics, BaseEconomics
 from nucypher.blockchain.eth.actors import Staker, StakeHolder
-from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
@@ -499,7 +499,9 @@ def testerchain(_testerchain) -> TesterBlockchain:
     yield testerchain
 
 
-def _make_agency(testerchain, test_registry, token_economics):
+def _make_agency(testerchain,
+                 test_registry,
+                 token_economics) -> Tuple[NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent]:
     """
     Launch the big three contracts on provided chain,
     make agents for each and return them.
@@ -607,7 +609,10 @@ def test_registry_source_manager(testerchain, test_registry):
 
 
 @pytest.fixture(scope='module')
-def agency(testerchain, test_registry, token_economics, test_registry_source_manager):
+def agency(testerchain,
+           test_registry,
+           token_economics,
+           test_registry_source_manager) -> Tuple[NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent]:
     agents = _make_agency(testerchain=testerchain,
                           test_registry=test_registry,
                           token_economics=token_economics)
