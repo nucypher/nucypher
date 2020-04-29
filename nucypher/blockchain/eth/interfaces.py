@@ -493,7 +493,7 @@ class BlockchainInterface:
         # Build Transaction
         #
 
-        transaction_name = self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
+        self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
         try:
             transaction_dict = contract_function.buildTransaction(payload)  # Gas estimation occurs here
         except (TestTransactionFailed, ValidationError, ValueError) as error:
