@@ -36,6 +36,7 @@ from nucypher.blockchain.eth.registry import (
     RegistrySourceManager,
     GithubRegistrySource
 )
+from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.actions import (
     get_client_password,
@@ -176,7 +177,8 @@ class ActorOptions:
                 deployer_address = select_client_account(emitter=emitter,
                                                          prompt=prompt,
                                                          provider_uri=self.provider_uri,
-                                                         show_balances=False)
+                                                         signer_uri=self.signer_uri,
+                                                         show_eth_balance=True)
 
             if not self.force:
                 click.confirm("Selected {} - Continue?".format(deployer_address), abort=True)
@@ -184,10 +186,12 @@ class ActorOptions:
             if not self.hw_wallet and not deployer_interface.client.is_local:
                 password = get_client_password(checksum_address=deployer_address)
         # Produce Actor
+        signer = Signer.from_signer_uri(self.signer_uri) if self.signer_uri else None
         ADMINISTRATOR = ContractAdministrator(registry=local_registry,
                                               client_password=password,
                                               deployer_address=deployer_address,
                                               is_transacting=is_transacting,
+                                              signer=signer,
                                               staking_escrow_test_mode=self.se_test_mode)
         # Verify ETH Balance
         emitter.echo(f"\n\nDeployer ETH balance: {ADMINISTRATOR.eth_balance}")
@@ -515,7 +519,7 @@ def allocations(general_config, actor_options, allocation_infile, allocation_out
                                                  prompt=prompt,
                                                  provider_uri=actor_options.provider_uri,
                                                  registry=local_registry,
-                                                 show_balances=True)
+                                                 show_eth_balance=True)
         if not actor_options.force:
             click.confirm(f"Selected {sidekick_account} - Continue?", abort=True)
 
@@ -545,7 +549,8 @@ def transfer_tokens(general_config, actor_options, target_address, value):
     emitter = general_config.emitter
     ADMINISTRATOR, deployer_address, _, local_registry = actor_options.create_actor(emitter)
 
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=local_registry)
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=local_registry)  # type: NucypherTokenAgent
+    emitter.echo(f"Deployer NU balance: {NU.from_nunits(token_agent.get_balance(deployer_address))}")
     if not target_address:
         target_address = click.prompt("Enter recipient's checksum address", type=EIP55_CHECKSUM_ADDRESS)
     if not value:

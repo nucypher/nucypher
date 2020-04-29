@@ -73,6 +73,7 @@ class Signer(ABC):
         this method is implemented as a boolean to tell the difference."""
         return NotImplemented
 
+    @property
     @abstractmethod
     def accounts(self) -> List[str]:
         return NotImplemented
@@ -114,6 +115,7 @@ class Web3Signer(Signer):
     def is_connected(self) -> bool:
         return self.__client.w3.isConnected()
 
+    @property
     def accounts(self) -> List[str]:
         return self.__client.accounts
 
@@ -167,9 +169,11 @@ class ClefSigner(Signer):
     DEFAULT_CONTENT_TYPE = SIGN_DATA_FOR_ECRECOVER
     SIGN_DATA_CONTENT_TYPES = (SIGN_DATA_FOR_VALIDATOR, SIGN_DATA_FOR_CLIQUE, SIGN_DATA_FOR_ECRECOVER)
 
-    def __init__(self, ipc_path: str = DEFAULT_IPC_PATH):
+    TIMEOUT = 60  # Default timeout for Clef of 60 seconds
+
+    def __init__(self, ipc_path: str = DEFAULT_IPC_PATH, timeout: int = TIMEOUT):
         super().__init__()
-        self.w3 = Web3(provider=IPCProvider(ipc_path=ipc_path))  # TODO: Unify with clients or build error handling
+        self.w3 = Web3(provider=IPCProvider(ipc_path=ipc_path, timeout=timeout))  # TODO: Unify with clients or build error handling
         self.ipc_path = ipc_path
 
     def __ipc_request(self, endpoint: str, *request_args):
@@ -194,7 +198,8 @@ class ClefSigner(Signer):
     @validate_checksum_address
     def is_device(self, account: str):
         return True  # TODO: Detect HW v. SW Wallets via clef API - #1772
-    
+
+    @property
     def accounts(self) -> List[str]:
         normalized_addresses = self.__ipc_request(endpoint="account_list")
         checksum_addresses = [to_checksum_address(addr) for addr in normalized_addresses]
@@ -210,8 +215,15 @@ class ClefSigner(Signer):
             'chainId': Web3.toHex,
             'from': to_checksum_address
         }
-        transaction_dict = apply_formatters_to_dict(formatters, transaction_dict)
-        signed = self.__ipc_request("account_signTransaction", transaction_dict)
+
+        # Workaround for contract creation TXs
+        if transaction_dict['to'] == b'':
+            transaction_dict['to'] = None
+        elif transaction_dict['to']:
+            formatters['to'] = to_checksum_address
+
+        formatted_transaction = apply_formatters_to_dict(formatters, transaction_dict)
+        signed = self.__ipc_request("account_signTransaction", formatted_transaction)
         return HexBytes(signed.raw)
 
     @validate_checksum_address

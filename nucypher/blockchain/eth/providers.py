@@ -1,4 +1,19 @@
+"""
+This file is part of nucypher.
 
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
 
 import os
 from urllib.parse import urlparse
@@ -34,7 +49,7 @@ def _get_websocket_provider(provider_uri):
     return WebsocketProvider(endpoint_uri=provider_uri, websocket_kwargs={'timeout': BlockchainInterface.TIMEOUT})
 
 
-def _get_infura_provider(provider_uri):
+def _get_infura_provider(provider_uri: str):
     # https://web3py.readthedocs.io/en/latest/providers.html#infura-mainnet
 
     uri_breakdown = urlparse(provider_uri)
@@ -42,8 +57,17 @@ def _get_infura_provider(provider_uri):
     os.environ[infura_envvar] = os.environ.get(infura_envvar, uri_breakdown.netloc)
 
     try:
-        # TODO: Only testnet for now - #1496
-        from web3.auto.infura.goerli import w3
+        # TODO: Is this the right approach? Looks a little bit shabby... Also #1496
+        if "mainnet.infura.io" in provider_uri:
+            from web3.auto.infura.mainnet import w3
+        elif "goerli.infura.io" in provider_uri:
+            from web3.auto.infura.goerli import w3
+        elif "rinkeby.infura.io" in provider_uri:
+            from web3.auto.infura.rinkeby import w3
+        elif "ropsten.infura.io" in provider_uri:
+            from web3.auto.infura.ropsten import w3
+        else:
+            raise ValueError(f"Couldn't find an Infura provider for {provider_uri}")
 
     except InfuraKeyNotFound:
         raise ProviderError(f'{infura_envvar} must be provided in order to use an Infura Web3 provider {provider_uri}.')
