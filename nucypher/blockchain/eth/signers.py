@@ -67,11 +67,11 @@ class Signer(ABC):
             raise cls.InvalidSignerURI('Blank signer URI - No keystore path provided')
         scheme = parsed.scheme
 
-        singer_classes = {
+        signer_classes = {
             'clef': ClefSigner,
             'keystore': KeystoreSigner,
         }
-        signer_class = singer_classes.get(scheme, Web3Signer)  # Fallback through to web3 provider URI parsing
+        signer_class = signer_classes.get(scheme, Web3Signer)  # Fallback through to web3 provider URI parsing
 
         signer = signer_class.from_signer_uri(uri=uri)
         return signer

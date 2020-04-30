@@ -1535,7 +1535,7 @@ class Wallet:
                          signer: Optional[Signer] = None,
                          password: Optional[str] = None
                          ) -> None:
-        
+
         if checksum_address not in self:
             self.__signer = signer or Web3Signer(client=self.blockchain.client)
             if isinstance(self.__signer, KeystoreSigner):
