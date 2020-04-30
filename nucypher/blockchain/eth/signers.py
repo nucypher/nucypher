@@ -40,6 +40,8 @@ from nucypher.blockchain.eth.decorators import validate_checksum_address
 
 class Signer(ABC):
 
+    URI_SCHEME = NotImplemented
+
     log = Logger(__qualname__)
 
     class SignerError(Exception):
@@ -104,6 +106,8 @@ class Signer(ABC):
 
 class Web3Signer(Signer):
 
+    URI_SCHEME = 'web3://'
+
     def __init__(self, client):
         super().__init__()
         self.__client = client
@@ -166,6 +170,8 @@ class Web3Signer(Signer):
 
 
 class ClefSigner(Signer):
+
+    URI_SCHEME = 'keystore://'
 
     DEFAULT_IPC_PATH = '~/Library/Signer/clef.ipc' if sys.platform == 'darwin' else '~/.clef/clef.ipc'  #TODO: #1808
 
@@ -277,6 +283,7 @@ class ClefSigner(Signer):
 class KeystoreSigner(Signer):
     """Local Web3 signer implementation supporting a single account/keystore file"""
 
+    URI_SCHEME = 'keystore://'
     __keys: Dict[str, dict]
     __signers: Dict[str, LocalAccount]
 
@@ -390,6 +397,8 @@ class KeystoreSigner(Signer):
             except KeyError:
                 raise self.UnknownAccount(account=account)
             else:
+                # TODO: It is possible that password is None here passed form the above leayer,
+                #       causing Account.decrypt to crash, expecting a value for password.
                 signing_key = Account.from_key(Account.decrypt(key_metadata, password))
                 self.__signers[account] = signing_key
 
