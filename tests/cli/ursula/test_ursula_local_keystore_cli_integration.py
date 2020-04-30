@@ -90,6 +90,8 @@ def mock_keystore(mock_accounts, monkeypatch, mocker):
 
     mocker.patch('os.listdir', return_value=list(mock_accounts.keys()))
     monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keyfile', mock_keyfile_reader)
+    yield
+    monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keyfile')
 
 
 @pytest.fixture(scope='module', autouse=True)
@@ -173,7 +175,8 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
 
     # Produce an ursula with a Keystore signer correctly derived from the signer URI, and dont do anything else!
     mocker.patch.object(StakeList, 'refresh', autospec=True)
-    ursula = ursula_config.produce(client_password=INSECURE_DEVELOPMENT_PASSWORD, block_until_ready=False)
+    ursula = ursula_config.produce(client_password=INSECURE_DEVELOPMENT_PASSWORD,
+                                   block_until_ready=False)
 
     # Verify the keystore path is still preserved
     assert isinstance(ursula.signer, KeystoreSigner)
