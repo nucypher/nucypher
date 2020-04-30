@@ -99,3 +99,21 @@ ValidationError: The field extraData is 97 bytes, but should be 32. It is quite 
 ----------------------------------------------------------------------------------------------------------------------------
 
 Add the ``--poa`` flag to your command and try again.
+
+
+ValueError: {'code': -32601, 'message': 'the method web3_clientVersion does not exist/is not available'}
+--------------------------------------------------------------------------------------------------------
+
+Ensure that the intended *signer* used is not mistakenly specified as a *provider*.
+
+To view your existing ``nucypher`` configuration
+
+.. code:: bash
+
+    nucypher stake config
+
+and to update values
+
+.. code:: bash
+
+    nucypher stake config --signer <SIGNER PATH> --provider <YOUR PROVIDER URI>
