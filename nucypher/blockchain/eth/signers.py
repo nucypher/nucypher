@@ -41,6 +41,7 @@ from nucypher.blockchain.eth.decorators import validate_checksum_address
 class Signer(ABC):
 
     URI_SCHEME = NotImplemented
+    SIGNERS = NotImplemented  # set dynamically in __init__.py
 
     log = Logger(__qualname__)
 
@@ -66,13 +67,7 @@ class Signer(ABC):
         if not parsed.path and not parsed.netloc:
             raise cls.InvalidSignerURI('Blank signer URI - No keystore path provided')
         scheme = parsed.scheme
-
-        signer_classes = {
-            'clef': ClefSigner,
-            'keystore': KeystoreSigner,
-        }
-        signer_class = signer_classes.get(scheme, Web3Signer)  # Fallback through to web3 provider URI parsing
-
+        signer_class = cls.SIGNERS.get(scheme, Web3Signer)  # Fallback to web3 provider URI for signing
         signer = signer_class.from_signer_uri(uri=uri)
         return signer
 
@@ -106,7 +101,7 @@ class Signer(ABC):
 
 class Web3Signer(Signer):
 
-    URI_SCHEME = 'web3://'
+    URI_SCHEME = 'web3'  # TODO: Consider some kind of 'passthough' flag to accept all valid webs provider schemes
 
     def __init__(self, client):
         super().__init__()
@@ -171,7 +166,7 @@ class Web3Signer(Signer):
 
 class ClefSigner(Signer):
 
-    URI_SCHEME = 'keystore://'
+    URI_SCHEME = 'clef'
 
     DEFAULT_IPC_PATH = '~/Library/Signer/clef.ipc' if sys.platform == 'darwin' else '~/.clef/clef.ipc'  #TODO: #1808
 
@@ -202,6 +197,8 @@ class ClefSigner(Signer):
     @classmethod
     def from_signer_uri(cls, uri: str) -> 'ClefSigner':
         uri_breakdown = urlparse(uri)
+        if uri_breakdown.scheme != cls.URI_SCHEME:
+            raise cls.InvalidSignerURI(f"{uri} is not a valid clef signer URI.")
         signer = cls(ipc_path=uri_breakdown.path)
         return signer
 
@@ -283,11 +280,11 @@ class ClefSigner(Signer):
 class KeystoreSigner(Signer):
     """Local Web3 signer implementation supporting a single account/keystore file"""
 
-    URI_SCHEME = 'keystore://'
+    URI_SCHEME = 'keystore'
     __keys: Dict[str, dict]
     __signers: Dict[str, LocalAccount]
 
-    class InvalidKeyfile(ValueError):
+    class InvalidKeyfile(Signer.SignerError, RuntimeError):
         """
         Raised when a keyfile is corrupt or otherwise invalid.
         Keystore must be in the geth wallet format.
@@ -369,7 +366,7 @@ class KeystoreSigner(Signer):
     def from_signer_uri(cls, uri: str) -> 'Signer':
         """Return a keystore signer from URI string i.e. keystore:///my/path/keystore """
         decoded_uri = urlparse(uri)
-        if decoded_uri.scheme not in ('key', 'keystore') or decoded_uri.netloc:
+        if decoded_uri.scheme != cls.URI_SCHEME or decoded_uri.netloc:
             raise cls.InvalidSignerURI(uri)
         return cls(path=decoded_uri.path)
 
@@ -388,7 +385,6 @@ class KeystoreSigner(Signer):
         Decrypt the signing material from the key metadata file and cache it on
         the keystore instance is decryption is successful.
         """
-
         if not self.__signers.get(account):
             try:
                 key_metadata = self.__keys[account]
@@ -401,7 +397,6 @@ class KeystoreSigner(Signer):
                 #       causing Account.decrypt to crash, expecting a value for password.
                 signing_key = Account.from_key(Account.decrypt(key_metadata, password))
                 self.__signers[account] = signing_key
-
         return True
 
     @validate_checksum_address
