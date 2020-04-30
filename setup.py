@@ -92,7 +92,6 @@ DEPLOY_REQUIRES = [
 DOCS_REQUIRE = [
     'sphinx',
     'sphinx-autobuild',
-    'recommonmark',
     'sphinx_rtd_theme'
 ]
 

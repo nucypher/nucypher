@@ -13,7 +13,4 @@ Node as a Service Providers
   If you are a provider and wish to be included in this list,
   please submit a pull request.
 
-The following staking pools and node infrastructure providers support the NuCypher Network (alphabetical order):
-
-* `Provider Name <https://example.com/>`_
-
+Staking pools and node infrastructure providers that support the NuCypher Network are available `here <https://github.com/nucypher/validator-profiles>`_.
