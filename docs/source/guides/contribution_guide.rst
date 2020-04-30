@@ -171,7 +171,7 @@ Building Documentation
 
 .. note::
 
-  ``sphinx``, ``recommonmark``, ``aafigure`` and ``sphinx_rtd_theme`` are non-standard dependencies that can be installed
+  ``sphinx`` and ``sphinx_rtd_theme`` are non-standard dependencies that can be installed
   by running ``pip install -e .[docs]`` from the project directory.
 
 
@@ -184,8 +184,7 @@ To build the project dependencies locally:
 
 .. code:: bash
 
-    (nucypher)$ cd nucypher/docs/
-    (nucypher)$ make html
+    (nucypher)$ make docs
 
 
 If the build is successful, the resulting html output can be found in ``nucypher/docs/build/html``;
