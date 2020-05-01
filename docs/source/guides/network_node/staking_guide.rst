@@ -22,13 +22,14 @@ of security than software wallets.
 Mainnet Staking Procedure:
 
 #. Install ``nucypher`` on Staker's machine (see :doc:`/guides/installation_guide`)
-#. Obtain stake with tokens through :ref:`Worklock <worklock-guide>` during WorkLock participation
+#. Obtain a Stake with tokens through participation in :ref:`Worklock <worklock-guide>`
 #. Initialize a new StakeHolder (see `Initialize a new stakeholder`_)
 #. Bond a Worker to your Staker using the worker's ethereum address (see `Bonding a Worker`_)
 
 .. note::
 
     For Goerli testnet the proceedure would be:
+
         #. Install ``nucypher`` on Staker's machine (see :doc:`/guides/installation_guide`)
         #. Establish ethereum account, provider, and, optionally, signer (see `Staking`_)
         #. Request testnet tokens by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and type ``.getfunded <YOUR_STAKER_ETH_ADDRESS>`` in the #testnet-faucet channel
