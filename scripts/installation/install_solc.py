@@ -1,69 +1,47 @@
 #!/usr/bin/env python3
 
-
 """
-This file is part of nucypher.
+Download supported version of solidity compiler for the host operating system.
 
-nucypher is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-nucypher is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+This script depends on `nucypher.blockchain.eth.sol` submodule and `py-solc-x` library 
+but otherwise does not require installation of `nucypher` or it's dependencies. 
 """
 
+import os
+from os.path import dirname, abspath
+from pathlib import Path
 
-"""
-Download supported version of solidity compiler for Linux based operating system. 
-This script depends on `nucypher.blockchain.eth.sol` submodule and `requests` library 
-but does not require installation of `nucypher`. 
-"""
-
-import platform
-import shutil
-from os.path import dirname, join, abspath
-from os import chmod
-import requests
-
-PACKAGE_NAME = join('nucypher', 'blockchain', 'eth', 'sol')
-BASE_DIR = dirname(dirname(dirname(abspath(__file__))))
-FILE_PATH = join(BASE_DIR, PACKAGE_NAME, "__conf__.py")
-
-METADATA = dict()
-with open(FILE_PATH) as f:
-    exec(f.read(), METADATA)
-
-SOLC_VERSION = METADATA['SOLIDITY_COMPILER_VERSION']
-SOLC_BIN_PATH = join(dirname(shutil.which('python')), 'solc')
+from solcx import install_solc, set_solc_version
 
 
-def download_solc_binary():
-    url = f"https://github.com/ethereum/solidity/releases/download/v{SOLC_VERSION}/solc-static-linux"
-    print(f"Downloading solidity compiler binary from {url} to {SOLC_BIN_PATH}")
+def get_solc_version() -> str:
 
-    response = requests.get(url)
-    response.raise_for_status()
-    with open(SOLC_BIN_PATH, 'wb') as f:
-        f.write(response.content)
+    env_version = os.environ.get('NUCYPHER_SOLIDITY_VERSION')
+    if env_version:
+        return env_version
 
-    # Set executable permission
-    print(f"Setting executable permission on {SOLC_BIN_PATH}")
-    executable_mode = 0o0755
-    chmod(SOLC_BIN_PATH, executable_mode)
+    nucypher = Path('nucypher')
+    sol_package_path = nucypher / 'blockchain' / 'eth' / 'sol'
+    base_dir = Path(dirname(dirname(dirname(abspath(__file__)))))
+    file_path = base_dir / sol_package_path / "__conf__.py"
 
-    print(f"Successfully Installed solc {SOLC_VERSION}")
+    metadata = dict()
+    with open(file_path) as f:
+        exec(f.read(), metadata)
+
+    version = metadata['SOLIDITY_COMPILER_VERSION']
+    return version
+
+
+def main():
+
+    version = get_solc_version()
+    print(f"Fetched solc version {version} from source configuration")
+
+    install_solc(version)
+    print(f"Successfully installed solc {version}")
+    set_solc_version(version)
 
 
 if __name__ == "__main__":
-
-    if platform.system() != 'Linux':
-        raise EnvironmentError("This installation script is only compatible with linux-gnu-based operating systems.")
-
-    # Get solc binary for linux
-    download_solc_binary()
+    main()
