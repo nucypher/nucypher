@@ -169,9 +169,9 @@ Whitepapers
    :maxdepth: 1
    :caption: Release Notes
 
-   release_notes/releases.rst
    release_notes/genesis_release
    release_notes/pre_release_epics
+   release_notes/releases.rst
 
 .. toctree::
    :maxdepth: 1
