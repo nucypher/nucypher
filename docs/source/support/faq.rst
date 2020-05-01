@@ -337,6 +337,6 @@ node's status.
 Q: What types of Ethereum web3 node providers do you support?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* IPC Socket-based JSON-RPC server e.g. ``ipc:///home/<user>/.ethereum/geth.ipc``
-* HTTP(S)-based JSON-RPC server e.g. ``http://<host>>:8545``
+* IPC Socket-based JSON-RPC server e.g. ``ipc:///home/<username>/.ethereum/geth.ipc``
+* HTTP(S)-based JSON-RPC server e.g. ``http://<host>``
 * Websocket-based JSON-RPC server e.g. ``ws://<host>:8080``

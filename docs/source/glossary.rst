@@ -41,9 +41,6 @@ Glossary
     MessageKit
       The ciphertext (data encrypted with a symmetric key) and the :term:`Capsule` (encrypted symmetric key) that are stored together.
 
-    Moe
-      *"The Monitor"* :term:`Character` - provides a high-level view of the NuCypher Network.
-
     NU
       The NuCypher token used by nodes for staking.
 
@@ -82,3 +79,6 @@ Glossary
 
     Worker
       An account that is actively doing work in the network as an :term:`Ursula` node. A worker is bonded to, and performs work on behalf of, a :term:`Staker`.
+
+    WorkLock
+      NuCypher's permissionless token distribution mechanism.

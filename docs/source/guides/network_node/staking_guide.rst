@@ -19,14 +19,22 @@ they only need to perform stake management transactions. Using a hardware wallet
 for stakers since only temporarily access to private keys is required during stake management while providing a higher standard
 of security than software wallets.
 
-Staking Procedure:
+Mainnet Staking Procedure:
 
-1) Install ``nucypher`` on Staker's machine (see :doc:`/guides/installation_guide`)
-2) Establish ethereum account, provider, and, optionally, signer (see `Staking`_)
-3) Request testnet tokens by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and type ``.getfunded <YOUR_STAKER_ETH_ADDRESS>`` in the #testnet-faucet channel
-4) Initialize a new StakeHolder and Stake (see `Initialize a new stakeholder`_)
-5) Initialize a new stake (see `Initialize a new stake`_)
-6) Bond a Worker to a Staker using the worker's ethereum address (see `Bonding a Worker`_)
+#. Install ``nucypher`` on Staker's machine (see :doc:`/guides/installation_guide`)
+#. Obtain stake with tokens through :ref:`Worklock <worklock-guide>` during WorkLock participation
+#. Initialize a new StakeHolder (see `Initialize a new stakeholder`_)
+#. Bond a Worker to your Staker using the worker's ethereum address (see `Bonding a Worker`_)
+
+.. note::
+
+    For Goerli testnet the proceedure would be:
+        #. Install ``nucypher`` on Staker's machine (see :doc:`/guides/installation_guide`)
+        #. Establish ethereum account, provider, and, optionally, signer (see `Staking`_)
+        #. Request testnet tokens by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and type ``.getfunded <YOUR_STAKER_ETH_ADDRESS>`` in the #testnet-faucet channel
+        #. Initialize a new StakeHolder and Stake (see `Initialize a new stakeholder`_)
+        #. Initialize a new stake (see `Initialize a new stake`_)
+        #. Bond a Worker to a Staker using the worker's ethereum address (see `Bonding a Worker`_)
 
 
 Staking CLI
@@ -113,11 +121,11 @@ Running an Ethereum Node for Staking (Local Provider)
 Here we describe the steps required to run an ethereum node for both transaction signing and broadcast.
 This is the typical configuration for a locally operated trusted ethereum node.
 
-Assuming you have ``geth`` installed, let's run a node on the Görli testnet.
+Assuming you have ``geth`` installed
 
 .. code:: bash
 
-    $ geth --goerli
+    $ geth
 
 If you want to use your hardware wallet, just connect it to your machine. You'll see something like this in logs:
 
@@ -136,13 +144,13 @@ Whilst running the initialized node:
 .. code:: bash
 
     Linux:
-    $ geth attach /home/<username>/.ethereum/goerli/geth.ipc
+    $ geth attach /home/<username>/.ethereum/geth.ipc
     > personal.newAccount();
     > eth.accounts
     ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
 
     MacOS:
-    $ geth attach /Users/<username>/Library/Ethereum/goerli/geth.ipc
+    $ geth attach /Users/<username>/Library/Ethereum/geth.ipc
     > personal.newAccount();
     > eth.accounts
     ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
@@ -198,19 +206,19 @@ Next, initialize Clef with your chosen password to encrypt the master seed:
     Password:
 
 
-Running Clef for Goerli
-***********************
+Running Clef
+************
 
 Clef can use hardware wallets (ledger and trezor) over USB, or geth formatted private keys
 by specifying the keystore directory path:
 
 .. code:: bash
 
-    $ clef --keystore <PATH TO KEYSTORE> --chainid 5 --advanced
+    $ clef --keystore <PATH TO KEYSTORE> --chainid <CHAIN ID> --advanced
 
 
-- <PATH TO KEYSTORE> - The path to the directory containing geth-formatted private key files; the default path for Linux is ``~/.ethereum/goerli/keystore``.
-- Chain ID 5 is specified to ensure clef signs transactions with the network ID of Goerli.
+- <PATH TO KEYSTORE> - The path to the directory containing geth-formatted private key files; the default path for Linux is ``~/.ethereum/keystore``.
+- Chain ID 1 is specified to ensure clef signs transactions with the network ID of mainnet.
 
 
 .. code:: bash
@@ -302,7 +310,7 @@ to indicate which are the automated rules (in our case, allowing listing of acco
 
 .. code:: bash
 
-    $ clef --keystore <PATH TO KEYSTORE> --chainid 5 --advanced --rules rules.js
+    $ clef --keystore <PATH TO KEYSTORE> --chainid <CHAIN ID> --advanced --rules rules.js
 
 
 
@@ -318,9 +326,9 @@ This will create a configuration file (`~/.local/share/nucypher/stakeholder.json
 
 where:
 
-    * If you utilized a `Clef Setup`_, the ``SIGNER URI`` is ``clef:///home/<username>/.clef/clef.ipc``
-    * If you ran ``geth`` node as above, your ``<PROVIDER>`` is ``ipc:///home/<username>/.ethereum/goerli/geth.ipc``
-      (on MacOS, ``ipc:///Users/<username>/Library/Ethereum/goerli/geth.ipc``)
+    * If you utilized `Clef Setup`_, the ``SIGNER URI`` is ``clef:///home/<username>/.clef/clef.ipc``
+    * If you ran ``geth`` node as above, your ``<PROVIDER>`` is ``ipc:///home/<username>/.ethereum/geth.ipc``
+      (on MacOS for Goerli testnet, ``ipc:///Users/<username>/Library/Ethereum/goerli/geth.ipc``)
     * ``<NETWORK_NAME>`` is the name of the NuCypher network domain where the staker will participate.
 
 
@@ -347,7 +355,7 @@ the commitment period.
     ============================== STAGED STAKE ==============================
 
     Staking address: 0xbb01c4fE50f91eF73c5dD6eD89f38D55A6b1EdCA
-    ~ Chain      -> ID # 5 | Goerli
+    ~ Chain      -> ID # <CHAIN ID>
     ~ Value      -> 15000 NU (1.50E+22 NuNits)
     ~ Duration   -> 30 Days (30 Periods)
     ~ Enactment  -> 2019-08-19 09:51:16.704875+00:00 (period #18127)
@@ -445,7 +453,7 @@ There is a 1:1 relationship between the roles: A Staker may have multiple Stakes
 
 .. code:: bash
 
-    $ geth attach ~/.ethereum/goerli/geth.ipc
+    $ geth attach ~/.ethereum/geth.ipc
     > eth.accounts
     ["0x287a817426dd1ae78ea23e9918e2273b6733a43d", "0xc080708026a3a280894365efd51bb64521c45147"]
     > web3.toChecksumAddress(eth.accounts[0])
@@ -551,7 +559,7 @@ To divide an existing stake:
     ============================== STAGED STAKE ==============================
 
     Staking address: 0xbb0300106378096883ca067B198d9d98112760e7
-    ~ Chain      -> ID # 5 | Goerli
+    ~ Chain      -> ID # <CHAIN ID>
     ~ Value      -> 15000 NU (1.50E+22 NuNits)
     ~ Duration   -> 39 Days (39 Periods)
     ~ Enactment  -> 2019-08-09 10:29:49.844348+00:00 (period #18117)
@@ -564,7 +572,7 @@ To divide an existing stake:
     Successfully divided stake
     OK | 0xfa30927f05967b9a752402db9faecf146c46eda0740bd3d67b9e86dd908b6572 (85128 gas)
     Block #1146153 | 0x2f87bccff86bf48d18f8ab0f54e30236bce6ca5ea9f85f3165c7389f2ea44e45
-    See https://goerli.etherscan.io/tx/0xfa30927f05967b9a752402db9faecf146c46eda0740bd3d67b9e86dd908b6572
+    See https://etherscan.io/tx/0xfa30927f05967b9a752402db9faecf146c46eda0740bd3d67b9e86dd908b6572
 
     ======================================= Active Stakes =========================================
 
@@ -604,13 +612,13 @@ policy rewards using the ``--withdraw-address <ETH_ADDRESS>`` flag.
 
     OK | 0xb0625030224e228198faa3ed65d43f93247cf6067aeb62264db6f31b5bf411fa (55062 gas)
     Block #1245170 | 0x63e4da39056873adaf869674db4002e016c80466f38256a4c251516a0e25e547
-     See https://goerli.etherscan.io/tx/0xb0625030224e228198faa3ed65d43f93247cf6067aeb62264db6f31b5bf411fa
+     See https://etherscan.io/tx/0xb0625030224e228198faa3ed65d43f93247cf6067aeb62264db6f31b5bf411fa
 
     Collecting 0.978 ETH from policy rewards...
 
     OK | 0xe6d555be43263702b74727ce29dc4bcd6e32019159ccb15120791dfda0975372 (25070 gas)
     Block #1245171 | 0x0d8180a69213c240e2bf2045179976d5f18de56a82f17a9d59db54756b6604e4
-     See https://goerli.etherscan.io/tx/0xe6d555be43263702b74727ce29dc4bcd6e32019159ccb15120791dfda0975372
+     See https://etherscan.io/tx/0xe6d555be43263702b74727ce29dc4bcd6e32019159ccb15120791dfda0975372
 
 You can run ``nucypher stake accounts`` to verify that your staking compensation
 is indeed in your wallet. Use your favorite Ethereum wallet (MyCrypto or Metamask
