@@ -116,10 +116,9 @@ Running an Ursula via CLI (Interactive)
 
 Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
 
-    - ``ipc:///home/ubuntu/.ethereum/goerli/geth.ipc`` - Geth Node on Görli testnet running with user ``ubuntu`` (default)
-    - ``ipc:///tmp/geth.ipc``   - Geth Development Node
-    - ``http://localhost:8545`` - Geth/Parity RPC-HTTP
-    - ``ws://0.0.0.0:8080``     - Websocket Provider
+    - ``ipc:///home/<user>/.ethereum/geth.ipc`` - IPC Socket-based JSON-RPC server
+    - ``https://<host>>`` - HTTP(S)-based JSON-RPC server
+    - ``ws://<host>:8080`` - Websocket-based JSON-RPC server
 
 ``<NETWORK_NAME>`` is the name of the NuCypher network domain where the node will run.
 
