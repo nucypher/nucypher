@@ -26,7 +26,9 @@ Initialize Alice and Bob
 
 Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
 
-    - ``ipc:///home/ubuntu/.ethereum/goerli/geth.ipc`` - Geth Node on Görli testnet running under user ``ubuntu`` (most probably that's what you need).
+    - ``ipc:///home/<user>/.ethereum/geth.ipc`` - IPC Socket-based JSON-RPC server
+    - ``https://<host>>`` - HTTP(S)-based JSON-RPC server
+    - ``ws://<host>:8080`` - Websocket-based JSON-RPC server
 
 
 Get Bob's Public Keys
