@@ -66,7 +66,7 @@ def test_rapid_deployment(token_economics, test_registry, tmpdir, get_random_che
                        ]
 
     # Pile on the rest
-    for _ in range(NUMBER_OF_ALLOCATIONS_IN_TESTS - len(allocation_data)):
+    for _ in range((NUMBER_OF_ALLOCATIONS_IN_TESTS - len(allocation_data)) // 2):
         checksum_address = get_random_checksum_address()
         amount = random.randint(token_economics.minimum_allowed_locked, token_economics.maximum_allowed_locked)
         duration = random.randint(token_economics.minimum_locked_periods, token_economics.maximum_rewarded_periods)

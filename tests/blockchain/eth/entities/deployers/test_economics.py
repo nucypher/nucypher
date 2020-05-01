@@ -142,7 +142,7 @@ def test_exact_economics():
                                       1002509479452054794520547,     # Max possible reward for one period for all stakers in the first phase
                                       30,       # Min amount of periods during which tokens can be locked
                                       15000000000000000000000,       # min locked NuNits
-                                      4000000000000000000000000,     # max locked NuNits
+                                      30000000000000000000000000,     # max locked NuNits
                                       2)        # Min worker periods
     #
     # Token Economics

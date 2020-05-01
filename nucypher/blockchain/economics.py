@@ -57,7 +57,7 @@ class BaseEconomics:
 
     # Value Constraints
     _default_minimum_allowed_locked = NU(15_000, 'NU').to_nunits()
-    _default_maximum_allowed_locked = NU(4_000_000, 'NU').to_nunits()
+    _default_maximum_allowed_locked = NU(30_000_000, 'NU').to_nunits()
 
     # Slashing parameters
     HASH_ALGORITHM_KECCAK256 = 0

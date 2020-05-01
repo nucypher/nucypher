@@ -188,7 +188,6 @@ abstract contract Issuer is Upgradeable {
             (_totalLockedValue * coefficient);
 
         // rounding the last reward
-        // TODO optimize
         uint256 maxReward = getReservedReward();
         if (amount == 0) {
             amount = 1;
