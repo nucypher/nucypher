@@ -601,12 +601,12 @@ class StakingEscrowAgent(EthereumContractAgent):
             'secondsPerPeriod',  # Seconds in single period
 
             # Coefficients
-            'mintingCoefficient',           # Staking coefficient (k2 * k3)
-            'lockingDurationCoefficient1',  # Locked periods coefficient (k1)
-            'lockingDurationCoefficient2',  # Locked periods coefficient (k3)
-            'maxRewardedPeriods',           # Max periods that will be additionally rewarded (awarded_periods)
+            'mintingCoefficient',           # Minting coefficient (d * k2)
+            'lockDurationCoefficient1',     # Numerator of the lock duration coefficient (k1)
+            'lockDurationCoefficient2',     # Denominator of the lock duration coefficient (k2)
+            'maximumRewardedPeriods',       # Max periods that will be additionally rewarded (kmax)
             'firstPhaseTotalSupply',        # Total supply for the first phase
-            'maxFirstPhaseReward',          # Max possible reward for one period for all stakers in the first phase
+            'firstPhaseMaxIssuance',        # Max possible reward for one period for all stakers in the first phase
 
             # Constraints
             'minLockedPeriods',             # Min amount of periods during which tokens can be locked

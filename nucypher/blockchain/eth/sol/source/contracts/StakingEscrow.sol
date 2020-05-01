@@ -143,12 +143,24 @@ contract StakingEscrow is Issuer, IERC900History {
     * @notice Constructor sets address of token contract and coefficients for mining
     * @param _token Token contract
     * @param _hoursPerPeriod Size of period in hours
-    * @param _secondPhaseMintingCoefficient Minting coefficient for the second phase (k2)
-    * @param _lockingDurationCoefficient1 Numerator of he locking duration coefficient (k1)
-    * @param _lockingDurationCoefficient2 Denominator of the locking duration coefficient (k3)
-    * @param _maxRewardedPeriods Max periods that will be additionally rewarded
+    * @param _issuanceDecayCoefficient (d) Coefficient which modifies the rate at which the maximum issuance decays,
+    * only applicable to Phase 2. d = 365 * half-life / LOG2 where default half-life = 2.
+    * See Equation 10 in Staking Protocol & Economics paper
+    * @param _lockDurationCoefficient1 (k1) Numerator of the coefficient which modifies the extent
+    * to which a stake's lock duration affects the subsidy it receives. Affects stakers differently.
+    * Applicable to Phase 1 and Phase 2. k1 = k2 * small_stake_multiplier where default small_stake_multiplier = 0.5.
+    * See Equation 8 in Staking Protocol & Economics paper.
+    * @param _lockDurationCoefficient2 (k2) Denominator of the coefficient which modifies the extent
+    * to which a stake's lock duration affects the subsidy it receives. Affects stakers differently.
+    * Applicable to Phase 1 and Phase 2. k2 = maximum_rewarded_periods / (1 - small_stake_multiplier)
+    * where default maximum_rewarded_periods = 365 and default small_stake_multiplier = 0.5.
+    * See Equation 8 in Staking Protocol & Economics paper.
+    * @param _maximumRewardedPeriods (kmax) Number of periods beyond which a stake's lock duration
+    * no longer increases the subsidy it receives. kmax = reward_saturation * 365 where default reward_saturation = 1.
+    * See Equation 8 in Staking Protocol & Economics paper.
     * @param _firstPhaseTotalSupply Total supply for the first phase
-    * @param _maxFirstPhaseReward Max possible reward for one period for all stakers in the first phase
+    * @param _firstPhaseMaxIssuance (Imax) Maximum number of new tokens minted per period during Phase 1.
+    * See Equation 7 in Staking Protocol & Economics paper.
     * @param _minLockedPeriods Min amount of periods during which tokens can be locked
     * @param _minAllowableLockedTokens Min amount of tokens that can be locked
     * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
@@ -158,12 +170,12 @@ contract StakingEscrow is Issuer, IERC900History {
     constructor(
         NuCypherToken _token,
         uint32 _hoursPerPeriod,
-        uint256 _secondPhaseMintingCoefficient,
-        uint256 _lockingDurationCoefficient1,
-        uint256 _lockingDurationCoefficient2,
-        uint16 _maxRewardedPeriods,
+        uint256 _issuanceDecayCoefficient,
+        uint256 _lockDurationCoefficient1,
+        uint256 _lockDurationCoefficient2,
+        uint16 _maximumRewardedPeriods,
         uint256 _firstPhaseTotalSupply,
-        uint256 _maxFirstPhaseReward,
+        uint256 _firstPhaseMaxIssuance,
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
@@ -174,12 +186,12 @@ contract StakingEscrow is Issuer, IERC900History {
         Issuer(
             _token,
             _hoursPerPeriod,
-            _secondPhaseMintingCoefficient,
-            _lockingDurationCoefficient1,
-            _lockingDurationCoefficient2,
-            _maxRewardedPeriods,
+            _issuanceDecayCoefficient,
+            _lockDurationCoefficient1,
+            _lockDurationCoefficient2,
+            _maximumRewardedPeriods,
             _firstPhaseTotalSupply,
-            _maxFirstPhaseReward
+            _firstPhaseMaxIssuance
         )
     {
         // constant `1` in the expression `_minLockedPeriods > 1` uses to simplify the `lock` method

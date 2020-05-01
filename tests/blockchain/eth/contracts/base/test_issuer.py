@@ -37,22 +37,22 @@ def test_issuer(testerchain, token, deploy_contract):
     economics = BaseEconomics(initial_supply=INITIAL_SUPPLY,
                               first_phase_supply=INITIAL_SUPPLY + 1000,
                               total_supply=TOTAL_SUPPLY,
-                              first_phase_stable_issuance=333,
-                              second_phase_coefficient=5 * 10 ** 34,
-                              locking_duration_coefficient_1=10 ** 4,
-                              locking_duration_coefficient_2=2 * 10 ** 4,
+                              first_phase_max_issuance=333,
+                              issuance_decay_coefficient=5 * 10 ** 34,
+                              lock_duration_coefficient_1=10 ** 4,
+                              lock_duration_coefficient_2=2 * 10 ** 4,
                               maximum_rewarded_periods=10 ** 4,
                               hours_per_period=1)
 
     def calculate_first_phase_reward(locked, total_locked, locked_periods):
-        return economics.first_phase_stable_issuance * locked * \
-               (locked_periods + economics.locking_duration_coefficient_1) // \
-               (total_locked * economics.locking_duration_coefficient_2)
+        return economics.first_phase_max_issuance * locked * \
+               (locked_periods + economics.lock_duration_coefficient_1) // \
+               (total_locked * economics.lock_duration_coefficient_2)
 
     def calculate_second_phase_reward(locked, total_locked, locked_periods):
         return (economics.erc20_reward_supply - INITIAL_SUPPLY) * locked * \
-               (locked_periods + economics.locking_duration_coefficient_1) // \
-               (total_locked * economics.second_phase_coefficient * economics.locking_duration_coefficient_2)
+               (locked_periods + economics.lock_duration_coefficient_1) // \
+               (total_locked * economics.issuance_decay_coefficient * economics.lock_duration_coefficient_2)
 
     creator = testerchain.client.accounts[0]
     staker = testerchain.client.accounts[1]
@@ -60,12 +60,12 @@ def test_issuer(testerchain, token, deploy_contract):
     # Only token contract is allowed in Issuer constructor
     bad_args = dict(_token=staker,
                     _hoursPerPeriod=economics.hours_per_period,
-                    _secondPhaseMintingCoefficient=economics.second_phase_coefficient,
-                    _lockingDurationCoefficient1=economics.locking_duration_coefficient_1,
-                    _lockingDurationCoefficient2=economics.locking_duration_coefficient_2,
-                    _maxRewardedPeriods=economics.maximum_rewarded_periods,
+                    _issuanceDecayCoefficient=economics.issuance_decay_coefficient,
+                    _lockDurationCoefficient1=economics.lock_duration_coefficient_1,
+                    _lockDurationCoefficient2=economics.lock_duration_coefficient_2,
+                    _maximumRewardedPeriods=economics.maximum_rewarded_periods,
                     _firstPhaseTotalSupply=economics.first_phase_supply,
-                    _maxFirstPhaseReward=economics.first_phase_stable_issuance)
+                    _firstPhaseMaxIssuance=economics.first_phase_max_issuance)
     with pytest.raises((TransactionFailed, ValueError)):
         deploy_contract(contract_name='IssuerMock', **bad_args)
 
@@ -134,9 +134,9 @@ def test_issuer(testerchain, token, deploy_contract):
     assert token.functions.balanceOf(issuer.address).call() == balance - reward
 
     # Still the first phase because minting period didn't change
-    assert issuer.functions.previousPeriodSupply().call() + economics.first_phase_stable_issuance < economics.first_phase_supply
+    assert issuer.functions.previousPeriodSupply().call() + economics.first_phase_max_issuance < economics.first_phase_supply
     assert issuer.functions.currentPeriodSupply().call() < economics.first_phase_supply
-    assert issuer.functions.currentPeriodSupply().call() + economics.first_phase_stable_issuance >= economics.first_phase_supply
+    assert issuer.functions.currentPeriodSupply().call() + economics.first_phase_max_issuance >= economics.first_phase_supply
 
     tx = issuer.functions.testMint(0, 100, 500, 10 ** 4).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
@@ -145,9 +145,9 @@ def test_issuer(testerchain, token, deploy_contract):
     assert token.functions.balanceOf(issuer.address).call() == balance - reward
 
     # Second phase
-    assert issuer.functions.previousPeriodSupply().call() + economics.first_phase_stable_issuance < economics.first_phase_supply
+    assert issuer.functions.previousPeriodSupply().call() + economics.first_phase_max_issuance < economics.first_phase_supply
     assert issuer.functions.currentPeriodSupply().call() < economics.first_phase_supply
-    assert issuer.functions.currentPeriodSupply().call() + economics.first_phase_stable_issuance >= economics.first_phase_supply
+    assert issuer.functions.currentPeriodSupply().call() + economics.first_phase_max_issuance >= economics.first_phase_supply
     # Check result of minting tokens
     tx = issuer.functions.testMint(period + 1, 1000, 2000, 0).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
@@ -187,10 +187,10 @@ def test_issuance_first_phase(testerchain, token, deploy_contract):
     economics = BaseEconomics(initial_supply=INITIAL_SUPPLY,
                               first_phase_supply=INITIAL_SUPPLY + 1000,
                               total_supply=TOTAL_SUPPLY,
-                              first_phase_stable_issuance=1000 // 5,
-                              second_phase_coefficient=10 ** 35,
-                              locking_duration_coefficient_1=1,
-                              locking_duration_coefficient_2=2,
+                              first_phase_max_issuance=1000 // 5,
+                              issuance_decay_coefficient=10 ** 35,
+                              lock_duration_coefficient_1=1,
+                              lock_duration_coefficient_2=2,
                               maximum_rewarded_periods=1,
                               hours_per_period=1)
 
@@ -201,12 +201,12 @@ def test_issuance_first_phase(testerchain, token, deploy_contract):
     issuer, _ = deploy_contract(contract_name='IssuerMock',
                                 _token=token.address,
                                 _hoursPerPeriod=economics.hours_per_period,
-                                _secondPhaseMintingCoefficient=economics.second_phase_coefficient,
-                                _lockingDurationCoefficient1=economics.locking_duration_coefficient_1,
-                                _lockingDurationCoefficient2=economics.locking_duration_coefficient_2,
-                                _maxRewardedPeriods=economics.maximum_rewarded_periods,
+                                _issuanceDecayCoefficient=economics.issuance_decay_coefficient,
+                                _lockDurationCoefficient1=economics.lock_duration_coefficient_1,
+                                _lockDurationCoefficient2=economics.lock_duration_coefficient_2,
+                                _maximumRewardedPeriods=economics.maximum_rewarded_periods,
                                 _firstPhaseTotalSupply=economics.first_phase_supply,
-                                _maxFirstPhaseReward=economics.first_phase_stable_issuance)
+                                _firstPhaseMaxIssuance=economics.first_phase_max_issuance)
 
     # Give staker tokens for reward and initialize contract
     tx = token.functions.approve(issuer.address, economics.erc20_reward_supply).transact({'from': creator})
@@ -220,7 +220,7 @@ def test_issuance_first_phase(testerchain, token, deploy_contract):
     tx = issuer.functions.testMint(period + 1, 1, 1, economics.maximum_rewarded_periods).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     one_period = token.functions.balanceOf(staker).call()
-    assert one_period == economics.first_phase_stable_issuance
+    assert one_period == economics.first_phase_max_issuance
 
     # Inflation rate must be the same in all periods of the first phase
     # Mint more tokens in the same period
@@ -291,10 +291,10 @@ def test_issuance_second_phase(testerchain, token, deploy_contract):
     economics = BaseEconomics(initial_supply=INITIAL_SUPPLY,
                               first_phase_supply=0,
                               total_supply=TOTAL_SUPPLY,
-                              first_phase_stable_issuance=0,
-                              second_phase_coefficient=10 ** 15,
-                              locking_duration_coefficient_1=1,
-                              locking_duration_coefficient_2=2,
+                              first_phase_max_issuance=0,
+                              issuance_decay_coefficient=10 ** 15,
+                              lock_duration_coefficient_1=1,
+                              lock_duration_coefficient_2=2,
                               maximum_rewarded_periods=1,
                               hours_per_period=1)
 
@@ -305,12 +305,12 @@ def test_issuance_second_phase(testerchain, token, deploy_contract):
     issuer, _ = deploy_contract(contract_name='IssuerMock',
                                 _token=token.address,
                                 _hoursPerPeriod=economics.hours_per_period,
-                                _secondPhaseMintingCoefficient=economics.second_phase_coefficient,
-                                _lockingDurationCoefficient1=economics.locking_duration_coefficient_1,
-                                _lockingDurationCoefficient2=economics.locking_duration_coefficient_2,
-                                _maxRewardedPeriods=economics.maximum_rewarded_periods,
+                                _issuanceDecayCoefficient=economics.issuance_decay_coefficient,
+                                _lockDurationCoefficient1=economics.lock_duration_coefficient_1,
+                                _lockDurationCoefficient2=economics.lock_duration_coefficient_2,
+                                _maximumRewardedPeriods=economics.maximum_rewarded_periods,
                                 _firstPhaseTotalSupply=economics.first_phase_supply,
-                                _maxFirstPhaseReward=economics.first_phase_stable_issuance)
+                                _firstPhaseMaxIssuance=economics.first_phase_max_issuance)
 
     # Give staker tokens for reward and initialize contract
     tx = token.functions.approve(issuer.address, economics.erc20_reward_supply).transact({'from': creator})
@@ -385,12 +385,12 @@ def test_upgrading(testerchain, token, deploy_contract):
         contract_name='IssuerMock',
         _token=token.address,
         _hoursPerPeriod=1,
-        _secondPhaseMintingCoefficient=1,
-        _lockingDurationCoefficient1=1,
-        _lockingDurationCoefficient2=2,
-        _maxRewardedPeriods=1,
+        _issuanceDecayCoefficient=1,
+        _lockDurationCoefficient1=1,
+        _lockDurationCoefficient2=2,
+        _maximumRewardedPeriods=1,
         _firstPhaseTotalSupply=1,
-        _maxFirstPhaseReward=1
+        _firstPhaseMaxIssuance=1
     )
     dispatcher, _ = deploy_contract('Dispatcher', contract_library_v1.address)
 
@@ -399,12 +399,12 @@ def test_upgrading(testerchain, token, deploy_contract):
         contract_name='IssuerV2Mock',
         _token=token.address,
         _hoursPerPeriod=2,
-        _secondPhaseMintingCoefficient=2,
-        _lockingDurationCoefficient1=2,
-        _lockingDurationCoefficient2=4,
-        _maxRewardedPeriods=2,
+        _issuanceDecayCoefficient=2,
+        _lockDurationCoefficient1=2,
+        _lockDurationCoefficient2=4,
+        _maximumRewardedPeriods=2,
         _firstPhaseTotalSupply=2,
-        _maxFirstPhaseReward=2
+        _firstPhaseMaxIssuance=2
     )
     contract = testerchain.client.get_contract(
         abi=contract_library_v2.abi,
@@ -433,11 +433,11 @@ def test_upgrading(testerchain, token, deploy_contract):
     assert contract_library_v2.address == dispatcher.functions.target().call()
     assert 8 == contract.functions.mintingCoefficient().call()
     assert 2 * 3600 == contract.functions.secondsPerPeriod().call()
-    assert 2 == contract.functions.lockingDurationCoefficient1().call()
-    assert 4 == contract.functions.lockingDurationCoefficient2().call()
-    assert 2 == contract.functions.maxRewardedPeriods().call()
+    assert 2 == contract.functions.lockDurationCoefficient1().call()
+    assert 4 == contract.functions.lockDurationCoefficient2().call()
+    assert 2 == contract.functions.maximumRewardedPeriods().call()
     assert 2 == contract.functions.firstPhaseTotalSupply().call()
-    assert 2 == contract.functions.maxFirstPhaseReward().call()
+    assert 2 == contract.functions.firstPhaseMaxIssuance().call()
     assert period == contract.functions.currentMintingPeriod().call()
     assert TOTAL_SUPPLY == contract.functions.totalSupply().call()
     # Check method from new ABI
@@ -450,12 +450,12 @@ def test_upgrading(testerchain, token, deploy_contract):
         contract_name='IssuerBad',
         _token=token.address,
         _hoursPerPeriod=2,
-        _secondPhaseMintingCoefficient=2,
-        _lockingDurationCoefficient1=2,
-        _lockingDurationCoefficient2=4,
-        _maxRewardedPeriods=2,
+        _issuanceDecayCoefficient=2,
+        _lockDurationCoefficient1=2,
+        _lockDurationCoefficient2=4,
+        _maximumRewardedPeriods=2,
         _firstPhaseTotalSupply=2,
-        _maxFirstPhaseReward=2
+        _firstPhaseMaxIssuance=2
     )
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract_library_v1.address).transact({'from': creator})
@@ -471,11 +471,11 @@ def test_upgrading(testerchain, token, deploy_contract):
     assert contract_library_v1.address == dispatcher.functions.target().call()
     assert 2 == contract.functions.mintingCoefficient().call()
     assert 3600 == contract.functions.secondsPerPeriod().call()
-    assert 1 == contract.functions.lockingDurationCoefficient1().call()
-    assert 2 == contract.functions.lockingDurationCoefficient2().call()
-    assert 1 == contract.functions.maxRewardedPeriods().call()
+    assert 1 == contract.functions.lockDurationCoefficient1().call()
+    assert 2 == contract.functions.lockDurationCoefficient2().call()
+    assert 1 == contract.functions.maximumRewardedPeriods().call()
     assert 1 == contract.functions.firstPhaseTotalSupply().call()
-    assert 1 == contract.functions.maxFirstPhaseReward().call()
+    assert 1 == contract.functions.firstPhaseMaxIssuance().call()
     assert period == contract.functions.currentMintingPeriod().call()
     assert TOTAL_SUPPLY == contract.functions.totalSupply().call()
     # After rollback can't use new ABI

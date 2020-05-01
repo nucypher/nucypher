@@ -25,16 +25,17 @@ abstract contract Issuer is Upgradeable {
     NuCypherToken public immutable token;
     uint128 public immutable totalSupply;
 
-    // k2 * k3
+    // d * k2
     uint256 public immutable mintingCoefficient;
     // k1
-    uint256 public immutable lockingDurationCoefficient1;
-    // k3
-    uint256 public immutable lockingDurationCoefficient2;
+    uint256 public immutable lockDurationCoefficient1;
+    // k2
+    uint256 public immutable lockDurationCoefficient2;
     uint32 public immutable secondsPerPeriod;
-    uint16 public immutable maxRewardedPeriods;
+    // kmax
+    uint16 public immutable maximumRewardedPeriods;
 
-    uint256 public immutable maxFirstPhaseReward;
+    uint256 public immutable firstPhaseMaxIssuance;
     uint256 public immutable firstPhaseTotalSupply;
 
     /**
@@ -50,64 +51,76 @@ abstract contract Issuer is Upgradeable {
     /**
     * @notice Constructor sets address of token contract and coefficients for minting
     * @dev Minting formula for one sub-stake in one period for the first phase
-    maxFirstPhaseReward * (lockedValue / totalLockedValue) * (k1 + allLockedPeriods) / k3
-    * @dev Minting formula for one sub-stake in one period for the seconds phase
-    (totalSupply - currentSupply) / k2 * (lockedValue / totalLockedValue) * (k1 + allLockedPeriods) / k3
-    if allLockedPeriods > maxRewardedPeriods then allLockedPeriods = maxRewardedPeriods
+    firstPhaseMaxIssuance * (lockedValue / totalLockedValue) * (k1 + min(allLockedPeriods, kmax)) / k2
+    * @dev Minting formula for one sub-stake in one period for the second phase
+    (totalSupply - currentSupply) / d * (lockedValue / totalLockedValue) * (k1 + min(allLockedPeriods, kmax)) / k2
+    if allLockedPeriods > maximumRewardedPeriods then allLockedPeriods = maximumRewardedPeriods
     * @param _token Token contract
     * @param _hoursPerPeriod Size of period in hours
-    * @param _secondPhaseMintingCoefficient Minting coefficient for the second phase (k2)
-    * @param _lockingDurationCoefficient1 Numerator of the locking duration coefficient (k1)
-    * @param _lockingDurationCoefficient2 Denominator of the locking duration coefficient (k3)
-    * @param _maxRewardedPeriods Max periods that will be additionally rewarded
+    * @param _issuanceDecayCoefficient (d) Coefficient which modifies the rate at which the maximum issuance decays,
+    * only applicable to Phase 2. d = 365 * half-life / LOG2 where default half-life = 2.
+    * See Equation 10 in Staking Protocol & Economics paper
+    * @param _lockDurationCoefficient1 (k1) Numerator of the coefficient which modifies the extent 
+    * to which a stake's lock duration affects the subsidy it receives. Affects stakers differently. 
+    * Applicable to Phase 1 and Phase 2. k1 = k2 * small_stake_multiplier where default small_stake_multiplier = 0.5.  
+    * See Equation 8 in Staking Protocol & Economics paper.
+    * @param _lockDurationCoefficient2 (k2) Denominator of the coefficient which modifies the extent
+    * to which a stake's lock duration affects the subsidy it receives. Affects stakers differently.
+    * Applicable to Phase 1 and Phase 2. k2 = maximum_rewarded_periods / (1 - small_stake_multiplier)
+    * where default maximum_rewarded_periods = 365 and default small_stake_multiplier = 0.5.
+    * See Equation 8 in Staking Protocol & Economics paper.
+    * @param _maximumRewardedPeriods (kmax) Number of periods beyond which a stake's lock duration
+    * no longer increases the subsidy it receives. kmax = reward_saturation * 365 where default reward_saturation = 1.
+    * See Equation 8 in Staking Protocol & Economics paper.
     * @param _firstPhaseTotalSupply Total supply for the first phase
-    * @param _maxFirstPhaseReward Max possible reward for one period for all stakers in the first phase
+    * @param _firstPhaseMaxIssuance (Imax) Maximum number of new tokens minted per period during Phase 1.
+    * See Equation 7 in Staking Protocol & Economics paper.
     */
     constructor(
         NuCypherToken _token,
         uint32 _hoursPerPeriod,
-        uint256 _secondPhaseMintingCoefficient,
-        uint256 _lockingDurationCoefficient1,
-        uint256 _lockingDurationCoefficient2,
-        uint16 _maxRewardedPeriods,
+        uint256 _issuanceDecayCoefficient,
+        uint256 _lockDurationCoefficient1,
+        uint256 _lockDurationCoefficient2,
+        uint16 _maximumRewardedPeriods,
         uint256 _firstPhaseTotalSupply,
-        uint256 _maxFirstPhaseReward
+        uint256 _firstPhaseMaxIssuance
     )
         public
     {
         uint256 localTotalSupply = _token.totalSupply();
         require(localTotalSupply > 0 &&
-            _secondPhaseMintingCoefficient != 0 &&
+            _issuanceDecayCoefficient != 0 &&
             _hoursPerPeriod != 0 &&
-            _lockingDurationCoefficient1 != 0 &&
-            _lockingDurationCoefficient2 != 0 &&
-            _maxRewardedPeriods != 0);
+            _lockDurationCoefficient1 != 0 &&
+            _lockDurationCoefficient2 != 0 &&
+            _maximumRewardedPeriods != 0);
         require(localTotalSupply <= uint256(MAX_UINT128), "Token contract has supply more than supported");
 
-        uint256 maxLockingDurationCoefficient = _maxRewardedPeriods + _lockingDurationCoefficient1;
-        uint256 localMintingCoefficient = _secondPhaseMintingCoefficient * _lockingDurationCoefficient2;
-        require(maxLockingDurationCoefficient > _maxRewardedPeriods &&
-            localMintingCoefficient / _secondPhaseMintingCoefficient ==  _lockingDurationCoefficient2 &&
-            // worst case for `totalLockedValue * k2 * k3`, when totalLockedValue == totalSupply
+        uint256 maxLockDurationCoefficient = _maximumRewardedPeriods + _lockDurationCoefficient1;
+        uint256 localMintingCoefficient = _issuanceDecayCoefficient * _lockDurationCoefficient2;
+        require(maxLockDurationCoefficient > _maximumRewardedPeriods &&
+            localMintingCoefficient / _issuanceDecayCoefficient ==  _lockDurationCoefficient2 &&
+            // worst case for `totalLockedValue * d * k2`, when totalLockedValue == totalSupply
             localTotalSupply * localMintingCoefficient / localTotalSupply == localMintingCoefficient &&
-            // worst case for `(totalSupply - currentSupply) * lockedValue * (k1 + allLockedPeriods)`,
+            // worst case for `(totalSupply - currentSupply) * lockedValue * (k1 + min(allLockedPeriods, kmax))`,
             // when currentSupply == 0, lockedValue == totalSupply
-            localTotalSupply * localTotalSupply * maxLockingDurationCoefficient / localTotalSupply / localTotalSupply ==
-                maxLockingDurationCoefficient,
+            localTotalSupply * localTotalSupply * maxLockDurationCoefficient / localTotalSupply / localTotalSupply ==
+                maxLockDurationCoefficient,
             "Specified parameters cause overflow");
 
-        require(maxLockingDurationCoefficient <= _lockingDurationCoefficient2,
+        require(maxLockDurationCoefficient <= _lockDurationCoefficient2,
             "Resulting locking duration coefficient must be less than 1");
         require(_firstPhaseTotalSupply <= localTotalSupply, "Too many tokens for the first phase");
-        require(_maxFirstPhaseReward <= _firstPhaseTotalSupply, "Reward for the first phase is too high");
+        require(_firstPhaseMaxIssuance <= _firstPhaseTotalSupply, "Reward for the first phase is too high");
 
         token = _token;
         secondsPerPeriod = _hoursPerPeriod.mul32(1 hours);
-        lockingDurationCoefficient1 = _lockingDurationCoefficient1;
-        lockingDurationCoefficient2 = _lockingDurationCoefficient2;
-        maxRewardedPeriods = _maxRewardedPeriods;
+        lockDurationCoefficient1 = _lockDurationCoefficient1;
+        lockDurationCoefficient2 = _lockDurationCoefficient2;
+        maximumRewardedPeriods = _maximumRewardedPeriods;
         firstPhaseTotalSupply = _firstPhaseTotalSupply;
-        maxFirstPhaseReward = _maxFirstPhaseReward;
+        firstPhaseMaxIssuance = _firstPhaseMaxIssuance;
         totalSupply = uint128(localTotalSupply);
         mintingCoefficient = localMintingCoefficient;
     }
@@ -134,7 +147,7 @@ abstract contract Issuer is Upgradeable {
     function initialize(uint256 _reservedReward) external onlyOwner {
         require(currentMintingPeriod == 0);
         // Reserved reward must be sufficient for at least one period of the first phase
-        require(maxFirstPhaseReward <= _reservedReward);
+        require(firstPhaseMaxIssuance <= _reservedReward);
         currentMintingPeriod = getCurrentPeriod();
         currentPeriodSupply = totalSupply - uint128(_reservedReward);
         previousPeriodSupply = currentPeriodSupply;
@@ -171,19 +184,19 @@ abstract contract Issuer is Upgradeable {
         uint256 coefficient;
 
         // first phase
-        // maxFirstPhaseReward * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k3)
-        if (previousPeriodSupply + maxFirstPhaseReward <= firstPhaseTotalSupply) {
-            currentReward = maxFirstPhaseReward;
-            coefficient = lockingDurationCoefficient2;
+        // firstPhaseMaxIssuance * lockedValue * (k1 + min(allLockedPeriods, kmax)) / (totalLockedValue * k2)
+        if (previousPeriodSupply + firstPhaseMaxIssuance <= firstPhaseTotalSupply) {
+            currentReward = firstPhaseMaxIssuance;
+            coefficient = lockDurationCoefficient2;
         // second phase
-        // (totalSupply - currentSupply) * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2 * k3)
+        // (totalSupply - currentSupply) * lockedValue * (k1 + min(allLockedPeriods, kmax)) / (totalLockedValue * d * k2)
         } else {
             currentReward = totalSupply - previousPeriodSupply;
             coefficient = mintingCoefficient;
         }
 
         uint256 allLockedPeriods =
-            AdditionalMath.min16(_allLockedPeriods, maxRewardedPeriods) + lockingDurationCoefficient1;
+            AdditionalMath.min16(_allLockedPeriods, maximumRewardedPeriods) + lockDurationCoefficient1;
         amount = (uint256(currentReward) * _lockedValue * allLockedPeriods) /
             (_totalLockedValue * coefficient);
 

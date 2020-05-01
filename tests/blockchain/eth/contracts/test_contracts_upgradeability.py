@@ -67,12 +67,12 @@ def download_github_file(source_link: str, target_folder: str):
 # All versions below the specified version must use these overrides
 # 'None' value removes arg from list of constructor parameters
 CONSTRUCTOR_OVERRIDES = {
-    StakingEscrowDeployer.contract_name: {"v4.2.1": {"_secondPhaseMintingCoefficient": None,
-                                                     "_lockingDurationCoefficient1": None,
-                                                     "_lockingDurationCoefficient2": None,
-                                                     "_maxRewardedPeriods": None,
+    StakingEscrowDeployer.contract_name: {"v4.2.1": {"_issuanceDecayCoefficient": None,
+                                                     "_lockDurationCoefficient1": None,
+                                                     "_lockDurationCoefficient2": None,
+                                                     "_maximumRewardedPeriods": None,
                                                      "_firstPhaseTotalSupply": None,
-                                                     "_maxFirstPhaseReward": None,
+                                                     "_firstPhaseMaxIssuance": None,
                                                      "_miningCoefficient": 2,
                                                      "_lockedPeriodsCoefficient": 1,
                                                      "_rewardedPeriods": 1}}

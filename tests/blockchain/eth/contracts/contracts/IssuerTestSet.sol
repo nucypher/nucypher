@@ -14,23 +14,23 @@ contract IssuerMock is Issuer {
     constructor(
         NuCypherToken _token,
         uint32 _hoursPerPeriod,
-        uint256 _secondPhaseMintingCoefficient,
-        uint256 _lockingDurationCoefficient1,
-        uint256 _lockingDurationCoefficient2,
-        uint16 _maxRewardedPeriods,
+        uint256 _issuanceDecayCoefficient,
+        uint256 _lockDurationCoefficient1,
+        uint256 _lockDurationCoefficient2,
+        uint16 _maximumRewardedPeriods,
         uint256 _firstPhaseTotalSupply,
-        uint256 _maxFirstPhaseReward
+        uint256 _firstPhaseMaxIssuance
     )
         public
         Issuer(
             _token,
             _hoursPerPeriod,
-            _secondPhaseMintingCoefficient,
-            _lockingDurationCoefficient1,
-            _lockingDurationCoefficient2,
-            _maxRewardedPeriods,
+            _issuanceDecayCoefficient,
+            _lockDurationCoefficient1,
+            _lockDurationCoefficient2,
+            _maximumRewardedPeriods,
             _firstPhaseTotalSupply,
-            _maxFirstPhaseReward
+            _firstPhaseMaxIssuance
         )
     {
     }
@@ -76,23 +76,23 @@ contract IssuerV2Mock is Issuer {
     constructor(
         NuCypherToken _token,
         uint32 _hoursPerPeriod,
-        uint256 _secondPhaseMintingCoefficient,
-        uint256 _lockingDurationCoefficient1,
-        uint256 _lockingDurationCoefficient2,
-        uint16 _maxRewardedPeriods,
+        uint256 _issuanceDecayCoefficient,
+        uint256 _lockDurationCoefficient1,
+        uint256 _lockDurationCoefficient2,
+        uint16 _maximumRewardedPeriods,
         uint256 _firstPhaseTotalSupply,
-        uint256 _maxFirstPhaseReward
+        uint256 _firstPhaseMaxIssuance
     )
         public
         Issuer(
             _token,
             _hoursPerPeriod,
-            _secondPhaseMintingCoefficient,
-            _lockingDurationCoefficient1,
-            _lockingDurationCoefficient2,
-            _maxRewardedPeriods,
+            _issuanceDecayCoefficient,
+            _lockDurationCoefficient1,
+            _lockDurationCoefficient2,
+            _maximumRewardedPeriods,
             _firstPhaseTotalSupply,
-            _maxFirstPhaseReward
+            _firstPhaseMaxIssuance
         )
     {
     }
