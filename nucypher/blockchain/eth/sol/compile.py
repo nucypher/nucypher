@@ -14,17 +14,21 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import collections
 import os
 import re
+from os.path import abspath, dirname
 from typing import List, Set
 
-import sys
-from twisted.logger import Logger
-from os.path import abspath, dirname
-
 import itertools
-import shutil
+from solcx import get_solc_version_string
+from solcx.install import get_executable
+from twisted.logger import Logger
+
+from solcx import compile_files
+from solcx.exceptions import SolcError
 
 from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
 
@@ -56,13 +60,12 @@ class SolidityCompiler:
         return cls.__default_contract_dir
 
     def __init__(self,
-                 solc_binary_path: str = None,
                  source_dirs: List[SourceDirs] = None,
                  ignore_solidity_check: bool = False
                  ) -> None:
         
         self.log = Logger('solidity-compiler')
-        self._set_solc_binary_path(solc_binary_path)
+        self.__sol_binary_path = get_executable()
         if not ignore_solidity_check:
             self._check_compiler_version()
 
@@ -71,27 +74,17 @@ class SolidityCompiler:
         else:
             self.source_dirs = source_dirs
 
-    def _set_solc_binary_path(self, solc_binary_path: str):
-        # Compiler binary and root solidity source code directory
-        self.__sol_binary_path = solc_binary_path
-        if self.__sol_binary_path is None:
-            self.__sol_binary_path = shutil.which('solc')
-        if self.__sol_binary_path is None:
-            bin_path = os.path.dirname(sys.executable)  # type: str
-            self.__sol_binary_path = os.path.join(bin_path, 'solc')  # type: str
-
     def _check_compiler_version(self):
-        from solc import get_solc_version_string
-        raw_solc_version_string = get_solc_version_string(solc_binary=self.__sol_binary_path)
+        raw_solc_version_string = get_solc_version_string()
         solc_version_search = re.search(r"""
-             Version:\s          # Beginning of the string
+             (V|v)ersion:\s          # Beginning of the string
              (\d+\.\d+\.\d+)     # Capture digits of version
              \S+                 # Skip other info in version       
              """, raw_solc_version_string, re.VERBOSE
                                         )
         if not solc_version_search:
             raise SolidityCompiler.VersionError(f"Can't parse solidity version: {raw_solc_version_string}")
-        solc_version = solc_version_search.group(1)
+        solc_version = solc_version_search.group(2)
         if not solc_version == SOLIDITY_COMPILER_VERSION:
             raise SolidityCompiler.VersionError(f"Solidity version {solc_version} is unsupported. "
                                                 f"Use {SOLIDITY_COMPILER_VERSION} or option to ignore this check")
@@ -165,8 +158,7 @@ class SolidityCompiler:
         self.log.info("Compiling with import remappings {}".format(", ".join(remappings)))
 
         optimization_runs = self.optimization_runs
-        from solc import compile_files
-        from solc.exceptions import SolcError
+
         try:
             compiled_sol = compile_files(source_files=source_paths,
                                          solc_binary=self.__sol_binary_path,
