@@ -206,7 +206,7 @@ by specifying the keystore directory path:
 
 .. code:: bash
 
-    $ clef --keystore <PATH TO GOERLI KEYSTORE> --chainid 5 --advanced
+    $ clef --keystore <PATH TO KEYSTORE> --chainid 5 --advanced
 
 
 - <PATH TO KEYSTORE> - The path to the directory containing geth-formatted private key files; the default path for Linux is ``~/.ethereum/goerli/keystore``.
@@ -222,7 +222,7 @@ by specifying the keystore directory path:
     ------- Signer info -------
     * extapi_version : 6.0.0
     * extapi_http : n/a
-    * extapi_ipc : /home/user/.clef/clef.ipc
+    * extapi_ipc : /home/<username>/.clef/clef.ipc
     * intapi_version : 7.0.0
 
 
@@ -238,13 +238,13 @@ Some examples:
 .. code:: bash
 
     # Create a new stakeholder with clef as the default signer
-    $ nucypher stake init-stakeholder --signer ~/clef/clef.ipc ...
+    $ nucypher stake init-stakeholder --signer clef:///home/<username>/.clef/clef.ipc ...
 
     # Update an existing configuration with clef as the default signer
-    $ nucypher stake config --signer ~/clef/clef.ipc  # Set clef as the default signer
+    $ nucypher stake config --signer clef:///home/<username>/.clef/clef.ipc  # Set clef as the default signer
 
     # Create a new stake using inline signer and provider values
-    $ nucypher stake create --signer ~/clef/clef.ipc --provider ~/.ethereum/goerli/geth.ipc
+    $ nucypher stake create --signer clef:///home/<username>/.clef/clef.ipc --provider ~/.ethereum/geth.ipc
 
 
 Interacting with clef
@@ -302,25 +302,27 @@ to indicate which are the automated rules (in our case, allowing listing of acco
 
 .. code:: bash
 
-    $ clef --keystore /path/to/keystore --chainid 5 --advanced --rules rules.js
+    $ clef --keystore <PATH TO KEYSTORE> --chainid 5 --advanced --rules rules.js
 
 
 
 Initialize a new stakeholder
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Before continuing with stake initiation and management, A setup step is required to configure nucypher for staking.
-This will create a configuration file (`~/.local/share/nucypher/stakeholder.josn`) containing editable configuration values.
+This will create a configuration file (`~/.local/share/nucypher/stakeholder.json`) containing editable configuration values.
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake init-stakeholder --provider <PROVIDER> --network <NETWORK_NAME>
+    (nucypher)$ nucypher stake init-stakeholder --signer <SIGNER URI> --provider <PROVIDER> --network <NETWORK_NAME>
 
-If you ran ``geth`` node as above, your ``<PROVIDER>`` is
-``ipc:///home/<username>/.ethereum/goerli/geth.ipc``
-(on MacOS, ``ipc:///Users/<username>/Library/Ethereum/goerli/geth.ipc``)
+where:
 
-``<NETWORK_NAME>`` is the name of the NuCypher network domain where the staker will participate.
+    * If you utilized a `Clef Setup`_, the ``SIGNER URI`` is ``clef:///home/<username>/.clef/clef.ipc``
+    * If you ran ``geth`` node as above, your ``<PROVIDER>`` is ``ipc:///home/<username>/.ethereum/goerli/geth.ipc``
+      (on MacOS, ``ipc:///Users/<username>/Library/Ethereum/goerli/geth.ipc``)
+    * ``<NETWORK_NAME>`` is the name of the NuCypher network domain where the staker will participate.
+
 
 .. note:: If you're participating in NuCypher's incentivized testnet, this name is ``gemini``.
 
