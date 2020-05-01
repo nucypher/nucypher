@@ -43,7 +43,7 @@ Run a local geth node on Görli using volume bindings:
 
 .. code:: bash
 
-    docker run -it -p 30303:30303 -v ~/.ethereum:/root/.ethereum ethereum/client-go --goerli
+    docker run -it -p 30303:30303 -v ~/.ethereum:/root/.ethereum ethereum/client-go
 
 For alternate geth configuration via docker see:
 `Geth Docker Documentation <https://geth.ethereum.org/docs/install-and-build/installing-geth#run-inside-docker-container>`_.
@@ -54,14 +54,14 @@ Run Geth with the CLI
 
 .. code:: bash
 
-    $ geth --goerli --nousb
+    $ geth --nousb
     ... (geth log output)
 
 Create a software-controlled account in geth in another console:
 
 .. code:: bash
 
-    $ geth attach ~/.ethereum/goerli/geth.ipc
+    $ geth attach ~/.ethereum/geth.ipc
     > personal.newAccount();
     > eth.accounts[0]
     ["0xc080708026a3a280894365efd51bb64521c45147"]
@@ -75,7 +75,9 @@ The new account is ``0xc080708026a3a280894365efd51bb64521c45147`` in this case.
 -------------------------------
 Ensure that the worker's ethereum account has ETH for transaction gas.
 
-During testnet, this account can be funded with Görli testnet ETH via https://goerli-faucet.slock.it/.
+.. note::
+
+    For Testnet, this account can be funded with Görli testnet ETH via https://goerli-faucet.slock.it/.
 
 
 3. Ensure Worker account is bonded to Staker
@@ -116,8 +118,8 @@ Running an Ursula via CLI (Interactive)
 
 Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
 
-    - ``ipc:///home/<user>/.ethereum/geth.ipc`` - IPC Socket-based JSON-RPC server
-    - ``https://<host>>`` - HTTP(S)-based JSON-RPC server
+    - ``ipc:///home/<username>/.ethereum/geth.ipc`` - IPC Socket-based JSON-RPC server
+    - ``https://<host>`` - HTTP(S)-based JSON-RPC server
     - ``ws://<host>:8080`` - Websocket-based JSON-RPC server
 
 ``<NETWORK_NAME>`` is the name of the NuCypher network domain where the node will run.
@@ -180,7 +182,7 @@ To stop your node from the interactive console and return to the terminal sessio
 Running an Ursula with Docker
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Assuming geth is running locally on goerli, configure and run an Ursula using port and volume bindings:
+Assuming geth is running locally, configure and run an Ursula using port and volume bindings:
 
 .. code:: bash
 
@@ -188,7 +190,7 @@ Assuming geth is running locally on goerli, configure and run an Ursula using po
     export NUCYPHER_WORKER_ETH_PASSWORD=<YOUR WORKER ETH ACCOUNT PASSWORD>
 
     # Interactive Ursula-Worker Initialization
-    docker run -it -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD nucypher/nucypher:latest nucypher ursula init --provider file:///root/.ethereum/goerli/geth.ipc --network <NETWORK_NAME>
+    docker run -it -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD nucypher/nucypher:latest nucypher ursula init --provider file:///root/.ethereum/geth.ipc --network <NETWORK_NAME>
 
     # Daemonized Ursula
     docker run -d -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD nucypher/nucypher:latest nucypher ursula run
