@@ -277,8 +277,6 @@ Systemd Service Installation
    * ``<YOUR WORKER ADDRESS PASSWORD>`` - Worker's ETH account password
    * ``<YOUR_PASSWORD>`` - Ursula's keyring password
    * ``<VIRTUALENV_PATH>`` - The absolute path to the python virtual environment containing the ``nucypher`` executable
-   * ``<SEEDNODE_URI>`` - A seednode URI of a node on the network you are connecting to
-
 
 
 #. Enable Ursula System Service
