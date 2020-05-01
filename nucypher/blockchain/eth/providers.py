@@ -14,8 +14,10 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from typing import Union
 
 import os
+from eth_tester.backends.mock.main import MockBackend
 from urllib.parse import urlparse
 
 from eth_tester import EthereumTester
@@ -89,19 +91,34 @@ def _get_auto_provider(provider_uri):
     return w3.provider
 
 
-def _get_tester_pyevm(provider_uri):
-    # https://web3py.readthedocs.io/en/latest/providers.html#httpprovider
+def _get_pyevm_test_backend() -> PyEVMBackend:
     from nucypher.utilities.sandbox.constants import PYEVM_GAS_LIMIT, NUMBER_OF_ETH_TEST_ACCOUNTS
 
     # Initialize
     genesis_params = PyEVMBackend._generate_genesis_params(overrides={'gas_limit': PYEVM_GAS_LIMIT})
     pyevm_backend = PyEVMBackend(genesis_parameters=genesis_params)
     pyevm_backend.reset_to_genesis(genesis_params=genesis_params, num_accounts=NUMBER_OF_ETH_TEST_ACCOUNTS)
+    return pyevm_backend
 
-    # Test provider entry-point
-    eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
+
+def _get_ethereum_tester(test_backend: Union[PyEVMBackend, MockBackend]) -> EthereumTesterProvider:
+    eth_tester = EthereumTester(backend=test_backend, auto_mine_transactions=True)
     provider = EthereumTesterProvider(ethereum_tester=eth_tester)
+    return provider
 
+
+def _get_pyevm_test_provider(provider_uri):
+    """ Test provider entry-point"""
+    # https://github.com/ethereum/eth-tester#pyevm-experimental
+    pyevm_eth_tester = _get_pyevm_test_backend()
+    provider = _get_ethereum_tester(test_backend=pyevm_eth_tester)
+    return provider
+
+
+def _get_mock_test_provider(provider_uri):
+    # https://github.com/ethereum/eth-tester#mockbackend
+    mock_backend = MockBackend()
+    provider = _get_ethereum_tester(test_backend=mock_backend)
     return provider
 
 

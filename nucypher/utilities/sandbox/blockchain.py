@@ -102,6 +102,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
                  eth_airdrop=False,
                  free_transactions=False,
                  compiler: SolidityCompiler = None,
+                 mock_backend: bool = False,
                  *args, **kwargs):
 
         if not test_accounts:
@@ -110,12 +111,19 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         if compiler:
             TesterBlockchain._compiler = compiler
+        elif mock_backend:
+            TesterBlockchain._compiler = None  # TODO
 
-        super().__init__(provider_uri=self._PROVIDER_URI,
+        provider_uri = None
+        if mock_backend:
+            provider_uri = 'tester://mock'
+
+        super().__init__(provider_uri=provider_uri or self._PROVIDER_URI,
                          provider_process=None,
                          poa=poa,
                          light=light,
                          compiler=self._compiler,
+                         dry_run=mock_backend,
                          *args, **kwargs)
 
         self.log = Logger("test-blockchain")

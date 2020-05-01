@@ -17,15 +17,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import collections
-import os
-import pprint
-from typing import List, Callable
-from typing import Tuple
-from typing import Union
-from urllib.parse import urlparse
 
 import click
 import maya
+import os
+import pprint
 import requests
 import time
 from constant_sorrow.constants import (
@@ -40,6 +36,10 @@ from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import to_checksum_address
 from twisted.logger import Logger
+from typing import List, Callable
+from typing import Tuple
+from typing import Union
+from urllib.parse import urlparse
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider, middleware
 from web3.contract import ContractConstructor, Contract
 from web3.contract import ContractFunction
@@ -51,13 +51,12 @@ from web3.middleware import geth_poa_middleware
 from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
-    _get_tester_pyevm,
     _get_test_geth_parity_provider,
     _get_auto_provider,
     _get_infura_provider,
     _get_IPC_provider,
     _get_websocket_provider,
-    _get_HTTP_provider
+    _get_HTTP_provider, _get_mock_test_provider, _get_pyevm_test_provider
 )
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
@@ -379,9 +378,10 @@ class BlockchainInterface:
 
             if uri_breakdown.scheme == 'tester':
                 providers = {
-                    'pyevm': _get_tester_pyevm,
+                    'pyevm': _get_pyevm_test_provider,
                     'geth': _get_test_geth_parity_provider,
                     'parity-ethereum': _get_test_geth_parity_provider,
+                    'mock': _get_mock_test_provider
                 }
                 provider_scheme = uri_breakdown.netloc
 
@@ -746,8 +746,14 @@ class BlockchainDeployerInterface(BlockchainInterface):
     class DeploymentFailed(RuntimeError):
         pass
 
-    def __init__(self, compiler: SolidityCompiler = None, ignore_solidity_check: bool = False, *args, **kwargs):
+    def __init__(self,
+                 compiler: SolidityCompiler = None,
+                 ignore_solidity_check: bool = False,
+                 dry_run: bool = False,
+                 *args, **kwargs):
+
         super().__init__(*args, **kwargs)
+        self.dry_run = dry_run
         self.compiler = compiler or SolidityCompiler(ignore_solidity_check=ignore_solidity_check)
 
     def connect(self):
@@ -755,7 +761,9 @@ class BlockchainDeployerInterface(BlockchainInterface):
         self._setup_solidity(compiler=self.compiler)
         return self.is_connected
 
-    def _setup_solidity(self, compiler: SolidityCompiler = None):
+    def _setup_solidity(self, compiler: SolidityCompiler = None) -> None:
+        if self.dry_run:
+            return  # TODO
         if compiler:
             # Execute the compilation if we're recompiling
             # Otherwise read compiled contract data from the registry.

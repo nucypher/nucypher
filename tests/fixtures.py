@@ -438,7 +438,7 @@ def test_registry():
     return registry
 
 
-def _make_testerchain() -> TesterBlockchain:
+def _make_testerchain(mock_backend: bool = False) -> TesterBlockchain:
     """
     https://github.com/ethereum/eth-tester     # available-backends
     """
@@ -456,7 +456,9 @@ def _make_testerchain() -> TesterBlockchain:
     web3.eth.get_buffered_gas_estimate = _get_buffered_gas_estimate
 
     # Create the blockchain
-    testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True)
+    testerchain = TesterBlockchain(eth_airdrop=not mock_backend,
+                                   free_transactions=True,
+                                   mock_backend=mock_backend)
 
     BlockchainInterfaceFactory.register_interface(interface=testerchain, force=True)
 
@@ -468,9 +470,16 @@ def _make_testerchain() -> TesterBlockchain:
     return testerchain
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')  # FIXME : make session
 def _testerchain() -> TesterBlockchain:
+    assert False
     testerchain = _make_testerchain()
+    yield testerchain
+
+
+@pytest.fixture(scope='module')
+def mock_testerchain() -> TesterBlockchain:
+    testerchain = _make_testerchain(mock_backend=True)
     yield testerchain
 
 
@@ -574,8 +583,8 @@ def _make_agency(testerchain,
     return token_agent, staking_agent, policy_agent
 
 
-@pytest.fixture(scope='module', autouse=True)
-def test_registry_source_manager(testerchain, test_registry):
+@pytest.fixture(scope='module')
+def test_registry_source_manager(test_registry):
 
     class MockRegistrySource(CanonicalRegistrySource):
         name = "Mock Registry Source"
@@ -586,21 +595,13 @@ def test_registry_source_manager(testerchain, test_registry):
             if self.network != TEMPORARY_DOMAIN:
                 raise ValueError(f"Somehow, MockRegistrySource is trying to get a registry for '{self.network}'. "
                                  f"Only '{TEMPORARY_DOMAIN}' is supported.'")
-            factory = testerchain.get_contract_factory(contract_name=PREALLOCATION_ESCROW_CONTRACT_NAME)
-            preallocation_escrow_abi = factory.abi
-            self.allocation_template = {
-                "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", preallocation_escrow_abi]
-            }
 
         def get_publication_endpoint(self) -> str:
             return f":mock-registry-source:/{self.network}/{self.registry_name}"
 
         def fetch_latest_publication(self) -> Union[str, bytes]:
             self.logger.debug(f"Reading registry at {self.get_publication_endpoint()}")
-            if self.registry_name == BaseContractRegistry.REGISTRY_NAME:
-                registry_data = test_registry.read()
-            elif self.registry_name == IndividualAllocationRegistry.REGISTRY_NAME:
-                registry_data = self.allocation_template
+            registry_data = test_registry.read()
             raw_registry_data = json.dumps(registry_data)
             return raw_registry_data
 
@@ -621,6 +622,16 @@ def agency(testerchain,
 
 @pytest.fixture(scope='module')
 def agency_local_registry(testerchain, agency, test_registry):
+    registry = LocalContractRegistry(filepath=MOCK_REGISTRY_FILEPATH)
+    registry.write(test_registry.read())
+    yield registry
+    if os.path.exists(MOCK_REGISTRY_FILEPATH):
+        os.remove(MOCK_REGISTRY_FILEPATH)
+
+
+# TODO
+@pytest.fixture(scope='module')
+def agency_local_registry(mock_testerchain, agency, test_registry):
     registry = LocalContractRegistry(filepath=MOCK_REGISTRY_FILEPATH)
     registry.write(test_registry.read())
     yield registry
