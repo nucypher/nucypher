@@ -365,7 +365,7 @@ class StandardTokenEconomics(BaseEconomics):
         S_p1 = self.first_phase_supply
         I_s_per_period = self.first_phase_stable_issuance  # per period
         phase_switch_in_periods = S_p1 // I_s_per_period
-        return phase_switch_in_periods
+        return int(phase_switch_in_periods)
 
     def token_supply_at_period(self, period: int) -> int:
         if period < 0:
@@ -380,8 +380,7 @@ class StandardTokenEconomics(BaseEconomics):
             I_s_per_period = self.first_phase_stable_issuance  # per period
 
             if t <= phase_switch_in_periods:
-
-                S_t = S_0 + (t * I_s_per_period)
+                S_t = S_0 + t * I_s_per_period
             else:
                 S_p1 = self.first_phase_supply
                 T_half = self.token_halving  # in years

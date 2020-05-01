@@ -186,14 +186,14 @@ def test_exact_economics():
         assert e.token_supply_at_period(period=switch_period) == expected_phase1_supply + expected_initial_supply
         assert e.token_supply_at_period(period=switch_period) < e.token_supply_at_period(period=switch_period + 1)
 
-        assert e.rewards_during_period(period=1) == int(e.first_phase_stable_issuance)
-        assert e.rewards_during_period(period=switch_period) == int(e.first_phase_stable_issuance)
+        assert e.rewards_during_period(period=1) == round(e.first_phase_stable_issuance)
+        assert e.rewards_during_period(period=switch_period) == round(e.first_phase_stable_issuance)
         assert e.rewards_during_period(period=switch_period + 1) < int(e.first_phase_stable_issuance)
 
-        # Last NuNit is minted after 184 years (or 67000 periods).
-        # That's the year 2204, if token is launched in 2020.
+        # Last NuNit is minted after 188 years (or 68500 periods).
+        # That's the year 2208, if token is launched in 2020.
         # 23rd century schizoid man!
-        assert expected_total_supply == e.token_supply_at_period(period=67000)
+        assert expected_total_supply == e.token_supply_at_period(period=68500)
 
         # After 1 year:
         assert 1_365_915_960_000000000000000000 == e.token_supply_at_period(period=365)
@@ -202,7 +202,7 @@ def test_exact_economics():
 
         # Checking that the supply function is monotonic in phase 1
         todays_supply = e.token_supply_at_period(period=0)
-        for t in range(67000):
+        for t in range(68500):
             tomorrows_supply = e.token_supply_at_period(period=t + 1)
             assert tomorrows_supply >= todays_supply
             todays_supply = tomorrows_supply

@@ -16,16 +16,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
-from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 # Experimental max error
-MAX_ERROR = 0.0004751
-MAX_PERIODS = 100
+MAX_ERROR_FIRST_PHASE = 1e-8
+MAX_ERROR_SECOND_PHASE = 0.00003
+MAX_PERIODS_SECOND_PHASE = 100
 
 
-@pytest.mark.slow
+@pytest.mark.nightly
 def test_reward(testerchain, agency, token_economics, mock_transacting_power_activation):
     testerchain.time_travel(hours=1)
     token_agent, staking_agent, _policy_agent = agency
@@ -48,28 +48,20 @@ def test_reward(testerchain, agency, token_economics, mock_transacting_power_act
     _txhash = staking_agent.set_worker(staker_address=ursula, worker_address=ursula)
     _txhash = staking_agent.set_restaking(staker_address=ursula, value=False)
 
-    # Get a reward for one period
     _txhash = staking_agent.confirm_activity(worker_address=ursula)
     testerchain.time_travel(periods=1)
     _txhash = staking_agent.confirm_activity(worker_address=ursula)
     assert staking_agent.calculate_staking_reward(staker_address=ursula) == 0
-    testerchain.time_travel(periods=1)
-    _txhash = staking_agent.confirm_activity(worker_address=ursula)
 
-    contract_reward = staking_agent.calculate_staking_reward(staker_address=ursula)
-    assert contract_reward > 0
-    calculations_reward = token_economics.cumulative_rewards_at_period(1)
-    error = (contract_reward - calculations_reward) / calculations_reward
-    assert error > 0
-    assert error < MAX_ERROR
-
-    # Get a reward for other periods
-    for i in range(1, MAX_PERIODS):
+    # Get a reward
+    switch = token_economics.first_phase_final_period()
+    for i in range(1, switch + MAX_PERIODS_SECOND_PHASE):
         testerchain.time_travel(periods=1)
         _txhash = staking_agent.confirm_activity(worker_address=ursula)
         contract_reward = staking_agent.calculate_staking_reward(staker_address=ursula)
-        calculations_reward = token_economics.cumulative_rewards_at_period(i + 1)
-        next_error = (contract_reward - calculations_reward) / calculations_reward
-        assert next_error > 0
-        assert next_error < error
-        error = next_error
+        calculations_reward = token_economics.cumulative_rewards_at_period(i)
+        error = abs((contract_reward - calculations_reward) / calculations_reward)
+        if i <= switch:
+            assert error < MAX_ERROR_FIRST_PHASE
+        else:
+            assert error < MAX_ERROR_SECOND_PHASE

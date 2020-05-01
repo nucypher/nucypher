@@ -26,17 +26,18 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS, STAKING_ESCROW_CONTR
 @pytest.fixture()
 def token_economics():
     economics = BaseEconomics(initial_supply=10 ** 9,
+                              first_phase_supply=int(0.5 * 10 ** 9),
+                              first_phase_stable_issuance=10 ** 6,
                               total_supply=2 * 10 ** 9,
-                              staking_coefficient=8 * 10 ** 7,
-                              locked_periods_coefficient=4,
+                              second_phase_coefficient=10 ** 7,
+                              locking_duration_coefficient_1=4,
+                              locking_duration_coefficient_2=8,
                               maximum_rewarded_periods=4,
                               hours_per_period=1,
-                              minimum_locked_periods=6,
+                              minimum_locked_periods=2,
                               minimum_allowed_locked=100,
-                              maximum_allowed_locked=2000,
-                              minimum_worker_periods=2,
-                              base_penalty=300,
-                              percentage_penalty_coefficient=2)
+                              maximum_allowed_locked=5 * 10 ** 8,
+                              minimum_worker_periods=1)
     return economics
 
 
@@ -48,25 +49,16 @@ def token(token_economics, deploy_contract):
 
 
 @pytest.mark.nightly
-def test_sampling_distribution(testerchain, token, deploy_contract):
+def test_sampling_distribution(testerchain, token, deploy_contract, token_economics):
 
     #
     # SETUP
     #
 
-    max_allowed_locked_tokens = 5 * 10 ** 8
-    _staking_coefficient = 2 * 10 ** 7
     staking_escrow_contract, _ = deploy_contract(
-        contract_name=STAKING_ESCROW_CONTRACT_NAME,
-        _token=token.address,
-        _hoursPerPeriod=1,
-        _miningCoefficient=4 * _staking_coefficient,
-        _lockedPeriodsCoefficient=4,
-        _rewardedPeriods=4,
-        _minLockedPeriods=2,
-        _minAllowableLockedTokens=100,
-        _maxAllowableLockedTokens=max_allowed_locked_tokens,
-        _minWorkerPeriods=1,
+        STAKING_ESCROW_CONTRACT_NAME,
+        token.address,
+        *token_economics.staking_deployment_parameters,
         _isTestContract=False
     )
     staking_agent = StakingEscrowAgent(registry=None, contract=staking_escrow_contract)
