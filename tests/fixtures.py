@@ -398,10 +398,10 @@ def federated_ursulas(ursula_federated_test_config):
 #
 
 @pytest.fixture(scope='module')
-def token_economics(testerchain):
+def token_economics():
 
     # Get current blocktime
-    blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=testerchain.provider_uri)
+    blockchain = BlockchainInterfaceFactory.get_interface()
     now = blockchain.w3.eth.getBlock(block_identifier='latest').timestamp
 
     # Calculate instant start time
@@ -472,7 +472,6 @@ def _make_testerchain(mock_backend: bool = False) -> TesterBlockchain:
 
 @pytest.fixture(scope='module')  # FIXME : make session
 def _testerchain() -> TesterBlockchain:
-    assert False
     testerchain = _make_testerchain()
     yield testerchain
 
