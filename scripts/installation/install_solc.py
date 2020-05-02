@@ -7,40 +7,71 @@ This script depends on `nucypher.blockchain.eth.sol` submodule and `py-solc-x` l
 but otherwise does not require installation of `nucypher` or it's dependencies. 
 """
 
-import os
+
 from os.path import dirname, abspath
+
+import os
+import sys
 from pathlib import Path
 
-from solcx import install_solc, set_solc_version
 
-
-def get_solc_version() -> str:
-
-    env_version = os.environ.get('NUCYPHER_SOLIDITY_VERSION')
-    if env_version:
-        return env_version
-
+def get_solc_config_path() -> Path:
     nucypher = Path('nucypher')
     sol_package_path = nucypher / 'blockchain' / 'eth' / 'sol'
     base_dir = Path(dirname(dirname(dirname(abspath(__file__)))))
     file_path = base_dir / sol_package_path / "__conf__.py"
+    return file_path
 
+
+def get_packaged_solc_version() -> str:
+    """Returns the solidity version specified in the embedded configuration file"""
+    solc_config = get_solc_config_path()
     metadata = dict()
-    with open(file_path) as f:
-        exec(f.read(), metadata)
-
+    with open(str(solc_config)) as f:
+        exec(f.read(), metadata)  # noqa
     version = metadata['SOLIDITY_COMPILER_VERSION']
     return version
 
 
-def main():
+def get_solc_version() -> str:
+    """
+    Returns a solidity version string.  Resolves the solidity version in the following priority:
 
+    HIGH PRIORITY
+    1. Command line argument
+    2. Environment variable
+    3. Packaged contract version
+    LOW PRIORITY
+    """
+    try:
+        version = sys.argv[1]  # 1
+    except IndexError:
+        try:
+            version = os.environ['NUCYPHER_SOLIDITY_VERSION']  # 2
+        except KeyError:
+            version = get_packaged_solc_version()  # 3
+    return version
+
+
+def install_solc(version: str) -> None:
+    """Install the solidity compiler binary to the system for the specified version then set it as the default."""
+    try:
+        from solcx import install_solc, set_solc_version
+    except ImportError:
+        error = f"Failed to install solc, py-solc-x  is not found. " \
+                f"Install with 'pip install py-solc-x' and try again."
+        raise ImportError(error)
+
+    install_solc(version)
+    set_solc_version(version)
+
+
+def main():
     version = get_solc_version()
     print(f"Fetched solc version {version} from source configuration")
 
-    install_solc(version)
+    install_solc(version=version)
     print(f"Successfully installed solc {version}")
-    set_solc_version(version)
 
 
 if __name__ == "__main__":
