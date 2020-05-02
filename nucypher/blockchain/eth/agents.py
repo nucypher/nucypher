@@ -1282,7 +1282,8 @@ class WorkLockAgent(EthereumContractAgent):
 
     def is_claiming_available(self) -> bool:
         """Returns True if claiming is available"""
-        return self.contract.functions.isClaimingAvailable().call()
+        result = self.contract.functions.isClaimingAvailable().call()
+        return result
 
     @property
     def next_bidder_to_check(self) -> int:

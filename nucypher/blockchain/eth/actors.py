@@ -115,7 +115,10 @@ class BaseActor:
 
     def __eq__(self, other) -> bool:
         """Actors are equal if they have the same address."""
-        return bool(self.checksum_address == other.checksum_address)
+        try:
+            return bool(self.checksum_address == other.checksum_address)
+        except AttributeError:
+            return False
 
     @property
     def eth_balance(self) -> Decimal:

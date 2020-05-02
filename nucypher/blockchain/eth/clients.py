@@ -436,26 +436,19 @@ class EthereumTesterClient(EthereumClient):
     def unlock_account(self, account, password, duration: int = None) -> bool:
         """Returns True if the testing backend keyring has control of the given address."""
         account = to_canonical_address(account)
-
-        try:
-            # PyEVM backend
-            keystore = self.w3.provider.ethereum_tester.backend._key_lookup
-        except AttributeError:
-            # Mock provider, probably
-            keystore = self.w3.provider.ethereum_tester.backend.get_accounts()
-
-        if account in keystore:
+        keystore_accounts = self.w3.provider.ethereum_tester.backend.get_accounts()
+        if account in keystore_accounts:
             return True
         else:
-            return self.w3.provider.ethereum_tester.unlock_account(account=account,
+            return self.w3.provider.ethereum_tester.unlock_account(account=to_checksum_address(account),
                                                                    password=password,
                                                                    unlock_seconds=duration)
 
     def lock_account(self, account) -> bool:
         """Returns True if the testing backend keyring has control of the given address."""
         account = to_canonical_address(account)
-        keystore = self.w3.provider.ethereum_tester.backend._key_lookup
-        if account in keystore:
+        keystore_accounts = self.w3.provider.ethereum_tester.backend.get_accounts()
+        if account in keystore_accounts:
             return True
         else:
             return self.w3.provider.ethereum_tester.lock_account(account=account)

@@ -154,7 +154,8 @@ def bid(general_config, worklock_options, force, hw_wallet, value):
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
     now = maya.now().epoch
     if not worklock_agent.start_bidding_date <= now <= worklock_agent.end_bidding_date:
-        raise click.Abort(f"You can't bid, the bidding window is closed.")
+        emitter.echo(f"You can't bid, the bidding window is closed.", color='red')
+        raise click.Abort()
 
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
