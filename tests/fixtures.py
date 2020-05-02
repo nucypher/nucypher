@@ -15,18 +15,19 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import datetime
 import json
-import os
 import random
-import tempfile
-from typing import Union, Tuple
 
+import datetime
 import maya
+import os
 import pytest
+import tempfile
 from eth_utils import to_checksum_address
 from sqlalchemy.engine import create_engine
 from twisted.logger import Logger
+from typing import Tuple
+from typing import Union
 from umbral import pre
 from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPrivateKey
@@ -37,22 +38,20 @@ from nucypher.blockchain.economics import StandardTokenEconomics, BaseEconomics
 from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
-from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
-from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
-                                               StakingEscrowDeployer,
-                                               PolicyManagerDeployer,
-                                               AdjudicatorDeployer,
-                                               StakingInterfaceDeployer,
-                                               WorklockDeployer
+from nucypher.blockchain.eth.deployers import (
+    NucypherTokenDeployer,
+    StakingEscrowDeployer,
+    PolicyManagerDeployer,
+    AdjudicatorDeployer,
+    StakingInterfaceDeployer,
+    WorklockDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
     RegistrySourceManager,
-    BaseContractRegistry,
     LocalContractRegistry,
-    IndividualAllocationRegistry,
     CanonicalRegistrySource
 )
 from nucypher.blockchain.eth.signers import Web3Signer
@@ -91,9 +90,18 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddlewareForLargeFlee
 from nucypher.utilities.sandbox.policy import generate_random_label
 from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
-from tests.performance_mocks import mock_cert_storage, mock_cert_loading, mock_rest_app_creation, mock_cert_generation, \
-    mock_secret_source, mock_remember_node, mock_verify_node, mock_record_fleet_state, mock_message_verification, \
+from tests.performance_mocks import (
+    mock_cert_storage,
+    mock_cert_loading,
+    mock_rest_app_creation,
+    mock_cert_generation,
+    mock_secret_source,
+    mock_remember_node,
+    mock_verify_node,
+    mock_record_fleet_state,
+    mock_message_verification,
     mock_keep_learning
+)
 
 test_logger = Logger("test-logger")
 MIN_REWARD_RATE_RANGE = (5, 10, 15)
@@ -470,7 +478,7 @@ def _make_testerchain(mock_backend: bool = False) -> TesterBlockchain:
     return testerchain
 
 
-@pytest.fixture(scope='module')  # FIXME : make session
+@pytest.fixture(scope='session')
 def _testerchain() -> TesterBlockchain:
     testerchain = _make_testerchain()
     yield testerchain

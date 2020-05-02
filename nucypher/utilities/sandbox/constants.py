@@ -127,6 +127,7 @@ PYEVM_DEV_URI = "tester://pyevm"
 
 TEST_PROVIDER_URI = PYEVM_DEV_URI  # TODO: Pytest flag entry point?
 
+MOCK_PROVIDER_URI = 'tester://mock'
 
 #
 # Node Configuration
