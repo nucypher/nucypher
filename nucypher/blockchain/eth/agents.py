@@ -1231,6 +1231,16 @@ class WorkLockAgent(EthereumContractAgent):
         supply = num_bidders * min_bid + self.get_bonus_eth_supply()
         return supply
 
+    @property
+    def boosting_refund(self) -> int:
+        refund = self.contract.functions.boostingRefund().call()
+        return refund
+
+    @property
+    def slowing_refund(self) -> int:
+        refund = self.contract.functions.SLOWING_REFUND().call()
+        return refund
+
     def get_bonus_refund_rate(self) -> int:
         f = self.contract.functions
         slowing_refund = f.SLOWING_REFUND().call()
