@@ -56,12 +56,15 @@ def nominal_federated_configuration_fields():
 
 
 @pytest.fixture(scope='module')
-def mock_allocation_infile(testerchain, token_economics):
-    accounts = testerchain.unassigned_accounts
-    allocation_data = [{'beneficiary_address': addr,
-                        'amount': 2 * token_economics.minimum_allowed_locked,
-                        'duration_seconds': ONE_YEAR_IN_SECONDS}
-                       for addr in accounts]
+def mock_allocation_infile(testerchain, token_economics, get_random_checksum_address):
+    accounts = [get_random_checksum_address() for _ in range(10)]
+    # accounts = testerchain.unassigned_accounts
+    allocation_data = list()
+    amount = 2 * token_economics.minimum_allowed_locked
+    min_periods = token_economics.minimum_locked_periods
+    for account in accounts:
+        substake = [{'checksum_address': account, 'amount': amount, 'lock_periods': min_periods + i} for i in range(24)]
+        allocation_data.extend(substake)
 
     with open(MOCK_ALLOCATION_INFILE, 'w') as file:
         file.write(json.dumps(allocation_data))

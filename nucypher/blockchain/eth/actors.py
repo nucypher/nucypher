@@ -15,19 +15,20 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import click
 import csv
 import json
-import maya
 import os
 import time
 from decimal import Decimal
-from eth_tester.exceptions import TransactionFailed
+
+import click
+import maya
+from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import is_checksum_address, to_checksum_address, to_canonical_address
-from pathlib import Path
 from twisted.logger import Logger
 from typing import Tuple, List, Dict, Union, Optional
 from web3 import Web3
+from web3.exceptions import ValidationError
 
 from constant_sorrow.constants import (
     WORKER_NOT_RUNNING,
@@ -52,7 +53,6 @@ from nucypher.blockchain.eth.deployers import (
     StakingEscrowDeployer,
     PolicyManagerDeployer,
     StakingInterfaceDeployer,
-    PreallocationEscrowDeployer,
     AdjudicatorDeployer,
     BaseContractDeployer,
     WorklockDeployer,
@@ -60,11 +60,7 @@ from nucypher.blockchain.eth.deployers import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
-from nucypher.blockchain.eth.registry import (
-    AllocationRegistry,
-    BaseContractRegistry,
-    IndividualAllocationRegistry
-)
+from nucypher.blockchain.eth.registry import BaseContractRegistry, IndividualAllocationRegistry
 from nucypher.blockchain.eth.signers import Web3Signer, Signer, KeystoreSigner
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration, datetime_at_period, \
@@ -75,8 +71,8 @@ from nucypher.cli.painting import (
     paint_contract_deployment,
     paint_input_allocation_file,
     paint_deployed_allocations,
-    write_deployed_allocations_to_csv
-)
+    write_deployed_allocations_to_csv,
+    paint_receipt_summary)
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nicknames import nickname_from_seed
@@ -422,215 +418,85 @@ class ContractAdministrator(NucypherTokenActor):
 
         return all_receipts
 
-    def deploy_beneficiary_contracts(self,
-                                     allocations: List[Dict[str, Union[str, int]]],
-                                     allocation_outfile: str = None,
-                                     allocation_registry: AllocationRegistry = None,
-                                     output_dir: str = None,
-                                     crash_on_failure: bool = True,
-                                     interactive: bool = True,
-                                     emitter: StdoutEmitter = None,
-                                     ) -> Dict[str, dict]:
+    def batch_deposits(self,
+                       allocation_data_filepath: str,
+                       crash_on_failure: bool = True,
+                       interactive: bool = True,
+                       emitter: StdoutEmitter = None,
+                       ) -> Dict[str, dict]:
         """
-        The allocation file contains a list of allocations, each of them composed of:
-          * 'beneficiary_address': Checksum address of the beneficiary
-          * 'name': User-friendly name of the beneficiary (Optional)
-          * 'amount': Amount of tokens locked, in NuNits
-          * 'duration_seconds': Lock duration expressed in seconds
-
-        It accepts both CSV and JSON formats. Example allocation file in CSV format:
-
-        "beneficiary_address","name","amount","duration_seconds"
-        "0xdeadbeef","H. E. Pennypacker",100,31536000
-        "0xabced120","",133432,31536000
-        "0xf7aefec2","",999,31536000
+        The allocations file is a JSON file containing a list of substakes.
+        Each substake is comprised of a staker address, an amount of tokens locked (in NuNits),
+        and a lock duration (in periods).
 
         Example allocation file in JSON format:
 
-        [ {'beneficiary_address': '0xdeadbeef', 'name': 'H. E. Pennypacker', 'amount': 100, 'duration_seconds': 31536000},
-          {'beneficiary_address': '0xabced120', 'amount': 133432, 'duration_seconds': 31536000},
-          {'beneficiary_address': '0xf7aefec2', 'amount': 999, 'duration_seconds': 31536000}]
-
+        [ {"checksum_address": "0xdeadbeef", "amount": 123456, "lock_periods": 30},
+          {"checksum_address": "0xdeadbeef", "amount": 789, "lock_periods": 45}]
         """
 
         if interactive and not emitter:
             raise ValueError("'emitter' is a required keyword argument when interactive is True.")
 
-        if allocation_registry and allocation_outfile:
-            raise self.ActorError("Pass either allocation registry or allocation_outfile, not both.")
-        if allocation_registry is None:
-            allocation_registry = AllocationRegistry(filepath=allocation_outfile)
-
         if emitter:
-            paint_input_allocation_file(emitter, allocations)
+            blockchain = BlockchainInterfaceFactory.get_interface()
+            chain_name = blockchain.client.chain_name
+            # TODO: paint_input_allocation_file(emitter, allocations)
 
         if interactive:
-            click.confirm("Continue with the allocation process?", abort=True)
+            click.confirm("Continue with the allocations process?", abort=True)
 
-        total_to_allocate = NU.from_nunits(sum(allocation['amount'] for allocation in allocations))
-        balance = ContractAgency.get_agent(NucypherTokenAgent, self.registry).get_balance(self.deployer_address)
-        if balance < total_to_allocate:
-            raise ValueError(f"Not enough tokens to allocate. We need at least {total_to_allocate}.")
+        batch_deposit_receipts, failed, allocated = dict(), list(), list()
 
-        allocation_receipts, failed, allocated = dict(), list(), list()
-        total_deployment_transactions = len(allocations) * 4
+        allocator = Allocator(allocation_data_filepath, self.registry, self.deployer_address)
 
-        # Create an allocation template file, containing the allocation contract ABI and placeholder values
-        # for the beneficiary and contract addresses. This file will be shared with all allocation users.
-        empty_allocation_escrow_deployer = PreallocationEscrowDeployer(registry=self.registry)
-        allocation_contract_abi = empty_allocation_escrow_deployer.get_contract_abi()
-        allocation_template = {
-            "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", allocation_contract_abi]
-        }
-
-        if not output_dir:
-            output_dir = Path(allocation_registry.filepath).parent  # Use same folder as allocation registry
-        template_filename = IndividualAllocationRegistry.REGISTRY_NAME
-        template_filepath = os.path.join(output_dir, template_filename)
-        AllocationRegistry(filepath=template_filepath).write(registry_data=allocation_template)
-        if emitter:
-            emitter.echo(f"Saved allocation template file to {template_filepath}", color='blue', bold=True)
-
-        already_enrolled = [a['beneficiary_address'] for a in allocations
-                            if allocation_registry.is_beneficiary_enrolled(a['beneficiary_address'])]
-        if already_enrolled:
-            raise ValueError(f"The following beneficiaries are already enrolled in allocation registry "
-                             f"({allocation_registry.filepath}): {already_enrolled}")
-
-        # Deploy each allocation contract
-        with click.progressbar(length=total_deployment_transactions,
+        with click.progressbar(length=len(allocator.allocations),
                                label="Allocation progress",
                                show_eta=False) as bar:
-            bar.short_limit = 0
-            for allocation in allocations:
 
-                beneficiary = allocation['beneficiary_address']
-                name = allocation.get('name', 'No name provided')
+            while allocator.pending_deposits:
 
-                if interactive:
-                    click.pause(info=f"\nPress any key to continue with allocation for "
-                                     f"beneficiary {beneficiary} ({name})")
-
-                if emitter:
-                    emitter.echo(f"\nDeploying PreallocationEscrow contract for beneficiary {beneficiary} ({name})...")
-                    bar._last_line = None
-                    bar.render_progress()
-
-                amount = allocation['amount']
-                duration = allocation['duration_seconds']
+                self.activate_deployer(refresh=True)
 
                 try:
-                    deployer = PreallocationEscrowDeployer(registry=self.registry,
-                                                           deployer_address=self.deployer_address,
-                                                           sidekick_address=self.sidekick_address,
-                                                           allocation_registry=allocation_registry)
-
-                    # 0 - Activate a TransactingPower (use the Sidekick if necessary)
-                    use_sidekick = bool(self.sidekick_power)
-                    if use_sidekick:
-                        self.activate_sidekick(refresh=True)
-                    else:
-                        self.activate_deployer(refresh=True)
-
-                    # 1 - Deploy the contract
-                    deployer.deploy(use_sidekick=use_sidekick, progress=bar)
-
-                    # 2 - Assign ownership to beneficiary
-                    deployer.assign_beneficiary(checksum_address=beneficiary, use_sidekick=use_sidekick, progress=bar)
-
-                    # 3 - Use main deployer account to do the initial deposit
-                    self.activate_deployer(refresh=False)
-                    deployer.initial_deposit(value=amount, duration_seconds=duration, progress=bar)
-
-                    # 4 - Enroll in allocation registry
-                    deployer.enroll_principal_contract()
-
+                    deposited_stakers, receipt = allocator.deposit_next_batch(sender_address=self.deployer_address)
                 except TransactionFailed as e:
                     if crash_on_failure:
                         raise
-                    message = f"Failed allocation transaction for {NU.from_nunits(amount)} to {beneficiary}: {e}"
+                    message = "Failed allocations batch"
                     self.log.debug(message)
                     if emitter:
                         emitter.echo(message=message, color='red', bold=True)
-                    failed.append(allocation)
-                    continue
 
-                else:
-                    allocation_receipts[beneficiary] = deployer.deployment_receipts
-                    allocation_contract_address = deployer.contract_address
-                    self.log.info(f"Created {deployer.contract_name} contract at {allocation_contract_address} "
-                                  f"for beneficiary {beneficiary}.")
-                    allocated.append((allocation, allocation_contract_address))
+                number_of_deposits = len(deposited_stakers)
+                if emitter:
+                    emitter.echo(f"\nDeployed allocations for {number_of_deposits} stakers:")
+                    for staker in deposited_stakers:
+                        emitter.echo(f"\t{staker}")
+                    emitter.echo()
+                    bar._last_line = None
+                    bar.render_progress()
 
-                    # Create individual allocation file
-                    individual_allocation_filename = f'allocation-{beneficiary}.json'
-                    individual_allocation_filepath = os.path.join(output_dir, individual_allocation_filename)
-                    individual_allocation_file_data = {
-                        'beneficiary_address': beneficiary,
-                        'contract_address': allocation_contract_address
-                    }
-                    with open(individual_allocation_filepath, 'w') as outfile:
-                        json.dump(individual_allocation_file_data, outfile)
+                bar.update(number_of_deposits)
 
-                    if emitter:
-                        blockchain = BlockchainInterfaceFactory.get_interface()
-                        paint_contract_deployment(contract_name=deployer.contract_name,
-                                                  receipts=deployer.deployment_receipts,
-                                                  contract_address=deployer.contract_address,
-                                                  emitter=emitter,
-                                                  chain_name=blockchain.client.chain_name,
-                                                  open_in_browser=False)
-                        emitter.echo(f"Saved individual allocation file to {individual_allocation_filepath}",
-                                     color='blue', bold=True)
+                if emitter:
+                    emitter.echo()
+                    paint_receipt_summary(emitter=emitter,
+                                          receipt=receipt,
+                                          chain_name=chain_name,
+                                          transaction_type=f'batch_deposit_{number_of_deposits}_stakers')
 
-            if emitter:
-                paint_deployed_allocations(emitter, allocated, failed)
+                batch_deposit_receipts.update({staker: {'batch_deposit': receipt} for staker in deposited_stakers})
 
-            csv_filename = f'allocation-summary-{self.deployer_address[:6]}-{maya.now().epoch}.csv'
-            csv_filepath = os.path.join(output_dir, csv_filename)
-            write_deployed_allocations_to_csv(csv_filepath, allocated, failed)
-            if emitter:
-                emitter.echo(f"Saved allocation summary CSV to {csv_filepath}", color='blue', bold=True)
+                if interactive:
+                    click.pause(info=f"\nPress any key to continue with next batch of allocations")
 
-            if failed:
-                self.log.critical(f"FAILED TOKEN ALLOCATION - {len(failed)} allocations failed.")
-
-        return allocation_receipts
-
-    @staticmethod
-    def __read_allocation_data(filepath: str) -> list:
-        with open(filepath, 'r') as allocation_file:
-            if filepath.endswith(".csv"):
-                reader = csv.DictReader(allocation_file)
-                allocation_data = list(reader)
-            else:  # Assume it's JSON by default
-                allocation_data = json.load(allocation_file)
-
-        # Pre-process allocation data
-        for entry in allocation_data:
-            entry['beneficiary_address'] = to_checksum_address(entry['beneficiary_address'])
-            entry['amount'] = int(entry['amount'])
-            entry['duration_seconds'] = int(entry['duration_seconds'])
-
-        return allocation_data
-
-    def deploy_beneficiaries_from_file(self,
-                                       allocation_data_filepath: str,
-                                       allocation_outfile: str = None,
-                                       emitter=None,
-                                       interactive=None) -> dict:
-
-        allocations = self.__read_allocation_data(filepath=allocation_data_filepath)
-        receipts = self.deploy_beneficiary_contracts(allocations=allocations,
-                                                     allocation_outfile=allocation_outfile,
-                                                     emitter=emitter,
-                                                     interactive=interactive,
-                                                     crash_on_failure=False)
-        # Save transaction metadata
-        receipts_filepath = self.save_deployment_receipts(receipts=receipts, filename_prefix='allocation')
+        receipts_filepath = self.save_deployment_receipts(receipts=batch_deposit_receipts,
+                                                          filename_prefix='batch_deposits')
         if emitter:
-            emitter.echo(f"Saved allocation receipts to {receipts_filepath}", color='blue', bold=True)
-        return receipts
+            emitter.echo(f"Saved batch deposits receipts to {receipts_filepath}", color='blue', bold=True)
+
+        return batch_deposit_receipts
 
     def save_deployment_receipts(self, receipts: dict, filename_prefix: str = 'deployment') -> str:
         config_root = DEFAULT_CONFIG_ROOT  # We force the use of the default here.
@@ -664,6 +530,103 @@ class ContractAdministrator(NucypherTokenActor):
                                                                     maximum=maximum,
                                                                     gas_limit=transaction_gas_limit)
         return receipt
+
+
+class Allocator:
+    def __init__(self, filepath: str, registry, deployer_address):
+
+        self.log = Logger("allocator")
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent,
+                                                      registry=registry)  # type: StakingEscrowAgent
+        self.max_substakes = self.staking_agent.contract.functions.MAX_SUB_STAKES().call()
+
+        with open(filepath, 'r') as allocation_file:
+            # TODO: Deal with CSV later
+            # if filepath.endswith(".csv"):
+            #     reader = csv.DictReader(allocation_file)
+            #     allocation_data = list(reader)
+            # else:  # Assume it's JSON by default
+            allocation_data = json.load(allocation_file)
+
+        self.allocations = dict()
+        self.deposited = set()
+
+        total_to_allocate = 0
+
+        # Pre-process allocations data
+        for entry in allocation_data:
+            staker = to_checksum_address(entry['checksum_address'])
+            amount = int(entry['amount'])
+            lock_periods = int(entry['lock_periods'])
+            # TODO: Check staker doesn't have a deposit yet
+            self._add_substake(staker, amount, lock_periods)
+            total_to_allocate += amount
+
+        token_agent = ContractAgency.get_agent(NucypherTokenAgent,
+                                               registry=registry)  # type: NucypherTokenAgent
+
+        balance = token_agent.get_balance(deployer_address)
+        if balance < total_to_allocate:
+            raise ValueError(f"Not enough tokens to allocate. We need at least {NU.from_nunits(total_to_allocate)}.")
+
+        self.log.debug(f"New allocator for batch deposits. Allocating a total of {NU.from_nunits(total_to_allocate)}")
+        approve_function = token_agent.contract.functions.approve(self.staking_agent.contract_address, total_to_allocate)
+        _approve_receipt = self.staking_agent.blockchain.send_transaction(contract_function=approve_function,
+                                                                          sender_address=deployer_address)
+
+    def _add_substake(self, staker, amount, lock_periods):
+        try:
+            substakes = self.allocations[staker]
+            if len(substakes) >= self.max_substakes:
+                raise ValueError
+        except KeyError:
+            substakes = list()
+            self.allocations[staker] = substakes
+        substakes.append((amount, lock_periods))
+
+    def deposit_next_batch(self,
+                           sender_address: str,
+                           gas_limit: int = None) -> Tuple[List[str], dict]:
+
+        pending_stakers = [staker for staker in self.allocations.keys() if staker not in self.deposited]
+
+        self.log.debug(f"Constructing next batch. "
+                       f"Currently, {len(pending_stakers)} stakers pending, {len(self.deposited)} deposited.")
+
+        batch_size = 1
+
+        # Execute a dry-run of the batch deposit method, incrementing the batch size, until it's too big and fails.
+        last_good_batch = None
+        while batch_size <= len(pending_stakers):
+            test_batch = {staker: self.allocations[staker] for staker in pending_stakers[:batch_size]}
+            batch_parameters = self.staking_agent.construct_batch_deposit_parameters(deposits=test_batch)
+            try:
+                self.staking_agent.batch_deposit(*batch_parameters,
+                                                 sender_address=sender_address,
+                                                 dry_run=True,
+                                                 gas_limit=gas_limit)
+            except (TestTransactionFailed, ValidationError, ValueError):  # TODO: We need to define a generic exception type
+                break
+            else:
+                self.log.debug(f"Batch of {len(test_batch)} fits. Trying to squeeze one more staker...")
+                last_good_batch = test_batch
+                batch_size += 1
+
+        if not last_good_batch:
+            raise ValueError  # TODO
+
+        batch_parameters = self.staking_agent.construct_batch_deposit_parameters(deposits=last_good_batch)
+        receipt = self.staking_agent.batch_deposit(*batch_parameters,
+                                                   sender_address=sender_address,
+                                                   gas_limit=gas_limit)
+
+        deposited_stakers = list(last_good_batch.keys())
+        self.deposited.update(deposited_stakers)
+        return deposited_stakers, receipt
+
+    @property
+    def pending_deposits(self) -> bool:
+        return bool(set(self.allocations.keys()).difference(self.deposited))
 
 
 class MultiSigActor(BaseActor):
@@ -1604,7 +1567,7 @@ class StakeHolder(Staker):
         if self.individual_allocation:
             if checksum_address != self.individual_allocation.beneficiary_address:
                 raise ValueError(f"Beneficiary {self.individual_allocation.beneficiary_address} in individual "
-                                 f"allocation does not match this checksum address ({checksum_address})")
+                                 f"allocations does not match this checksum address ({checksum_address})")
             staking_address = self.individual_allocation.contract_address
             self.beneficiary_address = self.individual_allocation.beneficiary_address
             self.preallocation_escrow_agent = PreallocationEscrowAgent(registry=self.registry,

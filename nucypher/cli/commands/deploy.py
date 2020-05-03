@@ -502,39 +502,18 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
 @group_general_config
 @group_actor_options
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
-@click.option('--allocation-outfile', help="Output path for token allocation JSON file",
-              type=click.Path(exists=False, file_okay=True))
-@click.option('--sidekick-account', help="A software-controlled account to assist the deployment",
-              type=EIP55_CHECKSUM_ADDRESS)
-def allocations(general_config, actor_options, allocation_infile, allocation_outfile, sidekick_account):
+def allocations(general_config, actor_options, allocation_infile):
     """
     Deploy pre-allocation contracts.
     """
     emitter = general_config.emitter
     ADMINISTRATOR, _, deployer_interface, local_registry = actor_options.create_actor(emitter)
 
-    if not sidekick_account and click.confirm('Do you want to use a sidekick account to assist during deployment?'):
-        prompt = "Select sidekick account"
-        sidekick_account = select_client_account(emitter=emitter,
-                                                 prompt=prompt,
-                                                 provider_uri=actor_options.provider_uri,
-                                                 registry=local_registry,
-                                                 show_eth_balance=True)
-        if not actor_options.force:
-            click.confirm(f"Selected {sidekick_account} - Continue?", abort=True)
-
-    if sidekick_account:
-        password = None
-        if not deployer_interface.client.is_local:
-            password = get_client_password(checksum_address=sidekick_account)
-        ADMINISTRATOR.recruit_sidekick(sidekick_address=sidekick_account, sidekick_password=password)
-
     if not allocation_infile:
-        allocation_infile = click.prompt("Enter allocation data filepath")
-    ADMINISTRATOR.deploy_beneficiaries_from_file(allocation_data_filepath=allocation_infile,
-                                                 allocation_outfile=allocation_outfile,
-                                                 emitter=emitter,
-                                                 interactive=not actor_options.force)
+        allocation_infile = click.prompt("Enter allocations data filepath")
+    ADMINISTRATOR.batch_deposits(allocation_data_filepath=allocation_infile,
+                                 emitter=emitter,
+                                 interactive=not actor_options.force)
 
 
 @deploy.command(name='transfer-tokens')
