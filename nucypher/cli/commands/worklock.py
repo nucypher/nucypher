@@ -15,6 +15,8 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
+
+import os
 from decimal import Decimal
 from typing import Optional
 
@@ -31,13 +33,15 @@ from nucypher.blockchain.eth.utils import prettify_eth_amount
 from nucypher.characters.banners import WORKLOCK_BANNER
 from nucypher.cli.actions import get_client_password, connect_to_blockchain, get_registry
 from nucypher.cli.actions import select_client_account
-from nucypher.cli.commands.status import group_registry_options
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     option_force,
     group_options,
     option_hw_wallet,
-    option_signer_uri, option_provider_uri, option_poa, option_registry_filepath, option_network
+    option_signer_uri,
+    option_provider_uri,
+    option_registry_filepath,
+    option_network
 )
 from nucypher.cli.painting import (
     paint_receipt_summary,
@@ -47,6 +51,7 @@ from nucypher.cli.painting import (
     paint_worklock_claim
 )
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, DecimalRange
+from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
 
 option_bidder_address = click.option('--bidder-address',
                                      help="Bidder's checksum address.",
@@ -110,9 +115,9 @@ group_worklock_options = group_options(
     WorkLockOptions,
     bidder_address=option_bidder_address,
     signer_uri=option_signer_uri,
-    provider_uri=option_provider_uri(required=True),
+    provider_uri=option_provider_uri(required=True, default=os.environ.get(NUCYPHER_ENVVAR_PROVIDER_URI)),
     network=option_network(required=True),
-    registry_filepath = option_registry_filepath,
+    registry_filepath=option_registry_filepath,
 )
 
 

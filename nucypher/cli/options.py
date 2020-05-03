@@ -110,7 +110,7 @@ def option_policy_encrypting_key(required: bool = False):
         required=required)
 
 
-def option_provider_uri(default=os.environ.get("NUCYPHER_PROVIDER_URI"), required: bool = False):
+def option_provider_uri(default=None, required: bool = False):
     return click.option(
         '--provider', 'provider_uri',
         help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'",
