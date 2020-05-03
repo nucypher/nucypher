@@ -31,7 +31,8 @@ from nucypher.blockchain.eth.agents import (
     PreallocationEscrowAgent,
     NucypherTokenAgent
 )
-from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
+from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer
+from nucypher.blockchain.eth.registry import IndividualAllocationRegistry, InMemoryAllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeList
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
@@ -44,7 +45,8 @@ from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
     MOCK_KNOWN_URSULAS_CACHE,
     select_test_port,
-    MOCK_INDIVIDUAL_ALLOCATION_FILEPATH
+    MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
+    ONE_YEAR_IN_SECONDS
 )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
@@ -52,6 +54,21 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 # This test module is intended to mirror tests/cli/ursula/test_stakeholder_and_ursula.py,
 # but using a staking contract (namely, PreallocationEscrow)
 #
+
+@pytest.fixture(scope='module')
+def mock_allocation_registry(testerchain, agency_local_registry, token_economics):
+    # Deploy the PreallocationEscrow contract
+    allocation_registry = InMemoryAllocationRegistry()
+    deployer = PreallocationEscrowDeployer(deployer_address=testerchain.etherbase_account,
+                                           registry=agency_local_registry,
+                                           allocation_registry=allocation_registry)
+
+    deployer.deploy()
+    deployer.assign_beneficiary(checksum_address=testerchain.unassigned_accounts[0])
+    deployer.initial_deposit(value=2 * token_economics.minimum_allowed_locked,
+                             duration_seconds=ONE_YEAR_IN_SECONDS)
+    deployer.enroll_principal_contract()
+    return allocation_registry
 
 
 @pytest.fixture(scope='module')
@@ -82,7 +99,7 @@ def beneficiary(testerchain, mock_allocation_registry):
 
 
 @pytest.fixture(scope='module')
-def individual_allocation():
+def individual_allocation(beneficiary):
     return IndividualAllocationRegistry.from_allocation_file(MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                                                              network=TEMPORARY_DOMAIN)
 

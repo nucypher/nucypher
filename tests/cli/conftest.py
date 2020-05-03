@@ -25,20 +25,16 @@ import shutil
 import pytest
 from click.testing import CliRunner
 
-from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.registry import AllocationRegistry, InMemoryContractRegistry, LocalContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.config.characters import UrsulaConfiguration, StakeHolderConfiguration
 from nucypher.utilities.sandbox.constants import (
     BASE_TEMP_DIR,
     BASE_TEMP_PREFIX,
     DATETIME_FORMAT,
-    MOCK_ALLOCATION_REGISTRY_FILEPATH,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
-    INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_ALLOCATION_INFILE,
-    ONE_YEAR_IN_SECONDS, TEMPORARY_DOMAIN)
+)
 
 
 @pytest.fixture(scope='module')
@@ -72,27 +68,6 @@ def mock_allocation_infile(testerchain, token_economics, get_random_checksum_add
     yield MOCK_ALLOCATION_INFILE
     if os.path.isfile(MOCK_ALLOCATION_INFILE):
         os.remove(MOCK_ALLOCATION_INFILE)
-
-
-@pytest.fixture(scope='module')
-def mock_allocation_registry(testerchain, agency_local_registry, mock_allocation_infile):
-    admin = ContractAdministrator(registry=agency_local_registry,
-                                  client_password=INSECURE_DEVELOPMENT_PASSWORD,
-                                  deployer_address=testerchain.etherbase_account)
-
-    if os.path.isfile(MOCK_ALLOCATION_REGISTRY_FILEPATH):
-        os.remove(MOCK_ALLOCATION_REGISTRY_FILEPATH)
-
-    admin.deploy_beneficiaries_from_file(allocation_data_filepath=mock_allocation_infile,
-                                         allocation_outfile=MOCK_ALLOCATION_REGISTRY_FILEPATH)
-
-    allocation_registry = AllocationRegistry(filepath=MOCK_ALLOCATION_REGISTRY_FILEPATH)
-
-    yield allocation_registry
-
-    # Cleanup Allocation Stuff
-    if os.path.isfile(MOCK_ALLOCATION_REGISTRY_FILEPATH):
-        os.remove(MOCK_ALLOCATION_REGISTRY_FILEPATH)
 
 
 @pytest.fixture(scope='function')
