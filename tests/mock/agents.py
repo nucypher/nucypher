@@ -2,7 +2,8 @@ from unittest.mock import Mock
 
 from hexbytes.main import HexBytes
 
-from nucypher.blockchain.eth.agents import WorkLockAgent
+from nucypher.blockchain.eth.agents import WorkLockAgent, StakingEscrowAgent
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.utilities.sandbox.constants import MOCK_PROVIDER_URI
 
@@ -21,39 +22,80 @@ FAKE_RECEIPT = {'transactionHash': HexBytes(b'FAKE29890FAKE8349804'),
                 'blockHash': HexBytes(b'FAKE43434343FAKE43443434')}
 
 
-def fake_transaction():
+def fake_transaction(*_a, **_kw) -> dict:
     return FAKE_RECEIPT
 
 
+def fake_call(*_a, **_kw) -> 1:
+    return 1
+
+
+#
+# Agents
+#
+
 class MockContractAgent:
 
+    registry = Mock()
     blockchain = mock_testerchain
-    contract = Mock()
 
-    def __init__(self): pass
+    contract = Mock()
+    contract_address = NULL_ADDRESS
+
+    TRANSACTIONS = NotImplemented
+    CALLS = NotImplemented
+
+    def __init__(self):
+        self.setup_mock()
+
+    @classmethod
+    def setup_mock(cls):
+        for tx in cls.TRANSACTIONS:
+            setattr(cls, tx, fake_transaction)
+        for call in cls.CALLS:
+            setattr(cls, call, fake_call)
+
+
+class MockStakingAgent(MockContractAgent, StakingEscrowAgent):
+
+    get_completed_work = 1
 
 
 class MockWorkLockAgent(MockContractAgent, WorkLockAgent):
 
-    # Attributes
+    #
+    # Mock Worklock Attributes
+    #
+
+    # Time
     start_bidding_date = now - 10
     end_bidding_date = now + 10
+    end_cancellation_date = end_bidding_date + 1
+
+    # Contribution
     minimum_allowed_bid = 1  # token_economics.worklock_min_allowed_bid
 
-    # Calls
-    eth_to_tokens = lambda *args, **kwargs: 1
-    get_deposited_eth = lambda *args, **kwargs: 1
+    # Rate
+    boosting_refund = 1
+    slowing_refund = 1
+    lot_value = 1
 
-    # Transactions
-    transactions = ('bid',
+    CALLS = ('check_claim',
+             'eth_to_tokens',
+             'get_deposited_eth',
+             'get_eth_supply',
+             'get_base_deposit_rate',
+             'get_bonus_lot_value',
+             'get_bonus_deposit_rate',
+             'get_bonus_refund_rate',
+             'get_base_refund_rate',
+             'get_completed_work',
+             'get_refunded_work')
+
+    TRANSACTIONS = ('bid',
                     'cancel_bid',
                     'force_refund',
                     'verify_bidding_correctness',
                     'claim',
                     'refund',
                     'withdraw_compensation')
-
-    def __init__(self):
-        for name in self.transactions:
-            if not getattr(WorkLockAgent, name):
-                setattr(MockWorkLockAgent, name, fake_transaction)
