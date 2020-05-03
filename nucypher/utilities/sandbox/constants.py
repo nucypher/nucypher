@@ -29,7 +29,7 @@ from web3 import Web3
 
 from nucypher.blockchain.eth.token import NU
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import BASE_DIR
+from nucypher.config.constants import BASE_DIR, NUCYPHER_ENVVAR_KEYRING_PASSWORD
 from nucypher.crypto.api import keccak_digest
 
 
@@ -148,4 +148,10 @@ MOCK_URSULA_DB_FILEPATH = ':memory:'
 TEST_GAS_LIMIT = 8_000_000  # gas
 
 PYEVM_GAS_LIMIT = TEST_GAS_LIMIT  # TODO: move elsewhere (used to set pyevm gas limit in tests)?
+
+YES = 'Y\n'
+
+NO = 'N\n'
+
+CLI_TEST_ENV = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 

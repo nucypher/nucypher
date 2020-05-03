@@ -20,12 +20,13 @@ import pytest
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from tests.mock.agents import MockWorkLockAgent
+from tests.mock.agents import MockWorkLockAgent, FAKE_RECEIPT
 
 
 @pytest.fixture(scope='session', autouse=True)
 def mock_interface(session_mocker):
     mock_transaction_sender = session_mocker.patch.object(BlockchainInterface, 'sign_and_broadcast_transaction')
+    mock_transaction_sender.return_value = FAKE_RECEIPT
     return mock_transaction_sender
 
 
