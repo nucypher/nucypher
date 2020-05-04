@@ -425,9 +425,15 @@ class ContractAdministrator(NucypherTokenActor):
                        emitter: StdoutEmitter = None,
                        ) -> Dict[str, dict]:
         """
-        The allocations file is a JSON file containing a list of substakes.
+        The allocations file is a JSON or CSV file containing a list of substakes.
         Each substake is comprised of a staker address, an amount of tokens locked (in NuNits),
         and a lock duration (in periods).
+
+        It accepts both CSV and JSON formats. Example allocation file in CSV format:
+
+        "checksum_address","amount","lock_periods"
+        "0xdeadbeef",123456,30
+        "0xdeadbeef",789,45
 
         Example allocation file in JSON format:
 
@@ -541,12 +547,11 @@ class Allocator:
         self.max_substakes = self.staking_agent.contract.functions.MAX_SUB_STAKES().call()
 
         with open(filepath, 'r') as allocation_file:
-            # TODO: Deal with CSV later
-            # if filepath.endswith(".csv"):
-            #     reader = csv.DictReader(allocation_file)
-            #     allocation_data = list(reader)
-            # else:  # Assume it's JSON by default
-            allocation_data = json.load(allocation_file)
+            if filepath.endswith(".csv"):
+                reader = csv.DictReader(allocation_file)
+                allocation_data = list(reader)
+            else:  # Assume it's JSON by default
+                allocation_data = json.load(allocation_file)
 
         self.allocations = dict()
         self.deposited = set()
