@@ -39,7 +39,7 @@ Working Procedure:
 Run Geth with Docker
 ~~~~~~~~~~~~~~~~~~~~~
 
-Run a local geth node on Görli using volume bindings:
+Run a local geth using volume bindings:
 
 .. code:: bash
 
