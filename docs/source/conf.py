@@ -32,6 +32,7 @@
 import os
 
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.abspath('..'))
 
@@ -224,21 +225,29 @@ def remove_module_license(app, what, name, obj, options, lines):
 
 def run_apidoc(_):
     from sphinx.ext import apidoc
-    source_dir = os.path.abspath(os.path.dirname(__file__))
-    nucypher_module_dir = os.path.abspath(os.path.join(source_dir, "..", ".."))
-    source_api_dir = os.path.join(source_dir, "api")
-    source_api_doc_dir = os.path.join(source_dir, "apidoc")
+    source_dir = Path(__file__).parent.resolve()
+    nucypher_module_dir = source_dir.parent.parent
 
-    # excludes
-    setup_py = os.path.join(nucypher_module_dir, 'setup.py')
-    tests_dir = os.path.join(nucypher_module_dir, 'tests')
-    utilities_dir = os.path.join(nucypher_module_dir, 'nucypher', 'utilities')
-    scripts_dir = os.path.join(nucypher_module_dir, 'scripts')
+    # Command: sphinx-apidoc [OPTIONS] -o <OUTPUT_PATH> <MODULE_PATH> [EXCLUDE_PATTERN …]
+    apidoc_command = []
 
-    # sphinx-apidoc [OPTIONS] -o <OUTPUT_PATH> <MODULE_PATH> [EXCLUDE_PATTERN …]
-    apidoc.main(['-fME', '-t', source_api_doc_dir, '-o', source_api_dir, nucypher_module_dir,
-                 # excludes list
-                 setup_py, '*conftest*', tests_dir, utilities_dir, scripts_dir])
+    # ---- execution options/paths ----
+    apidoc_command.extend(['-fME',
+                           '-t', f'{source_dir / "apidoc"}',
+                           '-o', f'{source_dir / "api"}',
+                           f'{nucypher_module_dir}'])
+
+    # ---- exclusion patterns (*must be last to be added*) ----
+    # general patterns
+    apidoc_command.append('*conftest*')
+
+    # files/folders relative to `nucypher` project directory (results in required absolute paths)
+    exclusion_items = ['setup.py', 'tests', Path('nucypher', 'utilities'), 'scripts']
+    for exclusion_item in exclusion_items:
+        apidoc_command.append(f'{nucypher_module_dir / exclusion_item}')
+
+    # ---- execute command ----
+    apidoc.main(apidoc_command)
 
 
 def setup(app):
