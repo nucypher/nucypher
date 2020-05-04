@@ -925,6 +925,7 @@ class Ursula(Teacher, Character, Worker):
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
                  checksum_address: str = None,
                  worker_address: str = None,  # TODO: deprecate, and rename to "checksum_address"
+                 block_until_ready: bool = True,  # TODO: Must be true in order to set staker address - Allow for manual staker addr to be passed too!
                  work_tracker: WorkTracker = None,
                  start_working_now: bool = True,
                  client_password: str = None,
@@ -1009,7 +1010,8 @@ class Ursula(Teacher, Character, Worker):
                             checksum_address=checksum_address,
                             worker_address=worker_address,
                             work_tracker=work_tracker,
-                            start_working_now=start_working_now)
+                            start_working_now=start_working_now,
+                            block_until_ready=block_until_ready)
 
         if not crypto_power or (TLSHostingPower not in crypto_power):
 

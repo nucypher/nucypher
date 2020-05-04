@@ -15,28 +15,25 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import click
 import csv
 import json
+import maya
 import os
 import time
 from decimal import Decimal
+from eth_tester.exceptions import TransactionFailed
+from eth_utils import is_checksum_address, to_checksum_address, to_canonical_address
 from pathlib import Path
-from typing import Tuple, List, Dict, Union
+from twisted.logger import Logger
+from typing import Tuple, List, Dict, Union, Optional
+from web3 import Web3
 
-import click
-import maya
 from constant_sorrow.constants import (
     WORKER_NOT_RUNNING,
     NO_WORKER_ASSIGNED,
-    BARE,
-    IDLE,
     FULL
 )
-from eth_tester.exceptions import TransactionFailed
-from eth_utils import keccak, is_checksum_address, to_checksum_address, to_canonical_address
-from twisted.logger import Logger
-from web3 import Web3
-
 from nucypher.blockchain.economics import StandardTokenEconomics, EconomicsFactory, BaseEconomics
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
@@ -68,7 +65,7 @@ from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     IndividualAllocationRegistry
 )
-from nucypher.blockchain.eth.signers import ClefSigner, Web3Signer, Signer
+from nucypher.blockchain.eth.signers import Web3Signer, Signer, KeystoreSigner
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration, datetime_at_period, \
     prettify_eth_amount
@@ -137,8 +134,7 @@ class NucypherTokenActor(BaseActor):
 
     def __init__(self, registry: BaseContractRegistry, **kwargs):
         super().__init__(registry, **kwargs)
-        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent,
-                                                    registry=self.registry)  # type: NucypherTokenAgent
+        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
 
     @property
     def token_balance(self) -> NU:
@@ -678,7 +674,7 @@ class MultiSigActor(BaseActor):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.multisig_agent = ContractAgency.get_agent(MultiSigAgent, registry=self.registry)  # type: MultiSigAgent
+        self.multisig_agent = ContractAgency.get_agent(MultiSigAgent, registry=self.registry)
 
 
 class Trustee(MultiSigActor):
@@ -697,8 +693,8 @@ class Trustee(MultiSigActor):
                  *args, **kwargs):
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
         self.authorizations = dict()
-        self.executive_addresses = tuple(self.multisig_agent.owners)
-        if client_password:  # TODO: Consider a is_transacting parameter
+        self.executive_addresses = tuple(self.multisig_agent.owners)  # TODO: Investigate unresolved reference to .owners (linter)
+        if client_password:  # TODO: Consider an is_transacting parameter
             self.transacting_power = TransactingPower(password=client_password,
                                                       account=checksum_address)
             self.transacting_power.activate()
@@ -742,7 +738,7 @@ class Trustee(MultiSigActor):
         # TODO: check for inconsistencies (nonce, etc.)
 
         r, s, v = self._combine_authorizations()
-        receipt = self.multisig_agent.execute(sender_address=self.checksum_address,
+        receipt = self.multisig_agent.execute(sender_address=self.checksum_address,   # TODO: Investigate unresolved reference to .execute
                                               v=v, r=r, s=s,
                                               destination=proposal.target_address,
                                               value=proposal.value,
@@ -828,10 +824,8 @@ class Staker(NucypherTokenActor):
         self.__worker_address = None
 
         # Blockchain
-        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent,
-                                                     registry=self.registry)  # type: PolicyManagerAgent
-        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent,
-                                                      registry=self.registry)  # type: StakingEscrowAgent
+        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.economics = EconomicsFactory.get_economics(registry=self.registry)
 
         # Staking via contract
@@ -1536,8 +1530,16 @@ class Wallet:
         return tuple(self.__client_accounts)
 
     @validate_checksum_address
-    def activate_account(self, checksum_address: str, password: str = None) -> None:
+    def activate_account(self,
+                         checksum_address: str,
+                         signer: Optional[Signer] = None,
+                         password: Optional[str] = None
+                         ) -> None:
+
         if checksum_address not in self:
+            self.__signer = signer or Web3Signer(client=self.blockchain.client)
+            if isinstance(self.__signer, KeystoreSigner):
+                raise BaseActor.ActorError(f"Staking operations are not permitted while using a local keystore signer.")
             self.__get_accounts()
             if checksum_address not in self:
                 raise self.UnknownAccount
