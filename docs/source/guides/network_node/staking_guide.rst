@@ -28,7 +28,7 @@ Mainnet Staking Procedure:
 
 .. note::
 
-    For Goerli testnet the proceedure would be:
+    For testnets the typical staking procedure is:
 
         #. Install ``nucypher`` on Staker's machine (see :doc:`/guides/installation_guide`)
         #. Establish ethereum account, provider, and, optionally, signer (see `Staking`_)
