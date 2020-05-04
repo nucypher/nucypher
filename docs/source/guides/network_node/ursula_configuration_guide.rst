@@ -124,7 +124,7 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
 
 ``<NETWORK_NAME>`` is the name of the NuCypher network domain where the node will run.
 
-.. note:: If you're participating in NuCypher's incentivized testnet, this name is ``gemini``.
+.. note:: If you are using NuCypher's testnet, this name is ``gemini``.
 
 Create a password when prompted
 
