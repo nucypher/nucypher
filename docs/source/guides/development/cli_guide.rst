@@ -9,7 +9,7 @@ This guide is an example of NuCypher's decentralized network allowing Alice to s
 with Bob using the NuCypher Network via the ``nucypher`` CLI. It is analogous to the ``python`` example
 in :doc:`getting_started`.
 
-.. important::
+.. note::
 
     While the example provided uses Ethereum mainnet, these steps can be followed for the Goerli Testnet
     with updated `geth` (``~/.ethereum/goerli/geth.ipc``) and `seed` uris
