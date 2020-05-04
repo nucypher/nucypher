@@ -222,8 +222,28 @@ def remove_module_license(app, what, name, obj, options, lines):
         del lines[:]
 
 
+def run_apidoc(_):
+    from sphinx.ext import apidoc
+    source_dir = os.path.abspath(os.path.dirname(__file__))
+    nucypher_module_dir = os.path.abspath(os.path.join(source_dir, "..", ".."))
+    source_api_dir = os.path.join(source_dir, "api")
+    source_api_doc_dir = os.path.join(source_dir, "apidoc")
+
+    # excludes
+    setup_py = os.path.join(nucypher_module_dir, 'setup.py')
+    tests_dir = os.path.join(nucypher_module_dir, 'tests')
+    utilities_dir = os.path.join(nucypher_module_dir, 'nucypher', 'utilities')
+    scripts_dir = os.path.join(nucypher_module_dir, 'scripts')
+
+    # sphinx-apidoc [OPTIONS] -o <OUTPUT_PATH> <MODULE_PATH> [EXCLUDE_PATTERN …]
+    apidoc.main(['-fME', '-t', source_api_doc_dir, '-o', source_api_dir, nucypher_module_dir,
+                 # excludes list
+                 setup_py, '*conftest*', tests_dir, utilities_dir, scripts_dir])
+
+
 def setup(app):
     app.connect("autodoc-process-docstring", remove_module_license)
+    app.connect('builder-inited', run_apidoc)
 
 
 add_module_names = False
