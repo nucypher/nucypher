@@ -52,6 +52,7 @@ def test_non_interactive_bid(click_runner,
                              surrogate_bidder):
 
     # Spy on the corresponding CLI function we are testing
+    mock_ensure = mocker.spy(Bidder, 'ensure_bidding_is_open')
     mock_bidder = mocker.spy(Bidder, 'place_bid')
 
     minimum = token_economics.worklock_min_allowed_bid
@@ -68,11 +69,14 @@ def test_non_interactive_bid(click_runner,
     assert result.exit_code == 0
 
     # OK - Let's see what happened
+    mock_ensure.assert_called_once()  # checked that the bidding window was open
     mock_bidder.assert_called_once()
 
     nunits = NU.from_tokens(bid_value).to_nunits()
     mock_bidder.assert_called_once_with(surrogate_bidder, value=nunits)
-    
+
+    assert assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
+
 
 def test_cancel_bid(click_runner,
                     mocker,
@@ -89,6 +93,11 @@ def test_cancel_bid(click_runner,
                '--force')
     result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 0
+
+    # OK - Let's see what happened
+    mock_cancel.assert_called_once()
+
+    assert assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
 
 
 @pytest.mark.skip
@@ -110,6 +119,11 @@ def test_post_initialization(click_runner,
     result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
+    # OK - Let's see what happened
+    mock_enable.assert_called_once()
+
+    assert assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
+
 
 def test_claim(click_runner,
                mocker,
@@ -117,7 +131,15 @@ def test_claim(click_runner,
                surrogate_bidder):
 
     # Spy on the corresponding CLI function we are testing
+    mock_withdraw_compensation = mocker.spy(Bidder, 'withdraw_compensation')
     mock_claim = mocker.spy(Bidder, 'claim')
+
+    # Bidder has not claimed
+    mocked_property = mocker.patch.object(
+        Bidder, 'has_claimed',
+        new_callable=mocker.PropertyMock,
+        return_value=False
+    )
 
     command = ('claim',
                '--bidder-address', surrogate_bidder.checksum_address,
@@ -127,6 +149,12 @@ def test_claim(click_runner,
 
     result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 0
+
+    # OK - Let's see what happened
+    mock_withdraw_compensation.assert_called_once()
+    assert assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
+
+    mock_claim.assert_called_once()
 
 
 def test_remaining_work(click_runner,
@@ -144,6 +172,9 @@ def test_remaining_work(click_runner,
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
+
+    # OK - Let's see what happened
+    mock_remaining_work.assert_called_once()
 
 
 def test_refund(click_runner,
@@ -163,9 +194,13 @@ def test_refund(click_runner,
     result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
+    # OK - Let's see what happened
+    mock_refund.assert_called_once()
+
+    assert assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
+
 
 def test_participant_status(click_runner,
-                            mocker,
                             mock_worklock_agent,
                             surrogate_bidder):
     command = ('status',

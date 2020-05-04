@@ -20,7 +20,7 @@ import pytest
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from tests.mock.agents import MockWorkLockAgent, FAKE_RECEIPT
+from tests.mock.agents import MockWorkLockAgent, FAKE_RECEIPT, MockContractAgency
 
 
 @pytest.fixture(scope='session', autouse=True)
@@ -30,9 +30,26 @@ def mock_interface(session_mocker):
     return mock_transaction_sender
 
 
-@pytest.fixture(scope='module')
-def mock_worklock_agent(module_mocker, mock_testerchain, token_economics):
-    special_agent = MockWorkLockAgent()
-    module_mocker.patch.object(ContractAgency, 'get_agent', return_value=special_agent)
+@pytest.fixture(scope='module', autouse=True)
+def mock_contract_agency(module_mocker, token_economics):
+
+    # Patch
     module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=token_economics)
-    return special_agent
+
+    # Monkeypatch
+    get_agent = ContractAgency.get_agent
+    get_agent_by_name = ContractAgency.get_agent_by_contract_name
+    ContractAgency.get_agent = MockContractAgency.get_agent
+    ContractAgency.get_agent_by_contract_name = MockContractAgency.get_agent_by_contract_name
+
+    # Test
+    yield MockContractAgency()
+
+    # Restore the monkey patching
+    ContractAgency.get_agent = get_agent
+    ContractAgency.get_agent_by_contract_name = get_agent_by_name
+
+
+@pytest.fixture(scope='module')
+def mock_worklock_agent(mock_testerchain, token_economics):
+    return MockWorkLockAgent()
