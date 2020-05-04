@@ -50,6 +50,8 @@ def mock_contract_agency(module_mocker, token_economics):
     ContractAgency.get_agent_by_contract_name = get_agent_by_name
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='function')
 def mock_worklock_agent(mock_testerchain, token_economics):
-    return MockWorkLockAgent()
+    mock_agent = MockWorkLockAgent()
+    yield mock_agent
+    mock_agent.reset()

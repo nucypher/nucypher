@@ -54,12 +54,12 @@ def test_status(click_runner, mock_worklock_agent, test_registry_source_manager)
     assert result.exit_code == 0
 
 
-def test_non_interactive_bid(click_runner,
-                             mocker,
-                             mock_worklock_agent,
-                             token_economics,
-                             test_registry_source_manager,
-                             surrogate_bidder):
+def test_valid_bid(click_runner,
+                   mocker,
+                   mock_worklock_agent,
+                   token_economics,
+                   test_registry_source_manager,
+                   surrogate_bidder):
 
     # Spy on the corresponding CLI function we are testing
     mock_ensure = mocker.spy(Bidder, 'ensure_bidding_is_open')
@@ -87,20 +87,13 @@ def test_non_interactive_bid(click_runner,
     mock_bidder.assert_called_once_with(surrogate_bidder, value=nunits)
     assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
 
-    # Agent
+    # Transactions
     mock_worklock_agent.assert_any_transaction()
     mock_worklock_agent.assert_only_one_transaction_executed()
     mock_worklock_agent.assert_transaction(name='bid', checksum_address=surrogate_bidder.checksum_address, value=nunits)
 
-    expected_calls = (
-        'get_eth_supply',
-        'get_base_deposit_rate',
-        'get_bonus_lot_value',
-        'get_bonus_deposit_rate',
-        'get_bonus_refund_rate',
-        'get_base_refund_rate',
-        'eth_to_tokens'
-    )
+    # Calls
+    expected_calls = ('get_deposited_eth', 'eth_to_tokens')
     mock_worklock_agent.assert_contract_calls(calls=expected_calls)
 
 
@@ -120,10 +113,18 @@ def test_cancel_bid(click_runner,
     result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
-    # OK - Let's see what happened
+    # Bidder
     mock_cancel.assert_called_once()
-
     assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
+
+    # Transactions
+    mock_worklock_agent.assert_any_transaction()
+    mock_worklock_agent.assert_only_one_transaction_executed()
+    mock_worklock_agent.assert_transaction(name='cancel_bid', checksum_address=surrogate_bidder.checksum_address)
+
+    # Calls
+    expected_calls = ('get_deposited_eth',)
+    mock_worklock_agent.assert_contract_calls(calls=expected_calls)
 
 
 @pytest.mark.skip
@@ -145,23 +146,30 @@ def test_post_initialization(click_runner,
     result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
-    # OK - Let's see what happened
+    # Bidder
     mock_enable.assert_called_once()
-
     assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
 
+    # Transactions
+    mock_worklock_agent.assert_any_transaction()
+    mock_worklock_agent.assert_only_one_transaction_executed()
+    mock_worklock_agent.assert_transaction(name='enable_claiming', checksum_address=surrogate_bidder.checksum_address)
 
-def test_claim(click_runner,
-               mocker,
-               mock_worklock_agent,
-               surrogate_bidder):
+
+def test_initial_claim(click_runner,
+                       mocker,
+                       mock_worklock_agent,
+                       surrogate_bidder):
 
     # Spy on the corresponding CLI function we are testing
     mock_withdraw_compensation = mocker.spy(Bidder, 'withdraw_compensation')
     mock_claim = mocker.spy(Bidder, 'claim')
 
-    # Bidder has not claimed
-    mocked_property = mocker.patch.object(
+    # TODO: Test this functionality in isolation
+    mocker.patch.object(Bidder, '_ensure_cancellation_window')
+
+    # Bidder has not claimed yet
+    mocker.patch.object(
         Bidder, 'has_claimed',
         new_callable=mocker.PropertyMock,
         return_value=False
@@ -176,11 +184,60 @@ def test_claim(click_runner,
     result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
-    # OK - Let's see what happened
+    mock_worklock_agent.assert_transaction(name='claim', checksum_address=surrogate_bidder.checksum_address)
+
+    # Bidder
     mock_withdraw_compensation.assert_called_once()
+    mock_claim.assert_called_once()
     assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
 
-    mock_claim.assert_called_once()
+    # Transactions
+    mock_worklock_agent.assert_any_transaction()
+    mock_worklock_agent.assert_transaction(name='withdraw_compensation', checksum_address=surrogate_bidder.checksum_address)
+    mock_worklock_agent.assert_transaction(name='claim', checksum_address=surrogate_bidder.checksum_address)
+
+    # Calls
+    expected_calls = ('get_deposited_eth', 'eth_to_tokens')
+    mock_worklock_agent.assert_contract_calls(calls=expected_calls)
+
+
+def test_already_claimed(click_runner,
+                         mocker,
+                         mock_worklock_agent,
+                         surrogate_bidder):
+
+    # Spy on the corresponding CLI function we are testing
+    mock_withdraw_compensation = mocker.spy(Bidder, 'withdraw_compensation')
+    mock_claim = mocker.spy(Bidder, 'claim')
+
+    # TODO: Test this functionality in isolation
+    mocker.patch.object(Bidder, '_ensure_cancellation_window')
+
+    # Bidder already claimed
+    mocker.patch.object(
+        Bidder, 'has_claimed',
+        new_callable=mocker.PropertyMock,
+        return_value=True
+    )
+
+    command = ('claim',
+               '--bidder-address', surrogate_bidder.checksum_address,
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
+               '--force')
+
+    result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    # Bidder
+    mock_withdraw_compensation.assert_called_once()
+    assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
+    mock_claim.assert_not_called()
+
+    # Transactions
+    mock_worklock_agent.assert_any_transaction()
+    mock_worklock_agent.assert_transaction(name='withdraw_compensation', checksum_address=surrogate_bidder.checksum_address)
+    mock_worklock_agent.assert_transaction_not_called(name='claim')
 
 
 def test_remaining_work(click_runner,
@@ -189,7 +246,10 @@ def test_remaining_work(click_runner,
                         surrogate_bidder):
 
     # Spy on the corresponding CLI function we are testing
-    mock_remaining_work = mocker.spy(Bidder, 'remaining_work')
+    mock_remaining_work = mocker.patch.object(Bidder,
+                                              'remaining_work',
+                                              new_callable=mocker.PropertyMock,
+                                              return_value=100)
 
     command = ('remaining-work',
                '--bidder-address', surrogate_bidder.checksum_address,
@@ -199,8 +259,11 @@ def test_remaining_work(click_runner,
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
 
-    # OK - Let's see what happened
+    # Bidder
     mock_remaining_work.assert_called_once()
+
+    # Transactions
+    mock_worklock_agent.assert_no_transactions()
 
 
 def test_refund(click_runner,
@@ -220,10 +283,14 @@ def test_refund(click_runner,
     result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
-    # OK - Let's see what happened
+    # Bidder
     mock_refund.assert_called_once()
-
     assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
+
+    # Transactions
+    mock_worklock_agent.assert_any_transaction()
+    mock_worklock_agent.assert_only_one_transaction_executed()
+    mock_worklock_agent.assert_transaction(name='refund', checksum_address=surrogate_bidder.checksum_address)
 
 
 def test_participant_status(click_runner,
@@ -236,3 +303,17 @@ def test_participant_status(click_runner,
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
+    
+    expected_calls = ('check_claim',
+                      'eth_to_tokens',
+                      'get_deposited_eth',
+                      'get_eth_supply',
+                      'get_base_deposit_rate',
+                      'get_bonus_lot_value',
+                      'get_bonus_deposit_rate',
+                      'get_bonus_refund_rate',
+                      'get_base_refund_rate',
+                      'get_completed_work',
+                      'get_refunded_work')
+    # Calls
+    mock_worklock_agent.assert_contract_calls(calls=expected_calls)

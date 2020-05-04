@@ -763,7 +763,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
     def _setup_solidity(self, compiler: SolidityCompiler = None) -> None:
         if self.dry_run:
-            return  # TODO
+            return  # TODO: log something here
         if compiler:
             # Execute the compilation if we're recompiling
             # Otherwise read compiled contract data from the registry.
