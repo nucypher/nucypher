@@ -374,14 +374,14 @@ commands:
     steps:
       - run:
           name: Install Python Dependencies with Pip
-          command: pip3 install --user -e . -r requirements.txt || pip3 install --user -e . -r requirements.txt
+          command: pip3 install --user -e . -r requirements.txt
       - check_nucypher_entrypoints   # Ensure Standard Installation Entry-points Work
       - run:
           name: Install Python Development Dependencies with Pip
           command: pip3 install --user -e . -r dev-requirements.txt
       - run:
           name: Install Solidity Compiler
-          command: sudo python3 ./scripts/installation/install_solc.py
+          command: python3 ./scripts/installation/install_solc.py
       - check_nucypher_entrypoints
 
   save_dependency_cache:

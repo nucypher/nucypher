@@ -17,18 +17,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import collections
-import os
-import re
 from os.path import abspath, dirname
-from typing import List, Set
 
 import itertools
-from solcx import get_solc_version_string
-from solcx.install import get_executable
+import os
+import re
 from twisted.logger import Logger
-
-from solcx import compile_files
-from solcx.exceptions import SolcError
+from typing import List, Set
 
 from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
 
@@ -63,7 +58,10 @@ class SolidityCompiler:
                  source_dirs: List[SourceDirs] = None,
                  ignore_solidity_check: bool = False
                  ) -> None:
-        
+
+        # Allow for optional installation
+        from solcx.install import get_executable
+
         self.log = Logger('solidity-compiler')
         self.__sol_binary_path = get_executable()
         if not ignore_solidity_check:
@@ -75,6 +73,10 @@ class SolidityCompiler:
             self.source_dirs = source_dirs
 
     def _check_compiler_version(self):
+
+        # Allow for optional installation
+        from solcx import get_solc_version_string
+
         raw_solc_version_string = get_solc_version_string()
         solc_version_search = re.search(r"""
              (V|v)ersion:\s          # Beginning of the string
@@ -127,6 +129,10 @@ class SolidityCompiler:
 
     def _compile(self, root_source_dir: str, other_source_dirs: [str]) -> dict:
         """Executes the compiler with parameters specified in the json config"""
+
+        # Allow for optional installation
+        from solcx import compile_files
+        from solcx.exceptions import SolcError
 
         self.log.info("Using solidity compiler binary at {}".format(self.__sol_binary_path))
         contracts_dir = os.path.join(root_source_dir, self.__compiled_contracts_dir)
