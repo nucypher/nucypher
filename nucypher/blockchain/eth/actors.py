@@ -423,6 +423,7 @@ class ContractAdministrator(NucypherTokenActor):
                        crash_on_failure: bool = True,
                        interactive: bool = True,
                        emitter: StdoutEmitter = None,
+                       gas_limit: int = None
                        ) -> Dict[str, dict]:
         """
         The allocations file is a JSON or CSV file containing a list of substakes.
@@ -465,8 +466,9 @@ class ContractAdministrator(NucypherTokenActor):
                 self.activate_deployer(refresh=True)
 
                 try:
-                    deposited_stakers, receipt = allocator.deposit_next_batch(sender_address=self.deployer_address)
-                except TransactionFailed as e:
+                    deposited_stakers, receipt = allocator.deposit_next_batch(sender_address=self.deployer_address,
+                                                                              gas_limit=gas_limit)
+                except (TestTransactionFailed, ValidationError, ValueError):  # TODO: 1950
                     if crash_on_failure:
                         raise
                     message = "Failed allocations batch"
@@ -612,15 +614,18 @@ class Allocator:
                                                  sender_address=sender_address,
                                                  dry_run=True,
                                                  gas_limit=gas_limit)
-            except (TestTransactionFailed, ValidationError, ValueError):  # TODO: We need to define a generic exception type
+            except (TestTransactionFailed, ValidationError, ValueError):  # TODO: 1950
+                self.log.debug(f"Batch of {len(test_batch)} is too big. Let's stick to {len(test_batch)-1} then")
                 break
             else:
-                self.log.debug(f"Batch of {len(test_batch)} fits. Trying to squeeze one more staker...")
+                self.log.debug(f"Batch of {len(test_batch)} stakers fits in single TX. "
+                               f"Trying to squeeze one more staker...")
                 last_good_batch = test_batch
                 batch_size += 1
 
         if not last_good_batch:
-            raise ValueError  # TODO
+            message = "It was not possible to find a new batch of deposits. "
+            raise ValueError(message)
 
         batch_parameters = self.staking_agent.construct_batch_deposit_parameters(deposits=last_good_batch)
         receipt = self.staking_agent.batch_deposit(*batch_parameters,
@@ -1889,7 +1894,7 @@ class Bidder(NucypherTokenActor):
     def remaining_work(self) -> int:
         try:
             work = self.worklock_agent.get_remaining_work(checksum_address=self.checksum_address)
-        except (TransactionFailed, ValueError):  # TODO: Is his how we want to handle thid?
+        except (TestTransactionFailed, ValidationError, ValueError):  # TODO: 1950
             work = 0
         return work
 

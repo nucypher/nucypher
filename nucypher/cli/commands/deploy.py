@@ -502,7 +502,8 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
 @group_general_config
 @group_actor_options
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
-def allocations(general_config, actor_options, allocation_infile):
+@option_gas
+def allocations(general_config, actor_options, allocation_infile, gas):
     """
     Deploy pre-allocation contracts.
     """
@@ -513,6 +514,7 @@ def allocations(general_config, actor_options, allocation_infile):
         allocation_infile = click.prompt("Enter allocations data filepath")
     ADMINISTRATOR.batch_deposits(allocation_data_filepath=allocation_infile,
                                  emitter=emitter,
+                                 gas_limit=gas,
                                  interactive=not actor_options.force)
 
 
