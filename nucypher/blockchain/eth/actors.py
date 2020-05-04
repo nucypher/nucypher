@@ -562,17 +562,19 @@ class Allocator:
             self._add_substake(staker, amount, lock_periods)
             total_to_allocate += amount
 
-        token_agent = ContractAgency.get_agent(NucypherTokenAgent,
-                                               registry=registry)  # type: NucypherTokenAgent
+        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)  # type: NucypherTokenAgent
 
         balance = token_agent.get_balance(deployer_address)
         if balance < total_to_allocate:
             raise ValueError(f"Not enough tokens to allocate. We need at least {NU.from_nunits(total_to_allocate)}.")
 
-        self.log.debug(f"New allocator for batch deposits. Allocating a total of {NU.from_nunits(total_to_allocate)}")
-        approve_function = token_agent.contract.functions.approve(self.staking_agent.contract_address, total_to_allocate)
-        _approve_receipt = self.staking_agent.blockchain.send_transaction(contract_function=approve_function,
-                                                                          sender_address=deployer_address)
+        allowance = token_agent.get_allowance(owner=deployer_address, spender=self.staking_agent.contract_address)
+        if allowance < total_to_allocate:
+            self.log.debug(f"Allocating a total of {NU.from_nunits(total_to_allocate)}")
+            allowance_function = token_agent.contract.functions.increaseAllowance(self.staking_agent.contract_address,
+                                                                                  total_to_allocate - allowance)
+            _allowance_receipt = self.staking_agent.blockchain.send_transaction(contract_function=allowance_function,
+                                                                                sender_address=deployer_address)
 
     def _add_substake(self, staker, amount, lock_periods):
         try:
