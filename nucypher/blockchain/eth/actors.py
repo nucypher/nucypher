@@ -20,13 +20,13 @@ import json
 import os
 import time
 from decimal import Decimal
+from typing import Tuple, List, Dict, Optional
 
 import click
 import maya
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import is_checksum_address, to_checksum_address, to_canonical_address
 from twisted.logger import Logger
-from typing import Tuple, List, Dict, Union, Optional
 from web3 import Web3
 from web3.exceptions import ValidationError
 
@@ -70,9 +70,8 @@ from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.painting import (
     paint_contract_deployment,
     paint_input_allocation_file,
-    paint_deployed_allocations,
-    write_deployed_allocations_to_csv,
-    paint_receipt_summary)
+    paint_receipt_summary
+)
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nicknames import nickname_from_seed
@@ -445,18 +444,19 @@ class ContractAdministrator(NucypherTokenActor):
         if interactive and not emitter:
             raise ValueError("'emitter' is a required keyword argument when interactive is True.")
 
+        allocator = Allocator(allocation_data_filepath, self.registry, self.deployer_address)
+
+        # TODO: Check validity of input address (check TX)
+
         if emitter:
             blockchain = BlockchainInterfaceFactory.get_interface()
             chain_name = blockchain.client.chain_name
-            # TODO: paint_input_allocation_file(emitter, allocations)
+            paint_input_allocation_file(emitter, allocator.allocations)
 
         if interactive:
             click.confirm("Continue with the allocations process?", abort=True)
 
         batch_deposit_receipts, failed, allocated = dict(), list(), list()
-
-        allocator = Allocator(allocation_data_filepath, self.registry, self.deployer_address)
-
         with click.progressbar(length=len(allocator.allocations),
                                label="Allocation progress",
                                show_eta=False) as bar:
