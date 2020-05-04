@@ -29,6 +29,17 @@ from nucypher.utilities.sandbox.constants import (
     MOCK_PROVIDER_URI,
     YES
 )
+from tests.mock.agents import FAKE_RECEIPT
+
+
+def assert_successful_transaction_echo(bidder_address: str, cli_output: str):
+    expected = (bidder_address,
+                FAKE_RECEIPT['blockHash'].hex(),
+                FAKE_RECEIPT['blockNumber'],
+                FAKE_RECEIPT['transactionHash'].hex())
+    for output in expected:
+        assert str(output) in cli_output, f'"{output}" not in bidding output'
+    return True
 
 
 @pytest.fixture(scope='module')

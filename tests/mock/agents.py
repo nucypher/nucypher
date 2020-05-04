@@ -1,3 +1,6 @@
+from collections import defaultdict
+from functools import partial
+
 from hexbytes import HexBytes
 from unittest.mock import Mock
 
@@ -35,15 +38,21 @@ def fake_call(*_a, **_kw) -> 1:
 
 class MockContractAgent:
 
+    # Internal
     registry = Mock()
     blockchain = MOCK_TESTERCHAIN
 
     contract = Mock()
     contract_address = NULL_ADDRESS
 
+    # API
     ATTRS = dict()
     CALLS = tuple()
     TRANSACTIONS = tuple()
+
+    # Spy
+    _SPY_TRANSACTIONS = defaultdict(list)
+    _SPY_CALLS = defaultdict(list)
 
     def __init__(self):
 
@@ -52,12 +61,59 @@ class MockContractAgent:
             setattr(self.__class__, agent_method, mock_value)
         self.setup_mock()
 
+    def __record_tx(self, name: str, params: tuple):
+        self._SPY_TRANSACTIONS[str(name)].append(params)
+
+    def __record_call(self, name: str, params: tuple):
+        self._SPY_CALLS[str(name)].append(params)
+
+    def __getattribute__(self, name):
+        """Spy"""
+        get = object.__getattribute__
+        attr = get(self, name)
+        transaction = name in get(self, 'TRANSACTIONS')
+        call = name in get(self, 'CALLS')
+
+        if transaction or call:
+            spy = self.__record_tx if transaction else self.__record_call
+            def wrapped(*args, **kwargs):
+                result = attr(*args, **kwargs)
+                params = args, kwargs
+                spy(name, params)
+                return result
+            return wrapped
+        else:
+            return attr
+
     @classmethod
     def setup_mock(cls):
         for call in cls.CALLS:
             setattr(cls, call, fake_call)
         for tx in cls.TRANSACTIONS:
             setattr(cls, tx, fake_transaction)
+
+    #
+    # Assertions
+    #
+
+    def assert_any_transaction(self):
+        assert self._SPY_TRANSACTIONS, 'No transactions performed'
+
+    def assert_no_transactions(self):
+        assert not self._SPY_TRANSACTIONS, 'Transactions performed'
+
+    def assert_transaction(self, name: str = None, sender_address: str = None, *kwargs):
+        assert self._SPY_TRANSACTIONS, 'No transactions performed'
+        if name:
+            assert name in self.TRANSACTIONS, f'"{name}" was nor performed'
+        if sender_address:
+            args, kwargs = self._SPY_TRANSACTIONS[name]
+            try:
+                agent_sender = kwargs['checksum_address']
+            except KeyError:
+                assert False
+            else:
+                assert sender_address == agent_sender, f'Unexptected sender, got {agent_sender}'
 
 
 class MockStakingAgent(MockContractAgent, StakingEscrowAgent):

@@ -36,7 +36,7 @@ def mock_contract_agency(module_mocker, token_economics):
     # Patch
     module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=token_economics)
 
-    # Monkeypatch
+    # Monkeypatch # TODO: Use better tooling for this monkeypatch?
     get_agent = ContractAgency.get_agent
     get_agent_by_name = ContractAgency.get_agent_by_contract_name
     ContractAgency.get_agent = MockContractAgency.get_agent
