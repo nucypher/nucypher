@@ -39,7 +39,6 @@ def assert_successful_transaction_echo(bidder_address: str, cli_output: str):
                 FAKE_RECEIPT['transactionHash'].hex())
     for output in expected:
         assert str(output) in cli_output, f'"{output}" not in bidding output'
-    return True
 
 
 @pytest.fixture(scope='module')
@@ -80,13 +79,29 @@ def test_non_interactive_bid(click_runner,
     assert result.exit_code == 0
 
     # OK - Let's see what happened
-    mock_ensure.assert_called_once()  # checked that the bidding window was open
-    mock_bidder.assert_called_once()
 
+    # Bidder
+    mock_ensure.assert_called_once()  # checked that the bidding window was open via actors layer
+    mock_bidder.assert_called_once()
     nunits = NU.from_tokens(bid_value).to_nunits()
     mock_bidder.assert_called_once_with(surrogate_bidder, value=nunits)
+    assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
 
-    assert assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
+    # Agent
+    mock_worklock_agent.assert_any_transaction()
+    mock_worklock_agent.assert_only_one_transaction_executed()
+    mock_worklock_agent.assert_transaction(name='bid', checksum_address=surrogate_bidder.checksum_address, value=nunits)
+
+    expected_calls = (
+        'get_eth_supply',
+        'get_base_deposit_rate',
+        'get_bonus_lot_value',
+        'get_bonus_deposit_rate',
+        'get_bonus_refund_rate',
+        'get_base_refund_rate',
+        'eth_to_tokens'
+    )
+    mock_worklock_agent.assert_contract_calls(calls=expected_calls)
 
 
 def test_cancel_bid(click_runner,
@@ -108,7 +123,7 @@ def test_cancel_bid(click_runner,
     # OK - Let's see what happened
     mock_cancel.assert_called_once()
 
-    assert assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
+    assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
 
 
 @pytest.mark.skip
@@ -133,7 +148,7 @@ def test_post_initialization(click_runner,
     # OK - Let's see what happened
     mock_enable.assert_called_once()
 
-    assert assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
+    assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
 
 
 def test_claim(click_runner,
@@ -163,7 +178,7 @@ def test_claim(click_runner,
 
     # OK - Let's see what happened
     mock_withdraw_compensation.assert_called_once()
-    assert assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
+    assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
 
     mock_claim.assert_called_once()
 
@@ -208,7 +223,7 @@ def test_refund(click_runner,
     # OK - Let's see what happened
     mock_refund.assert_called_once()
 
-    assert assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
+    assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
 
 
 def test_participant_status(click_runner,

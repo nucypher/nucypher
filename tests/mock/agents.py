@@ -1,4 +1,6 @@
 from collections import defaultdict
+from typing import Tuple
+
 from functools import partial
 
 from hexbytes import HexBytes
@@ -102,18 +104,29 @@ class MockContractAgent:
     def assert_no_transactions(self):
         assert not self._SPY_TRANSACTIONS, 'Transactions performed'
 
-    def assert_transaction(self, name: str = None, sender_address: str = None, *kwargs):
+    def assert_only_one_transaction_executed(self):
+        assert len(self._SPY_TRANSACTIONS) == 1
+
+    def assert_transaction_not_called(self, name: str):
+        assert name not in self._SPY_TRANSACTIONS
+
+    def assert_transaction(self, name: str, call_count: int = 1, **kwargs):
+
+        # some transaction
         assert self._SPY_TRANSACTIONS, 'No transactions performed'
-        if name:
-            assert name in self.TRANSACTIONS, f'"{name}" was nor performed'
-        if sender_address:
-            args, kwargs = self._SPY_TRANSACTIONS[name]
-            try:
-                agent_sender = kwargs['checksum_address']
-            except KeyError:
-                assert False
-            else:
-                assert sender_address == agent_sender, f'Unexptected sender, got {agent_sender}'
+        assert name in self.TRANSACTIONS, f'"{name}" was nor performed'
+
+        # this transaction
+        transaction_executions = self._SPY_TRANSACTIONS[name]
+        assert len(transaction_executions) == call_count, f'Transaction "{name}" was called an unexpected number of times'
+
+        # transaction params
+        agent_args, agent_kwargs = transaction_executions[0]  # use the first occurrence
+        assert kwargs == agent_kwargs, 'Unexpected agent input'
+
+    def assert_contract_calls(self, calls: Tuple[str]):
+        for call_name in calls:
+            assert call_name in self._SPY_CALLS, f'"{call_name}" was not called'
 
 
 class MockStakingAgent(MockContractAgent, StakingEscrowAgent):
