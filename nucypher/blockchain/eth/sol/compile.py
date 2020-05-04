@@ -63,33 +63,14 @@ class SolidityCompiler:
         from solcx.install import get_executable
 
         self.log = Logger('solidity-compiler')
-        self.__sol_binary_path = get_executable()
-        if not ignore_solidity_check:
-            self._check_compiler_version()
+
+        version = SOLIDITY_COMPILER_VERSION if not ignore_solidity_check else None
+        self.__sol_binary_path = get_executable(version=version)
 
         if source_dirs is None or len(source_dirs) == 0:
             self.source_dirs = [SourceDirs(root_source_dir=self.__default_contract_dir)]
         else:
             self.source_dirs = source_dirs
-
-    def _check_compiler_version(self):
-
-        # Allow for optional installation
-        from solcx import get_solc_version_string
-
-        raw_solc_version_string = get_solc_version_string()
-        solc_version_search = re.search(r"""
-             (V|v)ersion:\s          # Beginning of the string
-             (\d+\.\d+\.\d+)     # Capture digits of version
-             \S+                 # Skip other info in version       
-             """, raw_solc_version_string, re.VERBOSE
-                                        )
-        if not solc_version_search:
-            raise SolidityCompiler.VersionError(f"Can't parse solidity version: {raw_solc_version_string}")
-        solc_version = solc_version_search.group(2)
-        if not solc_version == SOLIDITY_COMPILER_VERSION:
-            raise SolidityCompiler.VersionError(f"Solidity version {solc_version} is unsupported. "
-                                                f"Use {SOLIDITY_COMPILER_VERSION} or option to ignore this check")
 
     def compile(self) -> dict:
         interfaces = dict()

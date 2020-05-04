@@ -63,7 +63,6 @@ def install_solc(version: str) -> None:
         raise ImportError(error)
 
     install_solc(version)
-    set_solc_version(version)
 
 
 def main():
