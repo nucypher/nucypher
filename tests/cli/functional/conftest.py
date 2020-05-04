@@ -23,9 +23,9 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from tests.mock.agents import MockWorkLockAgent, FAKE_RECEIPT, MockContractAgency
 
 
-@pytest.fixture(scope='session', autouse=True)
-def mock_interface(session_mocker):
-    mock_transaction_sender = session_mocker.patch.object(BlockchainInterface, 'sign_and_broadcast_transaction')
+@pytest.fixture(scope='module', autouse=True)
+def mock_interface(module_mocker):
+    mock_transaction_sender = module_mocker.patch.object(BlockchainInterface, 'sign_and_broadcast_transaction')
     mock_transaction_sender.return_value = FAKE_RECEIPT
     return mock_transaction_sender
 

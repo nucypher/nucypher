@@ -41,7 +41,7 @@ from nucypher.utilities.sandbox.constants import (
     NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-    INSECURE_DEVELOPMENT_PASSWORD
+    INSECURE_DEVELOPMENT_PASSWORD, MOCK_PROVIDER_URI
 )
 
 
@@ -114,11 +114,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         elif mock_backend:
             TesterBlockchain._compiler = None  # TODO
 
-        provider_uri = None
-        if mock_backend:
-            provider_uri = 'tester://mock'
-
-        super().__init__(provider_uri=provider_uri or self._PROVIDER_URI,
+        super().__init__(provider_uri=self._PROVIDER_URI,
                          provider_process=None,
                          poa=poa,
                          light=light,
@@ -289,3 +285,11 @@ class TesterBlockchain(BlockchainDeployerInterface):
         # https://github.com/ethereum/web3.py/issues/1490
         address = to_canonical_address(address)
         return self.client.w3.provider.ethereum_tester.backend.chain.get_vm().state.get_storage(address, slot)
+
+
+class MockBlockchain(TesterBlockchain):
+
+    _PROVIDER_URI = 'tester://mock'
+
+    def __init__(self):
+        super().__init__(mock_backend=True)

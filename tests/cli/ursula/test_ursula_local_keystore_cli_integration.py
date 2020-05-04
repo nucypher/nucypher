@@ -102,7 +102,7 @@ def mock_keystore(mock_accounts, monkeypatch, mocker):
     monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keyfile')
 
 
-@pytest.fixture(scope='module', autouse=True)
+@pytest.fixture(scope='module')
 def stakeholder(click_runner,
                 stakeholder_configuration_file_location,
                 stake_value,

@@ -70,7 +70,7 @@ from nucypher.datastore import datastore
 from nucypher.datastore.db import Base
 from nucypher.policy.collections import IndisputableEvidence, WorkOrder
 from nucypher.utilities.logging import GlobalLoggerSettings
-from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
+from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain, MockBlockchain
 from nucypher.utilities.sandbox.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
@@ -464,9 +464,11 @@ def _make_testerchain(mock_backend: bool = False) -> TesterBlockchain:
     web3.eth.get_buffered_gas_estimate = _get_buffered_gas_estimate
 
     # Create the blockchain
-    testerchain = TesterBlockchain(eth_airdrop=not mock_backend,
-                                   free_transactions=True,
-                                   mock_backend=mock_backend)
+    if mock_backend:
+        testerchain = MockBlockchain()
+    else:
+        testerchain = TesterBlockchain(eth_airdrop=not mock_backend,
+                                       free_transactions=True)
 
     BlockchainInterfaceFactory.register_interface(interface=testerchain, force=True)
 
@@ -636,9 +638,8 @@ def agency_local_registry(testerchain, agency, test_registry):
         os.remove(MOCK_REGISTRY_FILEPATH)
 
 
-# TODO
 @pytest.fixture(scope='module')
-def agency_local_registry(mock_testerchain, agency, test_registry):
+def agency_local_registry(testerchain, agency, test_registry):
     registry = LocalContractRegistry(filepath=MOCK_REGISTRY_FILEPATH)
     registry.write(test_registry.read())
     yield registry
