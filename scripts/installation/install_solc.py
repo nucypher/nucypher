@@ -14,13 +14,13 @@ import os
 import sys
 from pathlib import Path
 
+import nucypher
+
 
 def get_solc_config_path() -> Path:
-    nucypher = Path('nucypher')
-    sol_package_path = nucypher / 'blockchain' / 'eth' / 'sol'
-    base_dir = Path(dirname(dirname(dirname(abspath(__file__)))))
-    file_path = base_dir / sol_package_path / "__conf__.py"
-    return file_path
+    nucypher = Path('nucypher').absolute()
+    config_path = nucypher / 'blockchain' / 'eth' / 'sol' / '__conf__.py'
+    return config_path
 
 
 def get_packaged_solc_version() -> str:
