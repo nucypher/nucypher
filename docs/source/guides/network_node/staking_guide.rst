@@ -22,7 +22,7 @@ of security than software wallets.
 Mainnet Staking Procedure:
 
 #. Install ``nucypher`` on Staker's machine (see :doc:`/guides/installation_guide`)
-#. Obtain a Stake with tokens through participation in :ref:`Worklock <worklock-guide>`
+#. Obtain a Stake with tokens (initially via :ref:`WorkLock <worklock-guide>` at launch)
 #. Initialize a new StakeHolder (see `Initialize a new stakeholder`_)
 #. Bond a Worker to your Staker using the worker's ethereum address (see `Bonding a Worker`_)
 
