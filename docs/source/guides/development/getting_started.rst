@@ -68,7 +68,7 @@ see https://geth.ethereum.org/interface/Command-Line-Options.
 .. important::
 
     While the example provided uses Ethereum mainnet, these steps can be followed for the Goerli Testnet
-    with updated `geth` (``~/.ethereum/goerli/geth.ipc``) and `seed` uris
+    with updated `geth` (``~/.ethereum/goerli/geth.ipc``) and `seed` uri (``https://gemini.nucypher.network:9151``).
 
 
 To run a Geth node in *fast* syncing mode:
@@ -162,8 +162,8 @@ the role of a ``Teacher``\ , or "seednode":
 
    from nucypher.characters.lawful import Ursula
 
-   seed_uri = "111.111.111.111:9151"
-   seed_uri2 = "222.222.222.222:9151"
+   seed_uri = "<SEEDNODE URI>:9151"
+   seed_uri2 = "<OTHER SEEDNODE URI>:9151"
 
    ursula = Ursula.from_seed_and_stake_info(seed_uri=seed_uri)
    another_ursula = Ursula.from_seed_and_stake_info(seed_uri=seed_uri2)

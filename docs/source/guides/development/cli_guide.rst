@@ -12,7 +12,7 @@ in :doc:`getting_started`.
 .. note::
 
     While the example provided uses Ethereum mainnet, these steps can be followed for the Goerli Testnet
-    with updated `geth` (``~/.ethereum/goerli/geth.ipc``) and `seed` uris
+    with updated `geth` (``~/.ethereum/goerli/geth.ipc``) and `seed` uri (``https://gemini.nucypher.network:9151``).
 
 
 To better understand the commands and their options, use the ``--help`` option.
@@ -52,7 +52,6 @@ Alice Grants Access To Secret
 .. code::
 
     (nucypher)$ nucypher alice grant \
-    >     --teacher <SEEDNODE URI> \
     >     --bob-verifying-key 02ce770f45fecbbee0630129cce0da4fffc0c4276093bdb3f83ecf1ed824e2696c \
     >     --bob-encrypting-key 0202a6be8e400acdd50db42f8b4c62241b61461a08462731efc064b86d63c7cf6f \
     >     --label <LABEL> \
@@ -95,7 +94,6 @@ Bob Retrieves And Decrypts Secret
     >     --message-kit ApZrJG9HOoNM7F6YZiiMhjRmWcMWP3rKmNLrsuAwdxh7A1cMPdJ5wppSU3LUgmvbJMiddZzsJKw0iJ1Vn1ax4TsmRqSKyR5NBEescZjTzX8fn7wzfwL0Q \
     >     --policy-encrypting-key 021664726f939a8e79df4f4b737da2dd78d1c0fea106d19d6fce4df678e552c561 \
     >     --alice-verifying-key 03741bd001b380baef4eb3bba9a5922769b128cc863670bf15e6618e0e007ae4df \
-    >     --teacher <SEEDNODE URI>
 
 Output:
 
