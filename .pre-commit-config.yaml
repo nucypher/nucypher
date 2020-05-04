@@ -14,8 +14,6 @@ repos:
     hooks:
 
       # Git
-      - id: no-commit-to-branch
-        args: ['--branch', 'master']
       - id: forbid-new-submodules
 
       # Files
