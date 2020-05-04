@@ -190,6 +190,10 @@ class NucypherTokenAgent(EthereumContractAgent):
         address = address if address is not None else self.contract_address
         return self.contract.functions.balanceOf(address).call()
 
+    def get_allowance(self, owner: str, spender: str) -> int:
+        """Check the amount of tokens that an owner allowed to a spender"""
+        return self.contract.functions.allowance(owner, spender).call()
+
     @validate_checksum_address
     def increase_allowance(self, sender_address: str, target_address: str, increase: int):
         contract_function = self.contract.functions.increaseAllowance(target_address, increase)
