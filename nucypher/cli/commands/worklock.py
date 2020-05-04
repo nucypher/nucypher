@@ -267,8 +267,8 @@ def claim(general_config, worklock_options, force, hw_wallet):
         receipt = bidder.withdraw_compensation()
         paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
 
-    has_claimed = bidder._has_claimed
-    if has_claimed:
+    has_claimed = bidder.has_claimed
+    if bool(has_claimed):
         emitter.echo(f"Claim was already done for {bidder.checksum_address}", color='red')
         return
 

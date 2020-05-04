@@ -1696,7 +1696,7 @@ class Bidder(NucypherTokenActor):
 
         self._all_bonus_bidders = None
 
-    def _ensure_bidding_is_open(self, message: str = None) -> None:
+    def ensure_bidding_is_open(self, message: str = None) -> None:
         now = self.worklock_agent.blockchain.get_blocktime()
         start = self.worklock_agent.start_bidding_date
         end = self.worklock_agent.end_bidding_date
@@ -1731,7 +1731,7 @@ class Bidder(NucypherTokenActor):
     #
 
     def place_bid(self, value: int) -> dict:
-        self._ensure_bidding_is_open()
+        self.ensure_bidding_is_open()
         minimum = self.worklock_agent.minimum_allowed_bid
         if value < minimum:
             raise self.BidderError(f"{prettify_eth_amount(value)} is too small a value for bidding; "
@@ -1748,7 +1748,7 @@ class Bidder(NucypherTokenActor):
             raise self.ClaimError(f"Claiming is not available yet")
 
         # Ensure the claim was not already placed
-        if self._has_claimed:
+        if self.has_claimed:
             raise self.ClaimError(f"Bidder {self.checksum_address} already placed a claim.")
 
         # Require an active bid
@@ -1894,7 +1894,7 @@ class Bidder(NucypherTokenActor):
         return bid
 
     @property
-    def _has_claimed(self) -> bool:
+    def has_claimed(self) -> bool:
         has_claimed = self.worklock_agent.check_claim(self.checksum_address)
         return has_claimed
 

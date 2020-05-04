@@ -924,7 +924,7 @@ def paint_bidder_status(emitter, bidder):
 WorkLock Participant {bidder.checksum_address}
 ====================================================="""
 
-    if bidder._has_claimed:
+    if bidder.has_claimed:
         message += f"""
 Tokens Claimed? ...... Yes
 Locked ETH ........... {prettify_eth_amount(bidder.get_deposited_eth)}"""

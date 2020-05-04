@@ -47,7 +47,7 @@ from nucypher.crypto.api import sha256_digest
 
 
 class ContractAgency:
-    # TODO: Enforce singleton - #1506
+    # TODO: Enforce singleton - #1506 - Okay, actually, make this into a module
 
     __agents = dict()
 
@@ -80,7 +80,7 @@ class ContractAgency:
     def get_agent_by_contract_name(cls,
                                    contract_name: str,
                                    registry: BaseContractRegistry,
-                                   provider_uri: str = None,
+                                   provider_uri: str = None
                                    ) -> 'EthereumContractAgent':
 
         if contract_name == NUCYPHER_TOKEN_CONTRACT_NAME:  # TODO: Perhaps rename NucypherTokenAgent
