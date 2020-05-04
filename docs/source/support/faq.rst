@@ -16,10 +16,10 @@ The answers in the FAQ regularly reference the network characters "**Alice**," "
 General
 -------
 
-Q: What is the network name for Incentivized Testnet?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Q: What is the network name for NuCypher's testnet?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The network name for incentivized testnet is ``gemini``.
+The network name for testnet is ``gemini``.
 
 Q: How long is a period?
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -244,7 +244,7 @@ or `systemd <https://docs.nucypher.com/en/latest/guides/installation_guide.html#
 Q: When installing on Docker, what do I input for <NETWORK NAME>?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For the *“Come and Stake It”* incentivized testnet, the network name is ``gemini``.
+The network name for testnet is ``gemini``.
 
 Q: How can I check for currently available staking rewards?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
