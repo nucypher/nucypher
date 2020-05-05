@@ -720,6 +720,22 @@ class StakingEscrowAgent(EthereumContractAgent):
             result = missing_confirmations
         return result
 
+    @property
+    def is_test_contract(self):
+        return self.contract.functions.isTestContract().call()
+
+    @property
+    def worklock(self):
+        return self.contract.functions.workLock().call()
+
+    @property
+    def adjudicator(self):
+        return self.contract.functions.adjudicator().call()
+
+    @property
+    def policy_manager(self):
+        return self.contract.functions.policyManager().call()
+
 
 class PolicyManagerAgent(EthereumContractAgent):
 

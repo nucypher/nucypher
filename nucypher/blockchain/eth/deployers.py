@@ -131,7 +131,7 @@ class BaseContractDeployer:
                                    contract_version: str = None,
                                    ignore_deployed=False,
                                    fail=True,
-                                   additional_rules: tuple = None,
+                                   additional_rules: List[Tuple[bool, str]] = None,
                                    ) -> Tuple[bool, list]:
         """
         Iterates through a set of rules required for an ethereum
@@ -155,7 +155,7 @@ class BaseContractDeployer:
             (self.deployer_address is not NO_DEPLOYER_CONFIGURED, 'No deployer address set.'),
         ]
         if additional_rules:
-            rules.append(additional_rules)
+            rules.extend(additional_rules)
 
         disqualifications = list()
         for rule_is_satisfied, failure_reason in rules:
@@ -713,10 +713,10 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
     def check_deployment_readiness(self, *args, **kwargs) -> Tuple[bool, list]:
         staking_escrow_owner = self.staking_contract.functions.owner().call()
-        policy_manager_deployment_rules = (
+        policy_manager_deployment_rules = [
             (self.deployer_address == staking_escrow_owner,
              f'{self.contract_name} must be deployed by the owner of {STAKING_ESCROW_CONTRACT_NAME} ({staking_escrow_owner})')
-        )
+        ]
         return super().check_deployment_readiness(additional_rules=policy_manager_deployment_rules, *args, **kwargs)
 
     def _deploy_essential(self, contract_version: str, gas_limit: int = None, confirmations: int = 0) -> tuple:
@@ -1067,10 +1067,10 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
 
     def check_deployment_readiness(self, *args, **kwargs) -> Tuple[bool, list]:
         staking_escrow_owner = self.staking_contract.functions.owner().call()
-        adjudicator_deployment_rules = (
+        adjudicator_deployment_rules = [
             (self.deployer_address == staking_escrow_owner,
              f'{self.contract_name} must be deployed by the owner of {STAKING_ESCROW_CONTRACT_NAME} ({staking_escrow_owner})')
-        )
+        ]
         return super().check_deployment_readiness(additional_rules=adjudicator_deployment_rules, *args, **kwargs)
 
     def _deploy_essential(self, contract_version: str, gas_limit: int = None, **overrides):
@@ -1176,8 +1176,8 @@ class WorklockDeployer(BaseContractDeployer):
     def __init__(self, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
-        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
-        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)  # type: NucypherTokenAgent
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)  # type: StakingEscrowAgent
 
     def _deploy_essential(self, gas_limit: int = None, confirmations: int = 0):
         # Deploy
@@ -1207,7 +1207,11 @@ class WorklockDeployer(BaseContractDeployer):
         if deployment_mode != FULL:
             raise self.ContractDeploymentError(f"{self.contract_name} cannot be deployed in {deployment_mode} mode")
 
-        self.check_deployment_readiness(ignore_deployed=ignore_deployed)
+        staking_escrow_rule = [
+            (self.staking_agent.worklock == NULL_ADDRESS or self.staking_agent.is_test_contract,
+             f"StakingEscrow already has a WorkLock reference ({self.staking_agent.worklock})")
+        ]
+        self.check_deployment_readiness(ignore_deployed=ignore_deployed, additional_rules=staking_escrow_rule)
 
         # Essential
         if emitter:
