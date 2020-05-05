@@ -49,6 +49,9 @@ def select_test_port() -> int:
         if port == UrsulaConfiguration.DEFAULT_REST_PORT:
             return select_test_port()
 
+        if port > 65520:  # leave a buffer to make circleci happy
+            return select_test_port()
+
         open_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return port
 

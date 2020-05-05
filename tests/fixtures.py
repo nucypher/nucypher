@@ -14,12 +14,14 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import contextlib
 
 import datetime
 import json
 import os
 import random
 import tempfile
+from eth_tester.exceptions import ValidationError
 from typing import Union
 
 import maya
@@ -84,7 +86,7 @@ from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
     TEST_PROVIDER_URI,
     INSECURE_DEVELOPMENT_PASSWORD,
-    TEST_GAS_LIMIT,
+    TEST_GAS_LIMIT, PYEVM_DEV_URI,
 )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.middleware import MockRestMiddlewareForLargeFleetTests
@@ -401,8 +403,7 @@ def federated_ursulas(ursula_federated_test_config):
 def token_economics(testerchain):
 
     # Get current blocktime
-    blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=testerchain.provider_uri)
-    now = blockchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
 
     # Calculate instant start time
     one_hour_in_seconds = (60 * 60)
@@ -478,6 +479,8 @@ def _testerchain() -> TesterBlockchain:
 def testerchain(_testerchain) -> TesterBlockchain:
     testerchain = _testerchain
 
+    BlockchainInterfaceFactory.register_interface(interface=testerchain, force=True)
+
     # Reset chain state
     pyevm_backend = testerchain.provider.ethereum_tester.backend
     snapshot = pyevm_backend.chain.get_canonical_block_by_number(0).hash
@@ -496,7 +499,12 @@ def testerchain(_testerchain) -> TesterBlockchain:
             _receipt = testerchain.wait_for_receipt(txhash)
             eth_amount = Web3().fromWei(spent, 'ether')
             testerchain.log.info("Airdropped {} ETH {} -> {}".format(eth_amount, tx['from'], tx['to']))
+
     yield testerchain
+
+    # teardown any other interfaces use in local tests
+    BlockchainInterfaceFactory.reset(keep_uri=PYEVM_DEV_URI)
+    assert len(BlockchainInterfaceFactory._interfaces) <= 1
 
 
 def _make_agency(testerchain, test_registry, token_economics):
@@ -872,13 +880,15 @@ def stakeholder_configuration(testerchain, agency_local_registry):
 
 
 @pytest.fixture(scope='module')
-def manual_staker(testerchain, agency):
+def manual_staker(_testerchain, agency):
+    testerchain = _testerchain
     token_agent, staking_agent, policy_agent = agency
 
-    # 0xaaa23A5c74aBA6ca5E7c09337d5317A7C4563075
-    staker_private_key = '13378db1c2af06933000504838afc2d52efa383206454deefb1836f8f4cd86f8'
-    address = testerchain.provider.ethereum_tester.add_account(staker_private_key,
-                                                               password=INSECURE_DEVELOPMENT_PASSWORD)
+    try:  # This key may already be in the testerchain keyring
+        staker_private_key = '13378db1c2af06933000504838afc2d52efa383206454deefb1836f8f4cd86f8'
+        address = testerchain.provider.ethereum_tester.add_account(staker_private_key, password=INSECURE_DEVELOPMENT_PASSWORD)
+    except ValidationError:
+        address = '0xaaa23A5c74aBA6ca5E7c09337d5317A7C4563075'
 
     tx = {'to': address,
           'from': testerchain.etherbase_account,

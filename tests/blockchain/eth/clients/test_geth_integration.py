@@ -59,7 +59,7 @@ def test_geth_deployment_integration(instant_geth_dev_node, test_registry):
     BlockchainInterfaceFactory.register_interface(interface=blockchain)
 
     # Make Deployer
-    etherbase = to_checksum_address(instant_geth_dev_node.accounts[0].decode())  # TODO: Make property on nucypher geth node instances?
+    etherbase = to_checksum_address(instant_geth_dev_node.accounts[1].decode())  # TODO: Make property on nucypher geth node instances?
     administrator = ContractAdministrator(registry=test_registry,
                                           deployer_address=etherbase,
                                           client_password=None)  # dev accounts have no password.

@@ -433,6 +433,13 @@ class BlockchainInterface:
             # TODO: #1504 - Try even harder to determine if this is insufficient funds causing the issue,
             #               This may be best handled at the agent or actor layer for registry and token interactions.
             # Worst case scenario - raise the exception held in context implicitly
+            try:
+                sender_eth_balance = self.client.get_balance(transaction_dict['from'])
+                if not sender_eth_balance:
+                    # TODO: punny... but...
+                    raise ValueError(f"Transaction Prevented: Sender address {transaction_dict['from']} has no ether.")
+            except KeyError:
+                raise RuntimeError("Transaction is missing the 'from' field.")  # oh my
             raise exception
 
         else:
@@ -541,9 +548,7 @@ class BlockchainInterface:
         try:
             txhash = self.client.send_raw_transaction(signed_raw_transaction)  # <--- BROADCAST
         except (TestTransactionFailed, ValueError) as error:
-            raise self.__transaction_failed(exception=error,
-                                            transaction_dict=transaction_dict,
-                                            transaction_name=transaction_name)
+            raise # TODO: Unify with failure handling
 
         #
         # Receipt
@@ -971,10 +976,13 @@ class BlockchainInterfaceFactory:
                            force: bool = False
                            ) -> None:
 
+        # TODO: Restore this
+        # if interface.provider_uri is NO_BLOCKCHAIN_CONNECTION:
+        #     raise ValueError(f'{NO_BLOCKCHAIN_CONNECTION} is not a valid interface')
+
         provider_uri = interface.provider_uri
         if (provider_uri in cls._interfaces) and not force:
-            raise cls.InterfaceAlreadyInitialized(f"A connection already exists for {provider_uri}. "
-                                                  "Use .get_interface instead.")
+            raise cls.InterfaceAlreadyInitialized(f"A connection already exists for {provider_uri} - Use .get_interface instead.")
         cached = cls.CachedInterface(interface=interface, sync=sync, emitter=emitter)
         cls._interfaces[provider_uri] = cached
 
@@ -1042,3 +1050,13 @@ class BlockchainInterfaceFactory:
             cls.initialize_interface(provider_uri=provider_uri, *interface_args, **interface_kwargs)
             interface = cls.get_interface(provider_uri=provider_uri)
         return interface
+
+    @classmethod
+    def reset(cls, keep_uri: str = None) -> None:
+        keeper = None
+        if keep_uri:
+            keeper = cls._interfaces.get(keep_uri)
+        if keeper:
+            cls._interfaces = dict(keep_uri=keeper)
+        else:
+            cls._interfaces = dict()
