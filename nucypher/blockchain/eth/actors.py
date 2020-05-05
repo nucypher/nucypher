@@ -557,6 +557,7 @@ class Allocator:
 
         self.allocations = dict()
         self.deposited = set()
+        self.economics = EconomicsFactory.get_economics(registry)
 
         total_to_allocate = 0
 
@@ -589,8 +590,23 @@ class Allocator:
             if len(substakes) >= self.max_substakes:
                 raise ValueError
         except KeyError:
+            if list(self.staking_agent.get_all_stakes(staker_address=staker)):
+                raise ValueError(f"{staker} is already a staker. It cannot be included in a batch deposit")
             substakes = list()
             self.allocations[staker] = substakes
+
+        message = f"Invalid substake for {staker}: "
+        if amount < self.economics.minimum_allowed_locked:
+            message += f"Amount ({amount}) is below the min allowed ({self.economics.minimum_allowed_locked})"
+            raise ValueError(message)
+        overall_amount = sum([amount for amount, periods in substakes])
+        if overall_amount + amount > self.economics.maximum_allowed_locked:
+            message += f"Total amount is above the max allowed ({self.economics.maximum_allowed_locked})"
+            raise ValueError(message)
+        if lock_periods < self.economics.minimum_locked_periods:
+            message += f"Lock periods ({lock_periods}) are below the min ({self.economics.minimum_locked_periods})"
+            raise ValueError(message)
+
         substakes.append((amount, lock_periods))
 
     def deposit_next_batch(self,
