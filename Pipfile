@@ -48,7 +48,7 @@ bandit = "*"
 mypy = "*"
 coverage = "*"
 # Deployment
-py-solc = {git = "https://github.com/nucypher/py-solc.git",ref = "v5.0.0-eol.0"}
+py-solc-x = "*"
 ansible = "*"
 bumpversion = "*"
 
