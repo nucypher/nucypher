@@ -16,10 +16,10 @@ The answers in the FAQ regularly reference the network characters "**Alice**," "
 General
 -------
 
-Q: What is the network name for Incentivized Testnet?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Q: What is the network name for NuCypher's testnet?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The network name for incentivized testnet is ``gemini``.
+The network name for testnet is ``gemini``.
 
 Q: How long is a period?
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -217,7 +217,7 @@ This is **ONLY** a heuristic to ensure that your node is running correctly, it d
        .. code::
 
             Starting Ursula on xxx.xxx.xxx.xxx:9151
-            Connecting to gemini
+            Connecting to <NETWORK>
             Working ~ Keep Ursula Online!
 
     #. Ensure that your node uses the correct IP address and can be accessed via port 9151 from an outside
@@ -229,9 +229,9 @@ This is **ONLY** a heuristic to ensure that your node is running correctly, it d
     #. Run the following command and ensure that the various settings are correct::
 
         nucypher status stakers
-        >    --provider <your_geth_provider>
-        >    --network gemini
-        >    --staking-address <your_staker_address>
+        >    --provider <YOUR PROVIDER URI>
+        >    --network <NETWORK>
+        >    --staking-address <YOUR STAKER ADDRESS>
 
     #. Ensure that your node is listed on the `Status Monitor Page <https://status.nucypher.network>`_ (this can take a few minutes).
 
@@ -244,7 +244,7 @@ or `systemd <https://docs.nucypher.com/en/latest/guides/installation_guide.html#
 Q: When installing on Docker, what do I input for <NETWORK NAME>?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For the *“Come and Stake It”* incentivized testnet, the network name is ``gemini``.
+The network name for testnet is ``gemini``.
 
 Q: How can I check for currently available staking rewards?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -252,9 +252,9 @@ Q: How can I check for currently available staking rewards?
 Run::
 
     nucypher status stakers
-    >    --provider <your_geth_provider>
-    >    --network gemini
-    >    --staking-address <your_staker_address>
+    >    --provider <YOUR PROVIDER URI>
+    >    --network <NETWORK>
+    >    --staking-address <YOUR STAKER ADDRESS>
 
 Note that a minimum of two periods must elapse before rewards will be delivered to your wallet. For example, say we
 are in Period 5 when you start staking:
@@ -276,9 +276,9 @@ Q: How can I observe the settings (re-staking, winding down) for my stake?
 Run::
 
     nucypher status stakers
-    >    --provider <your_geth_provider>
-    >    --network gemini
-    >    --staking-address <your_staker_address>
+    >    --provider <YOUR PROVIDER URI>
+    >    --network <NETWORK>
+    >    --staking-address <YOUR STAKER ADDRESS>
 
 
 Q: Can I extend the duration of my existing stake?
@@ -327,9 +327,16 @@ Q: The status of my node on the status monitor seems incorrect?
 Check when last your node confirmed activity by running::
 
     nucypher status stakers
-    >    --provider <your_geth_provider>
-    >    --network gemini
-    >    --staking-address <your_staker_address>
+    >    --provider <YOUR PROVIDER URI>
+    >    --network <NETWORK>
+    >    --staking-address <YOUR STAKER ADDRESS>
 
 If everything looks fine, the status monitor probably just needs some time to connect to the node again to update the
 node's status.
+
+Q: What types of Ethereum web3 node providers do you support?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* IPC Socket-based JSON-RPC server e.g. ``ipc:///home/<username>/.ethereum/geth.ipc``
+* HTTP(S)-based JSON-RPC server e.g. ``http://<host>``
+* Websocket-based JSON-RPC server e.g. ``ws://<host>:8080``

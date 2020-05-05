@@ -61,32 +61,37 @@ contracts (https://docs.nucypher.com/en/latest/architecture/contracts.html).
 For general background information about choosing a node technology and operation,
 see https://web3py.readthedocs.io/en/stable/node.html. 
 
-In this guide, a local Geth node connected to the Goerli Testnet is used.
+In this guide, a local Geth node connected to Ethereum mainnet.
 For detailed information on using the geth CLI and Javascript console,
 see https://geth.ethereum.org/interface/Command-Line-Options.
 
-To run a Goerli-connected Geth node in *fast* syncing mode:
+.. important::
+
+    While the example provided uses Ethereum mainnet, these steps can be followed for the Goerli Testnet
+    with updated `geth` (``~/.ethereum/goerli/geth.ipc``) and `seed` uri (``https://gemini.nucypher.network:9151``).
+
+
+To run a Geth node in *fast* syncing mode:
 
 .. code-block:: bash
 
-   $ geth --goerli
+   $ geth
 
 
-To run a Goerli-connected Geth node in *light* syncing mode:
+To run a Geth node in *light* syncing mode:
 
 .. code-block:: bash
 
-   $ geth --goerli --syncmode light
+   $ geth --syncmode light
 
 
-Note that using ``--syncmode light`` is not 100% stable but can be a life savior when using 
-a mobile connection (or congested hackathon wifi...).
+Note that using ``--syncmode light`` is not 100% stable.
 
 Connect to the Geth Console to test your ethereum node's IPC:
 
 .. code-block:: bash
 
-   $ geth attach ~/.ethereum/goerli/geth.ipc
+   $ geth attach ~/.ethereum/geth.ipc
 
 
 Wallets
@@ -97,7 +102,7 @@ if one is attached to the system hardware):
 
 .. code-block:: bash
 
-   $ geth attach ~/.ethereum/goerli/geth.ipc
+   $ geth attach ~/.ethereum/geth.ipc
    > eth.accounts
    ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
 
@@ -106,7 +111,7 @@ To create a new software based Geth account:
 
 .. code-block:: bash
 
-   $ geth attach ~/.ethereum/goerli/geth.ipc
+   $ geth attach ~/.ethereum/geth.ipc
    > personal.newAccount()
    ...
    "0xc080708026a3a280894365efd51bb64521c45147"
@@ -128,9 +133,15 @@ Connecting to The NuCypher Network
 Provider URI
 ^^^^^^^^^^^^
 
-Nucypher uses the ethereum node's IPC-File to communicate, specified by ``provider_uri``.
-By default in ubuntu, the path is ``~/.ethereum/goerli/geth.ipc`` - This path
-will also be logged to the geth-running console on startup. 
+This example uses the ethereum node's IPC-File to communicate, specified by ``provider_uri``.
+By default in ubuntu, the path is ``~/.ethereum/geth.ipc`` - This path
+will also be logged to the geth-running console on startup.
+
+However, Nucypher also supports alternative web3 node providers such as:
+
+    * HTTP(S)-based JSON-RPC server e.g. ``http://<host>``
+    * Websocket-based JSON-RPC server e.g. ``ws://<host>:8080``
+
 
 Connecting Nucypher to an Ethereum Provider
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -138,7 +149,7 @@ Connecting Nucypher to an Ethereum Provider
 .. code-block:: python
 
    from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-   BlockchainInterfaceFactory.initialize_interface(provider_uri='~/.ethereum/goerli/geth.ipc')
+   BlockchainInterfaceFactory.initialize_interface(provider_uri='~/.ethereum/geth.ipc')
 
 
 Ursula: Untrusted Re-Encryption Proxies
@@ -151,8 +162,8 @@ the role of a ``Teacher``\ , or "seednode":
 
    from nucypher.characters.lawful import Ursula
 
-   seed_uri = "gemini.nucypher.network:9151"
-   seed_uri2 = "104.248.215.144:9151"
+   seed_uri = "<SEEDNODE URI>:9151"
+   seed_uri2 = "<OTHER SEEDNODE URI>:9151"
 
    ursula = Ursula.from_seed_and_stake_info(seed_uri=seed_uri)
    another_ursula = Ursula.from_seed_and_stake_info(seed_uri=seed_uri2)
@@ -189,14 +200,14 @@ Create a NuCypher Keyring
 
    from nucypher.characters.lawful import Alice, Ursula
 
-   ursula = Ursula.from_seed_and_stake_info(seed_uri='gemini.nucypher.network:9151')
+   ursula = Ursula.from_seed_and_stake_info(seed_uri=<SEEDNODE URI>)
 
    # Unlock Alice's Keyring
    keyring = NucypherKeyring(account='0x287A817426DD1AE78ea23e9918e2273b6733a43D')
    keyring.unlock(password=PASSWORD)
 
    # Instantiate Alice
-   alice = Alice(keyring=keyring, known_nodes=[ursula], provider_uri='~/.ethereum/goerli/geth.ipc')
+   alice = Alice(keyring=keyring, known_nodes=[ursula], provider_uri='~/.ethereum/geth.ipc')
 
    # Start Node Discovery
    alice.start_learning_loop(now=True)
@@ -285,7 +296,7 @@ Setup Bob
    # alice_verifying_key = <Side Channel>
 
    # Everyone!
-   ursula = Ursula.from_seed_and_stake_info(seed_uri='gemini.nucypher.network:9151')
+   ursula = Ursula.from_seed_and_stake_info(seed_uri=<SEEDNODE URI>)
    alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
    enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
 
