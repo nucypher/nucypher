@@ -7,7 +7,7 @@ from hexbytes import HexBytes
 from unittest.mock import Mock
 
 from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.agents import WorkLockAgent, StakingEscrowAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.agents import WorkLockAgent, StakingEscrowAgent, NucypherTokenAgent, PolicyManagerAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.utilities.sandbox.constants import MOCK_PROVIDER_URI
@@ -143,13 +143,17 @@ class MockContractAgent:
 
 
 class MockNucypherToken(MockContractAgent, NucypherTokenAgent):
-
-    pass
+    """Look at me im a token!"""
 
 
 class MockStakingAgent(MockContractAgent, StakingEscrowAgent):
+    """dont forget the eggs!"""
 
     CALLS = ('get_completed_work', )
+
+
+class MockPolicyManagerAgent(MockContractAgent, PolicyManagerAgent):
+    """The best ethereum policy manager ever"""
 
 
 class MockWorkLockAgent(MockContractAgent, WorkLockAgent):
@@ -192,17 +196,21 @@ class MockWorkLockAgent(MockContractAgent, WorkLockAgent):
 
 class MockContractAgency:
 
-    # Test doubles registry
-    DOUBLE_AGENTS = {WorkLockAgent: MockWorkLockAgent,
+    # Test doubles
+    DOUBLE_AGENTS = {NucypherTokenAgent: MockNucypherToken,
                      StakingEscrowAgent: MockStakingAgent,
-                     NucypherTokenAgent: MockNucypherToken}
+                     PolicyManagerAgent: MockPolicyManagerAgent,
+                     WorkLockAgent: MockWorkLockAgent}
+
+    class NoMockFound(ValueError):
+        """Well we hadn't made one yet"""
 
     @classmethod
     def get_agent(cls, agent_class, *args, **kwargs) -> MockContractAgent:
         try:
             double = cls.DOUBLE_AGENTS[agent_class]
         except KeyError:
-            raise ValueError(f'No mock available for "{str(agent_class)}"')
+            raise ValueError(f'No mock class available for "{str(agent_class)}"')
         else:
             return double()
 
