@@ -559,26 +559,26 @@ def transfer_ownership(general_config, actor_options, target_address, gas):
         target_address = click.prompt("Enter new owner's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 
     contract_name = actor_options.contract_name
-    if contract_name:
-        try:
-            contract_deployer_class = ADMINISTRATOR.deployers[contract_name]
-        except KeyError:
-            message = f"No such contract {contract_name}. Available contracts are {ADMINISTRATOR.deployers.keys()}"
-            emitter.echo(message, color='red', bold=True)
-            raise click.Abort()
-        else:
-            contract_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry,
-                                                        deployer_address=ADMINISTRATOR.deployer_address)
-            receipt = contract_deployer.transfer_ownership(new_owner=target_address, transaction_gas_limit=gas)
-            paint_receipt_summary(emitter=emitter, receipt=receipt)
-            return
-    else:
-        click.confirm(f"You are about to relinquish ownership of all ownable contracts in favor of {target_address}.\n"
-                      f"Are you sure you want to continue?", abort=True)
-        receipts = ADMINISTRATOR.relinquish_ownership(new_owner=target_address, transaction_gas_limit=gas)
-        for tx_type, receipt in receipts.items():
-            paint_receipt_summary(emitter=emitter, receipt=receipt, transaction_type=tx_type)
-        return
+    if not contract_name:
+        raise click.MissingParameter(param="--contract-name", message="You need to specify an ownable contract")
+
+    try:
+        contract_deployer_class = ADMINISTRATOR.deployers[contract_name]
+    except KeyError:
+        message = f"No such contract {contract_name}."
+        emitter.echo(message, color='red', bold=True)
+        raise click.Abort()
+
+    if contract_deployer_class not in ADMINISTRATOR.ownable_deployer_classes:
+        message = f"Contract {contract_name} is not ownable."
+        emitter.echo(message, color='red', bold=True)
+        raise click.Abort()
+
+    contract_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry,
+                                                deployer_address=ADMINISTRATOR.deployer_address)
+    receipt = contract_deployer.transfer_ownership(new_owner=target_address, transaction_gas_limit=gas)
+    paint_receipt_summary(emitter=emitter, receipt=receipt)
+    return
 
 
 @deploy.command("set-range")

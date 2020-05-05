@@ -172,14 +172,6 @@ class EthereumContractAgent:
             return None
         return self.contract.functions.owner().call()
 
-    @validate_checksum_address
-    def transfer_ownership(self, sender_address: str, checksum_address: str, transaction_gas_limit: int = None) -> dict:
-        contract_function = self.contract.functions.transferOwnership(checksum_address)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=sender_address,
-                                                   transaction_gas_limit=transaction_gas_limit)
-        return receipt
-
 
 class NucypherTokenAgent(EthereumContractAgent):
 

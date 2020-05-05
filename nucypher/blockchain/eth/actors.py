@@ -56,7 +56,8 @@ from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     BaseContractDeployer,
     WorklockDeployer,
-    MultiSigDeployer
+    MultiSigDeployer,
+    StakingInterfaceRouterDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
@@ -172,9 +173,9 @@ class ContractAdministrator(NucypherTokenActor):
         MultiSigDeployer,
     )
 
-    # For ownership relinquishment series.
+    # For ownership transfers.
     ownable_deployer_classes = (*dispatched_upgradeable_deployer_classes,
-                                # SeederDeployer
+                                StakingInterfaceRouterDeployer,
                                 )
 
     # Used in the automated deployment series.
@@ -390,30 +391,6 @@ class ContractAdministrator(NucypherTokenActor):
                 first_iteration = False
 
         return deployment_receipts
-
-    def relinquish_ownership(self,
-                             new_owner: str,
-                             emitter: StdoutEmitter = None,
-                             interactive: bool = True,
-                             transaction_gas_limit: int = None) -> dict:
-
-        if not is_checksum_address(new_owner):
-            raise ValueError(f"{new_owner} is an invalid EIP-55 checksum address.")
-
-        all_receipts = dict()
-        for contract_deployer in self.ownable_deployer_classes:
-            deployer = contract_deployer(registry=self.registry, deployer_address=self.deployer_address)
-            receipt = deployer.transfer_ownership(new_owner=new_owner, transaction_gas_limit=transaction_gas_limit)
-
-            if emitter:
-                emitter.echo(f"Transferred ownership of {deployer.contract_name} to {new_owner}")
-
-            if interactive:
-                click.pause(info="Press any key to continue")
-
-            all_receipts[contract_deployer.contract_name] = receipt
-
-        return all_receipts
 
     def batch_deposits(self,
                        allocation_data_filepath: str,

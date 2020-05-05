@@ -97,6 +97,7 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
 
     ownership_command = ('transfer-ownership',
                          '--registry-infile', agency_local_registry.filepath,
+                         '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
                          '--provider', TEST_PROVIDER_URI,
                          '--target-address', maclane)
 
@@ -111,8 +112,8 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
     assert result.exit_code == 0
 
     assert staking_agent.owner == maclane
-    assert policy_agent.owner == maclane
-    assert adjudicator_agent.owner == maclane
+    assert policy_agent.owner == testerchain.etherbase_account
+    assert adjudicator_agent.owner == testerchain.etherbase_account
 
     michwill = testerchain.unassigned_accounts[1]
 
@@ -131,6 +132,8 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
     assert result.exit_code == 0
     assert staking_agent.owner != maclane
     assert staking_agent.owner == michwill
+    assert policy_agent.owner == testerchain.etherbase_account
+    assert adjudicator_agent.owner == testerchain.etherbase_account
 
 
 def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_local_registry):
