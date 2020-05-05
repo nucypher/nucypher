@@ -111,8 +111,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         if compiler:
             TesterBlockchain._compiler = compiler
-        elif mock_backend:
-            TesterBlockchain._compiler = None  # TODO
 
         super().__init__(provider_uri=self._PROVIDER_URI,
                          provider_process=None,
@@ -290,6 +288,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 class MockBlockchain(TesterBlockchain):
 
     _PROVIDER_URI = 'tester://mock'
+    _compiler = None
 
     def __init__(self):
         super().__init__(mock_backend=True)
