@@ -425,7 +425,7 @@ class StakingEscrowAgent(EthereumContractAgent):
                       lock_periods: list,
                       sender_address: str,
                       dry_run: bool = False,
-                      gas_limit: int = None) -> Optional[dict]:
+                      gas_limit: int = None) -> Union[dict, int]:
         min_gas_batch_deposit = 250_000
         if gas_limit and gas_limit < min_gas_batch_deposit:
             raise ValueError(f"{gas_limit} is not enough gas for any batch deposit")
@@ -435,8 +435,10 @@ class StakingEscrowAgent(EthereumContractAgent):
             payload = {'from': sender_address}
             if gas_limit:
                 payload['gas'] = gas_limit
-            contract_function.call(payload)  # If TX is not correct, or there's not enough gas, this will fail.
-            return
+            estimated_gas = contract_function.estimateGas(payload)  # If TX is not correct, or there's not enough gas, this will fail.
+            if gas_limit and estimated_gas > gas_limit:
+                raise ValueError
+            return estimated_gas
         else:
             receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                        sender_address=sender_address,

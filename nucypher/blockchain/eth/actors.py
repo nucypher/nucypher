@@ -603,6 +603,10 @@ class Allocator:
                        f"Currently, {len(pending_stakers)} stakers pending, {len(self.deposited)} deposited.")
 
         batch_size = 1
+        if not gas_limit:
+            block_limit = self.staking_agent.blockchain.client.w3.eth.getBlock(block_identifier='latest').gasLimit
+            gas_limit = int(0.9 * block_limit)
+        self.log.debug(f"Gas limit for this batch is {gas_limit}")
 
         # Execute a dry-run of the batch deposit method, incrementing the batch size, until it's too big and fails.
         last_good_batch = None
@@ -610,15 +614,15 @@ class Allocator:
             test_batch = {staker: self.allocations[staker] for staker in pending_stakers[:batch_size]}
             batch_parameters = self.staking_agent.construct_batch_deposit_parameters(deposits=test_batch)
             try:
-                self.staking_agent.batch_deposit(*batch_parameters,
-                                                 sender_address=sender_address,
-                                                 dry_run=True,
-                                                 gas_limit=gas_limit)
+                estimated_gas = self.staking_agent.batch_deposit(*batch_parameters,
+                                                                 sender_address=sender_address,
+                                                                 dry_run=True,
+                                                                 gas_limit=gas_limit)
             except (TestTransactionFailed, ValidationError, ValueError):  # TODO: 1950
                 self.log.debug(f"Batch of {len(test_batch)} is too big. Let's stick to {len(test_batch)-1} then")
                 break
             else:
-                self.log.debug(f"Batch of {len(test_batch)} stakers fits in single TX. "
+                self.log.debug(f"Batch of {len(test_batch)} stakers fits in single TX ({estimated_gas} gas). "
                                f"Trying to squeeze one more staker...")
                 last_good_batch = test_batch
                 batch_size += 1

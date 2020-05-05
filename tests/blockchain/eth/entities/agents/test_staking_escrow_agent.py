@@ -380,10 +380,11 @@ def test_batch_deposit(testerchain,
                                             sender_address=testerchain.etherbase_account)
 
     not_enough_gas = 800_000
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         staking_agent.batch_deposit(*batch_parameters,
                                     sender_address=testerchain.etherbase_account,
-                                    dry_run=True, gas_limit=not_enough_gas)
+                                    dry_run=True,
+                                    gas_limit=not_enough_gas)
 
     staking_agent.batch_deposit(*batch_parameters, sender_address=testerchain.etherbase_account, dry_run=True)
 
