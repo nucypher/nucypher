@@ -24,11 +24,9 @@ from nucypher.blockchain.eth.actors import Bidder
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.commands.worklock import worklock
 from nucypher.utilities.sandbox.constants import (
-    CLI_TEST_ENV,
-    TEMPORARY_DOMAIN,
-    MOCK_PROVIDER_URI,
-    YES
+    TEMPORARY_DOMAIN, MOCK_PROVIDER_URI, YES,
 )
+from tests.cli.functional.test_ursula_local_keystore_cli_functionality import CLI_ENV
 from tests.mock.agents import FAKE_RECEIPT, MockWorkLockAgent
 
 
@@ -66,7 +64,11 @@ def test_valid_bid(click_runner,
                    mock_worklock_agent,
                    token_economics,
                    test_registry_source_manager,
-                   surrogate_bidder):
+                   surrogate_bidder,
+                   mock_testerchain):
+
+    # Bidding window is open # TODO something different and more granular?
+    mock_testerchain.time_travel(periods=1)
 
     # Spy on the corresponding CLI function we are testing
     mock_ensure = mocker.spy(Bidder, 'ensure_bidding_is_open')
@@ -82,7 +84,7 @@ def test_valid_bid(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
-    result = click_runner.invoke(worklock, command, catch_exceptions=False, input=YES, env=CLI_TEST_ENV)
+    result = click_runner.invoke(worklock, command, catch_exceptions=False, input=YES, env=CLI_ENV)
     assert result.exit_code == 0
 
     # OK - Let's see what happened
@@ -117,7 +119,7 @@ def test_cancel_bid(click_runner,
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--force')
-    result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=YES, env=CLI_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
     # Bidder
@@ -150,7 +152,7 @@ def test_post_initialization(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--gas-limit', 100000)
 
-    result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=YES, env=CLI_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
     # Bidder
@@ -188,7 +190,7 @@ def test_initial_claim(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
-    result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=YES, env=CLI_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
     mock_worklock_agent.assert_transaction(name='claim', checksum_address=surrogate_bidder.checksum_address)
@@ -233,7 +235,7 @@ def test_already_claimed(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
-    result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=YES, env=CLI_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
     # Bidder
@@ -287,7 +289,7 @@ def test_refund(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
-    result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=YES, env=CLI_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
     # Bidder

@@ -21,12 +21,10 @@ import pytest
 from eth_account import Account
 from web3 import Web3
 
-from nucypher.blockchain.eth.signers import KeystoreSigner, Signer
+from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.token import StakeList
-from nucypher.characters.lawful import Ursula
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
 from nucypher.utilities.sandbox.constants import (
     MOCK_IP_ADDRESS,
     TEST_PROVIDER_URI,
@@ -34,14 +32,10 @@ from nucypher.utilities.sandbox.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     TEMPORARY_DOMAIN,
 )
-
-CLI_ENV = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
-           NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
-
-KEYFILE_NAME_TEMPLATE = 'UTC--2020-{month}-21T03-42-07.869432648Z--{address}'
-MOCK_KEYSTORE_PATH = '/home/fakeMcfakeson/.ethereum/llamanet/keystore/'
-MOCK_SIGNER_URI = f'keystore://{MOCK_KEYSTORE_PATH}'
-NUMBER_OF_MOCK_ACCOUNTS = 3
+from tests.cli.functional.test_ursula_local_keystore_cli_functionality import (
+    NUMBER_OF_MOCK_ACCOUNTS,
+    KEYFILE_NAME_TEMPLATE, MOCK_SIGNER_URI, CLI_ENV, MOCK_KEYSTORE_PATH
+)
 
 
 @pytest.fixture(scope='module')

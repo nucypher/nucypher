@@ -287,7 +287,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
 class MockBlockchain(TesterBlockchain):
 
-    _PROVIDER_URI = 'tester://mock'
+    _PROVIDER_URI = MOCK_PROVIDER_URI
     _compiler = None
 
     def __init__(self):
