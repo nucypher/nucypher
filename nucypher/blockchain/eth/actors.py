@@ -403,7 +403,7 @@ class ContractAdministrator(NucypherTokenActor):
         all_receipts = dict()
         for contract_deployer in self.ownable_deployer_classes:
             deployer = contract_deployer(registry=self.registry, deployer_address=self.deployer_address)
-            receipts = deployer.transfer_ownership(new_owner=new_owner, transaction_gas_limit=transaction_gas_limit)
+            receipt = deployer.transfer_ownership(new_owner=new_owner, transaction_gas_limit=transaction_gas_limit)
 
             if emitter:
                 emitter.echo(f"Transferred ownership of {deployer.contract_name} to {new_owner}")
@@ -411,9 +411,7 @@ class ContractAdministrator(NucypherTokenActor):
             if interactive:
                 click.pause(info="Press any key to continue")
 
-            for tx_type, receipt in receipts.items():
-                receipt_name = f"{contract_deployer.contract_name}_{tx_type}"
-                all_receipts[receipt_name] = receipt
+            all_receipts[contract_deployer.contract_name] = receipt
 
         return all_receipts
 

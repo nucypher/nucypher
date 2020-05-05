@@ -569,14 +569,16 @@ def transfer_ownership(general_config, actor_options, target_address, gas):
         else:
             contract_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry,
                                                         deployer_address=ADMINISTRATOR.deployer_address)
-            receipts = contract_deployer.transfer_ownership(new_owner=target_address, transaction_gas_limit=gas)
+            receipt = contract_deployer.transfer_ownership(new_owner=target_address, transaction_gas_limit=gas)
+            paint_receipt_summary(emitter=emitter, receipt=receipt)
+            return
     else:
         click.confirm(f"You are about to relinquish ownership of all ownable contracts in favor of {target_address}.\n"
                       f"Are you sure you want to continue?", abort=True)
         receipts = ADMINISTRATOR.relinquish_ownership(new_owner=target_address, transaction_gas_limit=gas)
-
-    for tx_type, receipt in receipts.items():
-        paint_receipt_summary(emitter=emitter, receipt=receipt, transaction_type=tx_type)
+        for tx_type, receipt in receipts.items():
+            paint_receipt_summary(emitter=emitter, receipt=receipt, transaction_type=tx_type)
+        return
 
 
 @deploy.command("set-range")

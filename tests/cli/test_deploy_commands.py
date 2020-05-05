@@ -181,7 +181,7 @@ def test_manual_proxy_retargeting(testerchain, click_runner, token_economics):
 
     # MichWill still owns this proxy.
     michwill = testerchain.unassigned_accounts[1]
-    assert proxy_deployer.target_contract.functions.owner().call() == michwill
+    assert proxy_deployer.contract.functions.owner().call() == michwill
 
     command = ('upgrade',
                '--retarget',

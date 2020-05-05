@@ -206,39 +206,33 @@ class OwnableContractMixin:
     class ContractNotOwnable(RuntimeError):
         pass
 
-    def transfer_ownership(self, new_owner: str, transaction_gas_limit: int = None):
+    def transfer_ownership(self, new_owner: str, transaction_gas_limit: int = None) -> dict:
         if not self._ownable:
             raise self.ContractNotOwnable(f"{self.contract_name} is not ownable.")
 
-        receipts = dict()
         if self._upgradeable:
 
             #
             # Upgrade Proxy
             #
-            existing_bare_contract = self.get_principal_contract()
             proxy_deployer = self.get_proxy_deployer()
             proxy_contract_function = proxy_deployer.contract.functions.transferOwnership(new_owner)
-            proxy_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
-                                                             contract_function=proxy_contract_function,
-                                                             transaction_gas_limit=transaction_gas_limit)
-
-            receipts['proxy'] = proxy_receipt
-
+            receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
+                                                       contract_function=proxy_contract_function,
+                                                       transaction_gas_limit=transaction_gas_limit)
         else:
             existing_bare_contract = self.blockchain.get_contract_by_name(contract_name=self.contract_name,
                                                                           registry=self.registry)
 
-        #
-        # Upgrade Principal
-        #
+            #
+            # Upgrade Principal
+            #
 
-        contract_function = existing_bare_contract.functions.transferOwnership(new_owner)
-        principal_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
-                                                             contract_function=contract_function,
-                                                             transaction_gas_limit=transaction_gas_limit)
-        receipts['principal'] = principal_receipt
-        return receipts
+            contract_function = existing_bare_contract.functions.transferOwnership(new_owner)
+            receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
+                                                       contract_function=contract_function,
+                                                       transaction_gas_limit=transaction_gas_limit)
+        return receipt
 
 
 class UpgradeableContractMixin:
