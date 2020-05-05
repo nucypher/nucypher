@@ -487,12 +487,6 @@ def _testerchain() -> TesterBlockchain:
 
 
 @pytest.fixture(scope='module')
-def mock_testerchain() -> TesterBlockchain:
-    testerchain = _make_testerchain(mock_backend=True)
-    yield testerchain
-
-
-@pytest.fixture(scope='module')
 def testerchain(_testerchain) -> TesterBlockchain:
     testerchain = _testerchain
 

@@ -29,7 +29,21 @@ from nucypher.utilities.sandbox.constants import (
     MOCK_PROVIDER_URI,
     YES
 )
-from tests.mock.agents import FAKE_RECEIPT
+from tests.mock.agents import FAKE_RECEIPT, MockWorkLockAgent
+
+
+@pytest.fixture(scope='function')
+def mock_worklock_agent(mock_testerchain, token_economics):
+    mock_agent = MockWorkLockAgent()
+    yield mock_agent
+    mock_agent.reset()
+
+
+@pytest.fixture(scope='module')
+def surrogate_bidder(mock_testerchain, test_registry):
+    address = mock_testerchain.etherbase_account
+    bidder = Bidder(checksum_address=address, registry=test_registry)
+    return bidder
 
 
 def assert_successful_transaction_echo(bidder_address: str, cli_output: str):
@@ -39,13 +53,6 @@ def assert_successful_transaction_echo(bidder_address: str, cli_output: str):
                 FAKE_RECEIPT['transactionHash'].hex())
     for output in expected:
         assert str(output) in cli_output, f'"{output}" not in bidding output'
-
-
-@pytest.fixture(scope='module')
-def surrogate_bidder(mock_testerchain, test_registry):
-    address = mock_testerchain.etherbase_account
-    bidder = Bidder(checksum_address=address, registry=test_registry)
-    return bidder
 
 
 def test_status(click_runner, mock_worklock_agent, test_registry_source_manager):
