@@ -4,7 +4,7 @@
 Download supported version of solidity compiler for the host operating system.
 
 This script depends on `nucypher.blockchain.eth.sol` submodule and `py-solc-x` library 
-but otherwise does not require installation of `nucypher` or it's dependencies. 
+but otherwise does not require installation of `nucypher` or its dependencies. 
 """
 
 
