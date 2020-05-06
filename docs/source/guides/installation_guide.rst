@@ -273,10 +273,10 @@ Systemd Service Installation
 
 #. Replace the following values with your own:
 
-   * ``<YOUR_USER>`` - The host system's username to run the process with
+   * ``<YOUR USER>`` - The host system's username to run the process with
    * ``<YOUR WORKER ADDRESS PASSWORD>`` - Worker's ETH account password
-   * ``<YOUR_PASSWORD>`` - Ursula's keyring password
-   * ``<VIRTUALENV_PATH>`` - The absolute path to the python virtual environment containing the ``nucypher`` executable
+   * ``<YOUR PASSWORD>`` - Ursula's keyring password
+   * ``<VIRTUALENV PATH>`` - The absolute path to the python virtual environment containing the ``nucypher`` executable
 
 
 #. Enable Ursula System Service

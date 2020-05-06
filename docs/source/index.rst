@@ -132,6 +132,7 @@ Whitepapers
    guides/network_node/network_node
    guides/development/development
    guides/worklock_guide
+   guides/environment_variables.rst
    guides/contribution_guide
 
 .. toctree::
