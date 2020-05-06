@@ -196,3 +196,29 @@ Assuming geth is running locally, configure and run an Ursula using port and vol
     docker run -d -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD nucypher/nucypher:latest nucypher ursula run
 
 ``<YOUR STAKING ADDRESS>`` is the address you've staked from when following the :ref:`staking-guide`.
+
+
+5. Monitoring Ursula
+--------------------
+
+Status Page
+~~~~~~~~~~~
+Once Ursula is running, you can view its public status page at ``https://<node_ip>:9151/status``.
+It should eventually be listed on the `Status Monitor Page <https://status.nucypher.network>`_ (this can take a few minutes).
+
+Prometheus Endpoint
+~~~~~~~~~~~~~~~~~~~
+Ursula can optionally provide a `Prometheus <https://prometheus.io>`_ metrics endpoint to be used for as a data source
+for real-time monitoring. This functionality is disabled by default but can be enabled by providing the following
+parameters to the ``nucypher ursula run`` command:
+
+* ``--prometheus`` - a boolean flag to enable the prometheus endpoint
+* ``--metrics-port <PORT>`` - the HTTP port to run the prometheus endpoint on
+
+The corresponding endpoint, ``http://<node_ip>:<METRICS PORT>``, can be used as a Prometheus data source for
+monitoring including the creation of alert criteria.
+
+
+.. note::
+
+    The Ursula Status Page and Prometheus Endpoint are areas of active development.
