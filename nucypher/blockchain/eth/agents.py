@@ -785,8 +785,8 @@ class PolicyManagerAgent(EthereumContractAgent):
         return receipt
 
     @validate_checksum_address
-    def collect_policy_reward(self, collector_address: str, staker_address: str):
-        """Collect rewarded ETH"""
+    def collect_policy_fee(self, collector_address: str, staker_address: str):
+        """Collect fee ETH"""
         contract_function = self.contract.functions.withdraw(collector_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
@@ -816,27 +816,27 @@ class PolicyManagerAgent(EthereumContractAgent):
         return receipt
 
     @validate_checksum_address
-    def get_reward_amount(self, staker_address: str) -> int:
-        reward_amount = self.contract.functions.nodes(staker_address).call()[0]
-        return reward_amount
+    def get_fee_amount(self, staker_address: str) -> int:
+        fee_amount = self.contract.functions.nodes(staker_address).call()[0]
+        return fee_amount
 
-    def get_min_reward_rate_range(self) -> Tuple[int, int, int]:
-        minimum, default, maximum = self.contract.functions.minRewardRateRange().call()
+    def get_min_fee_rate_range(self) -> Tuple[int, int, int]:
+        minimum, default, maximum = self.contract.functions.minFeeRateRange().call()
         return minimum, default, maximum
 
     @validate_checksum_address
-    def get_min_reward_rate(self, staker_address: str) -> int:
-        min_rate = self.contract.functions.getMinRewardRate(staker_address).call()
+    def get_min_fee_rate(self, staker_address: str) -> int:
+        min_rate = self.contract.functions.getMinFeeRate(staker_address).call()
         return min_rate
 
     @validate_checksum_address
-    def get_raw_min_reward_rate(self, staker_address: str) -> int:
+    def get_raw_min_fee_rate(self, staker_address: str) -> int:
         min_rate = self.contract.functions.nodes(staker_address).call()[3]
         return min_rate
 
     @validate_checksum_address
-    def set_min_reward_rate(self, staker_address: str, min_rate: int):
-        contract_function = self.contract.functions.setMinRewardRate(min_rate)
+    def set_min_fee_rate(self, staker_address: str, min_rate: int):
+        contract_function = self.contract.functions.setMinFeeRate(min_rate)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
@@ -994,13 +994,13 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    def collect_policy_reward(self):
-        contract_function = self.__interface_agent.functions.withdrawPolicyReward()
+    def collect_policy_fee(self):
+        contract_function = self.__interface_agent.functions.withdrawPolicyFee()
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    def set_min_reward_rate(self, min_rate: int):
-        contract_function = self.__interface_agent.functions.setMinRewardRate(min_rate)
+    def set_min_fee_rate(self, min_rate: int):
+        contract_function = self.__interface_agent.functions.setMinFeeRate(min_rate)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 

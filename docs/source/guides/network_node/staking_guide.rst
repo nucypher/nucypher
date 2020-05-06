@@ -371,7 +371,7 @@ the commitment period.
     will result in the loss of staked tokens as described in the NuCypher slashing protocol.
 
     Keeping your Ursula node online during the staking period and successfully
-    producing correct re-encryption work orders will result in rewards
+    producing correct re-encryption work orders will result in fees
     paid out in ethers retro-actively and on-demand.
 
     Accept ursula node operator obligation? [y/N]: y
@@ -577,16 +577,16 @@ To divide an existing stake:
 Collect rewards earned by the staker
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-NuCypher nodes earn two types of rewards: staking rewards (in NU) and policy rewards (i.e., service fees in ETH).
-To collect these rewards use ``nucypher stake collect-reward`` with flags ``--staking-reward`` and ``--policy-reward``
+NuCypher nodes earn two types of rewards: staking rewards (in NU) and policy fees (i.e., service fees in ETH).
+To collect these rewards use ``nucypher stake collect-reward`` with flags ``--staking-reward`` and ``--policy-fee``
 (or even both).
 
 While staking rewards can only be collected to the original staker account, you can decide which account receives
-policy rewards using the ``--withdraw-address <ETH_ADDRESS>`` flag.
+policy fees using the ``--withdraw-address <ETH_ADDRESS>`` flag.
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake collect-reward --staking-reward --policy-reward --staking-address 0x287A817426DD1AE78ea23e9918e2273b6733a43D --hw-wallet
+    (nucypher)$ nucypher stake collect-reward --staking-reward --policy-fee --staking-address 0x287A817426DD1AE78ea23e9918e2273b6733a43D --hw-wallet
 
      ____    __            __
     /\  _`\ /\ \__        /\ \
@@ -604,7 +604,7 @@ policy rewards using the ``--withdraw-address <ETH_ADDRESS>`` flag.
     Block #1245170 | 0x63e4da39056873adaf869674db4002e016c80466f38256a4c251516a0e25e547
      See https://goerli.etherscan.io/tx/0xb0625030224e228198faa3ed65d43f93247cf6067aeb62264db6f31b5bf411fa
 
-    Collecting 0.978 ETH from policy rewards...
+    Collecting 0.978 ETH from policy fees...
 
     OK | 0xe6d555be43263702b74727ce29dc4bcd6e32019159ccb15120791dfda0975372 (25070 gas)
     Block #1245171 | 0x0d8180a69213c240e2bf2045179976d5f18de56a82f17a9d59db54756b6604e4

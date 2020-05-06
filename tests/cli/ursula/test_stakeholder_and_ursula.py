@@ -39,7 +39,7 @@ from nucypher.utilities.sandbox.constants import (
     select_test_port,
 )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-from tests.fixtures import MIN_REWARD_RATE_RANGE
+from tests.fixtures import MIN_FEE_RATE_RANGE
 
 
 @mock.patch('nucypher.config.characters.StakeHolderConfiguration.default_filepath', return_value='/non/existent/file')
@@ -139,7 +139,7 @@ def test_stake_list(click_runner,
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     assert str(stake_value) in result.output
-    _minimum, default, _maximum = MIN_REWARD_RATE_RANGE
+    _minimum, default, _maximum = MIN_FEE_RATE_RANGE
     assert f"{default} wei" in result.output
 
 
@@ -523,10 +523,10 @@ def test_collect_rewards_integration(click_runner,
     # Since we are mocking the blockchain connection, manually consume the transacting power of the Staker.
     mock_transacting_power_activation(account=staker_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    # Collect Policy Reward
+    # Collect Policy Fee
     collection_args = ('stake', 'collect-reward',
                        '--config-file', stakeholder_configuration_file_location,
-                       '--policy-reward',
+                       '--policy-fee',
                        '--no-staking-reward',
                        '--staking-address', staker_address,
                        '--withdraw-address', burner_wallet.address)
@@ -536,10 +536,10 @@ def test_collect_rewards_integration(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    # Policy Reward
-    collected_policy_reward = testerchain.client.get_balance(burner_wallet.address)
+    # Policy Fee
+    collected_policy_fee = testerchain.client.get_balance(burner_wallet.address)
     expected_collection = policy_rate * 30
-    assert collected_policy_reward == expected_collection
+    assert collected_policy_fee == expected_collection
 
     # Finish the passage of time... once and for all
     # Extended periods from stake division
@@ -557,7 +557,7 @@ def test_collect_rewards_integration(click_runner,
 
     collection_args = ('stake', 'collect-reward',
                        '--config-file', stakeholder_configuration_file_location,
-                       '--no-policy-reward',
+                       '--no-policy-fee',
                        '--staking-reward',
                        '--staking-address', staker_address,
                        '--force')
@@ -610,10 +610,10 @@ def test_set_min_rate(click_runner,
                       agency_local_registry,
                       stakeholder_configuration_file_location):
 
-    _minimum, _default, maximum = MIN_REWARD_RATE_RANGE
+    _minimum, _default, maximum = MIN_FEE_RATE_RANGE
     min_rate = maximum - 1
     staker = Staker(is_me=True, checksum_address=manual_staker, registry=agency_local_registry)
-    assert staker.raw_min_reward_rate == 0
+    assert staker.raw_min_fee_rate == 0
 
     restake_args = ('stake', 'set-min-rate',
                     '--min-rate', min_rate,
@@ -626,7 +626,7 @@ def test_set_min_rate(click_runner,
                                  input=INSECURE_DEVELOPMENT_PASSWORD,
                                  catch_exceptions=False)
     assert result.exit_code == 0
-    assert staker.raw_min_reward_rate == min_rate
+    assert staker.raw_min_fee_rate == min_rate
     assert "successfully set" in result.output
 
     stake_args = ('stake', 'list',

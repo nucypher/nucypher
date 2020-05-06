@@ -86,7 +86,7 @@ Alice provides an upfront deposit that covers the entirety of the sharing policy
 Q: What currency does Ursula stake in (assuming Ursula is also the Staker)?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Ursula stakes in NU, receives policy rewards in ETH, and receives inflation rewards in NU.
+Ursula stakes in NU, receives policy fees in ETH, and receives inflation rewards in NU.
 
 Q: Why do you have a mix of NU and ETH?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -137,12 +137,12 @@ NU is an implementation of the ERC20 standard deployed onto the Ethereum blockch
 Q: What are the two streams of income Ursula can receive?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Inflation Rewards (NU) and Policy Rewards (ETH). We will soon refer to Policy Rewards as “Fees” to avoid confusion.
+Inflation Rewards (NU) and Policy Fees (ETH).
 
-Q: How are Policy Rewards (ETH) determined?
+Q: How are Policy Fees (ETH) determined?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The reward is calculated with Confirm Activity taking into account the number of policies Ursula is enforcing.
+The fee is calculated with Confirm Activity taking into account the number of policies Ursula is enforcing.
 
 Q: How many Ursulas per period collect Inflation rewards (NU)?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

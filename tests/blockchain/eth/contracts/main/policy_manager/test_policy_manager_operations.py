@@ -30,10 +30,10 @@ RATE_FIELD = 3
 START_TIMESTAMP_FIELD = 4
 END_TIMESTAMP_FIELD = 5
 
-REWARD_FIELD = 0
-REWARD_RATE_FIELD = 1
+FEE_FIELD = 0
+FEE_RATE_FIELD = 1
 LAST_MINED_PERIOD_FIELD = 2
-MIN_REWARD_RATE_FIELD = 3
+MIN_FEE_RATE_FIELD = 3
 
 POLICY_ID_LENGTH = 16
 policy_id = os.urandom(POLICY_ID_LENGTH)
@@ -46,7 +46,7 @@ value = rate * number_of_periods
 
 
 @pytest.mark.slow
-def test_reward(testerchain, escrow, policy_manager):
+def test_fee(testerchain, escrow, policy_manager):
     creator, policy_sponsor, bad_node, node1, node2, node3, *everyone_else = testerchain.client.accounts
     node_balance = testerchain.client.get_balance(node1)
     withdraw_log = policy_manager.events.Withdrawn.createFilter(fromBlock='latest')
@@ -56,10 +56,10 @@ def test_reward(testerchain, escrow, policy_manager):
     period = escrow.functions.getCurrentPeriod().call()
     tx = escrow.functions.mint(period - 1, 1).transact({'from': node1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 0 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
+    assert 0 == policy_manager.functions.nodes(node1).call()[FEE_FIELD]
 
     # Create policy
-    tx = escrow.functions.setDefaultRewardDelta(node1, period - 1, number_of_periods + 2).transact()
+    tx = escrow.functions.setDefaultFeeDelta(node1, period - 1, number_of_periods + 2).transact()
     testerchain.wait_for_receipt(tx)
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
@@ -72,9 +72,9 @@ def test_reward(testerchain, escrow, policy_manager):
         tx = policy_manager.functions.withdraw().transact({'from': node1})
         testerchain.wait_for_receipt(tx)
 
-    # Can't update reward directly (only through mint method in the escrow contract)
+    # Can't update fee directly (only through mint method in the escrow contract)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.updateReward(node1, period + 1).transact({'from': node1})
+        tx = policy_manager.functions.updateFee(node1, period + 1).transact({'from': node1})
         testerchain.wait_for_receipt(tx)
     # Can't register directly (only through deposit method in the escrow contract)
     with pytest.raises((TransactionFailed, ValueError)):
@@ -82,14 +82,14 @@ def test_reward(testerchain, escrow, policy_manager):
         testerchain.wait_for_receipt(tx)
     # Can't set default value directly (only through confirmActivity method in the escrow contract)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.setDefaultRewardDelta(bad_node, period).transact({'from': bad_node})
+        tx = policy_manager.functions.setDefaultFeeDelta(bad_node, period).transact({'from': bad_node})
         testerchain.wait_for_receipt(tx)
 
-    # Mint some periods for calling updateReward method
+    # Mint some periods for calling updateFee method
     tx = escrow.functions.mint(period - 1, 5).transact({'from': node1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     period += 4
-    assert 80 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
+    assert 80 == policy_manager.functions.nodes(node1).call()[FEE_FIELD]
 
     # Withdraw some ETH
     tx = policy_manager.functions.withdraw().transact({'from': node1, 'gas_price': 0})
@@ -105,15 +105,15 @@ def test_reward(testerchain, escrow, policy_manager):
     assert 80 == event_args['value']
 
     # Mint more periods
-    tx = escrow.functions.setDefaultRewardDelta(node1, period, 6).transact()
+    tx = escrow.functions.setDefaultFeeDelta(node1, period, 6).transact()
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.mint(period, 6).transact({'from': node1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     period += 6
-    assert 120 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
+    assert 120 == policy_manager.functions.nodes(node1).call()[FEE_FIELD]
     tx = escrow.functions.mint(period, 1).transact({'from': node1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 120 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
+    assert 120 == policy_manager.functions.nodes(node1).call()[FEE_FIELD]
 
     # Withdraw some ETH
     tx = policy_manager.functions.withdraw(node1).transact({'from': node1, 'gas_price': 0})
@@ -130,7 +130,7 @@ def test_reward(testerchain, escrow, policy_manager):
 
     # Create policy
     period = escrow.functions.getCurrentPeriod().call()
-    tx = escrow.functions.setDefaultRewardDelta(node1, period, 1).transact()
+    tx = escrow.functions.setDefaultFeeDelta(node1, period, 1).transact()
     testerchain.wait_for_receipt(tx)
     tx = policy_manager.functions.createPolicy(policy_id_2, policy_sponsor, end_timestamp, [node2, node3]) \
         .transact({'from': policy_sponsor, 'value': int(2 * value)})
@@ -140,15 +140,15 @@ def test_reward(testerchain, escrow, policy_manager):
     tx = escrow.functions.mint(period, 5).transact({'from': node2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     period += 5
-    assert 100 == policy_manager.functions.nodes(node2).call()[REWARD_FIELD]
+    assert 100 == policy_manager.functions.nodes(node2).call()[FEE_FIELD]
 
     # Mint more periods
     tx = escrow.functions.mint(period, 6).transact({'from': node2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     period += 6
-    assert 200 == policy_manager.functions.nodes(node2).call()[REWARD_FIELD]
+    assert 200 == policy_manager.functions.nodes(node2).call()[FEE_FIELD]
 
-    # Withdraw the second node reward to the first node
+    # Withdraw the second node fee to the first node
     node_balance = testerchain.client.get_balance(node1)
     node_2_balance = testerchain.client.get_balance(node2)
     tx = policy_manager.functions.withdraw(node1).transact({'from': node2, 'gas_price': 0})
@@ -352,7 +352,7 @@ def test_refund(testerchain, escrow, policy_manager):
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setLastActivePeriod(period + 8).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    assert 100 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
+    assert 100 == policy_manager.functions.nodes(node1).call()[FEE_FIELD]
 
     testerchain.time_travel(hours=10)
     assert 300 == policy_manager.functions.calculateRefundValue(policy_id_2).call({'from': policy_creator})
@@ -444,7 +444,7 @@ def test_refund(testerchain, escrow, policy_manager):
     period += 3
     tx = escrow.functions.setLastActivePeriod(period).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    assert 160 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
+    assert 160 == policy_manager.functions.nodes(node1).call()[FEE_FIELD]
 
     # Policy owner revokes policy
     testerchain.time_travel(hours=4)
@@ -454,7 +454,7 @@ def test_refund(testerchain, escrow, policy_manager):
     policy_manager_balance = testerchain.client.get_balance(policy_manager.address)
     creator_balance = testerchain.client.get_balance(policy_creator)
     period = escrow.functions.getCurrentPeriod().call()
-    tx = escrow.functions.setDefaultRewardDelta(node1, period + 1, number_of_periods).transact()
+    tx = escrow.functions.setDefaultFeeDelta(node1, period + 1, number_of_periods).transact()
     testerchain.wait_for_receipt(tx)
     tx = policy_manager.functions.revokePolicy(policy_id_3).transact({'from': policy_creator, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
@@ -487,7 +487,7 @@ def test_refund(testerchain, escrow, policy_manager):
     tx = escrow.functions.mint(period + 1, number_of_periods + 1).transact({'from': node1})
     testerchain.wait_for_receipt(tx)
     period += 20
-    assert 160 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
+    assert 160 == policy_manager.functions.nodes(node1).call()[FEE_FIELD]
 
     # Create policy again to test double call of `refund` with specific conditions
     testerchain.time_travel(hours=number_of_periods + 2)
@@ -587,7 +587,7 @@ def test_reentrancy(testerchain, escrow, policy_manager, deploy_contract):
     period = escrow.functions.getCurrentPeriod().call()
     tx = escrow.functions.mint(contract_address, period, 1).transact({'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 2 * rate == policy_manager.functions.nodes(contract_address).call()[REWARD_FIELD]
+    assert 2 * rate == policy_manager.functions.nodes(contract_address).call()[FEE_FIELD]
 
     # Check protection from reentrancy in withdrawal method
     balance = testerchain.client.get_balance(contract_address)
@@ -599,7 +599,7 @@ def test_reentrancy(testerchain, escrow, policy_manager, deploy_contract):
         tx = testerchain.client.send_transaction({'to': contract_address})
         testerchain.wait_for_receipt(tx)
     assert balance == testerchain.client.get_balance(contract_address)
-    assert 2 * rate == policy_manager.functions.nodes(contract_address).call()[REWARD_FIELD]
+    assert 2 * rate == policy_manager.functions.nodes(contract_address).call()[FEE_FIELD]
     assert 0 == len(withdraw_log.get_all_entries())
 
     # Prepare for refund and check reentrancy protection
@@ -613,7 +613,7 @@ def test_reentrancy(testerchain, escrow, policy_manager, deploy_contract):
         testerchain.wait_for_receipt(tx)
     assert balance == testerchain.client.get_balance(contract_address)
     assert not policy_manager.functions.policies(policy_id).call()[DISABLED_FIELD]
-    assert 2 * rate == policy_manager.functions.nodes(contract_address).call()[REWARD_FIELD]
+    assert 2 * rate == policy_manager.functions.nodes(contract_address).call()[FEE_FIELD]
     assert 0 == len(arrangement_revoked_log.get_all_entries())
     assert 0 == len(policy_revoked_log.get_all_entries())
     assert 0 == len(arrangement_refund_log.get_all_entries())

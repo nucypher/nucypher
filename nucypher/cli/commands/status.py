@@ -47,7 +47,7 @@ from nucypher.cli.painting import (
     paint_contract_status,
     paint_stakers,
     paint_locked_tokens_status,
-    paint_min_reward_range
+    paint_min_fee_range
 )
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
 
@@ -178,11 +178,11 @@ def events(general_config, registry_options, contract_name, from_block, to_block
                 emitter.echo(f"  - {event_record}")
 
 
-@status.command(name='reward-range')
+@status.command(name='fee-range')
 @group_registry_options
 @group_general_config
-def reward_range(general_config, registry_options):
-    """Show information about the allowed range for min reward rate."""
+def fee_range(general_config, registry_options):
+    """Show information about the allowed range for min fee rate."""
     emitter, registry, blockchain = registry_options.setup(general_config=general_config)
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
-    paint_min_reward_range(emitter=emitter, policy_agent=policy_agent)
+    paint_min_fee_range(emitter=emitter, policy_agent=policy_agent)

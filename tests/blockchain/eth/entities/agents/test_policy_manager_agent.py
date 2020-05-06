@@ -25,7 +25,7 @@ from eth_utils import is_checksum_address, to_wei
 from nucypher.blockchain.eth.agents import PolicyManagerAgent, ContractAgency
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
-from tests.fixtures import MIN_REWARD_RATE_RANGE
+from tests.fixtures import MIN_FEE_RATE_RANGE
 
 MockPolicyMetadata = collections.namedtuple('MockPolicyMetadata', 'policy_id author addresses')
 
@@ -137,23 +137,23 @@ def test_collect_refund(testerchain, agency, policy_meta):
 
 
 @pytest.mark.slow()
-def test_set_min_reward_rate(testerchain, test_registry, agency, policy_meta):
+def test_set_min_fee_rate(testerchain, test_registry, agency, policy_meta):
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)  # type: PolicyManagerAgent
-    minimum, default, maximum = MIN_REWARD_RATE_RANGE
+    minimum, default, maximum = MIN_FEE_RATE_RANGE
     staker = policy_meta.addresses[-1]
 
-    assert policy_agent.get_min_reward_rate(staker) == default
+    assert policy_agent.get_min_fee_rate(staker) == default
     with pytest.raises((TransactionFailed, ValueError)):
-        policy_agent.set_min_reward_rate(staker_address=staker, min_rate=minimum - 1)
+        policy_agent.set_min_fee_rate(staker_address=staker, min_rate=minimum - 1)
 
-    receipt = policy_agent.set_min_reward_rate(staker_address=staker, min_rate=minimum + 1)
+    receipt = policy_agent.set_min_fee_rate(staker_address=staker, min_rate=minimum + 1)
     assert receipt['status'] == 1
-    assert policy_agent.get_min_reward_rate(staker) == minimum + 1
+    assert policy_agent.get_min_fee_rate(staker) == minimum + 1
 
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_collect_policy_reward(testerchain, agency, policy_meta, token_economics, mock_transacting_power_activation):
+def test_collect_policy_fee(testerchain, agency, policy_meta, token_economics, mock_transacting_power_activation):
     token_agent, staking_agent, policy_agent = agency
     agent = policy_agent
 
@@ -169,7 +169,7 @@ def test_collect_policy_reward(testerchain, agency, policy_meta, token_economics
         testerchain.time_travel(periods=1)
 
     mock_transacting_power_activation(account=staker, password=INSECURE_DEVELOPMENT_PASSWORD)
-    receipt = agent.collect_policy_reward(collector_address=staker, staker_address=staker)
+    receipt = agent.collect_policy_fee(collector_address=staker, staker_address=staker)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
     new_eth_balance = token_agent.blockchain.client.get_balance(staker)

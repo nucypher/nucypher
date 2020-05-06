@@ -533,9 +533,9 @@ class BlockchainPolicy(Policy):
         super().__init__(alice=alice, expiration=expiration, *args, **kwargs)
 
         self.selection_buffer = 1.5
-        self.validate_reward_value()
+        self.validate_fee_value()
 
-    def validate_reward_value(self) -> None:
+    def validate_fee_value(self) -> None:
         rate_per_period = self.value // self.n // self.duration_periods  # wei
         recalculated_value = self.duration_periods * rate_per_period * self.n
         if recalculated_value != self.value:

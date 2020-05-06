@@ -234,7 +234,7 @@ def propose(general_config, blockchain_options, multisig_options):
     #  - Transfer ownership of contract
     #  - Send ETH from MultiSig
     #  - Send tokens from MultiSig
-    #  - Change min reward rate range in PolicyManager
+    #  - Change min fee rate range in PolicyManager
     #  - Send raw transaction
 
     # Init

@@ -347,7 +347,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact_and_log("Confirm activity + mint + re-stake",
                      staker_functions.confirmActivity(),
                      {'from': ursula2})
-    transact_and_log("Confirm activity + mint + re-stake + first reward + first reward rate",
+    transact_and_log("Confirm activity + mint + re-stake + first fee + first fee rate",
                      staker_functions.confirmActivity(),
                      {'from': ursula1})
 
@@ -360,7 +360,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.time_travel(periods=2)
     transact(staker_functions.confirmActivity(), {'from': ursula3})
     transact_and_log("Confirm activity after downtime", staker_functions.confirmActivity(), {'from': ursula2})
-    transact_and_log("Confirm activity after downtime + updating reward",
+    transact_and_log("Confirm activity after downtime + updating fee",
                      staker_functions.confirmActivity(),
                      {'from': ursula1})
 
@@ -408,8 +408,8 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     testerchain.time_travel(periods=1)
     transact(staker_functions.mint(), {'from': ursula3})
-    transact_and_log("Last mining + updating reward + updating reward rate", staker_functions.mint(), {'from': ursula1})
-    transact_and_log("Last mining + first reward + first reward rate", staker_functions.mint(), {'from': ursula2})
+    transact_and_log("Last mining + updating fee + updating fee rate", staker_functions.mint(), {'from': ursula1})
+    transact_and_log("Last mining + first fee + first fee rate", staker_functions.mint(), {'from': ursula2})
 
     #
     # Create policy again without pre-confirmed nodes
@@ -443,7 +443,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
 
     testerchain.time_travel(periods=2)
     transact(staker_functions.mint(), {'from': ursula3})
-    transact_and_log("Last mining after downtime + updating reward",
+    transact_and_log("Last mining after downtime + updating fee",
                      staker_functions.mint(),
                      {'from': ursula1})
 

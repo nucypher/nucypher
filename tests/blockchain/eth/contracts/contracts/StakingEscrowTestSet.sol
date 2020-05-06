@@ -125,11 +125,11 @@ contract PolicyManagerForStakingEscrowMock {
         nodes[_node].push(_period);
     }
 
-    function updateReward(address _node, uint16 _period) external {
+    function updateFee(address _node, uint16 _period) external {
         nodes[_node].push(_period);
     }
 
-    function setDefaultRewardDelta(address _node, uint16 _period) external {
+    function setDefaultFeeDelta(address _node, uint16 _period) external {
         nodes[_node].push(_period);
     }
 

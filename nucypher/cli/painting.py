@@ -348,7 +348,7 @@ Registry  ................ {registry.filepath}
     try:
 
         policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
-        paint_min_reward_range(emitter, policy_agent)
+        paint_min_fee_range(emitter, policy_agent)
         emitter.echo(sep, nl=False)
 
     except BaseContractRegistry.UnknownContract:
@@ -357,11 +357,11 @@ Registry  ................ {registry.filepath}
         emitter.echo(sep, nl=False)
 
 
-def paint_min_reward_range(emitter, policy_agent):
-    minimum, default, maximum = policy_agent.get_min_reward_rate_range()
+def paint_min_fee_range(emitter, policy_agent):
+    minimum, default, maximum = policy_agent.get_min_fee_rate_range()
 
     range_payload = f"""
-Range of the minimum reward rate:
+Range of the minimum fee rate:
     ~ Minimum ............ {prettify_eth_amount(minimum)}
     ~ Default ............ {prettify_eth_amount(default)}
     ~ Maximum ............ {prettify_eth_amount(maximum)}"""
@@ -369,12 +369,12 @@ Range of the minimum reward rate:
 
 
 def paint_min_rate(emitter, registry, policy_agent, staker_address):
-    paint_min_reward_range(emitter, policy_agent)
-    minimum = policy_agent.min_reward_rate(staker_address)
-    raw_minimum = policy_agent.raw_min_reward_rate(staker_address)
+    paint_min_fee_range(emitter, policy_agent)
+    minimum = policy_agent.min_fee_rate(staker_address)
+    raw_minimum = policy_agent.raw_min_fee_rate(staker_address)
 
     rate_payload = f"""
-Minimum reward rate:
+Minimum fee rate:
     ~ Previously set ....... {prettify_eth_amount(raw_minimum)}
     ~ Effective ............ {prettify_eth_amount(minimum)}"""
     emitter.echo(rate_payload)
@@ -491,7 +491,7 @@ See https://docs.nucypher.com/en/latest/guides/staking_guide.html'''
 
 def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_address: str = None):
     headers = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination')
-    staker_headers = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees', 'Min reward rate')
+    staker_headers = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees', 'Min fee rate')
 
     stakers = stakeholder.get_stakers()
     if not stakers:
@@ -513,11 +513,11 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
         if not active_stakes:
             emitter.echo(f"There are no active stakes\n")
 
-        fees = staker.policy_agent.get_reward_amount(staker.checksum_address)
+        fees = staker.policy_agent.get_fee_amount(staker.checksum_address)
         pretty_fees = prettify_eth_amount(fees)
         last_confirmed = staker.staking_agent.get_last_active_period(staker.checksum_address)
         missing = staker.missing_confirmations
-        min_reward_rate = prettify_eth_amount(staker.min_reward_rate)
+        min_fee_rate = prettify_eth_amount(staker.min_fee_rate)
 
         if missing == -1:
             missing_info = "Never Confirmed (New Stake)"
@@ -528,7 +528,7 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
                        f'{"Yes" if staker.is_restaking else "No"} ({"Locked" if staker.restaking_lock_enabled else "Unlocked"})',
                        "Yes" if bool(staker.is_winding_down) else "No",
                        pretty_fees,
-                       min_reward_rate]
+                       min_fee_rate]
 
         line_width = 54
         if staker.registry.source:  # TODO: #1580 - Registry source might be Falsy in tests.
@@ -744,11 +744,11 @@ def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> N
         else:
             emitter.echo(f"{worker}")
 
-        fees = prettify_eth_amount(policy_agent.get_reward_amount(staker))
+        fees = prettify_eth_amount(policy_agent.get_fee_amount(staker))
         emitter.echo(f"{tab}  Unclaimed fees: {fees}")
 
-        min_rate = prettify_eth_amount(policy_agent.get_min_reward_rate(staker))
-        emitter.echo(f"{tab}  Min reward rate: {min_rate}")
+        min_rate = prettify_eth_amount(policy_agent.get_min_fee_rate(staker))
+        emitter.echo(f"{tab}  Min fee rate: {min_rate}")
 
 
 def paint_preallocation_status(emitter, preallocation_agent, token_agent) -> None:
@@ -978,7 +978,7 @@ def paint_bidding_notice(emitter, bidder):
   in the NuCypher slashing protocol.
 
 - Keeping your Ursula node online during the staking period and correctly servicing
-  re-encryption work orders will result in rewards paid out in ethers retro-actively
+  re-encryption work orders will result in fees paid out in ethers retro-actively
   and on-demand.
 
 Accept WorkLock terms and node operator obligation?"""  # TODO: Show a special message for first bidder, since there's no refund rate yet?

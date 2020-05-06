@@ -616,10 +616,10 @@ def test_collect_rewards_integration(click_runner,
     # Since we are mocking the blockchain connection, manually consume the transacting power of the Beneficiary.
     mock_transacting_power_activation(account=beneficiary, password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    # Collect Policy Reward
+    # Collect Policy Fee
     collection_args = ('stake', 'collect-reward',
                        '--config-file', stakeholder_configuration_file_location,
-                       '--policy-reward',
+                       '--policy-fee',
                        '--no-staking-reward',
                        '--withdraw-address', beneficiary,
                        '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
@@ -631,9 +631,9 @@ def test_collect_rewards_integration(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    # Policy Reward
-    collected_policy_reward = testerchain.client.get_balance(beneficiary)
-    assert collected_policy_reward > balance
+    # Policy Fee
+    collected_policy_fee = testerchain.client.get_balance(beneficiary)
+    assert collected_policy_fee > balance
 
     #
     # Collect Staking Reward
@@ -643,7 +643,7 @@ def test_collect_rewards_integration(click_runner,
 
     collection_args = ('stake', 'collect-reward',
                        '--config-file', stakeholder_configuration_file_location,
-                       '--no-policy-reward',
+                       '--no-policy-fee',
                        '--staking-reward',
                        '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                        '--force')

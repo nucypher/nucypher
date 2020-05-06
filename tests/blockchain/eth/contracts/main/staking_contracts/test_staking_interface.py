@@ -260,47 +260,47 @@ def test_policy(testerchain, policy_manager, staking_contract, staking_contract_
 
     # Nothing to withdraw
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = staking_contract_interface.functions.withdrawPolicyReward().transact({'from': owner, 'gas_price': 0})
+        tx = staking_contract_interface.functions.withdrawPolicyFee().transact({'from': owner, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
     assert owner_balance == testerchain.client.get_balance(owner)
     assert 0 == testerchain.client.get_balance(staking_contract.address)
 
-    # Send ETH to the policy manager as a reward for the owner
+    # Send ETH to the policy manager as a fee for the owner
     tx = testerchain.client.send_transaction(
         {'from': testerchain.client.coinbase, 'to': policy_manager.address, 'value': 10000})
     testerchain.wait_for_receipt(tx)
 
-    staker_reward = staking_contract_interface.events.PolicyRewardWithdrawn.createFilter(fromBlock='latest')
+    staker_fee = staking_contract_interface.events.PolicyFeeWithdrawn.createFilter(fromBlock='latest')
 
-    # Only owner can withdraw reward
+    # Only owner can withdraw fee
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = staking_contract_interface.functions.withdrawPolicyReward().transact({'from': creator, 'gas_price': 0})
+        tx = staking_contract_interface.functions.withdrawPolicyFee().transact({'from': creator, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
 
-    # Owner withdraws reward
-    tx = staking_contract_interface.functions.withdrawPolicyReward().transact({'from': owner, 'gas_price': 0})
+    # Owner withdraws fee
+    tx = staking_contract_interface.functions.withdrawPolicyFee().transact({'from': owner, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert 10000 == testerchain.client.get_balance(staking_contract.address)
     assert owner_balance == testerchain.client.get_balance(owner)
     assert 0 == testerchain.client.get_balance(policy_manager.address)
     assert 10000 == testerchain.client.get_balance(staking_contract.address)
 
-    events = staker_reward.get_all_entries()
+    events = staker_fee.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
     assert owner == event_args['sender']
     assert 10000 == event_args['value']
 
-    # Only owner can set min reward rate
-    min_reward_sets = staking_contract_interface.events.MinRewardRateSet.createFilter(fromBlock='latest')
+    # Only owner can set min fee rate
+    min_fee_sets = staking_contract_interface.events.MinFeeRateSet.createFilter(fromBlock='latest')
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = staking_contract_interface.functions.setMinRewardRate(333).transact({'from': creator})
+        tx = staking_contract_interface.functions.setMinFeeRate(333).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
-    tx = staking_contract_interface.functions.setMinRewardRate(222).transact({'from': owner})
+    tx = staking_contract_interface.functions.setMinFeeRate(222).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
-    assert 222 == policy_manager.functions.minRewardRate().call()
+    assert 222 == policy_manager.functions.minFeeRate().call()
 
-    events = min_reward_sets.get_all_entries()
+    events = min_fee_sets.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
     assert owner == event_args['sender']

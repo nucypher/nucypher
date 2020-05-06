@@ -876,7 +876,7 @@ def test_policy(testerchain,
     tx = escrow.functions.confirmActivity().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
 
-    # Withdraw reward and refund
+    # Withdraw fee and refund
     testerchain.time_travel(hours=3)
     staker1_balance = testerchain.client.get_balance(staker1)
     tx = policy_manager.functions.withdraw().transact({'from': staker1, 'gas_price': 0})
@@ -887,7 +887,7 @@ def test_policy(testerchain,
     testerchain.wait_for_receipt(tx)
     assert staker2_balance < testerchain.client.get_balance(staker2)
     staker3_balance = testerchain.client.get_balance(staker3)
-    tx = preallocation_escrow_interface_1.functions.withdrawPolicyReward().transact({'from': staker3, 'gas_price': 0})
+    tx = preallocation_escrow_interface_1.functions.withdrawPolicyFee().transact({'from': staker3, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     tx = preallocation_escrow_1.functions.withdrawETH().transact({'from': staker3, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)

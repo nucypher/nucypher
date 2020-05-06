@@ -12,9 +12,9 @@ import "zeppelin/math/SafeMath.sol";
 */
 interface PolicyManagerInterface {
     function register(address _node, uint16 _period) external;
-    function updateReward(address _node, uint16 _period) external;
+    function updateFee(address _node, uint16 _period) external;
     function escrow() external view returns (address);
-    function setDefaultRewardDelta(address _node, uint16 _period) external;
+    function setDefaultFeeDelta(address _node, uint16 _period) external;
 }
 
 
@@ -37,7 +37,7 @@ interface WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v4.2.1|
+* @dev |v4.2.2|
 */
 contract StakingEscrow is Issuer, IERC900History {
 
@@ -947,7 +947,7 @@ contract StakingEscrow is Issuer, IERC900History {
         if (lastActivePeriod < currentPeriod) {
             info.pastDowntime.push(Downtime(lastActivePeriod + 1, currentPeriod));
         }
-        policyManager.setDefaultRewardDelta(staker, nextPeriod);
+        policyManager.setDefaultFeeDelta(staker, nextPeriod);
         emit ActivityConfirmed(staker, nextPeriod, lockedTokens);
     }
 
@@ -1059,7 +1059,7 @@ contract StakingEscrow is Issuer, IERC900History {
                 }
             }
         }
-        policyManager.updateReward(_staker, _mintingPeriod);
+        policyManager.updateFee(_staker, _mintingPeriod);
         return reward;
     }
 

@@ -95,7 +95,7 @@ contract StakingEscrowForStakingContractMock {
 contract PolicyManagerForStakingContractMock {
 
     uint32 public immutable secondsPerPeriod = 1;
-    uint256 public minRewardRate;
+    uint256 public minFeeRate;
 
     function withdraw() public returns (uint256) {
         uint256 value = address(this).balance;
@@ -104,12 +104,12 @@ contract PolicyManagerForStakingContractMock {
         return value;
     }
 
-    function setMinRewardRate(uint256 _minRewardRate) public {
-        minRewardRate = _minRewardRate;
+    function setMinFeeRate(uint256 _minFeeRate) public {
+        minFeeRate = _minFeeRate;
     }
 
-    function additionalMethod(uint256 _minRewardRate) public {
-        minRewardRate = _minRewardRate;
+    function additionalMethod(uint256 _minFeeRate) public {
+        minFeeRate = _minFeeRate;
     }
 
     // TODO #1809
