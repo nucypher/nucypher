@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from pathlib import Path
 
 import json
 import os
@@ -290,9 +290,9 @@ class KeystoreSigner(Signer):
         Keystore must be in the geth wallet format.
         """
 
-    def __init__(self, path: str):
+    def __init__(self, path: Path):
         super().__init__()
-        self.__path = path
+        self.__path = Path(path)
         self.__keys = dict()
         self.__signers = dict()
         self.__read_keystore(path=path)
@@ -302,14 +302,15 @@ class KeystoreSigner(Signer):
             for account in self.__keys:
                 self.lock_account(account)
 
-    def __read_keystore(self, path: str) -> None:
+    def __read_keystore(self, path: Path) -> None:
         """Read the keystore directory from the disk and populate accounts."""
         try:
-            files = os.listdir(path=path)
+            files = os.listdir(path=str(path))
         except FileNotFoundError:
             raise self.InvalidSignerURI(f'No such keystore directory "{path}"')
-        for keyfile in files:
-            account, key_metadata = self.__handle_keyfile(path=keyfile)
+        for keyfile_name in files:
+            keyfile_path = self.path / keyfile_name
+            account, key_metadata = self.__handle_keyfile(path=str(keyfile_path))
             self.__keys[account] = key_metadata
 
     @staticmethod

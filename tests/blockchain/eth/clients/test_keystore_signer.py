@@ -1,3 +1,9 @@
+import shutil
+
+import json
+
+from pathlib import Path
+
 import os
 
 import pytest
@@ -14,6 +20,7 @@ from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 MOCK_KEYFILE_NAME = 'UTC--2019-12-04T05-39-04.006429310Z--0xdeadbeef'
 MOCK_KEYSTORE_PATH = '/mock-keystore'
 MOCK_KEYSTORE_URI = f'keystore://{MOCK_KEYSTORE_PATH}'
+MOCK_KEYFILE = {'address': '0x13978aee95f38490e9769C39B2773Ed763d9cd5F', 'version': 3}
 
 TRANSACTION_DICT = {
     "chainId": None,
@@ -96,6 +103,35 @@ def test_invalid_keystore(mocker, mock_listdir):
     mock_keyfile_reader.side_effect = None  # clean up this mess
 
 
+def test_signer_reads_keystore_from_disk(mock_listdir, mock_account, mock_key, tmpdir):
+
+    # Test reading a keyfile from the disk via KeystoreSigner since
+    # it is mocked for the rest of this test module
+    fake_ethereum = Path(tmpdir) / '.fake-ethereum'
+    try:
+        fake_ethereum.mkdir()
+
+        tmp_keystore = Path(tmpdir) / '.fake-ethereum' / 'keystore'
+        tmp_keystore.mkdir()
+
+        mock_keyfile_path = tmp_keystore / MOCK_KEYFILE_NAME
+        mock_keyfile_path.touch(exist_ok=True)
+
+        with open(mock_keyfile_path, 'w') as fake_keyfile:
+            fake_keyfile.write(json.dumps(MOCK_KEYFILE))
+
+        mock_keystore_uri = f'keystore://{tmp_keystore}'
+        signer = Signer.from_signer_uri(uri=mock_keystore_uri)
+
+        assert signer.path == tmp_keystore
+        assert len(signer.accounts) == 1
+        assert MOCK_KEYFILE['address'] in signer.accounts
+
+    finally:
+        if fake_ethereum.exists():
+            shutil.rmtree(fake_ethereum, ignore_errors=True)
+
+
 def test_create_signer(mocker, mock_listdir, mock_account, mock_key):
 
     # Return a "real" account address from the keyfile
@@ -103,7 +139,7 @@ def test_create_signer(mocker, mock_listdir, mock_account, mock_key):
     mock_keyfile_reader.return_value = mock_account.address, dict(address=mock_account.address)
 
     signer = Signer.from_signer_uri(uri=MOCK_KEYSTORE_URI)  # type: KeystoreSigner
-    assert signer.path == MOCK_KEYSTORE_PATH
+    assert signer.path == Path(MOCK_KEYSTORE_PATH)
     assert len(signer.accounts) == 1
     assert mock_account.address in signer.accounts
 
