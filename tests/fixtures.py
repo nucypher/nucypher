@@ -14,11 +14,10 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-import json
 import random
 
 import datetime
+import json
 import maya
 import os
 import pytest
@@ -405,11 +404,9 @@ def federated_ursulas(ursula_federated_test_config):
 # Blockchain
 #
 
-@pytest.fixture(scope='module')
-def token_economics():
+def make_token_economics(blockchain):
 
     # Get current blocktime
-    blockchain = BlockchainInterfaceFactory.get_interface()
     now = blockchain.w3.eth.getBlock(block_identifier='latest').timestamp
 
     # Calculate instant start time
@@ -431,6 +428,11 @@ def token_economics():
         worklock_min_allowed_bid=Web3.toWei(1, "ether")
     )
     return economics
+
+
+@pytest.fixture(scope='module')
+def token_economics(testerchain):
+    return make_token_economics(blockchain=testerchain)
 
 
 @pytest.fixture(scope='session')
@@ -469,14 +471,6 @@ def _make_testerchain(mock_backend: bool = False) -> TesterBlockchain:
     else:
         testerchain = TesterBlockchain(eth_airdrop=not mock_backend,
                                        free_transactions=True)
-
-    BlockchainInterfaceFactory.register_interface(interface=testerchain, force=True)
-
-    # Mock TransactingPower Consumption (Deployer)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     signer=Web3Signer(client=testerchain.client),
-                                                     account=testerchain.etherbase_account)
-    testerchain.transacting_power.activate()
     return testerchain
 
 
@@ -508,6 +502,14 @@ def testerchain(_testerchain) -> TesterBlockchain:
             _receipt = testerchain.wait_for_receipt(txhash)
             eth_amount = Web3().fromWei(spent, 'ether')
             testerchain.log.info("Airdropped {} ETH {} -> {}".format(eth_amount, tx['from'], tx['to']))
+
+    # if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=TEST_PROVIDER_URI):
+    BlockchainInterfaceFactory.register_interface(interface=testerchain, force=True)
+    # Mock TransactingPower Consumption (Deployer)
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                     signer=Web3Signer(client=testerchain.client),
+                                                     account=testerchain.etherbase_account)
+    testerchain.transacting_power.activate()
     yield testerchain
 
 
@@ -893,10 +895,11 @@ def stakeholder_configuration(testerchain, agency_local_registry):
 def manual_staker(testerchain, agency):
     token_agent, staking_agent, policy_agent = agency
 
+    # its okay to add this key if it already exists.
     address = '0xaaa23A5c74aBA6ca5E7c09337d5317A7C4563075'
-    staker_private_key = '13378db1c2af06933000504838afc2d52efa383206454deefb1836f8f4cd86f8'
-    if address not in testerchain.provider.ethereum_tester.get_accounts():
-        testerchain.provider.ethereum_tester.add_account(staker_private_key, password=INSECURE_DEVELOPMENT_PASSWORD)
+    if address not in testerchain.client.accounts:
+        staker_private_key = '13378db1c2af06933000504838afc2d52efa383206454deefb1836f8f4cd86f8'
+        address = testerchain.provider.ethereum_tester.add_account(staker_private_key, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     tx = {'to': address,
           'from': testerchain.etherbase_account,

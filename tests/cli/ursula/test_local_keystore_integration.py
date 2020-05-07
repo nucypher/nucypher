@@ -92,7 +92,6 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
                                                       custom_filepath,
                                                       stakeholder_configuration_file_location,
                                                       custom_config_filepath,
-                                                      agency_local_registry,
                                                       manual_staker,
                                                       stake_value,
                                                       token_economics,
@@ -108,8 +107,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     init_args = ('stake', 'init-stakeholder',
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
-                 '--network', TEMPORARY_DOMAIN,
-                 '--registry-filepath', agency_local_registry.filepath)
+                 '--network', TEMPORARY_DOMAIN)
     click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
 
     stake_args = ('stake', 'create',
@@ -143,7 +141,6 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
                  '--worker-address', worker_account.address,
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
-                 '--registry-filepath', agency_local_registry.filepath,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', MOCK_URSULA_STARTING_PORT,
 

@@ -24,9 +24,10 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainIn
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.sandbox.blockchain import MockBlockchain
+from nucypher.utilities.sandbox.constants import MOCK_PROVIDER_URI
 from tests.cli.functional.test_ursula_local_keystore_cli_functionality import NUMBER_OF_MOCK_ACCOUNTS, \
     KEYFILE_NAME_TEMPLATE
-from tests.fixtures import _make_testerchain
+from tests.fixtures import _make_testerchain, make_token_economics
 from tests.mock.agents import FAKE_RECEIPT, MockContractAgency
 
 
@@ -35,7 +36,13 @@ def mock_testerchain() -> MockBlockchain:
     BlockchainInterfaceFactory._interfaces = dict()
     testerchain = _make_testerchain(mock_backend=True)
     yield testerchain
-    
+    # BlockchainInterfaceFactory._interfaces.pop(MOCK_PROVIDER_URI)
+
+
+@pytest.fixture(scope='module')
+def token_economics(mock_testerchain):
+    return make_token_economics(blockchain=mock_testerchain)
+
 
 @pytest.fixture(scope='module', autouse=True)
 def mock_interface(module_mocker):
