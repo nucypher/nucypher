@@ -21,6 +21,7 @@ import random
 import pytest
 
 from nucypher.blockchain.eth.actors import Bidder
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.commands.worklock import worklock
 from nucypher.utilities.sandbox.constants import (
@@ -59,6 +60,55 @@ def test_status(click_runner, mock_worklock_agent, test_registry_source_manager)
     assert result.exit_code == 0
 
 
+@pytest.fixture(scope='module')
+def bidding_command(token_economics, surrogate_bidder):
+    minimum = token_economics.worklock_min_allowed_bid
+    bid_value = random.randint(minimum, minimum*100)
+    command = ('bid',
+               '--bidder-address', surrogate_bidder.checksum_address,
+               '--value', bid_value,
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
+               '--force')
+    return command
+
+
+def test_bid_too_soon(click_runner,
+                      mocker,
+                      mock_worklock_agent,
+                      token_economics,
+                      test_registry_source_manager,
+                      surrogate_bidder,
+                      mock_testerchain,
+                      bidding_command):
+
+    # Bidding window is not open yet
+    now = mock_testerchain.get_blocktime()
+    a_month_too_soon = now-(3600*30)
+    mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=a_month_too_soon)
+    with pytest.raises(Bidder.BiddingIsClosed):
+        result = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=YES, env=CLI_ENV)
+        assert result.exit_code != 0
+
+
+def test_bid_too_late(click_runner,
+                      mocker,
+                      mock_worklock_agent,
+                      token_economics,
+                      test_registry_source_manager,
+                      surrogate_bidder,
+                      mock_testerchain,
+                      bidding_command):
+
+    # Bidding window is closed
+    now = mock_testerchain.get_blocktime()
+    a_month_too_late = now+(3600*30)
+    mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=a_month_too_late)
+    with pytest.raises(Bidder.BiddingIsClosed):
+        result = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=YES, env=CLI_ENV)
+        assert result.exit_code != 0
+
+
 def test_valid_bid(click_runner,
                    mocker,
                    mock_worklock_agent,
@@ -67,15 +117,16 @@ def test_valid_bid(click_runner,
                    surrogate_bidder,
                    mock_testerchain):
 
-    # Bidding window is open # TODO something different and more granular?
-    mock_testerchain.time_travel(periods=1)
+    now = mock_testerchain.get_blocktime()
+    sometime_later = now + 100
+    mock_blocktime = mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=sometime_later)
 
     # Spy on the corresponding CLI function we are testing
     mock_ensure = mocker.spy(Bidder, 'ensure_bidding_is_open')
     mock_bidder = mocker.spy(Bidder, 'place_bid')
 
     minimum = token_economics.worklock_min_allowed_bid
-    bid_value = random.randint(minimum, minimum*100)
+    bid_value = random.randint(minimum, minimum * 100)
 
     command = ('bid',
                '--bidder-address', surrogate_bidder.checksum_address,
