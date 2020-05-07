@@ -297,7 +297,7 @@ class Character(Learner):
 
     @property
     def checksum_address(self):
-        if self._checksum_address is NO_BLOCKCHAIN_CONNECTION:
+        if not self._checksum_address:
             self._set_checksum_address()
         return self._checksum_address
 
@@ -518,12 +518,14 @@ class Character(Learner):
             public_address = verifying_key_as_eth_key.to_checksum_address()
         else:
             try:
+                # TODO: Some circular logic here if we haven't set the canonical address.
                 public_address = to_checksum_address(self.canonical_public_address)
             except TypeError:
-                raise TypeError("You can't use a decentralized character without a _checksum_address.")
+                public_address = NO_BLOCKCHAIN_CONNECTION
+                # raise TypeError("You can't use a decentralized character without a _checksum_address.")
             except NotImplementedError:
                 raise TypeError(
-                    "You can't use a plain Character in federated mode - you need to implement ether_address.")
+                    "You can't use a plain Character in federated mode - you need to implement ether_address.")  # TODO: update comment
 
         self._checksum_address = public_address
 
