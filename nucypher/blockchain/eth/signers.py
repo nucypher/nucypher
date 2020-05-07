@@ -335,7 +335,7 @@ class KeystoreSigner(Signer):
             error = f"Invalid JSON in keyfile at {path}"
             raise self.InvalidKeyfile(error)
         except KeyError:
-            error = "Keyfile does not contain address field at '{path}'"
+            error = f"Keyfile does not contain address field at '{path}'"
             raise self.InvalidKeyfile(error)
         else:
             if not is_address(address):
