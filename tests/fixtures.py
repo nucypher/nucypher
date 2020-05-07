@@ -26,7 +26,6 @@ from eth_utils import to_checksum_address
 from sqlalchemy.engine import create_engine
 from twisted.logger import Logger
 from typing import Tuple
-from typing import Union
 from umbral import pre
 from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPrivateKey
@@ -37,7 +36,6 @@ from nucypher.blockchain.economics import StandardTokenEconomics, BaseEconomics
 from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
-from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
@@ -47,12 +45,9 @@ from nucypher.blockchain.eth.deployers import (
     WorklockDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
-    RegistrySourceManager,
-    LocalContractRegistry,
-    CanonicalRegistrySource, BaseContractRegistry, IndividualAllocationRegistry
+    LocalContractRegistry
 )
 from nucypher.blockchain.eth.signers import Web3Signer
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
@@ -70,7 +65,7 @@ from nucypher.datastore import datastore
 from nucypher.datastore.db import Base
 from nucypher.policy.collections import IndisputableEvidence, WorkOrder
 from nucypher.utilities.logging import GlobalLoggerSettings
-from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain, MockBlockchain
+from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
@@ -90,6 +85,7 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddlewareForLargeFlee
 from nucypher.utilities.sandbox.policy import generate_random_label
 from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+from tests.mock.interfaces import make_mock_registry_source_manager, MockBlockchain
 from tests.performance_mocks import (
     mock_cert_storage,
     mock_cert_loading,
@@ -589,44 +585,9 @@ def _make_agency(testerchain,
     return token_agent, staking_agent, policy_agent
 
 
-def make_test_registry_source_manager(blockchain, test_registry):
-
-    blockchain = BlockchainInterfaceFactory.get_interface()
-
-    class MockRegistrySource(CanonicalRegistrySource):
-        name = "Mock Registry Source"
-        is_primary = False
-
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            if self.network != TEMPORARY_DOMAIN:
-                raise ValueError(f"Somehow, MockRegistrySource is trying to get a registry for '{self.network}'. "
-                                 f"Only '{TEMPORARY_DOMAIN}' is supported.'")
-            factory = blockchain.get_contract_factory(contract_name=PREALLOCATION_ESCROW_CONTRACT_NAME)
-            preallocation_escrow_abi = factory.abi
-            self.allocation_template = {
-                "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", preallocation_escrow_abi]
-            }
-
-        def get_publication_endpoint(self) -> str:
-            return f":mock-registry-source:/{self.network}/{self.registry_name}"
-
-        def fetch_latest_publication(self) -> Union[str, bytes]:
-            self.logger.debug(f"Reading registry at {self.get_publication_endpoint()}")
-            if self.registry_name == BaseContractRegistry.REGISTRY_NAME:
-                registry_data = test_registry.read()
-            elif self.registry_name == IndividualAllocationRegistry.REGISTRY_NAME:
-                registry_data = self.allocation_template
-            raw_registry_data = json.dumps(registry_data)
-            return raw_registry_data
-
-    RegistrySourceManager._FALLBACK_CHAIN = (MockRegistrySource,)
-    NetworksInventory.NETWORKS = (TEMPORARY_DOMAIN,)
-
-
 @pytest.fixture(scope='module')
 def test_registry_source_manager(testerchain, test_registry):
-    return make_test_registry_source_manager(blockchain=testerchain, test_registry=test_registry)
+    return make_mock_registry_source_manager(blockchain=testerchain, test_registry=test_registry)
 
 
 @pytest.fixture(scope='module')

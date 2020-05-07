@@ -25,9 +25,8 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from twisted.logger import Logger
 from web3 import Web3
-from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.economics import StandardTokenEconomics, StandardTokenEconomics, BaseEconomics
+from nucypher.blockchain.economics import StandardTokenEconomics, BaseEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
@@ -41,7 +40,7 @@ from nucypher.utilities.sandbox.constants import (
     NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-    INSECURE_DEVELOPMENT_PASSWORD, MOCK_PROVIDER_URI
+    INSECURE_DEVELOPMENT_PASSWORD
 )
 
 
@@ -283,12 +282,3 @@ class TesterBlockchain(BlockchainDeployerInterface):
         # https://github.com/ethereum/web3.py/issues/1490
         address = to_canonical_address(address)
         return self.client.w3.provider.ethereum_tester.backend.chain.get_vm().state.get_storage(address, slot)
-
-
-class MockBlockchain(TesterBlockchain):
-
-    _PROVIDER_URI = MOCK_PROVIDER_URI
-    _compiler = None
-
-    def __init__(self):
-        super().__init__(mock_backend=True)
