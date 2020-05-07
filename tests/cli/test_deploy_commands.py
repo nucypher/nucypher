@@ -206,7 +206,7 @@ def test_manual_proxy_retargeting(testerchain, click_runner, token_economics):
 
 def test_batch_deposits(click_runner,
                         testerchain,
-                        agency_local_registry, # FIXME: remove
+                        agency_local_registry,
                         mock_allocation_infile,
                         token_economics):
 
@@ -217,7 +217,6 @@ def test_batch_deposits(click_runner,
     deploy_command = ('allocations',
                       '--registry-infile', agency_local_registry.filepath,
                       '--allocation-infile', mock_allocation_infile,
-                      # '--allocations-outfile', MOCK_ALLOCATION_REGISTRY_FILEPATH,
                       '--provider', TEST_PROVIDER_URI)
 
     account_index = '0\n'
@@ -232,8 +231,6 @@ def test_batch_deposits(click_runner,
     assert result.exit_code == 0
     for allocation_address in testerchain.unassigned_accounts:
         assert allocation_address in result.output
-
-
 
 
 def test_manual_deployment_of_idle_network(click_runner):

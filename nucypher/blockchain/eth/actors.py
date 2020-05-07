@@ -515,45 +515,62 @@ class ContractAdministrator(NucypherTokenActor):
 
 
 class Allocator:
+
+    class AllocationInputError(Exception):
+        """Raised when the allocation data file doesn't have the correct format"""
+
+    OCCUPATION_RATIO = 0.9  # When there's no explicit gas limit, we'll try to use the block limit up to this ratio
+
     def __init__(self, filepath: str, registry, deployer_address):
 
         self.log = Logger("allocator")
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent,
                                                       registry=registry)  # type: StakingEscrowAgent
         self.max_substakes = self.staking_agent.contract.functions.MAX_SUB_STAKES().call()
-
-        with open(filepath, 'r') as allocation_file:
-            if filepath.endswith(".csv"):
-                reader = csv.DictReader(allocation_file)
-                allocation_data = list(reader)
-            else:  # Assume it's JSON by default
-                allocation_data = json.load(allocation_file)
-
         self.allocations = dict()
         self.deposited = set()
         self.economics = EconomicsFactory.get_economics(registry)
 
-        total_to_allocate = 0
+        self.__total_to_allocate = 0
+        self.__process_allocation_data(filepath)
+        self.__approve_token_transfer(registry, deployer_address)
+
+    def __process_allocation_data(self, filepath: str):
+        try:
+            with open(filepath, 'r') as allocation_file:
+                if filepath.endswith(".csv"):
+                    reader = csv.DictReader(allocation_file)
+                    allocation_data = list(reader)
+                else:  # Assume it's JSON by default
+                    allocation_data = json.load(allocation_file)
+        except FileNotFoundError:
+            raise self.AllocationInputError(f"No allocation data file found at {filepath}")
 
         # Pre-process allocations data
         for entry in allocation_data:
-            staker = to_checksum_address(entry['checksum_address'])
-            amount = int(entry['amount'])
-            lock_periods = int(entry['lock_periods'])
-            self._add_substake(staker, amount, lock_periods)
-            total_to_allocate += amount
+            try:
+                staker = to_checksum_address(entry['checksum_address'])
+                amount = int(entry['amount'])
+                lock_periods = int(entry['lock_periods'])
+            except (KeyError, ValueError) as e:
+                raise self.AllocationInputError(f"Invalid allocation data: {str(e)}")
+            else:
+                self._add_substake(staker, amount, lock_periods)
+                self.__total_to_allocate += amount
 
+    def __approve_token_transfer(self, registry, deployer_address):
         token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)  # type: NucypherTokenAgent
 
         balance = token_agent.get_balance(deployer_address)
-        if balance < total_to_allocate:
-            raise ValueError(f"Not enough tokens to allocate. We need at least {NU.from_nunits(total_to_allocate)}.")
+        if balance < self.__total_to_allocate:
+            raise ValueError(f"Not enough tokens to allocate."
+                             f"We need at least {NU.from_nunits(self.__total_to_allocate)}.")
 
         allowance = token_agent.get_allowance(owner=deployer_address, spender=self.staking_agent.contract_address)
-        if allowance < total_to_allocate:
-            self.log.debug(f"Allocating a total of {NU.from_nunits(total_to_allocate)}")
+        if allowance < self.__total_to_allocate:
+            self.log.debug(f"Allocating a total of {NU.from_nunits(self.__total_to_allocate)}")
             allowance_function = token_agent.contract.functions.increaseAllowance(self.staking_agent.contract_address,
-                                                                                  total_to_allocate - allowance)
+                                                                                  self.__total_to_allocate - allowance)
             _allowance_receipt = self.staking_agent.blockchain.send_transaction(contract_function=allowance_function,
                                                                                 sender_address=deployer_address)
 
@@ -594,7 +611,7 @@ class Allocator:
         batch_size = 1
         if not gas_limit:
             block_limit = self.staking_agent.blockchain.client.w3.eth.getBlock(block_identifier='latest').gasLimit
-            gas_limit = int(0.9 * block_limit)
+            gas_limit = int(self.OCCUPATION_RATIO * block_limit)
         self.log.debug(f"Gas limit for this batch is {gas_limit}")
 
         # Execute a dry-run of the batch deposit method, incrementing the batch size, until it's too big and fails.
