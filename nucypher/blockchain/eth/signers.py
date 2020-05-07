@@ -19,6 +19,7 @@ from json import JSONDecodeError
 
 import os
 import sys
+import stat
 from abc import ABC, abstractmethod
 from cytoolz.dicttoolz import dissoc
 from eth_account import Account
@@ -293,9 +294,9 @@ class KeystoreSigner(Signer):
         Keystore must be in the geth wallet format.
         """
 
-    def __init__(self, path: Path):
+    def __init__(self, path: str):
         super().__init__()
-        self.__path = Path(path)
+        self.__path = path
         self.__keys = dict()
         self.__signers = dict()
         self.__read_keystore(path=path)
@@ -305,15 +306,22 @@ class KeystoreSigner(Signer):
             for account in self.__keys:
                 self.lock_account(account)
 
-    def __read_keystore(self, path: Path) -> None:
+    def __read_keystore(self, path: str) -> None:
         """Read the keystore directory from the disk and populate accounts."""
         try:
-            files = os.listdir(path=str(path))
+            st_mode = os.stat(path=path).st_mode
+            if stat.S_ISDIR(st_mode):
+                paths = (entry.path for entry in os.scandir(path=path) if entry.is_file())
+            elif stat.S_ISREG(st_mode):
+                paths = (path,)
+            else:
+                raise self.InvalidSignerURI(f'Invalid keystore file or directory "{path}"')
         except FileNotFoundError:
-            raise self.InvalidSignerURI(f'No such keystore directory "{path}"')
-        for keyfile_name in files:
-            keyfile_path = self.path / keyfile_name
-            account, key_metadata = self.__handle_keyfile(path=str(keyfile_path))
+            raise self.InvalidSignerURI(f'No such keystore file or directory "{path}"')
+        except OSError as exc:
+            raise self.InvalidSignerURI(f'Error accessing keystore file or directory "{path}": {exc}')
+        for path in paths:
+            account, key_metadata = self.__handle_keyfile(path=path)
             self.__keys[account] = key_metadata
 
     @staticmethod
