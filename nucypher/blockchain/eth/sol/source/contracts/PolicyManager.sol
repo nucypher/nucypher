@@ -80,7 +80,7 @@ contract PolicyManager is Upgradeable {
 
     struct NodeInfo {
         uint128 fee;
-        uint16 lastMinedPeriod;
+        uint16 previousFeePeriod;
         uint256 feeRate;
         uint256 minFeeRate;
         mapping (uint16 => int256) feeDelta;
@@ -140,8 +140,8 @@ contract PolicyManager is Upgradeable {
     */
     function register(address _node, uint16 _period) external onlyEscrowContract {
         NodeInfo storage nodeInfo = nodes[_node];
-        require(nodeInfo.lastMinedPeriod == 0 && _period < getCurrentPeriod());
-        nodeInfo.lastMinedPeriod = _period;
+        require(nodeInfo.previousFeePeriod == 0 && _period < getCurrentPeriod());
+        nodeInfo.previousFeePeriod = _period;
     }
 
     /**
@@ -235,8 +235,8 @@ contract PolicyManager is Upgradeable {
             address node = _nodes[i];
             require(node != RESERVED_NODE);
             NodeInfo storage nodeInfo = nodes[node];
-            require(nodeInfo.lastMinedPeriod != 0 &&
-                nodeInfo.lastMinedPeriod < currentPeriod &&
+            require(nodeInfo.previousFeePeriod != 0 &&
+                nodeInfo.previousFeePeriod < currentPeriod &&
                 policy.feeRate >= getMinFeeRate(nodeInfo));
             // Check default value for feeDelta
             if (nodeInfo.feeDelta[currentPeriod] == DEFAULT_FEE_DELTA) {
@@ -299,10 +299,10 @@ contract PolicyManager is Upgradeable {
     */
     function updateFee(address _node, uint16 _period) external onlyEscrowContract {
         NodeInfo storage node = nodes[_node];
-        if (node.lastMinedPeriod == 0 || _period <= node.lastMinedPeriod) {
+        if (node.previousFeePeriod == 0 || _period <= node.previousFeePeriod) {
             return;
         }
-        for (uint16 i = node.lastMinedPeriod + 1; i <= _period; i++) {
+        for (uint16 i = node.previousFeePeriod + 1; i <= _period; i++) {
             int256 delta = node.feeDelta[i];
             if (delta == DEFAULT_FEE_DELTA) {
                 // gas refund
@@ -322,7 +322,7 @@ contract PolicyManager is Upgradeable {
                 node.feeDelta[i] = 0;
             }
         }
-        node.lastMinedPeriod = _period;
+        node.previousFeePeriod = _period;
         node.fee += uint128(node.feeRate);
     }
 
@@ -729,7 +729,7 @@ contract PolicyManager is Upgradeable {
         NodeInfo memory nodeInfoToCheck = delegateGetNodeInfo(_testTarget, RESERVED_NODE);
         require(nodeInfoToCheck.fee == nodeInfo.fee &&
             nodeInfoToCheck.feeRate == nodeInfo.feeRate &&
-            nodeInfoToCheck.lastMinedPeriod == nodeInfo.lastMinedPeriod &&
+            nodeInfoToCheck.previousFeePeriod == nodeInfo.previousFeePeriod &&
             nodeInfoToCheck.minFeeRate == nodeInfo.minFeeRate);
 
         require(int256(delegateGet(_testTarget, this.getNodeFeeDelta.selector,
@@ -751,7 +751,7 @@ contract PolicyManager is Upgradeable {
         NodeInfo storage nodeInfo = nodes[RESERVED_NODE];
         nodeInfo.fee = 100;
         nodeInfo.feeRate = 33;
-        nodeInfo.lastMinedPeriod = 44;
+        nodeInfo.previousFeePeriod = 44;
         nodeInfo.feeDelta[11] = 55;
         nodeInfo.minFeeRate = 777;
     }

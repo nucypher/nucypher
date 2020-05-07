@@ -231,7 +231,7 @@ abstract contract Issuer is Upgradeable {
     }
 
     /**
-    * @notice Returns the number of tokens that can be mined
+    * @notice Returns the number of tokens that can be minted
     */
     function getReservedReward() public view returns (uint256) {
         return totalSupply - currentPeriodSupply;

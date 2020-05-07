@@ -22,7 +22,7 @@ from web3.contract import Contract
 
 
 @pytest.mark.slow
-def test_mining(testerchain, token, escrow_contract, token_economics):
+def test_minting(testerchain, token, escrow_contract, token_economics):
 
     escrow = escrow_contract(1500)
     policy_manager_interface = testerchain.get_contract_factory('PolicyManagerForStakingEscrowMock')
@@ -41,7 +41,7 @@ def test_mining(testerchain, token, escrow_contract, token_economics):
                (locked_periods + token_economics.lock_duration_coefficient_1) // \
                (total_locked * token_economics.lock_duration_coefficient_2)
 
-    staking_log = escrow.events.Mined.createFilter(fromBlock='latest')
+    staking_log = escrow.events.Minted.createFilter(fromBlock='latest')
     deposit_log = escrow.events.Deposited.createFilter(fromBlock='latest')
     lock_log = escrow.events.Locked.createFilter(fromBlock='latest')
     activity_log = escrow.events.ActivityConfirmed.createFilter(fromBlock='latest')
@@ -160,7 +160,7 @@ def test_mining(testerchain, token, escrow_contract, token_economics):
     testerchain.wait_for_receipt(tx)
 
     current_period = escrow.functions.getCurrentPeriod().call()
-    # Check result of mining
+    # Check result of minting
     total_locked = ursula1_stake + ursula2_stake
     ursula1_reward = calculate_reward(500, total_locked, 1) + calculate_reward(500, total_locked, 2)
     assert ursula1_stake + ursula1_reward == escrow.functions.getAllTokens(ursula1).call()
@@ -519,7 +519,7 @@ def test_slashing(testerchain, token, escrow_contract, token_economics, deploy_c
     assert 290 == escrow.functions.getLockedTokensInPast(ursula, 1).call()
     assert 290 == escrow.functions.getLockedTokens(ursula, 0).call()
     assert 180 == escrow.functions.getLockedTokens(ursula, 2).call()
-    deposit = escrow.functions.getAllTokens(ursula).call()  # Some reward is already mined
+    deposit = escrow.functions.getAllTokens(ursula).call()  # Some reward is already minted
     assert 290 == escrow.functions.lockedPerPeriod(current_period - 1).call()
     assert 0 == escrow.functions.lockedPerPeriod(current_period).call()
 
@@ -595,7 +595,7 @@ def test_slashing(testerchain, token, escrow_contract, token_economics, deploy_c
     assert 170 == escrow.functions.getLockedTokens(ursula, 0).call()
     assert 270 == escrow.functions.getLockedTokens(ursula, 1).call()
     assert 270 == escrow.functions.lockedPerPeriod(current_period + 1).call()
-    deposit = escrow.functions.getAllTokens(ursula).call()  # Some reward is already mined
+    deposit = escrow.functions.getAllTokens(ursula).call()  # Some reward is already minted
     unlocked_deposit = deposit - 270
     reward = escrow.functions.getReservedReward().call()
 
@@ -640,7 +640,7 @@ def test_slashing(testerchain, token, escrow_contract, token_economics, deploy_c
     assert 260 == escrow.functions.lockedPerPeriod(current_period - 1).call()
     assert 260 == escrow.functions.lockedPerPeriod(current_period).call()
     assert 260 == escrow.functions.lockedPerPeriod(current_period + 1).call()
-    deposit = escrow.functions.getAllTokens(ursula).call()  # Some reward is already mined
+    deposit = escrow.functions.getAllTokens(ursula).call()  # Some reward is already minted
     unlocked_deposit = deposit - 260
 
     # Slash two sub stakes:
@@ -759,7 +759,7 @@ def test_slashing(testerchain, token, escrow_contract, token_economics, deploy_c
     assert 100 == escrow.functions.getLockedTokens(ursula2, 2).call()
 
     # Withdraw all not locked tokens
-    deposit = escrow.functions.getAllTokens(ursula2).call()  # Some reward is already mined
+    deposit = escrow.functions.getAllTokens(ursula2).call()  # Some reward is already minted
     unlocked_deposit = deposit - 150
     tx = escrow.functions.withdraw(unlocked_deposit).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)

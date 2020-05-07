@@ -132,7 +132,7 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
 
     locks = staking_contract_interface.events.Locked.createFilter(fromBlock='latest')
     divides = staking_contract_interface.events.Divided.createFilter(fromBlock='latest')
-    mints = staking_contract_interface.events.Mined.createFilter(fromBlock='latest')
+    mints = staking_contract_interface.events.Minted.createFilter(fromBlock='latest')
     staker_withdraws = staking_contract_interface.events.WithdrawnAsStaker.createFilter(fromBlock='latest')
     re_stakes = staking_contract_interface.events.ReStakeSet.createFilter(fromBlock='latest')
     re_stake_locks = staking_contract_interface.events.ReStakeLocked.createFilter(fromBlock='latest')

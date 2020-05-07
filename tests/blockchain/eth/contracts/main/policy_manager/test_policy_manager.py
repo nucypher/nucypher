@@ -33,7 +33,7 @@ START_TIMESTAMP_FIELD = 4
 END_TIMESTAMP_FIELD = 5
 
 FEE_FIELD = 0
-LAST_MINED_PERIOD_FIELD = 1
+PREVIOUS_FEE_PERIOD_FIELD = 1
 FEE_RATE_FIELD = 2
 MIN_FEE_RATE_FIELD = 3
 
@@ -72,7 +72,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
 
     tx = escrow.functions.register(node_for_registering, current_period - 1).transact()
     testerchain.wait_for_receipt(tx)
-    assert 0 < policy_manager.functions.nodes(node_for_registering).call()[LAST_MINED_PERIOD_FIELD]
+    assert 0 < policy_manager.functions.nodes(node_for_registering).call()[PREVIOUS_FEE_PERIOD_FIELD]
 
     # Can't register twice
     with pytest.raises((TransactionFailed, ValueError)):
@@ -80,10 +80,10 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         testerchain.wait_for_receipt(tx)
 
     # Check registered nodes
-    assert 0 < policy_manager.functions.nodes(node1).call()[LAST_MINED_PERIOD_FIELD]
-    assert 0 < policy_manager.functions.nodes(node2).call()[LAST_MINED_PERIOD_FIELD]
-    assert 0 < policy_manager.functions.nodes(node3).call()[LAST_MINED_PERIOD_FIELD]
-    assert 0 == policy_manager.functions.nodes(bad_node).call()[LAST_MINED_PERIOD_FIELD]
+    assert 0 < policy_manager.functions.nodes(node1).call()[PREVIOUS_FEE_PERIOD_FIELD]
+    assert 0 < policy_manager.functions.nodes(node2).call()[PREVIOUS_FEE_PERIOD_FIELD]
+    assert 0 < policy_manager.functions.nodes(node3).call()[PREVIOUS_FEE_PERIOD_FIELD]
+    assert 0 == policy_manager.functions.nodes(bad_node).call()[PREVIOUS_FEE_PERIOD_FIELD]
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     policy_id = os.urandom(POLICY_ID_LENGTH)
@@ -650,10 +650,10 @@ def test_handling_wrong_state(testerchain, deploy_contract):
         tx = escrow.functions.mint(current_period - 1, 1).transact({'from': node1})
         testerchain.wait_for_receipt(tx)
 
-    fee, last_mined_period, fee_rate, _min_fee_rate = policy_manager.functions.nodes(node1).call()
+    fee, previous_fee_period, fee_rate, _min_fee_rate = policy_manager.functions.nodes(node1).call()
     assert fee == 0
     assert fee_rate == 0
-    assert last_mined_period == current_period - 1
+    assert previous_fee_period == current_period - 1
     assert policy_manager.functions.getNodeFeeDelta(node1, initial_period).call() == 1
     for i in range(1, number_of_periods):
         assert policy_manager.functions.getNodeFeeDelta(node1, initial_period + i).call() == 0
@@ -691,10 +691,10 @@ def test_handling_wrong_state(testerchain, deploy_contract):
         tx = escrow.functions.mint(current_period - 1, 1).transact({'from': node2})
         testerchain.wait_for_receipt(tx)
 
-    fee, last_mined_period, fee_rate, _min_fee_rate = policy_manager.functions.nodes(node2).call()
+    fee, previous_fee_period, fee_rate, _min_fee_rate = policy_manager.functions.nodes(node2).call()
     assert fee == 50 * (number_of_periods - 2)
     assert fee_rate == 0
-    assert last_mined_period == current_period - 1
+    assert previous_fee_period == current_period - 1
     assert policy_manager.functions.getNodeFeeDelta(node2, initial_period).call() == 100
     for i in range(1, number_of_periods - 2):
         assert policy_manager.functions.getNodeFeeDelta(node2, initial_period + i).call() == 0

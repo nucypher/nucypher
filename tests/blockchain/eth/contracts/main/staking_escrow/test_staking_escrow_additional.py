@@ -364,7 +364,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert sub_stake == escrow.functions.lockedPerPeriod(period).call()
     assert 0 == escrow.functions.lockedPerPeriod(period + 1).call()
 
-    # Confirm activity and try to mine without re-stake
+    # Confirm activity and try to mint without re-stake
     tx = escrow.functions.confirmActivity().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
@@ -410,7 +410,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert staker == event_args['staker']
     assert period + 6 == event_args['lockUntilPeriod']
 
-    # Confirm activity and try to mine with re-stake
+    # Confirm activity and try to mint with re-stake
     tx = escrow.functions.confirmActivity().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
@@ -429,7 +429,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
     assert new_sub_stake == escrow.functions.lockedPerPeriod(period).call()
 
-    # Mine with re-stake again
+    # Mint with re-stake again
     testerchain.time_travel(hours=1)
     period = escrow.functions.getCurrentPeriod().call()
     sub_stake = new_sub_stake
@@ -487,9 +487,9 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert 2 * stake == escrow.functions.lockedPerPeriod(period - 1).call()
     assert 0 == escrow.functions.lockedPerPeriod(period).call()
 
-    # Compare mining with re-stake and without for two surpassed periods
+    # Compare minting with re-stake and without for two surpassed periods
     # The first is Ursula2 because of Ursula1's re-stake will change sub stake ratio for `period - 1`
-    # (stake/lockedPerPeriod) and it will affect next mining
+    # (stake/lockedPerPeriod) and it will affect next minting
     tx = escrow.functions.mint().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.mint().transact({'from': staker})
@@ -524,7 +524,7 @@ def test_re_stake(testerchain, token, escrow_contract):
         tx = escrow.functions.setReStake(False).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
 
-    # Confirm activity and try to mine without re-stake
+    # Confirm activity and try to mint without re-stake
     tx = escrow.functions.confirmActivity().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
@@ -541,7 +541,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert staker == event_args['staker']
     assert not event_args['reStake']
 
-    # Check before mining
+    # Check before minting
     testerchain.time_travel(hours=1)
     period = escrow.functions.getCurrentPeriod().call()
     sub_stake = escrow.functions.getLockedTokensInPast(staker, 1).call()

@@ -595,7 +595,7 @@ def test_max_sub_stakes(testerchain, token, escrow_contract):
     assert 2900 == escrow.functions.getLockedTokens(staker, 0).call()
     assert 0 == escrow.functions.getLockedTokens(staker, 1).call()
     assert MAX_SUB_STAKES == escrow.functions.getSubStakesLength(staker).call()
-    # Before sub stake will be inactive it must be mined
+    # Before sub stake will be inactive it must be rewarded
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.deposit(100, 2).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
@@ -607,7 +607,7 @@ def test_max_sub_stakes(testerchain, token, escrow_contract):
     assert 100 == escrow.functions.getLockedTokens(staker, 1).call()
     assert MAX_SUB_STAKES == escrow.functions.getSubStakesLength(staker).call()
 
-    # Can't lock more because of reaching the maximum number of active sub stakes and they are not mined yet
+    # Can't lock more because of reaching the maximum number of active sub stakes and they are not rewarded yet
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.deposit(100, 2).transact({'from': staker})
         testerchain.wait_for_receipt(tx)

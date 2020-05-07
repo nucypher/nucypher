@@ -293,8 +293,8 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     # Wait 1 period and mint tokens
     #
     testerchain.time_travel(periods=1)
-    transact_and_log("Mining (1 stake), first", staker_functions.mint(), {'from': ursula1})
-    transact_and_log("Mining (1 stake), other", staker_functions.mint(), {'from': ursula2})
+    transact_and_log("Minting (1 stake), first", staker_functions.mint(), {'from': ursula1})
+    transact_and_log("Minting (1 stake), other", staker_functions.mint(), {'from': ursula2})
     transact_and_log("Confirm activity again, first", staker_functions.confirmActivity(), {'from': ursula1})
     transact_and_log("Confirm activity again, other", staker_functions.confirmActivity(), {'from': ursula2})
     transact(staker_functions.confirmActivity(), {'from': ursula3})
@@ -408,8 +408,8 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     testerchain.time_travel(periods=1)
     transact(staker_functions.mint(), {'from': ursula3})
-    transact_and_log("Last mining + updating fee + updating fee rate", staker_functions.mint(), {'from': ursula1})
-    transact_and_log("Last mining + first fee + first fee rate", staker_functions.mint(), {'from': ursula2})
+    transact_and_log("Last minting + updating fee + updating fee rate", staker_functions.mint(), {'from': ursula1})
+    transact_and_log("Last minting + first fee + first fee rate", staker_functions.mint(), {'from': ursula2})
 
     #
     # Create policy again without pre-confirmed nodes
@@ -435,7 +435,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                      {'from': alice1, 'value': value})
 
     #
-    # Mine and revoke policy
+    # Mint and revoke policy
     #
     testerchain.time_travel(periods=10)
     transact(staker_functions.confirmActivity(), {'from': ursula1})
@@ -443,7 +443,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
 
     testerchain.time_travel(periods=2)
     transact(staker_functions.mint(), {'from': ursula3})
-    transact_and_log("Last mining after downtime + updating fee",
+    transact_and_log("Last minting after downtime + updating fee",
                      staker_functions.mint(),
                      {'from': ursula1})
 

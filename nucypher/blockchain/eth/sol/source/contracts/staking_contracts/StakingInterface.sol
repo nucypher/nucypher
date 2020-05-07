@@ -78,7 +78,7 @@ contract StakingInterface is BaseStakingInterface {
     event WithdrawnAsStaker(address indexed sender, uint256 value);
     event Locked(address indexed sender, uint256 value, uint16 periods);
     event Divided(address indexed sender, uint256 index, uint256 newValue, uint16 periods);
-    event Mined(address indexed sender);
+    event Minted(address indexed sender);
     event PolicyFeeWithdrawn(address indexed sender, uint256 value);
     event MinFeeRateSet(address indexed sender, uint256 value);
     event ReStakeSet(address indexed sender, bool reStake);
@@ -189,7 +189,7 @@ contract StakingInterface is BaseStakingInterface {
     */
     function mint() public onlyDelegateCall {
         escrow.mint();
-        emit Mined(msg.sender);
+        emit Minted(msg.sender);
     }
 
     /**

@@ -59,7 +59,7 @@ contract StakingEscrow is Issuer, IERC900History {
     event Prolonged(address indexed staker, uint256 value, uint16 lastPeriod, uint16 periods);
     event Withdrawn(address indexed staker, uint256 value);
     event ActivityConfirmed(address indexed staker, uint16 indexed period, uint256 value);
-    event Mined(address indexed staker, uint16 indexed period, uint256 value);
+    event Minted(address indexed staker, uint16 indexed period, uint256 value);
     event Slashed(address indexed staker, uint256 penalty, address indexed investigator, uint256 reward);
     event ReStakeSet(address indexed staker, bool reStake);
     event ReStakeLocked(address indexed staker, uint16 lockUntilPeriod);
@@ -83,10 +83,10 @@ contract StakingEscrow is Issuer, IERC900History {
     struct StakerInfo {
         uint256 value;
         /*
-        * Stores periods that are confirmed but not yet mined.
+        * Stores periods that are confirmed but not yet rewarded.
         * In order to optimize storage, only two values are used instead of an array.
         * confirmActivity() method invokes mint() method so there can only be two confirmed
-        * periods that are not yet mined: the current and the next periods.
+        * periods that are not yet rewarded: the current and the next periods.
         */
         uint16 currentConfirmedPeriod;
         uint16 nextConfirmedPeriod;
@@ -140,7 +140,7 @@ contract StakingEscrow is Issuer, IERC900History {
     WorkLockInterface public workLock;
 
     /**
-    * @notice Constructor sets address of token contract and coefficients for mining
+    * @notice Constructor sets address of token contract and coefficients for minting
     * @param _token Token contract
     * @param _hoursPerPeriod Size of period in hours
     * @param _issuanceDecayCoefficient (d) Coefficient which modifies the rate at which the maximum issuance decays,
@@ -322,7 +322,7 @@ contract StakingEscrow is Issuer, IERC900History {
 
     /**
     * @notice Get the value of locked tokens for a staker in a specified period
-    * @dev Information may be incorrect for mined or unconfirmed surpassed period
+    * @dev Information may be incorrect for rewarded or unconfirmed surpassed period
     * @param _info Staker structure
     * @param _currentPeriod Current period
     * @param _period Next period
@@ -358,7 +358,7 @@ contract StakingEscrow is Issuer, IERC900History {
 
     /**
     * @notice Get the value of locked tokens for a staker in a previous period
-    * @dev Information may be incorrect for mined or unconfirmed surpassed period
+    * @dev Information may be incorrect for rewarded or unconfirmed surpassed period
     * @param _staker Staker
     * @param _periods Amount of periods that will be subtracted from the current period
     */
@@ -811,7 +811,7 @@ contract StakingEscrow is Issuer, IERC900History {
 
     /**
     * @notice Save sub stake. First tries to override inactive sub stake
-    * @dev Inactive sub stake means that last period of sub stake has been surpassed and already mined
+    * @dev Inactive sub stake means that last period of sub stake has been surpassed and already rewarded
     * @param _info Staker structure
     * @param _firstPeriod First period of the sub stake
     * @param _lastPeriod Last period of the sub stake
@@ -916,7 +916,7 @@ contract StakingEscrow is Issuer, IERC900History {
     }
 
     /**
-    * @notice Confirm activity for the next period and mine for the previous period
+    * @notice Confirm activity for the next period and mint for the previous period
     */
     function confirmActivity() external isInitialized {
         address staker = getStakerFromWorker(msg.sender);
@@ -1022,7 +1022,7 @@ contract StakingEscrow is Issuer, IERC900History {
         }
 
         addSnapshot(info, int256(reward));
-        emit Mined(_staker, previousPeriod, reward);
+        emit Minted(_staker, previousPeriod, reward);
     }
 
     /**
