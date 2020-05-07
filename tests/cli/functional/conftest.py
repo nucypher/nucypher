@@ -35,8 +35,8 @@ from tests.mock.agents import FAKE_RECEIPT, MockContractAgency
 def mock_testerchain() -> MockBlockchain:
     BlockchainInterfaceFactory._interfaces = dict()
     testerchain = _make_testerchain(mock_backend=True)
+    BlockchainInterfaceFactory.register_interface(interface=testerchain)
     yield testerchain
-    # BlockchainInterfaceFactory._interfaces.pop(MOCK_PROVIDER_URI)
 
 
 @pytest.fixture(scope='module')
@@ -59,7 +59,9 @@ def test_registry():
 
 @pytest.fixture(scope='module')
 def test_registry_source_manager(mock_testerchain, test_registry):
-    return make_mock_registry_source_manager(blockchain=mock_testerchain, test_registry=test_registry)
+    return make_mock_registry_source_manager(blockchain=mock_testerchain,
+                                             test_registry=test_registry,
+                                             mock_backend=True)
 
 
 @pytest.fixture(scope='module', autouse=True)

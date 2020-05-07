@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from pathlib import Path
 
 import json
 import os
@@ -75,12 +76,12 @@ def custom_config_filepath(custom_filepath):
 def mock_keystore(mock_accounts, monkeypatch, mocker):
 
     def mock_keyfile_reader(_keystore, path):
-        try:
-            account = mock_accounts[path]
-        except KeyError:
-            pytest.fail()
+        for filename, account in mock_accounts.items():  # Walk the mock filesystem
+            if filename in path:
+                break
         else:
-            return account.address, dict(version=3, address=account.address)
+            raise FileNotFoundError(f"No such file {path}")
+        return account.address, dict(version=3, address=account.address)
 
     mocker.patch('os.listdir', return_value=list(mock_accounts.keys()))
     monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keyfile', mock_keyfile_reader)
@@ -173,7 +174,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
 
     # Verify the keystore path is still preserved
     assert isinstance(ursula.signer, KeystoreSigner)
-    assert ursula.signer.path == MOCK_KEYSTORE_PATH
+    assert ursula.signer.path == Path(MOCK_KEYSTORE_PATH)
 
     # Show that we can produce the exact same signer as pre-config...
     assert pre_config_signer.path == ursula.signer.path

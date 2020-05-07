@@ -119,4 +119,3 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
 
     # Show that we can produce the exact same signer as pre-config...
     assert pre_config_signer.path == ursula.signer.path
-

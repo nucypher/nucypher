@@ -15,7 +15,7 @@ from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN, MOCK_PROVIDER_URI
 
 
-def make_mock_registry_source_manager(blockchain, test_registry):
+def make_mock_registry_source_manager(blockchain, test_registry, mock_backend: bool = False):
 
     class MockRegistrySource(CanonicalRegistrySource):
         name = "Mock Registry Source"
@@ -26,11 +26,13 @@ def make_mock_registry_source_manager(blockchain, test_registry):
             if self.network != TEMPORARY_DOMAIN:
                 raise ValueError(f"Somehow, MockRegistrySource is trying to get a registry for '{self.network}'. "
                                  f"Only '{TEMPORARY_DOMAIN}' is supported.'")
-            factory = blockchain.get_contract_factory(contract_name=PREALLOCATION_ESCROW_CONTRACT_NAME)
-            preallocation_escrow_abi = factory.abi
-            self.allocation_template = {
-                "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", preallocation_escrow_abi]
-            }
+
+            if not mock_backend:
+                factory = blockchain.get_contract_factory(contract_name=PREALLOCATION_ESCROW_CONTRACT_NAME)
+                preallocation_escrow_abi = factory.abi
+                self.allocation_template = {
+                    "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", preallocation_escrow_abi]
+                }
 
         def get_publication_endpoint(self) -> str:
             return f":mock-registry-source:/{self.network}/{self.registry_name}"
