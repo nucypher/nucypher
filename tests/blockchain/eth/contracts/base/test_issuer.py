@@ -79,9 +79,9 @@ def test_issuer(testerchain, token, deploy_contract):
     tx = token.functions.approve(issuer.address, economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
-    # Can't burn tokens before initialization
+    # Can't donate tokens before initialization
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = issuer.functions.burn(1).transact({'from': creator})
+        tx = issuer.functions.donate(1).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     # Only owner can initialize
@@ -259,22 +259,22 @@ def test_issuance_first_phase(testerchain, token, deploy_contract):
 
     # Return some tokens as a reward
     reward = issuer.functions.getReservedReward().call()
-    amount_to_burn = 4 * one_period + minted_amount_second_phase
-    tx = token.functions.approve(issuer.address, amount_to_burn).transact({'from': staker})
+    amount_to_donate = 4 * one_period + minted_amount_second_phase
+    tx = token.functions.approve(issuer.address, amount_to_donate).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    tx = issuer.functions.burn(amount_to_burn).transact({'from': staker})
+    tx = issuer.functions.donate(amount_to_donate).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert reward + amount_to_burn == issuer.functions.getReservedReward().call()
+    assert reward + amount_to_donate == issuer.functions.getReservedReward().call()
     assert one_period == token.functions.balanceOf(staker).call()
 
-    events = issuer.events.Burnt.createFilter(fromBlock=0).get_all_entries()
+    events = issuer.events.Donated.createFilter(fromBlock=0).get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
     assert staker == event_args['sender']
-    assert amount_to_burn == event_args['value']
+    assert amount_to_donate == event_args['value']
 
     # Switch back to the first phase
-    reward += amount_to_burn
+    reward += amount_to_donate
     tx = issuer.functions.testMint(period + 5, 1, 1, economics.maximum_rewarded_periods).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     assert 2 * one_period == token.functions.balanceOf(staker).call()
@@ -354,20 +354,20 @@ def test_issuance_second_phase(testerchain, token, deploy_contract):
     # Return some tokens as a reward
     balance = token.functions.balanceOf(staker).call()
     reward = issuer.functions.getReservedReward().call()
-    amount_to_burn = 2 * one_period + 2 * minted_amount
-    tx = token.functions.transfer(staker, amount_to_burn).transact({'from': creator})
+    amount_to_donate = 2 * one_period + 2 * minted_amount
+    tx = token.functions.transfer(staker, amount_to_donate).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = token.functions.approve(issuer.address, amount_to_burn).transact({'from': staker})
+    tx = token.functions.approve(issuer.address, amount_to_donate).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    tx = issuer.functions.burn(amount_to_burn).transact({'from': staker})
+    tx = issuer.functions.donate(amount_to_donate).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    assert reward + amount_to_burn == issuer.functions.getReservedReward().call()
+    assert reward + amount_to_donate == issuer.functions.getReservedReward().call()
 
-    events = issuer.events.Burnt.createFilter(fromBlock=0).get_all_entries()
+    events = issuer.events.Donated.createFilter(fromBlock=0).get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
     assert staker == event_args['sender']
-    assert amount_to_burn == event_args['value']
+    assert amount_to_donate == event_args['value']
 
     # Rate will be increased because some tokens were returned
     tx = issuer.functions.testMint(period + 3, 1, 1, 0).transact({'from': staker})
