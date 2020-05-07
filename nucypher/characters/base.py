@@ -83,7 +83,11 @@ class Character(Learner):
 
         """
 
-        Base class for Nucypher protocol actors.
+        A participant in the cryptological drama (a screenplay, if you like) of NuCypher.
+
+        Characters can represent users, nodes, wallets, offline devices, or other objects of varying levels of abstraction.
+
+        The Named Characters use this class as a Base, and achieve their individuality from additional methods and PowerUps.
 
 
         PowerUps
