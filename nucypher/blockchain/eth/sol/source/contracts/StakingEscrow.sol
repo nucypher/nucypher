@@ -37,7 +37,7 @@ interface WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v4.2.2|
+* @dev |v5.1.1|
 */
 contract StakingEscrow is Issuer, IERC900History {
 
@@ -130,7 +130,7 @@ contract StakingEscrow is Issuer, IERC900History {
 
     mapping (address => StakerInfo) public stakerInfo;
     address[] public stakers;
-    mapping (address => address) public workerToStaker;
+    mapping (address => address) public stakerFromWorker;
 
     mapping (uint16 => uint256) public lockedPerPeriod;
     uint128[] public balanceHistory;
@@ -447,13 +447,6 @@ contract StakingEscrow is Issuer, IERC900History {
     }
 
     /**
-    * @notice Get staker using worker's address
-    */
-    function getStakerFromWorker(address _worker) public view returns (address) {
-        return workerToStaker[_worker];
-    }
-
-    /**
     * @notice Get work that completed by the staker
     */
     function getCompletedWork(address _staker) external view returns (uint256) {
@@ -505,15 +498,15 @@ contract StakingEscrow is Issuer, IERC900History {
             require(currentPeriod >= info.workerStartPeriod.add16(minWorkerPeriods),
                 "Not enough time has passed since the previous setting worker");
             // Remove the old relation "worker->staker"
-            workerToStaker[info.worker] = address(0);
+            stakerFromWorker[info.worker] = address(0);
         }
 
         if (_worker != address(0)) {
-            require(workerToStaker[_worker] == address(0), "Specified worker is already in use");
+            require(stakerFromWorker[_worker] == address(0), "Specified worker is already in use");
             require(stakerInfo[_worker].subStakes.length == 0 || _worker == msg.sender,
                 "Specified worker is a staker");
             // Set new worker->staker relation
-            workerToStaker[_worker] = msg.sender;
+            stakerFromWorker[_worker] = msg.sender;
         }
 
         // Set new worker (or unset if _worker == address(0))
@@ -660,7 +653,7 @@ contract StakingEscrow is Issuer, IERC900History {
             require(numberOfSubStakes > 0 && subStakesLength >= endIndex);
             StakerInfo storage info = stakerInfo[staker];
             require(info.subStakes.length == 0);
-            require(workerToStaker[staker] == address(0), "A staker can't be a worker for another staker");
+            require(stakerFromWorker[staker] == address(0), "A staker can't be a worker for another staker");
             stakers.push(staker);
             policyManager.register(staker, previousPeriod);
 
@@ -752,7 +745,7 @@ contract StakingEscrow is Issuer, IERC900History {
     function deposit(address _staker, address _payer, uint256 _value, uint16 _periods) internal {
         require(_value != 0);
         StakerInfo storage info = stakerInfo[_staker];
-        require(workerToStaker[_staker] == address(0) || workerToStaker[_staker] == info.worker,
+        require(stakerFromWorker[_staker] == address(0) || stakerFromWorker[_staker] == info.worker,
             "A staker can't be a worker for another staker");
         // initial stake of the staker
         if (info.subStakes.length == 0) {
@@ -919,7 +912,7 @@ contract StakingEscrow is Issuer, IERC900History {
     * @notice Confirm activity for the next period and mint for the previous period
     */
     function confirmActivity() external isInitialized {
-        address staker = getStakerFromWorker(msg.sender);
+        address staker = stakerFromWorker[msg.sender];
         StakerInfo storage info = stakerInfo[staker];
         require(info.value > 0, "Staker must have a stake to confirm activity");
         require(msg.sender == tx.origin, "Only worker with real address can confirm activity");
@@ -1438,8 +1431,8 @@ contract StakingEscrow is Issuer, IERC900History {
         require(address(delegateGet(_testTarget, this.workLock.selector)) == address(workLock));
         require(delegateGet(_testTarget, this.lockedPerPeriod.selector,
             bytes32(bytes2(RESERVED_PERIOD))) == lockedPerPeriod[RESERVED_PERIOD]);
-        require(address(delegateGet(_testTarget, this.workerToStaker.selector, bytes32(0))) ==
-            workerToStaker[address(0)]);
+        require(address(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(0))) ==
+            stakerFromWorker[address(0)]);
 
         require(delegateGet(_testTarget, this.getStakersLength.selector) == stakers.length);
         if (stakers.length == 0) {
@@ -1487,8 +1480,8 @@ contract StakingEscrow is Issuer, IERC900History {
             totalStakedAt(block.number));
 
         if (info.worker != address(0)) {
-            require(address(delegateGet(_testTarget, this.workerToStaker.selector, bytes32(uint256(info.worker)))) ==
-                workerToStaker[info.worker]);
+            require(address(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(uint256(info.worker)))) ==
+                stakerFromWorker[info.worker]);
         }
     }
 
@@ -1499,6 +1492,6 @@ contract StakingEscrow is Issuer, IERC900History {
         lockedPerPeriod[RESERVED_PERIOD] = 111;
 
         // Create fake worker
-        workerToStaker[address(0)] = address(this);
+        stakerFromWorker[address(0)] = address(this);
     }
 }

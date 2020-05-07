@@ -461,7 +461,7 @@ class StakingEscrowAgent(EthereumContractAgent):
 
     @validate_checksum_address
     def get_staker_from_worker(self, worker_address: str) -> str:
-        staker = self.contract.functions.getStakerFromWorker(worker_address).call()
+        staker = self.contract.functions.stakerFromWorker(worker_address).call()
         return to_checksum_address(staker)
 
     @validate_checksum_address
