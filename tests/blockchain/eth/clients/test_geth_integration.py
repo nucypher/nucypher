@@ -49,6 +49,7 @@ def test_geth_create_new_account(instant_geth_dev_node):
     assert is_checksum_address(new_account)
 
 
+@pytest.mark.skip(reason="See Issue #1955")
 def test_geth_deployment_integration(instant_geth_dev_node, test_registry):
 
     # TODO: #1909 Move to decorator

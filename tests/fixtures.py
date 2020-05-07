@@ -589,8 +589,7 @@ def _make_agency(testerchain,
     return token_agent, staking_agent, policy_agent
 
 
-@pytest.fixture(scope='module')
-def test_registry_source_manager(test_registry):
+def make_test_registry_source_manager(blockchain, test_registry):
 
     blockchain = BlockchainInterfaceFactory.get_interface()
 
@@ -623,6 +622,11 @@ def test_registry_source_manager(test_registry):
 
     RegistrySourceManager._FALLBACK_CHAIN = (MockRegistrySource,)
     NetworksInventory.NETWORKS = (TEMPORARY_DOMAIN,)
+
+
+@pytest.fixture(scope='module')
+def test_registry_source_manager(testerchain, test_registry):
+    return make_test_registry_source_manager(blockchain=testerchain, test_registry=test_registry)
 
 
 @pytest.fixture(scope='module')

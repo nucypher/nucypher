@@ -27,7 +27,7 @@ from nucypher.utilities.sandbox.blockchain import MockBlockchain
 from nucypher.utilities.sandbox.constants import MOCK_PROVIDER_URI
 from tests.cli.functional.test_ursula_local_keystore_cli_functionality import NUMBER_OF_MOCK_ACCOUNTS, \
     KEYFILE_NAME_TEMPLATE
-from tests.fixtures import _make_testerchain, make_token_economics
+from tests.fixtures import _make_testerchain, make_token_economics, make_test_registry_source_manager
 from tests.mock.agents import FAKE_RECEIPT, MockContractAgency
 
 
@@ -55,6 +55,11 @@ def mock_interface(module_mocker):
 def test_registry():
     registry = InMemoryContractRegistry()
     return registry
+
+
+@pytest.fixture(scope='module')
+def test_registry_source_manager(mock_testerchain, test_registry):
+    return make_test_registry_source_manager(blockchain=mock_testerchain, test_registry=test_registry)
 
 
 @pytest.fixture(scope='module', autouse=True)
