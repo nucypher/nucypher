@@ -306,10 +306,12 @@ class PolicyCredential:
         return json.dumps(cred_dict)
 
     @classmethod
-    def from_json(cls, data: str):
+    def from_json(cls, data: str, federated=False):
         """
         Deserializes the PolicyCredential from JSON.
         """
+        from nucypher.characters.lawful import Ursula
+
         cred_json = json.loads(data)
 
         alice_verifying_key = UmbralPublicKey.from_bytes(
@@ -323,7 +325,12 @@ class PolicyCredential:
         treasure_map = None
 
         if 'treasure_map' in cred_json:
-            treasure_map = TreasureMap.from_bytes(
+            if federated:  # I know know.  TODO: WTF.  466 and just... you know... whatever.
+                _MapClass = TreasureMap
+            else:
+                _MapClass = DecentralizedTreasureMap
+
+            treasure_map = _MapClass.from_bytes(
                 bytes().fromhex(cred_json['treasure_map']))
 
         return cls(alice_verifying_key, label, expiration, policy_pubkey,
