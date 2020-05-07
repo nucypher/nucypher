@@ -392,6 +392,7 @@ class BlockchainInterface:
                     'ipc': _get_IPC_provider,
                     'file': _get_IPC_provider,
                     'ws': _get_websocket_provider,
+                    'wss': _get_websocket_provider,
                     'http': _get_HTTP_provider,
                     'https': _get_HTTP_provider,
                 }
