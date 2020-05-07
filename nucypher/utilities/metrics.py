@@ -133,7 +133,7 @@ def collect_prometheus_metrics(ursula, event_metrics_collectors: List[BaseEventM
         node_metrics["current_period_gauge"].set(staking_agent.get_current_period())
 
         missing_confirmations = staking_agent.get_missing_confirmations(
-            checksum_address=ursula.checksum_address)  # TODO: lol
+            checksum_address=ursula.checksum_address)
         node_metrics["missing_confirmation_gauge"].set(missing_confirmations)
 
         decentralized_payload = {'provider': str(ursula.provider_uri),

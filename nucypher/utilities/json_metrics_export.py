@@ -27,14 +27,13 @@ def generate_latest_json(registry):
             for s in metric.samples:
                 sample_labels = {}
                 if s.labels:
-                    sample_labels = {k: v.replace('\\', r'\\').replace('\n', r'\n').replace('"', r'\"') for k, v in
+                    sample_labels = {k: v for k, v in
                                      sorted(s.labels.items())}
                 exemplar = {}
                 if s.exemplar:
                     if metric.type not in ('histogram', 'gaugehistogram') or not s.name.endswith('_bucket'):
                         raise ValueError("Metric {0} has exemplars, but is not a histogram bucket".format(metric.name))
-                    exemplar_labels = {k: v.replace('\\', r'\\').replace('\n', r'\n').replace('"', r'\"')
-                                       for k, v in sorted(s.exemplar.labels.items())}
+                    exemplar_labels = {k: v for k, v in sorted(s.exemplar.labels.items())}
                     exemplar = {
                         "labels": exemplar_labels,
                         "value": floatToGoString(s.exemplar.value),
