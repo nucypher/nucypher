@@ -55,6 +55,7 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 # but using a staking contract (namely, PreallocationEscrow)
 #
 
+
 @pytest.fixture(scope='module')
 def mock_allocation_registry(testerchain, agency_local_registry, token_economics):
     # Deploy the PreallocationEscrow contract
