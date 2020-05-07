@@ -18,7 +18,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import csv
 import json
 import os
+import sys
 import time
+import traceback
 from decimal import Decimal
 from typing import Tuple, List, Dict, Optional
 
@@ -394,7 +396,6 @@ class ContractAdministrator(NucypherTokenActor):
 
     def batch_deposits(self,
                        allocation_data_filepath: str,
-                       crash_on_failure: bool = True,
                        interactive: bool = True,
                        emitter: StdoutEmitter = None,
                        gas_limit: int = None
@@ -407,13 +408,13 @@ class ContractAdministrator(NucypherTokenActor):
         It accepts both CSV and JSON formats. Example allocation file in CSV format:
 
         "checksum_address","amount","lock_periods"
-        "0xdeadbeef",123456,30
-        "0xdeadbeef",789,45
+        "0xFABADA",123456,30
+        "0xFABADA",789,45
 
         Example allocation file in JSON format:
 
-        [ {"checksum_address": "0xdeadbeef", "amount": 123456, "lock_periods": 30},
-          {"checksum_address": "0xdeadbeef", "amount": 789, "lock_periods": 45}]
+        [ {"checksum_address": "0xFABADA", "amount": 123456, "lock_periods": 30},
+          {"checksum_address": "0xFABADA", "amount": 789, "lock_periods": 45}]
         """
 
         if interactive and not emitter:
@@ -431,12 +432,12 @@ class ContractAdministrator(NucypherTokenActor):
         if interactive:
             click.confirm("Continue with the allocations process?", abort=True)
 
-        batch_deposit_receipts, failed, allocated = dict(), list(), list()
+        batch_deposit_receipts, failed = dict(), False
         with click.progressbar(length=len(allocator.allocations),
                                label="Allocation progress",
                                show_eta=False) as bar:
 
-            while allocator.pending_deposits:
+            while allocator.pending_deposits and not failed:
 
                 self.activate_deployer(refresh=True)
 
@@ -444,40 +445,38 @@ class ContractAdministrator(NucypherTokenActor):
                     deposited_stakers, receipt = allocator.deposit_next_batch(sender_address=self.deployer_address,
                                                                               gas_limit=gas_limit)
                 except (TestTransactionFailed, ValidationError, ValueError):  # TODO: 1950
-                    if crash_on_failure:
-                        raise
-                    message = "Failed allocations batch"
-                    self.log.debug(message)
                     if emitter:
-                        emitter.echo(message=message, color='red', bold=True)
+                        emitter.echo(f"\nFailed to deploy next batch. These addresses weren't funded:", color="yellow")
+                        for staker in allocator.pending_deposits:
+                            emitter.echo(f"\t{staker}", color="yellow")
+                        emitter.echo(f"\nThe failure is caused by the following exception:")
 
-                number_of_deposits = len(deposited_stakers)
-                if emitter:
-                    emitter.echo(f"\nDeployed allocations for {number_of_deposits} stakers:")
-                    for staker in deposited_stakers:
-                        emitter.echo(f"\t{staker}")
-                    emitter.echo()
-                    bar._last_line = None
-                    bar.render_progress()
+                    for line in traceback.format_exception(*sys.exc_info()):
+                        emitter.echo(line, color='red')
+                    failed = True
+                else:
+                    number_of_deposits = len(deposited_stakers)
+                    if emitter:
+                        emitter.echo(f"\nDeployed allocations for {number_of_deposits} stakers:")
+                        for staker in deposited_stakers:
+                            emitter.echo(f"\t{staker}")
+                        emitter.echo()
+                        bar._last_line = None
+                        bar.render_progress()
 
-                bar.update(number_of_deposits)
+                    bar.update(number_of_deposits)
 
-                if emitter:
-                    emitter.echo()
-                    paint_receipt_summary(emitter=emitter,
-                                          receipt=receipt,
-                                          chain_name=chain_name,
-                                          transaction_type=f'batch_deposit_{number_of_deposits}_stakers')
+                    if emitter:
+                        emitter.echo()
+                        paint_receipt_summary(emitter=emitter,
+                                              receipt=receipt,
+                                              chain_name=chain_name,
+                                              transaction_type=f'batch_deposit_{number_of_deposits}_stakers')
 
-                batch_deposit_receipts.update({staker: {'batch_deposit': receipt} for staker in deposited_stakers})
+                    batch_deposit_receipts.update({staker: {'batch_deposit': receipt} for staker in deposited_stakers})
 
-                if interactive:
-                    click.pause(info=f"\nPress any key to continue with next batch of allocations")
-
-        receipts_filepath = self.save_deployment_receipts(receipts=batch_deposit_receipts,
-                                                          filename_prefix='batch_deposits')
-        if emitter:
-            emitter.echo(f"Saved batch deposits receipts to {receipts_filepath}", color='blue', bold=True)
+                    if interactive:
+                        click.pause(info=f"\nPress any key to continue with next batch of allocations")
 
         return batch_deposit_receipts
 
@@ -541,7 +540,6 @@ class Allocator:
             staker = to_checksum_address(entry['checksum_address'])
             amount = int(entry['amount'])
             lock_periods = int(entry['lock_periods'])
-            # TODO: Check staker doesn't have a deposit yet
             self._add_substake(staker, amount, lock_periods)
             total_to_allocate += amount
 
@@ -588,7 +586,7 @@ class Allocator:
                            sender_address: str,
                            gas_limit: int = None) -> Tuple[List[str], dict]:
 
-        pending_stakers = [staker for staker in self.allocations.keys() if staker not in self.deposited]
+        pending_stakers = self.pending_deposits
 
         self.log.debug(f"Constructing next batch. "
                        f"Currently, {len(pending_stakers)} stakers pending, {len(self.deposited)} deposited.")
@@ -632,8 +630,9 @@ class Allocator:
         return deposited_stakers, receipt
 
     @property
-    def pending_deposits(self) -> bool:
-        return bool(set(self.allocations.keys()).difference(self.deposited))
+    def pending_deposits(self) -> List[str]:
+        pending_deposits = [staker for staker in self.allocations.keys() if staker not in self.deposited]
+        return pending_deposits
 
 
 class MultiSigActor(BaseActor):

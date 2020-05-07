@@ -505,17 +505,22 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
 @option_gas
 def allocations(general_config, actor_options, allocation_infile, gas):
     """
-    Deploy pre-allocation contracts.
+    Deposit stake allocations in batches
     """
     emitter = general_config.emitter
     ADMINISTRATOR, _, deployer_interface, local_registry = actor_options.create_actor(emitter)
 
     if not allocation_infile:
         allocation_infile = click.prompt("Enter allocations data filepath")
-    ADMINISTRATOR.batch_deposits(allocation_data_filepath=allocation_infile,
-                                 emitter=emitter,
-                                 gas_limit=gas,
-                                 interactive=not actor_options.force)
+    receipts = ADMINISTRATOR.batch_deposits(allocation_data_filepath=allocation_infile,
+                                            emitter=emitter,
+                                            gas_limit=gas,
+                                            interactive=not actor_options.force)
+
+    receipts_filepath = ADMINISTRATOR.save_deployment_receipts(receipts=receipts,
+                                                               filename_prefix='batch_deposits')
+    if emitter:
+        emitter.echo(f"Saved batch deposits receipts to {receipts_filepath}", color='blue', bold=True)
 
 
 @deploy.command(name='transfer-tokens')
