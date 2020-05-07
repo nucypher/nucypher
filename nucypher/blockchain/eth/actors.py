@@ -563,7 +563,7 @@ class Allocator:
         try:
             substakes = self.allocations[staker]
             if len(substakes) >= self.max_substakes:
-                raise ValueError
+                raise ValueError(f"Number of sub-stakes, {len(substakes)}, must be ≤ {self.max_substakes}")
         except KeyError:
             if list(self.staking_agent.get_all_stakes(staker_address=staker)):
                 raise ValueError(f"{staker} is already a staker. It cannot be included in a batch deposit")

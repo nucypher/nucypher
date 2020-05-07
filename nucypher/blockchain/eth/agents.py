@@ -429,7 +429,7 @@ class StakingEscrowAgent(EthereumContractAgent):
                 payload['gas'] = gas_limit
             estimated_gas = contract_function.estimateGas(payload)  # If TX is not correct, or there's not enough gas, this will fail.
             if gas_limit and estimated_gas > gas_limit:
-                raise ValueError
+                raise ValueError(f"Estimated gas for transaction exceeds gas limit {gas_limit}")
             return estimated_gas
         else:
             receipt = self.blockchain.send_transaction(contract_function=contract_function,
