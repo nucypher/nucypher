@@ -542,9 +542,7 @@ class BlockchainInterface:
         try:
             txhash = self.client.send_raw_transaction(signed_raw_transaction)  # <--- BROADCAST
         except (TestTransactionFailed, ValueError) as error:
-            raise self.__transaction_failed(exception=error,
-                                            transaction_dict=transaction_dict,
-                                            transaction_name=transaction_name)
+            raise  # TODO: Unify with Transaction failed handling
 
         #
         # Receipt
