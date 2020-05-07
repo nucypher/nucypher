@@ -97,6 +97,7 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
 
     ownership_command = ('transfer-ownership',
                          '--registry-infile', agency_local_registry.filepath,
+                         '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
                          '--provider', TEST_PROVIDER_URI,
                          '--target-address', maclane)
 
@@ -111,8 +112,8 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
     assert result.exit_code == 0
 
     assert staking_agent.owner == maclane
-    assert policy_agent.owner == maclane
-    assert adjudicator_agent.owner == maclane
+    assert policy_agent.owner == testerchain.etherbase_account
+    assert adjudicator_agent.owner == testerchain.etherbase_account
 
     michwill = testerchain.unassigned_accounts[1]
 
@@ -131,6 +132,8 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
     assert result.exit_code == 0
     assert staking_agent.owner != maclane
     assert staking_agent.owner == michwill
+    assert policy_agent.owner == testerchain.etherbase_account
+    assert adjudicator_agent.owner == testerchain.etherbase_account
 
 
 def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_local_registry):
@@ -181,7 +184,7 @@ def test_manual_proxy_retargeting(testerchain, click_runner, token_economics):
 
     # MichWill still owns this proxy.
     michwill = testerchain.unassigned_accounts[1]
-    assert proxy_deployer.target_contract.functions.owner().call() == michwill
+    assert proxy_deployer.contract.functions.owner().call() == michwill
 
     command = ('upgrade',
                '--retarget',
@@ -199,6 +202,35 @@ def test_manual_proxy_retargeting(testerchain, click_runner, token_economics):
     # The proxy target has been updated.
     proxy_deployer = deployer.get_proxy_deployer()
     assert proxy_deployer.target_contract.address == untargeted_deployment.address
+
+
+def test_batch_deposits(click_runner,
+                        testerchain,
+                        agency_local_registry,
+                        mock_allocation_infile,
+                        token_economics):
+
+    #
+    # Main
+    #
+
+    deploy_command = ('allocations',
+                      '--registry-infile', agency_local_registry.filepath,
+                      '--allocation-infile', mock_allocation_infile,
+                      '--provider', TEST_PROVIDER_URI)
+
+    account_index = '0\n'
+    yes = 'Y\n'
+    user_input = account_index + yes + yes
+
+    result = click_runner.invoke(deploy,
+                                 deploy_command,
+                                 input=user_input,
+                                 catch_exceptions=False)
+    print(result.output)
+    assert result.exit_code == 0
+    for allocation_address in testerchain.unassigned_accounts:
+        assert allocation_address in result.output
 
 
 def test_manual_deployment_of_idle_network(click_runner):

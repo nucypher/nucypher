@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import importlib
 import random
-from typing import Generator, List, Tuple, Union
+from typing import Generator, List, Tuple, Union, Dict, Optional
 
 import math
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
@@ -172,14 +172,6 @@ class EthereumContractAgent:
             return None
         return self.contract.functions.owner().call()
 
-    @validate_checksum_address
-    def transfer_ownership(self, sender_address: str, checksum_address: str, transaction_gas_limit: int = None) -> dict:
-        contract_function = self.contract.functions.transferOwnership(checksum_address)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=sender_address,
-                                                   transaction_gas_limit=transaction_gas_limit)
-        return receipt
-
 
 class NucypherTokenAgent(EthereumContractAgent):
 
@@ -189,6 +181,10 @@ class NucypherTokenAgent(EthereumContractAgent):
         """Get the NU balance (in NuNits) of a token holder address, or of this contract address"""
         address = address if address is not None else self.contract_address
         return self.contract.functions.balanceOf(address).call()
+
+    def get_allowance(self, owner: str, spender: str) -> int:
+        """Check the amount of tokens that an owner allowed to a spender"""
+        return self.contract.functions.allowance(owner, spender).call()
 
     @validate_checksum_address
     def increase_allowance(self, sender_address: str, target_address: str, increase: int):
@@ -395,6 +391,51 @@ class StakingEscrowAgent(EthereumContractAgent):
         contract_function = self.contract.functions.deposit(staker_address, amount, lock_periods)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return receipt
+
+    def construct_batch_deposit_parameters(self, deposits: Dict[str, List[Tuple[int, int]]]) -> Tuple[list, list, list, list]:
+        max_substakes = self.contract.functions.MAX_SUB_STAKES().call()
+        stakers, number_of_substakes, amounts, lock_periods = list(), list(), list(), list()
+        for staker, substakes in deposits.items():
+            if not 0 < len(substakes) <= max_substakes:
+                raise self.RequirementError(f"Number of substakes for staker {staker} must be >0 and ≤{max_substakes}")
+            # require(value >= minAllowableLockedTokens & & periods >= minLockedPeriods);
+            # require(info.value <= maxAllowableLockedTokens);
+            # require(info.subStakes.length == 0);
+            stakers.append(staker)
+            number_of_substakes.append(len(substakes))
+            staker_amounts, staker_periods = zip(*substakes)
+            amounts.extend(staker_amounts)
+            lock_periods.extend(staker_periods)
+
+        return stakers, number_of_substakes, amounts, lock_periods
+
+    @validate_checksum_address
+    def batch_deposit(self,
+                      stakers: list,
+                      number_of_substakes: list,
+                      amounts: list,
+                      lock_periods: list,
+                      sender_address: str,
+                      dry_run: bool = False,
+                      gas_limit: int = None) -> Union[dict, int]:
+        min_gas_batch_deposit = 250_000
+        if gas_limit and gas_limit < min_gas_batch_deposit:
+            raise ValueError(f"{gas_limit} is not enough gas for any batch deposit")
+
+        contract_function = self.contract.functions.batchDeposit(stakers, number_of_substakes, amounts, lock_periods)
+        if dry_run:
+            payload = {'from': sender_address}
+            if gas_limit:
+                payload['gas'] = gas_limit
+            estimated_gas = contract_function.estimateGas(payload)  # If TX is not correct, or there's not enough gas, this will fail.
+            if gas_limit and estimated_gas > gas_limit:
+                raise ValueError(f"Estimated gas for transaction exceeds gas limit {gas_limit}")
+            return estimated_gas
+        else:
+            receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                       sender_address=sender_address,
+                                                       transaction_gas_limit=gas_limit)
+            return receipt
 
     @validate_checksum_address
     def divide_stake(self, staker_address: str, stake_index: int, target_value: int, periods: int) -> dict:
@@ -678,6 +719,22 @@ class StakingEscrowAgent(EthereumContractAgent):
         else:
             result = missing_confirmations
         return result
+
+    @property
+    def is_test_contract(self):
+        return self.contract.functions.isTestContract().call()
+
+    @property
+    def worklock(self):
+        return self.contract.functions.workLock().call()
+
+    @property
+    def adjudicator(self):
+        return self.contract.functions.adjudicator().call()
+
+    @property
+    def policy_manager(self):
+        return self.contract.functions.policyManager().call()
 
 
 class PolicyManagerAgent(EthereumContractAgent):

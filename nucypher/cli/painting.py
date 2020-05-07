@@ -817,45 +817,16 @@ def paint_locked_tokens_status(emitter, agent, periods) -> None:
 def paint_input_allocation_file(emitter, allocations) -> None:
     num_allocations = len(allocations)
     emitter.echo(f"Found {num_allocations} allocations:")
-    emitter.echo(f"\n{'='*46} STAGED ALLOCATIONS {'='*45}", bold=True)
-    emitter.echo(f"\n{'Beneficiary':42} | {'Name':20} | {'Duration':20} | {'Amount':20}", bold=True)
-    emitter.echo("-"*(42+3+20+3+20+3+20), bold=True)
-    for allocation in allocations:
-        beneficiary = allocation['beneficiary_address']
-        amount = str(NU.from_nunits(allocation['amount']))
-        duration = (maya.now() + maya.timedelta(seconds=allocation['duration_seconds'])).slang_date()
-        name = allocation.get('name', 'No name provided')
-        emitter.echo(f"{beneficiary} | {name:20} | {duration:20} | {amount:20}")
+    emitter.echo("STAGED ALLOCATIONS".center(80, "="), bold=True)
+
+    headers = ['Checksum address', 'Total staked', 'Substakes']
+    rows = list()
+    for address, substakes in allocations.items():
+        amounts, periods = zip(*list(substakes))
+        staker_deposit = NU.from_nunits(sum(amounts))
+        rows.append([address, staker_deposit, "\n".join([f"{NU.from_nunits(a)} for {p} periods" for a,p in substakes])])
+    emitter.echo(tabulate.tabulate(rows, headers=headers, tablefmt="fancy_grid"))  # newline
     emitter.echo()
-
-
-def paint_deployed_allocations(emitter, allocations, failed) -> None:
-    emitter.echo(f"\n{'='*45} DEPLOYED ALLOCATIONS {'='*44}", bold=True)
-    emitter.echo(f"\n{'Beneficiary':42} | {'Name':20} | {'PreallocationEscrow contract':42} ", bold=True)
-    emitter.echo("-"*(42+3+20+3+42), bold=True)
-    for allocation, contract_address in allocations:
-        beneficiary = allocation['beneficiary_address']
-        name = allocation.get('name', 'No name provided')
-        emitter.echo(f"{beneficiary} | {name:20} | {contract_address}")
-    for allocation in failed:
-        beneficiary = allocation['beneficiary_address']
-        name = allocation.get('name', 'No name provided')
-        emitter.echo(f"{beneficiary} | {name:20} | FAILED", color='red')
-    emitter.echo()
-
-
-def write_deployed_allocations_to_csv(filepath: str, allocated: list, failed: list):
-    fieldnames = ['Beneficiary', 'Name', 'Contract address']
-    allocated += [(failed_allocation, "FAILED") for failed_allocation in failed]
-
-    with open(filepath, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
-        for allocation, contract_address in allocated:
-            beneficiary = allocation['beneficiary_address']
-            name = allocation.get('name', 'No name provided')
-            row = (beneficiary, name, contract_address)
-            writer.writerow(dict(zip(fieldnames, row)))
 
 
 def echo_solidity_version(ctx, param, value):

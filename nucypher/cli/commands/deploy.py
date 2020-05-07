@@ -502,39 +502,25 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
 @group_general_config
 @group_actor_options
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
-@click.option('--allocation-outfile', help="Output path for token allocation JSON file",
-              type=click.Path(exists=False, file_okay=True))
-@click.option('--sidekick-account', help="A software-controlled account to assist the deployment",
-              type=EIP55_CHECKSUM_ADDRESS)
-def allocations(general_config, actor_options, allocation_infile, allocation_outfile, sidekick_account):
+@option_gas
+def allocations(general_config, actor_options, allocation_infile, gas):
     """
-    Deploy pre-allocation contracts.
+    Deposit stake allocations in batches
     """
     emitter = general_config.emitter
     ADMINISTRATOR, _, deployer_interface, local_registry = actor_options.create_actor(emitter)
 
-    if not sidekick_account and click.confirm('Do you want to use a sidekick account to assist during deployment?'):
-        prompt = "Select sidekick account"
-        sidekick_account = select_client_account(emitter=emitter,
-                                                 prompt=prompt,
-                                                 provider_uri=actor_options.provider_uri,
-                                                 registry=local_registry,
-                                                 show_eth_balance=True)
-        if not actor_options.force:
-            click.confirm(f"Selected {sidekick_account} - Continue?", abort=True)
-
-    if sidekick_account:
-        password = None
-        if not deployer_interface.client.is_local:
-            password = get_client_password(checksum_address=sidekick_account)
-        ADMINISTRATOR.recruit_sidekick(sidekick_address=sidekick_account, sidekick_password=password)
-
     if not allocation_infile:
-        allocation_infile = click.prompt("Enter allocation data filepath")
-    ADMINISTRATOR.deploy_beneficiaries_from_file(allocation_data_filepath=allocation_infile,
-                                                 allocation_outfile=allocation_outfile,
-                                                 emitter=emitter,
-                                                 interactive=not actor_options.force)
+        allocation_infile = click.prompt("Enter allocations data filepath")
+    receipts = ADMINISTRATOR.batch_deposits(allocation_data_filepath=allocation_infile,
+                                            emitter=emitter,
+                                            gas_limit=gas,
+                                            interactive=not actor_options.force)
+
+    receipts_filepath = ADMINISTRATOR.save_deployment_receipts(receipts=receipts,
+                                                               filename_prefix='batch_deposits')
+    if emitter:
+        emitter.echo(f"Saved batch deposits receipts to {receipts_filepath}", color='blue', bold=True)
 
 
 @deploy.command(name='transfer-tokens')
@@ -578,24 +564,26 @@ def transfer_ownership(general_config, actor_options, target_address, gas):
         target_address = click.prompt("Enter new owner's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 
     contract_name = actor_options.contract_name
-    if contract_name:
-        try:
-            contract_deployer_class = ADMINISTRATOR.deployers[contract_name]
-        except KeyError:
-            message = f"No such contract {contract_name}. Available contracts are {ADMINISTRATOR.deployers.keys()}"
-            emitter.echo(message, color='red', bold=True)
-            raise click.Abort()
-        else:
-            contract_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry,
-                                                        deployer_address=ADMINISTRATOR.deployer_address)
-            receipts = contract_deployer.transfer_ownership(new_owner=target_address, transaction_gas_limit=gas)
-    else:
-        click.confirm(f"You are about to relinquish ownership of all ownable contracts in favor of {target_address}.\n"
-                      f"Are you sure you want to continue?", abort=True)
-        receipts = ADMINISTRATOR.relinquish_ownership(new_owner=target_address, transaction_gas_limit=gas)
+    if not contract_name:
+        raise click.MissingParameter(param="--contract-name", message="You need to specify an ownable contract")
 
-    for tx_type, receipt in receipts.items():
-        paint_receipt_summary(emitter=emitter, receipt=receipt, transaction_type=tx_type)
+    try:
+        contract_deployer_class = ADMINISTRATOR.deployers[contract_name]
+    except KeyError:
+        message = f"No such contract {contract_name}."
+        emitter.echo(message, color='red', bold=True)
+        raise click.Abort()
+
+    if contract_deployer_class not in ADMINISTRATOR.ownable_deployer_classes:
+        message = f"Contract {contract_name} is not ownable."
+        emitter.echo(message, color='red', bold=True)
+        raise click.Abort()
+
+    contract_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry,
+                                                deployer_address=ADMINISTRATOR.deployer_address)
+    receipt = contract_deployer.transfer_ownership(new_owner=target_address, transaction_gas_limit=gas)
+    paint_receipt_summary(emitter=emitter, receipt=receipt)
+    return
 
 
 @deploy.command("set-range")

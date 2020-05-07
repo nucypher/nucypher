@@ -16,6 +16,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
+import os
+
 import click
 import maya
 
@@ -25,11 +27,9 @@ from nucypher.blockchain.eth.constants import (
     POLICY_MANAGER_CONTRACT_NAME,
     AVERAGE_BLOCK_TIME_IN_SECONDS
 )
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import NU_BANNER
-from nucypher.cli.actions import get_provider_process, connect_to_blockchain, get_registry
+from nucypher.cli.actions import connect_to_blockchain, get_registry
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -43,8 +43,13 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_staking_address,
 )
-from nucypher.cli.painting import paint_contract_status, paint_stakers, paint_locked_tokens_status, \
+from nucypher.cli.painting import (
+    paint_contract_status,
+    paint_stakers,
+    paint_locked_tokens_status,
     paint_min_reward_range
+)
+from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
 
 
 class RegistryOptions:
@@ -73,7 +78,7 @@ group_registry_options = group_options(
     light=option_light,
     registry_filepath=option_registry_filepath,
     network=option_network(),
-    provider_uri=option_provider_uri(),
+    provider_uri=option_provider_uri(default=os.environ.get(NUCYPHER_ENVVAR_PROVIDER_URI)),
 )
 
 

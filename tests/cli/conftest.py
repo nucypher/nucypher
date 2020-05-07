@@ -25,20 +25,16 @@ import shutil
 import pytest
 from click.testing import CliRunner
 
-from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.registry import AllocationRegistry, InMemoryContractRegistry, LocalContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.config.characters import UrsulaConfiguration, StakeHolderConfiguration
 from nucypher.utilities.sandbox.constants import (
     BASE_TEMP_DIR,
     BASE_TEMP_PREFIX,
     DATETIME_FORMAT,
-    MOCK_ALLOCATION_REGISTRY_FILEPATH,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
-    INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_ALLOCATION_INFILE,
-    ONE_YEAR_IN_SECONDS, TEMPORARY_DOMAIN)
+)
 
 
 @pytest.fixture(scope='module')
@@ -56,12 +52,15 @@ def nominal_federated_configuration_fields():
 
 
 @pytest.fixture(scope='module')
-def mock_allocation_infile(testerchain, token_economics):
-    accounts = testerchain.unassigned_accounts
-    allocation_data = [{'beneficiary_address': addr,
-                        'amount': 2 * token_economics.minimum_allowed_locked,
-                        'duration_seconds': ONE_YEAR_IN_SECONDS}
-                       for addr in accounts]
+def mock_allocation_infile(testerchain, token_economics, get_random_checksum_address):
+    accounts = [get_random_checksum_address() for _ in range(10)]
+    # accounts = testerchain.unassigned_accounts
+    allocation_data = list()
+    amount = 2 * token_economics.minimum_allowed_locked
+    min_periods = token_economics.minimum_locked_periods
+    for account in accounts:
+        substake = [{'checksum_address': account, 'amount': amount, 'lock_periods': min_periods + i} for i in range(24)]
+        allocation_data.extend(substake)
 
     with open(MOCK_ALLOCATION_INFILE, 'w') as file:
         file.write(json.dumps(allocation_data))
@@ -69,27 +68,6 @@ def mock_allocation_infile(testerchain, token_economics):
     yield MOCK_ALLOCATION_INFILE
     if os.path.isfile(MOCK_ALLOCATION_INFILE):
         os.remove(MOCK_ALLOCATION_INFILE)
-
-
-@pytest.fixture(scope='module')
-def mock_allocation_registry(testerchain, agency_local_registry, mock_allocation_infile):
-    admin = ContractAdministrator(registry=agency_local_registry,
-                                  client_password=INSECURE_DEVELOPMENT_PASSWORD,
-                                  deployer_address=testerchain.etherbase_account)
-
-    if os.path.isfile(MOCK_ALLOCATION_REGISTRY_FILEPATH):
-        os.remove(MOCK_ALLOCATION_REGISTRY_FILEPATH)
-
-    admin.deploy_beneficiaries_from_file(allocation_data_filepath=mock_allocation_infile,
-                                         allocation_outfile=MOCK_ALLOCATION_REGISTRY_FILEPATH)
-
-    allocation_registry = AllocationRegistry(filepath=MOCK_ALLOCATION_REGISTRY_FILEPATH)
-
-    yield allocation_registry
-
-    # Cleanup Allocation Stuff
-    if os.path.isfile(MOCK_ALLOCATION_REGISTRY_FILEPATH):
-        os.remove(MOCK_ALLOCATION_REGISTRY_FILEPATH)
 
 
 @pytest.fixture(scope='function')

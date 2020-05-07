@@ -245,6 +245,22 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                                                    [MIN_LOCKED_PERIODS] * 10),
                      {'from': origin})
 
+    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 24), {'from': origin})
+    transact_and_log("Batch deposit tokens for 1 owners x 24 sub-stakes",
+                     staker_functions.batchDeposit([everyone_else[6]],
+                                                   [24],
+                                                   [MIN_ALLOWED_LOCKED] * 24,
+                                                   [MIN_LOCKED_PERIODS] * 24),
+                     {'from': origin})
+
+    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 24 * 5), {'from': origin})
+    transact_and_log("Batch deposit tokens for 5 owners x 24 sub-stakes",
+                     staker_functions.batchDeposit(everyone_else[7:12],
+                                                   [24]*5,
+                                                   [MIN_ALLOWED_LOCKED] * (24 * 5),
+                                                   [MIN_LOCKED_PERIODS] * (24 * 5)),
+                     {'from': origin})
+
     #
     # Ursula and Alice transfer some tokens to the escrow and lock them
     #

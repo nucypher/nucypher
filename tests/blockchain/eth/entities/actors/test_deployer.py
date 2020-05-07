@@ -15,34 +15,24 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import glob
-import os
+import json
 import random
-import string
 
 import pytest
-from web3.auto import w3
 
 from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.crypto.powers import TransactingPower
 # Prevents TesterBlockchain to be picked up by py.test as a test class
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
-from nucypher.utilities.sandbox.constants import (
-    ONE_YEAR_IN_SECONDS,
-    NUMBER_OF_ALLOCATIONS_IN_TESTS,
-    INSECURE_DEVELOPMENT_PASSWORD
-)
+from nucypher.utilities.sandbox.constants import NUMBER_OF_ALLOCATIONS_IN_TESTS, INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('testerchain')
-def test_rapid_deployment(token_economics, test_registry, tmpdir):
+def test_rapid_deployment(token_economics, test_registry, tmpdir, get_random_checksum_address):
     compiler = SolidityCompiler()
-    allocation_registry = InMemoryAllocationRegistry()
 
     blockchain = _TesterBlockchain(eth_airdrop=False,
                                    test_accounts=4,
@@ -62,34 +52,32 @@ def test_rapid_deployment(token_economics, test_registry, tmpdir):
     all_yall = blockchain.unassigned_accounts
 
     # Start with some hard-coded cases...
-    allocation_data = [{'beneficiary_address': all_yall[1],
+    allocation_data = [{'checksum_address': all_yall[1],
                         'amount': token_economics.maximum_allowed_locked,
-                        'duration_seconds': ONE_YEAR_IN_SECONDS},
+                        'lock_periods': token_economics.minimum_locked_periods},
 
-                       {'beneficiary_address': all_yall[2],
+                       {'checksum_address': all_yall[2],
                         'amount': token_economics.minimum_allowed_locked,
-                        'duration_seconds': ONE_YEAR_IN_SECONDS*2},
+                        'lock_periods': token_economics.minimum_locked_periods},
 
-                       {'beneficiary_address': all_yall[3],
+                       {'checksum_address': all_yall[3],
                         'amount': token_economics.minimum_allowed_locked*100,
-                        'duration_seconds': ONE_YEAR_IN_SECONDS*3}
+                        'lock_periods': token_economics.minimum_locked_periods},
                        ]
 
     # Pile on the rest
     for _ in range(NUMBER_OF_ALLOCATIONS_IN_TESTS - len(allocation_data)):
-        random_password = ''.join(random.SystemRandom().choice(string.ascii_uppercase+string.digits) for _ in range(16))
-        acct = w3.eth.account.create(random_password)
-        beneficiary_address = acct.address
+        checksum_address = get_random_checksum_address()
         amount = random.randint(token_economics.minimum_allowed_locked, token_economics.maximum_allowed_locked)
-        duration = random.randint(token_economics.minimum_locked_periods*ONE_YEAR_IN_SECONDS,
-                                  (token_economics.maximum_rewarded_periods*ONE_YEAR_IN_SECONDS)*3)
-        random_allocation = {'beneficiary_address': beneficiary_address, 'amount': amount, 'duration_seconds': duration}
+        duration = random.randint(token_economics.minimum_locked_periods, token_economics.maximum_rewarded_periods)
+        random_allocation = {'checksum_address': checksum_address, 'amount': amount, 'lock_periods': duration}
         allocation_data.append(random_allocation)
 
-    administrator.deploy_beneficiary_contracts(allocations=allocation_data,
-                                               allocation_registry=allocation_registry,
-                                               output_dir=tmpdir,
-                                               interactive=False)
+    filepath = tmpdir / "allocations.json"
+    with open(filepath, 'w') as f:
+        json.dump(allocation_data, f)
+
+    administrator.batch_deposits(allocation_data_filepath=str(filepath), interactive=False)
 
     minimum, default, maximum = 10, 20, 30
     administrator.set_min_reward_rate_range(minimum, default, maximum)
