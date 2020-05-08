@@ -16,37 +16,49 @@ class JSONMetricsResource(Resource):
 
     def render_GET(self, request):
         request.setHeader(b'Content-Type', "text/json")
-        return generate_latest_json(self.registry)
+        return self.generate_latest_json()
 
+    @staticmethod
+    def get_sample_labels(labels):
+        if not labels:
+            return {}
+        return {k: v for k, v in sorted(labels.items())}
 
-def generate_latest_json(registry):
-    '''Returns the metrics from the registry in latest JSON format as a string.'''
-    output = {}
-    for metric in registry.collect():
-        try:
-            for s in metric.samples:
-                sample_labels = {}
-                if s.labels:
-                    sample_labels = {k: v for k, v in
-                                     sorted(s.labels.items())}
-                exemplar = {}
-                if s.exemplar:
-                    if metric.type not in ('histogram', 'gaugehistogram') or not s.name.endswith('_bucket'):
-                        raise ValueError("Metric {0} has exemplars, but is not a histogram bucket".format(metric.name))
-                    exemplar_labels = {k: v for k, v in sorted(s.exemplar.labels.items())}
-                    exemplar = {
-                        "labels": exemplar_labels,
-                        "value": floatToGoString(s.exemplar.value),
-                        "timestamp": s.exemplar.timestamp
+    @staticmethod
+    def get_exemplar(sample, metric):
+        if not sample.exemplar:
+            return {}
+        elif metric.type not in ('histogram', 'gaugehistogram') \
+                or not sample.name.endswith('_bucket'):
+            raise ValueError(
+                "Metric {} has exemplars, but is not a "
+                "histogram bucket".format(metric.name)
+            )
+        exemplar_labels = {k: v for k, v
+                           in sorted(sample.exemplar.labels.items())}
+        return {
+            "labels": exemplar_labels,
+            "value": floatToGoString(sample.exemplar.value),
+            "timestamp": sample.exemplar.timestamp
+        }
+
+    def generate_latest_json(self):
+        """
+        Returns the metrics from the registry
+        in latest JSON format as a string.
+        """
+        output = {}
+        for metric in self.registry.collect():
+            try:
+                for sample in metric.samples:
+                    output[sample.name] = {
+                        "labels": self.get_sample_labels(sample.labels),
+                        "value": floatToGoString(sample.value),
+                        "timestamp": sample.timestamp,
+                        "exemplar": self.get_exemplar(sample, metric)
                     }
-                output[s.name] = {
-                    "labels": sample_labels,
-                    "value": floatToGoString(s.value),
-                    "timestamp": s.timestamp,
-                    "exemplar": exemplar
-                }
-        except Exception as exception:
-            exception.args = (exception.args or ('',)) + (metric,)
-            raise
+            except Exception as exception:
+                exception.args = (exception.args or ('',)) + (metric,)
+                raise
 
-    return json.dumps(output).encode('utf-8')
+        return json.dumps(output).encode('utf-8')
