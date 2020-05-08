@@ -305,7 +305,9 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         # REST call happens here, as does population of TreasureMap.
         self.log.debug(f"Enacting {policy} ... ")
-        policy.enact(network_middleware=self.network_middleware, publish=publish_treasure_map)
+
+        # TODO: Make it optional to publish to blockchain?  Or is this presumptive based on the `Policy` type?
+        policy.enact(network_middleware=self.network_middleware, publish_treasure_map=publish_treasure_map)
         return policy  # Now with TreasureMap affixed!
 
     def get_policy_encrypting_key_from_label(self, label: bytes) -> UmbralPublicKey:
