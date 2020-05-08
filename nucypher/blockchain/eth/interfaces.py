@@ -392,6 +392,7 @@ class BlockchainInterface:
                     'ipc': _get_IPC_provider,
                     'file': _get_IPC_provider,
                     'ws': _get_websocket_provider,
+                    'wss': _get_websocket_provider,
                     'http': _get_HTTP_provider,
                     'https': _get_HTTP_provider,
                 }
@@ -541,9 +542,7 @@ class BlockchainInterface:
         try:
             txhash = self.client.send_raw_transaction(signed_raw_transaction)  # <--- BROADCAST
         except (TestTransactionFailed, ValueError) as error:
-            raise self.__transaction_failed(exception=error,
-                                            transaction_dict=transaction_dict,
-                                            transaction_name=transaction_name)
+            raise  # TODO: Unify with Transaction failed handling
 
         #
         # Receipt

@@ -880,10 +880,10 @@ def stakeholder_configuration(testerchain, agency_local_registry):
 def manual_staker(testerchain, agency):
     token_agent, staking_agent, policy_agent = agency
 
-    # 0xaaa23A5c74aBA6ca5E7c09337d5317A7C4563075
+    address = '0xaaa23A5c74aBA6ca5E7c09337d5317A7C4563075'
     staker_private_key = '13378db1c2af06933000504838afc2d52efa383206454deefb1836f8f4cd86f8'
-    address = testerchain.provider.ethereum_tester.add_account(staker_private_key,
-                                                               password=INSECURE_DEVELOPMENT_PASSWORD)
+    if address not in testerchain.provider.ethereum_tester.get_accounts():
+        testerchain.provider.ethereum_tester.add_account(staker_private_key, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     tx = {'to': address,
           'from': testerchain.etherbase_account,

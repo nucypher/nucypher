@@ -16,6 +16,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
+from pathlib import Path
+
 import os
 import pytest
 from eth_account import Account
@@ -39,7 +41,7 @@ CLI_ENV = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
            NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 
 KEYFILE_NAME_TEMPLATE = 'UTC--2020-{month}-21T03-42-07.869432648Z--{address}'
-MOCK_KEYSTORE_PATH = '/home/fakeMcfakeson/.ethereum/llamanet/keystore/'
+MOCK_KEYSTORE_PATH = '/somewhere/fakeMcfakeson/.ethereum/llamanet/keystore/'
 MOCK_SIGNER_URI = f'keystore://{MOCK_KEYSTORE_PATH}'
 NUMBER_OF_MOCK_ACCOUNTS = 3
 
@@ -80,16 +82,22 @@ def custom_config_filepath(custom_filepath):
 @pytest.fixture(scope='function', autouse=True)
 def mock_keystore(mock_accounts, monkeypatch, mocker):
 
-    def mock_keyfile_reader(_keystore, path):
-        try:
-            account = mock_accounts[path]
-        except KeyError:
-            pytest.fail()
+    def successful_mock_keyfile_reader(_keystore, path):
+
+        # Ensure the absolute path is passed to the keyfile reader
+        assert MOCK_KEYSTORE_PATH in path
+        full_path = path
+        del path
+
+        for filename, account in mock_accounts.items():  # Walk the mock filesystem
+            if filename in full_path:
+                break
         else:
-            return account.address, dict(version=3, address=account.address)
+            raise FileNotFoundError(f"No such file {full_path}")
+        return account.address, dict(version=3, address=account.address)
 
     mocker.patch('os.listdir', return_value=list(mock_accounts.keys()))
-    monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keyfile', mock_keyfile_reader)
+    monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keyfile', successful_mock_keyfile_reader)
     yield
     monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keyfile')
 
@@ -180,7 +188,8 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
 
     # Verify the keystore path is still preserved
     assert isinstance(ursula.signer, KeystoreSigner)
-    assert ursula.signer.path == MOCK_KEYSTORE_PATH
+    assert isinstance(ursula.signer.path, Path), "Use Pathlib"
+    assert ursula.signer.path == Path(MOCK_KEYSTORE_PATH)  # confirm Pathlib is used internally despite string input
 
     # Show that we can produce the exact same signer as pre-config...
     assert pre_config_signer.path == ursula.signer.path
