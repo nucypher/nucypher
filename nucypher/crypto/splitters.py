@@ -23,4 +23,3 @@ from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, CAPSULE_LENGTH
 
 key_splitter = BytestringSplitter((UmbralPublicKey, PUBLIC_KEY_LENGTH))
 capsule_splitter = BytestringSplitter((Capsule, CAPSULE_LENGTH, {"params": default_params()}))
-

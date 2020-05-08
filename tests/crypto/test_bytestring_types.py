@@ -76,3 +76,26 @@ def test_message_kit_serialization_via_enrico(enacted_federated_policy, federate
     # Confirm
     assert message_kit_bytes == the_same_message_kit.to_bytes()
 
+
+def test_message_kit_bytes_metadata(enacted_federated_policy, federated_alice):
+    mk_splitter = UmbralMessageKit.splitter()
+
+    # Enrico
+    enrico = Enrico.from_alice(federated_alice, label=enacted_federated_policy.label)
+
+    # Plaintext
+    message = 'this is a message'
+    plaintext_bytes = bytes(message, encoding='utf-8')
+
+    # Create
+    message_kit, signature = enrico.encrypt_message(message=plaintext_bytes)
+
+    # Serialize
+    message_kit_bytes = message_kit.to_bytes()
+
+    assert message_kit_bytes.startswith(
+        mk_splitter.generate_checksum() + UmbralMessageKit.version.to_bytes(2, "big"))
+
+    metadata = mk_splitter.get_metadata(message_kit_bytes)
+    assert metadata['version'] == 1
+    assert metadata['checksum'] == mk_splitter.generate_checksum()
