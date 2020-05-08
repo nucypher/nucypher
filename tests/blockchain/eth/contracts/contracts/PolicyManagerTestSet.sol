@@ -52,7 +52,7 @@ contract StakingEscrowForPolicyMock {
     uint32 public immutable secondsPerPeriod;
 
     PolicyManager public policyManager;
-    uint16 public lastActivePeriod;
+    uint16 public lastCommittedPeriod;
     Downtime[] public downtime;
 
     /**
@@ -70,10 +70,10 @@ contract StakingEscrowForPolicyMock {
     }
 
     /**
-    * @notice Set last active period
+    * @notice Set last committed period
     */
-    function setLastActivePeriod(uint16 _lastActivePeriod) external {
-        lastActivePeriod = _lastActivePeriod;
+    function setLastCommittedPeriod(uint16 _lastCommittedPeriod) external {
+        lastCommittedPeriod = _lastCommittedPeriod;
     }
 
     /**
@@ -123,8 +123,8 @@ contract StakingEscrowForPolicyMock {
         endPeriod = data.endPeriod;
     }
 
-    function getLastActivePeriod(address) public view returns (uint256) {
-        return lastActivePeriod;
+    function getLastCommittedPeriod(address) public view returns (uint256) {
+        return lastCommittedPeriod;
     }
 
     function register(address _node, uint16 _period) public {

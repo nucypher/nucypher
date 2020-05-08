@@ -180,6 +180,6 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     assert pre_config_signer.path == ursula.signer.path
 
     # ...and that transactions are signed by the keytore signer
-    receipt = ursula.confirm_activity()
+    receipt = ursula.commit_to_next_period()
     transaction_data = testerchain.client.w3.eth.getTransaction(receipt['transactionHash'])
     assert transaction_data['from'] == worker_account.address

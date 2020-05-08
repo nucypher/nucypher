@@ -179,14 +179,14 @@ def test_get_current_period(agency, testerchain):
 
 
 @pytest.mark.slow()
-def test_confirm_activity(agency, testerchain, mock_transacting_power_activation):
+def test_commit_to_next_period(agency, testerchain, mock_transacting_power_activation):
     _token_agent, staking_agent, _policy_agent = agency
 
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
     mock_transacting_power_activation(account=worker_account, password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    receipt = staking_agent.confirm_activity(worker_address=worker_account)
+    receipt = staking_agent.commit_to_next_period(worker_address=worker_account)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == staking_agent.contract_address
 
@@ -212,8 +212,8 @@ def test_divide_stake(agency, token_economics):
                                    sender_address=someone,
                                    staker_address=someone)
 
-    # Confirm Activity
-    _txhash = agent.confirm_activity(node_address=someone)
+    # Commit to next period
+    _txhash = agent.commit_to_next_period(node_address=someone)
     testerchain.time_travel(periods=1)
 
     receipt = agent.divide_stake(staker_address=someone,
@@ -290,8 +290,8 @@ def test_collect_staking_reward(agency, testerchain, mock_transacting_power_acti
 
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
-    # Confirm Activity
-    _receipt = staking_agent.confirm_activity(worker_address=worker_account)
+    # Commit to next period
+    _receipt = staking_agent.commit_to_next_period(worker_address=worker_account)
     testerchain.time_travel(periods=2)
 
     mock_transacting_power_activation(account=staker_account, password=INSECURE_DEVELOPMENT_PASSWORD)
@@ -321,7 +321,7 @@ def test_winding_down(agency, testerchain, test_registry, token_economics):
 
     assert not staking_agent.is_winding_down(staker_account)
     check_last_period()
-    staking_agent.confirm_activity(worker_address=worker_account)
+    staking_agent.commit_to_next_period(worker_address=worker_account)
     check_last_period()
 
     # Examine the last periods of sub-stakes
@@ -332,7 +332,7 @@ def test_winding_down(agency, testerchain, test_registry, token_economics):
     assert receipt['status'] == 1
     assert staking_agent.is_winding_down(staker_account)
     check_last_period()
-    staking_agent.confirm_activity(worker_address=worker_account)
+    staking_agent.commit_to_next_period(worker_address=worker_account)
     check_last_period()
 
     testerchain.time_travel(periods=1)
@@ -342,7 +342,7 @@ def test_winding_down(agency, testerchain, test_registry, token_economics):
     assert receipt['status'] == 1
     assert not staking_agent.is_winding_down(staker_account)
     check_last_period()
-    staking_agent.confirm_activity(worker_address=worker_account)
+    staking_agent.commit_to_next_period(worker_address=worker_account)
     check_last_period()
 
 

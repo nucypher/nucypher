@@ -1386,6 +1386,6 @@ class Teacher:
         if not self.federated_only:
             payload.update({
                 "balances": dict(eth=float(self.eth_balance), nu=float(self.token_balance.to_tokens())),
-                "missing_confirmations": self.missing_confirmations,
-                "last_active_period": self.last_active_period})
+                "missing_commitments": self.missing_commitments,
+                "last_committed_period": self.last_committed_period})
         return payload

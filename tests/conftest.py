@@ -26,7 +26,7 @@ from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 # Crash on server error by default
 WebEmitter._crash_on_error_default = True
 
-# Dont re-lock account in background during activity confirmations
+# Dont re-lock account in background during making a commitments
 LOCK_FUNCTION = TransactingPower.lock_account
 TransactingPower.lock_account = lambda *a, **k: True
 

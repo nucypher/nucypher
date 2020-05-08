@@ -538,10 +538,10 @@ def test_collect_rewards_integration(click_runner,
 
     mock_transacting_power_activation(account=worker_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    # Confirm for half the first stake duration
+    # Make a commitments for half the first stake duration
     for _ in range(half_stake_time):
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
-        ursula.confirm_activity()
+        ursula.commit_to_next_period()
         testerchain.time_travel(periods=1)
         current_period += 1
 
@@ -576,7 +576,7 @@ def test_collect_rewards_integration(click_runner,
 
     for index in range(half_stake_time - 5):
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
-        ursula.confirm_activity()
+        ursula.commit_to_next_period()
 
         # Encrypt
         random_data = os.urandom(random.randrange(20, 100))
@@ -594,9 +594,9 @@ def test_collect_rewards_integration(click_runner,
         current_period += 1
 
     # Finish the passage of time
-    for _ in range(5 - 1):  # minus 1 because the first period was already confirmed in test_ursula_run
+    for _ in range(5 - 1):  # minus 1 because the first period was already committed in test_ursula_run
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
-        ursula.confirm_activity()
+        ursula.commit_to_next_period()
         current_period += 1
         testerchain.time_travel(periods=1)
 
@@ -607,7 +607,7 @@ def test_collect_rewards_integration(click_runner,
     balance = testerchain.client.get_balance(beneficiary)
 
     # Rewards will be unlocked after the
-    # final confirmed period has passed (+1).
+    # final committed period has passed (+1).
     logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
     testerchain.time_travel(periods=1)
     current_period += 1

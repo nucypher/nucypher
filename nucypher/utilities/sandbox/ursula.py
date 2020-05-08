@@ -69,7 +69,7 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
 def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
                                stakers_addresses: Iterable[str],
                                workers_addresses: Iterable[str],
-                               confirm_activity: bool = False,
+                               commit_to_next_period: bool = False,
                                **ursula_overrides) -> List[Ursula]:
 
     if not MOCK_KNOWN_URSULAS_CACHE:
@@ -86,9 +86,9 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
                                        db_filepath=MOCK_URSULA_DB_FILEPATH,
                                        rest_port=port + 100,
                                        **ursula_overrides)
-        if confirm_activity:
+        if commit_to_next_period:
             ursula.transacting_power.activate()
-            ursula.confirm_activity()
+            ursula.commit_to_next_period()
 
         ursulas.append(ursula)
         # Store this Ursula in our global cache.
@@ -103,7 +103,7 @@ def make_ursula_for_staker(staker: Staker,
                            blockchain: BlockchainInterface,
                            ursula_config: UrsulaConfiguration,
                            ursulas_to_learn_about: Optional[List[Ursula]] = None,
-                           confirm_activity: bool = False,
+                           commit_to_next_period: bool = False,
                            **ursula_overrides) -> Ursula:
 
     # Assign worker to this staker
@@ -113,7 +113,7 @@ def make_ursula_for_staker(staker: Staker,
                                         blockchain=blockchain,
                                         stakers_addresses=[staker.checksum_address],
                                         workers_addresses=[worker_address],
-                                        confirm_activity=confirm_activity,
+                                        commit_to_next_period=commit_to_next_period,
                                         **ursula_overrides).pop()
 
     for ursula_to_learn_about in (ursulas_to_learn_about or []):

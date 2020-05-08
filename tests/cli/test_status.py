@@ -114,9 +114,9 @@ def test_nucypher_status_fee_range(click_runner, agency_local_registry, stakers)
 def test_nucypher_status_locked_tokens(click_runner, testerchain, agency_local_registry, stakers):
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
-    # All workers confirm activity
+    # All workers make a commitment
     for ursula in testerchain.ursulas_accounts:
-        staking_agent.confirm_activity(worker_address=ursula)
+        staking_agent.commit_to_next_period(worker_address=ursula)
     testerchain.time_travel(periods=1)
 
     periods = 2

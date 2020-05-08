@@ -89,7 +89,7 @@ The parameters are:
 * The periods for locking (which are serialized into an array of bytes)
 
 When staking tokens, the staker sets the number of periods the tokens will be locked, which must be no less than some minimal locking time (30 periods).
-In order to unlock tokens, the staker must be active during the time of locking (and confirm activity each period).
+In order to unlock tokens, the staker must be active during the time of locking (and make a commitment each period).
 Each stake is represented by the amount of tokens locked, and the stake's duration in periods.
 The staker can add a new stake using ``StakingEscrow.deposit(uint256, uint16)`` or ``StakingEscrow.lock(uint256, uint16)`` methods.
 The staker can split stake into two parts: one with the same duration and another with an extended duration.
@@ -100,23 +100,23 @@ When calculating locked tokens using the ``StakingEscrow.getLockedTokens(address
 The Staker Bonds to a Worker ("Ursula")
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The staker must specify a worker who will confirm the activity and sign on behalf of this staker by calling the ``StakingEscrow.setWorker(address)`` method.
+The staker must specify a worker who will make a commitment and sign on behalf of this staker by calling the ``StakingEscrow.setWorker(address)`` method.
 Changing a worker is allowed no more than once within ``StakingEscrow.minWorkerPeriods()``.
-Only the worker can confirm activity.
+Only the worker can make a commitment.
 
-Ursula Confirms Activity
-^^^^^^^^^^^^^^^^^^^^^^^^
+Ursula Makes a Commitment
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
-In order to confirm activity every period, workers call ``StakingEscrow.confirmActivity()`` wherein activities for the next period are registered.
-The staker gets a reward for every confirmed period.
+In order to make a commitment to the next period, workers call ``StakingEscrow.commitToNextPeriod()`` wherein activities for the next period are registered.
+The staker gets a reward for every commitment period.
 
 Ursula Generates Staking Rewards
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 After the period of activity has passed, the staker may call ``StakingEscrow.mint()`` method which computes and transfers tokens to the staker's account.
-Also note that calls to ``StakingEscrow.confirmActivity()`` are included the ``StakingEscrow.mint()`` method.
+Also note that calls to ``StakingEscrow.commitToNextPeriod()`` are included the ``StakingEscrow.mint()`` method.
 
-The reward value depends on the fraction of locked tokens for the period (only those who confirmed activity are accounted for).
+The reward value depends on the fraction of locked tokens for the period (only those who made a commitment are accounted for).
 Also, the reward depends on the number of periods during which the tokens will be locked: if the tokens will be locked for half a year, the coefficient is 1.5.
 The minimum coefficient is 1 (when tokens will get unlocked in the next period), and the maximum is 2 (when the time is 1 year or more).
 The reward is calculated separately for each stake that is active during the mining period and all rewards are summed up.

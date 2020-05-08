@@ -385,11 +385,11 @@ contract PolicyManager is Upgradeable {
             }
         }
 
-        uint16 lastActivePeriod = escrow.getLastActivePeriod(_arrangement.node);
-        if (indexOfDowntimePeriods == length && lastActivePeriod < maxPeriod) {
+        uint16 lastCommittedPeriod = escrow.getLastCommittedPeriod(_arrangement.node);
+        if (indexOfDowntimePeriods == length && lastCommittedPeriod < maxPeriod) {
             // Overflow protection removed:
-            // lastActivePeriod < maxPeriod and minPeriod <= maxPeriod + 1
-            downtimePeriods += maxPeriod - AdditionalMath.max16(minPeriod - 1, lastActivePeriod);
+            // lastCommittedPeriod < maxPeriod and minPeriod <= maxPeriod + 1
+            downtimePeriods += maxPeriod - AdditionalMath.max16(minPeriod - 1, lastCommittedPeriod);
         }
 
         refundValue = _policy.feeRate * downtimePeriods;

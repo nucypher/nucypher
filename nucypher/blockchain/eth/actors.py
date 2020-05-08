@@ -1183,9 +1183,9 @@ class Staker(NucypherTokenActor):
         return receipt
 
     @property
-    def missing_confirmations(self) -> int:
+    def missing_commitments(self) -> int:
         staker_address = self.checksum_address
-        missing = self.staking_agent.get_missing_confirmations(checksum_address=staker_address)
+        missing = self.staking_agent.get_missing_commitments(checksum_address=staker_address)
         return missing
 
     @only_me
@@ -1341,21 +1341,21 @@ class Worker(NucypherTokenActor):
         return nu_balance
 
     @property
-    def last_active_period(self) -> int:
-        period = self.staking_agent.get_last_active_period(staker_address=self.checksum_address)
+    def last_committed_period(self) -> int:
+        period = self.staking_agent.get_last_committed_period(staker_address=self.checksum_address)
         return period
 
     @only_me
     @save_receipt
-    def confirm_activity(self) -> dict:
-        """For each period that the worker confirms activity, the staker is rewarded"""
-        receipt = self.staking_agent.confirm_activity(worker_address=self.__worker_address)
+    def commit_to_next_period(self) -> dict:
+        """For each period that the worker makes a commitment, the staker is rewarded"""
+        receipt = self.staking_agent.commit_to_next_period(worker_address=self.__worker_address)
         return receipt
 
     @property
-    def missing_confirmations(self) -> int:
+    def missing_commitments(self) -> int:
         staker_address = self.checksum_address
-        missing = self.staking_agent.get_missing_confirmations(checksum_address=staker_address)
+        missing = self.staking_agent.get_missing_commitments(checksum_address=staker_address)
         return missing
 
 

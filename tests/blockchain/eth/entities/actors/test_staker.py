@@ -144,14 +144,14 @@ def test_staker_collects_staking_reward(testerchain,
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                         stakers_addresses=[staker.checksum_address],
                                         workers_addresses=[worker_address],
-                                        confirm_activity=False,
+                                        commit_to_next_period=False,
                                         registry=test_registry).pop()
 
     # ...wait out the lock period...
     for _ in range(token_economics.minimum_locked_periods):
         testerchain.time_travel(periods=1)
         ursula.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
-        ursula.confirm_activity()
+        ursula.commit_to_next_period()
 
     # ...wait more...
     testerchain.time_travel(periods=2)
@@ -174,7 +174,7 @@ def test_staker_manages_winding_down(testerchain,
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                         stakers_addresses=[staker.checksum_address],
                                         workers_addresses=[staker.worker_address],
-                                        confirm_activity=False,
+                                        commit_to_next_period=False,
                                         registry=test_registry).pop()
 
     # Enable winding down
@@ -184,7 +184,7 @@ def test_staker_manages_winding_down(testerchain,
     assert receipt['status'] == 1
     assert staker.locked_tokens(base_duration) != 0
     assert staker.locked_tokens(base_duration + 1) == 0
-    ursula.confirm_activity()
+    ursula.commit_to_next_period()
     assert staker.locked_tokens(base_duration) != 0
     assert staker.locked_tokens(base_duration + 1) == 0
 
@@ -194,7 +194,7 @@ def test_staker_manages_winding_down(testerchain,
     assert receipt['status'] == 1
     assert staker.locked_tokens(base_duration - 1) != 0
     assert staker.locked_tokens(base_duration) == 0
-    ursula.confirm_activity()
+    ursula.commit_to_next_period()
     assert staker.locked_tokens(base_duration - 1) != 0
     assert staker.locked_tokens(base_duration) == 0
 

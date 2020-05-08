@@ -73,7 +73,7 @@ def test_fee(testerchain, escrow, policy_manager):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.register(bad_node, period).transact({'from': bad_node})
         testerchain.wait_for_receipt(tx)
-    # Can't set default value directly (only through confirmActivity method in the escrow contract)
+    # Can't set default value directly (only through commitToNextPeriod method in the escrow contract)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.setDefaultFeeDelta(bad_node, period).transact({'from': bad_node})
         testerchain.wait_for_receipt(tx)
@@ -179,7 +179,7 @@ def test_refund(testerchain, escrow, policy_manager):
         .transact({'from': policy_creator, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     period = escrow.functions.getCurrentPeriod().call()
-    tx = escrow.functions.setLastActivePeriod(period - 1).transact({'from': creator})
+    tx = escrow.functions.setLastCommittedPeriod(period - 1).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     testerchain.time_travel(hours=8)
@@ -265,7 +265,7 @@ def test_refund(testerchain, escrow, policy_manager):
     # Create new policy
     testerchain.time_travel(hours=1)
     period = escrow.functions.getCurrentPeriod().call()
-    tx = escrow.functions.setLastActivePeriod(period).transact()
+    tx = escrow.functions.setLastCommittedPeriod(period).transact()
     testerchain.wait_for_receipt(tx)
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
@@ -343,7 +343,7 @@ def test_refund(testerchain, escrow, policy_manager):
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.mint(period + 8, 1).transact({'from': node1})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setLastActivePeriod(period + 8).transact({'from': creator})
+    tx = escrow.functions.setLastCommittedPeriod(period + 8).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 100 == policy_manager.functions.nodes(node1).call()[FEE_FIELD]
 
@@ -435,7 +435,7 @@ def test_refund(testerchain, escrow, policy_manager):
     tx = escrow.functions.mint(period + 1, 3).transact({'from': node1})
     testerchain.wait_for_receipt(tx)
     period += 3
-    tx = escrow.functions.setLastActivePeriod(period).transact({'from': creator})
+    tx = escrow.functions.setLastCommittedPeriod(period).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 160 == policy_manager.functions.nodes(node1).call()[FEE_FIELD]
 
@@ -497,7 +497,7 @@ def test_refund(testerchain, escrow, policy_manager):
     creator_balance = testerchain.client.get_balance(policy_creator)
     tx = escrow.functions.pushDowntimePeriod(0, period).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setLastActivePeriod(period + 1).transact({'from': creator})
+    tx = escrow.functions.setLastCommittedPeriod(period + 1).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     refund_value = (number_of_periods_4 - 1) * rate
     assert refund_value == policy_manager.functions.calculateRefundValue(policy_id_4).call({'from': policy_creator})
@@ -596,7 +596,7 @@ def test_reentrancy(testerchain, escrow, policy_manager, deploy_contract):
     assert 0 == len(withdraw_log.get_all_entries())
 
     # Prepare for refund and check reentrancy protection
-    tx = escrow.functions.setLastActivePeriod(period).transact()
+    tx = escrow.functions.setLastCommittedPeriod(period).transact()
     testerchain.wait_for_receipt(tx)
     transaction = policy_manager.functions.revokePolicy(policy_id).buildTransaction({'gas': 0})
     tx = reentrancy_contract.functions.setData(2, transaction['to'], 0, transaction['data']).transact()

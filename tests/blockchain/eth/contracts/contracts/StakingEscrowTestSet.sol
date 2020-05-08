@@ -189,8 +189,8 @@ contract Intermediary {
         escrow.deposit(_value, _periods);
     }
 
-    function confirmActivity() external {
-        escrow.confirmActivity();
+    function commitToNextPeriod() external {
+        escrow.commitToNextPeriod();
     }
 
 }

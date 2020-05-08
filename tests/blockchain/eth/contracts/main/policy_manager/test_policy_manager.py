@@ -641,7 +641,7 @@ def test_handling_wrong_state(testerchain, deploy_contract):
     tx = escrow.functions.setDefaultFeeDelta(node1, current_period, 1).transact()
     testerchain.wait_for_receipt(tx)
 
-    # Emulate confirm activity actions
+    # Emulate making a commitments
     for i in range(1, number_of_periods + 2):
         testerchain.time_travel(hours=1)
         current_period = policy_manager.functions.getCurrentPeriod().call()
@@ -682,7 +682,7 @@ def test_handling_wrong_state(testerchain, deploy_contract):
     tx = policy_manager.functions.setNodeFeeDelta(node2, initial_period + 2 + number_of_periods, -50).transact()
     testerchain.wait_for_receipt(tx)
 
-    # Emulate confirm activity actions
+    # Emulate making a commitments
     for i in range(1, number_of_periods + 4):
         testerchain.time_travel(hours=1)
         current_period = policy_manager.functions.getCurrentPeriod().call()

@@ -670,7 +670,7 @@ def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
     _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                           stakers_addresses=testerchain.stakers_accounts,
                                           workers_addresses=testerchain.ursulas_accounts,
-                                          confirm_activity=True)
+                                          commit_to_next_period=True)
     for u in _ursulas:
         u.synchronous_query_timeout = .01  # We expect to never have to wait for content that is actually on-chain during tests.
     testerchain.time_travel(periods=1)

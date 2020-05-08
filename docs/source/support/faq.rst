@@ -142,7 +142,7 @@ Inflation Rewards (NU) and Policy Fees (ETH).
 Q: How are Policy Fees (ETH) determined?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The fee is calculated with Confirm Activity taking into account the number of policies Ursula is enforcing.
+The fee is calculated with Commit to Next Period taking into account the number of policies Ursula is enforcing.
 
 Q: How many Ursulas per period collect Inflation rewards (NU)?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -260,7 +260,7 @@ Note that a minimum of two periods must elapse before rewards will be delivered 
 are in Period 5 when you start staking:
 
 - Period 5: You deposit stake and initiate a worker
-- Period 5: Your worker calls ``confirmActivity()`` in order to receive work for the next period
+- Period 5: Your worker calls ``commitToNextPeriod()`` in order to receive work for the next period
 - Period 6: Your worker successfully performs the work
 - Period 7: Your worker receives rewards for the work completed in the previous period
 
@@ -318,13 +318,13 @@ See :ref:`node-providers`.
 Q: Why is my node is labelled as "*Idle*" in the status monitor?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Your node is `Idle` because it has never confirmed activity. Likely, your worker address does not have any
+Your node is `Idle` because it has never made a commitment. Likely, your worker address does not have any
 ETH to use for transaction gas.
 
 Q: The status of my node on the status monitor seems incorrect?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Check when last your node confirmed activity by running::
+Check when last your node made a commitment by running::
 
     nucypher status stakers
     >    --provider <your_geth_provider>
