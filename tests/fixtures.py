@@ -115,6 +115,8 @@ from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
+from tests.mock.products import mock_treasuremap, mock_messagekit, mock_decentralized_treasuremap
+
 test_logger = Logger("test-logger")
 
 # defer.setDebugging(True)

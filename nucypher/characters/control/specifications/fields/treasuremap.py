@@ -25,6 +25,7 @@ from nucypher.characters.control.specifications.fields.base import BaseField
 from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.signing import Signature
+from nucypher.config.splitters import BYTESTRING_REGISTRY
 
 
 class TreasureMap(BaseField, fields.Field):
@@ -40,12 +41,19 @@ class TreasureMap(BaseField, fields.Field):
 
     def _validate(self, value):
 
-        splitter = BytestringSplitter(Signature,
-                                  (bytes, KECCAK_DIGEST_LENGTH),  # hrac
-                                  (UmbralMessageKit, VariableLengthBytestring)
-                                  )  # TODO: USe the one from TMap
+        from nucypher.policy.collections import TreasureMap
         try:
-            signature, hrac, tmap_message_kit = splitter(value)
+
+            metadata = TreasureMap.splitter().get_metadata(value)
+
+            if not TreasureMap.splitter().validate_checksum(value):
+                if metadata['checksum'] in BYTESTRING_REGISTRY:
+                    raise InvalidInputData(f"Input data seems to be a {BYTESTRING_REGISTRY[metadata['checksum']]} and not a TreasureMap")
+                raise InvalidInputData(f"Could not validate supplied TreasureMap bytes against known any supported bytestring formats")
+
+            if metadata['version'] > TreasureMap.version:
+                raise InvalidInputData("Version incompatibility.  Please update your NuCypher Software")
             return True
+
         except InvalidNativeDataTypes as e:
             raise InvalidInputData(f"Could not parse {self.name}: {e}")

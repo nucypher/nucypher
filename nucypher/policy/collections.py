@@ -40,6 +40,7 @@ from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPublicKey
 from umbral.pre import Capsule
 
+from nucypher.config.splitters import NucypherBSSKwargifier
 from nucypher.characters.lawful import Bob, Character
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign, verify_eip_191
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
@@ -56,6 +57,7 @@ from nucypher.network.middleware import RestMiddleware
 
 class TreasureMap:
     ID_LENGTH = 32
+    version = 1
 
     class NowhereToBeFound(RestMiddleware.NotFound):
         """
@@ -105,7 +107,7 @@ class TreasureMap:
 
     @classmethod
     def splitter(cls):
-        return BytestringKwargifier(cls,
+        return NucypherBSSKwargifier(cls,
                                     public_signature=Signature,
                                     hrac=(bytes, KECCAK_DIGEST_LENGTH),
                                     message_kit=(UmbralMessageKit, VariableLengthBytestring)
@@ -148,11 +150,12 @@ class TreasureMap:
         self._payload = self._public_signature + self._hrac + bytes(
             VariableLengthBytestring(self.message_kit.to_bytes()))
 
-    def __bytes__(self):
+    def __bytes__(self, prepend=None):
         if self._payload is None:
             self._set_payload()
+        prepend = prepend or b''
 
-        return self._payload
+        return self.splitter().render(prepend + self._payload, version=self.version)
 
     @property
     def _verifying_key(self):
@@ -258,7 +261,7 @@ class DecentralizedTreasureMap(TreasureMap):
 
     @classmethod
     def splitter(cls):
-        return BytestringKwargifier(cls,
+        return NucypherBSSKwargifier(cls,
                                     blockchain_signature=65,
                                     public_signature=Signature,
                                     hrac=(bytes, KECCAK_DIGEST_LENGTH),
@@ -277,7 +280,7 @@ class DecentralizedTreasureMap(TreasureMap):
     def __bytes__(self):
         if self._blockchain_signature is NOT_SIGNED:
             raise self.InvalidSignature("Can't cast a DecentralizedTreasureMap to bytes until it has a blockchain signature (otherwise, is it really a 'DecentralizedTreasureMap'?")
-        return self._blockchain_signature + super().__bytes__()
+        return super().__bytes__(prepend=self._blockchain_signature)
 
 
 class PolicyCredential:

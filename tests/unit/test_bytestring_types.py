@@ -75,3 +75,11 @@ def test_message_kit_serialization_via_enrico(enacted_federated_policy, federate
 
     # Confirm
     assert message_kit_bytes == the_same_message_kit.to_bytes()
+
+    # some bytestring validation while we're here
+
+    mk_splitter = UmbralMessageKit.splitter()
+    metadata = mk_splitter.get_metadata(message_kit_bytes)
+    assert message_kit_bytes.startswith(mk_splitter.generate_checksum() + UmbralMessageKit.version.to_bytes(2, "big"))
+    assert metadata['version'] == 1
+    assert metadata['checksum'] == mk_splitter.generate_checksum()
