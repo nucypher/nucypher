@@ -272,6 +272,8 @@ class DecentralizedTreasureMap(TreasureMap):
                               address=checksum_address)
 
     def __bytes__(self):
+        if self._blockchain_signature is NOT_SIGNED:
+            raise self.InvalidSignature("Can't cast a DecentralizedTreasureMap to bytes until it has a blockchain signature (otherwise, is it really a 'DecentralizedTreasureMap'?")
         return self._blockchain_signature + super().__bytes__()
 
 
