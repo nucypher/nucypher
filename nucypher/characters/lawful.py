@@ -709,16 +709,18 @@ class Bob(Character):
             alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
             compass = self.make_compass_for_alice(alice)
 
-            from nucypher.policy.collections import TreasureMap
+            if self.federated_only:
+                from nucypher.policy.collections import TreasureMap as _MapClass
+            else:
+                from nucypher.policy.collections import DecentralizedTreasureMap as _MapClass
 
             # TODO: This LBYL is ugly and fraught with danger.  NRN
             if isinstance(treasure_map, bytes):
-                treasure_map = TreasureMap.from_bytes(treasure_map)
+                treasure_map = _MapClass.from_bytes(treasure_map)
 
             if isinstance(treasure_map, str):
                 tmap_bytes = treasure_map.encode()
-                treasure_map = TreasureMap.from_bytes(b64decode(tmap_bytes))
-
+                treasure_map = _MapClass.from_bytes(b64decode(tmap_bytes))
             treasure_map.orient(compass)
             _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=treasure_map, block=True)
         else:
