@@ -67,21 +67,13 @@ def custom_config_filepath(custom_filepath):
     return filepath
 
 
-@pytest.fixture(scope='function', autouse=True)
-def mock_keystore(mock_accounts, monkeypatch, mocker):
-
-    def mock_keyfile_reader(_keystore, path):
-        for filename, account in mock_accounts.items():  # Walk the mock filesystem
-            if filename in path:
-                break
-        else:
-            raise FileNotFoundError(f"No such file {path}")
-        return account.address, dict(version=3, address=account.address)
-
-    mocker.patch('os.listdir', return_value=list(mock_accounts.keys()))
-    monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keyfile', mock_keyfile_reader)
-    yield
-    monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keyfile')
+@pytest.fixture(scope='module')
+def mock_keystore(mock_accounts, tmp_path_factory):
+    keystore = tmp_path_factory.mktemp('keystore', numbered=True)
+    for filename, account in mock_accounts.items():
+        json.dump(account.encrypt(INSECURE_DEVELOPMENT_PASSWORD),
+                  open(keystore / filename, 'x+t'))
+    return keystore
 
 
 def test_ursula_and_local_keystore_signer_integration(click_runner,
@@ -129,7 +121,9 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     #
 
     # Good signer...
-    pre_config_signer = KeystoreSigner.from_signer_uri(uri=MOCK_SIGNER_URI)
+    mock_keystore_path = mock_keystore
+    mock_signer_uri = f'keystore:{mock_keystore_path}'
+    pre_config_signer = KeystoreSigner.from_signer_uri(uri=mock_signer_uri)
     assert worker_account.address in pre_config_signer.accounts
 
     init_args = ('ursula', 'init',
@@ -150,12 +144,12 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     with open(custom_config_filepath, 'r') as config_file:
         raw_config_data = config_file.read()
         config_data = json.loads(raw_config_data)
-        assert config_data['signer_uri'] == MOCK_SIGNER_URI,\
+        assert config_data['signer_uri'] == mock_signer_uri,\
             "Keystore URI was not correctly included in configuration file"
 
     # Recreate a configuration with the signer URI preserved
     ursula_config = UrsulaConfiguration.from_configuration_file(custom_config_filepath)
-    assert ursula_config.signer_uri == MOCK_SIGNER_URI
+    assert ursula_config.signer_uri == mock_signer_uri
 
     # Mock decryption of web3 client keyring
     mocker.patch.object(Account, 'decrypt', return_value=worker_account.privateKey)
@@ -169,7 +163,15 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
 
     # Verify the keystore path is still preserved
     assert isinstance(ursula.signer, KeystoreSigner)
+<<<<<<< HEAD:tests/cli/ursula/test_local_keystore_integration.py
     assert ursula.signer.path == Path(MOCK_KEYSTORE_PATH)
+||||||| merged common ancestors
+    assert isinstance(ursula.signer.path, Path), "Use Pathlib"
+    assert ursula.signer.path == Path(MOCK_KEYSTORE_PATH)  # confirm Pathlib is used internally despite string input
+=======
+    assert isinstance(ursula.signer.path, str), "Use str"
+    assert ursula.signer.path == str(mock_keystore_path)  # confirm Pathlib is used internally despite string input
+>>>>>>> Updated ci cli tests for KeyStoreSigner.:tests/cli/ursula/test_ursula_local_keystore_cli_integration.py
 
     # Show that we can produce the exact same signer as pre-config...
     assert pre_config_signer.path == ursula.signer.path
