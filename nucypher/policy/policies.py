@@ -328,7 +328,7 @@ class Policy(ABC):
                 raise self.MoreKFragsThanArrangements("Not enough accepted arrangements to assign all KFrags.")
         return
 
-    def enact(self, network_middleware, publish=True) -> dict:
+    def enact(self, network_middleware, publish_treasure_map=True) -> dict:
         """
         Assign kfrags to ursulas_on_network, and distribute them via REST,
         populating enacted_arrangements
@@ -367,7 +367,7 @@ class Policy(ABC):
             self.revocation_kit = RevocationKit(self, self.alice.stamp)
             self.alice.add_active_policy(self)
 
-            if publish is True:
+            if publish_treasure_map is True:
                 return self.publish_treasure_map(network_middleware=network_middleware)
 
     def propose_arrangement(self, network_middleware, ursula, arrangement) -> bool:
@@ -657,20 +657,21 @@ class BlockchainPolicy(Policy):
                                        duration_periods=self.duration_periods,
                                        *args, **kwargs)
 
-    def enact(self, network_middleware, publish=True) -> dict:
+    def enact(self, network_middleware, publish_to_blockchain=True, publish_treasure_map=True) -> dict:
         """
         Assign kfrags to ursulas_on_network, and distribute them via REST,
         populating enacted_arrangements
         """
-        if publish is True:
+        if publish_to_blockchain is True:
             self.publish_to_blockchain()
 
             # Not in love with this block here, but I want 121 closed.
             for arrangement in self._accepted_arrangements:
                 arrangement.publish_transaction = self.publish_transaction
 
-        super().enact(network_middleware, publish=False)
-        if publish is True:
+        super().enact(network_middleware, publish_treasure_map=False)
+
+        if publish_treasure_map is True:
             self.treasure_map.prepare_for_publication(bob_encrypting_key=self.bob.public_keys(DecryptingPower),
                                                       bob_verifying_key=self.bob.public_keys(SigningPower),
                                                       alice_stamp=self.alice.stamp,
