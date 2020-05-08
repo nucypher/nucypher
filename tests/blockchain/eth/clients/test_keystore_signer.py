@@ -1,6 +1,7 @@
+import collections
 import json
-
 import os
+
 import pytest
 import shutil
 from cytoolz.dicttoolz import assoc
@@ -30,11 +31,17 @@ TRANSACTION_DICT = {
 }
 
 
-@pytest.fixture(scope='module', autouse=True)
-def mock_listdir(module_mocker):
-    mock_listdir = module_mocker.patch.object(os, 'listdir', autospec=True)
-    mock_listdir.return_value = [MOCK_KEYFILE_NAME]
-    return mock_listdir
+def mock_stat_scandir(mocker):
+    mock_stat = mocker.patch.object(os, 'stat', autospec=True)
+    mock_stat.return_value = os.stat_result((0o40755,) + (None,)*9)
+
+    mock_scandir = mocker.patch.object(os, 'scandir', autospec=True)
+    mock_scandir.return_value = (
+        collections.namedtuple('DirEntry', 'path is_file')(
+            path=os.path.join(MOCK_KEYSTORE_PATH, MOCK_KEYFILE_NAME),
+            is_file=lambda: True,
+        ),
+    )
 
 
 @pytest.fixture(scope='module')
@@ -51,6 +58,8 @@ def mock_account(mock_key):
 
 @pytest.fixture(scope='function')
 def good_signer(mocker, mock_account, mock_key):
+    mock_stat_scandir(mocker)
+
     # Return a "real" account address from the keyfile
     mock_keyfile_reader = mocker.patch.object(KeystoreSigner, '_KeystoreSigner__read_keyfile', autospec=True)
     mock_keyfile_reader.return_value = mock_account.address, dict(address=mock_account.address)
@@ -77,8 +86,9 @@ def test_blank_keystore_uri():
     assert 'Blank signer URI - No keystore path provided' in str(error)
 
 
-def test_invalid_keystore(mocker, mock_listdir):
-    
+def test_invalid_keystore(mocker):
+    mock_stat_scandir(mocker)
+
     # mock Keystoresigner.__read_keyfile
     # Invalid keystore values and exception handling
     mock_keyfile_reader = mocker.patch.object(KeystoreSigner, '_KeystoreSigner__read_keyfile', autospec=True)
@@ -100,7 +110,7 @@ def test_invalid_keystore(mocker, mock_listdir):
     mock_keyfile_reader.side_effect = None  # clean up this mess
 
 
-def test_signer_reads_keystore_from_disk(mock_listdir, mock_account, mock_key, tmpdir):
+def test_signer_reads_keystore_from_disk(mock_account, mock_key, tmpdir):
 
     # Test reading a keyfile from the disk via KeystoreSigner since
     # it is mocked for the rest of this test module
@@ -120,7 +130,7 @@ def test_signer_reads_keystore_from_disk(mock_listdir, mock_account, mock_key, t
         mock_keystore_uri = f'keystore://{tmp_keystore}'
         signer = Signer.from_signer_uri(uri=mock_keystore_uri)
 
-        assert signer.path == tmp_keystore
+        assert signer.path == str(tmp_keystore)
         assert len(signer.accounts) == 1
         assert MOCK_KEYFILE['address'] in signer.accounts
 
@@ -129,14 +139,15 @@ def test_signer_reads_keystore_from_disk(mock_listdir, mock_account, mock_key, t
             shutil.rmtree(fake_ethereum, ignore_errors=True)
 
 
-def test_create_signer(mocker, mock_listdir, mock_account, mock_key):
+def test_create_signer(mocker, mock_account, mock_key):
+    mock_stat_scandir(mocker)
 
     # Return a "real" account address from the keyfile
     mock_keyfile_reader = mocker.patch.object(KeystoreSigner, '_KeystoreSigner__read_keyfile', autospec=True)
     mock_keyfile_reader.return_value = mock_account.address, dict(address=mock_account.address)
 
     signer = Signer.from_signer_uri(uri=MOCK_KEYSTORE_URI)  # type: KeystoreSigner
-    assert signer.path == Path(MOCK_KEYSTORE_PATH)
+    assert signer.path == MOCK_KEYSTORE_PATH
     assert len(signer.accounts) == 1
     assert mock_account.address in signer.accounts
 
