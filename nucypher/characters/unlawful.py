@@ -75,7 +75,7 @@ class Vladimir(Ursula):
                        crypto_power=crypto_power,
                        db_filepath=cls.db_filepath,
                        domains=[':TEMPORARY_DOMAIN:'],
-                       block_until_bonded=False,
+                       block_until_ready=False,
                        start_working_now=False,
                        rest_host=target_ursula.rest_interface.host,
                        rest_port=target_ursula.rest_interface.port,
