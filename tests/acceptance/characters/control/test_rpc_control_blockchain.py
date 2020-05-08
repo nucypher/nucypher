@@ -16,6 +16,9 @@
 """
 
 from base64 import b64encode
+from nucypher.policy.collections import TreasureMap, DecentralizedTreasureMap
+from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.characters.lawful import Ursula
 
 import pytest
 
@@ -153,13 +156,15 @@ def test_bob_rpc_character_control_retrieve_with_tmap(
 
     # Make a wrong (empty) treasure map
 
-    wrong_tmap = TreasureMap(m=0)
+    wrong_tmap = DecentralizedTreasureMap(m=0)
     wrong_tmap.prepare_for_publication(
             blockchain_bob.public_keys(DecryptingPower),
             blockchain_bob.public_keys(SigningPower),
             blockchain_alice.stamp,
             b'Wrong!')
-    tmap_64 = b64encode(bytes(wrong_tmap)).decode()
+    wrong_tmap._blockchain_signature = b"this is not a signature, but we don't need one for this test....."  # ...because it only matters when Ursula looks at it.
+    tmap_bytes = bytes(wrong_tmap)
+    tmap_64 = b64encode(tmap_bytes).decode()
     request_data['params']['treasure_map'] = tmap_64
-    with pytest.raises(TreasureMap.IsDisorienting):
+    with pytest.raises(DecentralizedTreasureMap.IsDisorienting):
         bob_rpc_controller.send(request_data)
