@@ -89,6 +89,18 @@ class NodeStorage(ABC):
         common_name_from_cert = common_name_as_bytes.decode()
         return common_name_from_cert
 
+    def _read_checksum_address_as_pseudonym(self, certificate: Certificate, host: str):
+        try:
+            pseudonym = certificate.subject.get_attributes_for_oid(NameOID.PSEUDONYM)[0]
+        except IndexError:
+            raise self.InvalidNodeCertificate(f"Missing checksum address on certificate for host '{host}'. "
+                                              f"Does this certificate belong to an Ursula?")
+        else:
+            checksum_address = pseudonym.value
+        if not is_checksum_address(checksum_address):
+            raise self.InvalidNodeCertificate("Invalid certificate wallet address encountered: {}".format(checksum_address))
+        return checksum_address
+
     def _write_tls_certificate(self,
                                certificate: Certificate,
                                host: str = None,
@@ -102,16 +114,7 @@ class NodeStorage(ABC):
         if not host:
             host = common_name_on_certificate
 
-        try:
-            pseudonym = certificate.subject.get_attributes_for_oid(NameOID.PSEUDONYM)[0]
-        except IndexError:
-            raise self.InvalidNodeCertificate(f"Missing checksum address on certificate for host '{host}'. "
-                                              f"Does this certificate belong to an Ursula?")
-        else:
-            checksum_address = pseudonym.value
-
-        if not is_checksum_address(checksum_address):
-            raise self.InvalidNodeCertificate("Invalid certificate wallet address encountered: {}".format(checksum_address))
+        checksum_address = self._read_checksum_address_as_pseudonym(certificate=certificate, host=host)
 
         # Validate
         # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443

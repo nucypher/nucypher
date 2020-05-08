@@ -1,7 +1,9 @@
+import maya
 import os
 from collections import namedtuple
 
 import pytest
+from cryptography import x509
 from eth_utils.address import to_checksum_address
 from twisted.logger import globalLogPublisher, LogLevel
 
@@ -9,9 +11,11 @@ from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow.constants import NOT_SIGNED
 
 from nucypher.characters.base import Character
+from nucypher.characters.lawful import Ursula
+from nucypher.config.storages import NodeStorage
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nicknames import nickname_from_seed
-from nucypher.network.nodes import FleetStateTracker, Learner
+from nucypher.network.nodes import FleetStateTracker, Learner, Teacher
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_ursula_for_staker
 
@@ -255,3 +259,34 @@ def test_node_posts_future_version(federated_ursulas):
     middleware.get_nodes_via_rest(node=ursula,
                                   announce_nodes=(future_node_bytes,))
     assert len(warnings) == 2
+
+
+def test_handle_missing_certificate_pseudonym(mocker, ursula_federated_test_config):
+
+    nodes = make_federated_ursulas(ursula_config=ursula_federated_test_config, quantity=3, know_each_other=False)
+    teacher, learner, new_node = nodes
+
+    from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
+    teacher.certificate_filepath = CERTIFICATE_NOT_SAVED
+
+    now = maya.now()
+    earlier = now - maya.timedelta(1)
+    mocker.patch.object(FleetStateTracker, 'record_fleet_state')
+    mocker.patch.object(Teacher, 'timestamp', new_callable=mocker.PropertyMock, side_effect=[now, earlier])
+    mocker.patch.object(Teacher, 'validate_interface', return_value=True)
+
+    # This IP address's certificate belongs to another domain now
+    class ValidMockNameAttribute:
+        value = teacher.checksum_address
+
+    class InvalidMockNameAttribute:
+        value = 'sphere.llama.network'
+
+    first_call = (ValidMockNameAttribute(),)
+    second_call = (InvalidMockNameAttribute(), )
+    side_effect = [first_call, second_call]
+    mocker.patch.object(x509.name.Name, 'get_attributes_for_oid', side_effect=side_effect)
+
+    # mocker.patch.object(NodeStorage, '_read_checksum_address_as_pseudonym', side_effect=NodeStorage.InvalidNodeCertificate)
+    with pytest.raises(NodeStorage.InvalidNodeCertificate):
+        learner.remember_node(teacher, eager=True)
