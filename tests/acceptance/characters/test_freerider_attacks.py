@@ -50,7 +50,7 @@ def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bo
 def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, blockchain_alice, blockchain_bob, agency,
                                                        testerchain):
     """
-    This time we won't rely on the tabulation in Alice's enact to catch the problem.
+    This time we won't rely on the tabulation in Alice's enact() to catch the problem.
     """
     amonia = Amonia.from_lawful_alice(blockchain_alice)
     # Setup the policy details
@@ -63,7 +63,8 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, block
                                                                            m=2,
                                                                            n=n,
                                                                            rate=int(1e18),  # one ether
-                                                                           expiration=policy_end_datetime)
+                                                                           expiration=policy_end_datetime,
+                                                                           publish_treasure_map=False)
 
     for ursula in blockchain_ursulas:
         # Even though the grant executed without error...
@@ -101,7 +102,8 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchai
                                                                m=2,
                                                                n=n,
                                                                rate=int(1e18),  # one ether
-                                                               expiration=policy_end_datetime)
+                                                               expiration=policy_end_datetime,
+                                                               publish_treasure_map=False)
 
     # Same exact set of assertions as the last test:
     for ursula in blockchain_ursulas:
