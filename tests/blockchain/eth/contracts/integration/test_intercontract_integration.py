@@ -494,7 +494,7 @@ def test_worklock_phases(testerchain,
     assert worklock.functions.workToETH(staker2_remaining_work, staker2_bid).call() == staker2_bid
     assert worklock.functions.getRemainingWork(staker2).call() == staker2_remaining_work
     assert token.functions.balanceOf(worklock.address).call() == worklock_supply - staker2_tokens
-    tx = escrow.functions.setWorker(staker2).transact({'from': staker2})
+    tx = escrow.functions.bondWorker(staker2).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
     pytest.escrow_supply += staker2_tokens
     assert escrow.functions.getAllTokens(staker2).call() == staker2_tokens
@@ -632,7 +632,7 @@ def test_staking(testerchain,
     # Staker transfers some tokens to the escrow and lock them
     tx = escrow.functions.deposit(1000, 10).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setWorker(staker1).transact({'from': staker1})
+    tx = escrow.functions.bondWorker(staker1).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setReStake(False).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
@@ -693,7 +693,7 @@ def test_policy(testerchain,
     testerchain.time_travel(hours=1)
     tx = preallocation_escrow_interface_1.functions.depositAsStaker(1000, 10).transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
-    tx = preallocation_escrow_interface_1.functions.setWorker(staker3).transact({'from': staker3})
+    tx = preallocation_escrow_interface_1.functions.bondWorker(staker3).transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
     tx = preallocation_escrow_interface_1.functions.setWindDown(True).transact({'from': staker3})
     testerchain.wait_for_receipt(tx)

@@ -96,7 +96,7 @@ def test_sampling_distribution(testerchain, token, deploy_contract, token_econom
         testerchain.wait_for_receipt(tx)
 
         staking_agent.deposit_tokens(amount=balance, lock_periods=10, sender_address=staker, staker_address=staker)
-        staking_agent.set_worker(staker_address=staker, worker_address=staker)
+        staking_agent.bond_worker(staker_address=staker, worker_address=staker)
         staking_agent.commit_to_next_period(staker)
 
     # Wait next period and check all locked tokens

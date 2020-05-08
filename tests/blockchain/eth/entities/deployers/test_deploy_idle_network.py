@@ -130,7 +130,7 @@ def test_stake_in_idle_network(testerchain, token_economics, test_registry):
     amount = token_economics.minimum_allowed_locked
     periods = token_economics.minimum_locked_periods
     staker.initialize_stake(amount=amount, lock_periods=periods)
-    staker.set_worker(account)
+    staker.bond_worker(account)
     with pytest.raises((TransactionFailed, ValueError)):
         staker.staking_agent.commit_to_next_period(worker_address=account)
 

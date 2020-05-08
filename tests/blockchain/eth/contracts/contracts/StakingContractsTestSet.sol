@@ -70,7 +70,7 @@ contract StakingEscrowForStakingContractMock {
         lockReStakeUntilPeriod = _lockReStakeUntilPeriod;
     }
 
-    function setWorker(address _worker) external {
+    function bondWorker(address _worker) external {
         worker = _worker;
     }
 

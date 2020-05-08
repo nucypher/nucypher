@@ -94,8 +94,8 @@ def test_divide_stake(software_stakeholder, token_economics, test_registry):
     assert original_stake.value == (pre_divide_stake_value - target_value)
 
 
-def test_set_worker(software_stakeholder, manual_worker, test_registry):
-    software_stakeholder.set_worker(worker_address=manual_worker)
+def test_bond_worker(software_stakeholder, manual_worker, test_registry):
+    software_stakeholder.bond_worker(worker_address=manual_worker)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     assert staking_agent.get_worker_from_staker(staker_address=software_stakeholder.checksum_address) == manual_worker
 
@@ -106,7 +106,7 @@ def test_collect_inflation_rewards(software_stakeholder, manual_worker, testerch
     # Get stake
     stake = software_stakeholder.stakes[1]
 
-    # Make assigned Worker
+    # Make bonded Worker
     worker = Worker(is_me=True,
                     worker_address=manual_worker,
                     checksum_address=stake.staker_address,

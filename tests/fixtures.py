@@ -655,7 +655,7 @@ def stakers(testerchain, agency, token_economics, test_registry):
 
         # We assume that the staker knows in advance the account of her worker
         worker_address = blockchain.ursula_account(index)
-        staker.set_worker(worker_address=worker_address)
+        staker.bond_worker(worker_address=worker_address)
 
         stakers.append(staker)
 

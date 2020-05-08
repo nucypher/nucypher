@@ -54,7 +54,7 @@ All staking-related operations done by Staker are performed through the ``nucyph
 +----------------------+-------------------------------------------------------------------------------+
 |  ``sync``            | Synchronize stake data with on-chain information                              |
 +----------------------+-------------------------------------------------------------------------------+
-|  ``set-worker``      | Bond a worker to a staker                                                     |
+|  ``bond-worker``     | Bond a worker to a staker                                                     |
 +----------------------+-------------------------------------------------------------------------------+
 |  ``detach-worker``   | Detach worker currently bonded to a staker                                    |
 +----------------------+-------------------------------------------------------------------------------+
@@ -406,7 +406,7 @@ Once you have created one or more stakes, you can view all active stake for conn
     | 2 | 0xbb03 | 0x0000 | 0 | 30000 NU | 30 periods . | Aug 09 12:15:16 CEST - Sep 9 12:15:16 CEST
 
 If the Worker in the list is shown as ``0x0000``, it means that you haven't yet
-attached a Worker node to your Staker, so you still have to do it!
+bonded a Worker node to your Staker, so you still have to do it!
 
 .. _bond-worker:
 
@@ -416,13 +416,13 @@ Bonding a Worker
 After initiating a stake, the staker must delegate access to a work address through *bonding*.
 There is a 1:1 relationship between the roles: A Staker may have multiple Stakes but only ever has one Worker at a time.
 
-.. note:: The Worker cannot be changed for a minimum of 2 periods once set.
+.. note:: The Worker cannot be changed for a minimum of 2 periods once bonded.
 
 .. note:: Stakers without a worker bonded will be highlighted in yellow (sometimes called "Detached" or "Headless").
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake set-worker --hw-wallet
+    (nucypher)$ nucypher stake bond-worker --hw-wallet
 
     ======================================= Active Stakes =========================================
 
@@ -646,11 +646,11 @@ For example, to create a stake:
     (nucypher)$ nucypher stake create --hw-wallet --allocation-filepath PATH
 
 
-Or to set a worker:
+Or to bond a worker:
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake set-worker --hw-wallet --allocation-filepath PATH
+    (nucypher)$ nucypher stake bond-worker --hw-wallet --allocation-filepath PATH
 
 
 As an alternative to the ``--allocation-filepath`` flag, preallocation users

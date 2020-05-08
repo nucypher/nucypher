@@ -107,7 +107,7 @@ def make_ursula_for_staker(staker: Staker,
                            **ursula_overrides) -> Ursula:
 
     # Assign worker to this staker
-    staker.set_worker(worker_address=worker_address)
+    staker.bond_worker(worker_address=worker_address)
 
     worker = make_decentralized_ursulas(ursula_config=ursula_config,
                                         blockchain=blockchain,

@@ -83,7 +83,7 @@ contract StakingInterface is BaseStakingInterface {
     event MinFeeRateSet(address indexed sender, uint256 value);
     event ReStakeSet(address indexed sender, bool reStake);
     event ReStakeLocked(address indexed sender, uint16 lockUntilPeriod);
-    event WorkerSet(address indexed sender, address worker);
+    event WorkerBonded(address indexed sender, address worker);
     event Prolonged(address indexed sender, uint256 index, uint16 periods);
     event WindDownSet(address indexed sender, bool windDown);
     event Bid(address indexed sender, uint256 depositedETH);
@@ -110,12 +110,12 @@ contract StakingInterface is BaseStakingInterface {
     }
 
     /**
-    * @notice Set `worker` parameter in the staking escrow
+    * @notice Bond worker in the staking escrow
     * @param _worker Worker address
     */
-    function setWorker(address _worker) public onlyDelegateCall {
-        escrow.setWorker(_worker);
-        emit WorkerSet(msg.sender, _worker);
+    function bondWorker(address _worker) public onlyDelegateCall {
+        escrow.bondWorker(_worker);
+        emit WorkerBonded(msg.sender, _worker);
     }
 
     /**

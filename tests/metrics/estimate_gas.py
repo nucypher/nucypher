@@ -272,9 +272,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                      {'from': ursula2})
     transact(staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS), {'from': ursula3})
 
-    transact(staker_functions.setWorker(ursula1), {'from': ursula1})
-    transact(staker_functions.setWorker(ursula2), {'from': ursula2})
-    transact(staker_functions.setWorker(ursula3), {'from': ursula3})
+    transact(staker_functions.bondWorker(ursula1), {'from': ursula1})
+    transact(staker_functions.bondWorker(ursula2), {'from': ursula2})
+    transact(staker_functions.bondWorker(ursula3), {'from': ursula3})
     transact(staker_functions.setReStake(False), {'from': ursula1})
     transact(staker_functions.setReStake(False), {'from': ursula2})
     transact(staker_functions.setWindDown(True), {'from': ursula1})

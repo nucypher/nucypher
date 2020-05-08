@@ -34,7 +34,7 @@ from web3.exceptions import ValidationError
 
 from constant_sorrow.constants import (
     WORKER_NOT_RUNNING,
-    NO_WORKER_ASSIGNED,
+    NO_WORKER_BONDED,
     FULL
 )
 from nucypher.blockchain.economics import StandardTokenEconomics, EconomicsFactory, BaseEconomics
@@ -1067,12 +1067,12 @@ class Staker(NucypherTokenActor):
     @only_me
     @save_receipt
     @validate_checksum_address
-    def set_worker(self, worker_address: str) -> dict:
+    def bond_worker(self, worker_address: str) -> dict:
         if self.is_contract:
-            receipt = self.preallocation_escrow_agent.set_worker(worker_address=worker_address)
+            receipt = self.preallocation_escrow_agent.bond_worker(worker_address=worker_address)
         else:
-            receipt = self.staking_agent.set_worker(staker_address=self.checksum_address,
-                                                    worker_address=worker_address)
+            receipt = self.staking_agent.bond_worker(staker_address=self.checksum_address,
+                                                     worker_address=worker_address)
         self.__worker_address = worker_address
         return receipt
 
@@ -1086,7 +1086,7 @@ class Staker(NucypherTokenActor):
             self.__worker_address = worker_address
 
         if self.__worker_address == NULL_ADDRESS:
-            return NO_WORKER_ASSIGNED.bool_value(False)
+            return NO_WORKER_BONDED.bool_value(False)
         return self.__worker_address
 
     @only_me

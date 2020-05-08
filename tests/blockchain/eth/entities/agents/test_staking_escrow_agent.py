@@ -107,11 +107,11 @@ def test_stakers_and_workers_relationships(testerchain, agency):
 
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
-    # The staker hasn't set a worker yet
+    # The staker hasn't bond a worker yet
     assert NULL_ADDRESS == staking_agent.get_worker_from_staker(staker_address=staker_account)
 
-    _txhash = staking_agent.set_worker(staker_address=staker_account,
-                                       worker_address=worker_account)
+    _txhash = staking_agent.bond_worker(staker_address=staker_account,
+                                        worker_address=worker_account)
 
     # We can check the staker-worker relation from both sides
     assert worker_account == staking_agent.get_worker_from_staker(staker_address=staker_account)

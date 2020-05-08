@@ -111,7 +111,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     testerchain.wait_for_receipt(tx)
     tx = worklock.functions.setWorkMeasurement(staker, True).transact()
     testerchain.wait_for_receipt(tx)
-    tx = contract.functions.setWorker(worker).transact({'from': staker})
+    tx = contract.functions.bondWorker(worker).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     tx = contract.functions.commitToNextPeriod().transact({'from': worker})
     testerchain.wait_for_receipt(tx)
@@ -353,7 +353,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     sub_stake = 100
     tx = escrow.functions.deposit(sub_stake, 10).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setWorker(staker).transact({'from': staker})
+    tx = escrow.functions.bondWorker(staker).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
@@ -463,7 +463,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.deposit(stake, sub_stake_duration).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setWorker(ursula2).transact({'from': ursula2})
+    tx = escrow.functions.bondWorker(ursula2).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setReStake(False).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
@@ -564,7 +564,7 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
     creator, ursula1, ursula2, ursula3, worker1, worker2, worker3, *everyone_else = \
         testerchain.client.accounts
 
-    worker_log = escrow.events.WorkerSet.createFilter(fromBlock='latest')
+    worker_log = escrow.events.WorkerBonded.createFilter(fromBlock='latest')
 
     # Initialize escrow contract
     tx = escrow.functions.initialize(0).transact({'from': creator})
@@ -608,13 +608,13 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
         tx = intermediary1.functions.commitToNextPeriod().transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
-    # Ursula can't use another staker as worker
+    # Ursula can't bond another staker as worker
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = intermediary1.functions.setWorker(ursula3).transact({'from': ursula1})
+        tx = intermediary1.functions.bondWorker(ursula3).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
-    # Ursula set worker and now worker can make a commitments
-    tx = intermediary1.functions.setWorker(worker1).transact({'from': ursula1})
+    # Ursula bond worker and now worker can make a commitments
+    tx = intermediary1.functions.bondWorker(worker1).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     assert worker1 == escrow.functions.getWorkerFromStaker(intermediary1.address).call()
     assert intermediary1.address == escrow.functions.stakerFromWorker(worker1).call()
@@ -631,11 +631,11 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
 
     # Only worker can make a commitment
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = intermediary1.functions.setWorker(ursula3).transact({'from': ursula1})
+        tx = intermediary1.functions.bondWorker(ursula3).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
-    # Worker is in use so other stakers can't set him
+    # Worker is in use so other stakers can't bond him
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = intermediary2.functions.setWorker(worker1).transact({'from': ursula2})
+        tx = intermediary2.functions.bondWorker(worker1).transact({'from': ursula2})
         testerchain.wait_for_receipt(tx)
 
     # Worker can't be a staker
@@ -646,19 +646,19 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
             .transact({'from': worker1})
         testerchain.wait_for_receipt(tx)
 
-    # Can't change worker twice too soon
+    # Can't bond worker twice too soon
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = intermediary1.functions.setWorker(worker2).transact({'from': ursula1})
+        tx = intermediary1.functions.bondWorker(worker2).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
-    # She can't unset her worker too, until enough time has passed
+    # She can't detach her worker too, until enough time has passed
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = intermediary1.functions.setWorker(NULL_ADDRESS).transact({'from': ursula1})
+        tx = intermediary1.functions.bondWorker(NULL_ADDRESS).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
-    # Let's advance one period and unset the worker
+    # Let's advance one period and detach the worker
     testerchain.time_travel(hours=1)
-    tx = intermediary1.functions.setWorker(NULL_ADDRESS).transact({'from': ursula1})
+    tx = intermediary1.functions.bondWorker(NULL_ADDRESS).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     assert NULL_ADDRESS == escrow.functions.getWorkerFromStaker(intermediary1.address).call()
 
@@ -667,13 +667,13 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
     assert number_of_events == len(events)
     event_args = events[-1]['args']
     assert intermediary1.address == event_args['staker']
-    # Now the worker has been unset ...
+    # Now the worker has been detached ...
     assert NULL_ADDRESS == event_args['worker']
     # ... with a new starting period.
     assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
 
-    # The staker can set now a new worker, without waiting additional time.
-    tx = intermediary1.functions.setWorker(worker2).transact({'from': ursula1})
+    # The staker can bond now a new worker, without waiting additional time.
+    tx = intermediary1.functions.bondWorker(worker2).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     assert worker2 == escrow.functions.getWorkerFromStaker(intermediary1.address).call()
     assert intermediary1.address == escrow.functions.stakerFromWorker(worker2).call()
@@ -695,8 +695,8 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
     tx = escrow.functions.commitToNextPeriod().transact({'from': worker2})
     testerchain.wait_for_receipt(tx)
 
-    # Another staker can use a free worker
-    tx = intermediary2.functions.setWorker(worker1).transact({'from': ursula2})
+    # Another staker can bond a free worker
+    tx = intermediary2.functions.bondWorker(worker1).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     assert worker1 == escrow.functions.getWorkerFromStaker(intermediary2.address).call()
     assert intermediary2.address == escrow.functions.stakerFromWorker(worker1).call()
@@ -715,9 +715,9 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
             .transact({'from': worker1})
         testerchain.wait_for_receipt(tx)
 
-    # Change worker again
+    # Bond worker again
     testerchain.time_travel(hours=1)
-    tx = intermediary2.functions.setWorker(ursula2).transact({'from': ursula2})
+    tx = intermediary2.functions.bondWorker(ursula2).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     assert ursula2 == escrow.functions.getWorkerFromStaker(intermediary2.address).call()
     assert intermediary2.address == escrow.functions.stakerFromWorker(ursula2).call()
@@ -739,15 +739,15 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
     assert NULL_ADDRESS == escrow.functions.stakerFromWorker(worker1).call()
     assert NULL_ADDRESS == escrow.functions.getWorkerFromStaker(worker1).call()
 
-    # Ursula can't use the first worker again because worker is a staker now
+    # Ursula can't bond the first worker again because worker is a staker now
     testerchain.time_travel(hours=1)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = intermediary1.functions.setWorker(worker1).transact({'from': ursula1})
+        tx = intermediary1.functions.bondWorker(worker1).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
-    # Ursula without intermediary contract can set itself as worker
+    # Ursula without intermediary contract can bond itself as worker
     # (Probably not her best idea, but whatever)
-    tx = escrow.functions.setWorker(ursula3).transact({'from': ursula3})
+    tx = escrow.functions.bondWorker(ursula3).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
     assert ursula3 == escrow.functions.stakerFromWorker(ursula3).call()
     assert ursula3 == escrow.functions.getWorkerFromStaker(ursula3).call()
@@ -764,9 +764,9 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
     tx = escrow.functions.commitToNextPeriod().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
-    # Ursula set worker again
+    # Ursula bond worker again
     testerchain.time_travel(hours=1)
-    tx = escrow.functions.setWorker(worker3).transact({'from': ursula3})
+    tx = escrow.functions.bondWorker(worker3).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
     assert ursula3 == escrow.functions.stakerFromWorker(worker3).call()
     assert worker3 == escrow.functions.getWorkerFromStaker(ursula3).call()
@@ -782,9 +782,9 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
     tx = escrow.functions.commitToNextPeriod().transact({'from': worker3})
     testerchain.wait_for_receipt(tx)
 
-    # Ursula try to set contract as worker
+    # Ursula try to bond contract as worker
     testerchain.time_travel(hours=1)
-    tx = escrow.functions.setWorker(intermediary3.address).transact({'from': ursula3})
+    tx = escrow.functions.bondWorker(intermediary3.address).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     number_of_events += 1
@@ -828,7 +828,7 @@ def test_measure_work(testerchain, token, escrow_contract, deploy_contract):
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.deposit(stake, duration).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setWorker(ursula).transact({'from': ursula})
+    tx = escrow.functions.bondWorker(ursula).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.getCompletedWork(ursula).call() == 0
 
@@ -938,7 +938,7 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.deposit(sub_stake, duration).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setWorker(staker).transact({'from': staker})
+    tx = escrow.functions.bondWorker(staker).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setReStake(False).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
@@ -1336,7 +1336,7 @@ def test_snapshots(testerchain, token, escrow_contract):
     assert escrow.functions.totalStakedAt(now).call() == expected_global_balance.get_value_at(now)
 
     # Set worker doesn't affect snapshots
-    tx = escrow.functions.setWorker(staker1).transact({'from': staker1})
+    tx = escrow.functions.bondWorker(staker1).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     assert expected_staker1_balance == get_staker_history_from_storage(staker1)
     assert expected_global_balance == get_global_history_from_storage()
@@ -1440,7 +1440,7 @@ def test_snapshots(testerchain, token, escrow_contract):
     assert expected_staker2_balance == get_staker_history_from_storage(staker2)
     assert expected_global_balance == get_global_history_from_storage()
 
-    tx = escrow.functions.setWorker(staker2).transact({'from': staker2})
+    tx = escrow.functions.bondWorker(staker2).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
 
     # Now that we do have a positive balance, let's activate snapshots and check them

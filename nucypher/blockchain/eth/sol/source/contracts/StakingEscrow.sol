@@ -63,7 +63,7 @@ contract StakingEscrow is Issuer, IERC900History {
     event Slashed(address indexed staker, uint256 penalty, address indexed investigator, uint256 reward);
     event ReStakeSet(address indexed staker, bool reStake);
     event ReStakeLocked(address indexed staker, uint16 lockUntilPeriod);
-    event WorkerSet(address indexed staker, address indexed worker, uint16 indexed startPeriod);
+    event WorkerBonded(address indexed staker, address indexed worker, uint16 indexed startPeriod);
     event WorkMeasurementSet(address indexed staker, bool measureWork);
     event WindDownSet(address indexed staker, bool windDown);
     event SnapshotSet(address indexed staker, bool snapshotsEnabled);
@@ -93,7 +93,7 @@ contract StakingEscrow is Issuer, IERC900History {
         uint16 lastCommittedPeriod;
         uint16 lockReStakeUntilPeriod;
         uint256 completedWork;
-        uint16 workerStartPeriod; // period when worker was set
+        uint16 workerStartPeriod; // period when worker was bonded
         address worker;
         uint256 flags; // uint256 to acquire whole slot and minimize operations on it
 
@@ -486,17 +486,18 @@ contract StakingEscrow is Issuer, IERC900History {
         return info.completedWork;
     }
 
-    /** @notice Set worker
+    /**
+    * @notice Bond worker
     * @param _worker Worker address. Must be a real address, not a contract
     */
-    function setWorker(address _worker) external onlyStaker {
+    function bondWorker(address _worker) external onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
-        require(_worker != info.worker, "Specified worker is already set for this staker");
+        require(_worker != info.worker, "Specified worker is already bonded with this staker");
         uint16 currentPeriod = getCurrentPeriod();
         if (info.worker != address(0)) { // If this staker had a worker ...
             // Check that enough time has passed to change it
             require(currentPeriod >= info.workerStartPeriod.add16(minWorkerPeriods),
-                "Not enough time has passed since the previous setting worker");
+                "Not enough time has passed since the previous bonding worker");
             // Remove the old relation "worker->staker"
             stakerFromWorker[info.worker] = address(0);
         }
@@ -509,10 +510,10 @@ contract StakingEscrow is Issuer, IERC900History {
             stakerFromWorker[_worker] = msg.sender;
         }
 
-        // Set new worker (or unset if _worker == address(0))
+        // Bond new worker (or detach if _worker == address(0))
         info.worker = _worker;
         info.workerStartPeriod = currentPeriod;
-        emit WorkerSet(msg.sender, _worker, currentPeriod);
+        emit WorkerBonded(msg.sender, _worker, currentPeriod);
     }
 
     /**

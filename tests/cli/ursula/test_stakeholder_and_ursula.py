@@ -211,7 +211,7 @@ def test_stake_set_worker(click_runner,
                           manual_worker,
                           stakeholder_configuration_file_location):
 
-    init_args = ('stake', 'set-worker',
+    init_args = ('stake', 'bond-worker',
                  '--config-file', stakeholder_configuration_file_location,
                  '--staking-address', manual_staker,
                  '--worker-address', manual_worker,

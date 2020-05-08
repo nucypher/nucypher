@@ -138,7 +138,7 @@ def test_staker_collects_staking_reward(testerchain,
 
     # Get an unused address for a new worker
     worker_address = testerchain.unassigned_accounts[-1]
-    staker.set_worker(worker_address=worker_address)
+    staker.bond_worker(worker_address=worker_address)
 
     # Create this worker and bond it with the staker
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,

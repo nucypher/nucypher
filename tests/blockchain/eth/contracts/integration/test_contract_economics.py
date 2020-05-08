@@ -45,7 +45,7 @@ def test_reward(testerchain, agency, token_economics, mock_transacting_power_act
                                            sender_address=ursula,
                                            staker_address=ursula)
 
-    _txhash = staking_agent.set_worker(staker_address=ursula, worker_address=ursula)
+    _txhash = staking_agent.bond_worker(staker_address=ursula, worker_address=ursula)
     _txhash = staking_agent.set_restaking(staker_address=ursula, value=False)
 
     _txhash = staking_agent.commit_to_next_period(worker_address=ursula)

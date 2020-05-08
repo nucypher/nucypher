@@ -132,9 +132,9 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     receipt = agent.deposit_as_staker(amount=token_economics.minimum_allowed_locked, lock_periods=token_economics.minimum_locked_periods)
     assert receipt['status'] == 1, "Transaction Rejected"
 
-    # Owner sets a worker in StakingEscrow via PreallocationEscrow
+    # Owner bonds a worker in StakingEscrow via PreallocationEscrow
     worker = testerchain.ursula_account(0)
-    _receipt = agent.set_worker(worker_address=worker)
+    _receipt = agent.bond_worker(worker_address=worker)
 
     # Owner enables winding down
     receipt = agent.set_winding_down(value=True)
@@ -182,9 +182,9 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics, mock
     _receipt = agent.deposit_as_staker(amount=token_economics.minimum_allowed_locked,
                                        lock_periods=token_economics.minimum_locked_periods)
 
-    # Owner sets a worker in StakingEscrow via PreallocationEscrow
+    # Owner bonds a worker in StakingEscrow via PreallocationEscrow
     worker = testerchain.ursula_account(0)
-    _receipt = agent.set_worker(worker_address=worker)
+    _receipt = agent.bond_worker(worker_address=worker)
 
     testerchain.time_travel(periods=1)
 

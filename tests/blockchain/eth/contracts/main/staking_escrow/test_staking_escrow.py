@@ -87,7 +87,7 @@ def test_staking(testerchain, token, escrow_contract):
     current_period = escrow.functions.getCurrentPeriod().call()
     tx = escrow.functions.deposit(1000, 2).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setWorker(staker1).transact({'from': staker1})
+    tx = escrow.functions.bondWorker(staker1).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWindDown(True).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
@@ -130,7 +130,7 @@ def test_staking(testerchain, token, escrow_contract):
     # Ursula(2) stakes tokens also
     tx = escrow.functions.deposit(500, 2).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setWorker(staker2).transact({'from': staker2})
+    tx = escrow.functions.bondWorker(staker2).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWindDown(True).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
@@ -565,7 +565,7 @@ def test_max_sub_stakes(testerchain, token, escrow_contract):
     # Lock one sub stake from current period and others from next one
     tx = escrow.functions.deposit(100, 2).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setWorker(staker).transact({'from': staker})
+    tx = escrow.functions.bondWorker(staker).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWindDown(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
@@ -690,7 +690,7 @@ def test_allowable_locked_tokens(testerchain, token_economics, token, escrow_con
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWindDown(True).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setWorker(staker1).transact({'from': staker1})
+    tx = escrow.functions.bondWorker(staker1).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     for _ in range(duration):
         tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})

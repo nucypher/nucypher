@@ -483,7 +483,7 @@ def paint_staking_confirmation(emitter, staker, new_stake):
     paint_receipt_summary(emitter=emitter, receipt=new_stake.receipt, transaction_type="deposit stake")
     emitter.echo(f'\n{STAKING_ESCROW_CONTRACT_NAME} address: {staker.staking_agent.contract_address}', color='blue')
     next_steps = f'''\nView your stakes by running 'nucypher stake list'
-or set your Ursula worker node address by running 'nucypher stake set-worker'.
+or bond your Ursula worker node address by running 'nucypher stake bond-worker'.
 
 See https://docs.nucypher.com/en/latest/guides/staking_guide.html'''
     emitter.echo(next_steps, color='green')
@@ -740,7 +740,7 @@ def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> N
 
         emitter.echo(f"{tab}  {'Worker:':10} ", nl=False)
         if worker == NULL_ADDRESS:
-            emitter.echo(f"Worker not set", color='red')
+            emitter.echo(f"Worker not bonded", color='red')
         else:
             emitter.echo(f"{worker}")
 
@@ -1005,7 +1005,7 @@ See the official NuCypher documentation for a comprehensive guide on next steps!
 
 As a first step, you need to bond a worker to your stake by running:
 
-  nucypher stake set-worker --worker-address <WORKER ADDRESS>
+  nucypher stake bond-worker --worker-address <WORKER ADDRESS>
 
 """
     emitter.echo(message, color='green')

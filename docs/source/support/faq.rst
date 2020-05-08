@@ -224,7 +224,7 @@ This is **ONLY** a heuristic to ensure that your node is running correctly, it d
        connection eg. cell phone, other computer etc. by navigating to: ``https://<node_ip>:9151/status``
 
     #. Ensure that your worker is bonded with your staker - ``nucypher stake list`` and check that
-       *Worker* is set correctly i.e. not ``0x0000``.
+       *Worker* is attached correctly i.e. not ``0x0000``.
 
     #. Run the following command and ensure that the various settings are correct::
 

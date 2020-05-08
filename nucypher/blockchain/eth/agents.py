@@ -465,14 +465,14 @@ class StakingEscrowAgent(EthereumContractAgent):
         return to_checksum_address(staker)
 
     @validate_checksum_address
-    def set_worker(self, staker_address: str, worker_address: str):
-        contract_function = self.contract.functions.setWorker(worker_address)
+    def bond_worker(self, staker_address: str, worker_address: str):
+        contract_function = self.contract.functions.bondWorker(worker_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
     @validate_checksum_address
     def release_worker(self, staker_address: str):
-        return self.set_worker(staker_address=staker_address, worker_address=NULL_ADDRESS)
+        return self.bond_worker(staker_address=staker_address, worker_address=NULL_ADDRESS)
 
     @validate_checksum_address
     def commit_to_next_period(self, worker_address: str):
@@ -980,13 +980,13 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         return receipt
 
     @validate_checksum_address
-    def set_worker(self, worker_address: str):
-        contract_function = self.__interface_agent.functions.setWorker(worker_address)
+    def bond_worker(self, worker_address: str):
+        contract_function = self.__interface_agent.functions.bondWorker(worker_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
     def release_worker(self):
-        receipt = self.set_worker(worker_address=NULL_ADDRESS)
+        receipt = self.bond_worker(worker_address=NULL_ADDRESS)
         return receipt
 
     def mint(self):

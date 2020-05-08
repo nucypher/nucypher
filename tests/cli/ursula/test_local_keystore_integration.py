@@ -121,7 +121,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     user_input = f'0\n' + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + f'Y\n'
     click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
 
-    init_args = ('stake', 'set-worker',
+    init_args = ('stake', 'bond-worker',
                  '--config-file', stakeholder_configuration_file_location,
                  '--staking-address', manual_staker,
                  '--worker-address', worker_address,

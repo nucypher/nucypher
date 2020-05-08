@@ -33,7 +33,7 @@ def test_worker_auto_commitments(testerchain,
     WorkTracker.CLOCK = clock
 
     # Bond the Worker and Staker
-    staker.set_worker(worker_address=worker_address)
+    staker.bond_worker(worker_address=worker_address)
 
     # Make the Worker
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,

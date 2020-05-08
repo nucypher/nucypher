@@ -100,8 +100,8 @@ When calculating locked tokens using the ``StakingEscrow.getLockedTokens(address
 The Staker Bonds to a Worker ("Ursula")
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The staker must specify a worker who will make a commitment and sign on behalf of this staker by calling the ``StakingEscrow.setWorker(address)`` method.
-Changing a worker is allowed no more than once within ``StakingEscrow.minWorkerPeriods()``.
+The staker must specify a worker who will make a commitment and sign on behalf of this staker by calling the ``StakingEscrow.bondWorker(address)`` method.
+Bonding a new worker is allowed no more than once within ``StakingEscrow.minWorkerPeriods()``.
 Only the worker can make a commitment.
 
 Ursula Makes a Commitment

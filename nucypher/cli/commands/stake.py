@@ -60,7 +60,7 @@ from nucypher.config.characters import StakeHolderConfiguration
 
 option_value = click.option('--value', help="Token value of stake", type=click.INT)
 option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
-option_worker_address = click.option('--worker-address', help="Address to assign as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
+option_worker_address = click.option('--worker-address', help="Address to bond as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
 
 
 def _setup_emitter(general_config):
@@ -311,13 +311,13 @@ def accounts(general_config, staker_options, config_file):
     painting.paint_accounts(emitter=emitter, wallet=STAKEHOLDER.wallet, registry=STAKEHOLDER.registry)
 
 
-@stake.command('set-worker')
+@stake.command('bond-worker')
 @group_transacting_staker_options
 @option_config_file
 @option_force
 @group_general_config
 @option_worker_address
-def set_worker(general_config, transacting_staker_options, config_file, force, worker_address):
+def bond_worker(general_config, transacting_staker_options, config_file, force, worker_address):
     """
     Bond a worker to a staker.
     """
@@ -364,14 +364,14 @@ def set_worker(general_config, transacting_staker_options, config_file, force, w
                       f"for a minimum of {STAKEHOLDER.economics.minimum_worker_periods} periods?", abort=True)
 
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
-    receipt = STAKEHOLDER.set_worker(worker_address=worker_address)
+    receipt = STAKEHOLDER.bond_worker(worker_address=worker_address)
 
     # Report Success
     emitter.echo(f"\nWorker {worker_address} successfully bonded to staker {staking_address}", color='green')
     paint_receipt_summary(emitter=emitter,
                           receipt=receipt,
                           chain_name=blockchain.client.chain_name,
-                          transaction_type='set_worker')
+                          transaction_type='bond_worker')
     emitter.echo(f"Bonded at period #{current_period} ({bonded_date})", color='green')
     emitter.echo(f"This worker can be replaced or detached after period "
                  f"#{release_period} ({release_date})", color='green')

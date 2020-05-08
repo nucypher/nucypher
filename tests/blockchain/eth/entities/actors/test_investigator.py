@@ -72,11 +72,11 @@ def test_investigator_requests_slashing(testerchain,
                             lock_periods=token_economics.minimum_locked_periods)
     assert staker.locked_tokens(periods=1) == locked_tokens
 
-    # The staker hasn't set a worker yet
+    # The staker hasn't bond a worker yet
     assert NULL_ADDRESS == staking_agent.get_worker_from_staker(staker_address=staker_account)
 
-    _txhash = staking_agent.set_worker(staker_address=staker_account,
-                                       worker_address=worker_account)
+    _txhash = staking_agent.bond_worker(staker_address=staker_account,
+                                        worker_address=worker_account)
 
     assert worker_account == staking_agent.get_worker_from_staker(staker_address=staker_account)
     assert staker_account == staking_agent.get_staker_from_worker(worker_address=worker_account)

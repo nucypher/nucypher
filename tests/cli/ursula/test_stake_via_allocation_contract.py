@@ -208,7 +208,7 @@ def test_stake_set_worker(click_runner,
                           individual_allocation,
                           stakeholder_configuration_file_location):
 
-    init_args = ('stake', 'set-worker',
+    init_args = ('stake', 'bond-worker',
                  '--config-file', stakeholder_configuration_file_location,
                  '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                  '--worker-address', manual_worker,
@@ -265,9 +265,9 @@ def test_stake_detach_worker(click_runner,
 
     assert not staker.worker_address
 
-    # Ok ok, let's set the worker again.
+    # Ok ok, let's bond the worker again.
 
-    init_args = ('stake', 'set-worker',
+    init_args = ('stake', 'bond-worker',
                  '--config-file', stakeholder_configuration_file_location,
                  '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                  '--worker-address', manual_worker,

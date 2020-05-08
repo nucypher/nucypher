@@ -180,8 +180,8 @@ contract Intermediary {
         escrow = _escrow;
     }
 
-    function setWorker(address _worker) external {
-        escrow.setWorker(_worker);
+    function bondWorker(address _worker) external {
+        escrow.bondWorker(_worker);
     }
 
     function deposit(uint256 _value, uint16 _periods) external {
