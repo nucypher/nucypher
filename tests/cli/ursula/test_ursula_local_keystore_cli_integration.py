@@ -198,3 +198,4 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
     receipt = ursula.confirm_activity()
     transaction_data = testerchain.client.w3.eth.getTransaction(receipt['transactionHash'])
     assert transaction_data['from'] == worker_account.address
+

@@ -17,6 +17,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import contextlib
+from pathlib import Path
+
 from datetime import datetime
 import json
 import os
@@ -83,26 +85,24 @@ def new_local_registry():
 
 @pytest.fixture(scope='module')
 def custom_filepath():
-    _custom_filepath = MOCK_CUSTOM_INSTALLATION_PATH
+    _custom_filepath = Path(MOCK_CUSTOM_INSTALLATION_PATH)
     with contextlib.suppress(FileNotFoundError):
         shutil.rmtree(_custom_filepath, ignore_errors=True)
-    try:
-        yield _custom_filepath
-    finally:
-        with contextlib.suppress(FileNotFoundError):
-            shutil.rmtree(_custom_filepath, ignore_errors=True)
+    yield _custom_filepath
+    with contextlib.suppress(FileNotFoundError):
+        shutil.rmtree(_custom_filepath, ignore_errors=True)
 
 
 @pytest.fixture(scope='module')
 def custom_filepath_2():
-    _custom_filepath = MOCK_CUSTOM_INSTALLATION_PATH_2
+    _custom_filepath = Path(MOCK_CUSTOM_INSTALLATION_PATH_2)
     with contextlib.suppress(FileNotFoundError):
         shutil.rmtree(_custom_filepath, ignore_errors=True)
     try:
         yield _custom_filepath
     finally:
         with contextlib.suppress(FileNotFoundError):
-            shutil.rmtree(_custom_filepath, ignore_errors=True)
+            shutil.rmtree(_custom_filepath / '*', ignore_errors=True)
 
 
 @pytest.fixture(scope='module')
