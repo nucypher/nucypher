@@ -26,7 +26,7 @@ from click.testing import CliRunner
 import nucypher
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.policy.collections import TreasureMap
+from nucypher.policy.collections import TreasureMap, DecentralizedTreasureMap
 
 click_runner = CliRunner()
 
@@ -89,7 +89,7 @@ def test_alice_web_character_control_grant(alice_web_controller_test_client, gra
     assert 'alice_verifying_key' in response_data['result']
 
     map_bytes = b64decode(response_data['result']['treasure_map'])
-    encrypted_map = TreasureMap.from_bytes(map_bytes)
+    encrypted_map = DecentralizedTreasureMap.from_bytes(map_bytes)
     assert encrypted_map._hrac is not None
 
     # Send bad data to assert error returns
