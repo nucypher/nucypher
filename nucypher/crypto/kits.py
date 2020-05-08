@@ -81,7 +81,8 @@ class MessageKit(CryptoKit):
         return self._signature
 
     def __bytes__(self):
-        return self.splitter().render(bytes(self.capsule) + VariableLengthBytestring(self.ciphertext))
+        return self.splitter().render(
+            bytes(self.capsule) + VariableLengthBytestring(self.ciphertext), version=self.version)
 
 
 class PolicyMessageKit(MessageKit):
