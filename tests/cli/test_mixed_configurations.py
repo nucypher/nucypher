@@ -222,7 +222,21 @@ def test_corrupted_configuration(click_runner,
                                  custom_filepath,
                                  testerchain,
                                  agency_local_registry):
+
+    #
+    # Setup
+    #
+
+    # Please tell me why
+    if custom_filepath.exists():
+        shutil.rmtree(custom_filepath, ignore_errors=True)
+    assert not custom_filepath.exists()
+    
     alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
+
+    #
+    # Chaos
+    #
 
     init_args = ('ursula', 'init',
                  '--provider', TEST_PROVIDER_URI,
