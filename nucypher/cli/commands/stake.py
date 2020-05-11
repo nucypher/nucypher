@@ -373,18 +373,18 @@ def bond_worker(general_config, transacting_staker_options, config_file, force, 
                           chain_name=blockchain.client.chain_name,
                           transaction_type='bond_worker')
     emitter.echo(f"Bonded at period #{current_period} ({bonded_date})", color='green')
-    emitter.echo(f"This worker can be replaced or detached after period "
+    emitter.echo(f"This worker can be replaced or unbonded after period "
                  f"#{release_period} ({release_date})", color='green')
 
 
-@stake.command('detach-worker')
+@stake.command('unbond-worker')
 @group_transacting_staker_options
 @option_config_file
 @option_force
 @group_general_config
-def detach_worker(general_config, transacting_staker_options, config_file, force):
+def unbond_worker(general_config, transacting_staker_options, config_file, force):
     """
-    Detach worker currently bonded to a staker.
+    Unbond worker currently bonded to a staker.
     """
     emitter = _setup_emitter(general_config)
 
@@ -407,18 +407,18 @@ def detach_worker(general_config, transacting_staker_options, config_file, force
     password = transacting_staker_options.get_password(blockchain, client_account)
 
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
-    receipt = STAKEHOLDER.detach_worker()
+    receipt = STAKEHOLDER.unbond_worker()
 
     # TODO: Double-check dates
     current_period = STAKEHOLDER.staking_agent.get_current_period()
     bonded_date = datetime_at_period(period=current_period, seconds_per_period=economics.seconds_per_period)
 
-    emitter.echo(f"Successfully detached worker {worker_address} from staker {staking_address}", color='green')
+    emitter.echo(f"Successfully unbonded worker {worker_address} from staker {staking_address}", color='green')
     paint_receipt_summary(emitter=emitter,
                           receipt=receipt,
                           chain_name=blockchain.client.chain_name,
-                          transaction_type='detach_worker')
-    emitter.echo(f"Detached at period #{current_period} ({bonded_date})", color='green')
+                          transaction_type='unbond_worker')
+    emitter.echo(f"Unbonded at period #{current_period} ({bonded_date})", color='green')
 
 
 @stake.command()

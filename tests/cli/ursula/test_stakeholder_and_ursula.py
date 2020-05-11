@@ -204,12 +204,12 @@ def test_stake_prolong(click_runner,
     assert new_termination == old_termination + 1
 
 
-def test_stake_set_worker(click_runner,
-                          testerchain,
-                          agency_local_registry,
-                          manual_staker,
-                          manual_worker,
-                          stakeholder_configuration_file_location):
+def test_stake_bond_worker(click_runner,
+                           testerchain,
+                           agency_local_registry,
+                           manual_staker,
+                           manual_worker,
+                           stakeholder_configuration_file_location):
 
     init_args = ('stake', 'bond-worker',
                  '--config-file', stakeholder_configuration_file_location,
@@ -572,7 +572,7 @@ def test_collect_rewards_integration(click_runner,
     assert staker.token_agent.get_balance(address=staker_address) >= balance_before_collecting
 
 
-def test_stake_detach_worker(click_runner,
+def test_stake_unbond_worker(click_runner,
                              testerchain,
                              manual_staker,
                              manual_worker,
@@ -585,7 +585,7 @@ def test_stake_detach_worker(click_runner,
 
     assert staker.worker_address == manual_worker
 
-    init_args = ('stake', 'detach-worker',
+    init_args = ('stake', 'unbond-worker',
                  '--config-file', stakeholder_configuration_file_location,
                  '--staking-address', manual_staker,
                  )

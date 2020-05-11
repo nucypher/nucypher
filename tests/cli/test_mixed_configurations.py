@@ -170,7 +170,7 @@ def test_coexisting_configurations(click_runner,
 
     Worker.BONDING_POLL_RATE = 1
     Worker.BONDING_TIMEOUT = 1
-    with pytest.raises(Teacher.DetachedWorker):
+    with pytest.raises(Teacher.UnbondedWorker):
         # Worker init success, but not bonded.
         result = click_runner.invoke(nucypher_cli, run_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0

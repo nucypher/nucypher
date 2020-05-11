@@ -1091,7 +1091,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def detach_worker(self) -> dict:
+    def unbond_worker(self) -> dict:
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.release_worker()
         else:
@@ -1230,7 +1230,7 @@ class Worker(NucypherTokenActor):
     class WorkerError(NucypherTokenActor.ActorError):
         pass
 
-    class DetachedWorker(WorkerError):
+    class UnbondedWorker(WorkerError):
         """Raised when the Worker is not bonded to a Staker in the StakingEscrow contract."""
 
     def __init__(self,
@@ -1316,7 +1316,7 @@ class Worker(NucypherTokenActor):
                 delta = now - start
                 if delta.total_seconds() >= timeout:
                     if staking_address == NULL_ADDRESS:
-                        raise self.DetachedWorker(f"Worker {self.__worker_address} not bonded after waiting {timeout} seconds.")
+                        raise self.UnbondedWorker(f"Worker {self.__worker_address} not bonded after waiting {timeout} seconds.")
                     elif not ether_balance:
                         raise RuntimeError(f"Worker {self.__worker_address} has no ether after waiting {timeout} seconds.")
 

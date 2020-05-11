@@ -56,7 +56,7 @@ All staking-related operations done by Staker are performed through the ``nucyph
 +----------------------+-------------------------------------------------------------------------------+
 |  ``bond-worker``     | Bond a worker to a staker                                                     |
 +----------------------+-------------------------------------------------------------------------------+
-|  ``detach-worker``   | Detach worker currently bonded to a staker                                    |
+|  ``unbond-worker``   | Unbond worker currently bonded to a staker                                    |
 +----------------------+-------------------------------------------------------------------------------+
 |  ``collect-reward``  | Withdraw staking compensation from the contract to your wallet                |
 +----------------------+-------------------------------------------------------------------------------+
@@ -418,7 +418,7 @@ There is a 1:1 relationship between the roles: A Staker may have multiple Stakes
 
 .. note:: The Worker cannot be changed for a minimum of 2 periods once bonded.
 
-.. note:: Stakers without a worker bonded will be highlighted in yellow (sometimes called "Detached" or "Headless").
+.. note:: Stakers without a worker bonded will be highlighted in yellow (sometimes called "Unbonded" or "Headless").
 
 .. code:: bash
 

@@ -200,13 +200,13 @@ def test_stake_via_contract(click_runner,
     assert stake.duration == token_economics.minimum_locked_periods
 
 
-def test_stake_set_worker(click_runner,
-                          beneficiary,
-                          mock_allocation_registry,
-                          agency_local_registry,
-                          manual_worker,
-                          individual_allocation,
-                          stakeholder_configuration_file_location):
+def test_stake_bond_worker(click_runner,
+                           beneficiary,
+                           mock_allocation_registry,
+                           agency_local_registry,
+                           manual_worker,
+                           individual_allocation,
+                           stakeholder_configuration_file_location):
 
     init_args = ('stake', 'bond-worker',
                  '--config-file', stakeholder_configuration_file_location,
@@ -229,7 +229,7 @@ def test_stake_set_worker(click_runner,
     assert staker.worker_address == manual_worker
 
 
-def test_stake_detach_worker(click_runner,
+def test_stake_unbond_worker(click_runner,
                              testerchain,
                              token_economics,
                              beneficiary,
@@ -247,7 +247,7 @@ def test_stake_detach_worker(click_runner,
 
     testerchain.time_travel(periods=token_economics.minimum_worker_periods)
 
-    init_args = ('stake', 'detach-worker',
+    init_args = ('stake', 'unbond-worker',
                  '--config-file', stakeholder_configuration_file_location,
                  '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                  '--force')

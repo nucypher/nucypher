@@ -510,7 +510,7 @@ contract StakingEscrow is Issuer, IERC900History {
             stakerFromWorker[_worker] = msg.sender;
         }
 
-        // Bond new worker (or detach if _worker == address(0))
+        // Bond new worker (or unbond if _worker == address(0))
         info.worker = _worker;
         info.workerStartPeriod = currentPeriod;
         emit WorkerBonded(msg.sender, _worker, currentPeriod);

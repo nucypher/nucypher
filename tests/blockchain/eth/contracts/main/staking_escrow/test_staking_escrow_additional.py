@@ -651,12 +651,12 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
         tx = intermediary1.functions.bondWorker(worker2).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
-    # She can't detach her worker too, until enough time has passed
+    # She can't unbond her worker too, until enough time has passed
     with pytest.raises((TransactionFailed, ValueError)):
         tx = intermediary1.functions.bondWorker(NULL_ADDRESS).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
-    # Let's advance one period and detach the worker
+    # Let's advance one period and unbond the worker
     testerchain.time_travel(hours=1)
     tx = intermediary1.functions.bondWorker(NULL_ADDRESS).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
@@ -667,7 +667,7 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
     assert number_of_events == len(events)
     event_args = events[-1]['args']
     assert intermediary1.address == event_args['staker']
-    # Now the worker has been detached ...
+    # Now the worker has been unbonded ...
     assert NULL_ADDRESS == event_args['worker']
     # ... with a new starting period.
     assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
