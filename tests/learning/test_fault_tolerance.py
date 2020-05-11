@@ -259,6 +259,7 @@ def test_node_posts_future_version(federated_ursulas):
     middleware.get_nodes_via_rest(node=ursula,
                                   announce_nodes=(future_node_bytes,))
     assert len(warnings) == 2
+    globalLogPublisher.removeObserver(warning_trapper)
 
 
 def test_handle_missing_certificate_pseudonym(mocker, ursula_federated_test_config):
@@ -272,7 +273,7 @@ def test_handle_missing_certificate_pseudonym(mocker, ursula_federated_test_conf
     now = maya.now()
     earlier = now - maya.timedelta(1)
     mocker.patch.object(FleetStateTracker, 'record_fleet_state')
-    mocker.patch.object(Teacher, 'timestamp', new_callable=mocker.PropertyMock, side_effect=[now, earlier])
+    mock_timestamp = mocker.patch.object(Teacher, 'timestamp', new_callable=mocker.PropertyMock, side_effect=[now, earlier])
     mocker.patch.object(Teacher, 'validate_interface', return_value=True)
 
     # This IP address's certificate belongs to another domain now
@@ -282,11 +283,41 @@ def test_handle_missing_certificate_pseudonym(mocker, ursula_federated_test_conf
     class InvalidMockNameAttribute:
         value = 'sphere.llama.network'
 
-    first_call = (ValidMockNameAttribute(),)
-    second_call = (InvalidMockNameAttribute(), )
-    side_effect = [first_call, second_call]
+    good_call = (ValidMockNameAttribute(),)
+    invalid_call = (InvalidMockNameAttribute(), )
+    side_effect = [good_call, invalid_call]
     mocker.patch.object(x509.name.Name, 'get_attributes_for_oid', side_effect=side_effect)
 
-    # mocker.patch.object(NodeStorage, '_read_checksum_address_as_pseudonym', side_effect=NodeStorage.InvalidNodeCertificate)
-    with pytest.raises(NodeStorage.InvalidNodeCertificate):
-        learner.remember_node(teacher, eager=True)
+    warnings = []
+
+    def warning_trapper(event):
+        if event['log_level'] == LogLevel.warn:
+            warnings.append(event)
+    globalLogPublisher.addObserver(warning_trapper)
+
+    assert not learner.remember_node(teacher, eager=True)  # returns False because the node is not remembered
+
+    assert warnings
+    assert len(warnings) == 1
+
+    mocker.patch.object(Teacher, 'timestamp', new_callable=mocker.PropertyMock, return_value=now)
+    mocker.patch.object(x509.name.Name, 'get_attributes_for_oid', side_effect=side_effect)
+
+    middleware = MockRestMiddleware()
+    middleware.get_nodes_via_rest(node=learner, announce_nodes=(teacher, ))
+
+    three_too_many = [good_call, invalid_call, good_call, good_call]  # FIXME: why are four calls needed here?
+    mocker.patch.object(x509.name.Name, 'get_attributes_for_oid', side_effect=three_too_many)
+    remember_spy = mocker.spy(Ursula, 'remember_node')
+
+    Response = namedtuple("MockResponse", ("content", "status_code"))
+    signed_bytes = bytes(teacher)
+    response = Response(content=signed_bytes, status_code=200)
+
+    learner._current_teacher_node = teacher
+    learner.network_middleware.get_nodes_via_rest = lambda *args, **kwargs: response
+
+    learner.learn_from_teacher_node()
+    assert remember_spy.assert_called_once()
+
+    globalLogPublisher.removeObserver(warning_trapper)

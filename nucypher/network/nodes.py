@@ -55,7 +55,7 @@ from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
-from nucypher.config.storages import ForgetfulNodeStorage
+from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.crypto.api import keccak_digest, verify_eip_191, recover_address_eip_191
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import TransactingPower, SigningPower, DecryptingPower, NoSigningPower
@@ -463,32 +463,37 @@ class Learner:
             node.mature()
             stranger_certificate = node.certificate
 
-            # Store node's certificate - It has been seen.
-            certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate)
-
-            # In some cases (seed nodes or other temp stored certs),
-            # this will update the filepath from the temp location to this one.
-            node.certificate_filepath = certificate_filepath
+            try:
+                # Store node's certificate - It has been seen.
+                certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate)
+            except self.node_storage.InvalidNodeCertificate as e:
+                # TODO: Bucket this node as "invalid" and either forget, blacklist, something...  #567
+                self.log.warn(f"Cannot remember node because it has an invalid certificate: {str(e)}")
+                return False
+            else:
+                # In some cases (seed nodes or other temp stored certs),
+                # this will update the filepath from the temp location to this one.
+                node.certificate_filepath = certificate_filepath
 
             try:
                 node.verify_node(force=force_verification_recheck,
                                  network_middleware_client=self.network_middleware.client,
                                  registry=self.registry)  # composed on character subclass, determines operating mode
             except SSLError:
-                # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?  567
+                # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?  #567
                 return False
 
             except NodeSeemsToBeDown:
                 self.log.info("No Response while trying to verify node {}|{}".format(node.rest_interface, node))
-                # TODO: Bucket this node as "ghost" or something: somebody else knows about it, but we can't get to it.  567
+                # TODO: Bucket this node as "ghost" or something: somebody else knows about it, but we can't get to it.  #567
                 return False
 
             except node.NotStaking:
-                # TODO: Bucket this node as inactive, and potentially safe to forget.  567
+                # TODO: Bucket this node as inactive, and potentially safe to forget.  #567
                 self.log.info(f'Staker:Worker {node.checksum_address}:{node.worker_address} is not actively staking, skipping.')
                 return False
 
-            # TODO: What about InvalidNode?  (for that matter, any SuspiciousActivity)  1714, 567 too really
+            # TODO: What about InvalidNode?  (for that matter, any SuspiciousActivity)  #1714, #567 too really
 
         listeners = self._learning_listeners.pop(node.checksum_address, tuple())
 
@@ -1211,12 +1216,17 @@ class Teacher:
             self.verified_node = False
             return False
 
-        # The node's metadata is valid; let's be sure the interface is in order.
+        # The node's metadata is valid; let's be sure the TLS certificate is stored.
         if not certificate_filepath:
-            if self.certificate_filepath is CERTIFICATE_NOT_SAVED:
-                self.certificate_filepath = self._cert_store_function(self.certificate)
-            certificate_filepath = self.certificate_filepath
+            try:
+                if self.certificate_filepath is CERTIFICATE_NOT_SAVED:
+                    self.certificate_filepath = self._cert_store_function(self.certificate)
+                certificate_filepath = self.certificate_filepath
+            except NodeStorage.InvalidNodeCertificate:
+                self.verified_node = False
+                return False
 
+        # The node's certificate is valid; let's be sure the interface is in order.
         response_data = network_middleware_client.node_information(host=self.rest_interface.host,
                                                                    port=self.rest_interface.port,
                                                                    certificate_filepath=certificate_filepath)
