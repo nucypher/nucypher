@@ -163,7 +163,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     # Verify the keystore path is still preserved
     assert isinstance(ursula.signer, KeystoreSigner)
     assert isinstance(ursula.signer.path, str), "Use str"
-    assert ursula.signer.path == str(mock_keystore_path)  # confirm Pathlib is used internally despite string input
+    assert ursula.signer.path == str(mock_keystore_path)
 
     # Show that we can produce the exact same signer as pre-config...
     assert pre_config_signer.path == ursula.signer.path
