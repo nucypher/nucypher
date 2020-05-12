@@ -442,6 +442,10 @@ class BlockchainInterface:
         # Format
         if tx.get('to'):
             tx['to'] = to_checksum_address(contract_function.address)
+        try:
+            tx['selector'] = contract_function.selector
+        except AttributeError:
+            pass
         tx['from'] = to_checksum_address(tx['from'])
         tx.update({f: prettify_eth_amount(v) for f, v in tx.items() if f in ('gasPrice', 'value')})
         payload_pprint = ', '.join("{}: {}".format(k, v) for k, v in tx.items())
