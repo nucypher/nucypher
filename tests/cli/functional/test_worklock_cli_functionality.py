@@ -305,11 +305,11 @@ def test_remaining_work(click_runner,
                         mock_worklock_agent,
                         surrogate_bidder):
 
-    # Spy on the corresponding CLI function we are testing
+    remaining_work = 100
     mock_remaining_work = mocker.patch.object(Bidder,
                                               'remaining_work',
                                               new_callable=mocker.PropertyMock,
-                                              return_value=100)
+                                              return_value=remaining_work)
 
     command = ('remaining-work',
                '--bidder-address', surrogate_bidder.checksum_address,
@@ -318,6 +318,7 @@ def test_remaining_work(click_runner,
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
+    assert str(remaining_work) in result.output, "Remaining work was not echoed."
 
     # Bidder
     mock_remaining_work.assert_called_once()

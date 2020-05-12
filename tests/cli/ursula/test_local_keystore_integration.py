@@ -145,7 +145,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', MOCK_URSULA_STARTING_PORT,
 
-                 # The bit were' testing for here
+                 # The bit we are testing for here
                  '--signer', MOCK_SIGNER_URI)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=CLI_ENV)
