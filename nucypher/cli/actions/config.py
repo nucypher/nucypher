@@ -17,13 +17,17 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import json
-
 import click
+import json
 from json.decoder import JSONDecodeError
 
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
-from nucypher.cli.literature import CHARACTER_DESTRUCTION, SUCCESSFUL_DESTRUCTION
+from nucypher.cli.literature import (
+    CHARACTER_DESTRUCTION,
+    SUCCESSFUL_DESTRUCTION,
+    CONFIRM_FORGET_NODES,
+    SUCCESSFUL_FORGET_NODES
+)
 
 
 def get_or_update_configuration(emitter, config_class, filepath: str, config_options):
@@ -68,10 +72,9 @@ def destroy_configuration(emitter, character_config, force: bool = False) -> Non
 
 def forget(emitter, configuration):
     """Forget all known nodes via storage"""
-    click.confirm("Permanently delete all known node data?", abort=True)
+    click.confirm(CONFIRM_FORGET_NODES, abort=True)
     configuration.forget_nodes()
-    message = "Removed all stored known nodes metadata and certificates"
-    emitter.message(message, color='red')
+    emitter.message(SUCCESSFUL_FORGET_NODES, color='red')
 
 
 def handle_missing_configuration_file(character_config_class, init_command_hint: str = None, config_file: str = None):

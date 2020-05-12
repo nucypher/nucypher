@@ -26,6 +26,8 @@ from json.decoder import JSONDecodeError
 from typing import Set, Optional, Dict, List
 
 from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.cli.literature import CONFIRM_URSULA_IPV4_ADDRESS, COLLECT_URSULA_IPV4_ADDRESS, \
+    FORCE_DETECT_URSULA_IP_WARNING, NO_DOMAIN_PEERS, SEEDNODE_NOT_STAKING_WARNING
 from nucypher.cli.types import IPV4_ADDRESS
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -105,7 +107,7 @@ def load_seednodes(emitter,
     teacher_nodes = list()  # type: List[Ursula]
     teacher_uris = aggregate_seednode_uris(domains=network_domains, highest_priority=teacher_uris)
     if not teacher_uris:
-        emitter.message(f"No teacher nodes available for domains: {','.join(network_domains)}")
+        emitter.message(NO_DOMAIN_PEERS.format(domains=','.join(network_domains)))
         return teacher_nodes
 
     # Construct Ursulas
@@ -120,12 +122,12 @@ def load_seednodes(emitter,
             emitter.message(f"Failed to connect to teacher: {uri}")
             continue
         except Teacher.NotStaking:
-            emitter.message(f"Teacher: {uri} is not actively staking, skipping")
+            emitter.message(SEEDNODE_NOT_STAKING_WARNING.format(uri=uri))
             continue
         teacher_nodes.append(teacher_node)
 
     if not teacher_nodes:
-        emitter.message(f"WARNING - No Peers Available for domains: {','.join(network_domains)}")
+        emitter.message(NO_DOMAIN_PEERS.format(domains=','.join(network_domains)))
     return teacher_nodes
 
 
@@ -150,9 +152,9 @@ def determine_external_ip_address(emitter, force: bool = False) -> str:
     else:
         # Interactive
         if not force:
-            if not click.confirm(f"Is this the public-facing IPv4 address ({rest_host}) you want to use for Ursula?"):
-                rest_host = click.prompt("Please enter Ursula's public-facing IPv4 address here:", type=IPV4_ADDRESS)
+            if not click.confirm(CONFIRM_URSULA_IPV4_ADDRESS.format(rest_host=rest_host)):
+                rest_host = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=IPV4_ADDRESS)
         else:
-            emitter.message(f"WARNING: --force is set, using auto-detected IP '{rest_host}'", color='yellow')
+            emitter.message(FORCE_DETECT_URSULA_IP_WARNING.format(rest_host=rest_host), color='yellow')
 
         return rest_host

@@ -28,7 +28,7 @@ from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli import painting
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.config import handle_missing_configuration_file, get_or_update_configuration
-from nucypher.cli.actions.confirm import issue_stake_suggestions, confirm_staged_stake, confirm_enable_restaking_lock, \
+from nucypher.cli.actions.confirm import confirm_large_stake, confirm_staged_stake, confirm_enable_restaking_lock, \
     confirm_enable_restaking, confirm_enable_winding_down
 from nucypher.cli.actions.select import handle_client_account_for_staking, select_stake
 from nucypher.cli.config import group_general_config
@@ -476,7 +476,7 @@ def create(general_config, transacting_staker_options, config_file, force, value
     #
 
     if not force:
-        issue_stake_suggestions(value=value, lock_periods=lock_periods)
+        confirm_large_stake(value=value, lock_periods=lock_periods)
         painting.paint_staged_stake(emitter=emitter,
                                     stakeholder=STAKEHOLDER,
                                     staking_address=staking_address,
@@ -665,7 +665,7 @@ def divide(general_config, transacting_staker_options, config_file, force, value
         extension = lock_periods
 
     if not force:
-        issue_stake_suggestions(lock_periods=extension, value=value)
+        confirm_large_stake(lock_periods=extension, value=value)
         painting.paint_staged_stake_division(emitter=emitter,
                                              stakeholder=STAKEHOLDER,
                                              original_stake=current_stake,

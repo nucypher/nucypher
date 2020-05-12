@@ -21,6 +21,7 @@ from constant_sorrow.constants import NO_PASSWORD
 from nacl.exceptions import CryptoError
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.cli.literature import COLLECT_ETH_PASSWORD, COLLECT_NUCYPHER_PASSWORD
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
 from nucypher.config.node import CharacterConfiguration
 
@@ -34,13 +35,14 @@ def get_password_from_prompt(prompt: str = "Enter password", envvar: str = '', c
 
 @validate_checksum_address
 def get_client_password(checksum_address: str, envvar: str = '') -> str:
-    prompt = f"Enter password to unlock account {checksum_address}"
-    client_password = get_password_from_prompt(prompt=prompt, envvar=envvar, confirm=False)
+    client_password = get_password_from_prompt(prompt=COLLECT_ETH_PASSWORD.format(checksum_address=checksum_address),
+                                               envvar=envvar,
+                                               confirm=False)
     return client_password
 
 
 def get_nucypher_password(confirm: bool = False, envvar=NUCYPHER_ENVVAR_KEYRING_PASSWORD) -> str:
-    prompt = f"Enter NuCypher keyring password"
+    prompt = COLLECT_NUCYPHER_PASSWORD
     if confirm:
         from nucypher.config.keyring import NucypherKeyring
         prompt += f" ({NucypherKeyring.MINIMUM_PASSWORD_LENGTH} character minimum)"

@@ -17,11 +17,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import click
 import os
 import shutil
-from constant_sorrow.constants import NO_CONTROL_PROTOCOL
 from nacl.exceptions import CryptoError
 
+from constant_sorrow.constants import NO_CONTROL_PROTOCOL
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry, LocalContractRegistry
 from nucypher.cli.actions.auth import unlock_nucypher_keyring, get_nucypher_password
