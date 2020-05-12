@@ -18,21 +18,17 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import json
-import os
-
-import re
 
 import click
+import os
+import re
+from eth_utils.address import is_checksum_address
 from json.decoder import JSONDecodeError
 
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
-from nucypher.cli.literature import (
-    CHARACTER_DESTRUCTION,
-    SUCCESSFUL_DESTRUCTION,
-    CONFIRM_FORGET_NODES,
-    SUCCESSFUL_FORGET_NODES, INVALID_CONFIGURATION_FILE_WARNING, INVALID_JSON_IN_CONFIGURATION_WARNING,
-    SUCCESSFUL_UPDATE_CONFIGURATION_VALUES
-)
+from nucypher.cli.literature import (CHARACTER_DESTRUCTION, CONFIRM_FORGET_NODES, INVALID_CONFIGURATION_FILE_WARNING,
+                                     INVALID_JSON_IN_CONFIGURATION_WARNING, SUCCESSFUL_DESTRUCTION,
+                                     SUCCESSFUL_FORGET_NODES, SUCCESSFUL_UPDATE_CONFIGURATION_VALUES)
 from nucypher.config.characters import UrsulaConfiguration
 
 
@@ -65,7 +61,7 @@ def destroy_configuration(emitter, character_config, force: bool = False) -> Non
         except AttributeError:
             database = "No database found"  # FIXME: This cannot be right.....
 
-        click.confirm(CHARACTER_DESTRUCTION.format(name=character_config._NAME,
+        click.confirm(CHARACTER_DESTRUCTION.format(name=character_config.NAME,
                                                    root=character_config.config_root,
                                                    keystore=character_config.keyring_root,
                                                    nodestore=character_config.node_storage.root_dir,
@@ -85,9 +81,9 @@ def forget(emitter, configuration):
 
 def handle_missing_configuration_file(character_config_class, init_command_hint: str = None, config_file: str = None):
     config_file_location = config_file or character_config_class.default_filepath()
-    init_command = init_command_hint or f"{character_config_class._NAME} init"
-    message = f'No {character_config_class._NAME.capitalize()} configuration file found.\n' \
-              f'To create a new persistent {character_config_class._NAME.capitalize()} run: ' \
+    init_command = init_command_hint or f"{character_config_class.NAME} init"
+    message = f'No {character_config_class.NAME.capitalize()} configuration file found.\n' \
+              f'To create a new persistent {character_config_class.NAME.capitalize()} run: ' \
               f'\'nucypher {init_command}\''
 
     raise click.FileError(filename=config_file_location, hint=message)

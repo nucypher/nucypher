@@ -25,14 +25,10 @@ from nacl.exceptions import CryptoError
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry, LocalContractRegistry
-from nucypher.cli.actions.auth import unlock_nucypher_keyring, get_nucypher_password
+from nucypher.cli.actions.auth import get_nucypher_password, unlock_nucypher_keyring
 from nucypher.cli.actions.network import load_seednodes
-from nucypher.cli.literature import (
-    FEDERATED_WARNING,
-    PRODUCTION_REGISTRY_ADVISORY,
-    LOCAL_REGISTRY_ADVISORY,
-    CONNECTING_TO_BLOCKCHAIN
-)
+from nucypher.cli.literature import (CONNECTING_TO_BLOCKCHAIN, FEDERATED_WARNING, LOCAL_REGISTRY_ADVISORY,
+                                     PRODUCTION_REGISTRY_ADVISORY)
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 

@@ -17,13 +17,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from collections import Counter
+from typing import List
 
 from web3.main import Web3
 
-from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent, \
-    AdjudicatorAgent
+from nucypher.blockchain.eth.agents import AdjudicatorAgent, ContractAgency, NucypherTokenAgent, PolicyManagerAgent, \
+    StakingEscrowAgent
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.utils import prettify_eth_amount
 
 
 def paint_contract_status(registry, emitter):
@@ -133,3 +136,61 @@ def paint_locked_tokens_status(emitter, agent, periods) -> None:
         box_plot = f"{int(bucket_min * scale) * '■'}{int(delta * scale) * '□'}"
         emitter.echo(f"{bucket_range:>9}: {box_plot:60}"
                      f"Min: {NU.from_nunits(bucket_min)} - Max: {NU.from_nunits(bucket_max)}")
+
+
+def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> None:
+    current_period = staking_agent.get_current_period()
+    emitter.echo(f"\nCurrent period: {current_period}")
+    emitter.echo("\n| Stakers |\n")
+    emitter.echo(f"{'Checksum address':42}  Staker information")
+    emitter.echo('=' * (42 + 2 + 53))
+
+    for staker in stakers:
+        nickname, pairs = nickname_from_seed(staker)
+        symbols = f"{pairs[0][1]}  {pairs[1][1]}"
+        emitter.echo(f"{staker}  {'Nickname:':10} {nickname} {symbols}")
+        tab = " " * len(staker)
+
+        owned_tokens = staking_agent.owned_tokens(staker)
+        last_confirmed_period = staking_agent.get_last_active_period(staker)
+        worker = staking_agent.get_worker_from_staker(staker)
+        is_restaking = staking_agent.is_restaking(staker)
+        is_winding_down = staking_agent.is_winding_down(staker)
+
+        missing_confirmations = current_period - last_confirmed_period
+        owned_in_nu = round(NU.from_nunits(owned_tokens), 2)
+        locked_tokens = round(NU.from_nunits(staking_agent.get_locked_tokens(staker)), 2)
+
+        emitter.echo(f"{tab}  {'Owned:':10} {owned_in_nu}  (Staked: {locked_tokens})")
+        if is_restaking:
+            if staking_agent.is_restaking_locked(staker):
+                unlock_period = staking_agent.get_restake_unlock_period(staker)
+                emitter.echo(f"{tab}  {'Re-staking:':10} Yes  (Locked until period: {unlock_period})")
+            else:
+                emitter.echo(f"{tab}  {'Re-staking:':10} Yes  (Unlocked)")
+        else:
+            emitter.echo(f"{tab}  {'Re-staking:':10} No")
+        emitter.echo(f"{tab}  {'Winding down:':10} {'Yes' if is_winding_down else 'No'}")
+        emitter.echo(f"{tab}  {'Activity:':10} ", nl=False)
+        if missing_confirmations == -1:
+            emitter.echo(f"Next period confirmed (#{last_confirmed_period})", color='green')
+        elif missing_confirmations == 0:
+            emitter.echo(f"Current period confirmed (#{last_confirmed_period}). "
+                         f"Pending confirmation of next period.", color='yellow')
+        elif missing_confirmations == current_period:
+            emitter.echo(f"Never confirmed activity", color='red')
+        else:
+            emitter.echo(f"Missing {missing_confirmations} confirmations "
+                         f"(last time for period #{last_confirmed_period})", color='red')
+
+        emitter.echo(f"{tab}  {'Worker:':10} ", nl=False)
+        if worker == NULL_ADDRESS:
+            emitter.echo(f"Worker not set", color='red')
+        else:
+            emitter.echo(f"{worker}")
+
+        fees = prettify_eth_amount(policy_agent.get_reward_amount(staker))
+        emitter.echo(f"{tab}  Unclaimed fees: {fees}")
+
+        min_rate = prettify_eth_amount(policy_agent.get_min_reward_rate(staker))
+        emitter.echo(f"{tab}  Min reward rate: {min_rate}")

@@ -19,11 +19,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 import os
 
-from nucypher.blockchain.eth.actors import Trustee, Executive
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency, MultiSigAgent
+from nucypher.blockchain.eth.actors import Executive, Trustee
+from nucypher.blockchain.eth.agents import ContractAgency, MultiSigAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.multisig import Proposal, Authorization
-from nucypher.blockchain.eth.registry import LocalContractRegistry, InMemoryContractRegistry
+from nucypher.blockchain.eth.multisig import Authorization, Proposal
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.config import get_provider_process
@@ -31,19 +31,13 @@ from nucypher.cli.actions.select import select_client_account
 from nucypher.cli.actions.utils import get_registry
 from nucypher.cli.commands.stake import option_signer_uri
 from nucypher.cli.config import group_general_config
-from nucypher.cli.options import (
-    group_options,
-    option_checksum_address,
-    option_hw_wallet,
-    option_light,
-
-    option_network,
-    option_poa,
-    option_provider_uri,
-
-    option_registry_filepath, option_geth)
-from nucypher.cli.painting.transactions import paint_receipt_summary
+from nucypher.cli.literature import CONFIRM_EXECUTE_MULTISIG_TRANSACTION, MULTISIG_SIGNATURE_RECEIVED, \
+    PROMPT_CONFIRM_MULTISIG_SIGNATURE, PROMPT_FOR_RAW_SIGNATURE, PROMPT_NEW_MULTISIG_THRESHOLD, \
+    SUCCESSFUL_MULTISIG_AUTHORIZATION, SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL
+from nucypher.cli.options import (group_options, option_checksum_address, option_geth, option_hw_wallet, option_light,
+                                  option_network, option_poa, option_provider_uri, option_registry_filepath)
 from nucypher.cli.painting.multisig import paint_multisig_contract_info, paint_multisig_proposed_transaction
+from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
@@ -231,7 +225,7 @@ def propose(general_config, blockchain_options, multisig_options):
 
     # Init
     emitter = general_config.emitter
-    #_ensure_config_root(actor_options.config_root)
+    #_ensure_config_root(actor_options.config_root)  # TODO: Review this commented out line
     blockchain = blockchain_options.connect_blockchain(emitter, general_config.debug)
     registry = get_registry(network=blockchain_options.network)
 
@@ -241,21 +235,21 @@ def propose(general_config, blockchain_options, multisig_options):
                                                                   poa=blockchain_options.poa,
                                                                   network=blockchain_options.network,
                                                                   registry=registry,
-                                                                  show_balances=True)
+                                                                  show_balances=True)  # FIXME: Unexpected input
 
     trustee = multisig_options.create_transactingless_trustee(registry)
 
     # As a PoC, this command only allows to change the threshold
     # TODO: Think in the UX for choosing between different types of proposals
 
-    new_threshold = click.prompt("New threshold", type=click.INT)
+    new_threshold = click.prompt(PROMPT_NEW_MULTISIG_THRESHOLD, type=click.INT)
     proposal = trustee.propose_changing_threshold(new_threshold)
 
     paint_multisig_proposed_transaction(emitter=emitter, proposal=proposal, registry=registry)
 
     filepath = f'proposal-changeThreshold-{trustee.multisig_agent.contract_address[:8]}-TX-{proposal.nonce}.json'
     proposal.write(filepath=filepath)
-    emitter.echo(f"✅ Saved proposal to {filepath}", color='blue', bold=True)
+    emitter.echo(SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL.format(filepath=filepath), color='blue', bold=True)
 
 
 @multisig.command()
@@ -292,11 +286,11 @@ def sign(general_config, blockchain_options, multisig_options, proposal):
                                                        ContractFactoryClass=blockchain._contract_factory)
     paint_multisig_proposed_transaction(emitter, proposal, proxy_contract)
 
-    click.confirm("Proceed with signing?", abort=True)
+    click.confirm(PROMPT_CONFIRM_MULTISIG_SIGNATURE, abort=True)
 
     executive = multisig_options.create_transactingless_executive(registry)  # FIXME: Since we use a signer, don't ask for PW
     authorization = executive.authorize_proposal(proposal)
-    emitter.echo(f"\nSignature received from {authorization.recover_executive_address(proposal)}:\n")
+    emitter.echo(MULTISIG_SIGNATURE_RECEIVED.format(recovered_address=authorization.recover_executive_address(proposal)))
     emitter.echo(f"{authorization.serialize().hex()}\n", bold=True, color='green')
 
 
@@ -338,12 +332,12 @@ def execute(general_config, blockchain_options, multisig_options, proposal):
     threshold = trustee.multisig_agent.threshold
 
     while len(trustee.authorizations) < threshold:
-        auth_hex = click.prompt("Signature", type=click.STRING)
+        auth_hex = click.prompt(PROMPT_FOR_RAW_SIGNATURE, type=click.STRING)
         authorization = Authorization.from_hex(auth_hex)
         executive_address = trustee.add_authorization(authorization, proposal)
-        emitter.echo(f"Added authorization from executive {executive_address}", color='green')
+        emitter.echo(SUCCESSFUL_MULTISIG_AUTHORIZATION.format(executive_address=executive_address), color='green')
 
-    click.confirm("\nCollected required authorizations. Proceed with execution?", abort=True)
+    click.confirm(CONFIRM_EXECUTE_MULTISIG_TRANSACTION, abort=True)
 
     receipt = trustee.execute(proposal)
     paint_receipt_summary(emitter, receipt)

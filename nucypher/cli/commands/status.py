@@ -19,7 +19,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 import maya
 import os
-from nucypher.cli.painting.stakes import paint_stakers
 
 from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import (
@@ -43,14 +42,11 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_staking_address,
 )
-from nucypher.cli.painting import (
-    paint_contract_status,
-    paint_locked_tokens_status,
-    paint_fee_rate_range
-)
+from nucypher.cli.painting.policies import paint_fee_rate_range
+from nucypher.cli.painting.staking import paint_stakers
 from nucypher.cli.painting.status import paint_contract_status, paint_locked_tokens_status
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
-
+from nucypher.cli.actions import
 
 class RegistryOptions:
 

@@ -19,39 +19,25 @@ import click
 import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
-import nucypher.cli.painting.help
-
-import nucypher.cli.painting.transactions
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import URSULA_BANNER
-from nucypher.cli import painting
-from nucypher.cli.actions.auth import get_nucypher_password, get_client_password
-from nucypher.cli.actions.config import get_provider_process, handle_missing_configuration_file, destroy_configuration, \
-    get_or_update_configuration
+from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
+from nucypher.cli.actions.config import (destroy_configuration, get_or_update_configuration, get_provider_process,
+                                         handle_missing_configuration_file)
 from nucypher.cli.actions.network import determine_external_ip_address
-from nucypher.cli.actions.select import select_client_account, select_network, select_config_file
+from nucypher.cli.actions.select import select_client_account, select_config_file, select_network
 from nucypher.cli.actions.utils import make_cli_character
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
-from nucypher.cli.options import (
-    group_options,
-    option_config_file,
-    option_config_root,
-    option_db_filepath,
-    option_dev,
-    option_dry_run,
-    option_federated_only,
-    option_force,
-    option_geth,
-    option_light,
-    option_min_stake,
-    option_network,
-    option_poa,
-    option_provider_uri,
-    option_registry_filepath,
-    option_teacher_uri,
-    option_signer_uri)
+from nucypher.cli.literature import CONFIRMING_ACTIVITY_NOW, DEVELOPMENT_MODE_WARNING, FORCE_MODE_WARNING, \
+    SUCCESSFUL_CONFIRM_ACTIVITY, SUCCESSFUL_MANUALLY_SAVE_METADATA
+from nucypher.cli.options import (group_options, option_config_file, option_config_root, option_db_filepath, option_dev,
+                                  option_dry_run, option_federated_only, option_force, option_geth, option_light,
+                                  option_min_stake, option_network, option_poa, option_provider_uri,
+                                  option_registry_filepath, option_signer_uri, option_teacher_uri)
+from nucypher.cli.painting.help import paint_new_installation_help
+from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS
@@ -287,7 +273,7 @@ def init(general_config, config_options, force, config_root):
     if not config_options.federated_only and not config_options.domains:  # TODO: Again, weird network/domains mapping. See UrsulaConfigOptions' constructor. #1580
         config_options.domains = {select_network(emitter)}
     ursula_config = config_options.generate_config(emitter, config_root, force)
-    nucypher.cli.painting.help.paint_new_installation_help(emitter, new_configuration=ursula_config)
+    paint_new_installation_help(emitter, new_configuration=ursula_config)
 
 
 @ursula.command()
@@ -367,7 +353,7 @@ def save_metadata(general_config, character_options, config_file):
     _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
     _, URSULA = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
     metadata_path = URSULA.write_node_metadata(node=URSULA)
-    emitter.message(f"Successfully saved node metadata to {metadata_path}.", color='green')
+    emitter.message(SUCCESSFUL_MANUALLY_SAVE_METADATA.format(metadata_path=metadata_path), color='green')
 
 
 @ursula.command()
@@ -396,27 +382,26 @@ def config(general_config, config_options, config_file):
 @group_general_config
 # TODO make available only for debug purposes #1970
 def commit_to_next_period(general_config, character_options, config_file):
-    """
-    Manually make a commitment to the next period.
-    """
+    """Manually make a commitment to the next period."""
+
+    # Setup
     emitter = _setup_emitter(general_config, character_options.config_options.worker_address)
     _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
     _, URSULA = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
 
     committed_period = URSULA.staking_agent.get_current_period() + 1
-    click.echo(f"Making a commitment to period {committed_period}", color='blue')
+    click.echo(CONFIRMING_ACTIVITY_NOW.format(committed_period=committed_period), color='blue')
     receipt = URSULA.commit_to_next_period()
 
     economics = EconomicsFactory.get_economics(registry=URSULA.registry)
-    date = datetime_at_period(period=committed_period,
-                              seconds_per_period=economics.seconds_per_period)
+    date = datetime_at_period(period=committed_period, seconds_per_period=economics.seconds_per_period)
 
     # TODO: Double-check dates here
-    emitter.echo(f'\nCommitment was made to period #{committed_period} '
-                 f'(starting at {date})', bold=True, color='blue')
-    nucypher.cli.painting.transactions.paint_receipt_summary(emitter=emitter,
-                                                             receipt=receipt,
-                                                             chain_name=URSULA.staking_agent.blockchain.client.chain_name)
+    message = SUCCESSFUL_CONFIRM_ACTIVITY.format(committed_period=committed_period, date=date)
+    emitter.echo(message, bold=True, color='blue')
+    paint_receipt_summary(emitter=emitter,
+                          receipt=receipt,
+                          chain_name=URSULA.staking_agent.blockchain.client.chain_name)
 
     # TODO: Check CommitmentMade event (see #1193)
 
@@ -432,6 +417,6 @@ def _setup_emitter(general_config, worker_address):
 
 def _pre_launch_warnings(emitter, dev, force):
     if dev:
-        emitter.echo("WARNING: Running in Development mode", color='yellow', verbosity=1)
+        emitter.echo(DEVELOPMENT_MODE_WARNING, color='yellow', verbosity=1)
     if force:
-        emitter.echo("WARNING: Force is enabled", color='yellow', verbosity=1)
+        emitter.echo(FORCE_MODE_WARNING, color='yellow', verbosity=1)

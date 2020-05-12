@@ -24,7 +24,8 @@ from twisted.internet.stdio import StandardIO
 from twisted.logger import Logger
 from twisted.protocols.basic import LineReceiver
 
-from nucypher.cli.painting.nodes import build_fleet_state_status, paint_node_status, paint_known_nodes
+from nucypher.cli.painting.nodes import build_fleet_state_status, paint_known_nodes, paint_node_status
+from nucypher.cli.painting.staking import paint_stakes
 
 
 class UrsulaCommandProtocol(LineReceiver):
@@ -96,7 +97,6 @@ class UrsulaCommandProtocol(LineReceiver):
         """
         Display a list of all active stakes.
         """
-        from nucypher.cli.painting.stakes import paint_stakes
         if self.ursula.stakes:
             paint_stakes(self.emitter, stakes=self.ursula.stakes)
         else:

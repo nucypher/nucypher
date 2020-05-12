@@ -15,16 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
+
+
 import click
 from web3 import Web3
 
-import nucypher.cli.painting.stakes
-
-import nucypher.cli.painting.status
-
-import nucypher.cli.painting.policies
-
-import nucypher.cli.painting.staking
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.constants import MAX_UINT16
 from nucypher.blockchain.eth.events import EventRecord
@@ -32,27 +27,32 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
 from nucypher.blockchain.eth.token import NU, StakeList
 from nucypher.blockchain.eth.utils import datetime_at_period
-from nucypher.cli import painting
 from nucypher.cli.actions.auth import get_client_password
-from nucypher.cli.actions.config import handle_missing_configuration_file, get_or_update_configuration
-from nucypher.cli.actions.confirm import confirm_large_stake, confirm_staged_stake, confirm_enable_restaking_lock, \
-    confirm_enable_restaking, confirm_enable_winding_down
+from nucypher.cli.actions.config import get_or_update_configuration, handle_missing_configuration_file
+from nucypher.cli.actions.confirm import (confirm_enable_restaking, confirm_enable_restaking_lock,
+                                          confirm_enable_winding_down, confirm_large_stake, confirm_staged_stake)
 from nucypher.cli.actions.select import handle_client_account_for_staking, select_stake
 from nucypher.cli.config import group_general_config
-from nucypher.cli.options import (
-    group_options,
-    option_config_file,
-    option_config_root,
-    option_event_name,
-    option_force,
-    option_hw_wallet,
-    option_light,
-    option_network,
-    option_poa,
-    option_provider_uri,
-    option_registry_filepath,
-    option_staking_address,
-    option_signer_uri)
+from nucypher.cli.literature import (BONDING_DETAILS, BONDING_RELEASE_INFO, COLLECTING_ETH_REWARD,
+                                     COLLECTING_PREALLOCATION_REWARD, COLLECTING_TOKEN_REWARD,
+                                     CONFIRM_BROADCAST_STAKE_DIVIDE, CONFIRM_DISABLE_RESTAKING,
+                                     CONFIRM_DISABLE_WIND_DOWN, CONFIRM_NEW_MIN_POLICY_RATE, CONFIRM_PROLONG,
+                                     CONFIRM_WORKER_AND_STAKER_ADDRESSES_ARE_EQUAL, DETACH_DETAILS,
+                                     PERIOD_ADVANCED_WARNING, PROMPT_PROLONG_VALUE, PROMPT_STAKER_MIN_POLICY_RATE,
+                                     PROMPT_STAKE_DIVIDE_VALUE, PROMPT_STAKE_EXTEND_VALUE, PROMPT_WORKER_ADDRESS,
+                                     SUCCESSFUL_DETACH_WORKER, SUCCESSFUL_DISABLE_RESTAKING,
+                                     SUCCESSFUL_DISABLE_WIND_DOWN, SUCCESSFUL_ENABLE_RESTAKE_LOCK,
+                                     SUCCESSFUL_ENABLE_RESTAKING, SUCCESSFUL_ENABLE_WIND_DOWN,
+                                     SUCCESSFUL_NEW_STAKEHOLDER_CONFIG, SUCCESSFUL_SET_MIN_POLICY_RATE,
+                                     SUCCESSFUL_STAKE_DIVIDE, SUCCESSFUL_STAKE_PROLONG, SUCCESSFUL_WORKER_BONDING)
+from nucypher.cli.options import (group_options, option_config_file, option_config_root, option_event_name,
+                                  option_force, option_hw_wallet, option_light, option_network, option_poa,
+                                  option_provider_uri, option_registry_filepath, option_signer_uri,
+                                  option_staking_address)
+from nucypher.cli.painting.policies import paint_min_rate
+from nucypher.cli.painting.staking import paint_staged_stake, paint_staged_stake_division, paint_stakes, \
+    paint_staking_accounts, paint_staking_confirmation
+from nucypher.cli.painting.status import paint_preallocation_status
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
@@ -269,7 +269,7 @@ def init_stakeholder(general_config, config_root, force, config_options):
     emitter = _setup_emitter(general_config)
     new_stakeholder = config_options.generate_config(config_root)
     filepath = new_stakeholder.to_configuration_file(override=force)
-    emitter.echo(f"Wrote new stakeholder configuration to {filepath}", color='green')
+    emitter.echo(SUCCESSFUL_NEW_STAKEHOLDER_CONFIG.format(filepath=filepath), color='green')
 
 
 @stake.command()
@@ -298,7 +298,7 @@ def list_stakes(general_config, staker_options, config_file, all):
     """
     emitter = _setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
-    nucypher.cli.painting.stakes.paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER, paint_inactive=all)
+    paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER, paint_inactive=all)
 
 
 @stake.command()
@@ -311,7 +311,7 @@ def accounts(general_config, staker_options, config_file):
     """
     emitter = _setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
-    nucypher.cli.painting.staking.paint_staking_accounts(emitter=emitter, wallet=STAKEHOLDER.wallet, registry=STAKEHOLDER.registry)
+    paint_staking_accounts(emitter=emitter, wallet=STAKEHOLDER.wallet, registry=STAKEHOLDER.registry)
 
 
 @stake.command('bond-worker')
@@ -339,12 +339,10 @@ def bond_worker(general_config, transacting_staker_options, config_file, force, 
         force=force)
 
     if not worker_address:
-        worker_address = click.prompt("Enter worker address", type=EIP55_CHECKSUM_ADDRESS)
+        worker_address = click.prompt(PROMPT_WORKER_ADDRESS, type=EIP55_CHECKSUM_ADDRESS)
 
     if (worker_address == staking_address) and not force:
-        click.confirm("The worker address provided is the same as the staking account.  "
-                      "It is *highly recommended* to use a different accounts for staker and worker roles.\n"
-                      "Continue?", abort=True)
+        click.confirm(CONFIRM_WORKER_AND_STAKER_ADDRESSES_ARE_EQUAL.format(address=worker_address), abort=True)
 
     # TODO: Check preconditions (e.g., minWorkerPeriods, already in use, etc)
 
@@ -370,14 +368,14 @@ def bond_worker(general_config, transacting_staker_options, config_file, force, 
     receipt = STAKEHOLDER.bond_worker(worker_address=worker_address)
 
     # Report Success
-    emitter.echo(f"\nWorker {worker_address} successfully bonded to staker {staking_address}", color='green')
+    message = SUCCESSFUL_WORKER_BONDING.format(worker_address=worker_address, staking_address=staking_address)
+    emitter.echo(message, color='green')
     paint_receipt_summary(emitter=emitter,
                           receipt=receipt,
                           chain_name=blockchain.client.chain_name,
                           transaction_type='bond_worker')
-    emitter.echo(f"Bonded at period #{current_period} ({bonded_date})", color='green')
-    emitter.echo(f"This worker can be replaced or unbonded after period "
-                 f"#{release_period} ({release_date})", color='green')
+    emitter.echo(BONDING_DETAILS.format(current_period=current_period, bonded_date=bonded_date), color='green')
+    emitter.echo(BONDING_RELEASE_INFO.format(release_period=release_period, release_date=release_date), color='green')
 
 
 @stake.command('unbond-worker')
@@ -416,12 +414,13 @@ def unbond_worker(general_config, transacting_staker_options, config_file, force
     current_period = STAKEHOLDER.staking_agent.get_current_period()
     bonded_date = datetime_at_period(period=current_period, seconds_per_period=economics.seconds_per_period)
 
-    emitter.echo(f"Successfully unbonded worker {worker_address} from staker {staking_address}", color='green')
+    message = SUCCESSFUL_DETACH_WORKER.format(worker_address=worker_address, staking_address=staking_address)
+    emitter.echo(message, color='green')
     paint_receipt_summary(emitter=emitter,
                           receipt=receipt,
                           chain_name=blockchain.client.chain_name,
                           transaction_type='unbond_worker')
-    emitter.echo(f"Unbonded at period #{current_period} ({bonded_date})", color='green')
+    emitter.echo(DETACH_DETAILS.format(current_period=current_period, bonded_date=bonded_date), color='green')
 
 
 @stake.command()
@@ -484,18 +483,18 @@ def create(general_config, transacting_staker_options, config_file, force, value
 
     if not force:
         confirm_large_stake(value=value, lock_periods=lock_periods)
-        nucypher.cli.painting.stakes.paint_staged_stake(emitter=emitter,
-                                                        stakeholder=STAKEHOLDER,
-                                                        staking_address=staking_address,
-                                                        stake_value=value,
-                                                        lock_periods=lock_periods,
-                                                        start_period=start_period,
-                                                        unlock_period=unlock_period)
+        paint_staged_stake(emitter=emitter,
+                           stakeholder=STAKEHOLDER,
+                           staking_address=staking_address,
+                           stake_value=value,
+                           lock_periods=lock_periods,
+                           start_period=start_period,
+                           unlock_period=unlock_period)
 
         confirm_staged_stake(staker_address=staking_address, value=value, lock_periods=lock_periods)
 
     # Last chance to bail
-    click.confirm("Publish staged stake to the blockchain?", abort=True)
+    click.confirm(CONFIRM_BROADCAST_STAKE_DIVIDE, abort=True)
 
     # Authenticate
     password = transacting_staker_options.get_password(blockchain, client_account)
@@ -503,16 +502,14 @@ def create(general_config, transacting_staker_options, config_file, force, value
     # Consistency check to prevent the above agreement from going stale.
     last_second_current_period = STAKEHOLDER.staking_agent.get_current_period()
     if start_period != last_second_current_period + 1:
-        emitter.echo("Current period advanced before stake was broadcasted. Please try again.",
-                     color='red')
+        emitter.echo(PERIOD_ADVANCED_WARNING, color='red')
         raise click.Abort
 
     # Authenticate and Execute
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
 
     new_stake = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods)
-
-    nucypher.cli.painting.stakes.paint_staking_confirmation(emitter=emitter, staker=STAKEHOLDER, new_stake=new_stake)
+    paint_staking_confirmation(emitter=emitter, staker=STAKEHOLDER, new_stake=new_stake)
 
 
 @stake.command()
@@ -548,18 +545,18 @@ def restake(general_config, transacting_staker_options, config_file, enable, loc
         if not force:
             confirm_enable_restaking_lock(emitter, staking_address=staking_address, release_period=lock_until)
         receipt = STAKEHOLDER.enable_restaking_lock(release_period=lock_until)
-        emitter.echo(f'Successfully enabled re-staking lock for {staking_address} until {lock_until}',
+        emitter.echo(SUCCESSFUL_ENABLE_RESTAKE_LOCK.format(staking_address=staking_address, lock_until=lock_until),
                      color='green', verbosity=1)
     elif enable:
         if not force:
             confirm_enable_restaking(emitter, staking_address=staking_address)
         receipt = STAKEHOLDER.enable_restaking()
-        emitter.echo(f'Successfully enabled re-staking for {staking_address}', color='green', verbosity=1)
+        emitter.echo(SUCCESSFUL_ENABLE_RESTAKING.format(staking_address=staking_address), color='green', verbosity=1)
     else:
         if not force:
-            click.confirm(f"Confirm disable re-staking for staker {staking_address}?", abort=True)
+            click.confirm(CONFIRM_DISABLE_RESTAKING.format(staking_address=staking_address), abort=True)
         receipt = STAKEHOLDER.disable_restaking()
-        emitter.echo(f'Successfully disabled re-staking for {staking_address}', color='green', verbosity=1)
+        emitter.echo(SUCCESSFUL_DISABLE_RESTAKING.format(staking_address=staking_address), color='green', verbosity=1)
 
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
 
@@ -598,12 +595,12 @@ def winddown(general_config, transacting_staker_options, config_file, enable, lo
         if not force:
             confirm_enable_winding_down(emitter, staking_address=staking_address)
         receipt = STAKEHOLDER.enable_winding_down()
-        emitter.echo(f'Successfully enabled winding down for {staking_address}', color='green', verbosity=1)
+        emitter.echo(SUCCESSFUL_ENABLE_WIND_DOWN.format(staking_address=staking_address), color='green', verbosity=1)
     else:
         if not force:
-            click.confirm(f"Confirm disable winding down for staker {staking_address}?", abort=True)
+            click.confirm(CONFIRM_DISABLE_WIND_DOWN.format(staking_address=staking_address), abort=True)
         receipt = STAKEHOLDER.disable_winding_down()
-        emitter.echo(f'Successfully disabled winding down for {staking_address}', color='green', verbosity=1)
+        emitter.echo(SUCCESSFUL_DISABLE_WIND_DOWN.format(staking_address=staking_address), color='green', verbosity=1)
 
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
 
@@ -659,26 +656,26 @@ def divide(general_config, transacting_staker_options, config_file, force, value
     if not value:
         min_allowed_locked = NU.from_nunits(STAKEHOLDER.economics.minimum_allowed_locked)
         max_divide_value = max(min_allowed_locked, current_stake.value - min_allowed_locked)
-        value = click.prompt(f"Enter target value ({min_allowed_locked} - {str(max_divide_value)})", type=stake_value_range)
+        prompt = PROMPT_STAKE_DIVIDE_VALUE.format(minimm=min_allowed_locked, maximum=str(max_divide_value))
+        value = click.prompt(prompt, type=stake_value_range)
     value = NU(value, 'NU')
 
     # Duration
     if not lock_periods:
         max_extension = MAX_UINT16 - current_stake.final_locked_period
         divide_extension_range = click.IntRange(min=1, max=max_extension, clamp=False)
-        extension = click.prompt(f"Enter number of periods to extend",
-                                 type=divide_extension_range)
+        extension = click.prompt(PROMPT_STAKE_EXTEND_VALUE, type=divide_extension_range)
     else:
         extension = lock_periods
 
     if not force:
         confirm_large_stake(lock_periods=extension, value=value)
-        nucypher.cli.painting.stakes.paint_staged_stake_division(emitter=emitter,
-                                                                 stakeholder=STAKEHOLDER,
-                                                                 original_stake=current_stake,
-                                                                 target_value=value,
-                                                                 extension=extension)
-        click.confirm("Publish stake division to the blockchain?", abort=True)
+        paint_staged_stake_division(emitter=emitter,
+                                    stakeholder=STAKEHOLDER,
+                                    original_stake=current_stake,
+                                    target_value=value,
+                                    extension=extension)
+        click.confirm(CONFIRM_BROADCAST_STAKE_DIVIDE, abort=True)
 
     # Authenticate
     password = transacting_staker_options.get_password(blockchain, client_account)
@@ -686,7 +683,7 @@ def divide(general_config, transacting_staker_options, config_file, force, value
     # Consistency check to prevent the above agreement from going stale.
     last_second_current_period = STAKEHOLDER.staking_agent.get_current_period()
     if action_period != last_second_current_period:
-        emitter.echo("Current period advanced before stake division was broadcasted. Please try again.", red='red')
+        emitter.echo(PERIOD_ADVANCED_WARNING, red='red')
         raise click.Abort
 
     # Execute
@@ -694,13 +691,13 @@ def divide(general_config, transacting_staker_options, config_file, force, value
     modified_stake, new_stake = STAKEHOLDER.divide_stake(stake_index=current_stake.index,
                                                          target_value=value,
                                                          additional_periods=extension)
-    emitter.echo('Successfully divided stake', color='green', verbosity=1)
+    emitter.echo(SUCCESSFUL_STAKE_DIVIDE, color='green', verbosity=1)
     paint_receipt_summary(emitter=emitter,
                           receipt=new_stake.receipt,
                           chain_name=blockchain.client.chain_name)
 
     # Show the resulting stake list
-    nucypher.cli.painting.stakes.paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER)
+    paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER)
 
 
 @stake.command()
@@ -749,16 +746,16 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
         if min_extension < 1:
             min_extension = 1
         duration_extension_range = click.IntRange(min=min_extension, max=max_extension, clamp=False)
-        lock_periods = click.prompt(f"Enter number of periods to extend ({min_extension}-{max_extension})",
+        lock_periods = click.prompt(PROMPT_PROLONG_VALUE.format(minimum=min_extension, maximum=max_extension),
                                     type=duration_extension_range)
     if not force:
-        click.confirm(f"Publish stake extension of {lock_periods} period(s) to the blockchain?", abort=True)
+        click.confirm(CONFIRM_PROLONG.format(lock_periods=lock_periods), abort=True)
     password = transacting_staker_options.get_password(blockchain, client_account)
 
     # Non-interactive: Consistency check to prevent the above agreement from going stale.
     last_second_current_period = STAKEHOLDER.staking_agent.get_current_period()
     if action_period != last_second_current_period:
-        emitter.echo("Current period advanced before transaction was broadcasted. Please try again.", red='red')
+        emitter.echo(PERIOD_ADVANCED_WARNING, red='red')
         raise click.Abort
 
     # Authenticate and Execute
@@ -766,9 +763,9 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
     receipt = STAKEHOLDER.prolong_stake(stake_index=current_stake.index, additional_periods=lock_periods)
 
     # Report
-    emitter.echo('Successfully Prolonged Stake', color='green', verbosity=1)
+    emitter.echo(SUCCESSFUL_STAKE_PROLONG, color='green', verbosity=1)
     paint_receipt_summary(emitter=emitter, receipt=receipt, chain_name=blockchain.client.chain_name)
-    nucypher.cli.painting.stakes.paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER)
+    paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER)
     return  # Exit
 
 
@@ -808,7 +805,7 @@ def collect_reward(general_config, transacting_staker_options, config_file,
     if staking_reward:
         # Note: Sending staking / inflation rewards to another account is not allowed.
         reward_amount = NU.from_nunits(STAKEHOLDER.calculate_staking_reward())
-        emitter.echo(message=f'Collecting {reward_amount} from staking rewards...')
+        emitter.echo(message=COLLECTING_TOKEN_REWARD.format(reward_amount=reward_amount))
         staking_receipt = STAKEHOLDER.collect_staking_reward()
         paint_receipt_summary(receipt=staking_receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
@@ -816,7 +813,7 @@ def collect_reward(general_config, transacting_staker_options, config_file,
 
     if policy_fee:
         fee_amount = Web3.fromWei(STAKEHOLDER.calculate_policy_fee(), 'ether')
-        emitter.echo(message=f'Collecting {fee_amount} ETH from policy fees...')
+        emitter.echo(message=COLLECTING_ETH_REWARD.format(reward_amount=fee_amount))
         policy_receipt = STAKEHOLDER.collect_policy_fee(collector_address=withdraw_address)
         paint_receipt_summary(receipt=policy_receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
@@ -843,9 +840,9 @@ def preallocation(general_config, transacting_staker_options, config_file, actio
     # Unauthenticated actions: status
 
     if action == 'status':
-        nucypher.cli.painting.status.paint_preallocation_status(emitter=emitter,
-                                                                token_agent=STAKEHOLDER.token_agent,
-                                                                preallocation_agent=STAKEHOLDER.preallocation_escrow_agent)
+        paint_preallocation_status(emitter=emitter,
+                                   token_agent=STAKEHOLDER.token_agent,
+                                   preallocation_agent=STAKEHOLDER.preallocation_escrow_agent)
         return
 
     # Authenticated actions: withdraw-tokens
@@ -865,7 +862,8 @@ def preallocation(general_config, transacting_staker_options, config_file, actio
         locked_tokens = NU.from_nunits(STAKEHOLDER.preallocation_escrow_agent.unvested_tokens)
         unlocked_tokens = token_balance - locked_tokens
 
-        emitter.echo(message=f'Collecting {unlocked_tokens} from PreallocationEscrow contract {staking_address}...')
+        emitter.echo(message=COLLECTING_PREALLOCATION_REWARD.format(unlocked_tokens=unlocked_tokens,
+                                                                    staking_address=staking_address))
         receipt = STAKEHOLDER.withdraw_preallocation_tokens(unlocked_tokens)
         paint_receipt_summary(receipt=receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
@@ -937,21 +935,20 @@ def set_min_rate(general_config, transacting_staker_options, config_file, force,
         force=force)
 
     if not min_rate:
-        nucypher.cli.painting.policies.paint_min_rate(emitter, STAKEHOLDER.registry, STAKEHOLDER.policy_agent, staking_address)
+        paint_min_rate(emitter, STAKEHOLDER.registry, STAKEHOLDER.policy_agent, staking_address)
         # TODO check range
-        min_rate = click.prompt("Enter new value so the minimum fee rate falls within global fee range", type=WEI)
-
+        min_rate = click.prompt(PROMPT_STAKER_MIN_POLICY_RATE, type=WEI)
     password = transacting_staker_options.get_password(blockchain, client_account)
 
     if not force:
-        click.confirm(f"Commit new value {min_rate} for "
-                      f"minimum fee rate?", abort=True)
+        click.confirm(CONFIRM_NEW_MIN_POLICY_RATE.format(min_rate=min_rate), abort=True)
 
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
     receipt = STAKEHOLDER.set_min_fee_rate(min_rate=min_rate)
 
     # Report Success
-    emitter.echo(f"\nMinimum fee rate {min_rate} successfully set by staker {staking_address}", color='green')
+    message = SUCCESSFUL_SET_MIN_POLICY_RATE.format(min_rate=min_rate, staking_address=staking_address)
+    emitter.echo(message, color='green')
     paint_receipt_summary(emitter=emitter,
                           receipt=receipt,
                           chain_name=blockchain.client.chain_name,

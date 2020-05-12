@@ -43,7 +43,7 @@ class UrsulaConfiguration(CharacterConfiguration):
     DEFAULT_REST_PORT = 9151
     DEFAULT_DEVELOPMENT_REST_PORT = 10151
     __DEFAULT_TLS_CURVE = ec.SECP384R1
-    DEFAULT_DB_NAME = '{}.db'.format(_NAME)
+    DEFAULT_DB_NAME = '{}.db'.format(NAME)
     DEFAULT_AVAILABILITY_CHECKS = True
     LOCAL_SIGNERS_ALLOWED = True
 
@@ -205,7 +205,7 @@ class FelixConfiguration(CharacterConfiguration):
     CHARACTER_CLASS = Felix
     NAME = CHARACTER_CLASS.__name__.lower()
 
-    DEFAULT_DB_NAME = '{}.db'.format(_NAME)
+    DEFAULT_DB_NAME = '{}.db'.format(NAME)
     DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, DEFAULT_DB_NAME)
     DEFAULT_REST_PORT = 6151
     DEFAULT_LEARNER_PORT = 9151

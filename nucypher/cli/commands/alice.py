@@ -19,41 +19,21 @@ import click
 import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 
-import nucypher.cli.painting.help
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.characters.control.interfaces import AliceInterface
-from nucypher.cli import painting
-from nucypher.cli.actions.auth import get_nucypher_password, get_client_password
-from nucypher.cli.actions.config import handle_missing_configuration_file, get_provider_process, \
-    get_or_update_configuration, destroy_configuration
+from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
+from nucypher.cli.actions.config import (destroy_configuration, get_or_update_configuration, get_provider_process,
+                                         handle_missing_configuration_file)
 from nucypher.cli.actions.select import select_client_account
 from nucypher.cli.actions.utils import make_cli_character
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
-from nucypher.cli.options import (
-    group_options,
-    option_config_file,
-    option_config_root,
-    option_controller_port,
-    option_dev,
-    option_discovery_port,
-    option_dry_run,
-    option_federated_only,
-    option_force,
-    option_geth,
-    option_hw_wallet,
-    option_light,
-    option_m,
-    option_middleware,
-    option_min_stake,
-    option_n,
-    option_network,
-    option_poa,
-    option_provider_uri,
-    option_registry_filepath,
-    option_teacher_uri,
-    option_signer_uri
-)
+from nucypher.cli.options import (group_options, option_config_file, option_config_root, option_controller_port,
+                                  option_dev, option_discovery_port, option_dry_run, option_federated_only,
+                                  option_force, option_geth, option_hw_wallet, option_light, option_m,
+                                  option_middleware, option_min_stake, option_n, option_network, option_poa,
+                                  option_provider_uri, option_registry_filepath, option_signer_uri, option_teacher_uri)
+from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD
@@ -305,7 +285,7 @@ def init(general_config, full_config_options, config_root):
     if not config_root:
         config_root = general_config.config_root
     new_alice_config = full_config_options.generate_config(emitter, config_root)
-    nucypher.cli.painting.help.paint_new_installation_help(emitter, new_configuration=new_alice_config)
+    paint_new_installation_help(emitter, new_configuration=new_alice_config)
 
 
 @alice.command()

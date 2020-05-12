@@ -2,12 +2,12 @@ import click
 import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
-import nucypher.cli.painting.help
 from nucypher.characters.banners import FELIX_BANNER
-from nucypher.cli import painting
-from nucypher.cli.actions.auth import get_nucypher_password, unlock_nucypher_keyring, get_client_password
-from nucypher.cli.actions.config import get_provider_process, handle_missing_configuration_file, destroy_configuration
+from nucypher.cli.actions.auth import get_client_password, get_nucypher_password, unlock_nucypher_keyring
+from nucypher.cli.actions.config import destroy_configuration, get_provider_process, handle_missing_configuration_file
 from nucypher.cli.config import group_general_config
+from nucypher.cli.literature import CONFIRM_OVERWRITE_DATABASE, FELIX_RUN_MESSAGE, SUCCESSFUL_DATABASE_CREATION, \
+    SUCCESSFUL_DATABASE_DESTRUCTION
 from nucypher.cli.options import (
     group_options,
     option_checksum_address,
@@ -27,6 +27,7 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_teacher_uri,
 )
+from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.types import NETWORK_PORT
 from nucypher.config.characters import FelixConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
@@ -184,7 +185,7 @@ def init(general_config, config_options, config_root, discovery_port):
             raise click.Abort
 
     # Paint Help
-    nucypher.cli.painting.help.paint_new_installation_help(emitter, new_configuration=new_felix_config)
+    paint_new_installation_help(emitter, new_configuration=new_felix_config)
 
 
 @felix.command()
@@ -216,12 +217,12 @@ def createdb(general_config, character_options, config_file, force):
 
     if os.path.isfile(FELIX.db_filepath):
         if not force:
-            click.confirm("Overwrite existing database?", abort=True)
+            click.confirm(CONFIRM_OVERWRITE_DATABASE, abort=True)
         os.remove(FELIX.db_filepath)
-        emitter.echo(f"Destroyed existing database {FELIX.db_filepath}")
+        emitter.echo(SUCCESSFUL_DATABASE_DESTRUCTION.format(path=FELIX.db_filepath))
 
     FELIX.create_tables()
-    emitter.echo(f"\nCreated new database at {FELIX.db_filepath}", color='green')
+    emitter.echo(SUCCESSFUL_DATABASE_CREATION.format(path=FELIX.db_filepath), color='green')
 
 
 @felix.command()
@@ -277,8 +278,7 @@ def run(general_config, character_options, config_file, dry_run):
 
     host = character_options.config_options.host
     port = character_options.config_options.port
-    emitter.echo("Waiting for blockchain sync...", color='yellow')
-    emitter.message(f"Running Felix on {host}:{port}")
+    emitter.message(FELIX_RUN_MESSAGE.format(host=host, port=port))
     FELIX.start(host=host,
                 port=port,
                 web_services=not dry_run,

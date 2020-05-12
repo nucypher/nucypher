@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 
-from nucypher.cli.commands import ursula, alice, bob, enrico, felix, stake, status, worklock, multisig
+from nucypher.cli.commands import alice, bob, enrico, felix, multisig, stake, status, ursula, worklock
 from nucypher.cli.painting.help import echo_version
 
 

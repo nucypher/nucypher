@@ -1,34 +1,23 @@
 import click
 
-import nucypher.cli.painting.help
 from nucypher.characters.banners import BOB_BANNER
 from nucypher.characters.control.interfaces import BobInterface
-from nucypher.cli import painting
 from nucypher.cli.actions.auth import get_nucypher_password
-from nucypher.cli.actions.config import handle_missing_configuration_file, get_or_update_configuration, \
-    destroy_configuration
+from nucypher.cli.actions.config import (
+    destroy_configuration,
+    get_or_update_configuration,
+    handle_missing_configuration_file
+)
 from nucypher.cli.actions.select import select_client_account
 from nucypher.cli.actions.utils import make_cli_character
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
-from nucypher.cli.options import (
-    group_options,
-    option_checksum_address,
-    option_config_file,
-    option_config_root,
-    option_controller_port,
-    option_dev,
-    option_discovery_port,
-    option_dry_run,
-    option_federated_only,
-    option_force,
-    option_middleware,
-    option_min_stake,
-    option_network,
-    option_provider_uri,
-    option_registry_filepath,
-    option_teacher_uri,
-    option_signer_uri)
+from nucypher.cli.options import (group_options, option_checksum_address, option_config_file, option_config_root,
+                                  option_controller_port, option_dev, option_discovery_port, option_dry_run,
+                                  option_federated_only, option_force, option_middleware, option_min_stake,
+                                  option_network, option_provider_uri, option_registry_filepath, option_signer_uri,
+                                  option_teacher_uri)
+from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.config.characters import BobConfiguration
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
@@ -59,7 +48,7 @@ class BobConfigOptions:
                 dev_mode=True,
                 domains={TEMPORARY_DOMAIN},
                 provider_uri=self.provider_uri,
-                gas_strategy=self.gas_strategy,
+                gas_strategy=self.gas_strategy,  # TODO: Fix type hint
                 signer_uri=self.signer_uri,
                 federated_only=True,
                 checksum_address=self.checksum_address,
@@ -177,7 +166,7 @@ def init(general_config, config_options, config_root):
     if not config_root:
         config_root = general_config.config_root
     new_bob_config = config_options.generate_config(emitter, config_root)
-    return nucypher.cli.painting.help.paint_new_installation_help(emitter, new_configuration=new_bob_config)
+    return paint_new_installation_help(emitter, new_configuration=new_bob_config)
 
 
 @bob.command()

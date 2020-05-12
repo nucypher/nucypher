@@ -17,12 +17,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import tabulate
-from typing import List
 from web3.main import Web3
 
-from nucypher.blockchain.eth.constants import NULL_ADDRESS, STAKING_ESCROW_CONTRACT_NAME
+from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.token import NU
-from nucypher.blockchain.eth.utils import prettify_eth_amount, datetime_at_period
+from nucypher.blockchain.eth.utils import datetime_at_period, prettify_eth_amount
+from nucypher.cli.literature import NO_ACTIVE_STAKES, NO_STAKES_AT_ALL, NO_STAKING_ACCOUNTS, POST_STAKING_ADVICE
 from nucypher.cli.painting.transactions import paint_receipt_summary
 
 
@@ -32,7 +32,7 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
 
     stakers = stakeholder.get_stakers()
     if not stakers:
-        emitter.echo("No staking accounts found.")
+        emitter.echo(NO_STAKING_ACCOUNTS)
 
     total_stakers = 0
     for staker in stakers:
@@ -48,7 +48,7 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
         stakes = sorted(staker.stakes, key=lambda s: s.address_index_ordering_key)
         active_stakes = filter(lambda s: s.is_active, stakes)
         if not active_stakes:
-            emitter.echo(f"There are no active stakes\n")
+            emitter.echo(NO_ACTIVE_STAKES)
 
         fees = staker.policy_agent.get_reward_amount(staker.checksum_address)
         pretty_fees = prettify_eth_amount(fees)
@@ -86,7 +86,7 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
         emitter.echo(tabulate.tabulate(rows, headers=headers, tablefmt="fancy_grid"))  # newline
 
     if not total_stakers:
-        emitter.echo("No Stakes found", color='red')
+        emitter.echo(NO_STAKES_AT_ALL, color='red')
 
 
 def prettify_stake(stake, index: int = None) -> str:
@@ -170,74 +170,12 @@ Staking address: {staking_address}
     emitter.echo('═'*73, bold=True)
 
 
-def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> None:
-    current_period = staking_agent.get_current_period()
-    emitter.echo(f"\nCurrent period: {current_period}")
-    emitter.echo("\n| Stakers |\n")
-    emitter.echo(f"{'Checksum address':42}  Staker information")
-    emitter.echo('=' * (42 + 2 + 53))
-
-    for staker in stakers:
-        nickname, pairs = nickname_from_seed(staker)
-        symbols = f"{pairs[0][1]}  {pairs[1][1]}"
-        emitter.echo(f"{staker}  {'Nickname:':10} {nickname} {symbols}")
-        tab = " " * len(staker)
-
-        owned_tokens = staking_agent.owned_tokens(staker)
-        last_confirmed_period = staking_agent.get_last_active_period(staker)
-        worker = staking_agent.get_worker_from_staker(staker)
-        is_restaking = staking_agent.is_restaking(staker)
-        is_winding_down = staking_agent.is_winding_down(staker)
-
-        missing_confirmations = current_period - last_confirmed_period
-        owned_in_nu = round(NU.from_nunits(owned_tokens), 2)
-        locked_tokens = round(NU.from_nunits(staking_agent.get_locked_tokens(staker)), 2)
-
-        emitter.echo(f"{tab}  {'Owned:':10} {owned_in_nu}  (Staked: {locked_tokens})")
-        if is_restaking:
-            if staking_agent.is_restaking_locked(staker):
-                unlock_period = staking_agent.get_restake_unlock_period(staker)
-                emitter.echo(f"{tab}  {'Re-staking:':10} Yes  (Locked until period: {unlock_period})")
-            else:
-                emitter.echo(f"{tab}  {'Re-staking:':10} Yes  (Unlocked)")
-        else:
-            emitter.echo(f"{tab}  {'Re-staking:':10} No")
-        emitter.echo(f"{tab}  {'Winding down:':10} {'Yes' if is_winding_down else 'No'}")
-        emitter.echo(f"{tab}  {'Activity:':10} ", nl=False)
-        if missing_confirmations == -1:
-            emitter.echo(f"Next period confirmed (#{last_confirmed_period})", color='green')
-        elif missing_confirmations == 0:
-            emitter.echo(f"Current period confirmed (#{last_confirmed_period}). "
-                         f"Pending confirmation of next period.", color='yellow')
-        elif missing_confirmations == current_period:
-            emitter.echo(f"Never confirmed activity", color='red')
-        else:
-            emitter.echo(f"Missing {missing_confirmations} confirmations "
-                         f"(last time for period #{last_confirmed_period})", color='red')
-
-        emitter.echo(f"{tab}  {'Worker:':10} ", nl=False)
-        if worker == NULL_ADDRESS:
-            emitter.echo(f"Worker not set", color='red')
-        else:
-            emitter.echo(f"{worker}")
-
-        fees = prettify_eth_amount(policy_agent.get_reward_amount(staker))
-        emitter.echo(f"{tab}  Unclaimed fees: {fees}")
-
-        min_rate = prettify_eth_amount(policy_agent.get_min_reward_rate(staker))
-        emitter.echo(f"{tab}  Min reward rate: {min_rate}")
-
-
 def paint_staking_confirmation(emitter, staker, new_stake):
     emitter.echo("\nStake initialization transaction was successful.", color='green')
     emitter.echo(f'\nTransaction details:')
     paint_receipt_summary(emitter=emitter, receipt=new_stake.receipt, transaction_type="deposit stake")
     emitter.echo(f'\n{STAKING_ESCROW_CONTRACT_NAME} address: {staker.staking_agent.contract_address}', color='blue')
-    next_steps = f'''\nView your stakes by running 'nucypher stake list'
-or set your Ursula worker node address by running 'nucypher stake set-worker'.
-
-See https://docs.nucypher.com/en/latest/guides/staking_guide.html'''
-    emitter.echo(next_steps, color='green')
+    emitter.echo(POST_STAKING_ADVICE, color='green')
 
 
 def paint_staking_accounts(emitter, wallet, registry):

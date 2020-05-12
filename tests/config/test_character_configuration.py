@@ -80,7 +80,7 @@ def test_default_character_configuration_preservation(configuration_class, teste
     fake_address = '0xdeadbeef'
     network = TEMPORARY_DOMAIN
 
-    expected_filename = f'{configuration_class._NAME}.{configuration_class._CONFIG_FILE_EXTENSION}'
+    expected_filename = f'{configuration_class.NAME}.{configuration_class._CONFIG_FILE_EXTENSION}'
     generated_filename = configuration_class.generate_filename()
     assert generated_filename == expected_filename
     expected_filepath = os.path.join('/', 'tmp', generated_filename)

@@ -112,8 +112,8 @@ def test_configuration_filepath_utilities():
 
     assert RestorableTestItem._CONFIG_FILE_EXTENSION == expected_extension
 
-    assert RestorableTestItem._NAME == configuration_name
-    expected_default_filename = f'{RestorableTestItem._NAME}.{RestorableTestItem._CONFIG_FILE_EXTENSION}'
+    assert RestorableTestItem.NAME == configuration_name
+    expected_default_filename = f'{RestorableTestItem.NAME}.{RestorableTestItem._CONFIG_FILE_EXTENSION}'
     assert RestorableTestItem.generate_filename() == expected_default_filename
 
     expected_default_filepath = os.path.join(RestorableTestItem.DEFAULT_CONFIG_ROOT, expected_default_filename)
@@ -128,7 +128,7 @@ def test_configuration_filepath_utilities():
     #
 
     # Ensure filename and filepath construction accuracy
-    expected_modified_filename = f'{RestorableTestItem._NAME}-{modifier}.{RestorableTestItem._CONFIG_FILE_EXTENSION}'
+    expected_modified_filename = f'{RestorableTestItem.NAME}-{modifier}.{RestorableTestItem._CONFIG_FILE_EXTENSION}'
     modified_filename = restorable_item.generate_filename(modifier=modifier)
     assert modified_filename == expected_modified_filename
 
@@ -146,7 +146,7 @@ def test_configuration_preservation():
     # Create
     restorable_item = RestorableTestItem(item=configuration_value)
 
-    expected_default_filename = f'{RestorableTestItem._NAME}.{RestorableTestItem._CONFIG_FILE_EXTENSION}'
+    expected_default_filename = f'{RestorableTestItem.NAME}.{RestorableTestItem._CONFIG_FILE_EXTENSION}'
     expected_default_filepath = os.path.join(RestorableTestItem.DEFAULT_CONFIG_ROOT, expected_default_filename)
 
     # Serialize

@@ -25,27 +25,18 @@ from tabulate import tabulate
 from typing import Tuple
 from web3.main import Web3
 
-from nucypher.blockchain.eth.actors import Wallet, Staker
+from nucypher.blockchain.eth.actors import Staker, Wallet
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, IndividualAllocationRegistry
 from nucypher.blockchain.eth.signers import Signer
-from nucypher.blockchain.eth.token import Stake, NU
+from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.cli.actions.config import extract_checksum_address_from_filepath
-from nucypher.cli.literature import (
-    NO_CONFIGURATIONS_ON_DISK,
-    SELECT_NETWORK,
-    IS_THIS_CORRECT,
-    PREALLOCATION_STAKE_ADVISORY,
-    SELECT_STAKING_ACCOUNT_INDEX,
-    GENERIC_SELECT_ACCOUNT,
-    NO_ETH_ACCOUNTS,
-    SELECT_STAKE,
-    NO_DIVISIBLE_STAKES,
-    ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE,
-    NO_STAKES_FOUND
-)
-from nucypher.cli.painting.stakes import paint_stakes
+from nucypher.cli.literature import (GENERIC_SELECT_ACCOUNT, IS_THIS_CORRECT, NO_CONFIGURATIONS_ON_DISK,
+                                     NO_DIVISIBLE_STAKES, NO_ETH_ACCOUNTS, NO_STAKES_FOUND,
+                                     ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE, PREALLOCATION_STAKE_ADVISORY,
+                                     SELECT_NETWORK, SELECT_STAKE, SELECT_STAKING_ACCOUNT_INDEX)
+from nucypher.cli.painting.staking import paint_stakes
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ADDRESS
 
 

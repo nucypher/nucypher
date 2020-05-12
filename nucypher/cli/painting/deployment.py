@@ -16,14 +16,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import maya
 import tabulate
 import time
 import webbrowser
+from web3.main import Web3
 
-from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, PreallocationEscrowAgent, \
-    PolicyManagerAgent
+from nucypher.blockchain.eth.agents import (ContractAgency, NucypherTokenAgent, PolicyManagerAgent,
+                                            PreallocationEscrowAgent)
 from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME
-from nucypher.blockchain.eth.deployers import DispatcherDeployer, StakingInterfaceRouterDeployer, PolicyManagerDeployer
+from nucypher.blockchain.eth.deployers import DispatcherDeployer, PolicyManagerDeployer, StakingInterfaceRouterDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
