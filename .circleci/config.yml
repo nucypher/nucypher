@@ -828,9 +828,11 @@ jobs:
           path: ~/test-logs/
 
   install_geth:
+    working_directory: ~/nucypher
     <<: *python_37_base
     parallelism: 1
     steps:
+    - checkout
     - restore_cache:
         key: geth-cache-v1
     - run:
@@ -842,6 +844,12 @@ jobs:
           [ -d "geth" ] || curl -o g.tar.gz $GETH_URL && tar -xzf g.tar.gz && mv $GETH_BUILD_NAME geth
           geth/geth version
           geth/clef --version
+          mkdir -p ~/keystore /home/circleci/.clef
+          cp ~/nucypher/tests/circleci/0xa11ce.json ~/keystore
+          cp ~/nucypher/tests/circleci/clef-masterseed.json /home/circleci/.clef/masterseed.json
+          chmod 400 /home/circleci/.clef/masterseed.json
+          echo -e "ok\n$CLEF_PASSWORD\n" | geth/clef --keystore ~/keystore --chainid 4 --nousb
+          rm -f ~/pwd.txt
         when: always
     - save_cache:
         key: geth-cache-v1
