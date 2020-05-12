@@ -27,7 +27,6 @@ from nucypher.blockchain.eth.token import StakeList
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from tests.cli.functional.test_ursula_local_keystore_cli_functionality import (CLI_ENV, KEYFILE_NAME_TEMPLATE,
-                                                                               MOCK_KEYSTORE_PATH, MOCK_SIGNER_URI,
                                                                                NUMBER_OF_MOCK_ACCOUNTS)
 from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, TEST_PROVIDER_URI)
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
@@ -135,7 +134,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
                  '--rest-port', MOCK_URSULA_STARTING_PORT,
 
                  # The bit we are testing for here
-                 '--signer', MOCK_SIGNER_URI)
+                 '--signer', mock_signer_uri)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=CLI_ENV)
     assert result.exit_code == 0, result.stdout
@@ -163,15 +162,8 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
 
     # Verify the keystore path is still preserved
     assert isinstance(ursula.signer, KeystoreSigner)
-<<<<<<< HEAD:tests/cli/ursula/test_local_keystore_integration.py
-    assert ursula.signer.path == Path(MOCK_KEYSTORE_PATH)
-||||||| merged common ancestors
-    assert isinstance(ursula.signer.path, Path), "Use Pathlib"
-    assert ursula.signer.path == Path(MOCK_KEYSTORE_PATH)  # confirm Pathlib is used internally despite string input
-=======
     assert isinstance(ursula.signer.path, str), "Use str"
-    assert ursula.signer.path == str(mock_keystore_path)  # confirm Pathlib is used internally despite string input
->>>>>>> Updated ci cli tests for KeyStoreSigner.:tests/cli/ursula/test_ursula_local_keystore_cli_integration.py
+    assert ursula.signer.path == str(mock_keystore_path)
 
     # Show that we can produce the exact same signer as pre-config...
     assert pre_config_signer.path == ursula.signer.path
