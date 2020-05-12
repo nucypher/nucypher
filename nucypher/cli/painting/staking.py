@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import tabulate
 from typing import List
+from web3.main import Web3
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS, STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.token import NU

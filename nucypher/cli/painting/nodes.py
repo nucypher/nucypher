@@ -14,8 +14,10 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import maya
 
 from nucypher.config.constants import SEEDNODES
+from constant_sorrow.constants import NO_KNOWN_NODES
 
 
 def build_fleet_state_status(ursula) -> str:

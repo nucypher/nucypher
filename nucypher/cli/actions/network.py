@@ -26,7 +26,7 @@ from json.decoder import JSONDecodeError
 from typing import Set, Optional, Dict, List
 
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.cli.actions.literature import (
+from nucypher.cli.literature import (
     CONFIRM_URSULA_IPV4_ADDRESS,
     COLLECT_URSULA_IPV4_ADDRESS,
     FORCE_DETECT_URSULA_IP_WARNING,

@@ -18,6 +18,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from collections import Counter
 
+from web3.main import Web3
+
 from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent, \
     AdjudicatorAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory

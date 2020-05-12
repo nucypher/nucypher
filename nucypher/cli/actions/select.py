@@ -32,7 +32,7 @@ from nucypher.blockchain.eth.registry import InMemoryContractRegistry, Individua
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import Stake, NU
 from nucypher.cli.actions.config import extract_checksum_address_from_filepath
-from nucypher.cli.actions.literature import (
+from nucypher.cli.literature import (
     NO_CONFIGURATIONS_ON_DISK,
     SELECT_NETWORK,
     IS_THIS_CORRECT,

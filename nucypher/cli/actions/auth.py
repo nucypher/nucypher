@@ -23,7 +23,7 @@ from constant_sorrow.constants import NO_PASSWORD
 from nacl.exceptions import CryptoError
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.cli.actions.literature import (
+from nucypher.cli.literature import (
     COLLECT_ETH_PASSWORD,
     COLLECT_NUCYPHER_PASSWORD,
     GENERIC_PASSWORD_PROMPT,
