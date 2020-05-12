@@ -8,8 +8,7 @@ from twisted.logger import Logger
 
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter
 from nucypher.characters.lawful import Ursula
-from nucypher.cli.actions import utils
-from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
+from nucypher.cli.actions.literature import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import BobConfiguration
 from nucypher.crypto.kits import UmbralMessageKit

@@ -20,7 +20,7 @@ import click
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
 
 from nucypher.blockchain.eth.token import NU
-from nucypher.cli.literature import (
+from nucypher.cli.actions.literature import (
     RESTAKING_LOCK_AGREEMENT,
     RESTAKING_AGREEMENT,
     WINDING_DOWN_AGREEMENT,

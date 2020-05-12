@@ -19,6 +19,7 @@ import click
 import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 
+import nucypher.cli.painting.help
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.characters.control.interfaces import AliceInterface
 from nucypher.cli import painting
@@ -304,7 +305,7 @@ def init(general_config, full_config_options, config_root):
     if not config_root:
         config_root = general_config.config_root
     new_alice_config = full_config_options.generate_config(emitter, config_root)
-    painting.paint_new_installation_help(emitter, new_configuration=new_alice_config)
+    nucypher.cli.painting.help.paint_new_installation_help(emitter, new_configuration=new_alice_config)
 
 
 @alice.command()

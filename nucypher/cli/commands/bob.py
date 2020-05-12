@@ -1,5 +1,6 @@
 import click
 
+import nucypher.cli.painting.help
 from nucypher.characters.banners import BOB_BANNER
 from nucypher.characters.control.interfaces import BobInterface
 from nucypher.cli import painting
@@ -176,7 +177,7 @@ def init(general_config, config_options, config_root):
     if not config_root:
         config_root = general_config.config_root
     new_bob_config = config_options.generate_config(emitter, config_root)
-    return painting.paint_new_installation_help(emitter, new_configuration=new_bob_config)
+    return nucypher.cli.painting.help.paint_new_installation_help(emitter, new_configuration=new_bob_config)
 
 
 @bob.command()

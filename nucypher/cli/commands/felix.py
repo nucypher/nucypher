@@ -2,6 +2,7 @@ import click
 import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
+import nucypher.cli.painting.help
 from nucypher.characters.banners import FELIX_BANNER
 from nucypher.cli import painting
 from nucypher.cli.actions.auth import get_nucypher_password, unlock_nucypher_keyring, get_client_password
@@ -183,7 +184,7 @@ def init(general_config, config_options, config_root, discovery_port):
             raise click.Abort
 
     # Paint Help
-    painting.paint_new_installation_help(emitter, new_configuration=new_felix_config)
+    nucypher.cli.painting.help.paint_new_installation_help(emitter, new_configuration=new_felix_config)
 
 
 @felix.command()

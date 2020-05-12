@@ -42,11 +42,8 @@ from nucypher.cli.options import (
     option_provider_uri,
 
     option_registry_filepath, option_geth)
-from nucypher.cli.painting import (
-    paint_receipt_summary,
-    paint_multisig_contract_info,
-    paint_multisig_proposed_transaction
-)
+from nucypher.cli.painting.transactions import paint_receipt_summary
+from nucypher.cli.painting.multisig import paint_multisig_contract_info, paint_multisig_proposed_transaction
 from nucypher.cli.types import EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 

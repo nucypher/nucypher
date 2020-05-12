@@ -18,6 +18,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 from web3 import Web3
 
+import nucypher.cli.painting.stakes
+
+import nucypher.cli.painting.status
+
+import nucypher.cli.painting.policies
+
+import nucypher.cli.painting.staking
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.constants import MAX_UINT16
 from nucypher.blockchain.eth.events import EventRecord
@@ -46,7 +53,7 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_staking_address,
     option_signer_uri)
-from nucypher.cli.painting import paint_receipt_summary
+from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE,
@@ -291,7 +298,7 @@ def list_stakes(general_config, staker_options, config_file, all):
     """
     emitter = _setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
-    painting.paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER, paint_inactive=all)
+    nucypher.cli.painting.stakes.paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER, paint_inactive=all)
 
 
 @stake.command()
@@ -304,7 +311,7 @@ def accounts(general_config, staker_options, config_file):
     """
     emitter = _setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
-    painting.paint_accounts(emitter=emitter, wallet=STAKEHOLDER.wallet, registry=STAKEHOLDER.registry)
+    nucypher.cli.painting.staking.paint_staking_accounts(emitter=emitter, wallet=STAKEHOLDER.wallet, registry=STAKEHOLDER.registry)
 
 
 @stake.command('bond-worker')
@@ -477,13 +484,13 @@ def create(general_config, transacting_staker_options, config_file, force, value
 
     if not force:
         confirm_large_stake(value=value, lock_periods=lock_periods)
-        painting.paint_staged_stake(emitter=emitter,
-                                    stakeholder=STAKEHOLDER,
-                                    staking_address=staking_address,
-                                    stake_value=value,
-                                    lock_periods=lock_periods,
-                                    start_period=start_period,
-                                    unlock_period=unlock_period)
+        nucypher.cli.painting.stakes.paint_staged_stake(emitter=emitter,
+                                                        stakeholder=STAKEHOLDER,
+                                                        staking_address=staking_address,
+                                                        stake_value=value,
+                                                        lock_periods=lock_periods,
+                                                        start_period=start_period,
+                                                        unlock_period=unlock_period)
 
         confirm_staged_stake(staker_address=staking_address, value=value, lock_periods=lock_periods)
 
@@ -505,7 +512,7 @@ def create(general_config, transacting_staker_options, config_file, force, value
 
     new_stake = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods)
 
-    painting.paint_staking_confirmation(emitter=emitter, staker=STAKEHOLDER, new_stake=new_stake)
+    nucypher.cli.painting.stakes.paint_staking_confirmation(emitter=emitter, staker=STAKEHOLDER, new_stake=new_stake)
 
 
 @stake.command()
@@ -666,11 +673,11 @@ def divide(general_config, transacting_staker_options, config_file, force, value
 
     if not force:
         confirm_large_stake(lock_periods=extension, value=value)
-        painting.paint_staged_stake_division(emitter=emitter,
-                                             stakeholder=STAKEHOLDER,
-                                             original_stake=current_stake,
-                                             target_value=value,
-                                             extension=extension)
+        nucypher.cli.painting.stakes.paint_staged_stake_division(emitter=emitter,
+                                                                 stakeholder=STAKEHOLDER,
+                                                                 original_stake=current_stake,
+                                                                 target_value=value,
+                                                                 extension=extension)
         click.confirm("Publish stake division to the blockchain?", abort=True)
 
     # Authenticate
@@ -693,7 +700,7 @@ def divide(general_config, transacting_staker_options, config_file, force, value
                           chain_name=blockchain.client.chain_name)
 
     # Show the resulting stake list
-    painting.paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER)
+    nucypher.cli.painting.stakes.paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER)
 
 
 @stake.command()
@@ -761,7 +768,7 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
     # Report
     emitter.echo('Successfully Prolonged Stake', color='green', verbosity=1)
     paint_receipt_summary(emitter=emitter, receipt=receipt, chain_name=blockchain.client.chain_name)
-    painting.paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER)
+    nucypher.cli.painting.stakes.paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER)
     return  # Exit
 
 
@@ -836,9 +843,9 @@ def preallocation(general_config, transacting_staker_options, config_file, actio
     # Unauthenticated actions: status
 
     if action == 'status':
-        painting.paint_preallocation_status(emitter=emitter,
-                                   token_agent=STAKEHOLDER.token_agent,
-                                   preallocation_agent=STAKEHOLDER.preallocation_escrow_agent)
+        nucypher.cli.painting.status.paint_preallocation_status(emitter=emitter,
+                                                                token_agent=STAKEHOLDER.token_agent,
+                                                                preallocation_agent=STAKEHOLDER.preallocation_escrow_agent)
         return
 
     # Authenticated actions: withdraw-tokens
@@ -930,7 +937,7 @@ def set_min_rate(general_config, transacting_staker_options, config_file, force,
         force=force)
 
     if not min_rate:
-        painting.paint_min_rate(emitter, STAKEHOLDER.registry, STAKEHOLDER.policy_agent, staking_address)
+        nucypher.cli.painting.policies.paint_min_rate(emitter, STAKEHOLDER.registry, STAKEHOLDER.policy_agent, staking_address)
         # TODO check range
         min_rate = click.prompt("Enter new value so the minimum fee rate falls within global fee range", type=WEI)
 

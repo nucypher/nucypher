@@ -52,15 +52,11 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_contract_name,
     option_signer_uri)
-from nucypher.cli.painting import (
-    echo_solidity_version,
-    paint_staged_deployment,
-    paint_deployment_delay,
-    paint_contract_deployment,
-    paint_deployer_contract_inspection,
-    paint_receipt_summary,
-    paint_multisig_proposed_transaction
-)
+from nucypher.cli.painting.help import echo_solidity_version
+from nucypher.cli.painting.transactions import paint_receipt_summary
+from nucypher.cli.painting.deployment import paint_staged_deployment, paint_deployment_delay, paint_contract_deployment, \
+    paint_deployer_contract_inspection
+from nucypher.cli.painting.multisig import paint_multisig_proposed_transaction
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.cli.types import WEI
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT

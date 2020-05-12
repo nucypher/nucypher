@@ -23,7 +23,7 @@ import click
 from json.decoder import JSONDecodeError
 
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
-from nucypher.cli.literature import (
+from nucypher.cli.actions.literature import (
     CHARACTER_DESTRUCTION,
     SUCCESSFUL_DESTRUCTION,
     CONFIRM_FORGET_NODES,

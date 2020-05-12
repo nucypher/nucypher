@@ -43,13 +43,9 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_network
 )
-from nucypher.cli.painting import (
-    paint_receipt_summary,
-    paint_worklock_status,
-    paint_bidding_notice,
-    paint_bidder_status,
-    paint_worklock_claim
-)
+from nucypher.cli.painting.transactions import paint_receipt_summary
+from nucypher.cli.painting.worklock import paint_worklock_claim, paint_worklock_status, paint_bidder_status, \
+    paint_bidding_notice
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, DecimalRange
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
 

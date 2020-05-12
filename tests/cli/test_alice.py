@@ -1,7 +1,7 @@
 import os
 from unittest import mock
 
-from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
+from nucypher.cli.actions.literature import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD

@@ -19,12 +19,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 import maya
 import os
+from nucypher.cli.painting.stakes import paint_stakers
 
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency, PolicyManagerAgent
+from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import (
-    STAKING_ESCROW_CONTRACT_NAME,
+    AVERAGE_BLOCK_TIME_IN_SECONDS,
     POLICY_MANAGER_CONTRACT_NAME,
-    AVERAGE_BLOCK_TIME_IN_SECONDS
+    STAKING_ESCROW_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import NU_BANNER
@@ -44,10 +45,10 @@ from nucypher.cli.options import (
 )
 from nucypher.cli.painting import (
     paint_contract_status,
-    paint_stakers,
     paint_locked_tokens_status,
     paint_fee_rate_range
 )
+from nucypher.cli.painting.status import paint_contract_status, paint_locked_tokens_status
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
 
 

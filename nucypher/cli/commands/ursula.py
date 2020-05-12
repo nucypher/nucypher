@@ -19,6 +19,9 @@ import click
 import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
+import nucypher.cli.painting.help
+
+import nucypher.cli.painting.transactions
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import URSULA_BANNER
@@ -65,10 +68,8 @@ class UrsulaConfigOptions:
                  gas_strategy, signer_uri, availability_check):
 
         if federated_only:
-            # TODO: consider rephrasing in a more universal voice.
             if geth:
-                raise click.BadOptionUsage(option_name="--geth",
-                                           message="--geth cannot be used in federated mode.")
+                raise click.BadOptionUsage(option_name="--geth", message="--geth cannot be used in federated mode.")
 
             if registry_filepath:
                 raise click.BadOptionUsage(option_name="--registry-filepath",
@@ -286,7 +287,7 @@ def init(general_config, config_options, force, config_root):
     if not config_options.federated_only and not config_options.domains:  # TODO: Again, weird network/domains mapping. See UrsulaConfigOptions' constructor. #1580
         config_options.domains = {select_network(emitter)}
     ursula_config = config_options.generate_config(emitter, config_root, force)
-    painting.paint_new_installation_help(emitter, new_configuration=ursula_config)
+    nucypher.cli.painting.help.paint_new_installation_help(emitter, new_configuration=ursula_config)
 
 
 @ursula.command()
@@ -413,9 +414,9 @@ def commit_to_next_period(general_config, character_options, config_file):
     # TODO: Double-check dates here
     emitter.echo(f'\nCommitment was made to period #{committed_period} '
                  f'(starting at {date})', bold=True, color='blue')
-    painting.paint_receipt_summary(emitter=emitter,
-                                   receipt=receipt,
-                                   chain_name=URSULA.staking_agent.blockchain.client.chain_name)
+    nucypher.cli.painting.transactions.paint_receipt_summary(emitter=emitter,
+                                                             receipt=receipt,
+                                                             chain_name=URSULA.staking_agent.blockchain.client.chain_name)
 
     # TODO: Check CommitmentMade event (see #1193)
 

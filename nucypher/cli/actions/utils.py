@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainIn
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry, LocalContractRegistry
 from nucypher.cli.actions.auth import unlock_nucypher_keyring, get_nucypher_password
 from nucypher.cli.actions.network import load_seednodes
-from nucypher.cli.literature import (
+from nucypher.cli.actions.literature import (
     FEDERATED_WARNING,
     PRODUCTION_REGISTRY_ADVISORY,
     LOCAL_REGISTRY_ADVISORY,

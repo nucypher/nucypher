@@ -70,11 +70,8 @@ from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_d
     prettify_eth_amount
 from nucypher.characters.banners import STAKEHOLDER_BANNER
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.painting import (
-    paint_contract_deployment,
-    paint_input_allocation_file,
-    paint_receipt_summary
-)
+from nucypher.cli.painting.transactions import paint_receipt_summary
+from nucypher.cli.painting.deployment import paint_contract_deployment, paint_input_allocation_file
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nicknames import nickname_from_seed
