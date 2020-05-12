@@ -26,8 +26,15 @@ from json.decoder import JSONDecodeError
 from typing import Set, Optional, Dict, List
 
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.cli.literature import CONFIRM_URSULA_IPV4_ADDRESS, COLLECT_URSULA_IPV4_ADDRESS, \
-    FORCE_DETECT_URSULA_IP_WARNING, NO_DOMAIN_PEERS, SEEDNODE_NOT_STAKING_WARNING
+from nucypher.cli.literature import (
+    CONFIRM_URSULA_IPV4_ADDRESS,
+    COLLECT_URSULA_IPV4_ADDRESS,
+    FORCE_DETECT_URSULA_IP_WARNING,
+    NO_DOMAIN_PEERS,
+    SEEDNODE_NOT_STAKING_WARNING,
+    START_LOADING_SEEDNODES,
+    UNREADABLE_SEEDNODE_ADVISORY
+)
 from nucypher.cli.types import IPV4_ADDRESS
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -100,7 +107,7 @@ def load_seednodes(emitter,
     """
 
     # Heads up
-    emitter.message("Connecting to preferred teacher nodes...", color='yellow')
+    emitter.message(START_LOADING_SEEDNODES, color='yellow')
     from nucypher.characters.lawful import Ursula
 
     # Aggregate URIs (Ordered by Priority)
@@ -119,7 +126,7 @@ def load_seednodes(emitter,
                                                    network_middleware=network_middleware,
                                                    registry=registry)
         except NodeSeemsToBeDown:
-            emitter.message(f"Failed to connect to teacher: {uri}")
+            emitter.message(UNREADABLE_SEEDNODE_ADVISORY.format(uri=uri))
             continue
         except Teacher.NotStaking:
             emitter.message(SEEDNODE_NOT_STAKING_WARNING.format(uri=uri))

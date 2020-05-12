@@ -37,7 +37,7 @@ class UrsulaConfiguration(CharacterConfiguration):
 
     from nucypher.characters.lawful import Ursula
     CHARACTER_CLASS = Ursula
-    _NAME = CHARACTER_CLASS.__name__.lower()
+    NAME = CHARACTER_CLASS.__name__.lower()
 
     DEFAULT_REST_HOST = '127.0.0.1'
     DEFAULT_REST_PORT = 9151
@@ -144,7 +144,7 @@ class AliceConfiguration(CharacterConfiguration):
     from nucypher.characters.lawful import Alice
 
     CHARACTER_CLASS = Alice
-    _NAME = CHARACTER_CLASS.__name__.lower()
+    NAME = CHARACTER_CLASS.__name__.lower()
 
     DEFAULT_CONTROLLER_PORT = 8151
 
@@ -187,7 +187,7 @@ class BobConfiguration(CharacterConfiguration):
     from nucypher.characters.lawful import Bob
 
     CHARACTER_CLASS = Bob
-    _NAME = CHARACTER_CLASS.__name__.lower()
+    NAME = CHARACTER_CLASS.__name__.lower()
 
     DEFAULT_CONTROLLER_PORT = 7151
 
@@ -203,7 +203,7 @@ class FelixConfiguration(CharacterConfiguration):
 
     # Character
     CHARACTER_CLASS = Felix
-    _NAME = CHARACTER_CLASS.__name__.lower()
+    NAME = CHARACTER_CLASS.__name__.lower()
 
     DEFAULT_DB_NAME = '{}.db'.format(_NAME)
     DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, DEFAULT_DB_NAME)
@@ -248,7 +248,7 @@ class FelixConfiguration(CharacterConfiguration):
 
 class StakeHolderConfiguration(CharacterConfiguration):
 
-    _NAME = 'stakeholder'
+    NAME = 'stakeholder'
     CHARACTER_CLASS = StakeHolder
 
     def __init__(self, checksum_addresses: set = None, *args, **kwargs):

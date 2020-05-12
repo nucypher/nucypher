@@ -17,8 +17,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import click
-
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
+
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.literature import (
     RESTAKING_LOCK_AGREEMENT,

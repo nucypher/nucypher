@@ -17,8 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import click
 import json
+
+import click
 from json.decoder import JSONDecodeError
 
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
@@ -26,7 +27,8 @@ from nucypher.cli.literature import (
     CHARACTER_DESTRUCTION,
     SUCCESSFUL_DESTRUCTION,
     CONFIRM_FORGET_NODES,
-    SUCCESSFUL_FORGET_NODES
+    SUCCESSFUL_FORGET_NODES, INVALID_CONFIGURATION_FILE_WARNING, INVALID_JSON_IN_CONFIGURATION_WARNING,
+    SUCCESSFUL_UPDATE_CONFIGURATION_VALUES
 )
 
 
@@ -36,18 +38,18 @@ def get_or_update_configuration(emitter, config_class, filepath: str, config_opt
         config = config_class.from_configuration_file(filepath=filepath)
     except config_class.ConfigurationError:
         # Issue warning for invalid configuration...
-        emitter.message(f"Invalid Configuration at {filepath}.")
+        emitter.message(INVALID_CONFIGURATION_FILE_WARNING.format(filepath=filepath))
         try:
             # ... but try to display it anyways
             response = config_class._read_configuration_file(filepath=filepath)
             return emitter.echo(json.dumps(response, indent=4))
         except JSONDecodeError:
             # ... sorry
-            return emitter.message(f"Invalid JSON in Configuration File at {filepath}.")
+            return emitter.message(INVALID_JSON_IN_CONFIGURATION_WARNING.format(filepath=filepath))
     else:
         updates = config_options.get_updates()
         if updates:
-            emitter.message(f"Updated configuration values: {', '.join(updates)}", color='yellow')
+            emitter.message(SUCCESSFUL_UPDATE_CONFIGURATION_VALUES.format(fields=', '.join(updates)), color='yellow')
             config.update(**updates)
         return emitter.echo(config.serialize())
 
@@ -57,7 +59,7 @@ def destroy_configuration(emitter, character_config, force: bool = False) -> Non
         try:
             database = character_config.db_filepath
         except AttributeError:
-            database = "No database found"
+            database = "No database found"  # FIXME: This cannot be right.....
 
         click.confirm(CHARACTER_DESTRUCTION.format(name=character_config._NAME,
                                                    root=character_config.config_root,

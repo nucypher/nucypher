@@ -32,6 +32,19 @@ from nucypher.blockchain.eth.registry import InMemoryContractRegistry, Individua
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import Stake, NU
 from nucypher.cli.config import extract_checksum_address_from_filepath
+from nucypher.cli.literature import (
+    NO_CONFIGURATIONS_ON_DISK,
+    SELECT_NETWORK,
+    IS_THIS_CORRECT,
+    PREALLOCATION_STAKE_ADVISORY,
+    SELECT_STAKING_ACCOUNT_INDEX,
+    GENERIC_SELECT_ACCOUNT,
+    NO_ETH_ACCOUNTS,
+    SELECT_STAKE,
+    NO_DIVISIBLE_STAKES,
+    ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE,
+    NO_STAKES_FOUND
+)
 from nucypher.cli.painting import paint_stakes
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ADDRESS
 
@@ -43,19 +56,19 @@ def select_stake(stakeholder, emitter, divisible: bool = False, staker_address: 
     else:
         stakes = stakeholder.all_stakes
     if not stakes:
-        emitter.echo(f"No stakes found.", color='red')
+        emitter.echo(NO_STAKES_FOUND, color='red')
         raise click.Abort
 
     stakes = sorted((stake for stake in stakes if stake.is_active), key=lambda s: s.address_index_ordering_key)
     if divisible:
-        emitter.echo("NOTE: Showing divisible stakes only", color='yellow')
+        emitter.echo(ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE, color='yellow')
         stakes = list(filter(lambda s: bool(s.value >= stakeholder.economics.minimum_allowed_locked*2), stakes))  # TODO: Move to method on Stake
         if not stakes:
-            emitter.echo(f"No divisible stakes found.", color='red')
+            emitter.echo(NO_DIVISIBLE_STAKES, color='red')
             raise click.Abort
     enumerated_stakes = dict(enumerate(stakes))
     paint_stakes(stakeholder=stakeholder, emitter=emitter, staker_address=staker_address)
-    choice = click.prompt("Select Stake", type=click.IntRange(min=0, max=len(enumerated_stakes)-1))
+    choice = click.prompt(SELECT_STAKE, type=click.IntRange(min=0, max=len(enumerated_stakes)-1))
     chosen_stake = enumerated_stakes[choice]
     return chosen_stake
 
@@ -97,7 +110,7 @@ def select_client_account(emitter,
     wallet_accounts = wallet.accounts
     enumerated_accounts = dict(enumerate(wallet_accounts))
     if len(enumerated_accounts) < 1:
-        emitter.echo("No ETH accounts were found.", color='red', bold=True)
+        emitter.echo(NO_ETH_ACCOUNTS, color='red', bold=True)
         raise click.Abort()
 
     # Display account info
@@ -127,7 +140,7 @@ def select_client_account(emitter,
     emitter.echo(tabulate(rows, headers=headers, showindex='always'))
 
     # Prompt the user for selection, and return
-    prompt = prompt or "Select index of account"
+    prompt = prompt or GENERIC_SELECT_ACCOUNT
     account_range = click.IntRange(min=0, max=len(enumerated_accounts)-1)
     choice = click.prompt(prompt, type=account_range, default=default)
     chosen_account = enumerated_accounts[choice]
@@ -154,16 +167,15 @@ def handle_client_account_for_staking(emitter,
     if individual_allocation:
         client_account = individual_allocation.beneficiary_address
         staking_address = individual_allocation.contract_address
-
-        message = f"Beneficiary {client_account} will use preallocation contract {staking_address} to stake."
+        message = PREALLOCATION_STAKE_ADVISORY.format(client_account=client_account, staking_address=staking_address)
         emitter.echo(message, color='yellow', verbosity=1)
         if not force:
-            click.confirm("Is this correct?", abort=True)
+            click.confirm(IS_THIS_CORRECT, abort=True)
     else:
         if staking_address:
             client_account = staking_address
         else:
-            client_account = select_client_account(prompt="Select index of staking account",
+            client_account = select_client_account(prompt=SELECT_STAKING_ACCOUNT_INDEX,
                                                    emitter=emitter,
                                                    registry=stakeholder.registry,
                                                    network=stakeholder.network,
@@ -177,7 +189,7 @@ def select_network(emitter) -> str:
     headers = ["Network"]
     rows = [[n] for n in NetworksInventory.NETWORKS]
     emitter.echo(tabulate(rows, headers=headers, showindex='always'))
-    choice = click.prompt("Select Network", default=0, type=click.IntRange(0, len(NetworksInventory.NETWORKS)-1))
+    choice = click.prompt(SELECT_NETWORK, default=0, type=click.IntRange(0, len(NetworksInventory.NETWORKS)-1))
     network = NetworksInventory.NETWORKS[choice]
     return network
 
@@ -194,12 +206,12 @@ def select_config_file(emitter,
 
     config_root = config_root or DEFAULT_CONFIG_ROOT
     default_config_file = glob.glob(config_class.default_filepath(config_root=config_root))
-    glob_pattern = f'{config_root}/{config_class._NAME}-0x*.{config_class._CONFIG_FILE_EXTENSION}'
+    glob_pattern = f'{config_root}/{config_class.NAME}-0x*.{config_class._CONFIG_FILE_EXTENSION}'
     secondary_config_files = glob.glob(glob_pattern)
     config_files = [*default_config_file, *secondary_config_files]
     if not config_files:
-        emitter.message(f"No {config_class._NAME.capitalize()} configurations found.  "
-                        f"run 'nucypher {config_class._NAME} init' then try again.", color='red')
+        emitter.message(NO_CONFIGURATIONS_ON_DISK.format(name=config_class.NAME.capitalize(),
+                                                         command=config_class.NAME), color='red')
         raise click.Abort()
 
     checksum_address = checksum_address or os.environ.get(NUCYPHER_ENVVAR_WORKER_ADDRESS, None)  # TODO: Deprecate worker_address in favor of checksum_address
@@ -213,7 +225,7 @@ def select_config_file(emitter,
         try:
             config_file = parsed_addresses[checksum_address]
         except KeyError:
-            raise ValueError(f"'{checksum_address}' is not a known {config_class._NAME} configuration account.")
+            raise ValueError(f"'{checksum_address}' is not a known {config_class.NAME} configuration account.")
 
     elif len(config_files) > 1:
 
@@ -228,7 +240,7 @@ def select_config_file(emitter,
         emitter.echo(tabulate(parsed_addresses, headers=headers, showindex='always'))
 
         # Prompt the user for selection, and return
-        prompt = f"Select {config_class._NAME} configuration"
+        prompt = f"Select {config_class.NAME} configuration"
         account_range = click.IntRange(min=0, max=len(config_files) - 1)
         choice = click.prompt(prompt, type=account_range, default=0)
         config_file = config_files[choice]

@@ -20,13 +20,19 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 import os
 import shutil
+from constant_sorrow.constants import NO_CONTROL_PROTOCOL
 from nacl.exceptions import CryptoError
 
-from constant_sorrow.constants import NO_CONTROL_PROTOCOL
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry, LocalContractRegistry
 from nucypher.cli.actions.auth import unlock_nucypher_keyring, get_nucypher_password
 from nucypher.cli.actions.network import load_seednodes
+from nucypher.cli.literature import (
+    FEDERATED_WARNING,
+    PRODUCTION_REGISTRY_ADVISORY,
+    LOCAL_REGISTRY_ADVISORY,
+    CONNECTING_TO_BLOCKCHAIN
+)
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
@@ -82,7 +88,7 @@ def make_cli_character(character_config,
 
     # Federated
     if character_config.federated_only:
-        emitter.message("WARNING: Running in Federated mode", color='yellow')
+        emitter.message(FEDERATED_WARNING, color='yellow')
 
     return CHARACTER
 
@@ -97,7 +103,7 @@ def establish_deployer_registry(emitter,
 
     if download_registry:
         registry = InMemoryContractRegistry.from_latest_publication()
-        emitter.message(f"Using latest published registry from {registry.source}")
+        emitter.message(PRODUCTION_REGISTRY_ADVISORY.format(source=registry.source))
         return registry
 
     # Establish a contract registry from disk if specified
@@ -120,7 +126,7 @@ def establish_deployer_registry(emitter,
 
     # All Done.
     registry = LocalContractRegistry(filepath=registry_filepath)
-    emitter.message(f"Configured to registry filepath {registry_filepath}")
+    emitter.message(LOCAL_REGISTRY_ADVISORY.format(registry_filepath=registry_filepath))
 
     return registry
 
@@ -142,7 +148,7 @@ def connect_to_blockchain(provider_uri, emitter, debug: bool = False, light: boo
                                                             sync=False,
                                                             emitter=emitter)
         blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
-        emitter.echo(message="Reading Latest Chaindata...")
+        emitter.echo(message=CONNECTING_TO_BLOCKCHAIN)
         blockchain.connect()
         return blockchain
     except Exception as e:

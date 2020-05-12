@@ -39,7 +39,7 @@ def expected_configuration_filepaths():
 
 class RestorableTestItem(BaseConfiguration):
 
-    _NAME = 'something'
+    NAME = 'something'
     DEFAULT_CONFIG_ROOT = '/tmp'
     VERSION = 1
 
@@ -55,7 +55,7 @@ class RestorableTestItem(BaseConfiguration):
 
 def test_base_configuration_defaults():
     assert BaseConfiguration.DEFAULT_CONFIG_ROOT == DEFAULT_CONFIG_ROOT
-    assert BaseConfiguration._NAME == NotImplemented
+    assert BaseConfiguration.NAME == NotImplemented
     assert BaseConfiguration._CONFIG_FILE_EXTENSION == expected_extension
 
 
@@ -87,7 +87,7 @@ def test_configuration_implementation():
     # Correct minimum viable implementation
     class BareMinimumConfigurableItem(BaseConfiguration):
 
-        _NAME = 'bare-minimum'
+        NAME = 'bare-minimum'
         VERSION = 2
 
         def static_payload(self) -> dict:

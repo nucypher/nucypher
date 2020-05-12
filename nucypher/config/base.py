@@ -65,7 +65,7 @@ class BaseConfiguration(ABC):
             return filepath
     """
 
-    _NAME = NotImplemented
+    NAME = NotImplemented
     _CONFIG_FILE_EXTENSION = 'json'
 
     INDENTATION = 2
@@ -90,8 +90,8 @@ class BaseConfiguration(ABC):
                  filepath: str = None,
                  *args, **kwargs):
 
-        if self._NAME is NotImplemented:
-            error = f'_NAME must be implemented on BaseConfiguration subclass {self.__class__.__name__}'
+        if self.NAME is NotImplemented:
+            error = f'NAME must be implemented on BaseConfiguration subclass {self.__class__.__name__}'
             raise TypeError(error)
 
         self.config_root = config_root or self.DEFAULT_CONFIG_ROOT
@@ -137,7 +137,7 @@ class BaseConfiguration(ABC):
         :param modifier: String to modify default filename with.
         :return: The generated filepath string.
         """
-        name = cls._NAME.lower()
+        name = cls.NAME.lower()
         if modifier:
             name += f'-{modifier}'
         filename = f'{name}.{cls._CONFIG_FILE_EXTENSION.lower()}'

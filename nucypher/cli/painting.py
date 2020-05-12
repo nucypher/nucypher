@@ -55,7 +55,7 @@ def echo_version(ctx, param, value):
 
 def paint_new_installation_help(emitter, new_configuration):
     character_config_class = new_configuration.__class__
-    character_name = character_config_class._NAME.lower()
+    character_name = character_config_class.NAME.lower()
 
     emitter.message("Generated keyring {}".format(new_configuration.keyring_root), color='green')
     emitter.message("Saved configuration file {}".format(new_configuration.config_file_location), color='green')
