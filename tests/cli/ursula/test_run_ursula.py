@@ -26,6 +26,7 @@ from twisted.internet import threads
 
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.characters.base import Learner
+from nucypher.cli import actions
 from nucypher.cli.actions.network import UnknownIPAddress
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
@@ -187,61 +188,48 @@ def test_persistent_node_storage_integration(click_runner,
     assert result.exit_code == 0
 
 
-def test_ursula_rest_host_determination(click_runner):
+def test_ursula_rest_host_determination(click_runner, mocker):
 
     # Patch the get_external_ip call
-    original_call = get_external_ip_from_centralized_source
-    original_save = UrsulaConfiguration.to_configuration_file
+    mocker.patch.object(actions.network, 'get_external_ip_from_centralized_source', return_value='192.0.2.0')
+    mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', return_value=None)
 
-    try:
-        get_external_ip_from_centralized_source = lambda: '192.0.2.0'
-        UrsulaConfiguration.to_configuration_file = lambda s: None
+    args = ('ursula', 'init',
+            '--federated-only',
+            '--network', TEMPORARY_DOMAIN,
+            )
 
-        args = ('ursula', 'init',
-                '--federated-only',
-                '--network', TEMPORARY_DOMAIN,
-                )
+    user_input = f'Y\n{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}'
 
-        user_input = f'Y\n{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}'
+    result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False,
+                                 input=user_input)
 
-        result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False,
-                                     input=user_input)
+    assert result.exit_code == 0
+    assert '(192.0.2.0)' in result.output
 
-        assert result.exit_code == 0
-        assert '(192.0.2.0)' in result.output
+    args = ('ursula', 'init',
+            '--federated-only',
+            '--network', TEMPORARY_DOMAIN,
+            '--force'
+            )
 
-        args = ('ursula', 'init',
-                '--federated-only',
-                '--network', TEMPORARY_DOMAIN,
-                '--force'
-                )
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}\n'
 
-        user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}\n'
+    result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False,
+                                 input=user_input)
 
-        result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False,
-                                     input=user_input)
+    assert result.exit_code == 0
+    assert '192.0.2.0' in result.output
 
-        assert result.exit_code == 0
-        assert '192.0.2.0' in result.output
+    # Patch get_external_ip call to error output
+    mocker.patch.object(actions.network, 'get_external_ip_from_centralized_source', side_effect=UnknownIPAddress)
 
-        # Patch get_external_ip call to error output
-        def amazing_ip_oracle():
-            raise UnknownIPAddress
-        get_external_ip_from_centralized_source = amazing_ip_oracle
+    args = ('ursula', 'init',
+            '--federated-only',
+            '--network', TEMPORARY_DOMAIN,
+            '--force')
 
-        args = ('ursula', 'init',
-                '--federated-only',
-                '--network', TEMPORARY_DOMAIN,
-                '--force'
-                )
-
-        user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}\n'
-
-        result = click_runner.invoke(nucypher_cli, args, catch_exceptions=True, input=user_input)
-        assert result.exit_code == 1
-        assert isinstance(result.exception, UnknownIPAddress)
-
-    finally:
-        # Unpatch call
-        get_external_ip_from_centralized_source = original_call
-        UrsulaConfiguration.to_configuration_file = original_save
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}\n'
+    result = click_runner.invoke(nucypher_cli, args, catch_exceptions=True, input=user_input)
+    assert result.exit_code == 1
+    assert isinstance(result.exception, UnknownIPAddress)
