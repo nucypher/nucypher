@@ -15,16 +15,18 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
-
 import click
+import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.characters.control.interfaces import AliceInterface
-from nucypher.cli import actions, painting
-from nucypher.cli.actions import get_nucypher_password, select_client_account, get_client_password, \
-    get_or_update_configuration
+from nucypher.cli import painting
+from nucypher.cli.actions.auth import get_nucypher_password, get_client_password
+from nucypher.cli.actions.config import handle_missing_configuration_file, get_provider_process, \
+    get_or_update_configuration, destroy_configuration
+from nucypher.cli.actions.select import select_client_account
+from nucypher.cli.actions.utils import make_cli_character
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
@@ -49,7 +51,8 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_registry_filepath,
     option_teacher_uri,
-    option_rate, option_signer_uri)
+    option_signer_uri
+)
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD
@@ -82,7 +85,7 @@ class AliceConfigOptions:
         # Managed Ethereum Client
         eth_node = NO_BLOCKCHAIN_CONNECTION
         if geth:
-            eth_node = actions.get_provider_process()
+            eth_node = get_provider_process()
             provider_uri = eth_node.provider_uri(scheme='file')
 
         self.dev = dev
@@ -135,7 +138,7 @@ class AliceConfigOptions:
                     checksum_address=self.pay_with,
                     registry_filepath=self.registry_filepath)
             except FileNotFoundError:
-                return actions.handle_missing_configuration_file(
+                return handle_missing_configuration_file(
                     character_config_class=AliceConfiguration,
                     config_file=config_file
                 )
@@ -257,14 +260,14 @@ class AliceCharacterOptions:
                                                       envvar=NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD)
 
         try:
-            ALICE = actions.make_cli_character(character_config=config,
-                                               emitter=emitter,
-                                               unlock_keyring=not config.dev_mode,
-                                               teacher_uri=self.teacher_uri,
-                                               min_stake=self.min_stake,
-                                               client_password=client_password,
-                                               load_preferred_teachers=load_seednodes,
-                                               start_learning_now=load_seednodes)
+            ALICE = make_cli_character(character_config=config,
+                                       emitter=emitter,
+                                       unlock_keyring=not config.dev_mode,
+                                       teacher_uri=self.teacher_uri,
+                                       min_stake=self.min_stake,
+                                       client_password=client_password,
+                                       load_preferred_teachers=load_seednodes,
+                                       start_learning_now=load_seednodes)
 
             return ALICE
         except NucypherKeyring.AuthenticationFailed as e:
@@ -332,7 +335,7 @@ def destroy(general_config, config_options, config_file, force):
     """
     emitter = _setup_emitter(general_config)
     alice_config = config_options.create_config(emitter, config_file)
-    return actions.destroy_configuration(emitter, character_config=alice_config, force=force)
+    return destroy_configuration(emitter, character_config=alice_config, force=force)
 
 
 @alice.command()

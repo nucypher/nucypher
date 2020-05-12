@@ -16,10 +16,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
-import os
-
 import click
 import maya
+import os
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency, PolicyManagerAgent
 from nucypher.blockchain.eth.constants import (
@@ -29,7 +28,7 @@ from nucypher.blockchain.eth.constants import (
 )
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import NU_BANNER
-from nucypher.cli.actions import connect_to_blockchain, get_registry
+from nucypher.cli.actions.utils import connect_to_blockchain, get_registry
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,

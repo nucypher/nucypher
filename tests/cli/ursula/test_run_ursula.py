@@ -14,9 +14,11 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
+
+
 from unittest import mock
 
+import os
 import pytest
 import pytest_twisted as pt
 import time
@@ -24,8 +26,7 @@ from twisted.internet import threads
 
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.characters.base import Learner
-from nucypher.cli import actions
-from nucypher.cli.actions import UnknownIPAddress
+from nucypher.cli.actions.network import UnknownIPAddress
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
@@ -189,11 +190,11 @@ def test_persistent_node_storage_integration(click_runner,
 def test_ursula_rest_host_determination(click_runner):
 
     # Patch the get_external_ip call
-    original_call = actions.get_external_ip_from_centralized_source
+    original_call = get_external_ip_from_centralized_source
     original_save = UrsulaConfiguration.to_configuration_file
 
     try:
-        actions.get_external_ip_from_centralized_source = lambda: '192.0.2.0'
+        get_external_ip_from_centralized_source = lambda: '192.0.2.0'
         UrsulaConfiguration.to_configuration_file = lambda s: None
 
         args = ('ursula', 'init',
@@ -226,7 +227,7 @@ def test_ursula_rest_host_determination(click_runner):
         # Patch get_external_ip call to error output
         def amazing_ip_oracle():
             raise UnknownIPAddress
-        actions.get_external_ip_from_centralized_source = amazing_ip_oracle
+        get_external_ip_from_centralized_source = amazing_ip_oracle
 
         args = ('ursula', 'init',
                 '--federated-only',
@@ -242,5 +243,5 @@ def test_ursula_rest_host_determination(click_runner):
 
     finally:
         # Unpatch call
-        actions.get_external_ip_from_centralized_source = original_call
+        get_external_ip_from_centralized_source = original_call
         UrsulaConfiguration.to_configuration_file = original_save

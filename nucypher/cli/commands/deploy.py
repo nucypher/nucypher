@@ -16,12 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import os
 
 import click
+import os
 from constant_sorrow import constants
 from constant_sorrow.constants import (
-    BARE,
     FULL
 )
 
@@ -38,12 +37,10 @@ from nucypher.blockchain.eth.registry import (
 )
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
-from nucypher.cli.actions import (
-    get_client_password,
-    select_client_account,
-    confirm_deployment,
-    establish_deployer_registry
-)
+from nucypher.cli.actions.auth import get_client_password
+from nucypher.cli.actions.confirm import confirm_deployment
+from nucypher.cli.actions.select import select_client_account
+from nucypher.cli.actions.utils import establish_deployer_registry
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,

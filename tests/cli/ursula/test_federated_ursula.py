@@ -21,7 +21,7 @@ from json import JSONDecodeError
 
 import pytest
 
-from nucypher.cli.actions import SUCCESSFUL_DESTRUCTION
+from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import APP_DIR, DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_KEYRING_PASSWORD

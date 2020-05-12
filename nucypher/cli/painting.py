@@ -15,16 +15,15 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import csv
-import webbrowser
 from collections import Counter
-from typing import List
 
 import click
 import maya
 import tabulate
 import time
+import webbrowser
 from constant_sorrow.constants import NO_KNOWN_NODES
+from typing import List
 from web3 import Web3
 
 from nucypher.blockchain.eth.agents import (

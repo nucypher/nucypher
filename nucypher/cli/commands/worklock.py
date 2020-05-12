@@ -16,13 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
-import os
-from decimal import Decimal
-from typing import Optional
-
 import click
 import maya
+import os
 import tabulate
+from decimal import Decimal
+from typing import Optional
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Bidder
@@ -31,8 +30,9 @@ from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import prettify_eth_amount
 from nucypher.characters.banners import WORKLOCK_BANNER
-from nucypher.cli.actions import get_client_password, connect_to_blockchain, get_registry
-from nucypher.cli.actions import select_client_account
+from nucypher.cli.actions.auth import get_client_password
+from nucypher.cli.actions.select import select_client_account
+from nucypher.cli.actions.utils import connect_to_blockchain, get_registry
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     option_force,

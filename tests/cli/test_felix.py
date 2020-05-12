@@ -4,13 +4,13 @@ from unittest import mock
 import pytest_twisted
 
 from nucypher.blockchain.eth.registry import LocalContractRegistry
-from nucypher.cli.actions import SUCCESSFUL_DESTRUCTION
 from twisted.internet import threads
 from twisted.internet.task import Clock
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.chaotic import Felix
+from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import FelixConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD

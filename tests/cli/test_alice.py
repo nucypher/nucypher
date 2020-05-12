@@ -1,6 +1,7 @@
 import os
 from unittest import mock
 
+from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
@@ -10,7 +11,6 @@ from nucypher.utilities.sandbox.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH,
     TEMPORARY_DOMAIN
 )
-from nucypher.cli.actions import SUCCESSFUL_DESTRUCTION
 
 
 @mock.patch('nucypher.config.characters.AliceConfiguration.default_filepath', return_value='/non/existent/file')

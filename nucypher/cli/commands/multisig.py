@@ -16,10 +16,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
-import json
-import os
-
 import click
+import os
 
 from nucypher.blockchain.eth.actors import Trustee, Executive
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency, MultiSigAgent
@@ -27,18 +25,15 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, Bloc
 from nucypher.blockchain.eth.multisig import Proposal, Authorization
 from nucypher.blockchain.eth.registry import LocalContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import ClefSigner
-from nucypher.cli.actions import (
-    get_client_password,
-    select_client_account,
-    get_provider_process)
+from nucypher.cli.actions.auth import get_client_password
+from nucypher.cli.actions.config import get_provider_process
+from nucypher.cli.actions.select import select_client_account
+from nucypher.cli.actions.utils import get_registry
 from nucypher.cli.commands.stake import option_signer_uri
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
     option_checksum_address,
-    option_config_root,
-    option_etherscan,
-    option_force,
     option_hw_wallet,
     option_light,
 
@@ -209,7 +204,7 @@ def inspect(general_config, blockchain_options):
     # Init
     emitter = general_config.emitter
     _blockchain = blockchain_options.connect_blockchain(emitter, general_config.debug)
-    registry = blockchain_options.get_registry()
+    registry = get_registry(network=blockchain_options.network)
 
     multisig_agent = ContractAgency.get_agent(MultiSigAgent, registry=registry)
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
@@ -241,7 +236,7 @@ def propose(general_config, blockchain_options, multisig_options):
     emitter = general_config.emitter
     #_ensure_config_root(actor_options.config_root)
     blockchain = blockchain_options.connect_blockchain(emitter, general_config.debug)
-    registry = blockchain_options.get_registry()
+    registry = get_registry(network=blockchain_options.network)
 
     if not multisig_options.checksum_address:
         multisig_options.checksum_address = select_client_account(emitter=emitter,
@@ -280,7 +275,7 @@ def sign(general_config, blockchain_options, multisig_options, proposal):
     emitter = general_config.emitter
     #_ensure_config_root(actor_options.config_root)
     blockchain = blockchain_options.connect_blockchain(emitter, general_config.debug)
-    registry = blockchain_options.get_registry()
+    registry = get_registry(network=blockchain_options.network)
 
     proposal = Proposal.from_file(proposal)
 
@@ -322,7 +317,7 @@ def execute(general_config, blockchain_options, multisig_options, proposal):
     emitter = general_config.emitter
     #_ensure_config_root(actor_options.config_root)
     blockchain = blockchain_options.connect_blockchain(emitter, general_config.debug)
-    registry = blockchain_options.get_registry()
+    registry = get_registry(network=blockchain_options.network)
 
     proposal = Proposal.from_file(proposal)
 
@@ -332,7 +327,7 @@ def execute(general_config, blockchain_options, multisig_options, proposal):
                                                                   poa=blockchain_options.poa,
                                                                   network=blockchain_options.network,
                                                                   registry=registry,
-                                                                  show_balances=True)
+                                                                  show_balances=True)  # FIXME: Unexpected argument!!
 
     name, version, address, abi = registry.search(contract_address=proposal.target_address)
     # TODO: This assumes that we're always signing proxy retargetting. For the moment is true.

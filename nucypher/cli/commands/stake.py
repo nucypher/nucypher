@@ -25,16 +25,12 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
 from nucypher.blockchain.eth.token import NU, StakeList
 from nucypher.blockchain.eth.utils import datetime_at_period
-from nucypher.cli import painting, actions
-from nucypher.cli.actions import (
-    confirm_staged_stake,
-    get_client_password,
-    select_stake,
-    handle_client_account_for_staking,
-    confirm_enable_restaking_lock,
-    confirm_enable_restaking,
-    confirm_enable_winding_down,
-    get_or_update_configuration, issue_stake_suggestions)
+from nucypher.cli import painting
+from nucypher.cli.actions.auth import get_client_password
+from nucypher.cli.actions.config import handle_missing_configuration_file, get_or_update_configuration
+from nucypher.cli.actions.confirm import issue_stake_suggestions, confirm_staged_stake, confirm_enable_restaking_lock, \
+    confirm_enable_restaking, confirm_enable_winding_down
+from nucypher.cli.actions.select import handle_client_account_for_staking, select_stake
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -97,7 +93,7 @@ class StakeHolderConfigOptions:
                 registry_filepath=self.registry_filepath)
 
         except FileNotFoundError:
-            return actions.handle_missing_configuration_file(
+            return handle_missing_configuration_file(
                 character_config_class=StakeHolderConfiguration,
                 init_command_hint=f"{stake.name} {init_stakeholder.name}",
                 config_file=config_file)

@@ -2,8 +2,12 @@ import click
 
 from nucypher.characters.banners import BOB_BANNER
 from nucypher.characters.control.interfaces import BobInterface
-from nucypher.cli import actions, painting
-from nucypher.cli.actions import get_nucypher_password, select_client_account, get_or_update_configuration
+from nucypher.cli import painting
+from nucypher.cli.actions.auth import get_nucypher_password
+from nucypher.cli.actions.config import handle_missing_configuration_file, get_or_update_configuration, \
+    destroy_configuration
+from nucypher.cli.actions.select import select_client_account
+from nucypher.cli.actions.utils import make_cli_character
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
@@ -73,7 +77,7 @@ class BobConfigOptions:
                     registry_filepath=self.registry_filepath,
                     network_middleware=self.middleware)
             except FileNotFoundError:
-                return actions.handle_missing_configuration_file(
+                return handle_missing_configuration_file(
                     character_config_class=BobConfiguration,
                     config_file=config_file)
 
@@ -136,11 +140,11 @@ class BobCharacterOptions:
     def create_character(self, emitter, config_file):
         config = self.config_options.create_config(emitter, config_file)
 
-        return actions.make_cli_character(character_config=config,
-                                          emitter=emitter,
-                                          unlock_keyring=not self.config_options.dev,
-                                          teacher_uri=self.teacher_uri,
-                                          min_stake=self.min_stake)
+        return make_cli_character(character_config=config,
+                                  emitter=emitter,
+                                  unlock_keyring=not self.config_options.dev,
+                                  teacher_uri=self.teacher_uri,
+                                  min_stake=self.min_stake)
 
 
 group_character_options = group_options(
@@ -243,7 +247,7 @@ def destroy(general_config, config_options, config_file, force):
     bob_config = config_options.create_config(emitter, config_file)
 
     # Request
-    return actions.destroy_configuration(emitter, character_config=bob_config, force=force)
+    return destroy_configuration(emitter, character_config=bob_config, force=force)
 
 
 @bob.command(name='public-keys')

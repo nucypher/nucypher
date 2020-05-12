@@ -15,11 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import functools
-import os
 from collections import namedtuple
 
 import click
+import functools
+import os
 
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
 from nucypher.cli.types import (
