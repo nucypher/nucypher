@@ -18,6 +18,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import json
+import os
+
+import re
 
 import click
 from json.decoder import JSONDecodeError
@@ -30,6 +33,7 @@ from nucypher.cli.actions.literature import (
     SUCCESSFUL_FORGET_NODES, INVALID_CONFIGURATION_FILE_WARNING, INVALID_JSON_IN_CONFIGURATION_WARNING,
     SUCCESSFUL_UPDATE_CONFIGURATION_VALUES
 )
+from nucypher.config.characters import UrsulaConfiguration
 
 
 def get_or_update_configuration(emitter, config_class, filepath: str, config_options):
@@ -99,3 +103,40 @@ def get_provider_process(start_now: bool = False):
     if start_now:
         process.start()
     return process
+
+
+def extract_checksum_address_from_filepath(filepath, config_class=UrsulaConfiguration):
+
+    pattern = re.compile(r'''
+                         (^\w+)-
+                         (0x{1}         # Then, 0x the start of the string, exactly once
+                         [0-9a-fA-F]{40}) # Followed by exactly 40 hex chars
+                         ''',
+                         re.VERBOSE)
+
+    filename = os.path.basename(filepath)
+    match = pattern.match(filename)
+
+    if match:
+        character_name, checksum_address = match.groups()
+
+    else:
+        # Extract from default by "peeking" inside the configuration file.
+        default_name = config_class.generate_filename()
+        if filename == default_name:
+            checksum_address = config_class.peek(filepath=filepath, field='checksum_address')
+
+            ###########
+            # TODO: Cleanup and deprecate worker_address in config files, leaving only checksum_address
+            if config_class == UrsulaConfiguration:
+                federated = bool(config_class.peek(filepath=filepath, field='federated_only'))
+                if not federated:
+                    checksum_address = config_class.peek(filepath=filepath, field='worker_address')
+            ###########
+
+        else:
+            raise ValueError(f"Cannot extract checksum from filepath '{filepath}'")
+
+    if not is_checksum_address(checksum_address):
+        raise RuntimeError(f"Invalid checksum address detected in configuration file at '{filepath}'.")
+    return checksum_address

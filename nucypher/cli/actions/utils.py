@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-
+from distutils.util import strtobool
 
 import click
 import os
@@ -156,3 +156,12 @@ def connect_to_blockchain(provider_uri, emitter, debug: bool = False, light: boo
             raise
         emitter.echo(str(e), bold=True, color='red')
         raise click.Abort
+
+
+def get_env_bool(var_name: str, default: bool) -> bool:
+    if var_name in os.environ:
+        # TODO: which is better: to fail on an incorrect envvar, or to use the default?
+        # Currently doing the former.
+        return strtobool(os.environ[var_name])
+    else:
+        return default
