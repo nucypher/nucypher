@@ -87,7 +87,7 @@ BONUS_TOKENS_FOR_TESTS = NU(150_000, 'NU').to_nunits()
 
 DEVELOPMENT_ETH_AIRDROP_AMOUNT = int(Web3().toWei(100, 'ether'))
 
-NUMBER_OF_ALLOCATIONS_IN_TESTS = 100  # TODO: Move to constants
+NUMBER_OF_ALLOCATIONS_IN_TESTS = 50  # TODO: Move to constants
 
 
 #

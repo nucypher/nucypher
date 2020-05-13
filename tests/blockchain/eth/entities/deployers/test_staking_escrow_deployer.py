@@ -57,7 +57,8 @@ def test_deployment_parameters(staking_escrow_deployer,
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     params = staking_agent.staking_parameters()
-    assert token_economics.staking_deployment_parameters[1:] == params[1:]
+    assert token_economics.staking_deployment_parameters[2:] == params[2:]
+    assert token_economics.staking_deployment_parameters[1] == params[1] // params[3]
     assert token_economics.staking_deployment_parameters[0]*60*60 == params[0]  # FIXME: Do we really want this?
 
 

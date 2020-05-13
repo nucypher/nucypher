@@ -46,9 +46,12 @@ def pytest_namespace():
 def token_economics():
     economics = BaseEconomics(
         initial_supply=10 ** 9,
+        first_phase_supply=int(0.5 * 10 ** 9),
         total_supply=2 * 10 ** 9,
-        staking_coefficient=8 * 10 ** 7,
-        locked_periods_coefficient=4,
+        first_phase_max_issuance=200,
+        issuance_decay_coefficient=10 ** 7,
+        lock_duration_coefficient_1=4,
+        lock_duration_coefficient_2=8,
         maximum_rewarded_periods=4,
         hours_per_period=1,
         minimum_locked_periods=6,
