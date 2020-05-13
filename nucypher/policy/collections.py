@@ -45,16 +45,17 @@ from nucypher.crypto.utils import (canonical_address_from_umbral_key,
                                    get_coordinates_as_bytes,
                                    get_signature_recovery_value)
 from nucypher.network.middleware import RestMiddleware
+from nucypher.config.splitters import NCBytestringSplitter
 
 
 class TreasureMap:
     from nucypher.policy.policies import Arrangement
     ID_LENGTH = Arrangement.ID_LENGTH  # TODO: Unify with Policy / Arrangement - or is this ok?
 
-    splitter = BytestringSplitter(Signature,
+    version = 1
+    splitter = NCBytestringSplitter(Signature,
                                   (bytes, KECCAK_DIGEST_LENGTH),  # hrac
-                                  (UmbralMessageKit, VariableLengthBytestring)
-                                  )
+                                  (UmbralMessageKit, VariableLengthBytestring))
 
     class NowhereToBeFound(RestMiddleware.NotFound):
         """
@@ -130,7 +131,7 @@ class TreasureMap:
         if self._payload is None:
             self._set_payload()
 
-        return self._payload
+        return self.splitter.render(self._payload, version=self.version)
 
     @property
     def _verifying_key(self):
