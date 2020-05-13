@@ -24,7 +24,7 @@ from flask import Response
 
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import NucypherMiddlewareClient, RestMiddleware
-from tests.utils.constants import MOCK_KNOWN_URSULAS_CACHE
+from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
 
 
 class _TestMiddlewareClient(NucypherMiddlewareClient):

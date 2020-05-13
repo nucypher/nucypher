@@ -2,7 +2,7 @@ import pytest
 
 from nucypher.blockchain.eth.actors import Staker
 from tests.utils.blockchain import token_airdrop
-from tests.utils.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
+from tests.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
 
 
 @pytest.fixture(scope='module')

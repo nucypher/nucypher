@@ -183,11 +183,19 @@ def wrap_option(handler, **options):
 
 
 def process_middleware(mock_networking):
-    from nucypher.network.middleware import RestMiddleware
-    from tests.utils.middleware import MockRestMiddleware
-    if mock_networking:
+    try:
+        import tests
+    except ImportError:
+        # TODO: IDK what to say here...needs further discussion around deprecation in lieu of mocks.
+        tests_available = False
+    else:
+        tests_available = True
+
+    if mock_networking and tests_available:
+        from tests.utils.middleware import MockRestMiddleware
         middleware = MockRestMiddleware()
     else:
+        from nucypher.network.middleware import RestMiddleware
         middleware = RestMiddleware()
 
     return 'middleware', middleware

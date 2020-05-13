@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 from nucypher.blockchain.eth.token import NU
 from tests.utils.blockchain import token_airdrop
-from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 TEST_LOCK_DURATION_IN_SECONDS = 60 * 60 * 24  # 1 day
 TEST_ALLOCATION_REGISTRY = InMemoryAllocationRegistry()

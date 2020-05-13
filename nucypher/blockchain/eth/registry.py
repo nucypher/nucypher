@@ -364,7 +364,7 @@ class LocalContractRegistry(BaseContractRegistry):
 
     @property
     def filepath(self) -> str:
-        return self.__filepath
+        return str(self.__filepath)
 
     def _swap_registry(self, filepath: str) -> bool:
         self.__filepath = filepath

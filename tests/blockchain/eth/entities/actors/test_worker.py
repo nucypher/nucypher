@@ -4,7 +4,7 @@ from twisted.internet import threads
 from twisted.internet.task import Clock
 
 from nucypher.blockchain.eth.token import NU, WorkTracker
-from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.ursula import make_decentralized_ursulas, start_pytest_ursula_services
 
 

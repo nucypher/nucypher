@@ -18,11 +18,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
-from tests.utils.ursula import make_decentralized_ursulas
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.token import NU, Stake
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.fixtures import FEE_RATE_RANGE
 from tests.utils.ursula import make_decentralized_ursulas
 

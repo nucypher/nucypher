@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.deployers import (AdjudicatorDeployer, BaseContract
                                                PolicyManagerDeployer, StakingEscrowDeployer)
 from nucypher.crypto.powers import TransactingPower
 from tests.utils.blockchain import token_airdrop
-from tests.utils.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.mark.slow()

@@ -8,7 +8,7 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.cli.commands.deploy import deploy
-from tests.utils.constants import (
+from tests.constants import (
     TEST_PROVIDER_URI,
 )
 

@@ -24,7 +24,7 @@ from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.powers import SigningPower
 from nucypher.policy.policies import Policy
-from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
 from tests.utils.ursula import make_decentralized_ursulas, make_federated_ursulas
 

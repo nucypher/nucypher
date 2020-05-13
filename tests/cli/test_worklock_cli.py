@@ -30,8 +30,9 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.commands.worklock import worklock
-from tests.utils.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, TEMPORARY_DOMAIN, TEST_PROVIDER_URI,
-                                   select_test_port)
+from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, TEST_PROVIDER_URI)
+from tests.utils.ursula import select_test_port
+from nucypher.config.constants import TEMPORARY_DOMAIN
 
 
 @pytest.fixture(scope='module')

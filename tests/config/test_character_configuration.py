@@ -9,7 +9,7 @@ from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.config.characters import AliceConfiguration, BobConfiguration, FelixConfiguration, \
     StakeHolderConfiguration, UrsulaConfiguration
 from nucypher.config.storages import ForgetfulNodeStorage
-from tests.utils.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN
 
 # Main Cast
 configurations = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)

@@ -532,7 +532,7 @@ class Allocator:
         self.economics = EconomicsFactory.get_economics(registry)
 
         self.__total_to_allocate = 0
-        self.__process_allocation_data(filepath)
+        self.__process_allocation_data(str(filepath))
         self.__approve_token_transfer(registry, deployer_address)
 
     def __process_allocation_data(self, filepath: str):

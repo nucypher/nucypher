@@ -6,8 +6,9 @@ from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (BaseContractRegistry, CanonicalRegistrySource,
                                               IndividualAllocationRegistry, RegistrySourceManager)
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.utils.blockchain import TesterBlockchain
-from tests.utils.constants import MOCK_PROVIDER_URI, TEMPORARY_DOMAIN
+from tests.constants import MOCK_PROVIDER_URI
 
 
 def make_mock_registry_source_manager(blockchain, test_registry, mock_backend: bool = False):

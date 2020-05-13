@@ -27,7 +27,7 @@ from nucypher.characters.lawful import Alice, Bob, Character, Enrico
 from nucypher.crypto import api
 from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.powers import (CryptoPower, NoSigningPower, SigningPower, TransactingPower)
-from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 """
 Chapter 1: SIGNING

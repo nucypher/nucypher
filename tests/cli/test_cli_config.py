@@ -6,9 +6,10 @@ import pytest
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration, UrsulaConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS
-from tests.utils.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH, MOCK_IP_ADDRESS,
-                                   TEMPORARY_DOMAIN, TEST_PROVIDER_URI)
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS, \
+    TEMPORARY_DOMAIN
+from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH, MOCK_IP_ADDRESS,
+                             TEST_PROVIDER_URI)
 
 CONFIG_CLASSES = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)
 
@@ -32,7 +33,7 @@ def test_initialize_via_cli(config_class, custom_filepath, click_runner, monkeyp
     assert result.exit_code == 0
 
     # CLI Output
-    assert MOCK_CUSTOM_INSTALLATION_PATH in result.output, "Configuration not in system temporary directory"
+    assert str(MOCK_CUSTOM_INSTALLATION_PATH) in result.output, "Configuration not in system temporary directory"
 
     # Files and Directories
     assert os.path.isdir(custom_filepath), 'Configuration file does not exist'
@@ -81,7 +82,7 @@ def test_reconfigure_via_cli(click_runner, custom_filepath, config_class, monkey
     analog_payload = json.loads(config.serialize())
     for field in analog_payload:
         assert field in result.output
-    assert custom_filepath in result.output
+    assert str(custom_filepath) in result.output
 
     # After editing the fields have been updated
     assert not config.federated_only

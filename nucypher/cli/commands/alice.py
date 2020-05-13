@@ -59,10 +59,9 @@ from nucypher.cli.options import (
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD
+from nucypher.config.constants import NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, TEMPORARY_DOMAIN
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.network.middleware import RestMiddleware
-from tests.utils.constants import TEMPORARY_DOMAIN
 
 option_bob_verifying_key = click.option(
     '--bob-verifying-key',

@@ -8,7 +8,8 @@ from twisted.internet.task import Clock
 
 from nucypher.characters.lawful import Bob, Enrico, Ursula
 from nucypher.policy.collections import TreasureMap
-from tests.utils.constants import (MOCK_POLICY_DEFAULT_M, NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK, TEMPORARY_DOMAIN)
+from tests.constants import (MOCK_POLICY_DEFAULT_M, NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.utils.middleware import MockRestMiddleware
 
 

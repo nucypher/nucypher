@@ -33,9 +33,9 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.config.constants import BASE_DIR
 from nucypher.crypto.powers import TransactingPower
-from tests.utils.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD,
-                                   NUMBER_OF_ETH_TEST_ACCOUNTS, NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
-                                   NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
+from tests.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD,
+                             NUMBER_OF_ETH_TEST_ACCOUNTS, NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
+                             NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
 
 
 def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):

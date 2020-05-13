@@ -14,8 +14,8 @@ from nucypher.config.characters import BobConfiguration
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower
 from nucypher.utilities.logging import GlobalLoggerSettings
-from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH, MOCK_IP_ADDRESS, \
-    TEMPORARY_DOMAIN
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH, MOCK_IP_ADDRESS
+from nucypher.config.constants import TEMPORARY_DOMAIN
 
 log = Logger()
 
@@ -52,7 +52,7 @@ def test_initialize_bob_with_custom_configuration_root(custom_filepath, click_ru
     assert result.exit_code == 0, result.exception
 
     # CLI Output
-    assert MOCK_CUSTOM_INSTALLATION_PATH in result.output, "Configuration not in system temporary directory"
+    assert str(MOCK_CUSTOM_INSTALLATION_PATH) in result.output, "Configuration not in system temporary directory"
     assert "nucypher bob run" in result.output, 'Help message is missing suggested command'
     assert 'IPv4' not in result.output
 
@@ -96,7 +96,7 @@ def test_bob_view_with_preexisting_configuration(click_runner, custom_filepath):
     assert "checksum_address" in result.output
     assert "domains" in result.output
     assert TEMPORARY_DOMAIN in result.output
-    assert custom_filepath in result.output
+    assert str(custom_filepath) in result.output
 
 
 def test_bob_public_keys(click_runner):

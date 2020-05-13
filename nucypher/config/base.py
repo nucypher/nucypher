@@ -227,7 +227,7 @@ class BaseConfiguration(ABC):
 
     def _write_configuration_file(self, filepath: str, override: bool = False) -> str:
         """Writes to `filepath` and returns the written filepath.  Raises `FileExistsError` if the file exists."""
-        if os.path.exists(filepath) and not override:
+        if os.path.exists(str(filepath)) and not override:
             raise FileExistsError(f"{filepath} exists and no filename modifier supplied.")
         with open(filepath, 'w') as file:
             file.write(self.serialize())

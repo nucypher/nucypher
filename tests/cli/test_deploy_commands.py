@@ -7,7 +7,7 @@ from nucypher.blockchain.eth.constants import (ADJUDICATOR_CONTRACT_NAME, DISPAT
 from nucypher.blockchain.eth.deployers import StakingEscrowDeployer
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.cli.commands.deploy import deploy
-from tests.utils.constants import (INSECURE_DEVELOPMENT_PASSWORD, TEST_PROVIDER_URI)
+from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, TEST_PROVIDER_URI)
 
 ALTERNATE_REGISTRY_FILEPATH = '/tmp/nucypher-test-registry-alternate.json'
 ALTERNATE_REGISTRY_FILEPATH_2 = '/tmp/nucypher-test-registry-alternate-2.json'

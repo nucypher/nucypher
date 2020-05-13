@@ -3,7 +3,7 @@ from decimal import Decimal, InvalidOperation
 from web3 import Web3
 
 from nucypher.blockchain.eth.token import NU, Stake
-from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 def test_NU(token_economics):

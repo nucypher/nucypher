@@ -27,7 +27,7 @@ from datetime import datetime
 
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
-from tests.utils.constants import (BASE_TEMP_DIR, BASE_TEMP_PREFIX, DATETIME_FORMAT, MOCK_ALLOCATION_INFILE,
+from tests.constants import (BASE_TEMP_DIR, BASE_TEMP_PREFIX, DATETIME_FORMAT, MOCK_ALLOCATION_INFILE,
                                    MOCK_CUSTOM_INSTALLATION_PATH, MOCK_CUSTOM_INSTALLATION_PATH_2)
 
 

@@ -33,9 +33,11 @@ from nucypher.blockchain.eth.token import NU, Stake, StakeList
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from tests.utils.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_INDIVIDUAL_ALLOCATION_FILEPATH, MOCK_IP_ADDRESS,
-                                   MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT, ONE_YEAR_IN_SECONDS,
-                                   TEMPORARY_DOMAIN, TEST_PROVIDER_URI, select_test_port)
+from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_INDIVIDUAL_ALLOCATION_FILEPATH, MOCK_IP_ADDRESS,
+                             ONE_YEAR_IN_SECONDS,
+                             TEST_PROVIDER_URI)
+from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT, select_test_port
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.utils.middleware import MockRestMiddleware
 
 

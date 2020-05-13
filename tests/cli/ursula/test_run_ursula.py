@@ -30,11 +30,10 @@ from nucypher.cli import actions
 from nucypher.cli.actions.network import UnknownIPAddress
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
 from nucypher.network.nodes import Teacher
-from tests.utils.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, MOCK_URSULA_STARTING_PORT,
-                                   TEMPORARY_DOMAIN, TEST_PROVIDER_URI)
-from tests.utils.ursula import start_pytest_ursula_services
+from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, TEST_PROVIDER_URI)
+from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, start_pytest_ursula_services
 
 
 @mock.patch('glob.glob', return_value=list())

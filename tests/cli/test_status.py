@@ -28,8 +28,9 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.commands.status import status
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from tests.constants import TEMPORARY_DOMAIN, TEST_PROVIDER_URI
 from tests.fixtures import FEE_RATE_RANGE
-from tests.utils.constants import TEMPORARY_DOMAIN, TEST_PROVIDER_URI
 
 
 def test_nucypher_status_network(click_runner, testerchain, agency_local_registry):

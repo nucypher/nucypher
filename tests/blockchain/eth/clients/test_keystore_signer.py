@@ -11,7 +11,7 @@ from hexbytes import HexBytes
 from pathlib import Path
 
 from nucypher.blockchain.eth.signers import KeystoreSigner, Signer
-from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 # Example keystore filename
 MOCK_KEYFILE_NAME = 'UTC--2019-12-04T05-39-04.006429310Z--0xdeadbeef'
