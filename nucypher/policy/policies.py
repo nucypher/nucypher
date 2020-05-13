@@ -20,6 +20,9 @@ from collections import OrderedDict, deque
 from typing import Generator, Set, List, Callable
 
 import maya
+from twisted.internet.defer import DeferredList
+from twisted.internet.threads import deferToThread
+
 from abc import ABC, abstractmethod
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG
@@ -265,34 +268,38 @@ class Policy(ABC):
             # TODO: Optionally, block.
             raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
 
-        responses = dict()
+        responses = list()
         self.log.debug(f"Pushing {self.treasure_map} to all known nodes from {self.alice}")
         treasure_map_id = self.treasure_map.public_id()
 
         for node in self.bob.matching_nodes_among(self.alice.known_nodes):
             # TODO: Concurrency here.
 
-            try:
-                response = network_middleware.put_treasure_map_on_node(node=node,
-                                                                       map_id=treasure_map_id,
-                                                                       map_payload=bytes(self.treasure_map))
-            except NodeSeemsToBeDown:
-                # TODO: Introduce good failure mode here if too few nodes receive the map.
-                self.log.debug(f"Failed pushing {self.treasure_map} to unresponsive {node}")
-                continue
+            responses.append(deferToThread(network_middleware.put_treasure_map_on_node,
+                          node=node,
+                          map_id=treasure_map_id,
+                          map_payload=bytes(self.treasure_map)
+                          ))
 
-            if response.status_code == 202:
-                # TODO: #341 - Handle response wherein node already had a copy of this TreasureMap.
-                responses[node] = response
-                self.log.debug(f"{self.treasure_map} successfully pushed to {node}")
+            # try:
+            #     response = network_middleware.put_treasure_map_on_node()
+            # except NodeSeemsToBeDown:
+            #     # TODO: Introduce good failure mode here if too few nodes receive the map.
+            #     self.log.debug(f"Failed pushing {self.treasure_map} to unresponsive {node}")
+            #     continue
+            #
+            # if response.status_code == 202:
+            #     # TODO: #341 - Handle response wherein node already had a copy of this TreasureMap.
+            #     responses[node] = response
+            #     self.log.debug(f"{self.treasure_map} successfully pushed to {node}")
+            #
+            # else:
+            #     # TODO: Do something useful here.
+            #     message = f"Failed pushing {self.treasure_map} to {node}, with status {response.status_code}"
+            #     self.log.debug(message)
+            #     raise RuntimeError(message)
 
-            else:
-                # TODO: Do something useful here.
-                message = f"Failed pushing {self.treasure_map} to {node}, with status {response.status_code}"
-                self.log.debug(message)
-                raise RuntimeError(message)
-
-        return responses
+        return DeferredList(responses)
 
     def credential(self, with_treasure_map=True):
         """
