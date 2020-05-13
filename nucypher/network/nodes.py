@@ -166,6 +166,7 @@ class FleetStateTracker:
     def record_fleet_state(self, additional_nodes_to_track=None):
         if additional_nodes_to_track:
             self.additional_nodes_to_track.extend(additional_nodes_to_track)
+
         if not self._nodes:
             # No news here.
             return
@@ -226,16 +227,21 @@ class NodeSprout(PartiallyKwargifiedBytes):
 
     def __init__(self, node_metadata):
         super().__init__(node_metadata)
-        self.checksum_address = to_checksum_address(self.public_address)
-        self.nickname = nickname_from_seed(self.checksum_address)[0]
+        self._checksum_address = None
+        self._nickname = None
+        self._hash = None
         self.timestamp = maya.MayaDT(self.timestamp)  # Weird for this to be in init. maybe this belongs in the splitter also.
-        self._hash = int.from_bytes(self.public_address, byteorder="big")  # stop-propagation logic (ie, only propagate verified, staked nodes) keeps this unique and BFT.
-        self._repr = f"({self.__class__.__name__})⇀{self.nickname}↽ ({self.checksum_address})"
+        self._repr = None
 
     def __hash__(self):
+        if not self._hash:
+            self._hash = int.from_bytes(self.public_address,
+                                        byteorder="big")  # stop-propagation logic (ie, only propagate verified, staked nodes) keeps this unique and BFT.
         return self._hash
 
     def __repr__(self):
+        if not self._repr:
+            self._repr = f"({self.__class__.__name__})⇀{self.nickname}↽ ({self.checksum_address})"
         return self._repr
 
     def __bytes__(self):
@@ -250,6 +256,19 @@ class NodeSprout(PartiallyKwargifiedBytes):
     @property
     def stamp(self) -> bytes:
         return self.processed_objects['verifying_key'][0]
+
+    @property
+    def checksum_address(self):
+        if not self._checksum_address:
+            self._checksum_address = to_checksum_address(self.public_address)
+        return self._checksum_address
+
+    @property
+    def nickname(self):
+        if not self._nickname:
+            self._nickname = nickname_from_seed(self.checksum_address)[0]
+        return self._nickname
+
 
     def mature(self):
         mature_node = self.finish()
