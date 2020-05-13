@@ -29,7 +29,7 @@ from nucypher.cli.actions.config import (
     handle_missing_configuration_file
 )
 from nucypher.cli.actions.select import select_client_account
-from nucypher.cli.actions.utils import make_cli_character, setup_emitter
+from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (

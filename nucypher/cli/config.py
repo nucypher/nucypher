@@ -21,7 +21,7 @@ import os
 from twisted.logger import Logger
 
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
-from nucypher.cli.actions.utils import get_env_bool
+from nucypher.cli.utils import get_env_bool
 from nucypher.cli.options import group_options
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
 from nucypher.utilities.logging import GlobalLoggerSettings

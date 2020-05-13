@@ -21,7 +21,7 @@ from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.control.interfaces import EnricoInterface
 from nucypher.characters.lawful import Enrico
-from nucypher.cli.actions.utils import setup_emitter
+from nucypher.cli.utils import setup_emitter
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import option_dry_run, option_policy_encrypting_key
 from nucypher.cli.types import NETWORK_PORT

@@ -31,7 +31,7 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import prettify_eth_amount
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.select import select_client_account
-from nucypher.cli.actions.utils import connect_to_blockchain, get_registry, setup_emitter
+from nucypher.cli.utils import connect_to_blockchain, get_registry, setup_emitter
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
     AVAILABLE_CLAIM_NOTICE,

@@ -36,7 +36,7 @@ from nucypher.cli.actions.confirm import (
     confirm_staged_stake
 )
 from nucypher.cli.actions.select import handle_client_account_for_staking, select_stake
-from nucypher.cli.actions.utils import setup_emitter
+from nucypher.cli.utils import setup_emitter
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
     BONDING_DETAILS,

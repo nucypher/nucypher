@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.config import get_provider_process
 from nucypher.cli.actions.select import select_client_account
-from nucypher.cli.actions.utils import get_registry
+from nucypher.cli.utils import get_registry
 from nucypher.cli.commands.stake import option_signer_uri
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (

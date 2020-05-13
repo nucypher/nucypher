@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.constants import (
     STAKING_ESCROW_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.utils import datetime_at_period
-from nucypher.cli.actions.utils import connect_to_blockchain, get_registry, setup_emitter
+from nucypher.cli.utils import connect_to_blockchain, get_registry, setup_emitter
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,

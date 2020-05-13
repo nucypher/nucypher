@@ -40,7 +40,7 @@ from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.confirm import confirm_deployment
 from nucypher.cli.actions.select import select_client_account
-from nucypher.cli.actions.utils import (
+from nucypher.cli.utils import (
     deployer_pre_launch_warnings,
     ensure_config_root,
     establish_deployer_registry,
