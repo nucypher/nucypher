@@ -16,7 +16,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.sol.compile import SOLIDITY_COMPILER_VERSION
 from nucypher.cli.commands.deploy import deploy
-from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI
+from tests.utils.constants import TEST_PROVIDER_URI
 
 
 PLANNED_UPGRADES = 4

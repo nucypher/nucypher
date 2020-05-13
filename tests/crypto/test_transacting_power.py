@@ -3,11 +3,9 @@ from eth_account._utils.transactions import Transaction
 from eth_utils import to_checksum_address
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.signers import Signer
 from nucypher.crypto.api import verify_eip_191
-from nucypher.crypto.powers import (PowerUpError)
 from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.conftest import LOCK_FUNCTION
 
 TransactingPower.lock_account = LOCK_FUNCTION

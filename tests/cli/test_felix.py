@@ -14,7 +14,7 @@ from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import FelixConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
-from nucypher.utilities.sandbox.constants import (
+from tests.utils.constants import (
     TEMPORARY_DOMAIN,
     TEST_PROVIDER_URI,
     INSECURE_DEVELOPMENT_PASSWORD,

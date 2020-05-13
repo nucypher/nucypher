@@ -5,7 +5,7 @@ from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
-from nucypher.utilities.sandbox.constants import (
+from tests.utils.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_IP_ADDRESS,
     MOCK_CUSTOM_INSTALLATION_PATH,

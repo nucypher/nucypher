@@ -16,7 +16,7 @@ from nucypher.network.middleware import RestMiddleware
 from umbral.keys import UmbralPublicKey
 
 from nucypher.utilities.logging import GlobalLoggerSettings
-from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
+from tests.utils.constants import TEMPORARY_DOMAIN
 
 
 GlobalLoggerSettings.start_console_logging()

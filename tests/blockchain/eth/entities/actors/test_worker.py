@@ -3,11 +3,9 @@ import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
 
-from nucypher.blockchain.eth.actors import Worker
 from nucypher.blockchain.eth.token import NU, WorkTracker
-from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
-from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas, start_pytest_ursula_services
+from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.ursula import make_decentralized_ursulas, start_pytest_ursula_services
 
 
 @pytest.mark.slow()

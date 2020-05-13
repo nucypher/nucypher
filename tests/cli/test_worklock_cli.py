@@ -30,7 +30,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.commands.worklock import worklock
-from nucypher.utilities.sandbox.constants import (
+from tests.utils.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     TEST_PROVIDER_URI,
     MOCK_IP_ADDRESS,

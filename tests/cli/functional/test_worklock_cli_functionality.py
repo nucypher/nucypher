@@ -24,7 +24,7 @@ from nucypher.blockchain.eth.actors import Bidder
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.commands.worklock import worklock
-from nucypher.utilities.sandbox.constants import (
+from tests.utils.constants import (
     TEMPORARY_DOMAIN, MOCK_PROVIDER_URI, YES,
 )
 from tests.cli.functional.test_ursula_local_keystore_cli_functionality import CLI_ENV

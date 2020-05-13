@@ -333,7 +333,9 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
         trustee_address = select_client_account(emitter=emitter,
                                                 prompt="Select trustee address",
                                                 provider_uri=actor_options.provider_uri,
-                                                show_balances=False)  # FIXME: Unexpected argument!!!
+                                                show_eth_balance=False,
+                                                show_nu_balance=False,
+                                                show_staking=False)
 
         if not actor_options.force:
             click.confirm(CONFIRM_SELECTED_ACCOUNT.format(address=trustee_address), abort=True)

@@ -5,7 +5,7 @@ from umbral.signing import Signer
 
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.crypto.powers import DelegatingPower, DecryptingPower
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
 from constant_sorrow.constants import FEDERATED_ADDRESS
 
 from nucypher.characters.lawful import Alice, Bob, Ursula

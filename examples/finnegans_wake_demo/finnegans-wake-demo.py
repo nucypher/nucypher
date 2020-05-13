@@ -9,7 +9,7 @@ from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.characters.lawful import Enrico as Enrico
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import GlobalLoggerSettings
-from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
+from tests.utils.constants import TEMPORARY_DOMAIN
 
 ######################
 # Boring setup stuff #

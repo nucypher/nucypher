@@ -16,7 +16,7 @@ from nucypher.blockchain.eth.constants import (
 from nucypher.blockchain.eth.deployers import StakingEscrowDeployer
 from nucypher.blockchain.eth.registry import LocalContractRegistry, InMemoryContractRegistry
 from nucypher.cli.commands.deploy import deploy
-from nucypher.utilities.sandbox.constants import (
+from tests.utils.constants import (
     TEST_PROVIDER_URI,
     INSECURE_DEVELOPMENT_PASSWORD,
 )

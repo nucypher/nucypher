@@ -19,7 +19,7 @@ from os.path import dirname, abspath
 
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler, SourceDirs
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain
+from tests.utils.blockchain import TesterBlockchain
 
 
 def test_nucypher_contract_compiled(testerchain, test_registry):

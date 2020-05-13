@@ -17,7 +17,7 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 
 
 # Twisted Logger
-from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
+from tests.utils.constants import TEMPORARY_DOMAIN
 
 GlobalLoggerSettings.start_console_logging()
 

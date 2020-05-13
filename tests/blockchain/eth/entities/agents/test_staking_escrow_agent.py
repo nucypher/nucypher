@@ -24,7 +24,7 @@ from eth_utils.address import to_checksum_address, is_address
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.mark.slow()

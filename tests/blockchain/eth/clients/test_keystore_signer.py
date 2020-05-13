@@ -14,7 +14,7 @@ from eth_utils import to_checksum_address
 from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.signers import KeystoreSigner, Signer
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 # Example keystore filename
 MOCK_KEYFILE_NAME = 'UTC--2019-12-04T05-39-04.006429310Z--0xdeadbeef'

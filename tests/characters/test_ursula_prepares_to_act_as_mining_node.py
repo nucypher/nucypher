@@ -25,9 +25,9 @@ from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.powers import SigningPower
 from nucypher.policy.policies import Policy
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware, NodeIsDownMiddleware
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
+from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
+from tests.utils.ursula import make_federated_ursulas, make_decentralized_ursulas
 
 
 def test_new_federated_ursula_announces_herself(ursula_federated_test_config):

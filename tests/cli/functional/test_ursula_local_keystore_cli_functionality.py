@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.token import StakeList
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
-from nucypher.utilities.sandbox.constants import (
+from tests.utils.constants import (
     MOCK_IP_ADDRESS,
     TEST_PROVIDER_URI,
     MOCK_URSULA_STARTING_PORT,

@@ -186,7 +186,7 @@ def handle_client_account_for_staking(emitter: StdoutEmitter,
     return client_account, staking_address
 
 
-def select_network(emitter) -> str:
+def select_network(emitter: StdoutEmitter) -> str:
     headers = ["Network"]
     rows = [[n] for n in NetworksInventory.NETWORKS]
     emitter.echo(tabulate(rows, headers=headers, showindex='always'))

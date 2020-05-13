@@ -38,7 +38,7 @@ from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgen
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.policy.policies import Policy
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain
+from tests.utils.blockchain import TesterBlockchain
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 

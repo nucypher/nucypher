@@ -1,8 +1,6 @@
 from functools import partial
 
-import pytest
-
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+from tests.utils.ursula import make_federated_ursulas
 
 def test_learner_learns_about_domains_separately(ursula_federated_test_config, caplog):
         lonely_ursula_maker = partial(make_federated_ursulas,

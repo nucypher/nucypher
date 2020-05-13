@@ -24,7 +24,7 @@ from nucypher.blockchain.eth.actors import Staker, Investigator
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.signing import SignatureStamp
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 def mock_ursula(testerchain, account, mocker):

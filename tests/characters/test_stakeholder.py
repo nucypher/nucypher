@@ -5,8 +5,7 @@ import pytest
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.config.characters import StakeHolderConfiguration
-from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 def test_software_stakeholder_configuration(testerchain,

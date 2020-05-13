@@ -27,8 +27,8 @@ from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.policy.collections import Revocation, PolicyCredential
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.middleware import MockRestMiddleware
 
 
 @pytest.mark.usefixtures('blockchain_ursulas')

@@ -17,7 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import random
 
 import datetime
-import json
 import maya
 import os
 import pytest
@@ -65,8 +64,8 @@ from nucypher.datastore import datastore
 from nucypher.datastore.db import Base
 from nucypher.policy.collections import IndisputableEvidence, WorkOrder
 from nucypher.utilities.logging import GlobalLoggerSettings
-from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
-from nucypher.utilities.sandbox.constants import (
+from tests.utils.blockchain import token_airdrop, TesterBlockchain
+from tests.utils.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
     MIN_STAKE_FOR_TESTS,
@@ -80,11 +79,11 @@ from nucypher.utilities.sandbox.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     TEST_GAS_LIMIT,
 )
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-from nucypher.utilities.sandbox.middleware import MockRestMiddlewareForLargeFleetTests
-from nucypher.utilities.sandbox.policy import generate_random_label
-from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+from tests.utils.middleware import MockRestMiddleware
+from tests.utils.middleware import MockRestMiddlewareForLargeFleetTests
+from tests.utils.policy import generate_random_label
+from tests.utils.ursula import make_decentralized_ursulas
+from tests.utils.ursula import make_federated_ursulas
 from tests.mock.interfaces import make_mock_registry_source_manager, MockBlockchain
 from tests.performance_mocks import (
     mock_cert_storage,

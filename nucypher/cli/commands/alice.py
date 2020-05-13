@@ -62,7 +62,7 @@ from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
+from tests.utils.constants import TEMPORARY_DOMAIN
 
 option_bob_verifying_key = click.option(
     '--bob-verifying-key',

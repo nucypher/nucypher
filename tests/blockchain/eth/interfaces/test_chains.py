@@ -24,8 +24,8 @@ from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler, SourceDirs
 from nucypher.crypto.powers import TransactingPower
 # Prevents TesterBlockchain to be picked up by py.test as a test class
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
-from nucypher.utilities.sandbox.constants import (
+from tests.utils.blockchain import TesterBlockchain as _TesterBlockchain
+from tests.utils.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,

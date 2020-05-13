@@ -3,9 +3,8 @@ from decimal import InvalidOperation, Decimal
 import pytest
 from web3 import Web3
 
-from nucypher.blockchain.economics import StandardTokenEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.token import NU, Stake
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 def test_NU(token_economics):

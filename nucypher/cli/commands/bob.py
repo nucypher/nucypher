@@ -35,7 +35,7 @@ from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.config.characters import BobConfiguration
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
+from tests.utils.constants import TEMPORARY_DOMAIN
 
 
 class BobConfigOptions:

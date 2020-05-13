@@ -23,10 +23,10 @@ from umbral.cfrags import CapsuleFrag
 from umbral.kfrags import KFrag
 
 from nucypher.crypto.kits import PolicyMessageKit
-from nucypher.utilities.sandbox.middleware import NodeIsDownMiddleware
+from tests.utils.middleware import NodeIsDownMiddleware
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from tests.utils.constants import TEMPORARY_DOMAIN
+from tests.utils.middleware import MockRestMiddleware
 
 
 def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_policy, federated_bob):

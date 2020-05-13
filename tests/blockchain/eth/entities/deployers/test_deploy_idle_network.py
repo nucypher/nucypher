@@ -14,7 +14,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
@@ -28,8 +27,8 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                AdjudicatorDeployer,
                                                BaseContractDeployer)
 from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.sandbox.blockchain import token_airdrop
-from nucypher.utilities.sandbox.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.blockchain import token_airdrop
+from tests.utils.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.mark.slow()

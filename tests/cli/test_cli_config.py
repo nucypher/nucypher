@@ -7,7 +7,7 @@ from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration, UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS
-from nucypher.utilities.sandbox.constants import (
+from tests.utils.constants import (
     TEMPORARY_DOMAIN,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH,

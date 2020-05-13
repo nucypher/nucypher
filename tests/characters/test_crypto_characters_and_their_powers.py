@@ -31,7 +31,7 @@ from nucypher.crypto.powers import (CryptoPower,
                                     SigningPower,
                                     NoSigningPower,
                                     TransactingPower)
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 """
 Chapter 1: SIGNING

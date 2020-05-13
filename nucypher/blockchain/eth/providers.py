@@ -92,7 +92,7 @@ def _get_auto_provider(provider_uri):
 
 
 def _get_pyevm_test_backend() -> PyEVMBackend:
-    from nucypher.utilities.sandbox.constants import PYEVM_GAS_LIMIT, NUMBER_OF_ETH_TEST_ACCOUNTS
+    from tests.utils.constants import PYEVM_GAS_LIMIT, NUMBER_OF_ETH_TEST_ACCOUNTS
 
     # Initialize
     genesis_params = PyEVMBackend._generate_genesis_params(overrides={'gas_limit': PYEVM_GAS_LIMIT})

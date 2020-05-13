@@ -184,7 +184,7 @@ def wrap_option(handler, **options):
 
 def process_middleware(mock_networking):
     from nucypher.network.middleware import RestMiddleware
-    from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+    from tests.utils.middleware import MockRestMiddleware
     if mock_networking:
         middleware = MockRestMiddleware()
     else:

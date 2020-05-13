@@ -37,7 +37,7 @@ from nucypher.blockchain.eth.token import NU, Stake, StakeList
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.utilities.sandbox.constants import (
+from tests.utils.constants import (
     TEST_PROVIDER_URI,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_IP_ADDRESS,
@@ -48,7 +48,7 @@ from nucypher.utilities.sandbox.constants import (
     MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
     ONE_YEAR_IN_SECONDS
 )
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from tests.utils.middleware import MockRestMiddleware
 
 #
 # This test module is intended to mirror tests/cli/ursula/test_stakeholder_and_ursula.py,

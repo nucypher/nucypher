@@ -19,18 +19,15 @@ from cryptography.x509 import Certificate
 from typing import Set, List, Iterable, Optional
 
 from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.blockchain.eth.token import WorkTracker
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.sandbox.constants import (
+from tests.utils.constants import (
     MOCK_KNOWN_URSULAS_CACHE,
     MOCK_URSULA_STARTING_PORT,
     NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-    MOCK_URSULA_DB_FILEPATH, INSECURE_DEVELOPMENT_PASSWORD)
+    MOCK_URSULA_DB_FILEPATH
+)
 
 
 def make_federated_ursulas(ursula_config: UrsulaConfiguration,
@@ -46,14 +43,10 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
     federated_ursulas = set()
     for port in range(starting_port, starting_port+quantity):
 
-        ursula = ursula_config.produce(rest_port=port + 100,
-                                       db_filepath=MOCK_URSULA_DB_FILEPATH,
-                                       **ursula_overrides)
-
+        ursula = ursula_config.produce(rest_port=port + 100, db_filepath=MOCK_URSULA_DB_FILEPATH, **ursula_overrides)
         federated_ursulas.add(ursula)
 
         # Store this Ursula in our global testing cache.
-
         port = ursula.rest_interface.port
         MOCK_KNOWN_URSULAS_CACHE[port] = ursula
 

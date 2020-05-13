@@ -9,7 +9,7 @@ from nucypher.config.characters import FelixConfiguration, UrsulaConfiguration, 
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.network.nodes import Teacher
-from nucypher.utilities.sandbox.constants import (
+from tests.utils.constants import (
     TEMPORARY_DOMAIN,
     INSECURE_DEVELOPMENT_PASSWORD,
     TEST_PROVIDER_URI,

@@ -1,7 +1,7 @@
 from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
 from hendrix.experience import crosstown_traffic
 from hendrix.utils.test_utils import crosstownTaskListDecoratorFactory
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+from tests.utils.ursula import make_federated_ursulas
 from functools import partial
 
 

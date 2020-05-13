@@ -12,8 +12,8 @@ from nucypher.characters.base import Character
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import FleetStateTracker, Learner
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_ursula_for_staker
+from tests.utils.middleware import MockRestMiddleware
+from tests.utils.ursula import make_federated_ursulas, make_ursula_for_staker
 
 
 def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mocker):

@@ -2,12 +2,10 @@ import inspect
 import json
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
-from typing import Callable
 
 import maya
 from flask import Response, Flask
 from hendrix.deploy.base import HendrixDeploy
-from marshmallow import Schema
 from twisted.internet import reactor, stdio
 from twisted.logger import Logger
 
@@ -16,7 +14,7 @@ from nucypher.characters.control.interfaces import CharacterPublicInterface
 from nucypher.characters.control.specifications.exceptions import SpecificationError
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.cli.processes import JSONRPCLineReceiver
-from nucypher.utilities.controllers import JSONRPCTestClient
+from tests.utils.controllers import JSONRPCTestClient
 
 
 class CharacterControllerBase(ABC):

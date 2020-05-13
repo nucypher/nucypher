@@ -21,7 +21,7 @@ import pytest_twisted as pt
 from twisted.internet.threads import deferToThread
 
 from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+from tests.utils.ursula import make_federated_ursulas
 
 
 def test_proper_seed_node_instantiation(ursula_federated_test_config):

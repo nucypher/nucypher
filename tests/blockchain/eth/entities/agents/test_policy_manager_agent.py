@@ -14,17 +14,17 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
+
 
 import collections
 
+import os
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import is_checksum_address, to_wei
+from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
 
-from nucypher.blockchain.eth.agents import PolicyManagerAgent, ContractAgency
-from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent
 from tests.fixtures import FEE_RATE_RANGE
 
 MockPolicyMetadata = collections.namedtuple('MockPolicyMetadata', 'policy_id author addresses')

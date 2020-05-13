@@ -16,30 +16,30 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import os
 import random
 from unittest import mock
 
 import maya
+import os
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from tests.utils.constants import (INSECURE_DEVELOPMENT_PASSWORD,
+                                   MOCK_IP_ADDRESS,
+                                   MOCK_KNOWN_URSULAS_CACHE,
+                                   MOCK_URSULA_STARTING_PORT,
+                                   TEMPORARY_DOMAIN,
+                                   TEST_PROVIDER_URI,
+                                   select_test_port
+)
 from twisted.logger import Logger
 
 from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.characters import UrsulaConfiguration, StakeHolderConfiguration
-from nucypher.utilities.sandbox.constants import (
-    MOCK_IP_ADDRESS,
-    TEST_PROVIDER_URI,
-    MOCK_URSULA_STARTING_PORT,
-    INSECURE_DEVELOPMENT_PASSWORD,
-    TEMPORARY_DOMAIN,
-    MOCK_KNOWN_URSULAS_CACHE,
-    select_test_port,
-)
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
 from tests.fixtures import FEE_RATE_RANGE
+from tests.utils.middleware import MockRestMiddleware
 
 
 @mock.patch('nucypher.config.characters.StakeHolderConfiguration.default_filepath', return_value='/non/existent/file')

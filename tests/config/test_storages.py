@@ -23,7 +23,7 @@ from nucypher.config.storages import (
     SQLiteForgetfulNodeStorage,
     TemporaryFileBasedNodeStorage,
     NodeStorage)
-from nucypher.utilities.sandbox.constants import (
+from tests.utils.constants import (
     MOCK_URSULA_DB_FILEPATH,
     MOCK_URSULA_STARTING_PORT)
 
