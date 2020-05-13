@@ -14,12 +14,15 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import random
+from unittest.mock import patch
 
 import maya
 import pytest
 import time
 from flask import Response
+
+from nucypher.utilities.sandbox.middleware import SluggishLargeFleetMiddleware
 from umbral.keys import UmbralPublicKey
 from unittest.mock import patch
 
@@ -48,7 +51,7 @@ This toolchain is not built for that scenario at this time, although it is not a
 
 After this, our "Learning Loop" does four other things in sequence which are not part of the offering of node discovery tooling alone:
 
-* Instantiation of an actual Node object (currently, an Ursula object) from node metadata.
+* Instantiation of an actual Node object (currently, an Ursula object) from node metadata.  TODO
 * Validation of the node's metadata (non-interactive; shows that the Node's public material is indeed signed by the wallet holder of its Staker).
 * Verification of the Node itself (interactive; shows that the REST server operating at the Node's interface matches the node's metadata).
 * Verification of the Stake (reads the blockchain; shows that the Node is sponsored by a Staker with sufficient Stake to support a Policy).
@@ -82,9 +85,11 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
         isinstance(u, Ursula) for u in highperf_mocked_alice.known_nodes) < 20  # We haven't instantiated many Ursulas.
     VerificationTracker.node_verifications = 0  # Cleanup
 
+_POLICY_PRESERVER = []
 
-@pytest.mark.parametrize('fleet_of_highperf_mocked_ursulas', [100], indirect=True)
-def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas, highperf_mocked_alice,
+@pytest.mark.parametrize('fleet_of_highperf_mocked_ursulas', [1000], indirect=True)
+def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
+                                            highperf_mocked_alice,
                                             highperf_mocked_bob):
     _umbral_pubkey_from_bytes = UmbralPublicKey.from_bytes
 
@@ -107,15 +112,24 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas, hi
                             highperf_mocked_bob, b"any label", m=20, n=30,
                             expiration=maya.when('next week'),
                             publish_treasure_map=False)
-    # TODO: Make some assertions about policy.
+    _POLICY_PRESERVER.append(policy)
+
     total_verified = sum(node.verified_node for node in highperf_mocked_alice.known_nodes)
     assert total_verified == 30
 
-    with patch('umbral.keys.UmbralPublicKey.__eq__', lambda *args, **kwargs: True), mock_metadata_validation:
-            try:
-                policy.publish_treasure_map(network_middleware=highperf_mocked_alice.network_middleware)
-            except Exception as e:
-                raise
 
+@pytest.mark.parametrize('fleet_of_highperf_mocked_ursulas', [1000], indirect=True)
 def test_mass_treasure_map_placement(highperf_mocked_alice):
-    assert False
+    """
+    Large-scale map placement with a middleware that simulates network latency.
+    """
+
+    highperf_mocked_alice.network_middleware = SluggishLargeFleetMiddleware()
+
+    policy = _POLICY_PRESERVER[0]
+    with patch('umbral.keys.UmbralPublicKey.__eq__', lambda *args, **kwargs: True), mock_metadata_validation:
+        try:
+            policy.publish_treasure_map(network_middleware=highperf_mocked_alice.network_middleware)
+        except Exception as e:
+            # Retained for convenient breakpointing during test reuns.
+            raise
