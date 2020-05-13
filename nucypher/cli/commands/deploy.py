@@ -20,44 +20,86 @@ import json
 import click
 import os
 from constant_sorrow import constants
-from constant_sorrow.constants import (
-    FULL
-)
+from constant_sorrow.constants import FULL
+from typing import Tuple
 
 from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
 from nucypher.blockchain.eth.agents import ContractAgency, MultiSigAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.registry import (BaseContractRegistry, GithubRegistrySource, InMemoryContractRegistry,
-                                              RegistrySourceManager)
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    GithubRegistrySource,
+    InMemoryContractRegistry,
+    RegistrySourceManager
+)
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.confirm import confirm_deployment
 from nucypher.cli.actions.select import select_client_account
-from nucypher.cli.actions.utils import establish_deployer_registry
+from nucypher.cli.actions.utils import (_pre_launch_warnings, ensure_config_root, establish_deployer_registry,
+                                        initialize_deployer_interface)
 from nucypher.cli.config import group_general_config
-from nucypher.cli.literature import CANNOT_OVERWRITE_REGISTRY, CONFIRM_BEGIN_UPGRADE, \
-    CONFIRM_BUILD_RETARGET_TRANSACTION, CONFIRM_LOCAL_REGISTRY_DESTRUCTION, CONFIRM_MANUAL_REGISTRY_DOWNLOAD, \
-    CONFIRM_NETWORK_ACTIVATION, CONFIRM_RETARGET, CONFIRM_SELECTED_ACCOUNT, CONFIRM_TOKEN_TRANSFER, \
-    CONTRACT_DEPLOYMENT_SERIES_BEGIN_ADVISORY, CONTRACT_IS_NOT_OWNABLE, DEPLOYER_ADDRESS_ZERO_ETH, DEPLOYER_BALANCE, \
-    DISPLAY_SENDER_TOKEN_BALANCE_BEFORE_TRANSFER, ETHERSCAN_FLAG_DISABLED_WARNING, ETHERSCAN_FLAG_ENABLED_WARNING, \
-    EXISTING_REGISTRY_FOR_DOMAIN, MINIMUM_POLICY_RATE_EXCEEDED_WARNING, NO_HARDWARE_WALLET_WARNING, \
-    PROMPT_FOR_ALLOCATION_DATA_FILEPATH, PROMPT_NEW_DEFAULT_VALUE_FOR_RANGE, PROMPT_NEW_MAXIMUM_RANGE_VALUE, \
-    PROMPT_NEW_MIN_RANGE_VALUE, PROMPT_NEW_OWNER_ADDRESS, PROMPT_RECIPIENT_CHECKSUM_ADDRESS, PROMPT_TOKEN_VALUE, \
-    REGISTRY_NOT_AVAILABLE, SELECT_DEPLOYER_ACCOUNT, SUCCESSFUL_REGISTRY_CREATION, SUCCESSFUL_REGISTRY_DOWNLOAD, \
-    SUCCESSFUL_RETARGET, SUCCESSFUL_RETARGET_TX_BUILT, SUCCESSFUL_SAVE_BATCH_DEPOSIT_RECEIPTS, \
-    SUCCESSFUL_SAVE_DEPLOY_RECEIPTS, SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL, SUCCESSFUL_UPGRADE, UNKNOWN_CONTRACT_NAME
-from nucypher.cli.options import (group_options, option_config_root, option_contract_name, option_etherscan,
-                                  option_force, option_hw_wallet, option_poa, option_provider_uri, option_signer_uri)
-from nucypher.cli.painting.deployment import paint_contract_deployment, paint_deployer_contract_inspection, \
-    paint_deployment_delay, paint_staged_deployment
+from nucypher.cli.literature import (
+    CANNOT_OVERWRITE_REGISTRY,
+    CONFIRM_BEGIN_UPGRADE,
+    CONFIRM_BUILD_RETARGET_TRANSACTION,
+    CONFIRM_LOCAL_REGISTRY_DESTRUCTION,
+    CONFIRM_MANUAL_REGISTRY_DOWNLOAD,
+    CONFIRM_NETWORK_ACTIVATION,
+    CONFIRM_RETARGET,
+    CONFIRM_SELECTED_ACCOUNT,
+    CONFIRM_TOKEN_TRANSFER,
+    CONTRACT_DEPLOYMENT_SERIES_BEGIN_ADVISORY,
+    CONTRACT_IS_NOT_OWNABLE,
+    DEPLOYER_ADDRESS_ZERO_ETH,
+    DEPLOYER_BALANCE,
+    DISPLAY_SENDER_TOKEN_BALANCE_BEFORE_TRANSFER,
+    EXISTING_REGISTRY_FOR_DOMAIN,
+    MINIMUM_POLICY_RATE_EXCEEDED_WARNING,
+    PROMPT_FOR_ALLOCATION_DATA_FILEPATH,
+    PROMPT_NEW_DEFAULT_VALUE_FOR_RANGE,
+    PROMPT_NEW_MAXIMUM_RANGE_VALUE,
+    PROMPT_NEW_MIN_RANGE_VALUE,
+    PROMPT_NEW_OWNER_ADDRESS,
+    PROMPT_RECIPIENT_CHECKSUM_ADDRESS,
+    PROMPT_TOKEN_VALUE,
+    REGISTRY_NOT_AVAILABLE,
+    SELECT_DEPLOYER_ACCOUNT,
+    SUCCESSFUL_REGISTRY_CREATION,
+    SUCCESSFUL_REGISTRY_DOWNLOAD,
+    SUCCESSFUL_RETARGET,
+    SUCCESSFUL_RETARGET_TX_BUILT,
+    SUCCESSFUL_SAVE_BATCH_DEPOSIT_RECEIPTS,
+    SUCCESSFUL_SAVE_DEPLOY_RECEIPTS,
+    SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL,
+    SUCCESSFUL_UPGRADE,
+    UNKNOWN_CONTRACT_NAME
+)
+from nucypher.cli.options import (
+    group_options,
+    option_config_root,
+    option_contract_name,
+    option_etherscan,
+    option_force,
+    option_hw_wallet,
+    option_poa,
+    option_provider_uri,
+    option_signer_uri
+)
+from nucypher.cli.painting.deployment import (
+    paint_contract_deployment,
+    paint_deployer_contract_inspection,
+    paint_deployment_delay,
+    paint_staged_deployment
+)
 from nucypher.cli.painting.help import echo_solidity_version
 from nucypher.cli.painting.multisig import paint_multisig_proposed_transaction
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE, WEI
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 option_deployer_address = click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 option_registry_infile = click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
@@ -70,60 +112,26 @@ option_ignore_deployed = click.option('--ignore-deployed', help="Ignore already 
 option_ignore_solidity_version = click.option('--ignore-solidity-check', help="Ignore solidity version compatibility check", is_flag=True)
 
 
-def _pre_launch_warnings(emitter, etherscan, hw_wallet):
-    if not hw_wallet:
-        emitter.echo(NO_HARDWARE_WALLET_WARNING, color='yellow')
-    if etherscan:
-        emitter.echo(ETHERSCAN_FLAG_ENABLED_WARNING, color='yellow')
-    else:
-        emitter.echo(ETHERSCAN_FLAG_DISABLED_WARNING, color='yellow')
-
-
-def _initialize_blockchain(poa, provider_uri, emitter, ignore_solidity_check, gas_strategy=None):
-    if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-        # Note: For test compatibility.
-        deployer_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
-                                                         poa=poa,
-                                                         ignore_solidity_check=ignore_solidity_check,
-                                                         gas_strategy=gas_strategy)
-
-        BlockchainInterfaceFactory.register_interface(interface=deployer_interface,
-                                                      sync=False,
-                                                      emitter=emitter)
-    else:
-        deployer_interface = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
-
-    deployer_interface.connect()
-    return deployer_interface
-
-
-def _ensure_config_root(config_root):
-    # Ensure config root exists, because we need a default place to put output files.
-    config_root = config_root or DEFAULT_CONFIG_ROOT
-    if not os.path.exists(config_root):
-        os.makedirs(config_root)
-
-
 class ActorOptions:
 
     __option_name__ = 'actor_options'
 
     def __init__(self,
-                 provider_uri,
-                 deployer_address,
-                 contract_name,
-                 registry_infile,
-                 registry_outfile,
-                 hw_wallet,
-                 dev,
-                 force,
-                 poa,
-                 config_root,
-                 etherscan,
+                 provider_uri: str,
+                 deployer_address: str,
+                 contract_name: str,
+                 registry_infile: str,
+                 registry_outfile: str,
+                 hw_wallet: bool,
+                 dev: bool,
+                 force: bool,
+                 poa: bool,
+                 config_root: str,
+                 etherscan: bool,
                  se_test_mode,
                  ignore_solidity_check,
-                 gas_strategy,
-                 signer_uri
+                 gas_strategy: str,
+                 signer_uri: str
                  ):
 
         self.provider_uri = provider_uri
@@ -142,14 +150,17 @@ class ActorOptions:
         self.se_test_mode = se_test_mode
         self.ignore_solidity_check = ignore_solidity_check
 
-    def create_actor(self, emitter, is_multisig: bool = False):
+    def create_actor(self,
+                     emitter: StdoutEmitter,
+                     is_multisig: bool = False
+                     ) -> Tuple[ContractAdministrator, str, BlockchainInterface, BaseContractRegistry]:
 
-        _ensure_config_root(self.config_root)
-        deployer_interface = _initialize_blockchain(poa=self.poa,
-                                                    provider_uri=self.provider_uri,
-                                                    emitter=emitter,
-                                                    ignore_solidity_check=self.ignore_solidity_check,
-                                                    gas_strategy=self.gas_strategy)
+        ensure_config_root(self.config_root)
+        deployer_interface = initialize_deployer_interface(poa=self.poa,
+                                                           provider_uri=self.provider_uri,
+                                                           emitter=emitter,
+                                                           ignore_solidity_check=self.ignore_solidity_check,
+                                                           gas_strategy=self.gas_strategy)
 
         # Warnings
         _pre_launch_warnings(emitter, self.etherscan, self.hw_wallet)
@@ -219,7 +230,7 @@ group_actor_options = group_options(
     config_root=option_config_root,
     etherscan=option_etherscan,
     ignore_solidity_check=option_ignore_solidity_version
-    )
+)
 
 
 @click.group()
@@ -230,10 +241,7 @@ group_actor_options = group_options(
               expose_value=False,
               is_eager=True)
 def deploy():
-    """
-    Manage contract and registry deployment.
-    """
-    pass
+    """Manage contract and registry deployment."""
 
 
 @deploy.command(name='download-registry')
@@ -243,13 +251,11 @@ def deploy():
 @option_network
 @option_force
 def download_registry(general_config, config_root, registry_outfile, network, force):
-    """
-    Download the latest registry.
-    """
-    # Init
-    emitter = general_config.emitter
-    _ensure_config_root(config_root)
+    """Download the latest registry."""
 
+    # Setup
+    emitter = general_config.emitter
+    ensure_config_root(config_root)
     github_source = GithubRegistrySource(network=network, registry_name=BaseContractRegistry.REGISTRY_NAME)
     source_manager = RegistrySourceManager(sources=[github_source])
 
@@ -279,23 +285,19 @@ def download_registry(general_config, config_root, registry_outfile, network, fo
 @option_poa
 @option_ignore_solidity_version
 def inspect(general_config, provider_uri, config_root, registry_infile, deployer_address, poa, ignore_solidity_check):
-    """
-    Echo owner information and bare contract metadata.
-    """
-    # Init
+    """Echo owner information and bare contract metadata."""
     emitter = general_config.emitter
-    _ensure_config_root(config_root)
-    _initialize_blockchain(poa=poa,
-                           provider_uri=provider_uri,
-                           emitter=emitter,
-                           ignore_solidity_check=ignore_solidity_check)
-
+    ensure_config_root(config_root)
+    initialize_deployer_interface(poa=poa,
+                                  provider_uri=provider_uri,
+                                  emitter=emitter,
+                                  ignore_solidity_check=ignore_solidity_check)
     local_registry = establish_deployer_registry(emitter=emitter,
                                                  registry_infile=registry_infile,
                                                  download_registry=not bool(registry_infile))
-    paint_deployer_contract_inspection(emitter=emitter,
-                                       registry=local_registry,
-                                       deployer_address=deployer_address)
+    return paint_deployer_contract_inspection(emitter=emitter,
+                                              registry=local_registry,
+                                              deployer_address=deployer_address)
 
 
 @deploy.command()
@@ -369,15 +371,12 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
 @group_general_config
 @group_actor_options
 def rollback(general_config, actor_options):
-    """
-    Rollback a proxy contract's target.
-    """
+    """Rollback a proxy contract's target."""
     emitter = general_config.emitter
     ADMINISTRATOR, _, _, _ = actor_options.create_actor(emitter)
-
     if not actor_options.contract_name:
         raise click.BadArgumentUsage(message="--contract-name is required when using --rollback")
-    ADMINISTRATOR.rollback_contract(contract_name=actor_options.contract_name)
+    return ADMINISTRATOR.rollback_contract(contract_name=actor_options.contract_name)
 
 
 @deploy.command()
@@ -396,10 +395,7 @@ def rollback(general_config, actor_options):
               )
 @click.option('--activate', help="Activate a contract that is in idle mode", is_flag=True)
 def contracts(general_config, actor_options, mode, activate, gas, ignore_deployed, confirmations, parameters):
-    """
-    Compile and deploy contracts.
-    """
-    # Init
+    """Compile and deploy contracts."""
 
     emitter = general_config.emitter
     ADMINISTRATOR, _, deployer_interface, local_registry = actor_options.create_actor(emitter)
@@ -507,21 +503,16 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
 @option_gas
 def allocations(general_config, actor_options, allocation_infile, gas):
-    """
-    Deposit stake allocations in batches
-    """
+    """Deposit stake allocations in batches"""
     emitter = general_config.emitter
     ADMINISTRATOR, _, deployer_interface, local_registry = actor_options.create_actor(emitter)
-
     if not allocation_infile:
         allocation_infile = click.prompt(PROMPT_FOR_ALLOCATION_DATA_FILEPATH)
     receipts = ADMINISTRATOR.batch_deposits(allocation_data_filepath=allocation_infile,
                                             emitter=emitter,
                                             gas_limit=gas,
                                             interactive=not actor_options.force)
-
-    receipts_filepath = ADMINISTRATOR.save_deployment_receipts(receipts=receipts,
-                                                               filename_prefix='batch_deposits')
+    receipts_filepath = ADMINISTRATOR.save_deployment_receipts(receipts=receipts, filename_prefix='batch_deposits')
     if emitter:
         emitter.echo(SUCCESSFUL_SAVE_BATCH_DEPOSIT_RECEIPTS.format(receipts_filepath=receipts_filepath), color='blue', bold=True)
 
@@ -532,9 +523,8 @@ def allocations(general_config, actor_options, allocation_infile, gas):
 @option_target_address
 @click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
 def transfer_tokens(general_config, actor_options, target_address, value):
-    """
-    Transfer tokens from contract's owner address to another address
-    """
+    """Transfer tokens from contract's owner address to another address"""
+
     emitter = general_config.emitter
     ADMINISTRATOR, deployer_address, _, local_registry = actor_options.create_actor(emitter)
 
@@ -552,7 +542,7 @@ def transfer_tokens(general_config, actor_options, target_address, value):
                                                  target_address=target_address)
     click.confirm(confirmation, abort=True)
     receipt = token_agent.transfer(amount=int(value), sender_address=deployer_address, target_address=target_address)
-    paint_receipt_summary(emitter=emitter, receipt=receipt)
+    return paint_receipt_summary(emitter=emitter, receipt=receipt)
 
 
 @deploy.command("transfer-ownership")
@@ -607,13 +597,11 @@ def set_range(general_config, actor_options, minimum, default, maximum):
     """
     emitter = general_config.emitter
     ADMINISTRATOR, _, _, _ = actor_options.create_actor(emitter)
-
     if not minimum:
         minimum = click.prompt(PROMPT_NEW_MIN_RANGE_VALUE, type=click.IntRange(min=0))
     if not default:
         default = click.prompt(PROMPT_NEW_DEFAULT_VALUE_FOR_RANGE, type=click.IntRange(min=minimum))
     if not maximum:
         maximum = click.prompt(PROMPT_NEW_MAXIMUM_RANGE_VALUE, type=click.IntRange(min=default))
-
     ADMINISTRATOR.set_min_reward_rate_range(minimum=minimum, default=default, maximum=maximum)
     emitter.echo(MINIMUM_POLICY_RATE_EXCEEDED_WARNING.format(minimum=minimum, maximum=maximum, default=default))

@@ -27,8 +27,7 @@ from nucypher.blockchain.eth.constants import (
     STAKING_ESCROW_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.utils import datetime_at_period
-from nucypher.characters.banners import NU_BANNER
-from nucypher.cli.actions.utils import connect_to_blockchain, get_registry
+from nucypher.cli.actions.utils import connect_to_blockchain, get_registry, setup_emitter
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -46,7 +45,7 @@ from nucypher.cli.painting.policies import paint_fee_rate_range
 from nucypher.cli.painting.staking import paint_stakers
 from nucypher.cli.painting.status import paint_contract_status, paint_locked_tokens_status
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
-from nucypher.cli.actions import
+
 
 class RegistryOptions:
 
@@ -61,7 +60,7 @@ class RegistryOptions:
         self.network = network
 
     def setup(self, general_config) -> tuple:
-        emitter = _setup_emitter(general_config)
+        emitter = setup_emitter(general_config)
         registry = get_registry(network=self.network, registry_filepath=self.registry_filepath)
         blockchain = connect_to_blockchain(emitter=emitter, provider_uri=self.provider_uri)
         return emitter, registry, blockchain
@@ -76,12 +75,6 @@ group_registry_options = group_options(
     network=option_network(),
     provider_uri=option_provider_uri(default=os.environ.get(NUCYPHER_ENVVAR_PROVIDER_URI)),
 )
-
-
-def _setup_emitter(general_config):
-    emitter = general_config.emitter
-    emitter.banner(NU_BANNER)
-    return emitter
 
 
 @click.group()

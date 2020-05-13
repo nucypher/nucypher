@@ -187,7 +187,7 @@ def test_cancel_bid(click_runner,
     mock_worklock_agent.assert_contract_calls(calls=expected_calls)
 
 
-@pytest.mark.skip
+@pytest.mark.skip  # TODO
 def test_post_initialization(click_runner,
                              mocker,
                              mock_worklock_agent,

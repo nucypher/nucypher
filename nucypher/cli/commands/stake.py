@@ -20,7 +20,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 from web3 import Web3
 
-from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.constants import MAX_UINT16
 from nucypher.blockchain.eth.events import EventRecord
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -29,29 +28,68 @@ from nucypher.blockchain.eth.token import NU, StakeList
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.config import get_or_update_configuration, handle_missing_configuration_file
-from nucypher.cli.actions.confirm import (confirm_enable_restaking, confirm_enable_restaking_lock,
-                                          confirm_enable_winding_down, confirm_large_stake, confirm_staged_stake)
+from nucypher.cli.actions.confirm import (
+    confirm_enable_restaking,
+    confirm_enable_restaking_lock,
+    confirm_enable_winding_down,
+    confirm_large_stake,
+    confirm_staged_stake
+)
 from nucypher.cli.actions.select import handle_client_account_for_staking, select_stake
+from nucypher.cli.actions.utils import setup_emitter
 from nucypher.cli.config import group_general_config
-from nucypher.cli.literature import (BONDING_DETAILS, BONDING_RELEASE_INFO, COLLECTING_ETH_REWARD,
-                                     COLLECTING_PREALLOCATION_REWARD, COLLECTING_TOKEN_REWARD,
-                                     CONFIRM_BROADCAST_STAKE_DIVIDE, CONFIRM_DISABLE_RESTAKING,
-                                     CONFIRM_DISABLE_WIND_DOWN, CONFIRM_NEW_MIN_POLICY_RATE, CONFIRM_PROLONG,
-                                     CONFIRM_WORKER_AND_STAKER_ADDRESSES_ARE_EQUAL, DETACH_DETAILS,
-                                     PERIOD_ADVANCED_WARNING, PROMPT_PROLONG_VALUE, PROMPT_STAKER_MIN_POLICY_RATE,
-                                     PROMPT_STAKE_DIVIDE_VALUE, PROMPT_STAKE_EXTEND_VALUE, PROMPT_WORKER_ADDRESS,
-                                     SUCCESSFUL_DETACH_WORKER, SUCCESSFUL_DISABLE_RESTAKING,
-                                     SUCCESSFUL_DISABLE_WIND_DOWN, SUCCESSFUL_ENABLE_RESTAKE_LOCK,
-                                     SUCCESSFUL_ENABLE_RESTAKING, SUCCESSFUL_ENABLE_WIND_DOWN,
-                                     SUCCESSFUL_NEW_STAKEHOLDER_CONFIG, SUCCESSFUL_SET_MIN_POLICY_RATE,
-                                     SUCCESSFUL_STAKE_DIVIDE, SUCCESSFUL_STAKE_PROLONG, SUCCESSFUL_WORKER_BONDING)
-from nucypher.cli.options import (group_options, option_config_file, option_config_root, option_event_name,
-                                  option_force, option_hw_wallet, option_light, option_network, option_poa,
-                                  option_provider_uri, option_registry_filepath, option_signer_uri,
-                                  option_staking_address)
+from nucypher.cli.literature import (
+    BONDING_DETAILS,
+    BONDING_RELEASE_INFO,
+    COLLECTING_ETH_REWARD,
+    COLLECTING_PREALLOCATION_REWARD,
+    COLLECTING_TOKEN_REWARD,
+    CONFIRM_BROADCAST_STAKE_DIVIDE,
+    CONFIRM_DISABLE_RESTAKING, CONFIRM_DISABLE_WIND_DOWN,
+    CONFIRM_NEW_MIN_POLICY_RATE,
+    CONFIRM_PROLONG,
+    CONFIRM_WORKER_AND_STAKER_ADDRESSES_ARE_EQUAL,
+    DETACH_DETAILS,
+    PERIOD_ADVANCED_WARNING,
+    PROMPT_PROLONG_VALUE,
+    PROMPT_STAKER_MIN_POLICY_RATE,
+    PROMPT_STAKE_DIVIDE_VALUE,
+    PROMPT_STAKE_EXTEND_VALUE,
+    PROMPT_WORKER_ADDRESS,
+    SUCCESSFUL_DETACH_WORKER,
+    SUCCESSFUL_DISABLE_RESTAKING, SUCCESSFUL_DISABLE_WIND_DOWN,
+    SUCCESSFUL_ENABLE_RESTAKE_LOCK,
+    SUCCESSFUL_ENABLE_RESTAKING,
+    SUCCESSFUL_ENABLE_WIND_DOWN,
+    SUCCESSFUL_NEW_STAKEHOLDER_CONFIG,
+    SUCCESSFUL_SET_MIN_POLICY_RATE,
+    SUCCESSFUL_STAKE_DIVIDE,
+    SUCCESSFUL_STAKE_PROLONG,
+    SUCCESSFUL_WORKER_BONDING
+)
+from nucypher.cli.options import (
+    group_options,
+    option_config_file,
+    option_config_root,
+    option_event_name,
+    option_force,
+    option_hw_wallet,
+    option_light,
+    option_network,
+    option_poa,
+    option_provider_uri,
+    option_registry_filepath,
+    option_signer_uri,
+    option_staking_address
+)
 from nucypher.cli.painting.policies import paint_min_rate
-from nucypher.cli.painting.staking import paint_staged_stake, paint_staged_stake_division, paint_stakes, \
-    paint_staking_accounts, paint_staking_confirmation
+from nucypher.cli.painting.staking import (
+    paint_staged_stake,
+    paint_staged_stake_division,
+    paint_stakes,
+    paint_staking_accounts,
+    paint_staking_confirmation
+)
 from nucypher.cli.painting.status import paint_preallocation_status
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import (
@@ -64,14 +102,6 @@ from nucypher.config.characters import StakeHolderConfiguration
 option_value = click.option('--value', help="Token value of stake", type=click.INT)
 option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
 option_worker_address = click.option('--worker-address', help="Address to bond as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
-
-
-def _setup_emitter(general_config):
-    # Banner
-    emitter = general_config.emitter
-    emitter.banner(StakeHolder.banner)
-
-    return emitter
 
 
 class StakeHolderConfigOptions:
@@ -161,14 +191,9 @@ class StakerOptions:
 
     def create_character(self, emitter, config_file, initial_address=None, *args, **kwargs):
         stakeholder_config = self.config_options.create_config(emitter, config_file)
-
         if initial_address is None:
             initial_address = self.staking_address
-
-        return stakeholder_config.produce(
-            initial_address=initial_address,
-            *args, **kwargs
-        )
+        return stakeholder_config.produce(initial_address=initial_address, *args, **kwargs)
 
     def get_blockchain(self):
         return BlockchainInterfaceFactory.get_interface(provider_uri=self.config_options.provider_uri)  # Eager connection
@@ -253,10 +278,7 @@ group_transacting_staker_options = group_options(
 
 @click.group()
 def stake():
-    """
-    Manage stakes and other staker-related operations.
-    """
-    pass
+    """Manage stakes and other staker-related operations."""
 
 
 @stake.command(name='init-stakeholder')
@@ -266,10 +288,11 @@ def stake():
 @group_general_config
 def init_stakeholder(general_config, config_root, force, config_options):
     """Create a new stakeholder configuration."""
-    emitter = _setup_emitter(general_config)
+    emitter = setup_emitter(general_config)
     new_stakeholder = config_options.generate_config(config_root)
     filepath = new_stakeholder.to_configuration_file(override=force)
     emitter.echo(SUCCESSFUL_NEW_STAKEHOLDER_CONFIG.format(filepath=filepath), color='green')
+    return  # Exit
 
 
 @stake.command()
@@ -278,7 +301,7 @@ def init_stakeholder(general_config, config_root, force, config_options):
 @group_config_options
 def config(general_config, config_file, config_options):
     """View and optionally update existing StakeHolder's configuration."""
-    emitter = _setup_emitter(general_config)
+    emitter = setup_emitter(general_config)
     configuration_file_location = config_file or StakeHolderConfiguration.default_filepath()
     emitter.echo(f"StakeHolder Configuration {configuration_file_location} \n {'='*55}")
     return get_or_update_configuration(emitter=emitter,
@@ -293,12 +316,11 @@ def config(general_config, config_file, config_options):
 @click.option('--all', help="List all stakes, including inactive", is_flag=True)
 @group_general_config
 def list_stakes(general_config, staker_options, config_file, all):
-    """
-    List active stakes for current stakeholder.
-    """
-    emitter = _setup_emitter(general_config)
+    """List active stakes for current stakeholder."""
+    emitter = setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
     paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER, paint_inactive=all)
+    return  # Exit
 
 
 @stake.command()
@@ -306,12 +328,11 @@ def list_stakes(general_config, staker_options, config_file, all):
 @option_config_file
 @group_general_config
 def accounts(general_config, staker_options, config_file):
-    """
-    Show ETH and NU balances for stakeholder's accounts.
-    """
-    emitter = _setup_emitter(general_config)
+    """Show ETH and NU balances for stakeholder's accounts."""
+    emitter = setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
     paint_staking_accounts(emitter=emitter, wallet=STAKEHOLDER.wallet, registry=STAKEHOLDER.registry)
+    return  # Exit
 
 
 @stake.command('bond-worker')
@@ -321,14 +342,11 @@ def accounts(general_config, staker_options, config_file):
 @group_general_config
 @option_worker_address
 def bond_worker(general_config, transacting_staker_options, config_file, force, worker_address):
-    """
-    Bond a worker to a staker.
-    """
-    emitter = _setup_emitter(general_config)
+    """Bond a worker to a staker."""
 
+    emitter = setup_emitter(general_config)
     STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
     blockchain = transacting_staker_options.get_blockchain()
-
     economics = STAKEHOLDER.economics
 
     client_account, staking_address = handle_client_account_for_staking(
@@ -376,6 +394,7 @@ def bond_worker(general_config, transacting_staker_options, config_file, force, 
                           transaction_type='bond_worker')
     emitter.echo(BONDING_DETAILS.format(current_period=current_period, bonded_date=bonded_date), color='green')
     emitter.echo(BONDING_RELEASE_INFO.format(release_period=release_period, release_date=release_date), color='green')
+    return  # Exit
 
 
 @stake.command('unbond-worker')
@@ -387,7 +406,7 @@ def unbond_worker(general_config, transacting_staker_options, config_file, force
     """
     Unbond worker currently bonded to a staker.
     """
-    emitter = _setup_emitter(general_config)
+    emitter = setup_emitter(general_config)
 
     STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
     blockchain = transacting_staker_options.get_blockchain()
@@ -402,11 +421,8 @@ def unbond_worker(general_config, transacting_staker_options, config_file, force
         force=force)
 
     # TODO: Check preconditions (e.g., minWorkerPeriods)
-
     worker_address = STAKEHOLDER.staking_agent.get_worker_from_staker(staking_address)
-
     password = transacting_staker_options.get_password(blockchain, client_account)
-
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
     receipt = STAKEHOLDER.unbond_worker()
 
@@ -421,6 +437,7 @@ def unbond_worker(general_config, transacting_staker_options, config_file, force
                           chain_name=blockchain.client.chain_name,
                           transaction_type='unbond_worker')
     emitter.echo(DETACH_DETAILS.format(current_period=current_period, bonded_date=bonded_date), color='green')
+    return  # Exit
 
 
 @stake.command()
@@ -431,14 +448,12 @@ def unbond_worker(general_config, transacting_staker_options, config_file, force
 @option_lock_periods
 @group_general_config
 def create(general_config, transacting_staker_options, config_file, force, value, lock_periods):
-    """
-    Initialize a new stake.
-    """
-    emitter = _setup_emitter(general_config)
+    """Initialize a new stake."""
 
+    # Setup
+    emitter = setup_emitter(general_config)
     STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
     blockchain = transacting_staker_options.get_blockchain()
-
     economics = STAKEHOLDER.economics
 
     client_account, staking_address = handle_client_account_for_staking(
@@ -509,7 +524,7 @@ def create(general_config, transacting_staker_options, config_file, force, value
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
 
     new_stake = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods)
-    paint_staking_confirmation(emitter=emitter, staker=STAKEHOLDER, new_stake=new_stake)
+    return paint_staking_confirmation(emitter=emitter, staker=STAKEHOLDER, new_stake=new_stake)
 
 
 @stake.command()
@@ -520,11 +535,10 @@ def create(general_config, transacting_staker_options, config_file, force, value
 @option_force
 @group_general_config
 def restake(general_config, transacting_staker_options, config_file, enable, lock_until, force):
-    """
-    Manage re-staking with --enable or --disable.
-    """
-    emitter = _setup_emitter(general_config)
+    """Manage re-staking with --enable or --disable."""
 
+    # Setup
+    emitter = setup_emitter(general_config)
     STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
     blockchain = transacting_staker_options.get_blockchain()
 
@@ -537,7 +551,6 @@ def restake(general_config, transacting_staker_options, config_file, enable, loc
 
     # Authenticate
     password = transacting_staker_options.get_password(blockchain, client_account)
-
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
 
     # Inner Exclusive Switch
@@ -559,6 +572,7 @@ def restake(general_config, transacting_staker_options, config_file, enable, loc
         emitter.echo(SUCCESSFUL_DISABLE_RESTAKING.format(staking_address=staking_address), color='green', verbosity=1)
 
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
+    return  # Exit
 
 
 @stake.command()
@@ -569,12 +583,10 @@ def restake(general_config, transacting_staker_options, config_file, enable, loc
 @option_force
 @group_general_config
 def winddown(general_config, transacting_staker_options, config_file, enable, lock_until, force):
-    """
-    Manage winding down with --enable or --disable.
-    """
+    """Manage winding down with --enable or --disable."""
 
-    emitter = _setup_emitter(general_config)
-
+    # Setup
+    emitter = setup_emitter(general_config)
     STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
     blockchain = transacting_staker_options.get_blockchain()
 
@@ -587,7 +599,6 @@ def winddown(general_config, transacting_staker_options, config_file, enable, lo
 
     # Authenticate
     password = transacting_staker_options.get_password(blockchain, client_account)
-
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
 
     # Inner Exclusive Switch
@@ -603,6 +614,7 @@ def winddown(general_config, transacting_staker_options, config_file, enable, lo
         emitter.echo(SUCCESSFUL_DISABLE_WIND_DOWN.format(staking_address=staking_address), color='green', verbosity=1)
 
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
+    return  # Exit
 
 
 @stake.command()
@@ -614,12 +626,10 @@ def winddown(general_config, transacting_staker_options, config_file, enable, lo
 @click.option('--index', help="A specific stake index to resume", type=click.INT)
 @group_general_config
 def divide(general_config, transacting_staker_options, config_file, force, value, lock_periods, index):
-    """
-    Create a new stake from part of an existing one.
-    """
+    """Create a new stake from part of an existing one."""
 
     # Setup
-    emitter = _setup_emitter(general_config)
+    emitter = setup_emitter(general_config)
     STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
     blockchain = transacting_staker_options.get_blockchain()
     economics = STAKEHOLDER.economics
@@ -698,6 +708,7 @@ def divide(general_config, transacting_staker_options, config_file, force, value
 
     # Show the resulting stake list
     paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER)
+    return  # Exit
 
 
 @stake.command()
@@ -711,7 +722,7 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
     """Prolong an existing stake's duration."""
 
     # Setup
-    emitter = _setup_emitter(general_config)
+    emitter = setup_emitter(general_config)
     STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
     action_period = STAKEHOLDER.staking_agent.get_current_period()
     blockchain = transacting_staker_options.get_blockchain()
@@ -777,15 +788,17 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
 @click.option('--withdraw-address', help="Send fee collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
 @option_force
 @group_general_config
-def collect_reward(general_config, transacting_staker_options, config_file,
-                   staking_reward, policy_fee, withdraw_address, force):
-    """
-    Withdraw staking reward.
-    """
+def collect_reward(general_config,
+                   transacting_staker_options,
+                   config_file,
+                   staking_reward,
+                   policy_fee,
+                   withdraw_address,
+                   force):
+    """Withdraw staking reward."""
 
-    ### Setup ###
-    emitter = _setup_emitter(general_config)
-
+    # Setup
+    emitter = setup_emitter(general_config)
     STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
     blockchain = transacting_staker_options.get_blockchain()
 
@@ -818,7 +831,7 @@ def collect_reward(general_config, transacting_staker_options, config_file,
         paint_receipt_summary(receipt=policy_receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
                               emitter=emitter)
-
+    return  # Exit
 
 @stake.command()
 @click.argument('action', type=click.Choice(['status', 'withdraw']))
@@ -827,26 +840,20 @@ def collect_reward(general_config, transacting_staker_options, config_file,
 @option_force
 @group_general_config
 def preallocation(general_config, transacting_staker_options, config_file, action, force):
-    """
-    Claim token rewards collected by a preallocation contract.
-    """
+    """Claim token rewards collected by a preallocation contract."""
 
-    ### Setup ###
-    emitter = _setup_emitter(general_config)
-
+    # Setup
+    emitter = setup_emitter(general_config)
     STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
     blockchain = transacting_staker_options.get_blockchain()
 
     # Unauthenticated actions: status
-
     if action == 'status':
-        paint_preallocation_status(emitter=emitter,
-                                   token_agent=STAKEHOLDER.token_agent,
-                                   preallocation_agent=STAKEHOLDER.preallocation_escrow_agent)
-        return
+        return paint_preallocation_status(emitter=emitter,
+                                          token_agent=STAKEHOLDER.token_agent,
+                                          preallocation_agent=STAKEHOLDER.preallocation_escrow_agent)
 
     # Authenticated actions: withdraw-tokens
-
     client_account, staking_address = handle_client_account_for_staking(
         emitter=emitter,
         stakeholder=STAKEHOLDER,
@@ -854,9 +861,10 @@ def preallocation(general_config, transacting_staker_options, config_file, actio
         individual_allocation=STAKEHOLDER.individual_allocation,
         force=force)
 
+    # Authenticate
     password = transacting_staker_options.get_password(blockchain, client_account)
-
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+
     if action == 'withdraw':
         token_balance = NU.from_nunits(STAKEHOLDER.token_agent.get_balance(staking_address))
         locked_tokens = NU.from_nunits(STAKEHOLDER.preallocation_escrow_agent.unvested_tokens)
@@ -868,6 +876,7 @@ def preallocation(general_config, transacting_staker_options, config_file, actio
         paint_receipt_summary(receipt=receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
                               emitter=emitter)
+        return  # Exit
 
 
 @stake.command()
@@ -876,13 +885,10 @@ def preallocation(general_config, transacting_staker_options, config_file, actio
 @option_event_name
 @group_general_config
 def events(general_config, staker_options, config_file, event_name):
-    """
-    See blockchain events associated to a staker
-    """
+    """See blockchain events associated to a staker"""
 
-    ### Setup ###
-    emitter = _setup_emitter(general_config)
-
+    # Setup
+    emitter = setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
     blockchain = staker_options.get_blockchain()
 
@@ -910,6 +916,7 @@ def events(general_config, staker_options, config_file, event_name):
         entries = event_filter.get_all_entries()
         for event_record in entries:
             emitter.echo(f"  - {EventRecord(event_record)}")
+    return  # Exit
 
 
 @stake.command('set-min-rate')
@@ -919,11 +926,10 @@ def events(general_config, staker_options, config_file, event_name):
 @group_general_config
 @click.option('--min-rate', help="Minimum acceptable fee rate, set by staker", type=WEI)
 def set_min_rate(general_config, transacting_staker_options, config_file, force, min_rate):
-    """
-    Staker sets the minimum acceptable fee rate for their associated worker.
-    """
-    emitter = _setup_emitter(general_config)
+    """Staker sets the minimum acceptable fee rate for their associated worker."""
 
+    # Setup
+    emitter = setup_emitter(general_config)
     STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
     blockchain = transacting_staker_options.get_blockchain()
 
@@ -939,17 +945,15 @@ def set_min_rate(general_config, transacting_staker_options, config_file, force,
         # TODO check range
         min_rate = click.prompt(PROMPT_STAKER_MIN_POLICY_RATE, type=WEI)
     password = transacting_staker_options.get_password(blockchain, client_account)
-
     if not force:
         click.confirm(CONFIRM_NEW_MIN_POLICY_RATE.format(min_rate=min_rate), abort=True)
-
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
     receipt = STAKEHOLDER.set_min_fee_rate(min_rate=min_rate)
 
     # Report Success
     message = SUCCESSFUL_SET_MIN_POLICY_RATE.format(min_rate=min_rate, staking_address=staking_address)
     emitter.echo(message, color='green')
-    paint_receipt_summary(emitter=emitter,
-                          receipt=receipt,
-                          chain_name=blockchain.client.chain_name,
-                          transaction_type='set_min_rate')
+    return paint_receipt_summary(emitter=emitter,
+                                 receipt=receipt,
+                                 chain_name=blockchain.client.chain_name,
+                                 transaction_type='set_min_rate')

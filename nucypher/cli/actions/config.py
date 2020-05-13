@@ -26,9 +26,15 @@ from eth_utils.address import is_checksum_address
 from json.decoder import JSONDecodeError
 
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
-from nucypher.cli.literature import (CHARACTER_DESTRUCTION, CONFIRM_FORGET_NODES, INVALID_CONFIGURATION_FILE_WARNING,
-                                     INVALID_JSON_IN_CONFIGURATION_WARNING, SUCCESSFUL_DESTRUCTION,
-                                     SUCCESSFUL_FORGET_NODES, SUCCESSFUL_UPDATE_CONFIGURATION_VALUES)
+from nucypher.cli.literature import (
+    CHARACTER_DESTRUCTION,
+    CONFIRM_FORGET_NODES,
+    INVALID_CONFIGURATION_FILE_WARNING,
+    INVALID_JSON_IN_CONFIGURATION_WARNING,
+    SUCCESSFUL_DESTRUCTION,
+    SUCCESSFUL_FORGET_NODES,
+    SUCCESSFUL_UPDATE_CONFIGURATION_VALUES
+)
 from nucypher.config.characters import UrsulaConfiguration
 
 

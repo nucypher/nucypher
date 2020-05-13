@@ -29,34 +29,52 @@ from nucypher.blockchain.eth.agents import ContractAgency, WorkLockAgent
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import prettify_eth_amount
-from nucypher.characters.banners import WORKLOCK_BANNER
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.select import select_client_account
-from nucypher.cli.actions.utils import connect_to_blockchain, get_registry
+from nucypher.cli.actions.utils import connect_to_blockchain, get_registry, setup_emitter
 from nucypher.cli.config import group_general_config
-from nucypher.cli.literature import AVAILABLE_CLAIM_NOTICE, BIDDERS_ALREADY_VERIFIED, BIDDING_WINDOW_CLOSED, \
-    BIDS_VALID_NO_FORCE_REFUND_INDICATED, CLAIM_ALREADY_PLACED, COMPLETED_BID_VERIFICATION, CONFIRM_BID_VERIFICATION, \
-    CONFIRM_COLLECT_WORKLOCK_REFUND, CONFIRM_REQUEST_WORKLOCK_COMPENSATION, CONFIRM_WORKLOCK_CLAIM, \
-    PROMPT_BID_VERIFY_GAS_LIMIT, REQUESTING_WORKLOCK_COMPENSATION, SUBMITTING_WORKLOCK_CLAIM, \
-    SUBMITTING_WORKLOCK_REFUND_REQUEST, SUCCESSFUL_BID_CANCELLATION, WHALE_WARNING, \
-    WORKLOCK_ADDITIONAL_COMPENSATION_AVAILABLE, WORKLOCK_CLAIM_ADVISORY
-from nucypher.cli.options import (group_options, option_force, option_hw_wallet, option_network, option_provider_uri,
-                                  option_registry_filepath, option_signer_uri)
+from nucypher.cli.literature import (
+    AVAILABLE_CLAIM_NOTICE,
+    BIDDERS_ALREADY_VERIFIED,
+    BIDDING_WINDOW_CLOSED,
+    BIDS_VALID_NO_FORCE_REFUND_INDICATED,
+    CLAIM_ALREADY_PLACED,
+    COMPLETED_BID_VERIFICATION,
+    CONFIRM_BID_VERIFICATION,
+    CONFIRM_COLLECT_WORKLOCK_REFUND,
+    CONFIRM_REQUEST_WORKLOCK_COMPENSATION,
+    CONFIRM_WORKLOCK_CLAIM,
+    PROMPT_BID_VERIFY_GAS_LIMIT,
+    REQUESTING_WORKLOCK_COMPENSATION,
+    SUBMITTING_WORKLOCK_CLAIM,
+    SUBMITTING_WORKLOCK_REFUND_REQUEST,
+    SUCCESSFUL_BID_CANCELLATION,
+    WHALE_WARNING,
+    WORKLOCK_ADDITIONAL_COMPENSATION_AVAILABLE,
+    WORKLOCK_CLAIM_ADVISORY
+)
+from nucypher.cli.options import (
+    group_options,
+    option_force,
+    option_hw_wallet,
+    option_network,
+    option_provider_uri,
+    option_registry_filepath,
+    option_signer_uri
+)
 from nucypher.cli.painting.transactions import paint_receipt_summary
-from nucypher.cli.painting.worklock import paint_bidder_status, paint_bidding_notice, paint_worklock_claim, \
+from nucypher.cli.painting.worklock import (
+    paint_bidder_status,
+    paint_bidding_notice,
+    paint_worklock_claim,
     paint_worklock_status
+)
 from nucypher.cli.types import DecimalRange, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
 
 option_bidder_address = click.option('--bidder-address',
                                      help="Bidder's checksum address.",
                                      type=EIP55_CHECKSUM_ADDRESS)
-
-
-def _setup_emitter(general_config, network: str):
-    emitter = general_config.emitter
-    emitter.banner(WORKLOCK_BANNER.format(network))
-    return emitter
 
 
 class WorkLockOptions:
@@ -77,7 +95,7 @@ class WorkLockOptions:
         self.network = network
 
     def setup(self, general_config) -> tuple:
-        emitter = _setup_emitter(general_config, network=self.network.capitalize())
+        emitter = setup_emitter(general_config)   # TODO: Restore Banner:  network=self.network.capitalize()
         registry = get_registry(network=self.network, registry_filepath=self.registry_filepath)
         blockchain = connect_to_blockchain(emitter=emitter, provider_uri=self.provider_uri)
         return emitter, registry, blockchain
@@ -118,10 +136,7 @@ group_worklock_options = group_options(
 
 @click.group()
 def worklock():
-    """
-    Participate in NuCypher's WorkLock to obtain NU tokens
-    """
-    pass
+    """Participate in NuCypher's WorkLock to obtain NU tokens"""
 
 
 @worklock.command()

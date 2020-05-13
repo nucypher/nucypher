@@ -20,10 +20,18 @@ import click
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
 
 from nucypher.blockchain.eth.token import NU
-from nucypher.cli.literature import (ABORT_DEPLOYMENT, CONFIRM_ENABLE_RESTAKING, CONFIRM_ENABLE_WINDING_DOWN,
-                                     CONFIRM_LARGE_STAKE_DURATION, CONFIRM_LARGE_STAKE_VALUE, CONFIRM_RESTAKING_LOCK,
-                                     CONFIRM_STAGED_STAKE, RESTAKING_AGREEMENT, RESTAKING_LOCK_AGREEMENT,
-                                     WINDING_DOWN_AGREEMENT)
+from nucypher.cli.literature import (
+    ABORT_DEPLOYMENT,
+    CONFIRM_ENABLE_RESTAKING,
+    CONFIRM_ENABLE_WINDING_DOWN,
+    CONFIRM_LARGE_STAKE_DURATION,
+    CONFIRM_LARGE_STAKE_VALUE,
+    CONFIRM_RESTAKING_LOCK,
+    CONFIRM_STAGED_STAKE,
+    RESTAKING_AGREEMENT,
+    RESTAKING_LOCK_AGREEMENT,
+    WINDING_DOWN_AGREEMENT
+)
 
 
 def confirm_deployment(emitter, deployer_interface) -> bool:

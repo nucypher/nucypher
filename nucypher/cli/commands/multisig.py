@@ -17,11 +17,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import click
-import os
 
 from nucypher.blockchain.eth.actors import Executive, Trustee
 from nucypher.blockchain.eth.agents import ContractAgency, MultiSigAgent, NucypherTokenAgent
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.blockchain.eth.signers import ClefSigner
@@ -31,44 +30,29 @@ from nucypher.cli.actions.select import select_client_account
 from nucypher.cli.actions.utils import get_registry
 from nucypher.cli.commands.stake import option_signer_uri
 from nucypher.cli.config import group_general_config
-from nucypher.cli.literature import CONFIRM_EXECUTE_MULTISIG_TRANSACTION, MULTISIG_SIGNATURE_RECEIVED, \
-    PROMPT_CONFIRM_MULTISIG_SIGNATURE, PROMPT_FOR_RAW_SIGNATURE, PROMPT_NEW_MULTISIG_THRESHOLD, \
-    SUCCESSFUL_MULTISIG_AUTHORIZATION, SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL
-from nucypher.cli.options import (group_options, option_checksum_address, option_geth, option_hw_wallet, option_light,
-                                  option_network, option_poa, option_provider_uri, option_registry_filepath)
+from nucypher.cli.literature import (
+    CONFIRM_EXECUTE_MULTISIG_TRANSACTION,
+    MULTISIG_SIGNATURE_RECEIVED,
+    PROMPT_CONFIRM_MULTISIG_SIGNATURE,
+    PROMPT_FOR_RAW_SIGNATURE,
+    PROMPT_NEW_MULTISIG_THRESHOLD,
+    SUCCESSFUL_MULTISIG_AUTHORIZATION,
+    SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL
+)
+from nucypher.cli.options import (
+    group_options,
+    option_checksum_address,
+    option_geth,
+    option_hw_wallet,
+    option_light,
+    option_network,
+    option_poa,
+    option_provider_uri,
+    option_registry_filepath
+)
 from nucypher.cli.painting.multisig import paint_multisig_contract_info, paint_multisig_proposed_transaction
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import EXISTING_READABLE_FILE
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-
-
-def _setup_emitter(general_config):
-    emitter = general_config.emitter
-    return emitter
-
-
-def _initialize_blockchain(poa, provider_uri, emitter, gas_strategy=None):
-    if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-        # Note: For test compatibility.
-        deployer_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
-                                                         poa=poa,
-                                                         gas_strategy=gas_strategy)
-
-        BlockchainInterfaceFactory.register_interface(interface=deployer_interface,
-                                                      sync=False,
-                                                      emitter=emitter)
-    else:
-        deployer_interface = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
-
-    deployer_interface.connect()
-    return deployer_interface
-
-
-def _ensure_config_root(config_root):
-    # Ensure config root exists, because we need a default place to put output files.
-    config_root = config_root or DEFAULT_CONFIG_ROOT
-    if not os.path.exists(config_root):
-        os.makedirs(config_root)
 
 
 # TODO: Same option group in nucypher status (called RegistryOptions). Make something generic
@@ -179,29 +163,20 @@ group_multisig_options = group_options(
 
 @click.group()
 def multisig():
-    """
-    Perform operations on NuCypher contracts via a MultiSig
-    """
-    pass
+    """Perform operations on NuCypher contracts via a MultiSig"""
 
 
 @multisig.command()
 @group_general_config
 @group_blockchain_options
 def inspect(general_config, blockchain_options):
-    """
-    Show information of the MultiSig contract
-    """
-    # Init
+    """Show information of the MultiSig contract"""
     emitter = general_config.emitter
     _blockchain = blockchain_options.connect_blockchain(emitter, general_config.debug)
     registry = get_registry(network=blockchain_options.network)
-
     multisig_agent = ContractAgency.get_agent(MultiSigAgent, registry=registry)
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
-
-    paint_multisig_contract_info(emitter, multisig_agent, token_agent)
-    return
+    return paint_multisig_contract_info(emitter, multisig_agent, token_agent)
 
 
 @multisig.command()
@@ -209,9 +184,7 @@ def inspect(general_config, blockchain_options):
 @group_blockchain_options
 @group_multisig_options
 def propose(general_config, blockchain_options, multisig_options):
-    """
-    Create a proposal of MultiSig transaction
-    """
+    """Create a proposal of MultiSig transaction"""
     # TODO: Extend this command to cover this list of proposals
     #  - Add new MultiSig owner
     #  - Remove MultiSig owner

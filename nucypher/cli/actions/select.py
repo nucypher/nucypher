@@ -32,10 +32,19 @@ from nucypher.blockchain.eth.registry import InMemoryContractRegistry, Individua
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.cli.actions.config import extract_checksum_address_from_filepath
-from nucypher.cli.literature import (GENERIC_SELECT_ACCOUNT, IS_THIS_CORRECT, NO_CONFIGURATIONS_ON_DISK,
-                                     NO_DIVISIBLE_STAKES, NO_ETH_ACCOUNTS, NO_STAKES_FOUND,
-                                     ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE, PREALLOCATION_STAKE_ADVISORY,
-                                     SELECT_NETWORK, SELECT_STAKE, SELECT_STAKING_ACCOUNT_INDEX)
+from nucypher.cli.literature import (
+    GENERIC_SELECT_ACCOUNT,
+    IS_THIS_CORRECT,
+    NO_CONFIGURATIONS_ON_DISK,
+    NO_DIVISIBLE_STAKES,
+    NO_ETH_ACCOUNTS,
+    NO_STAKES_FOUND,
+    ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE,
+    PREALLOCATION_STAKE_ADVISORY,
+    SELECT_NETWORK,
+    SELECT_STAKE,
+    SELECT_STAKING_ACCOUNT_INDEX
+)
 from nucypher.cli.painting.staking import paint_stakes
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ADDRESS
 

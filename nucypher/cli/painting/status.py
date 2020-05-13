@@ -17,8 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from collections import Counter
-from typing import List
 
+import maya
+from typing import List
 from web3.main import Web3
 
 from nucypher.blockchain.eth.agents import AdjudicatorAgent, ContractAgency, NucypherTokenAgent, PolicyManagerAgent, \
@@ -27,6 +28,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import prettify_eth_amount
+from nucypher.network.nicknames import nickname_from_seed
 
 
 def paint_contract_status(registry, emitter):

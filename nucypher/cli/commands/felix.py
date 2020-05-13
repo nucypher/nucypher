@@ -1,13 +1,39 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
+
 import click
 import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
-from nucypher.characters.banners import FELIX_BANNER
-from nucypher.cli.actions.auth import get_client_password, get_nucypher_password, unlock_nucypher_keyring
+from nucypher.cli.actions.auth import (
+    get_client_password,
+    get_nucypher_password,
+    unlock_nucypher_keyring
+)
 from nucypher.cli.actions.config import destroy_configuration, get_provider_process, handle_missing_configuration_file
+from nucypher.cli.actions.utils import setup_emitter
 from nucypher.cli.config import group_general_config
-from nucypher.cli.literature import CONFIRM_OVERWRITE_DATABASE, FELIX_RUN_MESSAGE, SUCCESSFUL_DATABASE_CREATION, \
+from nucypher.cli.literature import (
+    CONFIRM_OVERWRITE_DATABASE,
+    FELIX_RUN_MESSAGE,
+    SUCCESSFUL_DATABASE_CREATION,
     SUCCESSFUL_DATABASE_DESTRUCTION
+)
 from nucypher.cli.options import (
     group_options,
     option_checksum_address,
@@ -39,9 +65,17 @@ class FelixConfigOptions:
 
     __option_name__ = 'config_options'
 
-    def __init__(
-            self, geth, dev, network, provider_uri, host,
-            db_filepath, checksum_address, registry_filepath, poa, port):
+    def __init__(self,
+                 geth,
+                 dev,
+                 network,
+                 provider_uri,
+                 host,
+                 db_filepath,
+                 checksum_address,
+                 registry_filepath,
+                 poa,
+                 port):
 
         eth_node = NO_BLOCKCHAIN_CONNECTION
         if geth:
@@ -105,7 +139,7 @@ group_config_options = group_options(
     registry_filepath=option_registry_filepath,
     poa=option_poa,
     port=option_port,
-    )
+)
 
 
 class FelixCharacterOptions:
@@ -150,15 +184,12 @@ group_character_options = group_options(
     teacher_uri=option_teacher_uri,
     min_stake=option_min_stake,
     middleware=option_middleware,
-    )
+)
 
 
 @click.group()
 def felix():
-    """
-    "Felix the Faucet" management commands.
-    """
-    pass
+    """"Felix the Faucet" management commands."""
 
 
 @felix.command()
@@ -167,14 +198,10 @@ def felix():
 @option_discovery_port(default=FelixConfiguration.DEFAULT_LEARNER_PORT)
 @group_config_options
 def init(general_config, config_options, config_root, discovery_port):
-    """
-    Create a brand-new Felix.
-    """
-    emitter = _setup_emitter(general_config, config_options.checksum_address)
-
+    """Create a brand-new Felix."""
+    emitter = setup_emitter(general_config=general_config, banner=config_options.checksum_address)
     if not config_root:  # Flag
         config_root = DEFAULT_CONFIG_ROOT  # Envvar or init-only default
-
     try:
         new_felix_config = config_options.generate_config(config_root, discovery_port)
     except Exception as e:
@@ -183,8 +210,6 @@ def init(general_config, config_options, config_root, discovery_port):
         else:
             emitter.echo(str(e), color='red', bold=True)
             raise click.Abort
-
-    # Paint Help
     paint_new_installation_help(emitter, new_configuration=new_felix_config)
 
 
@@ -194,10 +219,8 @@ def init(general_config, config_options, config_root, discovery_port):
 @option_force
 @group_general_config
 def destroy(general_config, config_options, config_file, force):
-    """
-    Destroy Felix Configuration.
-    """
-    emitter = _setup_emitter(general_config, config_options.checksum_address)
+    """Destroy Felix Configuration."""
+    emitter = setup_emitter(general_config, config_options.checksum_address)
     felix_config = config_options.create_config(emitter, config_file)
     destroy_configuration(emitter, character_config=felix_config, force=force)
 
@@ -208,19 +231,14 @@ def destroy(general_config, config_options, config_file, force):
 @option_force
 @group_general_config
 def createdb(general_config, character_options, config_file, force):
-    """
-    Create Felix DB.
-    """
-    emitter = _setup_emitter(general_config, character_options.config_options.checksum_address)
-
+    """Create Felix DB."""
+    emitter = setup_emitter(general_config, character_options.config_options.checksum_address)
     FELIX = character_options.create_character(emitter, config_file, general_config.debug)
-
     if os.path.isfile(FELIX.db_filepath):
         if not force:
             click.confirm(CONFIRM_OVERWRITE_DATABASE, abort=True)
         os.remove(FELIX.db_filepath)
         emitter.echo(SUCCESSFUL_DATABASE_DESTRUCTION.format(path=FELIX.db_filepath))
-
     FELIX.create_tables()
     emitter.echo(SUCCESSFUL_DATABASE_CREATION.format(path=FELIX.db_filepath), color='green')
 
@@ -230,13 +248,9 @@ def createdb(general_config, character_options, config_file, force):
 @option_config_file
 @group_general_config
 def view(general_config, character_options, config_file):
-    """
-    View Felix token balance.
-    """
-    emitter = _setup_emitter(general_config, character_options.config_options.checksum_address)
-
+    """View Felix token balance."""
+    emitter = setup_emitter(general_config, character_options.config_options.checksum_address)
     FELIX = character_options.create_character(emitter, config_file, general_config.debug)
-
     token_balance = FELIX.token_balance
     eth_balance = FELIX.eth_balance
     emitter.echo(f"""
@@ -251,13 +265,9 @@ def view(general_config, character_options, config_file):
 @option_config_file
 @group_general_config
 def accounts(general_config, character_options, config_file):
-    """
-    View Felix known accounts.
-    """
-    emitter = _setup_emitter(general_config, character_options.config_options.checksum_address)
-
+    """View Felix known accounts."""
+    emitter = setup_emitter(general_config, character_options.config_options.checksum_address)
     FELIX = character_options.create_character(emitter, config_file, general_config.debug)
-
     accounts = FELIX.blockchain.client.accounts
     for account in accounts:
         emitter.echo(account)
@@ -269,13 +279,9 @@ def accounts(general_config, character_options, config_file):
 @option_dry_run
 @group_general_config
 def run(general_config, character_options, config_file, dry_run):
-    """
-    Run Felix service.
-    """
-    emitter = _setup_emitter(general_config, character_options.config_options.checksum_address)
-
+    """Run Felix services."""
+    emitter = setup_emitter(general_config, character_options.config_options.checksum_address)
     FELIX = character_options.create_character(emitter, config_file, general_config.debug)
-
     host = character_options.config_options.host
     port = character_options.config_options.port
     emitter.message(FELIX_RUN_MESSAGE.format(host=host, port=port))
@@ -284,13 +290,3 @@ def run(general_config, character_options, config_file, dry_run):
                 web_services=not dry_run,
                 distribution=True,
                 crash_on_error=general_config.debug)
-
-
-def _setup_emitter(general_config, checksum_address):
-    emitter = general_config.emitter
-
-    # Intro
-    emitter.clear()
-    emitter.banner(FELIX_BANNER.format(checksum_address or ''))
-
-    return emitter

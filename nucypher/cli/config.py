@@ -28,7 +28,6 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 
 
 class GroupGeneralConfig:
-
     __option_name__ = 'general_config'
 
     verbosity = 0
@@ -40,15 +39,15 @@ class GroupGeneralConfig:
     log_to_file = get_env_bool("NUCYPHER_FILE_LOGS", True)
 
     def __init__(self,
-                 json_ipc,
-                 verbose,
-                 quiet,
-                 no_logs,
-                 console_logs,
-                 file_logs,
-                 sentry_logs,
-                 log_level,
-                 debug):
+                 json_ipc: bool,
+                 verbose: bool,
+                 quiet: bool,
+                 no_logs: bool,
+                 console_logs: bool,
+                 file_logs: bool,
+                 sentry_logs: bool,
+                 log_level: bool,
+                 debug: bool):
 
         self.log = Logger(self.__class__.__name__)
 
@@ -78,11 +77,9 @@ class GroupGeneralConfig:
             self.emitter.message("Verbose mode is enabled", color='blue')
 
         # Logging
-
         if debug and no_logs:
-            raise click.BadOptionUsage(
-                option_name="no-logs",
-                message="--debug and --no-logs cannot be used at the same time.")
+            message = "--debug and --no-logs cannot be used at the same time."
+            raise click.BadOptionUsage(option_name="no-logs", message=message)
 
         # Defaults
         if file_logs is None:
@@ -121,28 +118,39 @@ class GroupGeneralConfig:
 
 group_general_config = group_options(
     GroupGeneralConfig,
-    json_ipc=click.option('-J', '--json-ipc', help="Send all IPC output to stdout as JSON, and turn off the rest", is_flag=True),
+
     verbose=click.option('-v', '--verbose', help="Verbose console messages", is_flag=True),
     quiet=click.option('-Q', '--quiet', help="Disable console messages", is_flag=True),
     no_logs=click.option('-L', '--no-logs', help="Disable all logging output", is_flag=True),
-    console_logs=click.option('--console-logs/--no-console-logs',
-                  help="Enable/disable logging to console. "
-                       "Defaults to `--no-console-logs`.",
-                  default=False),
-    file_logs=click.option('--file-logs/--no-file-logs',
-                  help="Enable/disable logging to file. "
-                       "Defaults to NUCYPHER_FILE_LOGS, or to `--file-logs` if it is not set.",
-                  default=None),
-    sentry_logs=click.option('--sentry-logs/--no-sentry-logs',
-                  help="Enable/disable logging to Sentry. "
-                  "Defaults to NUCYPHER_SENTRY_LOGS, or to `--sentry-logs` if it is not set.",
-                  default=None),
-    log_level=click.option('--log-level', help="The log level for this process.  Is overridden by --debug.",
-                  type=click.Choice(['critical', 'error', 'warn', 'info', 'debug']),
-                  default='info'),
-    debug=click.option('-D', '--debug',
-                  help="Enable debugging mode, crashing on more exceptions instead of trying to recover. "
-                       "Also sets log level to \"debug\", turns on console and file logging "
-                       "and turns off Sentry logging.",
-                  is_flag=True),
-    )
+
+    json_ipc=click.option('-J', '--json-ipc',
+                          help="Send all IPC output to stdout as JSON, and turn off the rest",
+                          is_flag=True),
+
+    console_logs=click.option(
+        '--console-logs/--no-console-logs',
+        help="Enable/disable logging to console. Defaults to `--no-console-logs`.",
+        default=False),
+
+    file_logs=click.option(
+        '--file-logs/--no-file-logs',
+        help="Enable/disable logging to file. Defaults to NUCYPHER_FILE_LOGS, or to `--file-logs` if it is not set.",
+        default=None),
+
+    sentry_logs=click.option(
+        '--sentry-logs/--no-sentry-logs',
+        help="Enable/disable logging to Sentry. Defaults to NUCYPHER_SENTRY_LOGS, or to `--sentry-logs` if it is not set.",
+        default=None),
+
+    log_level=click.option(
+        '--log-level', help="The log level for this process.  Is overridden by --debug.",
+        type=click.Choice(['critical', 'error', 'warn', 'info', 'debug']),
+        default='info'),
+
+    debug=click.option(
+        '-D', '--debug',
+        help="Enable debugging mode, crashing on more exceptions instead of trying to recover. "
+             "Also sets log level to \"debug\", turns on console and file logging "
+             "and turns off Sentry logging.",
+        is_flag=True),
+)

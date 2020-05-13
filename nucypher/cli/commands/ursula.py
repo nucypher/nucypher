@@ -15,27 +15,52 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
+
+
 import click
 import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.utils import datetime_at_period
-from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
-from nucypher.cli.actions.config import (destroy_configuration, get_or_update_configuration, get_provider_process,
-                                         handle_missing_configuration_file)
+from nucypher.cli.actions.config import (
+    destroy_configuration,
+    get_or_update_configuration,
+    get_provider_process,
+    handle_missing_configuration_file
+)
 from nucypher.cli.actions.network import determine_external_ip_address
 from nucypher.cli.actions.select import select_client_account, select_config_file, select_network
-from nucypher.cli.actions.utils import make_cli_character
+from nucypher.cli.actions.utils import make_cli_character, setup_emitter
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
-from nucypher.cli.literature import CONFIRMING_ACTIVITY_NOW, DEVELOPMENT_MODE_WARNING, FORCE_MODE_WARNING, \
-    SUCCESSFUL_CONFIRM_ACTIVITY, SUCCESSFUL_MANUALLY_SAVE_METADATA
-from nucypher.cli.options import (group_options, option_config_file, option_config_root, option_db_filepath, option_dev,
-                                  option_dry_run, option_federated_only, option_force, option_geth, option_light,
-                                  option_min_stake, option_network, option_poa, option_provider_uri,
-                                  option_registry_filepath, option_signer_uri, option_teacher_uri)
+from nucypher.cli.literature import (
+    CONFIRMING_ACTIVITY_NOW,
+    DEVELOPMENT_MODE_WARNING,
+    FORCE_MODE_WARNING,
+    SUCCESSFUL_CONFIRM_ACTIVITY,
+    SUCCESSFUL_MANUALLY_SAVE_METADATA
+)
+from nucypher.cli.options import (
+    group_options,
+    option_config_file,
+    option_config_root,
+    option_db_filepath,
+    option_dev,
+    option_dry_run,
+    option_federated_only,
+    option_force,
+    option_geth,
+    option_light,
+    option_min_stake,
+    option_network,
+    option_poa,
+    option_provider_uri,
+    option_registry_filepath,
+    option_signer_uri,
+    option_teacher_uri
+)
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT
@@ -49,9 +74,22 @@ class UrsulaConfigOptions:
 
     __option_name__ = 'config_options'
 
-    def __init__(self, geth, provider_uri, worker_address, federated_only, rest_host,
-                 rest_port, db_filepath, network, registry_filepath, dev, poa, light,
-                 gas_strategy, signer_uri, availability_check):
+    def __init__(self,
+                 geth,
+                 provider_uri,
+                 worker_address,
+                 federated_only,
+                 rest_host,
+                 rest_port,
+                 db_filepath,
+                 network,
+                 registry_filepath,
+                 dev,
+                 poa,
+                 light,
+                 gas_strategy,
+                 signer_uri,
+                 availability_check):
 
         if federated_only:
             if geth:
@@ -247,14 +285,13 @@ group_character_options = group_options(
     config_options=group_config_options,
     lonely=click.option('--lonely', help="Do not connect to seednodes", is_flag=True),
     teacher_uri=option_teacher_uri,
-    min_stake=option_min_stake)
+    min_stake=option_min_stake
+)
 
 
 @click.group()
 def ursula():
-    """
-    "Ursula the Untrusted" PRE Re-encryption node management commands.
-    """
+    """"Ursula the Untrusted" PRE Re-encryption node management commands."""
 
 
 @ursula.command()
@@ -266,14 +303,14 @@ def init(general_config, config_options, force, config_root):
     """
     Create a new Ursula node configuration.
     """
-    emitter = _setup_emitter(general_config, config_options.worker_address)
+    emitter = setup_emitter(general_config, config_options.worker_address)
     _pre_launch_warnings(emitter, dev=None, force=force)
     if not config_root:
         config_root = general_config.config_root
     if not config_options.federated_only and not config_options.domains:  # TODO: Again, weird network/domains mapping. See UrsulaConfigOptions' constructor. #1580
         config_options.domains = {select_network(emitter)}
     ursula_config = config_options.generate_config(emitter, config_root, force)
-    paint_new_installation_help(emitter, new_configuration=ursula_config)
+    return paint_new_installation_help(emitter, new_configuration=ursula_config)
 
 
 @ursula.command()
@@ -285,14 +322,14 @@ def destroy(general_config, config_options, config_file, force):
     """
     Delete Ursula node configuration.
     """
-    emitter = _setup_emitter(general_config, config_options.worker_address)
+    emitter = setup_emitter(general_config, config_options.worker_address)
     _pre_launch_warnings(emitter, dev=config_options.dev, force=force)
     if not config_file:
         config_file = select_config_file(emitter=emitter,
                                          checksum_address=config_options.worker_address,
                                          config_class=UrsulaConfiguration)
     ursula_config = config_options.create_config(emitter, config_file)
-    destroy_configuration(emitter, character_config=ursula_config, force=force)
+    return destroy_configuration(emitter, character_config=ursula_config, force=force)
 
 
 @ursula.command()
@@ -300,13 +337,11 @@ def destroy(general_config, config_options, config_file, force):
 @option_config_file
 @group_general_config
 def forget(general_config, config_options, config_file):
-    """
-    Forget all known nodes.
-    """
-    emitter = _setup_emitter(general_config, config_options.worker_address)
+    """Forget all known nodes."""
+    emitter = setup_emitter(general_config, config_options.worker_address)
     _pre_launch_warnings(emitter, dev=config_options.dev, force=None)
     ursula_config = config_options.create_config(emitter, config_file)
-    forget(emitter, configuration=ursula_config)
+    return forget(emitter, configuration=ursula_config)
 
 
 @ursula.command()
@@ -321,7 +356,7 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
     """Run an "Ursula" node."""
 
     worker_address = character_options.config_options.worker_address
-    emitter = _setup_emitter(general_config, worker_address=worker_address)
+    emitter = setup_emitter(general_config)
     _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
 
     if not character_options.config_options.dev and not config_file:
@@ -329,11 +364,9 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
                                          checksum_address=worker_address,
                                          config_class=UrsulaConfiguration)
 
-    ursula_config, URSULA = character_options.create_character(
-            emitter=emitter,
-            config_file=config_file,
-            json_ipc=general_config.json_ipc
-    )
+    ursula_config, URSULA = character_options.create_character(emitter=emitter,
+                                                               config_file=config_file,
+                                                               json_ipc=general_config.json_ipc)
 
     return URSULA.run(emitter=emitter,
                       start_reactor=not dry_run,
@@ -346,10 +379,8 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
 @option_config_file
 @group_general_config
 def save_metadata(general_config, character_options, config_file):
-    """
-    Manually write node metadata to disk without running.
-    """
-    emitter = _setup_emitter(general_config, character_options.config_options.worker_address)
+    """Manually write node metadata to disk without running."""
+    emitter = setup_emitter(general_config, character_options.config_options.worker_address)
     _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
     _, URSULA = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
     metadata_path = URSULA.write_node_metadata(node=URSULA)
@@ -361,10 +392,8 @@ def save_metadata(general_config, character_options, config_file):
 @option_config_file
 @group_general_config
 def config(general_config, config_options, config_file):
-    """
-    View and optionally update the Ursula node's configuration.
-    """
-    emitter = _setup_emitter(general_config, config_options.worker_address)
+    """View and optionally update the Ursula node's configuration."""
+    emitter = setup_emitter(general_config, config_options.worker_address)
     if not config_file:
         config_file = select_config_file(emitter=emitter,
                                          checksum_address=config_options.worker_address,
@@ -385,7 +414,7 @@ def commit_to_next_period(general_config, character_options, config_file):
     """Manually make a commitment to the next period."""
 
     # Setup
-    emitter = _setup_emitter(general_config, character_options.config_options.worker_address)
+    emitter = setup_emitter(general_config, character_options.config_options.worker_address)
     _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
     _, URSULA = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
 
@@ -404,15 +433,6 @@ def commit_to_next_period(general_config, character_options, config_file):
                           chain_name=URSULA.staking_agent.blockchain.client.chain_name)
 
     # TODO: Check CommitmentMade event (see #1193)
-
-
-def _setup_emitter(general_config, worker_address):
-    # Banner
-    emitter = general_config.emitter
-    emitter.clear()
-    emitter.banner(URSULA_BANNER.format(worker_address or ''))
-
-    return emitter
 
 
 def _pre_launch_warnings(emitter, dev, force):

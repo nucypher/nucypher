@@ -27,6 +27,13 @@ def echo_version(ctx, param, value):
     ctx.exit()
 
 
+def echo_solidity_version(ctx, param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    click.secho(f"Supported solidity version: {SOLIDITY_COMPILER_VERSION}", bold=True)
+    ctx.exit()
+
+
 def paint_new_installation_help(emitter, new_configuration):
     character_config_class = new_configuration.__class__
     character_name = character_config_class.NAME.lower()
@@ -54,10 +61,3 @@ def paint_new_installation_help(emitter, new_configuration):
     how_to_run_message = f"\nTo run {adjective} {character_name.capitalize()} node from the default configuration filepath run: \n\n'{suggested_command}'\n"
 
     emitter.echo(how_to_run_message.format(suggested_command), color='green')
-
-
-def echo_solidity_version(ctx, param, value):
-    if not value or ctx.resilient_parsing:
-        return
-    click.secho(f"Supported solidity version: {SOLIDITY_COMPILER_VERSION}", bold=True)
-    ctx.exit()
