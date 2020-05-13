@@ -172,7 +172,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value + expected_rewards
 
 
-def test_collect_policy_reward(testerchain, agent, agency, token_economics, mock_transacting_power_activation):
+def test_collect_policy_fees(testerchain, agent, agency, token_economics, mock_transacting_power_activation):
     _token_agent, staking_agent, policy_agent = agency
     deployer_address, beneficiary_address, author, ursula, *everybody_else = testerchain.client.accounts
 

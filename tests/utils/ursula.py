@@ -53,9 +53,6 @@ def select_test_port() -> int:
         return port
 
 
-MOCK_URSULA_STARTING_PORT = select_test_port()
-
-
 def make_federated_ursulas(ursula_config: UrsulaConfiguration,
                            quantity: int = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                            know_each_other: bool = True,
@@ -69,10 +66,14 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
     federated_ursulas = set()
     for port in range(starting_port, starting_port+quantity):
 
-        ursula = ursula_config.produce(rest_port=port + 100, db_filepath=MOCK_URSULA_DB_FILEPATH, **ursula_overrides)
+        ursula = ursula_config.produce(rest_port=port + 100,
+                                       db_filepath=MOCK_URSULA_DB_FILEPATH,
+                                       **ursula_overrides)
+
         federated_ursulas.add(ursula)
 
         # Store this Ursula in our global testing cache.
+
         port = ursula.rest_interface.port
         MOCK_KNOWN_URSULAS_CACHE[port] = ursula
 
@@ -159,3 +160,4 @@ def start_pytest_ursula_services(ursula: Ursula) -> Certificate:
 
 
 MOCK_KNOWN_URSULAS_CACHE = dict()
+MOCK_URSULA_STARTING_PORT = select_test_port()

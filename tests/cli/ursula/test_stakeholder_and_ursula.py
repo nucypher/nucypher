@@ -30,12 +30,7 @@ from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.constants import (
-    INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_IP_ADDRESS,
-    TEST_PROVIDER_URI,
-)
-from tests.fixtures import FEE_RATE_RANGE
+from tests.constants import FEE_RATE_RANGE, INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, TEST_PROVIDER_URI
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT, select_test_port
 

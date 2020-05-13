@@ -31,7 +31,7 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import etherscan_url
 from nucypher.characters.banners import NU_BANNER
-from nucypher.cli.painting.policies import paint_min_reward_range
+from nucypher.cli.painting.policies import paint_fee_rate_range
 from nucypher.cli.painting.transactions import paint_receipt_summary
 
 
@@ -205,7 +205,7 @@ Registry  ................ {registry.filepath}
     try:
 
         policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
-        paint_min_reward_range(emitter, policy_agent)
+        paint_fee_rate_range(emitter, policy_agent)
         emitter.echo(sep, nl=False)
 
     except BaseContractRegistry.UnknownContract:
@@ -224,6 +224,6 @@ def paint_input_allocation_file(emitter, allocations) -> None:
     for address, substakes in allocations.items():
         amounts, periods = zip(*list(substakes))
         staker_deposit = NU.from_nunits(sum(amounts))
-        rows.append([address, staker_deposit, "\n".join([f"{NU.from_nunits(a)} for {p} periods" for a,p in substakes])])
+        rows.append([address, staker_deposit, "\n".join([f"{NU.from_nunits(a)} for {p} periods" for a, p in substakes])])
     emitter.echo(tabulate.tabulate(rows, headers=headers, tablefmt="fancy_grid"))  # newline
     emitter.echo()

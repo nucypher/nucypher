@@ -25,11 +25,19 @@ from twisted.logger import Logger
 from typing import Dict, Generator, List, Tuple, Union
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.constants import (ADJUDICATOR_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME,
-                                               ETH_ADDRESS_BYTE_LENGTH, MULTISIG_CONTRACT_NAME,
-                                               NUCYPHER_TOKEN_CONTRACT_NAME, NULL_ADDRESS, POLICY_MANAGER_CONTRACT_NAME,
-                                               PREALLOCATION_ESCROW_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME,
-                                               STAKING_INTERFACE_CONTRACT_NAME, STAKING_INTERFACE_ROUTER_CONTRACT_NAME)
+from nucypher.blockchain.eth.constants import (
+    ADJUDICATOR_CONTRACT_NAME,
+    DISPATCHER_CONTRACT_NAME,
+    ETH_ADDRESS_BYTE_LENGTH,
+    MULTISIG_CONTRACT_NAME,
+    NUCYPHER_TOKEN_CONTRACT_NAME,
+    NULL_ADDRESS,
+    POLICY_MANAGER_CONTRACT_NAME,
+    PREALLOCATION_ESCROW_CONTRACT_NAME,
+    STAKING_ESCROW_CONTRACT_NAME,
+    STAKING_INTERFACE_CONTRACT_NAME,
+    STAKING_INTERFACE_ROUTER_CONTRACT_NAME
+)
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.events import ContractEvents
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory

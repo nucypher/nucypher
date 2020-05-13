@@ -1,16 +1,14 @@
+
 """
 This file is part of nucypher.
-
 nucypher is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
-
 nucypher is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU Affero General Public License for more details.
-
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
@@ -25,9 +23,6 @@ from twisted.internet.protocol import connectionDone
 from twisted.internet.stdio import StandardIO
 from twisted.logger import Logger
 from twisted.protocols.basic import LineReceiver
-
-from nucypher.cli.painting.nodes import build_fleet_state_status, paint_known_nodes, paint_node_status
-from nucypher.cli.painting.staking import paint_stakes
 
 
 class UrsulaCommandProtocol(LineReceiver):
@@ -56,7 +51,7 @@ class UrsulaCommandProtocol(LineReceiver):
             'status': self.paintStatus,
             'known_nodes': self.paintKnownNodes,
             'fleet_state': self.paintFleetState,
-            # 'stakes': self.paintStakes,  # TODO: Paint stakes via ursula interactive console
+            # 'stakes': self.paintStakes,  # TODO
 
             # Blockchain Control
             # TODO #1970
@@ -93,6 +88,7 @@ class UrsulaCommandProtocol(LineReceiver):
         """
         Display a list of all known nucypher peers.
         """
+        from nucypher.cli.painting.nodes import paint_known_nodes
         paint_known_nodes(emitter=self.emitter, ursula=self.ursula)
 
     def paintStakes(self):
@@ -100,6 +96,7 @@ class UrsulaCommandProtocol(LineReceiver):
         Display a list of all active stakes.
         """
         if self.ursula.stakes:
+            from nucypher.cli.painting.staking import paint_stakes
             paint_stakes(self.emitter, stakes=self.ursula.stakes)
         else:
             self.emitter.echo("No active stakes.")
@@ -108,12 +105,14 @@ class UrsulaCommandProtocol(LineReceiver):
         """
         Display the current status of the attached Ursula node.
         """
+        from nucypher.cli.painting.nodes import paint_node_status
         paint_node_status(emitter=self.emitter, ursula=self.ursula, start_time=self.start_time)
 
     def paintFleetState(self):
         """
         Display information about the network-wide fleet state as the attached Ursula node sees it.
         """
+        from nucypher.cli.painting.nodes import build_fleet_state_status
         line = '{}'.format(build_fleet_state_status(ursula=self.ursula))
         self.emitter.echo(line)
 

@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import random
 
 import datetime
@@ -35,8 +37,14 @@ from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import StakeHolder, Staker
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
-from nucypher.blockchain.eth.deployers import (AdjudicatorDeployer, NucypherTokenDeployer, PolicyManagerDeployer,
-                                               StakingEscrowDeployer, StakingInterfaceDeployer, WorklockDeployer)
+from nucypher.blockchain.eth.deployers import (
+    AdjudicatorDeployer,
+    NucypherTokenDeployer,
+    PolicyManagerDeployer,
+    StakingEscrowDeployer,
+    StakingInterfaceDeployer,
+    WorklockDeployer
+)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
@@ -46,30 +54,51 @@ from nucypher.blockchain.eth.signers import Web3Signer
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Bob, Enrico
-from nucypher.config.characters import AliceConfiguration, BobConfiguration, StakeHolderConfiguration, \
+from nucypher.config.characters import (
+    AliceConfiguration,
+    BobConfiguration,
+    StakeHolderConfiguration,
     UrsulaConfiguration
+)
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.datastore import datastore
 from nucypher.datastore.db import Base
 from nucypher.policy.collections import IndisputableEvidence, WorkOrder
 from nucypher.utilities.logging import GlobalLoggerSettings
+from tests.constants import (
+    BONUS_TOKENS_FOR_TESTS,
+    DEVELOPMENT_ETH_AIRDROP_AMOUNT,
+    DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
+    FEE_RATE_RANGE,
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MIN_STAKE_FOR_TESTS,
+    MOCK_POLICY_DEFAULT_M,
+    MOCK_REGISTRY_FILEPATH,
+    NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+    TEST_GAS_LIMIT,
+    TEST_PROVIDER_URI
+)
 from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
-from tests.performance_mocks import (mock_cert_generation, mock_cert_loading, mock_cert_storage, mock_keep_learning,
-                                     mock_message_verification, mock_record_fleet_state, mock_remember_node,
-                                     mock_rest_app_creation, mock_secret_source, mock_verify_node)
+from tests.performance_mocks import (
+    mock_cert_generation,
+    mock_cert_loading,
+    mock_cert_storage,
+    mock_keep_learning,
+    mock_message_verification,
+    mock_record_fleet_state,
+    mock_remember_node,
+    mock_rest_app_creation,
+    mock_secret_source,
+    mock_verify_node
+)
 from tests.utils.blockchain import TesterBlockchain, token_airdrop
-from tests.constants import (BONUS_TOKENS_FOR_TESTS, DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-                             DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD, MIN_STAKE_FOR_TESTS,
-                             MOCK_POLICY_DEFAULT_M, MOCK_REGISTRY_FILEPATH, NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK, TEST_GAS_LIMIT,
-                             TEST_PROVIDER_URI)
-from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
 from tests.utils.policy import generate_random_label
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, make_decentralized_ursulas, make_federated_ursulas
 
 test_logger = Logger("test-logger")
-FEE_RATE_RANGE = (5, 10, 15)
 
 
 #

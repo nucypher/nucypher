@@ -28,11 +28,11 @@ from nucypher.cli.painting.transactions import paint_receipt_summary
 
 def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_address: str = None):
     headers = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination')
-    staker_headers = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees', 'Min reward rate')
+    staker_headers = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees', 'Min fee rate')
 
     stakers = stakeholder.get_stakers()
     if not stakers:
-        emitter.echo(NO_STAKING_ACCOUNTS)
+        emitter.echo("No staking accounts found.")
 
     total_stakers = 0
     for staker in stakers:
@@ -48,24 +48,24 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
         stakes = sorted(staker.stakes, key=lambda s: s.address_index_ordering_key)
         active_stakes = filter(lambda s: s.is_active, stakes)
         if not active_stakes:
-            emitter.echo(NO_ACTIVE_STAKES)
+            emitter.echo(f"There are no active stakes\n")
 
-        fees = staker.policy_agent.get_reward_amount(staker.checksum_address)
+        fees = staker.policy_agent.get_fee_amount(staker.checksum_address)
         pretty_fees = prettify_eth_amount(fees)
-        last_confirmed = staker.staking_agent.get_last_active_period(staker.checksum_address)
-        missing = staker.missing_confirmations
-        min_reward_rate = prettify_eth_amount(staker.min_reward_rate)
+        last_committed = staker.staking_agent.get_last_committed_period(staker.checksum_address)
+        missing = staker.missing_commitments
+        min_fee_rate = prettify_eth_amount(staker.min_fee_rate)
 
         if missing == -1:
-            missing_info = "Never Confirmed (New Stake)"
+            missing_info = "Never Made a Commitment (New Stake)"
         else:
-            missing_info = f'Missing {missing} confirmation{"s" if missing > 1 else ""}' if missing else f'Confirmed #{last_confirmed}'
+            missing_info = f'Missing {missing} commitments{"s" if missing > 1 else ""}' if missing else f'Committed #{last_committed}'
 
         staker_data = [missing_info,
                        f'{"Yes" if staker.is_restaking else "No"} ({"Locked" if staker.restaking_lock_enabled else "Unlocked"})',
                        "Yes" if bool(staker.is_winding_down) else "No",
                        pretty_fees,
-                       min_reward_rate]
+                       min_fee_rate]
 
         line_width = 54
         if staker.registry.source:  # TODO: #1580 - Registry source might be Falsy in tests.
@@ -86,7 +86,7 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
         emitter.echo(tabulate.tabulate(rows, headers=headers, tablefmt="fancy_grid"))  # newline
 
     if not total_stakers:
-        emitter.echo(NO_STAKES_AT_ALL, color='red')
+        emitter.echo("No Stakes found", color='red')
 
 
 def prettify_stake(stake, index: int = None) -> str:

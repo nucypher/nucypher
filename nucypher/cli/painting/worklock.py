@@ -14,35 +14,30 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import maya
 
 from nucypher.blockchain.eth.agents import ContractAgency, WorkLockAgent
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import prettify_eth_amount
+from nucypher.cli.literature import SUCCESSFUL_WORKLOCK_CLAIM, WORKLOCK_AGREEMENT
+
+
+def paint_bidding_notice(emitter, bidder):
+    WORKLOCK_AGREEMENT.format(refund_rate=prettify_eth_amount(bidder.worklock_agent.get_bonus_refund_rate()),
+                              end_date=maya.MayaDT(bidder.economics.bidding_end_date).local_datetime(),
+                              bidder_address=bidder.checksum_address,
+                              duration=bidder.economics.worklock_commitment_duration)
+    emitter.echo(WORKLOCK_AGREEMENT)
+    return
 
 
 def paint_worklock_claim(emitter, bidder_address: str, network: str, provider_uri: str):
-    message = f"""
-
-Successfully claimed WorkLock tokens for {bidder_address}.
-
-You can check that the stake was created correctly by running:
-
-  nucypher status stakers --staking-address {bidder_address} --network {network} --provider {provider_uri}
-
-Next Steps for WorkLock Winners
-===============================
-
-Congratulations! You're officially a Staker in the NuCypher network.
-
-See the official NuCypher documentation for a comprehensive guide on next steps!
-
-As a first step, you need to bond a worker to your stake by running:
-
-  nucypher stake set-worker --worker-address <WORKER ADDRESS>
-
-"""
+    message = SUCCESSFUL_WORKLOCK_CLAIM.format(bidder_address=bidder_address,
+                                               network=network, 
+                                               provider_uri=provider_uri)
     emitter.echo(message, color='green')
 
 
@@ -160,38 +155,4 @@ Remaining Work ....... {bidder.remaining_work}
 """
 
     emitter.echo(message)
-    return
-
-
-def paint_bidding_notice(emitter, bidder):
-
-    obligation = f"""
-* WorkLock Participant Notice *
--------------------------------
-
-- By participating in NuCypher's WorkLock you are committing to operating a staking
-  NuCypher node after the bidding window closes.
-
-- WorkLock token rewards are claimed in the form of a stake and will be locked for
-  the stake duration.
-
-- WorkLock ETH deposits will be available for refund at a rate of {prettify_eth_amount(bidder.worklock_agent.get_bonus_refund_rate())} 
-  per confirmed period. This rate may vary until {maya.MayaDT(bidder.economics.bidding_end_date).local_datetime()}.
-
-- Once claiming WorkLock tokens, you are obligated to maintain a networked and available
-  Ursula-Worker node bonded to the staker address {bidder.checksum_address}
-  for the duration of the stake(s) ({bidder.economics.worklock_commitment_duration} periods).
-
-- Allow NuCypher network users to carry out uninterrupted re-encryption work orders
-  at-will without interference. Failure to keep your node online, or violation of
-  re-encryption work orders will result in the loss of staked tokens as described
-  in the NuCypher slashing protocol.
-
-- Keeping your Ursula node online during the staking period and correctly servicing
-  re-encryption work orders will result in rewards paid out in ethers retro-actively
-  and on-demand.
-
-Accept WorkLock terms and node operator obligation?"""  # TODO: Show a special message for first bidder, since there's no refund rate yet?
-
-    emitter.echo(obligation)
     return

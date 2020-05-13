@@ -8,6 +8,7 @@ import maya
 
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 
@@ -17,7 +18,6 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 
 
 # Twisted Logger
-from tests.utils.constants import TEMPORARY_DOMAIN
 
 GlobalLoggerSettings.start_console_logging()
 

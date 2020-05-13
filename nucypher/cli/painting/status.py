@@ -154,12 +154,12 @@ def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> N
         tab = " " * len(staker)
 
         owned_tokens = staking_agent.owned_tokens(staker)
-        last_confirmed_period = staking_agent.get_last_active_period(staker)
+        last_committed_period = staking_agent.get_last_committed_period(staker)
         worker = staking_agent.get_worker_from_staker(staker)
         is_restaking = staking_agent.is_restaking(staker)
         is_winding_down = staking_agent.is_winding_down(staker)
 
-        missing_confirmations = current_period - last_confirmed_period
+        missing_commitments = current_period - last_committed_period
         owned_in_nu = round(NU.from_nunits(owned_tokens), 2)
         locked_tokens = round(NU.from_nunits(staking_agent.get_locked_tokens(staker)), 2)
 
@@ -174,25 +174,25 @@ def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> N
             emitter.echo(f"{tab}  {'Re-staking:':10} No")
         emitter.echo(f"{tab}  {'Winding down:':10} {'Yes' if is_winding_down else 'No'}")
         emitter.echo(f"{tab}  {'Activity:':10} ", nl=False)
-        if missing_confirmations == -1:
-            emitter.echo(f"Next period confirmed (#{last_confirmed_period})", color='green')
-        elif missing_confirmations == 0:
-            emitter.echo(f"Current period confirmed (#{last_confirmed_period}). "
-                         f"Pending confirmation of next period.", color='yellow')
-        elif missing_confirmations == current_period:
-            emitter.echo(f"Never confirmed activity", color='red')
+        if missing_commitments == -1:
+            emitter.echo(f"Next period committed (#{last_committed_period})", color='green')
+        elif missing_commitments == 0:
+            emitter.echo(f"Current period committed (#{last_committed_period}). "
+                         f"Pending commitment to next period.", color='yellow')
+        elif missing_commitments == current_period:
+            emitter.echo(f"Never made a commitment", color='red')
         else:
-            emitter.echo(f"Missing {missing_confirmations} confirmations "
-                         f"(last time for period #{last_confirmed_period})", color='red')
+            emitter.echo(f"Missing {missing_commitments} commitments "
+                         f"(last time for period #{last_committed_period})", color='red')
 
         emitter.echo(f"{tab}  {'Worker:':10} ", nl=False)
         if worker == NULL_ADDRESS:
-            emitter.echo(f"Worker not set", color='red')
+            emitter.echo(f"Worker not bonded", color='red')
         else:
             emitter.echo(f"{worker}")
 
-        fees = prettify_eth_amount(policy_agent.get_reward_amount(staker))
+        fees = prettify_eth_amount(policy_agent.get_fee_amount(staker))
         emitter.echo(f"{tab}  Unclaimed fees: {fees}")
 
-        min_rate = prettify_eth_amount(policy_agent.get_min_reward_rate(staker))
-        emitter.echo(f"{tab}  Min reward rate: {min_rate}")
+        min_rate = prettify_eth_amount(policy_agent.get_min_fee_rate(staker))
+        emitter.echo(f"{tab}  Min fee rate: {min_rate}")

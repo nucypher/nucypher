@@ -27,7 +27,6 @@ from nucypher.blockchain.eth.constants import (
     STAKING_ESCROW_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.utils import datetime_at_period
-from nucypher.cli.utils import connect_to_blockchain, get_registry, setup_emitter
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -42,8 +41,8 @@ from nucypher.cli.options import (
     option_staking_address,
 )
 from nucypher.cli.painting.policies import paint_fee_rate_range
-from nucypher.cli.painting.staking import paint_stakers
-from nucypher.cli.painting.status import paint_contract_status, paint_locked_tokens_status
+from nucypher.cli.painting.status import paint_contract_status, paint_locked_tokens_status, paint_stakers
+from nucypher.cli.utils import connect_to_blockchain, get_registry, setup_emitter
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
 
 
@@ -80,7 +79,6 @@ group_registry_options = group_options(
 @click.group()
 def status():
     """Echo a snapshot of live NuCypher Network metadata."""
-    pass
 
 
 @status.command()

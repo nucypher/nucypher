@@ -40,12 +40,6 @@ from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.confirm import confirm_deployment
 from nucypher.cli.actions.select import select_client_account
-from nucypher.cli.utils import (
-    deployer_pre_launch_warnings,
-    ensure_config_root,
-    establish_deployer_registry,
-    initialize_deployer_interface
-)
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
     CANNOT_OVERWRITE_REGISTRY,
@@ -65,9 +59,6 @@ from nucypher.cli.literature import (
     EXISTING_REGISTRY_FOR_DOMAIN,
     MINIMUM_POLICY_RATE_EXCEEDED_WARNING,
     PROMPT_FOR_ALLOCATION_DATA_FILEPATH,
-    PROMPT_NEW_DEFAULT_VALUE_FOR_RANGE,
-    PROMPT_NEW_MAXIMUM_RANGE_VALUE,
-    PROMPT_NEW_MIN_RANGE_VALUE,
     PROMPT_NEW_OWNER_ADDRESS,
     PROMPT_RECIPIENT_CHECKSUM_ADDRESS,
     PROMPT_TOKEN_VALUE,
@@ -104,6 +95,12 @@ from nucypher.cli.painting.help import echo_solidity_version
 from nucypher.cli.painting.multisig import paint_multisig_proposed_transaction
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE, WEI
+from nucypher.cli.utils import (
+    deployer_pre_launch_warnings,
+    ensure_config_root,
+    establish_deployer_registry,
+    initialize_deployer_interface
+)
 
 option_deployer_address = click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 option_registry_infile = click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
@@ -603,11 +600,13 @@ def set_range(general_config, actor_options, minimum, default, maximum):
     """
     emitter = general_config.emitter
     ADMINISTRATOR, _, _, _ = actor_options.create_actor(emitter)
+
     if not minimum:
-        minimum = click.prompt(PROMPT_NEW_MIN_RANGE_VALUE, type=click.IntRange(min=0))
+        minimum = click.prompt("Enter new minimum value for range", type=click.IntRange(min=0))
     if not default:
-        default = click.prompt(PROMPT_NEW_DEFAULT_VALUE_FOR_RANGE, type=click.IntRange(min=minimum))
+        default = click.prompt("Enter new default value for range", type=click.IntRange(min=minimum))
     if not maximum:
-        maximum = click.prompt(PROMPT_NEW_MAXIMUM_RANGE_VALUE, type=click.IntRange(min=default))
-    ADMINISTRATOR.set_min_reward_rate_range(minimum=minimum, default=default, maximum=maximum)
+        maximum = click.prompt("Enter new maximum value for range", type=click.IntRange(min=default))
+
+    ADMINISTRATOR.set_fee_rate_range(minimum=minimum, default=default, maximum=maximum)
     emitter.echo(MINIMUM_POLICY_RATE_EXCEEDED_WARNING.format(minimum=minimum, maximum=maximum, default=default))

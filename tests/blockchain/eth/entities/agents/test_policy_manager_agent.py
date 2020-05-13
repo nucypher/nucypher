@@ -22,11 +22,9 @@ import os
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import is_checksum_address, to_wei
-from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
-from tests.fixtures import FEE_RATE_RANGE
+from tests.constants import FEE_RATE_RANGE, INSECURE_DEVELOPMENT_PASSWORD
 
 MockPolicyMetadata = collections.namedtuple('MockPolicyMetadata', 'policy_id author addresses')
 
