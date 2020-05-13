@@ -20,6 +20,8 @@ from unittest.mock import patch
 import maya
 import pytest
 import time
+
+import pytest_twisted
 from flask import Response
 
 from nucypher.utilities.sandbox.middleware import SluggishLargeFleetMiddleware
@@ -118,8 +120,11 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
     assert total_verified == 30
 
 
+@pytest_twisted.inlineCallbacks
 @pytest.mark.parametrize('fleet_of_highperf_mocked_ursulas', [1000], indirect=True)
-def test_mass_treasure_map_placement(highperf_mocked_alice):
+def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
+                                     highperf_mocked_alice,
+                                     highperf_mocked_bob):
     """
     Large-scale map placement with a middleware that simulates network latency.
     """
@@ -129,7 +134,18 @@ def test_mass_treasure_map_placement(highperf_mocked_alice):
     policy = _POLICY_PRESERVER[0]
     with patch('umbral.keys.UmbralPublicKey.__eq__', lambda *args, **kwargs: True), mock_metadata_validation:
         try:
-            policy.publish_treasure_map(network_middleware=highperf_mocked_alice.network_middleware)
+            deferreds = policy.publish_treasure_map(network_middleware=highperf_mocked_alice.network_middleware)
         except Exception as e:
             # Retained for convenient breakpointing during test reuns.
             raise
+
+        yield deferreds
+
+    nodes_we_expect_to_have_the_map = highperf_mocked_bob.matching_nodes_among(highperf_mocked_alice.known_nodes)
+    nodes_that_actually_have_the_map = []
+
+    for ursula in fleet_of_highperf_mocked_ursulas:
+        if policy.treasure_map in list(ursula.treasure_maps.values()):
+            nodes_that_actually_have_the_map.append(ursula)
+
+    assert nodes_that_actually_have_the_map == nodes_we_expect_to_have_the_map
