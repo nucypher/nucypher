@@ -31,6 +31,7 @@ from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, IndividualAllocationRegistry
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU, Stake
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.config import extract_checksum_address_from_filepath
 from nucypher.cli.literature import (
     GENERIC_SELECT_ACCOUNT,
@@ -149,7 +150,7 @@ def select_client_account(emitter,
     return chosen_account
 
 
-def handle_client_account_for_staking(emitter,
+def handle_client_account_for_staking(emitter: StdoutEmitter,
                                       stakeholder,
                                       staking_address: str,
                                       individual_allocation: IndividualAllocationRegistry,
@@ -194,7 +195,7 @@ def select_network(emitter) -> str:
     return network
 
 
-def select_config_file(emitter,
+def select_config_file(emitter: StdoutEmitter,
                        config_class,
                        config_root: str = None,
                        checksum_address: str = None,

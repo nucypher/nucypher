@@ -31,6 +31,8 @@ from nucypher.blockchain.eth.interfaces import (
     BlockchainInterfaceFactory
 )
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry, LocalContractRegistry
+from nucypher.characters.base import Character
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import get_nucypher_password, unlock_nucypher_keyring
 from nucypher.cli.actions.network import load_seednodes
 from nucypher.cli.literature import (
@@ -45,7 +47,7 @@ from nucypher.cli.literature import (
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
-def setup_emitter(general_config, banner: str = None):
+def setup_emitter(general_config, banner: str = None) -> StdoutEmitter:
     emitter = general_config.emitter
     if banner:
         emitter.banner(banner)
@@ -58,7 +60,7 @@ def make_cli_character(character_config,
                        teacher_uri: str = None,
                        min_stake: int = 0,
                        load_preferred_teachers: bool = True,
-                       **config_args):
+                       **config_args) -> Character:
 
     #
     # Pre-Init
@@ -143,7 +145,6 @@ def establish_deployer_registry(emitter,
     # All Done.
     registry = LocalContractRegistry(filepath=registry_filepath)
     emitter.message(LOCAL_REGISTRY_ADVISORY.format(registry_filepath=registry_filepath))
-
     return registry
 
 
@@ -155,7 +156,11 @@ def get_registry(network: str, registry_filepath: str = None) -> BaseContractReg
     return registry
 
 
-def connect_to_blockchain(provider_uri, emitter, debug: bool = False, light: bool = False) -> BlockchainInterface:
+def connect_to_blockchain(emitter: StdoutEmitter, 
+                          provider_uri: str,
+                          debug: bool = False,
+                          light: bool = False
+                          ) -> BlockchainInterface:
     try:
         # Note: Conditional for test compatibility.
         if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
@@ -174,7 +179,13 @@ def connect_to_blockchain(provider_uri, emitter, debug: bool = False, light: boo
         raise click.Abort
 
 
-def initialize_deployer_interface(poa, provider_uri, emitter, ignore_solidity_check, gas_strategy=None):
+def initialize_deployer_interface(emitter: StdoutEmitter,
+                                  poa: bool,
+                                  provider_uri,
+                                  ignore_solidity_check: bool,
+                                  gas_strategy: str = None
+                                  ) -> BlockchainDeployerInterface:
+    
     if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
         deployer_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
                                                          poa=poa,
@@ -197,14 +208,14 @@ def get_env_bool(var_name: str, default: bool) -> bool:
         return default
 
 
-def ensure_config_root(config_root):
+def ensure_config_root(config_root: str) -> None:
     """Ensure config root exists, because we need a default place to put output files."""
     config_root = config_root or DEFAULT_CONFIG_ROOT
     if not os.path.exists(config_root):
         os.makedirs(config_root)
 
 
-def _pre_launch_warnings(emitter, etherscan, hw_wallet):
+def deployer_pre_launch_warnings(emitter: StdoutEmitter, etherscan: bool, hw_wallet: bool) -> None:
     if not hw_wallet:
         emitter.echo(NO_HARDWARE_WALLET_WARNING, color='yellow')
     if etherscan:

@@ -26,6 +26,7 @@ from eth_utils.address import is_checksum_address
 from json.decoder import JSONDecodeError
 
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
     CHARACTER_DESTRUCTION,
     CONFIRM_FORGET_NODES,
@@ -38,7 +39,10 @@ from nucypher.cli.literature import (
 from nucypher.config.characters import UrsulaConfiguration
 
 
-def get_or_update_configuration(emitter, config_class, filepath: str, config_options):
+def get_or_update_configuration(emitter: StdoutEmitter,
+                                config_class,
+                                filepath: str,
+                                config_options) -> None:
 
     try:
         config = config_class.from_configuration_file(filepath=filepath)
@@ -85,7 +89,11 @@ def forget(emitter, configuration):
     emitter.message(SUCCESSFUL_FORGET_NODES, color='red')
 
 
-def handle_missing_configuration_file(character_config_class, init_command_hint: str = None, config_file: str = None):
+def handle_missing_configuration_file(character_config_class,
+                                      init_command_hint: str = None,
+                                      config_file: str = None
+                                      ) -> None:
+
     config_file_location = config_file or character_config_class.default_filepath()
     init_command = init_command_hint or f"{character_config_class.NAME} init"
     message = f'No {character_config_class.NAME.capitalize()} configuration file found.\n' \
@@ -95,19 +103,16 @@ def handle_missing_configuration_file(character_config_class, init_command_hint:
     raise click.FileError(filename=config_file_location, hint=message)
 
 
-def get_provider_process(start_now: bool = False):
-
-    """
-    Stage integrated ethereum node process
+def get_provider_process(start_now: bool = False) -> NuCypherGethGoerliProcess:
+    """Stage integrated ethereum node process"""
     # TODO: Support domains and non-geth clients
-    """
     process = NuCypherGethGoerliProcess()
     if start_now:
         process.start()
     return process
 
 
-def extract_checksum_address_from_filepath(filepath, config_class=UrsulaConfiguration):
+def extract_checksum_address_from_filepath(filepath: str, config_class=UrsulaConfiguration) -> str:
 
     pattern = re.compile(r'''
                          (^\w+)-
