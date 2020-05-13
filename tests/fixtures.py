@@ -95,6 +95,8 @@ from tests.performance_mocks import mock_cert_storage, mock_cert_loading, mock_r
     mock_secret_source, mock_remember_node, mock_verify_node, mock_record_fleet_state, mock_message_verification, \
     mock_keep_learning
 
+from tests.products.fixtures import mock_treasuremap, mock_messagekit
+
 test_logger = Logger("test-logger")
 MIN_REWARD_RATE_RANGE = (5, 10, 15)
 
