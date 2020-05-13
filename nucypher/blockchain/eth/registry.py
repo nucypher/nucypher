@@ -14,19 +14,19 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import hashlib
 import json
+from json import JSONDecodeError
+from os.path import abspath, dirname
+
+import hashlib
 import os
+import requests
 import shutil
 import tempfile
 from abc import ABC, abstractmethod
-from json import JSONDecodeError
-from os.path import dirname, abspath
-from typing import Union, Iterator, List, Dict, Type, Tuple
-
-import requests
-from constant_sorrow.constants import REGISTRY_COMMITTED, NO_REGISTRY_SOURCE
+from constant_sorrow.constants import NO_REGISTRY_SOURCE, REGISTRY_COMMITTED
 from twisted.logger import Logger
+from typing import Dict, Iterator, List, Tuple, Type, Union
 
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.networks import NetworksInventory

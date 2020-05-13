@@ -17,31 +17,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from collections import OrderedDict
-from typing import Tuple, Dict, List
 
-from constant_sorrow.constants import (
-    CONTRACT_NOT_DEPLOYED,
-    NO_DEPLOYER_CONFIGURED,
-    NO_BENEFICIARY,
-    BARE,
-    IDLE,
-    FULL
-)
+from constant_sorrow.constants import (BARE, CONTRACT_NOT_DEPLOYED, FULL, IDLE, NO_BENEFICIARY, NO_DEPLOYER_CONFIGURED)
+from typing import Dict, List, Tuple
 from web3 import Web3
 from web3.contract import Contract
 
-from nucypher.blockchain.economics import StandardTokenEconomics, BaseEconomics
-from nucypher.blockchain.eth.agents import (
-    EthereumContractAgent,
-    StakingEscrowAgent,
-    NucypherTokenAgent,
-    PolicyManagerAgent,
-    PreallocationEscrowAgent,
-    AdjudicatorAgent,
-    WorkLockAgent,
-    MultiSigAgent,
-    ContractAgency
-)
+from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
+from nucypher.blockchain.eth.agents import (AdjudicatorAgent, ContractAgency, EthereumContractAgent, MultiSigAgent,
+                                            NucypherTokenAgent, PolicyManagerAgent, PreallocationEscrowAgent,
+                                            StakingEscrowAgent, WorkLockAgent)
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, NULL_ADDRESS, STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import (
@@ -49,8 +34,7 @@ from nucypher.blockchain.eth.interfaces import (
     BlockchainInterfaceFactory,
     VersionedContract,
 )
-from nucypher.blockchain.eth.registry import AllocationRegistry
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
 
 
 class BaseContractDeployer:

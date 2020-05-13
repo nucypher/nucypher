@@ -17,11 +17,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 
-from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
-                                               StakingEscrowDeployer,
-                                               PolicyManagerDeployer,
-                                               AdjudicatorDeployer,
-                                               StakingInterfaceDeployer)
+from nucypher.blockchain.eth.deployers import (AdjudicatorDeployer, NucypherTokenDeployer, PolicyManagerDeployer,
+                                               StakingEscrowDeployer, StakingInterfaceDeployer)
 
 
 @pytest.fixture(scope="module")

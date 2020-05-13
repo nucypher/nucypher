@@ -14,29 +14,23 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from pathlib import Path
-
 import json
+
 import os
 import pytest
 from eth_account import Account
+from pathlib import Path
 from web3 import Web3
 
 from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.token import StakeList
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from tests.utils.constants import (
-    MOCK_IP_ADDRESS,
-    TEST_PROVIDER_URI,
-    MOCK_URSULA_STARTING_PORT,
-    INSECURE_DEVELOPMENT_PASSWORD,
-    TEMPORARY_DOMAIN,
-)
-from tests.cli.functional.test_ursula_local_keystore_cli_functionality import (
-    NUMBER_OF_MOCK_ACCOUNTS,
-    KEYFILE_NAME_TEMPLATE, MOCK_SIGNER_URI, CLI_ENV, MOCK_KEYSTORE_PATH
-)
+from tests.cli.functional.test_ursula_local_keystore_cli_functionality import (CLI_ENV, KEYFILE_NAME_TEMPLATE,
+                                                                               MOCK_KEYSTORE_PATH, MOCK_SIGNER_URI,
+                                                                               NUMBER_OF_MOCK_ACCOUNTS)
+from tests.utils.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, MOCK_URSULA_STARTING_PORT,
+                                   TEMPORARY_DOMAIN, TEST_PROVIDER_URI)
 
 
 @pytest.fixture(scope='module')

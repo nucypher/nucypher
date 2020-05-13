@@ -14,9 +14,10 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from constant_sorrow.constants import UNKNOWN_SENDER, NOT_SIGNED
 from bytestring_splitter import BytestringKwargifier, VariableLengthBytestring
-from nucypher.crypto.splitters import key_splitter, capsule_splitter
+from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_SENDER
+
+from nucypher.crypto.splitters import capsule_splitter, key_splitter
 
 
 class CryptoKit:

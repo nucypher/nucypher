@@ -1,15 +1,11 @@
 import os
-
 import pytest
-from eth_utils import is_checksum_address
-from eth_utils import to_checksum_address
+from eth_utils import is_checksum_address, to_checksum_address
 
 from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface, \
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface, \
     BlockchainInterfaceFactory
 from nucypher.crypto.api import verify_eip_191
-
-
 #
 # NOTE: This module is skipped on CI
 #

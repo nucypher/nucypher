@@ -16,18 +16,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from cryptography.x509 import Certificate
-from typing import Set, List, Iterable, Optional
+from typing import Iterable, List, Optional, Set
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-from tests.utils.constants import (
-    MOCK_KNOWN_URSULAS_CACHE,
-    MOCK_URSULA_STARTING_PORT,
-    NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-    MOCK_URSULA_DB_FILEPATH
-)
+from tests.utils.constants import (MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_DB_FILEPATH, MOCK_URSULA_STARTING_PORT,
+                                   NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
 
 
 def make_federated_ursulas(ursula_config: UrsulaConfiguration,

@@ -4,14 +4,10 @@ from typing import Union
 
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.registry import (
-    CanonicalRegistrySource,
-    BaseContractRegistry,
-    IndividualAllocationRegistry,
-    RegistrySourceManager
-)
+from nucypher.blockchain.eth.registry import (BaseContractRegistry, CanonicalRegistrySource,
+                                              IndividualAllocationRegistry, RegistrySourceManager)
 from tests.utils.blockchain import TesterBlockchain
-from tests.utils.constants import TEMPORARY_DOMAIN, MOCK_PROVIDER_URI
+from tests.utils.constants import MOCK_PROVIDER_URI, TEMPORARY_DOMAIN
 
 
 def make_mock_registry_source_manager(blockchain, test_registry, mock_backend: bool = False):

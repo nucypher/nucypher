@@ -17,14 +17,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import base64
 import contextlib
 import json
-import os
 import stat
 from json import JSONDecodeError
 from os.path import abspath
-from typing import ClassVar, Tuple, Callable, Union, Dict, List
 
-from constant_sorrow.constants import FEDERATED_ADDRESS
-from constant_sorrow.constants import KEYRING_LOCKED
+import os
+from constant_sorrow.constants import FEDERATED_ADDRESS, KEYRING_LOCKED
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
@@ -40,17 +38,13 @@ from eth_utils import to_checksum_address
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
 from twisted.logger import Logger
-from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial, derive_key_from_password
+from typing import Callable, ClassVar, Dict, List, Tuple, Union
+from umbral.keys import UmbralKeyingMaterial, UmbralPrivateKey, UmbralPublicKey, derive_key_from_password
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_teacher_certificate
 from nucypher.crypto.constants import BLAKE2B
-from nucypher.crypto.powers import (
-    SigningPower,
-    DecryptingPower,
-    KeyPairBasedPower,
-    DerivedKeyBasedPower
-)
+from nucypher.crypto.powers import (DecryptingPower, DerivedKeyBasedPower, KeyPairBasedPower, SigningPower)
 from nucypher.network.server import TLSHostingPower
 
 FILE_ENCODING = 'utf-8'

@@ -19,28 +19,26 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import os
-import sys
+from os.path import abspath, dirname
 
 import io
+import os
 import re
-
+import sys
 import tabulate
 import time
-from os.path import abspath, dirname
+from twisted.logger import ILogObserver, Logger, globalLogPublisher, jsonFileLogObserver
+from umbral.keys import UmbralPrivateKey
+from umbral.signing import Signer
 from unittest.mock import Mock
-
-from twisted.logger import globalLogPublisher, Logger, jsonFileLogObserver, ILogObserver
 from zope.interface import provider
 
 from nucypher.blockchain.economics import StandardTokenEconomics
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent, AdjudicatorAgent
+from nucypher.blockchain.eth.agents import AdjudicatorAgent, NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.policy.policies import Policy
 from tests.utils.blockchain import TesterBlockchain
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
 
 # FIXME: Needed to use a fixture here, but now estimate_gas.py only runs if executed from main directory
 sys.path.insert(0, abspath('tests'))

@@ -18,16 +18,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 
-from nucypher.blockchain.eth.deployers import (
-    PreallocationEscrowDeployer,
-    StakingInterfaceDeployer,
-    StakingInterfaceRouterDeployer,
-    NucypherTokenDeployer,
-    StakingEscrowDeployer,
-    PolicyManagerDeployer,
-    AdjudicatorDeployer
-)
-from nucypher.crypto.api import keccak_digest
+from nucypher.blockchain.eth.deployers import (AdjudicatorDeployer, NucypherTokenDeployer, PolicyManagerDeployer,
+                                               PreallocationEscrowDeployer, StakingEscrowDeployer,
+                                               StakingInterfaceDeployer, StakingInterfaceRouterDeployer)
 
 preallocation_escrow_contracts = list()
 NUMBER_OF_PREALLOCATIONS = 50

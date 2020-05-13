@@ -16,9 +16,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import os
-
 import maya
+import os
 import pytest
 
 

@@ -16,10 +16,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import os
 from collections import namedtuple
 from os.path import abspath, dirname
 
+import os
 from appdirs import AppDirs
 
 import nucypher

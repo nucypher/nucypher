@@ -2,6 +2,7 @@ from functools import partial
 
 from tests.utils.ursula import make_federated_ursulas
 
+
 def test_learner_learns_about_domains_separately(ursula_federated_test_config, caplog):
         lonely_ursula_maker = partial(make_federated_ursulas,
                                       ursula_config=ursula_federated_test_config,

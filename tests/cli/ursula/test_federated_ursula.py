@@ -16,9 +16,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import os
 from json import JSONDecodeError
 
+import os
 import pytest
 
 from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION

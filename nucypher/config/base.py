@@ -1,11 +1,11 @@
 import json
+
 import os
 from abc import ABC, abstractmethod
-from typing import Union
-
 from constant_sorrow.constants import (
     UNKNOWN_VERSION
 )
+from typing import Union
 
 from nucypher.config import constants
 

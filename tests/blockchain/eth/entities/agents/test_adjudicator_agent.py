@@ -16,7 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
-
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 

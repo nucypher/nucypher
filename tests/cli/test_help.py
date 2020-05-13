@@ -20,7 +20,7 @@ import pytest
 
 import nucypher
 from nucypher.cli.commands.deploy import deploy
-from nucypher.cli.main import nucypher_cli, ENTRY_POINTS
+from nucypher.cli.main import ENTRY_POINTS, nucypher_cli
 
 
 def test_echo_nucypher_version(click_runner):

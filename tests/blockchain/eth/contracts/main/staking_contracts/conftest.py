@@ -15,11 +15,10 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import os
 import pytest
 
 from nucypher.blockchain.eth.token import NU
+
 
 @pytest.fixture()
 def token(testerchain, deploy_contract):

@@ -22,7 +22,7 @@ import pytest
 from eth_utils import to_wei
 from web3 import Web3
 
-from nucypher.blockchain.eth.actors import Staker, Bidder
+from nucypher.blockchain.eth.actors import Bidder, Staker
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     WorkLockAgent
@@ -30,12 +30,8 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.commands.worklock import worklock
-from tests.utils.constants import (
-    INSECURE_DEVELOPMENT_PASSWORD,
-    TEST_PROVIDER_URI,
-    MOCK_IP_ADDRESS,
-    select_test_port, TEMPORARY_DOMAIN
-)
+from tests.utils.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, TEMPORARY_DOMAIN, TEST_PROVIDER_URI,
+                                   select_test_port)
 
 
 @pytest.fixture(scope='module')

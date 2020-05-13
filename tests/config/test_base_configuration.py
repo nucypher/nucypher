@@ -1,8 +1,8 @@
 import json
-import os
-import shutil
 
+import os
 import pytest
+import shutil
 
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT

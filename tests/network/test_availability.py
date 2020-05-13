@@ -1,8 +1,7 @@
 import maya
 import pytest
-import time
-
 import pytest_twisted as pt
+import time
 from flask import Response
 from twisted.internet import threads
 

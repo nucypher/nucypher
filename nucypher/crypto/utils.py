@@ -15,10 +15,9 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Any, Union
-
 from coincurve import PublicKey
 from eth_keys import KeyAPI as EthKeyAPI
+from typing import Any, Union
 from umbral.keys import UmbralPublicKey
 from umbral.point import Point
 from umbral.signing import Signature

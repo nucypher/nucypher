@@ -1,23 +1,17 @@
 import json
-import os
 
+import os
 import pytest
 from eth_utils import to_checksum_address
 
 from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.agents import (
-    NucypherTokenAgent,
-    StakingEscrowAgent,
-    PolicyManagerAgent,
-    AdjudicatorAgent,
-    ContractAgency
-)
+from nucypher.blockchain.eth.agents import (AdjudicatorAgent, ContractAgency, NucypherTokenAgent, PolicyManagerAgent,
+                                            StakingEscrowAgent)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.sol.compile import SOLIDITY_COMPILER_VERSION
 from nucypher.cli.commands.deploy import deploy
 from tests.utils.constants import TEST_PROVIDER_URI
-
 
 PLANNED_UPGRADES = 4
 CONTRACTS_TO_UPGRADE = ('StakingEscrow', 'PolicyManager', 'Adjudicator', 'StakingInterface')

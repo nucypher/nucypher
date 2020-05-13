@@ -14,9 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
-
 import maya
+import os
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import is_checksum_address, to_wei

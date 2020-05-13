@@ -17,20 +17,19 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import contextlib
-import os
-import socket
 import string
-import tempfile
-from datetime import datetime
 from random import SystemRandom
 
+import os
+import socket
+import tempfile
 import time
+from datetime import datetime
 from web3 import Web3
 
 from nucypher.blockchain.eth.token import NU
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import BASE_DIR, NUCYPHER_ENVVAR_KEYRING_PASSWORD
-from nucypher.crypto.api import keccak_digest
 
 
 def select_test_port() -> int:

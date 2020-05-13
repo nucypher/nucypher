@@ -1,6 +1,5 @@
-from decimal import InvalidOperation, Decimal
-
 import pytest
+from decimal import Decimal, InvalidOperation
 from web3 import Web3
 
 from nucypher.blockchain.eth.token import NU, Stake

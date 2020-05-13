@@ -16,12 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import os
 import random
 from collections import OrderedDict
-from typing import Set
 
 import maya
+import os
+from typing import Set
 
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware

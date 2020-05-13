@@ -17,11 +17,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
 from collections import namedtuple
-from typing import Any, Dict, Tuple
 
 from bytestring_splitter import BytestringSplitter
 from eth_abi.packed import encode_single_packed
 from eth_account import Account
+from typing import Any, Dict, Tuple
 from web3 import Web3
 from web3.contract import Contract, ContractFunction
 

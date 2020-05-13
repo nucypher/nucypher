@@ -5,17 +5,12 @@ from pathlib import Path
 
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.characters import FelixConfiguration, UrsulaConfiguration, AliceConfiguration
+from nucypher.config.characters import AliceConfiguration, FelixConfiguration, UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.network.nodes import Teacher
-from tests.utils.constants import (
-    TEMPORARY_DOMAIN,
-    INSECURE_DEVELOPMENT_PASSWORD,
-    TEST_PROVIDER_URI,
-    MOCK_IP_ADDRESS,
-    MOCK_IP_ADDRESS_2, MOCK_CUSTOM_INSTALLATION_PATH,
-)
+from tests.utils.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH, MOCK_IP_ADDRESS,
+                                   MOCK_IP_ADDRESS_2, TEMPORARY_DOMAIN, TEST_PROVIDER_URI)
 
 
 @pytest.fixture(scope='function')

@@ -17,22 +17,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from _pydecimal import Decimal
 from collections import UserList
-from typing import Dict
-from typing import Union, Tuple, Callable
 
 import maya
-from constant_sorrow.constants import (
-    NEW_STAKE,
-    NO_STAKING_RECEIPT,
-    NOT_STAKING,
-    EMPTY_STAKING_SLOT,
-    UNKNOWN_WORKER_STATUS
-)
+from constant_sorrow.constants import (EMPTY_STAKING_SLOT, NEW_STAKE, NOT_STAKING, NO_STAKING_RECEIPT,
+                                       UNKNOWN_WORKER_STATUS)
 from eth_utils import currency, is_checksum_address
-from twisted.internet import task, reactor
+from twisted.internet import reactor, task
 from twisted.logger import Logger
+from typing import Callable, Dict, Tuple, Union
 
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period

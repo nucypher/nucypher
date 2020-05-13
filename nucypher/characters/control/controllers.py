@@ -1,19 +1,19 @@
-import inspect
 import json
-from abc import ABC, abstractmethod
 from json import JSONDecodeError
 
+import inspect
 import maya
-from flask import Response, Flask
+from abc import ABC, abstractmethod
+from flask import Flask, Response
 from hendrix.deploy.base import HendrixDeploy
 from twisted.internet import reactor, stdio
 from twisted.logger import Logger
 
-from nucypher.characters.control.emitters import StdoutEmitter, WebEmitter, JSONRPCStdoutEmitter
+from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter, WebEmitter
 from nucypher.characters.control.interfaces import CharacterPublicInterface
 from nucypher.characters.control.specifications.exceptions import SpecificationError
-from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.cli.processes import JSONRPCLineReceiver
+from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from tests.utils.controllers import JSONRPCTestClient
 
 

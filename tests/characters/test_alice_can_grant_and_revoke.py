@@ -16,17 +16,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import datetime
-import os
-
 import maya
+import os
 import pytest
 from umbral.kfrags import KFrag
 
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.api import keccak_digest
-from nucypher.crypto.powers import SigningPower, DecryptingPower
-from nucypher.policy.collections import Revocation, PolicyCredential
+from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.policy.collections import PolicyCredential, Revocation
 from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.middleware import MockRestMiddleware
 

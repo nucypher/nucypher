@@ -1,7 +1,6 @@
 import os
-import tempfile
-
 import pytest
+import tempfile
 
 
 @pytest.fixture(scope='module')

@@ -17,17 +17,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import inspect
-from typing import List, Tuple, Optional
-
 from hexbytes import HexBytes
+from typing import List, Optional, Tuple
 from umbral import pre
-from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
+from umbral.keys import UmbralKeyingMaterial, UmbralPrivateKey, UmbralPublicKey
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainInterface
+from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers import Signer, Web3Signer
 from nucypher.datastore import keypairs
-from nucypher.datastore.keypairs import SigningKeypair, DecryptingKeypair
+from nucypher.datastore.keypairs import DecryptingKeypair, SigningKeypair
 
 
 class PowerUpError(TypeError):

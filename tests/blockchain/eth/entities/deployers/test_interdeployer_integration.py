@@ -14,19 +14,13 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
 
 import pytest
-from eth_utils import keccak
 from constant_sorrow import constants
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, AdjudicatorAgent, ContractAgency
-from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
-                                               StakingEscrowDeployer,
-                                               PolicyManagerDeployer,
-                                               AdjudicatorDeployer,
-                                               BaseContractDeployer,
-                                               DispatcherDeployer)
+from nucypher.blockchain.eth.agents import AdjudicatorAgent, ContractAgency, NucypherTokenAgent, StakingEscrowAgent
+from nucypher.blockchain.eth.deployers import (AdjudicatorDeployer, BaseContractDeployer, NucypherTokenDeployer,
+                                               PolicyManagerDeployer, StakingEscrowDeployer)
 
 
 @pytest.mark.slow()

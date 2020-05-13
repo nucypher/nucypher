@@ -3,7 +3,7 @@ import json
 import pytest
 
 from nucypher.blockchain.eth.actors import Worker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.config.characters import StakeHolderConfiguration
 from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
 

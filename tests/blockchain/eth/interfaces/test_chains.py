@@ -14,9 +14,9 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
-from os.path import dirname, abspath
+from os.path import abspath, dirname
 
+import os
 import pytest
 
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
@@ -25,13 +25,9 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler, SourceDirs
 from nucypher.crypto.powers import TransactingPower
 # Prevents TesterBlockchain to be picked up by py.test as a test class
 from tests.utils.blockchain import TesterBlockchain as _TesterBlockchain
-from tests.utils.constants import (
-    DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-    NUMBER_OF_ETH_TEST_ACCOUNTS,
-    NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
-    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
-    INSECURE_DEVELOPMENT_PASSWORD
-)
+from tests.utils.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD,
+                                   NUMBER_OF_ETH_TEST_ACCOUNTS, NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
+                                   NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
 
 
 @pytest.fixture()

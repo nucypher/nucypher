@@ -1,17 +1,14 @@
-import shutil
-
 import json
 
-from pathlib import Path
-
 import os
-
 import pytest
+import shutil
 from cytoolz.dicttoolz import assoc
 from eth_account import Account
 from eth_account._utils.transactions import Transaction
 from eth_utils import to_checksum_address
 from hexbytes import HexBytes
+from pathlib import Path
 
 from nucypher.blockchain.eth.signers import KeystoreSigner, Signer
 from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD

@@ -17,18 +17,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
+from constant_sorrow.constants import (DEVELOPMENT_CONFIGURATION, FEDERATED_ADDRESS, LIVE_CONFIGURATION,
+                                       NO_BLOCKCHAIN_CONNECTION, NO_KEYRING_ATTACHED, UNINITIALIZED_CONFIGURATION)
 from tempfile import TemporaryDirectory
-from typing import List, Set, Union, Callable
-
-from constant_sorrow.constants import (
-    UNINITIALIZED_CONFIGURATION,
-    NO_BLOCKCHAIN_CONNECTION,
-    LIVE_CONFIGURATION,
-    NO_KEYRING_ATTACHED,
-    DEVELOPMENT_CONFIGURATION,
-    FEDERATED_ADDRESS
-)
 from twisted.logger import Logger
+from typing import Callable, List, Set, Union
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -41,8 +34,8 @@ from nucypher.blockchain.eth.registry import (
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
-from nucypher.crypto.powers import CryptoPowerUp, CryptoPower
+from nucypher.config.storages import ForgetfulNodeStorage, LocalFileBasedNodeStorage, NodeStorage
+from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
 from nucypher.network.middleware import RestMiddleware
 
 

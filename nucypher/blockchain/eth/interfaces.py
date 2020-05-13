@@ -24,44 +24,29 @@ import os
 import pprint
 import requests
 import time
-from constant_sorrow.constants import (
-    NO_BLOCKCHAIN_CONNECTION,
-    NO_COMPILATION_PERFORMED,
-    UNKNOWN_TX_STATUS,
-    NO_PROVIDER_PROCESS,
-    READ_ONLY_INTERFACE,
-    INSUFFICIENT_ETH
-)
+from constant_sorrow.constants import (INSUFFICIENT_ETH, NO_BLOCKCHAIN_CONNECTION, NO_COMPILATION_PERFORMED,
+                                       NO_PROVIDER_PROCESS, READ_ONLY_INTERFACE, UNKNOWN_TX_STATUS)
 from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import to_checksum_address
 from twisted.logger import Logger
-from typing import List, Callable
-from typing import Tuple
-from typing import Union
+from typing import Callable, List, Tuple, Union
 from urllib.parse import urlparse
-from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider, middleware
-from web3.contract import ContractConstructor, Contract
-from web3.contract import ContractFunction
-from web3.exceptions import TimeExhausted
-from web3.exceptions import ValidationError
+from web3 import HTTPProvider, IPCProvider, Web3, WebsocketProvider, middleware
+from web3.contract import Contract, ContractConstructor, ContractFunction
+from web3.exceptions import TimeExhausted, ValidationError
 from web3.gas_strategies import time_based
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.providers import (
-    _get_test_geth_parity_provider,
-    _get_auto_provider,
-    _get_infura_provider,
-    _get_IPC_provider,
-    _get_websocket_provider,
-    _get_HTTP_provider, _get_mock_test_provider, _get_pyevm_test_provider
-)
+from nucypher.blockchain.eth.providers import (_get_HTTP_provider, _get_IPC_provider, _get_auto_provider,
+                                               _get_infura_provider, _get_mock_test_provider, _get_pyevm_test_provider,
+                                               _get_test_geth_parity_provider, _get_websocket_provider)
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.blockchain.eth.utils import prettify_eth_amount, get_transaction_name
-from nucypher.characters.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
+from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
+from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]

@@ -1,7 +1,8 @@
 import click
 from marshmallow import fields
-from nucypher.characters.control.specifications.fields.base import BaseField
+
 from nucypher.characters.control.specifications.exceptions import InvalidInputData
+from nucypher.characters.control.specifications.fields.base import BaseField
 from nucypher.cli import types
 
 

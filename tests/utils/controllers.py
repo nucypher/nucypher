@@ -1,9 +1,7 @@
 import json
+
 from io import StringIO
-
 from typing import Union
-
-from io import BytesIO
 
 import nucypher
 

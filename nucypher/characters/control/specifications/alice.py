@@ -1,10 +1,10 @@
 import click
 from marshmallow import validates_schema
 
-from nucypher.characters.control.specifications.exceptions import (
-    InvalidInputData, InvalidArgumentCombo)
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.base import BaseSchema
+from nucypher.characters.control.specifications.exceptions import (
+    InvalidArgumentCombo)
 from nucypher.cli import options, types
 
 

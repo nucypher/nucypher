@@ -1,14 +1,12 @@
 import pytest
-
+from constant_sorrow.constants import FEDERATED_ADDRESS
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
-from nucypher.config.keyring import NucypherKeyring
-from nucypher.crypto.powers import DelegatingPower, DecryptingPower
-from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
-from constant_sorrow.constants import FEDERATED_ADDRESS
-
 from nucypher.characters.lawful import Alice, Bob, Ursula
+from nucypher.config.keyring import NucypherKeyring
+from nucypher.crypto.powers import DecryptingPower, DelegatingPower
+from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 def test_generate_alice_keyring(tmpdir):

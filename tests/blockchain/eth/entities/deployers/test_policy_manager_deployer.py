@@ -15,16 +15,9 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import pytest
-from eth_utils import keccak
-
-from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakingEscrowAgent, ContractAgency
+from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import POLICY_MANAGER_CONTRACT_NAME
-from nucypher.blockchain.eth.deployers import (
-    PolicyManagerDeployer,
-    DispatcherDeployer
-)
+from nucypher.blockchain.eth.deployers import (DispatcherDeployer, PolicyManagerDeployer)
 
 
 def test_policy_manager_deployment(policy_manager_deployer, staking_escrow_deployer, deployment_progress):

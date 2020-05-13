@@ -21,14 +21,14 @@ from unittest import mock
 
 import maya
 import os
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-from tests.utils.constants import (INSECURE_DEVELOPMENT_PASSWORD,
-                                   MOCK_IP_ADDRESS,
-                                   MOCK_KNOWN_URSULAS_CACHE,
-                                   MOCK_URSULA_STARTING_PORT,
-                                   TEMPORARY_DOMAIN,
-                                   TEST_PROVIDER_URI,
-                                   select_test_port
+from tests.constants import (
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_IP_ADDRESS,
+    MOCK_KNOWN_URSULAS_CACHE,
+    MOCK_URSULA_STARTING_PORT,
+    TEMPORARY_DOMAIN,
+    TEST_PROVIDER_URI,
+    select_test_port
 )
 from twisted.logger import Logger
 

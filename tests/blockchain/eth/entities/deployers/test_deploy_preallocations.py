@@ -15,12 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
 import random
 
 import pytest
 
-from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer, StakingInterfaceDeployer
+from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer
 
 
 @pytest.mark.slow()

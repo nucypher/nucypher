@@ -16,16 +16,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
-from eth_tester.exceptions import TransactionFailed
 from constant_sorrow import constants
+from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, ContractAgency
-from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
-                                               StakingEscrowDeployer,
-                                               PolicyManagerDeployer,
-                                               AdjudicatorDeployer,
-                                               BaseContractDeployer)
+from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, StakingEscrowAgent
+from nucypher.blockchain.eth.deployers import (AdjudicatorDeployer, BaseContractDeployer, NucypherTokenDeployer,
+                                               PolicyManagerDeployer, StakingEscrowDeployer)
 from nucypher.crypto.powers import TransactingPower
 from tests.utils.blockchain import token_airdrop
 from tests.utils.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD

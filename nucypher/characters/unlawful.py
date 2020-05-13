@@ -15,11 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from copy import copy
-from unittest.mock import patch
 
 from eth_tester.exceptions import ValidationError
+from unittest.mock import patch
 
-from nucypher.characters.lawful import Ursula, Alice
+from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.powers import CryptoPower, SigningPower
 from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_URSULA_DB_FILEPATH
 from tests.utils.middleware import EvilMiddleWare

@@ -1,12 +1,11 @@
-import os
 from collections import namedtuple
 
+import os
 import pytest
-from eth_utils.address import to_checksum_address
-from twisted.logger import globalLogPublisher, LogLevel
-
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow.constants import NOT_SIGNED
+from eth_utils.address import to_checksum_address
+from twisted.logger import LogLevel, globalLogPublisher
 
 from nucypher.characters.base import Character
 from nucypher.crypto.powers import TransactingPower

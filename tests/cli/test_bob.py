@@ -14,8 +14,8 @@ from nucypher.config.characters import BobConfiguration
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower
 from nucypher.utilities.logging import GlobalLoggerSettings
-from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD, TEMPORARY_DOMAIN
-from tests.utils.constants import MOCK_IP_ADDRESS, MOCK_CUSTOM_INSTALLATION_PATH
+from tests.utils.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH, MOCK_IP_ADDRESS, \
+    TEMPORARY_DOMAIN
 
 log = Logger()
 

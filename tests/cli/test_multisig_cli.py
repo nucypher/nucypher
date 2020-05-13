@@ -1,6 +1,6 @@
 import json
-import os
 
+import os
 import pytest
 
 from nucypher.blockchain.eth.agents import (
@@ -11,7 +11,6 @@ from nucypher.cli.commands.deploy import deploy
 from tests.utils.constants import (
     TEST_PROVIDER_URI,
 )
-
 
 MULTISIG_THRESHOLD = 4
 

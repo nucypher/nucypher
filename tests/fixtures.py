@@ -31,18 +31,12 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 from web3 import Web3
 
-from nucypher.blockchain.economics import StandardTokenEconomics, BaseEconomics
-from nucypher.blockchain.eth.actors import Staker, StakeHolder
+from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
+from nucypher.blockchain.eth.actors import StakeHolder, Staker
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
-from nucypher.blockchain.eth.deployers import (
-    NucypherTokenDeployer,
-    StakingEscrowDeployer,
-    PolicyManagerDeployer,
-    AdjudicatorDeployer,
-    StakingInterfaceDeployer,
-    WorklockDeployer
-)
+from nucypher.blockchain.eth.deployers import (AdjudicatorDeployer, NucypherTokenDeployer, PolicyManagerDeployer,
+                                               StakingEscrowDeployer, StakingInterfaceDeployer, WorklockDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
@@ -51,52 +45,28 @@ from nucypher.blockchain.eth.registry import (
 from nucypher.blockchain.eth.signers import Web3Signer
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
-from nucypher.characters.lawful import Enrico, Bob
-from nucypher.config.characters import AliceConfiguration
-from nucypher.config.characters import (
-    UrsulaConfiguration,
-    BobConfiguration,
-    StakeHolderConfiguration
-)
+from nucypher.characters.lawful import Bob, Enrico
+from nucypher.config.characters import AliceConfiguration, BobConfiguration, StakeHolderConfiguration, \
+    UrsulaConfiguration
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.datastore import datastore
 from nucypher.datastore.db import Base
 from nucypher.policy.collections import IndisputableEvidence, WorkOrder
 from nucypher.utilities.logging import GlobalLoggerSettings
-from tests.utils.blockchain import token_airdrop, TesterBlockchain
-from tests.utils.constants import (
-    DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-    DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
-    MIN_STAKE_FOR_TESTS,
-    BONUS_TOKENS_FOR_TESTS,
-    MOCK_POLICY_DEFAULT_M,
-    MOCK_URSULA_STARTING_PORT,
-    MOCK_REGISTRY_FILEPATH,
-    NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-    TEMPORARY_DOMAIN,
-    TEST_PROVIDER_URI,
-    INSECURE_DEVELOPMENT_PASSWORD,
-    TEST_GAS_LIMIT,
-)
-from tests.utils.middleware import MockRestMiddleware
-from tests.utils.middleware import MockRestMiddlewareForLargeFleetTests
+from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
+from tests.performance_mocks import (mock_cert_generation, mock_cert_loading, mock_cert_storage, mock_keep_learning,
+                                     mock_message_verification, mock_record_fleet_state, mock_remember_node,
+                                     mock_rest_app_creation, mock_secret_source, mock_verify_node)
+from tests.utils.blockchain import TesterBlockchain, token_airdrop
+from tests.utils.constants import (BONUS_TOKENS_FOR_TESTS, DEVELOPMENT_ETH_AIRDROP_AMOUNT,
+                                   DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD, MIN_STAKE_FOR_TESTS,
+                                   MOCK_POLICY_DEFAULT_M, MOCK_REGISTRY_FILEPATH, MOCK_URSULA_STARTING_PORT,
+                                   NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK, TEMPORARY_DOMAIN, TEST_GAS_LIMIT,
+                                   TEST_PROVIDER_URI)
+from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
 from tests.utils.policy import generate_random_label
-from tests.utils.ursula import make_decentralized_ursulas
-from tests.utils.ursula import make_federated_ursulas
-from tests.mock.interfaces import make_mock_registry_source_manager, MockBlockchain
-from tests.performance_mocks import (
-    mock_cert_storage,
-    mock_cert_loading,
-    mock_rest_app_creation,
-    mock_cert_generation,
-    mock_secret_source,
-    mock_remember_node,
-    mock_verify_node,
-    mock_record_fleet_state,
-    mock_message_verification,
-    mock_keep_learning
-)
+from tests.utils.ursula import make_decentralized_ursulas, make_federated_ursulas
 
 test_logger = Logger("test-logger")
 FEE_RATE_RANGE = (5, 10, 15)

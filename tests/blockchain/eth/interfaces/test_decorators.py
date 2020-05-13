@@ -15,12 +15,9 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
 import pytest
 
-from eth_utils import to_checksum_address
-
-from nucypher.blockchain.eth.decorators import validate_checksum_address, InvalidChecksumAddress
+from nucypher.blockchain.eth.decorators import InvalidChecksumAddress, validate_checksum_address
 
 
 def test_validate_checksum_address(get_random_checksum_address):

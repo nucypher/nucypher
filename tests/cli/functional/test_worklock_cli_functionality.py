@@ -24,11 +24,9 @@ from nucypher.blockchain.eth.actors import Bidder
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.commands.worklock import worklock
-from tests.utils.constants import (
-    TEMPORARY_DOMAIN, MOCK_PROVIDER_URI, YES,
-)
 from tests.cli.functional.test_ursula_local_keystore_cli_functionality import CLI_ENV
 from tests.mock.agents import FAKE_RECEIPT, MockWorkLockAgent
+from tests.utils.constants import (MOCK_PROVIDER_URI, TEMPORARY_DOMAIN, YES)
 
 
 @pytest.fixture(scope='function')

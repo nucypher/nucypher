@@ -15,20 +15,20 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import binascii
-import os
 import sqlite3
-import tempfile
-from abc import abstractmethod, ABC
-from typing import Callable, Tuple, Union, Set, Any
 
 import OpenSSL
+import binascii
+import os
+import tempfile
+from abc import ABC, abstractmethod
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
 from eth_utils import is_checksum_address
 from twisted.logger import Logger
+from typing import Any, Callable, Set, Tuple, Union
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry

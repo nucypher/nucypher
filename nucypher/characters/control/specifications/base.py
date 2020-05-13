@@ -1,6 +1,5 @@
-from functools import wraps
+from marshmallow import INCLUDE, Schema
 
-from marshmallow import Schema, INCLUDE, EXCLUDE
 from nucypher.characters.control.specifications.exceptions import InvalidInputData
 
 

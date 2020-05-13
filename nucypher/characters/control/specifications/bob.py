@@ -1,7 +1,8 @@
 import click
-from nucypher.cli import options
+
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.base import BaseSchema
+from nucypher.cli import options
 
 
 class JoinPolicy(BaseSchema):  #TODO:  this doesn't have a cli implementation

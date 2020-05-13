@@ -1,5 +1,6 @@
-from nucypher.characters.control.specifications.fields.base import BaseField
 from marshmallow import fields
+
+from nucypher.characters.control.specifications.fields.base import BaseField
 
 
 class Label(BaseField, fields.Field):

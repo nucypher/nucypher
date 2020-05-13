@@ -14,25 +14,23 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from pathlib import Path
-
 import json
-import os
-from abc import ABC, abstractmethod
 from json import JSONDecodeError
-from typing import Dict, Tuple
-from typing import List
-from urllib.parse import urlparse
 
+import os
 import sys
+from abc import ABC, abstractmethod
 from cytoolz.dicttoolz import dissoc
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from eth_account.signers.local import LocalAccount
-from eth_utils import is_address, to_checksum_address, apply_formatters_to_dict
+from eth_utils import apply_formatters_to_dict, is_address, to_checksum_address
 from hexbytes import HexBytes
+from pathlib import Path
 from twisted.logger import Logger
-from web3 import Web3, IPCProvider
+from typing import Dict, List, Tuple
+from urllib.parse import urlparse
+from web3 import IPCProvider, Web3
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address

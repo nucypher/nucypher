@@ -21,7 +21,7 @@ from umbral.keys import UmbralPrivateKey
 
 from nucypher.crypto.api import ecdsa_sign, verify_ecdsa
 from nucypher.crypto.signing import Signature, Signer
-from nucypher.crypto.utils import recover_pubkey_from_signature, get_signature_recovery_value
+from nucypher.crypto.utils import get_signature_recovery_value, recover_pubkey_from_signature
 
 
 def test_signature_can_verify():

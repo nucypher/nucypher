@@ -15,14 +15,10 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import pytest
 from constant_sorrow.constants import BARE
-from eth_utils import keccak
 
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
-from nucypher.blockchain.eth.deployers import (StakingEscrowDeployer,
-                                               DispatcherDeployer)
-from nucypher.crypto.api import keccak_digest
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.deployers import (DispatcherDeployer, StakingEscrowDeployer)
 
 
 def test_staking_escrow_deployment(staking_escrow_deployer, deployment_progress):

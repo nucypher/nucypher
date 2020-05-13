@@ -1,14 +1,14 @@
-import datetime
 import json
-import os
-import shutil
 from base64 import b64decode
 from collections import namedtuple
 from json import JSONDecodeError
 
+import datetime
 import maya
+import os
 import pytest
 import pytest_twisted as pt
+import shutil
 from twisted.internet import threads
 from web3 import Web3
 

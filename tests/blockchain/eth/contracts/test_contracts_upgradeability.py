@@ -15,15 +15,15 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import contextlib
-import os
 
+import os
 import pytest
 import requests
 from web3.exceptions import ValidationError
 
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, StakingEscrowDeployer, PolicyManagerDeployer, \
-    AdjudicatorDeployer, BaseContractDeployer
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainDeployerInterface
+from nucypher.blockchain.eth.deployers import AdjudicatorDeployer, BaseContractDeployer, NucypherTokenDeployer, \
+    PolicyManagerDeployer, StakingEscrowDeployer
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler, SourceDirs
 from nucypher.crypto.powers import TransactingPower

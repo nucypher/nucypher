@@ -15,9 +15,8 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from functools import partial
-
 import pytest_twisted as pt
+from functools import partial
 from twisted.internet.threads import deferToThread
 
 from nucypher.network.middleware import RestMiddleware

@@ -1,6 +1,6 @@
-import datetime
 from base64 import b64encode
 
+import datetime
 import maya
 import pytest
 
