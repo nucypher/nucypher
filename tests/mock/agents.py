@@ -216,8 +216,8 @@ class MockContractAgency:
 
     @classmethod
     def get_agent_by_contract_name(cls, contract_name: str, *args, **kwargs) -> MockContractAgent:
-        for agent, test_double, in cls.DOUBLE_AGENTS:
+        for agent, test_double in cls.DOUBLE_AGENTS.items():
             if test_double.registry_contract_name == contract_name:
-                return test_double
+                return test_double()
         else:
             raise ValueError(f'No mock available for "{contract_name}"')

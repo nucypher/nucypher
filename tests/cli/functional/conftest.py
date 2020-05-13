@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import os
 import pytest
 from eth_account import Account
@@ -51,7 +53,7 @@ def mock_interface(module_mocker):
     return mock_transaction_sender
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def test_registry():
     registry = InMemoryContractRegistry()
     return registry

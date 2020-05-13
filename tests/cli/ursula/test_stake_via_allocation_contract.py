@@ -74,8 +74,7 @@ def mock_allocation_registry(testerchain, agency_local_registry, token_economics
 
 @pytest.fixture(scope='module')
 def beneficiary(testerchain, mock_allocation_registry):
-    # First, let's be give the beneficiary some cash for TXs
-    # FIXME: ^ YES, LET'S BE GIVE
+    # First, let's give the beneficiary some cash for TXs
     beneficiary = testerchain.unassigned_accounts[0]
     tx = {'to': beneficiary,
           'from': testerchain.etherbase_account,
