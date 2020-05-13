@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import time
 
 import requests
 import socket
@@ -110,6 +110,15 @@ class MockRestMiddlewareForLargeFleetTests(MockRestMiddleware):
         r = Response(bytes(signature) + known_nodes_bytestring)
         r.content = r.data
         return r
+
+
+class SluggishLargeFleetMiddleware(MockRestMiddlewareForLargeFleetTests):
+    """
+    Similar to above, but with added delay to simulate network latency.
+    """
+    def put_treasure_map_on_node(self, *args, **kwargs):
+        time.sleep(.1)
+        return super().put_treasure_map_on_node(*args, **kwargs)
 
 
 class _MiddlewareClientWithConnectionProblems(_TestMiddlewareClient):
