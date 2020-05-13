@@ -270,6 +270,7 @@ class Policy(ABC):
         treasure_map_id = self.treasure_map.public_id()
 
         for node in self.bob.matching_nodes_among(self.alice.known_nodes):
+            # TODO: Concurrency here.
 
             try:
                 response = network_middleware.put_treasure_map_on_node(node=node,
