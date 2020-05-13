@@ -25,9 +25,8 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from twisted.logger import Logger
 from web3 import Web3
-from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.economics import StandardTokenEconomics, StandardTokenEconomics, BaseEconomics
+from nucypher.blockchain.economics import StandardTokenEconomics, BaseEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
@@ -102,6 +101,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
                  eth_airdrop=False,
                  free_transactions=False,
                  compiler: SolidityCompiler = None,
+                 mock_backend: bool = False,
                  *args, **kwargs):
 
         if not test_accounts:
@@ -116,6 +116,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
                          poa=poa,
                          light=light,
                          compiler=self._compiler,
+                         dry_run=mock_backend,
                          *args, **kwargs)
 
         self.log = Logger("test-blockchain")

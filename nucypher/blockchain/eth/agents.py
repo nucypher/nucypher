@@ -47,7 +47,7 @@ from nucypher.crypto.api import sha256_digest
 
 
 class ContractAgency:
-    # TODO: Enforce singleton - #1506
+    # TODO: Enforce singleton - #1506 - Okay, actually, make this into a module
 
     __agents = dict()
 
@@ -80,7 +80,7 @@ class ContractAgency:
     def get_agent_by_contract_name(cls,
                                    contract_name: str,
                                    registry: BaseContractRegistry,
-                                   provider_uri: str = None,
+                                   provider_uri: str = None
                                    ) -> 'EthereumContractAgent':
 
         if contract_name == NUCYPHER_TOKEN_CONTRACT_NAME:  # TODO: Perhaps rename NucypherTokenAgent
@@ -1231,6 +1231,16 @@ class WorkLockAgent(EthereumContractAgent):
         supply = num_bidders * min_bid + self.get_bonus_eth_supply()
         return supply
 
+    @property
+    def boosting_refund(self) -> int:
+        refund = self.contract.functions.boostingRefund().call()
+        return refund
+
+    @property
+    def slowing_refund(self) -> int:
+        refund = self.contract.functions.SLOWING_REFUND().call()
+        return refund
+
     def get_bonus_refund_rate(self) -> int:
         f = self.contract.functions
         slowing_refund = f.SLOWING_REFUND().call()
@@ -1282,7 +1292,8 @@ class WorkLockAgent(EthereumContractAgent):
 
     def is_claiming_available(self) -> bool:
         """Returns True if claiming is available"""
-        return self.contract.functions.isClaimingAvailable().call()
+        result = self.contract.functions.isClaimingAvailable().call()
+        return result
 
     @property
     def next_bidder_to_check(self) -> int:

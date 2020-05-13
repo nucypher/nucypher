@@ -55,6 +55,7 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 # but using a staking contract (namely, PreallocationEscrow)
 #
 
+
 @pytest.fixture(scope='module')
 def mock_allocation_registry(testerchain, agency_local_registry, token_economics):
     # Deploy the PreallocationEscrow contract
@@ -73,7 +74,7 @@ def mock_allocation_registry(testerchain, agency_local_registry, token_economics
 
 @pytest.fixture(scope='module')
 def beneficiary(testerchain, mock_allocation_registry):
-    # First, let's be give the beneficiary some cash for TXs
+    # First, let's give the beneficiary some cash for TXs
     beneficiary = testerchain.unassigned_accounts[0]
     tx = {'to': beneficiary,
           'from': testerchain.etherbase_account,

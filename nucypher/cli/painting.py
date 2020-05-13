@@ -843,9 +843,9 @@ def paint_worklock_status(emitter, registry: BaseContractRegistry):
     blockchain = worklock_agent.blockchain
 
     # Time
-    bidding_start = MayaDT(worklock_agent.contract.functions.startBidDate().call())
-    bidding_end = MayaDT(worklock_agent.contract.functions.endBidDate().call())
-    cancellation_end = MayaDT(worklock_agent.contract.functions.endCancellationDate().call())
+    bidding_start = MayaDT(worklock_agent.start_bidding_date)
+    bidding_end = MayaDT(worklock_agent.end_bidding_date)
+    cancellation_end = MayaDT(worklock_agent.end_cancellation_date)
 
     bidding_duration = bidding_end - bidding_start
     cancellation_duration = cancellation_end - bidding_start
@@ -858,8 +858,7 @@ def paint_worklock_status(emitter, registry: BaseContractRegistry):
     bidding_open = bidding_start <= now <= bidding_end
 
     # Refund
-    refund_multiple = worklock_agent.contract.functions.boostingRefund().call() \
-                      / worklock_agent.contract.functions.SLOWING_REFUND().call()
+    refund_multiple = worklock_agent.boosting_refund / worklock_agent.slowing_refund
 
     payload = f"""
 Time
@@ -925,7 +924,7 @@ def paint_bidder_status(emitter, bidder):
 WorkLock Participant {bidder.checksum_address}
 ====================================================="""
 
-    if bidder._has_claimed:
+    if bidder.has_claimed:
         message += f"""
 Tokens Claimed? ...... Yes
 Locked ETH ........... {prettify_eth_amount(bidder.get_deposited_eth)}"""

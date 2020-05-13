@@ -16,16 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-from pathlib import Path
-
-import os
 import pytest
 from eth_account import Account
-from web3 import Web3
+from pathlib import Path
 
-from nucypher.blockchain.eth.signers import KeystoreSigner, Signer
+from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.token import StakeList
-from nucypher.characters.lawful import Ursula
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
@@ -37,6 +33,7 @@ from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
 )
 
+# TODO: Move to fixtures
 CLI_ENV = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
            NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 
@@ -46,41 +43,8 @@ MOCK_SIGNER_URI = f'keystore://{MOCK_KEYSTORE_PATH}'
 NUMBER_OF_MOCK_ACCOUNTS = 3
 
 
-@pytest.fixture(scope='module')
-def mock_accounts():
-    accounts = dict()
-    for i in range(NUMBER_OF_MOCK_ACCOUNTS):
-        account = Account.create()
-        filename = KEYFILE_NAME_TEMPLATE.format(month=i+1, address=account.address)
-        accounts[filename] = account
-    return accounts
-
-
-@pytest.fixture(scope='module')
-def worker_account(mock_accounts, testerchain):
-    account = list(mock_accounts.values())[0]
-    tx = {'to': account.address,
-          'from': testerchain.etherbase_account,
-          'value': Web3.toWei('1', 'ether')}
-    txhash = testerchain.client.w3.eth.sendTransaction(tx)
-    _receipt = testerchain.wait_for_receipt(txhash)
-    return account
-
-
-@pytest.fixture(scope='module')
-def worker_address(worker_account):
-    address = worker_account.address
-    return address
-
-
-@pytest.fixture(scope='module')
-def custom_config_filepath(custom_filepath):
-    filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
-    return filepath
-
-
 @pytest.fixture(scope='function', autouse=True)
-def mock_keystore(mock_accounts, monkeypatch, mocker):
+def patch_keystore(mock_accounts, monkeypatch, mocker):
 
     def successful_mock_keyfile_reader(_keystore, path):
 
@@ -102,64 +66,26 @@ def mock_keystore(mock_accounts, monkeypatch, mocker):
     monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keyfile')
 
 
-@pytest.fixture(scope='module', autouse=True)
-def stakeholder(click_runner,
-                stakeholder_configuration_file_location,
-                stake_value,
-                token_economics,
-                agency_local_registry,
-                manual_staker,
-                custom_filepath,
-                worker_address):
-
-    init_args = ('stake', 'init-stakeholder',
-                 '--config-root', custom_filepath,
-                 '--provider', TEST_PROVIDER_URI,
-                 '--network', TEMPORARY_DOMAIN,
-                 '--registry-filepath', agency_local_registry.filepath)
-    click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
-
-    stake_args = ('stake', 'create',
-                  '--config-file', stakeholder_configuration_file_location,
-                  '--staking-address', manual_staker,
-                  '--value', stake_value.to_tokens(),
-                  '--lock-periods', token_economics.minimum_locked_periods,
-                  '--force')
-    # TODO: Is This test is writing to the default system directory and ignoring updates to the passed filepath?
-    user_input = f'0\n' + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + f'Y\n'
-    click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
-
-    init_args = ('stake', 'set-worker',
-                 '--config-file', stakeholder_configuration_file_location,
-                 '--staking-address', manual_staker,
-                 '--worker-address', worker_address,
-                 '--force')
-    user_input = INSECURE_DEVELOPMENT_PASSWORD
-    click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
-
-
 def test_ursula_init_with_local_keystore_signer(click_runner,
                                                 custom_filepath,
                                                 custom_config_filepath,
-                                                agency_local_registry,
-                                                worker_account,
                                                 mocker,
-                                                testerchain):
+                                                mock_testerchain,
+                                                worker_account,
+                                                test_registry_source_manager):
 
     # Good signer...
     pre_config_signer = KeystoreSigner.from_signer_uri(uri=MOCK_SIGNER_URI)
-    assert worker_account.address in pre_config_signer.accounts
 
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--worker-address', worker_account.address,
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
-                 '--registry-filepath', agency_local_registry.filepath,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', MOCK_URSULA_STARTING_PORT,
 
-                 # The bit were' testing here
+                 # The bit we are testing here
                  '--signer', MOCK_SIGNER_URI)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=CLI_ENV)
@@ -193,9 +119,3 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
 
     # Show that we can produce the exact same signer as pre-config...
     assert pre_config_signer.path == ursula.signer.path
-
-    # ...and that transactions are signed by the keytore signer
-    receipt = ursula.confirm_activity()
-    transaction_data = testerchain.client.w3.eth.getTransaction(receipt['transactionHash'])
-    assert transaction_data['from'] == worker_account.address
-

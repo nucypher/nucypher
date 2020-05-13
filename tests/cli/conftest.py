@@ -33,7 +33,7 @@ from nucypher.utilities.sandbox.constants import (
     DATETIME_FORMAT,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
-    MOCK_ALLOCATION_INFILE,
+    MOCK_ALLOCATION_INFILE
 )
 
 
