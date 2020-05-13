@@ -128,9 +128,10 @@ def test_force_refund(testerchain, agency, token_economics, test_registry):
 
 
 def test_verify_correctness(testerchain, agency, token_economics, test_registry):
-    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)  # type: WorkLockAgent
     caller = testerchain.client.accounts[0]
     assert not agent.bidders_checked()
+    assert agent.estimate_verifying_correctness(gas_limit=100000) == 10
     receipt = agent.verify_bidding_correctness(checksum_address=caller, gas_limit=100000)
     assert receipt['status'] == 1
     assert agent.bidders_checked()

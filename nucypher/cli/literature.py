@@ -492,8 +492,11 @@ COMPLETED_BID_VERIFICATION = "Bidding has been checked\n"
 BIDS_VALID_NO_FORCE_REFUND_INDICATED = "All bids are correct, force refund is not needed\n"
 
 CONFIRM_BID_VERIFICATION = """
-Confirm verifying of bidding from {bidder_address} using {gas_limit} gas per each transaction?
+Confirm verifying of bidding from {bidder_address} using {gas_limit} gas 
+for {bidders_per_transaction} bidders per each transaction?
 """
+
+VERIFICATION_ESTIMATES = "Using {gas_limit} gas for {bidders_per_transaction} bidders per each transaction\n"
 
 WHALE_WARNING = "At least {number} bidders got a force refund\n"
 

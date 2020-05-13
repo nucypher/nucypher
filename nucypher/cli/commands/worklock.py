@@ -49,6 +49,7 @@ from nucypher.cli.literature import (
     SUBMITTING_WORKLOCK_CLAIM,
     SUBMITTING_WORKLOCK_REFUND_REQUEST,
     SUCCESSFUL_BID_CANCELLATION,
+    VERIFICATION_ESTIMATES,
     WHALE_WARNING,
     WORKLOCK_ADDITIONAL_COMPENSATION_AVAILABLE,
     WORKLOCK_CLAIM_ADVISORY
@@ -378,15 +379,25 @@ def enable_claiming(general_config, worklock_options, force, hw_wallet, gas_limi
         emitter.echo(BIDS_VALID_NO_FORCE_REFUND_INDICATED, color='yellow')
 
     if not bidder.worklock_agent.bidders_checked():
-        if not gas_limit:
-            # TODO print gas estimations
-            min_gas = 180000
-            gas_limit = click.prompt(PROMPT_BID_VERIFY_GAS_LIMIT.format(min_gas=min_gas), type=click.IntRange(min=min_gas))
 
-        if not force:
-            confirmation = CONFIRM_BID_VERIFICATION.format(bidder_address=worklock_options.bidder_address,
-                                                           gas_limit=gas_limit)
-            click.confirm(confirmation, abort=True)
+        confirmation = gas_limit and force
+        while not confirmation:
+            if not gas_limit:
+                min_gas = 180000
+                gas_limit = click.prompt(PROMPT_BID_VERIFY_GAS_LIMIT.format(min_gas=min_gas), type=click.IntRange(min=min_gas))
+
+            bidders_per_transaction = bidder.worklock_agent.estimate_verifying_correctness(gas_limit=gas_limit)
+
+            if not force:
+                message = CONFIRM_BID_VERIFICATION.format(bidder_address=worklock_options.bidder_address,
+                                                          gas_limit=gas_limit,
+                                                          bidders_per_transaction=bidders_per_transaction)
+                confirmation = click.confirm(message)
+                gas_limit = gas_limit if confirmation else None
+            else:
+                emitter.echo(VERIFICATION_ESTIMATES.format(gas_limit=gas_limit,
+                                                           bidders_per_transaction=bidders_per_transaction))
+                confirmation = True
 
         verification_receipts = bidder.verify_bidding_correctness(gas_limit=gas_limit)
         emitter.echo(COMPLETED_BID_VERIFICATION, color='green')
