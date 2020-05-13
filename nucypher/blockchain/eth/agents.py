@@ -256,10 +256,10 @@ class StakingEscrowAgent(EthereumContractAgent):
         return stakers
 
     def partition_stakers_by_activity(self) -> Tuple[List[str], List[str], List[str]]:
-        """Returns three lists of stakers depending on how they confirmed activity:
-        The first list contains stakers that already confirmed next period.
-        The second, stakers that confirmed for current period but haven't confirmed next yet.
-        The third contains stakers that have missed activity confirmation before current period"""
+        """Returns three lists of stakers depending on their commitments:
+        The first list contains stakers that already committed to next period.
+        The second, stakers that committed to current period but haven't committed to next yet.
+        The third contains stakers that have missed commitments before current period"""
 
         num_stakers = self.get_staker_population()
         current_period = self.get_current_period()
@@ -267,10 +267,10 @@ class StakingEscrowAgent(EthereumContractAgent):
         active_stakers, pending_stakers, missing_stakers = [], [], []
         for i in range(num_stakers):
             staker = self.contract.functions.stakers(i).call()
-            last_active_period = self.get_last_active_period(staker)
-            if last_active_period == current_period + 1:
+            last_committed_period = self.get_last_committed_period(staker)
+            if last_committed_period == current_period + 1:
                 active_stakers.append(staker)
-            elif last_active_period == current_period:
+            elif last_committed_period == current_period:
                 pending_stakers.append(staker)
             else:
                 missing_stakers.append(staker)
@@ -278,7 +278,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         return active_stakers, pending_stakers, missing_stakers
 
     def get_all_active_stakers(self, periods: int, pagination_size: int = None) -> Tuple[int, List[str]]:
-        """Only stakers which confirmed the current period (in the previous period) are used."""
+        """Only stakers which committed to the current period (in the previous period) are used."""
         if not periods > 0:
             raise ValueError("Period must be > 0")
 
@@ -318,18 +318,18 @@ class StakingEscrowAgent(EthereumContractAgent):
     def get_global_locked_tokens(self, at_period: int = None) -> int:
         """
         Gets the number of locked tokens for *all* stakers that have
-        confirmed activity for the specified period.
+        made a commitment to the specified period.
 
         `at_period` values can be any valid period number past, present, or future:
 
             PAST - Calling this function with an `at_period` value in the past will return the number
-            of locked tokens whose worker activity was confirmed for that past period.
+            of locked tokens whose worker commitment was made to that past period.
 
             PRESENT - This is the default value, when no `at_period` value is provided.
 
             FUTURE - Calling this function with an `at_period` value greater than
             the current period + 1 (next period), will result in a zero return value
-            because activity cannot be confirmed beyond the next period.
+            because commitment cannot be made beyond the next period.
 
         Returns an amount of NuNits.
         """
@@ -450,8 +450,8 @@ class StakingEscrowAgent(EthereumContractAgent):
         return receipt
 
     @validate_checksum_address
-    def get_last_active_period(self, staker_address: str) -> int:
-        period = self.contract.functions.getLastActivePeriod(staker_address).call()
+    def get_last_committed_period(self, staker_address: str) -> int:
+        period = self.contract.functions.getLastCommittedPeriod(staker_address).call()
         return int(period)
 
     @validate_checksum_address
@@ -461,25 +461,25 @@ class StakingEscrowAgent(EthereumContractAgent):
 
     @validate_checksum_address
     def get_staker_from_worker(self, worker_address: str) -> str:
-        staker = self.contract.functions.getStakerFromWorker(worker_address).call()
+        staker = self.contract.functions.stakerFromWorker(worker_address).call()
         return to_checksum_address(staker)
 
     @validate_checksum_address
-    def set_worker(self, staker_address: str, worker_address: str):
-        contract_function = self.contract.functions.setWorker(worker_address)
+    def bond_worker(self, staker_address: str, worker_address: str):
+        contract_function = self.contract.functions.bondWorker(worker_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
     @validate_checksum_address
     def release_worker(self, staker_address: str):
-        return self.set_worker(staker_address=staker_address, worker_address=NULL_ADDRESS)
+        return self.bond_worker(staker_address=staker_address, worker_address=NULL_ADDRESS)
 
     @validate_checksum_address
-    def confirm_activity(self, worker_address: str):
+    def commit_to_next_period(self, worker_address: str):
         """
-        For each period that the worker confirms activity, the staker is rewarded.
+        For each period that the worker makes a commitment, the staker is rewarded.
         """
-        contract_function = self.contract.functions.confirmActivity()
+        contract_function = self.contract.functions.commitToNextPeriod()
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=worker_address)
         return receipt
 
@@ -570,7 +570,7 @@ class StakingEscrowAgent(EthereumContractAgent):
     def set_winding_down(self, staker_address: str, value: bool) -> dict:
         """
         Enable wind down for stake.
-        If set to True, then stakes duration will decrease in each period with `confirmActivity()`.
+        If set to True, then stakes duration will decrease in each period with `commitToNextPeriod()`.
         """
         contract_function = self.contract.functions.setWindDown(value)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
@@ -664,7 +664,7 @@ class StakingEscrowAgent(EthereumContractAgent):
 
         In this case, Stakers 0, 1, 3 and 5 will be selected.
 
-        Only stakers which confirmed the current period (in the previous period) are used.
+        Only stakers which made a commitment to the current period (in the previous period) are used.
         """
 
         system_random = random.SystemRandom()
@@ -708,19 +708,19 @@ class StakingEscrowAgent(EthereumContractAgent):
         return total_completed_work
 
     @validate_checksum_address
-    def get_missing_confirmations(self, checksum_address: str) -> int:
+    def get_missing_commitments(self, checksum_address: str) -> int:
         # TODO: Move this up one layer, since it utilizes a combination of contract API methods.
-        last_confirmed_period = self.get_last_active_period(checksum_address)
+        last_committed_period = self.get_last_committed_period(checksum_address)
         current_period = self.get_current_period()
-        missing_confirmations = current_period - last_confirmed_period
-        if missing_confirmations in (0, -1):
+        missing_commitments = current_period - last_committed_period
+        if missing_commitments in (0, -1):
             result = 0
-        elif last_confirmed_period == 0:  # never confirmed
+        elif last_committed_period == 0:  # never committed
             stakes = list(self.get_all_stakes(staker_address=checksum_address))
             initial_staking_period = min(stakes, key=lambda s: s[0])[0]
             result = current_period - initial_staking_period
         else:
-            result = missing_confirmations
+            result = missing_commitments
         return result
 
     @property
@@ -785,8 +785,8 @@ class PolicyManagerAgent(EthereumContractAgent):
         return receipt
 
     @validate_checksum_address
-    def collect_policy_reward(self, collector_address: str, staker_address: str):
-        """Collect rewarded ETH"""
+    def collect_policy_fee(self, collector_address: str, staker_address: str):
+        """Collect fee ETH"""
         contract_function = self.contract.functions.withdraw(collector_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
@@ -816,27 +816,27 @@ class PolicyManagerAgent(EthereumContractAgent):
         return receipt
 
     @validate_checksum_address
-    def get_reward_amount(self, staker_address: str) -> int:
-        reward_amount = self.contract.functions.nodes(staker_address).call()[0]
-        return reward_amount
+    def get_fee_amount(self, staker_address: str) -> int:
+        fee_amount = self.contract.functions.nodes(staker_address).call()[0]
+        return fee_amount
 
-    def get_min_reward_rate_range(self) -> Tuple[int, int, int]:
-        minimum, default, maximum = self.contract.functions.minRewardRateRange().call()
+    def get_min_fee_rate_range(self) -> Tuple[int, int, int]:
+        minimum, default, maximum = self.contract.functions.minFeeRateRange().call()
         return minimum, default, maximum
 
     @validate_checksum_address
-    def get_min_reward_rate(self, staker_address: str) -> int:
-        min_rate = self.contract.functions.getMinRewardRate(staker_address).call()
+    def get_min_fee_rate(self, staker_address: str) -> int:
+        min_rate = self.contract.functions.getMinFeeRate(staker_address).call()
         return min_rate
 
     @validate_checksum_address
-    def get_raw_min_reward_rate(self, staker_address: str) -> int:
+    def get_raw_min_fee_rate(self, staker_address: str) -> int:
         min_rate = self.contract.functions.nodes(staker_address).call()[3]
         return min_rate
 
     @validate_checksum_address
-    def set_min_reward_rate(self, staker_address: str, min_rate: int):
-        contract_function = self.contract.functions.setMinRewardRate(min_rate)
+    def set_min_fee_rate(self, staker_address: str, min_rate: int):
+        contract_function = self.contract.functions.setMinFeeRate(min_rate)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
@@ -980,13 +980,13 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         return receipt
 
     @validate_checksum_address
-    def set_worker(self, worker_address: str):
-        contract_function = self.__interface_agent.functions.setWorker(worker_address)
+    def bond_worker(self, worker_address: str):
+        contract_function = self.__interface_agent.functions.bondWorker(worker_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
     def release_worker(self):
-        receipt = self.set_worker(worker_address=NULL_ADDRESS)
+        receipt = self.bond_worker(worker_address=NULL_ADDRESS)
         return receipt
 
     def mint(self):
@@ -994,13 +994,13 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    def collect_policy_reward(self):
-        contract_function = self.__interface_agent.functions.withdrawPolicyReward()
+    def collect_policy_fee(self):
+        contract_function = self.__interface_agent.functions.withdrawPolicyFee()
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    def set_min_reward_rate(self, min_rate: int):
-        contract_function = self.__interface_agent.functions.setMinRewardRate(min_rate)
+    def set_min_fee_rate(self, min_rate: int):
+        contract_function = self.__interface_agent.functions.setMinFeeRate(min_rate)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
@@ -1025,7 +1025,7 @@ class PreallocationEscrowAgent(EthereumContractAgent):
     def set_winding_down(self, value: bool) -> dict:
         """
                 Enable wind down for stake.
-                If set to True, then stakes duration will be decreasing in each period with `confirmActivity()`.
+                If set to True, then the stake's duration will decrease each period with `commitToNextPeriod()`.
                 """
         contract_function = self.__interface_agent.functions.setWindDown(value)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,

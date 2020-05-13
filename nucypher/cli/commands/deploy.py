@@ -594,7 +594,7 @@ def transfer_ownership(general_config, actor_options, target_address, gas):
 @click.option('--maximum', help="Maximum value for range (in wei)", type=WEI)
 def set_range(general_config, actor_options, minimum, default, maximum):
     """
-    Set the allowed range for the minimum reward rate in the policy manager contract.
+    Set the allowed range for the minimum fee rate in the policy manager contract.
     """
     emitter = general_config.emitter
     ADMINISTRATOR, _, _, _ = actor_options.create_actor(emitter)
@@ -606,6 +606,6 @@ def set_range(general_config, actor_options, minimum, default, maximum):
     if not maximum:
         maximum = click.prompt("Enter new maximum value for range", type=click.IntRange(min=default))
 
-    ADMINISTRATOR.set_min_reward_rate_range(minimum=minimum, default=default, maximum=maximum)
-    emitter.echo(f"The minimum reward rate was limited to the range [{minimum}, {maximum}] "
+    ADMINISTRATOR.set_min_fee_rate_range(minimum=minimum, default=default, maximum=maximum)
+    emitter.echo(f"The minimum fee rate was limited to the range [{minimum}, {maximum}] "
                  f"with the default value {default}")

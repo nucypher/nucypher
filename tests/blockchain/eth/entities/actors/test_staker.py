@@ -26,7 +26,7 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.blockchain import token_airdrop
 from nucypher.utilities.sandbox.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
-from tests.fixtures import MIN_REWARD_RATE_RANGE
+from tests.fixtures import MIN_FEE_RATE_RANGE
 
 
 @pytest.mark.slow()
@@ -138,20 +138,20 @@ def test_staker_collects_staking_reward(testerchain,
 
     # Get an unused address for a new worker
     worker_address = testerchain.unassigned_accounts[-1]
-    staker.set_worker(worker_address=worker_address)
+    staker.bond_worker(worker_address=worker_address)
 
     # Create this worker and bond it with the staker
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                         stakers_addresses=[staker.checksum_address],
                                         workers_addresses=[worker_address],
-                                        confirm_activity=False,
+                                        commit_to_next_period=False,
                                         registry=test_registry).pop()
 
     # ...wait out the lock period...
     for _ in range(token_economics.minimum_locked_periods):
         testerchain.time_travel(periods=1)
         ursula.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
-        ursula.confirm_activity()
+        ursula.commit_to_next_period()
 
     # ...wait more...
     testerchain.time_travel(periods=2)
@@ -174,7 +174,7 @@ def test_staker_manages_winding_down(testerchain,
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                         stakers_addresses=[staker.checksum_address],
                                         workers_addresses=[staker.worker_address],
-                                        confirm_activity=False,
+                                        commit_to_next_period=False,
                                         registry=test_registry).pop()
 
     # Enable winding down
@@ -184,7 +184,7 @@ def test_staker_manages_winding_down(testerchain,
     assert receipt['status'] == 1
     assert staker.locked_tokens(base_duration) != 0
     assert staker.locked_tokens(base_duration + 1) == 0
-    ursula.confirm_activity()
+    ursula.commit_to_next_period()
     assert staker.locked_tokens(base_duration) != 0
     assert staker.locked_tokens(base_duration + 1) == 0
 
@@ -194,20 +194,20 @@ def test_staker_manages_winding_down(testerchain,
     assert receipt['status'] == 1
     assert staker.locked_tokens(base_duration - 1) != 0
     assert staker.locked_tokens(base_duration) == 0
-    ursula.confirm_activity()
+    ursula.commit_to_next_period()
     assert staker.locked_tokens(base_duration - 1) != 0
     assert staker.locked_tokens(base_duration) == 0
 
 
-def test_set_min_reward_rate(testerchain, test_registry, staker):
+def test_set_min_fee_rate(testerchain, test_registry, staker):
 
     # Check before set
-    _minimum, default, maximum = MIN_REWARD_RATE_RANGE
-    assert staker.min_reward_rate == default
+    _minimum, default, maximum = MIN_FEE_RATE_RANGE
+    assert staker.min_fee_rate == default
 
     # New value must be within range
     with pytest.raises((TransactionFailed, ValueError)):
-        staker.set_min_reward_rate(maximum + 1)
-    receipt = staker.set_min_reward_rate(maximum - 1)
+        staker.set_min_fee_rate(maximum + 1)
+    receipt = staker.set_min_fee_rate(maximum - 1)
     assert receipt['status'] == 1
-    assert staker.min_reward_rate == maximum - 1
+    assert staker.min_fee_rate == maximum - 1

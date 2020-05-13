@@ -10,7 +10,7 @@ from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 # Metrics
 known_nodes_guage = Gauge('known_nodes', 'Number of currently known nodes')
 work_orders_guage = Gauge('work_orders', 'Number of accepted work orders')
-missing_confirmation_guage = Gauge('missing_confirmations', 'Currently missed confirmations')
+missing_commitments_guage = Gauge('missing_commitments', 'Currently missed commitments')
 learning_status = Enum('node_discovery', 'Learning loop status', states=['starting', 'running', 'stopped'])
 requests_counter = Counter('http_failures', 'HTTP Failures', ['method', 'endpoint'])
 host_info = Info('host_info', 'Description of info')
@@ -36,12 +36,12 @@ def collect_prometheus_metrics(ursula):
         locked = staking_agent.get_locked_tokens(staker_address=ursula.checksum_address, periods=1)
         active_stake_gauge.set(locked)
 
-        missing_confirmations = staking_agent.get_missing_confirmations(staker_address=ursula.checksum_address)  # TODO: lol
-        missing_confirmation_guage.set(missing_confirmations)
+        missing_commitments = staking_agent.get_missing_commitments(staker_address=ursula.checksum_address)  # TODO: lol
+        missing_commitments_guage.set(missing_commitments)
 
         decentralized_payload = {'provider': str(ursula.provider_uri),
                                  'active_stake': str(locked),
-                                 'missing_confirmations': str(missing_confirmations)}
+                                 'missing_commitments': str(missing_commitments)}
 
         base_payload.update(decentralized_payload)
 

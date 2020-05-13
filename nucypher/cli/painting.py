@@ -217,15 +217,15 @@ Provider URI ............. {blockchain.provider_uri}
 Registry ................. {registry.filepath}
     """
 
-    confirmed, pending, inactive = staking_agent.partition_stakers_by_activity()
+    committed, pending, inactive = staking_agent.partition_stakers_by_activity()
 
     staking = f"""
 | Staking |
 Current Period ........... {staking_agent.get_current_period()}
 Actively Staked Tokens ... {NU.from_nunits(staking_agent.get_global_locked_tokens())}
 Stakers population ....... {staking_agent.get_staker_population()}
-   Confirmed ............. {len(confirmed)}
-   Pending confirmation .. {len(pending)}
+   Committed ............. {len(committed)}
+   Pending commitment .... {len(pending)}
    Inactive .............. {len(inactive)}
 
     """
@@ -348,7 +348,7 @@ Registry  ................ {registry.filepath}
     try:
 
         policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
-        paint_min_reward_range(emitter, policy_agent)
+        paint_min_fee_range(emitter, policy_agent)
         emitter.echo(sep, nl=False)
 
     except BaseContractRegistry.UnknownContract:
@@ -357,11 +357,11 @@ Registry  ................ {registry.filepath}
         emitter.echo(sep, nl=False)
 
 
-def paint_min_reward_range(emitter, policy_agent):
-    minimum, default, maximum = policy_agent.get_min_reward_rate_range()
+def paint_min_fee_range(emitter, policy_agent):
+    minimum, default, maximum = policy_agent.get_min_fee_rate_range()
 
     range_payload = f"""
-Range of the minimum reward rate:
+Range of the minimum fee rate:
     ~ Minimum ............ {prettify_eth_amount(minimum)}
     ~ Default ............ {prettify_eth_amount(default)}
     ~ Maximum ............ {prettify_eth_amount(maximum)}"""
@@ -369,12 +369,12 @@ Range of the minimum reward rate:
 
 
 def paint_min_rate(emitter, registry, policy_agent, staker_address):
-    paint_min_reward_range(emitter, policy_agent)
-    minimum = policy_agent.min_reward_rate(staker_address)
-    raw_minimum = policy_agent.raw_min_reward_rate(staker_address)
+    paint_min_fee_range(emitter, policy_agent)
+    minimum = policy_agent.min_fee_rate(staker_address)
+    raw_minimum = policy_agent.raw_min_fee_rate(staker_address)
 
     rate_payload = f"""
-Minimum reward rate:
+Minimum fee rate:
     ~ Previously set ....... {prettify_eth_amount(raw_minimum)}
     ~ Effective ............ {prettify_eth_amount(minimum)}"""
     emitter.echo(rate_payload)
@@ -483,7 +483,7 @@ def paint_staking_confirmation(emitter, staker, new_stake):
     paint_receipt_summary(emitter=emitter, receipt=new_stake.receipt, transaction_type="deposit stake")
     emitter.echo(f'\n{STAKING_ESCROW_CONTRACT_NAME} address: {staker.staking_agent.contract_address}', color='blue')
     next_steps = f'''\nView your stakes by running 'nucypher stake list'
-or set your Ursula worker node address by running 'nucypher stake set-worker'.
+or bond your Ursula worker node address by running 'nucypher stake bond-worker'.
 
 See https://docs.nucypher.com/en/latest/guides/staking_guide.html'''
     emitter.echo(next_steps, color='green')
@@ -491,7 +491,7 @@ See https://docs.nucypher.com/en/latest/guides/staking_guide.html'''
 
 def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_address: str = None):
     headers = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination')
-    staker_headers = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees', 'Min reward rate')
+    staker_headers = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees', 'Min fee rate')
 
     stakers = stakeholder.get_stakers()
     if not stakers:
@@ -513,22 +513,22 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
         if not active_stakes:
             emitter.echo(f"There are no active stakes\n")
 
-        fees = staker.policy_agent.get_reward_amount(staker.checksum_address)
+        fees = staker.policy_agent.get_fee_amount(staker.checksum_address)
         pretty_fees = prettify_eth_amount(fees)
-        last_confirmed = staker.staking_agent.get_last_active_period(staker.checksum_address)
-        missing = staker.missing_confirmations
-        min_reward_rate = prettify_eth_amount(staker.min_reward_rate)
+        last_committed = staker.staking_agent.get_last_committed_period(staker.checksum_address)
+        missing = staker.missing_commitments
+        min_fee_rate = prettify_eth_amount(staker.min_fee_rate)
 
         if missing == -1:
-            missing_info = "Never Confirmed (New Stake)"
+            missing_info = "Never Made a Commitment (New Stake)"
         else:
-            missing_info = f'Missing {missing} confirmation{"s" if missing > 1 else ""}' if missing else f'Confirmed #{last_confirmed}'
+            missing_info = f'Missing {missing} commitments{"s" if missing > 1 else ""}' if missing else f'Committed #{last_committed}'
 
         staker_data = [missing_info,
                        f'{"Yes" if staker.is_restaking else "No"} ({"Locked" if staker.restaking_lock_enabled else "Unlocked"})',
                        "Yes" if bool(staker.is_winding_down) else "No",
                        pretty_fees,
-                       min_reward_rate]
+                       min_fee_rate]
 
         line_width = 54
         if staker.registry.source:  # TODO: #1580 - Registry source might be Falsy in tests.
@@ -707,12 +707,12 @@ def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> N
         tab = " " * len(staker)
 
         owned_tokens = staking_agent.owned_tokens(staker)
-        last_confirmed_period = staking_agent.get_last_active_period(staker)
+        last_committed_period = staking_agent.get_last_committed_period(staker)
         worker = staking_agent.get_worker_from_staker(staker)
         is_restaking = staking_agent.is_restaking(staker)
         is_winding_down = staking_agent.is_winding_down(staker)
 
-        missing_confirmations = current_period - last_confirmed_period
+        missing_commitments = current_period - last_committed_period
         owned_in_nu = round(NU.from_nunits(owned_tokens), 2)
         locked_tokens = round(NU.from_nunits(staking_agent.get_locked_tokens(staker)), 2)
 
@@ -727,28 +727,28 @@ def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> N
             emitter.echo(f"{tab}  {'Re-staking:':10} No")
         emitter.echo(f"{tab}  {'Winding down:':10} {'Yes' if is_winding_down else 'No'}")
         emitter.echo(f"{tab}  {'Activity:':10} ", nl=False)
-        if missing_confirmations == -1:
-            emitter.echo(f"Next period confirmed (#{last_confirmed_period})", color='green')
-        elif missing_confirmations == 0:
-            emitter.echo(f"Current period confirmed (#{last_confirmed_period}). "
-                         f"Pending confirmation of next period.", color='yellow')
-        elif missing_confirmations == current_period:
-            emitter.echo(f"Never confirmed activity", color='red')
+        if missing_commitments == -1:
+            emitter.echo(f"Next period committed (#{last_committed_period})", color='green')
+        elif missing_commitments == 0:
+            emitter.echo(f"Current period committed (#{last_committed_period}). "
+                         f"Pending commitment to next period.", color='yellow')
+        elif missing_commitments == current_period:
+            emitter.echo(f"Never made a commitment", color='red')
         else:
-            emitter.echo(f"Missing {missing_confirmations} confirmations "
-                         f"(last time for period #{last_confirmed_period})", color='red')
+            emitter.echo(f"Missing {missing_commitments} commitments "
+                         f"(last time for period #{last_committed_period})", color='red')
 
         emitter.echo(f"{tab}  {'Worker:':10} ", nl=False)
         if worker == NULL_ADDRESS:
-            emitter.echo(f"Worker not set", color='red')
+            emitter.echo(f"Worker not bonded", color='red')
         else:
             emitter.echo(f"{worker}")
 
-        fees = prettify_eth_amount(policy_agent.get_reward_amount(staker))
+        fees = prettify_eth_amount(policy_agent.get_fee_amount(staker))
         emitter.echo(f"{tab}  Unclaimed fees: {fees}")
 
-        min_rate = prettify_eth_amount(policy_agent.get_min_reward_rate(staker))
-        emitter.echo(f"{tab}  Min reward rate: {min_rate}")
+        min_rate = prettify_eth_amount(policy_agent.get_min_fee_rate(staker))
+        emitter.echo(f"{tab}  Min fee rate: {min_rate}")
 
 
 def paint_preallocation_status(emitter, preallocation_agent, token_agent) -> None:
@@ -965,8 +965,8 @@ def paint_bidding_notice(emitter, bidder):
 - WorkLock token rewards are claimed in the form of a stake and will be locked for
   the stake duration.
 
-- WorkLock ETH deposits will be available for refund at a rate of {prettify_eth_amount(bidder.worklock_agent.get_bonus_refund_rate())} 
-  per confirmed period. This rate may vary until {maya.MayaDT(bidder.economics.bidding_end_date).local_datetime()}.
+- WorkLock ETH deposits will be available for refund at a rate of {prettify_eth_amount(bidder.worklock_agent.get_bonus_refund_rate())}. 
+  This rate may vary until {maya.MayaDT(bidder.economics.bidding_end_date).local_datetime()}.
 
 - Once claiming WorkLock tokens, you are obligated to maintain a networked and available
   Ursula-Worker node bonded to the staker address {bidder.checksum_address}
@@ -978,7 +978,7 @@ def paint_bidding_notice(emitter, bidder):
   in the NuCypher slashing protocol.
 
 - Keeping your Ursula node online during the staking period and correctly servicing
-  re-encryption work orders will result in rewards paid out in ethers retro-actively
+  re-encryption work orders will earn fees paid out in ethers retroactively
   and on-demand.
 
 Accept WorkLock terms and node operator obligation?"""  # TODO: Show a special message for first bidder, since there's no refund rate yet?
@@ -1005,7 +1005,7 @@ See the official NuCypher documentation for a comprehensive guide on next steps!
 
 As a first step, you need to bond a worker to your stake by running:
 
-  nucypher stake set-worker --worker-address <WORKER ADDRESS>
+  nucypher stake bond-worker --worker-address <WORKER ADDRESS>
 
 """
     emitter.echo(message, color='green')

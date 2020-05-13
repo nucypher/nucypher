@@ -200,15 +200,15 @@ def test_stake_via_contract(click_runner,
     assert stake.duration == token_economics.minimum_locked_periods
 
 
-def test_stake_set_worker(click_runner,
-                          beneficiary,
-                          mock_allocation_registry,
-                          agency_local_registry,
-                          manual_worker,
-                          individual_allocation,
-                          stakeholder_configuration_file_location):
+def test_stake_bond_worker(click_runner,
+                           beneficiary,
+                           mock_allocation_registry,
+                           agency_local_registry,
+                           manual_worker,
+                           individual_allocation,
+                           stakeholder_configuration_file_location):
 
-    init_args = ('stake', 'set-worker',
+    init_args = ('stake', 'bond-worker',
                  '--config-file', stakeholder_configuration_file_location,
                  '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                  '--worker-address', manual_worker,
@@ -229,7 +229,7 @@ def test_stake_set_worker(click_runner,
     assert staker.worker_address == manual_worker
 
 
-def test_stake_detach_worker(click_runner,
+def test_stake_unbond_worker(click_runner,
                              testerchain,
                              token_economics,
                              beneficiary,
@@ -247,7 +247,7 @@ def test_stake_detach_worker(click_runner,
 
     testerchain.time_travel(periods=token_economics.minimum_worker_periods)
 
-    init_args = ('stake', 'detach-worker',
+    init_args = ('stake', 'unbond-worker',
                  '--config-file', stakeholder_configuration_file_location,
                  '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                  '--force')
@@ -265,9 +265,9 @@ def test_stake_detach_worker(click_runner,
 
     assert not staker.worker_address
 
-    # Ok ok, let's set the worker again.
+    # Ok ok, let's bond the worker again.
 
-    init_args = ('stake', 'set-worker',
+    init_args = ('stake', 'bond-worker',
                  '--config-file', stakeholder_configuration_file_location,
                  '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                  '--worker-address', manual_worker,
@@ -538,10 +538,10 @@ def test_collect_rewards_integration(click_runner,
 
     mock_transacting_power_activation(account=worker_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    # Confirm for half the first stake duration
+    # Make a commitment for half the first stake duration
     for _ in range(half_stake_time):
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
-        ursula.confirm_activity()
+        ursula.commit_to_next_period()
         testerchain.time_travel(periods=1)
         current_period += 1
 
@@ -576,7 +576,7 @@ def test_collect_rewards_integration(click_runner,
 
     for index in range(half_stake_time - 5):
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
-        ursula.confirm_activity()
+        ursula.commit_to_next_period()
 
         # Encrypt
         random_data = os.urandom(random.randrange(20, 100))
@@ -594,9 +594,9 @@ def test_collect_rewards_integration(click_runner,
         current_period += 1
 
     # Finish the passage of time
-    for _ in range(5 - 1):  # minus 1 because the first period was already confirmed in test_ursula_run
+    for _ in range(5 - 1):  # minus 1 because the first period was already committed to in test_ursula_run
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
-        ursula.confirm_activity()
+        ursula.commit_to_next_period()
         current_period += 1
         testerchain.time_travel(periods=1)
 
@@ -607,7 +607,7 @@ def test_collect_rewards_integration(click_runner,
     balance = testerchain.client.get_balance(beneficiary)
 
     # Rewards will be unlocked after the
-    # final confirmed period has passed (+1).
+    # final committed period has passed (+1).
     logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
     testerchain.time_travel(periods=1)
     current_period += 1
@@ -616,10 +616,10 @@ def test_collect_rewards_integration(click_runner,
     # Since we are mocking the blockchain connection, manually consume the transacting power of the Beneficiary.
     mock_transacting_power_activation(account=beneficiary, password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    # Collect Policy Reward
+    # Collect Policy Fee
     collection_args = ('stake', 'collect-reward',
                        '--config-file', stakeholder_configuration_file_location,
-                       '--policy-reward',
+                       '--policy-fee',
                        '--no-staking-reward',
                        '--withdraw-address', beneficiary,
                        '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
@@ -631,9 +631,9 @@ def test_collect_rewards_integration(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    # Policy Reward
-    collected_policy_reward = testerchain.client.get_balance(beneficiary)
-    assert collected_policy_reward > balance
+    # Policy Fee
+    collected_policy_fee = testerchain.client.get_balance(beneficiary)
+    assert collected_policy_fee > balance
 
     #
     # Collect Staking Reward
@@ -643,7 +643,7 @@ def test_collect_rewards_integration(click_runner,
 
     collection_args = ('stake', 'collect-reward',
                        '--config-file', stakeholder_configuration_file_location,
-                       '--no-policy-reward',
+                       '--no-policy-fee',
                        '--staking-reward',
                        '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                        '--force')

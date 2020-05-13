@@ -45,19 +45,19 @@ def test_reward(testerchain, agency, token_economics, mock_transacting_power_act
                                            sender_address=ursula,
                                            staker_address=ursula)
 
-    _txhash = staking_agent.set_worker(staker_address=ursula, worker_address=ursula)
+    _txhash = staking_agent.bond_worker(staker_address=ursula, worker_address=ursula)
     _txhash = staking_agent.set_restaking(staker_address=ursula, value=False)
 
-    _txhash = staking_agent.confirm_activity(worker_address=ursula)
+    _txhash = staking_agent.commit_to_next_period(worker_address=ursula)
     testerchain.time_travel(periods=1)
-    _txhash = staking_agent.confirm_activity(worker_address=ursula)
+    _txhash = staking_agent.commit_to_next_period(worker_address=ursula)
     assert staking_agent.calculate_staking_reward(staker_address=ursula) == 0
 
     # Get a reward
     switch = token_economics.first_phase_final_period()
     for i in range(1, switch + MAX_PERIODS_SECOND_PHASE):
         testerchain.time_travel(periods=1)
-        _txhash = staking_agent.confirm_activity(worker_address=ursula)
+        _txhash = staking_agent.commit_to_next_period(worker_address=ursula)
         contract_reward = staking_agent.calculate_staking_reward(staker_address=ursula)
         calculations_reward = token_economics.cumulative_rewards_at_period(i)
         error = abs((contract_reward - calculations_reward) / calculations_reward)

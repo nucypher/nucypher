@@ -151,7 +151,6 @@ class AliceConfiguration(CharacterConfiguration):
     # TODO: Best (Sane) Defaults
     DEFAULT_M = 2
     DEFAULT_N = 3
-    DEFAULT_FIRST_PERIOD_REWARD = 0   # TODO #1063
 
     def __init__(self,
                  m: int = None,

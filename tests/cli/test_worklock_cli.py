@@ -225,7 +225,7 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
 
     # Bidder is now STAKER. Bond a worker.
     staker = Staker(is_me=True, checksum_address=bidder, registry=agency_local_registry)
-    receipt = staker.set_worker(worker_address=worker_address)
+    receipt = staker.bond_worker(worker_address=worker_address)
     assert receipt['status'] == 1
 
     worker = Ursula(is_me=True,
@@ -241,7 +241,7 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
 
     # Do some work
     for i in range(3):
-        receipt = worker.confirm_activity()
+        receipt = worker.commit_to_next_period()
         assert receipt['status'] == 1
         testerchain.time_travel(periods=1)
 

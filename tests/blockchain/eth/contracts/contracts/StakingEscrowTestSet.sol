@@ -125,11 +125,11 @@ contract PolicyManagerForStakingEscrowMock {
         nodes[_node].push(_period);
     }
 
-    function updateReward(address _node, uint16 _period) external {
+    function updateFee(address _node, uint16 _period) external {
         nodes[_node].push(_period);
     }
 
-    function setDefaultRewardDelta(address _node, uint16 _period) external {
+    function setDefaultFeeDelta(address _node, uint16 _period) external {
         nodes[_node].push(_period);
     }
 
@@ -180,8 +180,8 @@ contract Intermediary {
         escrow = _escrow;
     }
 
-    function setWorker(address _worker) external {
-        escrow.setWorker(_worker);
+    function bondWorker(address _worker) external {
+        escrow.bondWorker(_worker);
     }
 
     function deposit(uint256 _value, uint16 _periods) external {
@@ -189,8 +189,8 @@ contract Intermediary {
         escrow.deposit(_value, _periods);
     }
 
-    function confirmActivity() external {
-        escrow.confirmActivity();
+    function commitToNextPeriod() external {
+        escrow.commitToNextPeriod();
     }
 
 }

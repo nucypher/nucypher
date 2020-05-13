@@ -94,8 +94,8 @@ def test_divide_stake(software_stakeholder, token_economics, test_registry):
     assert original_stake.value == (pre_divide_stake_value - target_value)
 
 
-def test_set_worker(software_stakeholder, manual_worker, test_registry):
-    software_stakeholder.set_worker(worker_address=manual_worker)
+def test_bond_worker(software_stakeholder, manual_worker, test_registry):
+    software_stakeholder.bond_worker(worker_address=manual_worker)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     assert staking_agent.get_worker_from_staker(staker_address=software_stakeholder.checksum_address) == manual_worker
 
@@ -106,7 +106,7 @@ def test_collect_inflation_rewards(software_stakeholder, manual_worker, testerch
     # Get stake
     stake = software_stakeholder.stakes[1]
 
-    # Make assigned Worker
+    # Make bonded Worker
     worker = Worker(is_me=True,
                     worker_address=manual_worker,
                     checksum_address=stake.staker_address,
@@ -115,9 +115,9 @@ def test_collect_inflation_rewards(software_stakeholder, manual_worker, testerch
 
     mock_transacting_power_activation(account=manual_worker, password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    # Wait out stake lock periods, manually confirming activity once per period.
+    # Wait out stake lock periods, manually make a commitment once per period.
     for period in range(stake.periods_remaining-1):
-        worker.confirm_activity()
+        worker.commit_to_next_period()
         testerchain.time_travel(periods=1)
 
     mock_transacting_power_activation(account=stake.staker_address, password=INSECURE_DEVELOPMENT_PASSWORD)

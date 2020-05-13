@@ -100,7 +100,7 @@ from tests.performance_mocks import (
 )
 
 test_logger = Logger("test-logger")
-MIN_REWARD_RATE_RANGE = (5, 10, 15)
+MIN_FEE_RATE_RANGE = (5, 10, 15)
 
 
 #
@@ -564,8 +564,8 @@ def _make_agency(testerchain,
     _worklock_agent = worklock_deployer.make_agent()                    # 5 Worklock
 
     # Set additional parameters
-    minimum, default, maximum = MIN_REWARD_RATE_RANGE
-    txhash = policy_agent.contract.functions.setMinRewardRateRange(minimum, default, maximum).transact()
+    minimum, default, maximum = MIN_FEE_RATE_RANGE
+    txhash = policy_agent.contract.functions.setMinFeeRateRange(minimum, default, maximum).transact()
     _receipt = testerchain.wait_for_receipt(txhash)
 
     # TODO: Get rid of returning these agents here.
@@ -655,7 +655,7 @@ def stakers(testerchain, agency, token_economics, test_registry):
 
         # We assume that the staker knows in advance the account of her worker
         worker_address = blockchain.ursula_account(index)
-        staker.set_worker(worker_address=worker_address)
+        staker.bond_worker(worker_address=worker_address)
 
         stakers.append(staker)
 
@@ -670,7 +670,7 @@ def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
     _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                           stakers_addresses=testerchain.stakers_accounts,
                                           workers_addresses=testerchain.ursulas_accounts,
-                                          confirm_activity=True)
+                                          commit_to_next_period=True)
     for u in _ursulas:
         u.synchronous_query_timeout = .01  # We expect to never have to wait for content that is actually on-chain during tests.
     testerchain.time_travel(periods=1)

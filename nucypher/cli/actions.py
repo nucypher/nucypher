@@ -295,8 +295,8 @@ Failure to keep your node online, or violation of re-encryption work orders
 will result in the loss of staked tokens as described in the NuCypher slashing protocol.
 
 Keeping your Ursula node online during the staking period and successfully
-producing correct re-encryption work orders will result in rewards
-paid out in ethers retro-actively and on-demand.
+producing correct re-encryption work orders will earn fees
+paid out in ethers retroactively and on-demand.
 
 Accept ursula node operator obligation?""", abort=True)
 

@@ -32,10 +32,10 @@ RATE_FIELD = 3
 START_TIMESTAMP_FIELD = 4
 END_TIMESTAMP_FIELD = 5
 
-REWARD_FIELD = 0
-LAST_MINED_PERIOD_FIELD = 1
-REWARD_RATE_FIELD = 2
-MIN_REWARD_RATE_FIELD = 3
+FEE_FIELD = 0
+PREVIOUS_FEE_PERIOD_FIELD = 1
+FEE_RATE_FIELD = 2
+MIN_FEE_RATE_FIELD = 3
 
 POLICY_ID_LENGTH = 16
 
@@ -57,8 +57,8 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     arrangement_refund_log = policy_manager.events.RefundForArrangement.createFilter(fromBlock='latest')
     policy_refund_log = policy_manager.events.RefundForPolicy.createFilter(fromBlock='latest')
     warn_log = policy_manager.events.NodeBrokenState.createFilter(fromBlock='latest')
-    min_reward_log = policy_manager.events.MinRewardRateSet.createFilter(fromBlock='latest')
-    reward_range_log = policy_manager.events.MinRewardRateRangeSet.createFilter(fromBlock='latest')
+    min_fee_log = policy_manager.events.MinFeeRateSet.createFilter(fromBlock='latest')
+    fee_range_log = policy_manager.events.MinFeeRateRangeSet.createFilter(fromBlock='latest')
 
     # Only past periods is allowed in register method
     current_period = policy_manager.functions.getCurrentPeriod().call()
@@ -72,7 +72,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
 
     tx = escrow.functions.register(node_for_registering, current_period - 1).transact()
     testerchain.wait_for_receipt(tx)
-    assert 0 < policy_manager.functions.nodes(node_for_registering).call()[LAST_MINED_PERIOD_FIELD]
+    assert 0 < policy_manager.functions.nodes(node_for_registering).call()[PREVIOUS_FEE_PERIOD_FIELD]
 
     # Can't register twice
     with pytest.raises((TransactionFailed, ValueError)):
@@ -80,10 +80,10 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         testerchain.wait_for_receipt(tx)
 
     # Check registered nodes
-    assert 0 < policy_manager.functions.nodes(node1).call()[LAST_MINED_PERIOD_FIELD]
-    assert 0 < policy_manager.functions.nodes(node2).call()[LAST_MINED_PERIOD_FIELD]
-    assert 0 < policy_manager.functions.nodes(node3).call()[LAST_MINED_PERIOD_FIELD]
-    assert 0 == policy_manager.functions.nodes(bad_node).call()[LAST_MINED_PERIOD_FIELD]
+    assert 0 < policy_manager.functions.nodes(node1).call()[PREVIOUS_FEE_PERIOD_FIELD]
+    assert 0 < policy_manager.functions.nodes(node2).call()[PREVIOUS_FEE_PERIOD_FIELD]
+    assert 0 < policy_manager.functions.nodes(node3).call()[PREVIOUS_FEE_PERIOD_FIELD]
+    assert 0 == policy_manager.functions.nodes(bad_node).call()[PREVIOUS_FEE_PERIOD_FIELD]
     current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     policy_id = os.urandom(POLICY_ID_LENGTH)
@@ -135,7 +135,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     assert policy_id == event_args['policyId']
     assert policy_sponsor == event_args['sponsor']
     assert policy_sponsor == event_args['owner']
-    assert rate == event_args['rewardRate']
+    assert rate == event_args['feeRate']
     assert current_timestamp == event_args['startTimestamp']
     assert end_timestamp == event_args['endTimestamp']
     assert 1 == event_args['numberOfNodes']
@@ -184,9 +184,9 @@ def test_create_revoke(testerchain, escrow, policy_manager):
 
     # Create new policy
     period = escrow.functions.getCurrentPeriod().call()
-    tx = escrow.functions.setDefaultRewardDelta(node1, period, number_of_periods + 1).transact()
+    tx = escrow.functions.setDefaultFeeDelta(node1, period, number_of_periods + 1).transact()
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setDefaultRewardDelta(node2, period, number_of_periods + 1).transact()
+    tx = escrow.functions.setDefaultFeeDelta(node2, period, number_of_periods + 1).transact()
     testerchain.wait_for_receipt(tx)
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     policy_id_2 = os.urandom(POLICY_ID_LENGTH)
@@ -211,7 +211,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     assert policy_id_2 == event_args['policyId']
     assert policy_sponsor == event_args['sponsor']
     assert policy_owner == event_args['owner']
-    assert 2 * rate == event_args['rewardRate']
+    assert 2 * rate == event_args['feeRate']
     assert current_timestamp == event_args['startTimestamp']
     assert end_timestamp == event_args['endTimestamp']
     assert 3 == event_args['numberOfNodes']
@@ -294,35 +294,35 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         tx = policy_manager.functions.revokeArrangement(policy_id_2, node1).transact({'from': policy_sponsor})
         testerchain.wait_for_receipt(tx)
 
-    # Can't create policy with wrong ETH value - when reward is not calculated by formula:
-    # numberOfNodes * rewardRate * numberOfPeriods
+    # Can't create policy with wrong ETH value - when fee is not calculated by formula:
+    # numberOfNodes * feeRate * numberOfPeriods
     policy_id_3 = os.urandom(POLICY_ID_LENGTH)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.createPolicy(policy_id_3, policy_sponsor, end_timestamp, [node1])\
             .transact({'from': policy_sponsor, 'value': 11})
         testerchain.wait_for_receipt(tx)
 
-    # Can't set minimum reward because range is [0, 0]
+    # Can't set minimum fee because range is [0, 0]
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.setMinRewardRate(10).transact({'from': node1})
+        tx = policy_manager.functions.setMinFeeRate(10).transact({'from': node1})
         testerchain.wait_for_receipt(tx)
 
     # Only owner can change range
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.setMinRewardRateRange(10, 20, 30).transact({'from': node1})
+        tx = policy_manager.functions.setMinFeeRateRange(10, 20, 30).transact({'from': node1})
         testerchain.wait_for_receipt(tx)
-    assert policy_manager.functions.minRewardRateRange().call() == [0, 0, 0]
+    assert policy_manager.functions.minFeeRateRange().call() == [0, 0, 0]
 
-    tx = policy_manager.functions.setMinRewardRate(0).transact({'from': node1})
+    tx = policy_manager.functions.setMinFeeRate(0).transact({'from': node1})
     testerchain.wait_for_receipt(tx)
-    assert policy_manager.functions.getMinRewardRate(node1).call() == 0
-    assert len(min_reward_log.get_all_entries()) == 0
+    assert policy_manager.functions.getMinFeeRate(node1).call() == 0
+    assert len(min_fee_log.get_all_entries()) == 0
 
-    tx = policy_manager.functions.setMinRewardRateRange(0, 0, 0).transact({'from': creator})
+    tx = policy_manager.functions.setMinFeeRateRange(0, 0, 0).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    assert policy_manager.functions.minRewardRateRange().call() == [0, 0, 0]
+    assert policy_manager.functions.minFeeRateRange().call() == [0, 0, 0]
 
-    events = reward_range_log.get_all_entries()
+    events = fee_range_log.get_all_entries()
     assert len(events) == 1
     event_args = events[0]['args']
     assert event_args['sender'] == creator
@@ -332,22 +332,22 @@ def test_create_revoke(testerchain, escrow, policy_manager):
 
     # Can't set range with inconsistent values
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.setMinRewardRateRange(10, 5, 11).transact({'from': creator})
+        tx = policy_manager.functions.setMinFeeRateRange(10, 5, 11).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.setMinRewardRateRange(10, 15, 11).transact({'from': creator})
+        tx = policy_manager.functions.setMinFeeRateRange(10, 15, 11).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     min_rate, default_rate, max_rate = 10, 20, 30
-    tx = policy_manager.functions.setMinRewardRateRange(min_rate, default_rate, max_rate).transact({'from': creator})
+    tx = policy_manager.functions.setMinFeeRateRange(min_rate, default_rate, max_rate).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    assert policy_manager.functions.minRewardRateRange().call() == [min_rate, default_rate, max_rate]
-    assert policy_manager.functions.nodes(node1).call()[MIN_REWARD_RATE_FIELD] == 0
-    assert policy_manager.functions.nodes(node2).call()[MIN_REWARD_RATE_FIELD] == 0
-    assert policy_manager.functions.getMinRewardRate(node1).call() == default_rate
-    assert policy_manager.functions.getMinRewardRate(node2).call() == default_rate
+    assert policy_manager.functions.minFeeRateRange().call() == [min_rate, default_rate, max_rate]
+    assert policy_manager.functions.nodes(node1).call()[MIN_FEE_RATE_FIELD] == 0
+    assert policy_manager.functions.nodes(node2).call()[MIN_FEE_RATE_FIELD] == 0
+    assert policy_manager.functions.getMinFeeRate(node1).call() == default_rate
+    assert policy_manager.functions.getMinFeeRate(node2).call() == default_rate
 
-    events = reward_range_log.get_all_entries()
+    events = fee_range_log.get_all_entries()
     assert len(events) == 2
     event_args = events[1]['args']
     assert event_args['sender'] == creator
@@ -355,25 +355,25 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     assert event_args['defaultValue'] == default_rate
     assert event_args['max'] == max_rate
 
-    # Can't set min reward let out of range
+    # Can't set min fee let out of range
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.setMinRewardRate(5).transact({'from': node1})
+        tx = policy_manager.functions.setMinFeeRate(5).transact({'from': node1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.setMinRewardRate(35).transact({'from': node1})
+        tx = policy_manager.functions.setMinFeeRate(35).transact({'from': node1})
         testerchain.wait_for_receipt(tx)
 
-    # Set minimum reward rate for nodes
-    tx = policy_manager.functions.setMinRewardRate(10).transact({'from': node1})
+    # Set minimum fee rate for nodes
+    tx = policy_manager.functions.setMinFeeRate(10).transact({'from': node1})
     testerchain.wait_for_receipt(tx)
-    tx = policy_manager.functions.setMinRewardRate(20).transact({'from': node2})
+    tx = policy_manager.functions.setMinFeeRate(20).transact({'from': node2})
     testerchain.wait_for_receipt(tx)
-    assert policy_manager.functions.nodes(node1).call()[MIN_REWARD_RATE_FIELD] == 10
-    assert policy_manager.functions.nodes(node2).call()[MIN_REWARD_RATE_FIELD] == 20
-    assert policy_manager.functions.getMinRewardRate(node1).call() == 10
-    assert policy_manager.functions.getMinRewardRate(node2).call() == 20
+    assert policy_manager.functions.nodes(node1).call()[MIN_FEE_RATE_FIELD] == 10
+    assert policy_manager.functions.nodes(node2).call()[MIN_FEE_RATE_FIELD] == 20
+    assert policy_manager.functions.getMinFeeRate(node1).call() == 10
+    assert policy_manager.functions.getMinFeeRate(node2).call() == 20
 
-    events = min_reward_log.get_all_entries()
+    events = min_fee_log.get_all_entries()
     assert len(events) == 2
     event_args = events[0]['args']
     assert event_args['node'] == node1
@@ -418,7 +418,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     assert policy_id_3 == event_args['policyId']
     assert policy_sponsor == event_args['sponsor']
     assert policy_sponsor == event_args['owner']
-    assert rate == event_args['rewardRate']
+    assert rate == event_args['feeRate']
     assert current_timestamp == event_args['startTimestamp']
     assert end_timestamp == event_args['endTimestamp']
     assert 2 == event_args['numberOfNodes']
@@ -481,17 +481,17 @@ def test_create_revoke(testerchain, escrow, policy_manager):
 
     assert len(warn_log.get_all_entries()) == 0
 
-    # If min reward rate is outside of the range after changing it - then default value must be returned
+    # If min fee rate is outside of the range after changing it - then default value must be returned
     min_rate, default_rate, max_rate = 11, 15, 19
-    tx = policy_manager.functions.setMinRewardRateRange(min_rate, default_rate, max_rate).transact({'from': creator})
+    tx = policy_manager.functions.setMinFeeRateRange(min_rate, default_rate, max_rate).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    assert policy_manager.functions.minRewardRateRange().call() == [min_rate, default_rate, max_rate]
-    assert policy_manager.functions.nodes(node1).call()[MIN_REWARD_RATE_FIELD] == 10
-    assert policy_manager.functions.nodes(node2).call()[MIN_REWARD_RATE_FIELD] == 20
-    assert policy_manager.functions.getMinRewardRate(node1).call() == default_rate
-    assert policy_manager.functions.getMinRewardRate(node2).call() == default_rate
+    assert policy_manager.functions.minFeeRateRange().call() == [min_rate, default_rate, max_rate]
+    assert policy_manager.functions.nodes(node1).call()[MIN_FEE_RATE_FIELD] == 10
+    assert policy_manager.functions.nodes(node2).call()[MIN_FEE_RATE_FIELD] == 20
+    assert policy_manager.functions.getMinFeeRate(node1).call() == default_rate
+    assert policy_manager.functions.getMinFeeRate(node2).call() == default_rate
 
-    events = reward_range_log.get_all_entries()
+    events = fee_range_log.get_all_entries()
     assert len(events) == 3
     event_args = events[2]['args']
     assert event_args['sender'] == creator
@@ -542,7 +542,7 @@ def test_upgrading(testerchain, deploy_contract):
         abi=contract_library_v2.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
-    tx = contract.functions.setMinRewardRateRange(10, 15, 20).transact({'from': creator})
+    tx = contract.functions.setMinFeeRateRange(10, 15, 20).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Can't call `finishUpgrade` and `verifyState` methods outside upgrade lifecycle
@@ -634,30 +634,30 @@ def test_handling_wrong_state(testerchain, deploy_contract):
 
     # Prepare broken state, emulates creating policy in the same period as node was registered
     number_of_periods = 2
-    tx = policy_manager.functions.setNodeRewardDelta(node1, initial_period, 1).transact()
+    tx = policy_manager.functions.setNodeFeeDelta(node1, initial_period, 1).transact()
     testerchain.wait_for_receipt(tx)
-    tx = policy_manager.functions.setNodeRewardDelta(node1, initial_period + number_of_periods, -1).transact()
+    tx = policy_manager.functions.setNodeFeeDelta(node1, initial_period + number_of_periods, -1).transact()
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setDefaultRewardDelta(node1, current_period, 1).transact()
+    tx = escrow.functions.setDefaultFeeDelta(node1, current_period, 1).transact()
     testerchain.wait_for_receipt(tx)
 
-    # Emulate confirm activity actions
+    # Emulate making a commitments
     for i in range(1, number_of_periods + 2):
         testerchain.time_travel(hours=1)
         current_period = policy_manager.functions.getCurrentPeriod().call()
-        tx = escrow.functions.setDefaultRewardDelta(node1, current_period + 1, 1).transact()
+        tx = escrow.functions.setDefaultFeeDelta(node1, current_period + 1, 1).transact()
         testerchain.wait_for_receipt(tx)
         tx = escrow.functions.mint(current_period - 1, 1).transact({'from': node1})
         testerchain.wait_for_receipt(tx)
 
-    reward, last_mined_period, reward_rate, _min_reward_rate = policy_manager.functions.nodes(node1).call()
-    assert reward == 0
-    assert reward_rate == 0
-    assert last_mined_period == current_period - 1
-    assert policy_manager.functions.getNodeRewardDelta(node1, initial_period).call() == 1
+    fee, previous_fee_period, fee_rate, _min_fee_rate = policy_manager.functions.nodes(node1).call()
+    assert fee == 0
+    assert fee_rate == 0
+    assert previous_fee_period == current_period - 1
+    assert policy_manager.functions.getNodeFeeDelta(node1, initial_period).call() == 1
     for i in range(1, number_of_periods):
-        assert policy_manager.functions.getNodeRewardDelta(node1, initial_period + i).call() == 0
-    assert policy_manager.functions.getNodeRewardDelta(node1, initial_period + number_of_periods).call() == -1
+        assert policy_manager.functions.getNodeFeeDelta(node1, initial_period + i).call() == 0
+    assert policy_manager.functions.getNodeFeeDelta(node1, initial_period + number_of_periods).call() == -1
 
     events = warn_log.get_all_entries()
     assert 1 == len(events)
@@ -671,36 +671,36 @@ def test_handling_wrong_state(testerchain, deploy_contract):
     tx = escrow.functions.register(node2, initial_period).transact()
     testerchain.wait_for_receipt(tx)
     number_of_periods = 5
-    tx = escrow.functions.setDefaultRewardDelta(node2, current_period, 1).transact()
+    tx = escrow.functions.setDefaultFeeDelta(node2, current_period, 1).transact()
     testerchain.wait_for_receipt(tx)
-    tx = policy_manager.functions.setNodeRewardDelta(node2, initial_period, 100).transact()
+    tx = policy_manager.functions.setNodeFeeDelta(node2, initial_period, 100).transact()
     testerchain.wait_for_receipt(tx)
-    tx = policy_manager.functions.setNodeRewardDelta(node2, initial_period + number_of_periods, -100).transact()
+    tx = policy_manager.functions.setNodeFeeDelta(node2, initial_period + number_of_periods, -100).transact()
     testerchain.wait_for_receipt(tx)
-    tx = policy_manager.functions.setNodeRewardDelta(node2, initial_period + 2, 50).transact()
+    tx = policy_manager.functions.setNodeFeeDelta(node2, initial_period + 2, 50).transact()
     testerchain.wait_for_receipt(tx)
-    tx = policy_manager.functions.setNodeRewardDelta(node2, initial_period + 2 + number_of_periods, -50).transact()
+    tx = policy_manager.functions.setNodeFeeDelta(node2, initial_period + 2 + number_of_periods, -50).transact()
     testerchain.wait_for_receipt(tx)
 
-    # Emulate confirm activity actions
+    # Emulate making a commitments
     for i in range(1, number_of_periods + 4):
         testerchain.time_travel(hours=1)
         current_period = policy_manager.functions.getCurrentPeriod().call()
-        tx = escrow.functions.setDefaultRewardDelta(node2, current_period + 1, 1).transact()
+        tx = escrow.functions.setDefaultFeeDelta(node2, current_period + 1, 1).transact()
         testerchain.wait_for_receipt(tx)
         tx = escrow.functions.mint(current_period - 1, 1).transact({'from': node2})
         testerchain.wait_for_receipt(tx)
 
-    reward, last_mined_period, reward_rate, _min_reward_rate = policy_manager.functions.nodes(node2).call()
-    assert reward == 50 * (number_of_periods - 2)
-    assert reward_rate == 0
-    assert last_mined_period == current_period - 1
-    assert policy_manager.functions.getNodeRewardDelta(node2, initial_period).call() == 100
+    fee, previous_fee_period, fee_rate, _min_fee_rate = policy_manager.functions.nodes(node2).call()
+    assert fee == 50 * (number_of_periods - 2)
+    assert fee_rate == 0
+    assert previous_fee_period == current_period - 1
+    assert policy_manager.functions.getNodeFeeDelta(node2, initial_period).call() == 100
     for i in range(1, number_of_periods - 2):
-        assert policy_manager.functions.getNodeRewardDelta(node2, initial_period + i).call() == 0
-    assert policy_manager.functions.getNodeRewardDelta(node2, initial_period + number_of_periods).call() == -50
-    assert policy_manager.functions.getNodeRewardDelta(node2, initial_period + number_of_periods + 1).call() == 0
-    assert policy_manager.functions.getNodeRewardDelta(node2, initial_period + number_of_periods + 2).call() == -50
+        assert policy_manager.functions.getNodeFeeDelta(node2, initial_period + i).call() == 0
+    assert policy_manager.functions.getNodeFeeDelta(node2, initial_period + number_of_periods).call() == -50
+    assert policy_manager.functions.getNodeFeeDelta(node2, initial_period + number_of_periods + 1).call() == 0
+    assert policy_manager.functions.getNodeFeeDelta(node2, initial_period + number_of_periods + 2).call() == -50
 
     events = warn_log.get_all_entries()
     assert 3 == len(events)

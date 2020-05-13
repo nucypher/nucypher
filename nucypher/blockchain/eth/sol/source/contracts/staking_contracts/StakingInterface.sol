@@ -78,12 +78,12 @@ contract StakingInterface is BaseStakingInterface {
     event WithdrawnAsStaker(address indexed sender, uint256 value);
     event Locked(address indexed sender, uint256 value, uint16 periods);
     event Divided(address indexed sender, uint256 index, uint256 newValue, uint16 periods);
-    event Mined(address indexed sender);
-    event PolicyRewardWithdrawn(address indexed sender, uint256 value);
-    event MinRewardRateSet(address indexed sender, uint256 value);
+    event Minted(address indexed sender);
+    event PolicyFeeWithdrawn(address indexed sender, uint256 value);
+    event MinFeeRateSet(address indexed sender, uint256 value);
     event ReStakeSet(address indexed sender, bool reStake);
     event ReStakeLocked(address indexed sender, uint16 lockUntilPeriod);
-    event WorkerSet(address indexed sender, address worker);
+    event WorkerBonded(address indexed sender, address worker);
     event Prolonged(address indexed sender, uint256 index, uint16 periods);
     event WindDownSet(address indexed sender, bool windDown);
     event Bid(address indexed sender, uint256 depositedETH);
@@ -110,12 +110,12 @@ contract StakingInterface is BaseStakingInterface {
     }
 
     /**
-    * @notice Set `worker` parameter in the staking escrow
+    * @notice Bond worker in the staking escrow
     * @param _worker Worker address
     */
-    function setWorker(address _worker) public onlyDelegateCall {
-        escrow.setWorker(_worker);
-        emit WorkerSet(msg.sender, _worker);
+    function bondWorker(address _worker) public onlyDelegateCall {
+        escrow.bondWorker(_worker);
+        emit WorkerBonded(msg.sender, _worker);
     }
 
     /**
@@ -189,23 +189,23 @@ contract StakingInterface is BaseStakingInterface {
     */
     function mint() public onlyDelegateCall {
         escrow.mint();
-        emit Mined(msg.sender);
+        emit Minted(msg.sender);
     }
 
     /**
-    * @notice Withdraw available reward from the policy manager to the staking contract
+    * @notice Withdraw available fee from the policy manager to the staking contract
     */
-    function withdrawPolicyReward() public onlyDelegateCall {
+    function withdrawPolicyFee() public onlyDelegateCall {
         uint256 value = policyManager.withdraw();
-        emit PolicyRewardWithdrawn(msg.sender, value);
+        emit PolicyFeeWithdrawn(msg.sender, value);
     }
 
     /**
-    * @notice Set the minimum reward that the staker will take in the policy manager
+    * @notice Set the minimum fee that the staker will take in the policy manager
     */
-    function setMinRewardRate(uint256 _minRewardRate) public onlyDelegateCall {
-        policyManager.setMinRewardRate(_minRewardRate);
-        emit MinRewardRateSet(msg.sender, _minRewardRate);
+    function setMinFeeRate(uint256 _minFeeRate) public onlyDelegateCall {
+        policyManager.setMinFeeRate(_minFeeRate);
+        emit MinFeeRateSet(msg.sender, _minFeeRate);
     }
 
 

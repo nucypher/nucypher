@@ -60,7 +60,7 @@ from nucypher.config.characters import StakeHolderConfiguration
 
 option_value = click.option('--value', help="Token value of stake", type=click.INT)
 option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
-option_worker_address = click.option('--worker-address', help="Address to assign as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
+option_worker_address = click.option('--worker-address', help="Address to bond as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
 
 
 def _setup_emitter(general_config):
@@ -311,13 +311,13 @@ def accounts(general_config, staker_options, config_file):
     painting.paint_accounts(emitter=emitter, wallet=STAKEHOLDER.wallet, registry=STAKEHOLDER.registry)
 
 
-@stake.command('set-worker')
+@stake.command('bond-worker')
 @group_transacting_staker_options
 @option_config_file
 @option_force
 @group_general_config
 @option_worker_address
-def set_worker(general_config, transacting_staker_options, config_file, force, worker_address):
+def bond_worker(general_config, transacting_staker_options, config_file, force, worker_address):
     """
     Bond a worker to a staker.
     """
@@ -364,27 +364,27 @@ def set_worker(general_config, transacting_staker_options, config_file, force, w
                       f"for a minimum of {STAKEHOLDER.economics.minimum_worker_periods} periods?", abort=True)
 
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
-    receipt = STAKEHOLDER.set_worker(worker_address=worker_address)
+    receipt = STAKEHOLDER.bond_worker(worker_address=worker_address)
 
     # Report Success
     emitter.echo(f"\nWorker {worker_address} successfully bonded to staker {staking_address}", color='green')
     paint_receipt_summary(emitter=emitter,
                           receipt=receipt,
                           chain_name=blockchain.client.chain_name,
-                          transaction_type='set_worker')
+                          transaction_type='bond_worker')
     emitter.echo(f"Bonded at period #{current_period} ({bonded_date})", color='green')
-    emitter.echo(f"This worker can be replaced or detached after period "
+    emitter.echo(f"This worker can be replaced or unbonded after period "
                  f"#{release_period} ({release_date})", color='green')
 
 
-@stake.command('detach-worker')
+@stake.command('unbond-worker')
 @group_transacting_staker_options
 @option_config_file
 @option_force
 @group_general_config
-def detach_worker(general_config, transacting_staker_options, config_file, force):
+def unbond_worker(general_config, transacting_staker_options, config_file, force):
     """
-    Detach worker currently bonded to a staker.
+    Unbond worker currently bonded to a staker.
     """
     emitter = _setup_emitter(general_config)
 
@@ -407,18 +407,18 @@ def detach_worker(general_config, transacting_staker_options, config_file, force
     password = transacting_staker_options.get_password(blockchain, client_account)
 
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
-    receipt = STAKEHOLDER.detach_worker()
+    receipt = STAKEHOLDER.unbond_worker()
 
     # TODO: Double-check dates
     current_period = STAKEHOLDER.staking_agent.get_current_period()
     bonded_date = datetime_at_period(period=current_period, seconds_per_period=economics.seconds_per_period)
 
-    emitter.echo(f"Successfully detached worker {worker_address} from staker {staking_address}", color='green')
+    emitter.echo(f"Successfully unbonded worker {worker_address} from staker {staking_address}", color='green')
     paint_receipt_summary(emitter=emitter,
                           receipt=receipt,
                           chain_name=blockchain.client.chain_name,
-                          transaction_type='detach_worker')
-    emitter.echo(f"Detached at period #{current_period} ({bonded_date})", color='green')
+                          transaction_type='unbond_worker')
+    emitter.echo(f"Unbonded at period #{current_period} ({bonded_date})", color='green')
 
 
 @stake.command()
@@ -773,12 +773,12 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
 @group_transacting_staker_options
 @option_config_file
 @click.option('--staking-reward/--no-staking-reward', is_flag=True, default=False)
-@click.option('--policy-reward/--no-policy-reward', is_flag=True, default=False)
-@click.option('--withdraw-address', help="Send reward collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--policy-fee/--no-policy-fee', is_flag=True, default=False)
+@click.option('--withdraw-address', help="Send fee collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
 @option_force
 @group_general_config
 def collect_reward(general_config, transacting_staker_options, config_file,
-                   staking_reward, policy_reward, withdraw_address, force):
+                   staking_reward, policy_fee, withdraw_address, force):
     """
     Withdraw staking reward.
     """
@@ -789,8 +789,8 @@ def collect_reward(general_config, transacting_staker_options, config_file,
     STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
     blockchain = transacting_staker_options.get_blockchain()
 
-    if not staking_reward and not policy_reward:
-        raise click.BadArgumentUsage(f"Either --staking-reward or --policy-reward must be True to collect rewards.")
+    if not staking_reward and not policy_fee:
+        raise click.BadArgumentUsage(f"Either --staking-reward or --policy-fee must be True to collect rewards.")
 
     client_account, staking_address = handle_client_account_for_staking(
         emitter=emitter,
@@ -811,10 +811,10 @@ def collect_reward(general_config, transacting_staker_options, config_file,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
                               emitter=emitter)
 
-    if policy_reward:
-        reward_amount = Web3.fromWei(STAKEHOLDER.calculate_policy_reward(), 'ether')
-        emitter.echo(message=f'Collecting {reward_amount} ETH from policy rewards...')
-        policy_receipt = STAKEHOLDER.collect_policy_reward(collector_address=withdraw_address)
+    if policy_fee:
+        fee_amount = Web3.fromWei(STAKEHOLDER.calculate_policy_fee(), 'ether')
+        emitter.echo(message=f'Collecting {fee_amount} ETH from policy fees...')
+        policy_receipt = STAKEHOLDER.collect_policy_fee(collector_address=withdraw_address)
         paint_receipt_summary(receipt=policy_receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
                               emitter=emitter)
@@ -916,10 +916,10 @@ def events(general_config, staker_options, config_file, event_name):
 @option_config_file
 @option_force
 @group_general_config
-@click.option('--min-rate', help="Minimum acceptable reward rate", type=WEI)
+@click.option('--min-rate', help="Minimum acceptable fee rate", type=WEI)
 def set_min_rate(general_config, transacting_staker_options, config_file, force, min_rate):
     """
-    Set minimum acceptable value for the reward rate.
+    Set minimum acceptable value for the fee rate.
     """
     emitter = _setup_emitter(general_config)
 
@@ -936,19 +936,19 @@ def set_min_rate(general_config, transacting_staker_options, config_file, force,
     if not min_rate:
         painting.paint_min_rate(emitter, STAKEHOLDER.registry, STAKEHOLDER.policy_agent, staking_address)
         # TODO check range
-        min_rate = click.prompt("Enter new value for min reward rate within range", type=WEI)
+        min_rate = click.prompt("Enter new value for min fee rate within range", type=WEI)
 
     password = transacting_staker_options.get_password(blockchain, client_account)
 
     if not force:
         click.confirm(f"Commit new value {min_rate} for "
-                      f"minimum acceptable reward rate?", abort=True)
+                      f"minimum acceptable fee rate?", abort=True)
 
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
-    receipt = STAKEHOLDER.set_min_reward_rate(min_rate=min_rate)
+    receipt = STAKEHOLDER.set_min_fee_rate(min_rate=min_rate)
 
     # Report Success
-    emitter.echo(f"\nMinimum reward rate {min_rate} successfully set by staker {staking_address}", color='green')
+    emitter.echo(f"\nMinimum fee rate {min_rate} successfully set by staker {staking_address}", color='green')
     paint_receipt_summary(emitter=emitter,
                           receipt=receipt,
                           chain_name=blockchain.client.chain_name,

@@ -12,13 +12,13 @@ from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas, start_
 
 @pytest.mark.slow()
 @pytest_twisted.inlineCallbacks
-def test_worker_auto_confirmations(testerchain,
-                                   test_registry,
-                                   staker,
-                                   agency,
-                                   token_economics,
-                                   mock_transacting_power_activation,
-                                   ursula_decentralized_test_config):
+def test_worker_auto_commitments(testerchain,
+                                 test_registry,
+                                 staker,
+                                 agency,
+                                 token_economics,
+                                 mock_transacting_power_activation,
+                                 ursula_decentralized_test_config):
 
     mock_transacting_power_activation(account=staker.checksum_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
@@ -33,13 +33,13 @@ def test_worker_auto_confirmations(testerchain,
     WorkTracker.CLOCK = clock
 
     # Bond the Worker and Staker
-    staker.set_worker(worker_address=worker_address)
+    staker.bond_worker(worker_address=worker_address)
 
     # Make the Worker
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                         stakers_addresses=[staker.checksum_address],
                                         workers_addresses=[worker_address],
-                                        confirm_activity=False,
+                                        commit_to_next_period=False,
                                         registry=test_registry).pop()
 
     def start():
@@ -52,10 +52,10 @@ def test_worker_auto_confirmations(testerchain,
         clock.advance(WorkTracker.REFRESH_RATE+1)
 
     def verify(_):
-        # Verify that periods were confirmed on-chain automatically
-        last_active_period = staker.staking_agent.get_last_active_period(staker_address=staker.checksum_address)
+        # Verify that periods were committed on-chain automatically
+        last_committed_period = staker.staking_agent.get_last_committed_period(staker_address=staker.checksum_address)
         current_period = staker.staking_agent.get_current_period()
-        assert (last_active_period - current_period) == 1
+        assert (last_committed_period - current_period) == 1
 
     # Run the callbacks
     d = threads.deferToThread(start)

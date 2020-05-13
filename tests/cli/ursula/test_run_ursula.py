@@ -160,8 +160,8 @@ def test_persistent_node_storage_integration(click_runner,
                 '--teacher', teacher_uri)
 
     Worker.BONDING_TIMEOUT = 1
-    with pytest.raises(Teacher.DetachedWorker):
-        # Worker init success, but unassigned.
+    with pytest.raises(Teacher.UnbondedWorker):
+        # Worker init success, but not bonded.
         result = yield threads.deferToThread(click_runner.invoke,
                                              nucypher_cli, run_args,
                                              catch_exceptions=False,
@@ -176,8 +176,8 @@ def test_persistent_node_storage_integration(click_runner,
                 '--interactive',
                 '--config-file', another_ursula_configuration_file_location)
 
-    with pytest.raises(Teacher.DetachedWorker):
-        # Worker init success, but unassigned.
+    with pytest.raises(Teacher.UnbondedWorker):
+        # Worker init success, but not bonded.
         result = yield threads.deferToThread(click_runner.invoke,
                                              nucypher_cli, run_args,
                                              catch_exceptions=False,

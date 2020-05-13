@@ -86,7 +86,7 @@ Alice provides an upfront deposit that covers the entirety of the sharing policy
 Q: What currency does Ursula stake in (assuming Ursula is also the Staker)?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Ursula stakes in NU, receives policy rewards in ETH, and receives inflation rewards in NU.
+Ursula stakes in NU, receives policy fees in ETH, and receives inflation rewards in NU.
 
 Q: Why do you have a mix of NU and ETH?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -137,12 +137,12 @@ NU is an implementation of the ERC20 standard deployed onto the Ethereum blockch
 Q: What are the two streams of income Ursula can receive?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Inflation Rewards (NU) and Policy Rewards (ETH). We will soon refer to Policy Rewards as “Fees” to avoid confusion.
+Inflation Rewards (NU) and Policy Fees (ETH).
 
-Q: How are Policy Rewards (ETH) determined?
+Q: How are Policy Fees (ETH) determined?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The reward is calculated with Confirm Activity taking into account the number of policies Ursula is enforcing.
+The fee is calculated based on each period committed to and the number of policies that the Ursula is enforcing.
 
 Q: How many Ursulas per period collect Inflation rewards (NU)?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -224,7 +224,7 @@ This is **ONLY** a heuristic to ensure that your node is running correctly, it d
        connection eg. cell phone, other computer etc. by navigating to: ``https://<node_ip>:9151/status``
 
     #. Ensure that your worker is bonded with your staker - ``nucypher stake list`` and check that
-       *Worker* is set correctly i.e. not ``0x0000``.
+       *Worker* is not ``0x0000``.
 
     #. Run the following command and ensure that the various settings are correct::
 
@@ -260,7 +260,7 @@ Note that a minimum of two periods must elapse before rewards will be delivered 
 are in Period 5 when you start staking:
 
 - Period 5: You deposit stake and initiate a worker
-- Period 5: Your worker calls ``confirmActivity()`` in order to receive work for the next period
+- Period 5: Your worker calls ``commitToNextPeriod()`` in order to receive work for the next period
 - Period 6: Your worker successfully performs the work
 - Period 7: Your worker receives rewards for the work completed in the previous period
 
@@ -318,13 +318,13 @@ See :ref:`node-providers`.
 Q: Why is my node is labelled as "*Idle*" in the status monitor?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Your node is `Idle` because it has never confirmed activity. Likely, your worker address does not have any
+Your node is `Idle` because it has never made a commitment. Likely, your worker address does not have any
 ETH to use for transaction gas.
 
 Q: The status of my node on the status monitor seems incorrect?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Check when last your node confirmed activity by running::
+Check when last your node made a commitment by running::
 
     nucypher status stakers
     >    --provider <your_geth_provider>

@@ -10,13 +10,13 @@ import "zeppelin/token/ERC20/SafeERC20.sol";
 
 /**
 * @notice Contract for calculation of issued tokens
-* @dev |v3.2.1|
+* @dev |v3.3.1|
 */
 abstract contract Issuer is Upgradeable {
     using SafeERC20 for NuCypherToken;
     using AdditionalMath for uint32;
 
-    event Burnt(address indexed sender, uint256 value);
+    event Donated(address indexed sender, uint256 value);
     /// Issuer is initialized with a reserved reward
     event Initialized(uint256 reservedReward);
 
@@ -221,17 +221,17 @@ abstract contract Issuer is Upgradeable {
     }
 
     /**
-    * @notice Burn sender's tokens. Amount of tokens will be returned for future minting
-    * @param _value Amount to burn
+    * @notice Donate sender's tokens. Amount of tokens will be returned for future minting
+    * @param _value Amount to donate
     */
-    function burn(uint256 _value) external isInitialized {
+    function donate(uint256 _value) external isInitialized {
         token.safeTransferFrom(msg.sender, address(this), _value);
         unMint(_value);
-        emit Burnt(msg.sender, _value);
+        emit Donated(msg.sender, _value);
     }
 
     /**
-    * @notice Returns the number of tokens that can be mined
+    * @notice Returns the number of tokens that can be minted
     */
     function getReservedReward() public view returns (uint256) {
         return totalSupply - currentPeriodSupply;

@@ -392,34 +392,35 @@ def config(general_config, config_options, config_file):
                                        config_options=config_options)
 
 
-@ursula.command(name='confirm-activity')
+@ursula.command(name='commit-next')
 @group_character_options
 @option_config_file
 @group_general_config
-def confirm_activity(general_config, character_options, config_file):
+# TODO make available only for debug purposes #1970
+def commit_to_next_period(general_config, character_options, config_file):
     """
-    Manually confirm-activity for the current period.
+    Manually make a commitment to the next period.
     """
     emitter = _setup_emitter(general_config, character_options.config_options.worker_address)
     _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
     _, URSULA = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
 
-    confirmed_period = URSULA.staking_agent.get_current_period() + 1
-    click.echo(f"Confirming activity for period {confirmed_period}", color='blue')
-    receipt = URSULA.confirm_activity()
+    committed_period = URSULA.staking_agent.get_current_period() + 1
+    click.echo(f"Making a commitment to period {committed_period}", color='blue')
+    receipt = URSULA.commit_to_next_period()
 
     economics = EconomicsFactory.get_economics(registry=URSULA.registry)
-    date = datetime_at_period(period=confirmed_period,
+    date = datetime_at_period(period=committed_period,
                               seconds_per_period=economics.seconds_per_period)
 
     # TODO: Double-check dates here
-    emitter.echo(f'\nActivity confirmed for period #{confirmed_period} '
+    emitter.echo(f'\nCommitment was made to period #{committed_period} '
                  f'(starting at {date})', bold=True, color='blue')
     painting.paint_receipt_summary(emitter=emitter,
                                    receipt=receipt,
                                    chain_name=URSULA.staking_agent.blockchain.client.chain_name)
 
-    # TODO: Check ActivityConfirmation event (see #1193)
+    # TODO: Check CommitmentMade event (see #1193)
 
 
 def _setup_emitter(general_config, worker_address):

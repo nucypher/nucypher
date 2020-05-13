@@ -34,7 +34,7 @@ from web3.exceptions import ValidationError
 
 from constant_sorrow.constants import (
     WORKER_NOT_RUNNING,
-    NO_WORKER_ASSIGNED,
+    NO_WORKER_BONDED,
     FULL
 )
 from nucypher.blockchain.economics import StandardTokenEconomics, EconomicsFactory, BaseEconomics
@@ -501,19 +501,19 @@ class ContractAdministrator(NucypherTokenActor):
             file.write(data)
         return filepath
 
-    def set_min_reward_rate_range(self,
-                                  minimum: int,
-                                  default: int,
-                                  maximum: int,
-                                  transaction_gas_limit: int = None) -> dict:
+    def set_min_fee_rate_range(self,
+                               minimum: int,
+                               default: int,
+                               maximum: int,
+                               transaction_gas_limit: int = None) -> dict:
 
         policy_manager_deployer = PolicyManagerDeployer(registry=self.registry,
                                                         deployer_address=self.deployer_address,
                                                         economics=self.economics)
-        receipt = policy_manager_deployer.set_min_reward_rate_range(minimum=minimum,
-                                                                    default=default,
-                                                                    maximum=maximum,
-                                                                    gas_limit=transaction_gas_limit)
+        receipt = policy_manager_deployer.set_min_fee_rate_range(minimum=minimum,
+                                                                 default=default,
+                                                                 maximum=maximum,
+                                                                 gas_limit=transaction_gas_limit)
         return receipt
 
 
@@ -1067,12 +1067,12 @@ class Staker(NucypherTokenActor):
     @only_me
     @save_receipt
     @validate_checksum_address
-    def set_worker(self, worker_address: str) -> dict:
+    def bond_worker(self, worker_address: str) -> dict:
         if self.is_contract:
-            receipt = self.preallocation_escrow_agent.set_worker(worker_address=worker_address)
+            receipt = self.preallocation_escrow_agent.bond_worker(worker_address=worker_address)
         else:
-            receipt = self.staking_agent.set_worker(staker_address=self.checksum_address,
-                                                    worker_address=worker_address)
+            receipt = self.staking_agent.bond_worker(staker_address=self.checksum_address,
+                                                     worker_address=worker_address)
         self.__worker_address = worker_address
         return receipt
 
@@ -1086,12 +1086,12 @@ class Staker(NucypherTokenActor):
             self.__worker_address = worker_address
 
         if self.__worker_address == NULL_ADDRESS:
-            return NO_WORKER_ASSIGNED.bool_value(False)
+            return NO_WORKER_BONDED.bool_value(False)
         return self.__worker_address
 
     @only_me
     @save_receipt
-    def detach_worker(self) -> dict:
+    def unbond_worker(self) -> dict:
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.release_worker()
         else:
@@ -1117,24 +1117,24 @@ class Staker(NucypherTokenActor):
         staking_reward = self.staking_agent.calculate_staking_reward(staker_address=self.checksum_address)
         return staking_reward
 
-    def calculate_policy_reward(self) -> int:
-        policy_reward = self.policy_agent.get_reward_amount(staker_address=self.checksum_address)
-        return policy_reward
+    def calculate_policy_fee(self) -> int:
+        policy_fee = self.policy_agent.get_fee_amount(staker_address=self.checksum_address)
+        return policy_fee
 
     @only_me
     @save_receipt
     @validate_checksum_address
-    def collect_policy_reward(self, collector_address=None) -> dict:
-        """Collect rewarded ETH."""
+    def collect_policy_fee(self, collector_address=None) -> dict:
+        """Collect fee ETH."""
         if self.is_contract:
             if collector_address and collector_address != self.beneficiary_address:
-                raise ValueError("Policy rewards must be withdrawn to the beneficiary address")
-            self.preallocation_escrow_agent.collect_policy_reward()  # TODO save receipt
+                raise ValueError("Policy fees must be withdrawn to the beneficiary address")
+            self.preallocation_escrow_agent.collect_policy_fee()  # TODO save receipt
             receipt = self.preallocation_escrow_agent.withdraw_eth()
         else:
             withdraw_address = collector_address or self.checksum_address
-            receipt = self.policy_agent.collect_policy_reward(collector_address=withdraw_address,
-                                                              staker_address=self.checksum_address)
+            receipt = self.policy_agent.collect_policy_fee(collector_address=withdraw_address,
+                                                           staker_address=self.checksum_address)
         return receipt
 
     @only_me
@@ -1183,40 +1183,40 @@ class Staker(NucypherTokenActor):
         return receipt
 
     @property
-    def missing_confirmations(self) -> int:
+    def missing_commitments(self) -> int:
         staker_address = self.checksum_address
-        missing = self.staking_agent.get_missing_confirmations(checksum_address=staker_address)
+        missing = self.staking_agent.get_missing_commitments(checksum_address=staker_address)
         return missing
 
     @only_me
     @save_receipt
-    def set_min_reward_rate(self, min_rate: int) -> Tuple[str, str]:
-        """Public facing method for setting min reward rate."""
-        minimum, _default, maximum = self.policy_agent.get_min_reward_rate_range()
+    def set_min_fee_rate(self, min_rate: int) -> Tuple[str, str]:
+        """Public facing method for setting min fee rate."""
+        minimum, _default, maximum = self.policy_agent.get_min_fee_rate_range()
         if min_rate < minimum or min_rate > maximum:
-            raise ValueError(f"Min reward rate  {min_rate} must be within range [{minimum}, {maximum}]")
+            raise ValueError(f"Min fee rate  {min_rate} must be within range [{minimum}, {maximum}]")
         if self.is_contract:
-            receipt = self.preallocation_escrow_agent.set_min_reward_rate(min_rate=min_rate)
+            receipt = self.preallocation_escrow_agent.set_min_fee_rate(min_rate=min_rate)
         else:
-            receipt = self.policy_agent.set_min_reward_rate(staker_address=self.checksum_address, min_rate=min_rate)
+            receipt = self.policy_agent.set_min_fee_rate(staker_address=self.checksum_address, min_rate=min_rate)
         return receipt
 
     @property
-    def min_reward_rate(self) -> int:
-        """Minimum acceptable reward rate"""
+    def min_fee_rate(self) -> int:
+        """Minimum acceptable fee rate"""
         staker_address = self.checksum_address
-        min_rate = self.policy_agent.get_min_reward_rate(staker_address)
-        return min_rate
+        min_fee = self.policy_agent.get_min_fee_rate(staker_address)
+        return min_fee
 
     @property
-    def raw_min_reward_rate(self) -> int:
-        """Minimum acceptable reward rate set by staker.
+    def raw_min_fee_rate(self) -> int:
+        """Minimum acceptable fee rate set by staker.
         This's not applicable if this rate out of global range.
-        In that case default value will be used instead of raw value (see `min_reward_rate`)"""
+        In that case default value will be used instead of raw value (see `min_fee_rate`)"""
 
         staker_address = self.checksum_address
-        min_rate = self.policy_agent.get_raw_min_reward_rate(staker_address)
-        return min_rate
+        min_fee = self.policy_agent.get_raw_min_fee_rate(staker_address)
+        return min_fee
 
 
 class Worker(NucypherTokenActor):
@@ -1230,7 +1230,7 @@ class Worker(NucypherTokenActor):
     class WorkerError(NucypherTokenActor.ActorError):
         pass
 
-    class DetachedWorker(WorkerError):
+    class UnbondedWorker(WorkerError):
         """Raised when the Worker is not bonded to a Staker in the StakingEscrow contract."""
 
     def __init__(self,
@@ -1316,7 +1316,7 @@ class Worker(NucypherTokenActor):
                 delta = now - start
                 if delta.total_seconds() >= timeout:
                     if staking_address == NULL_ADDRESS:
-                        raise self.DetachedWorker(f"Worker {self.__worker_address} not bonded after waiting {timeout} seconds.")
+                        raise self.UnbondedWorker(f"Worker {self.__worker_address} not bonded after waiting {timeout} seconds.")
                     elif not ether_balance:
                         raise RuntimeError(f"Worker {self.__worker_address} has no ether after waiting {timeout} seconds.")
 
@@ -1341,21 +1341,21 @@ class Worker(NucypherTokenActor):
         return nu_balance
 
     @property
-    def last_active_period(self) -> int:
-        period = self.staking_agent.get_last_active_period(staker_address=self.checksum_address)
+    def last_committed_period(self) -> int:
+        period = self.staking_agent.get_last_committed_period(staker_address=self.checksum_address)
         return period
 
     @only_me
     @save_receipt
-    def confirm_activity(self) -> dict:
-        """For each period that the worker confirms activity, the staker is rewarded"""
-        receipt = self.staking_agent.confirm_activity(worker_address=self.__worker_address)
+    def commit_to_next_period(self) -> dict:
+        """For each period that the worker makes a commitment, the staker is rewarded"""
+        receipt = self.staking_agent.commit_to_next_period(worker_address=self.__worker_address)
         return receipt
 
     @property
-    def missing_confirmations(self) -> int:
+    def missing_commitments(self) -> int:
         staker_address = self.checksum_address
-        missing = self.staking_agent.get_missing_confirmations(checksum_address=staker_address)
+        missing = self.staking_agent.get_missing_commitments(checksum_address=staker_address)
         return missing
 
 
@@ -1385,7 +1385,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
 
     @property
     def default_rate(self):
-        _minimum, default, _maximum = self.policy_agent.get_min_reward_rate_range()
+        _minimum, default, _maximum = self.policy_agent.get_min_fee_rate_range()
         return default
 
     def generate_policy_parameters(self,

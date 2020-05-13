@@ -59,7 +59,8 @@ class UrsulaCommandProtocol(LineReceiver):
             # 'stakes': self.paintStakes,  # TODO
 
             # Blockchain Control
-            'confirm_activity': self.confirm_activity,
+            # TODO #1970
+            'commit_next': self.commit_to_next_period,
 
             # Learning Control
             'cycle_teacher': self.cycle_teacher,
@@ -166,11 +167,11 @@ class UrsulaCommandProtocol(LineReceiver):
         """
         return self.ursula.stop_learning_loop()
 
-    def confirm_activity(self):
+    def commit_to_next_period(self):
         """
-        manually confirm activity for this period
+        manually make a commitment to the next period
         """
-        return self.ursula.confirm_activity()
+        return self.ursula.commit_to_next_period()
 
     def stop(self):
         """
