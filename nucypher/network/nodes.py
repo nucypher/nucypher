@@ -657,6 +657,9 @@ class Learner:
             round_finish = maya.now()
             elapsed = (round_finish - start).seconds
             if elapsed > timeout:
+                if len(self.known_nodes) >= number_of_nodes_to_know:  # Last chance!
+                    continue
+
                 if not self._learning_task.running:
                     raise RuntimeError("Learning loop is not running.  Start it with start_learning().")
                 elif not reactor.running and not learn_on_this_thread:
