@@ -256,7 +256,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         return stakers
 
     def partition_stakers_by_activity(self) -> Tuple[List[str], List[str], List[str]]:
-        """Returns three lists of stakers depending on how they made a commitments:
+        """Returns three lists of stakers depending on their commitments:
         The first list contains stakers that already committed to next period.
         The second, stakers that committed to current period but haven't committed to next yet.
         The third contains stakers that have missed commitments before current period"""
@@ -1025,7 +1025,7 @@ class PreallocationEscrowAgent(EthereumContractAgent):
     def set_winding_down(self, value: bool) -> dict:
         """
                 Enable wind down for stake.
-                If set to True, then stakes duration will be decreasing in each period with `commitToNextPeriod()`.
+                If set to True, then the stake's duration will decrease each period with `commitToNextPeriod()`.
                 """
         contract_function = self.__interface_agent.functions.setWindDown(value)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,

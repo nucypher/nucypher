@@ -142,7 +142,7 @@ Inflation Rewards (NU) and Policy Fees (ETH).
 Q: How are Policy Fees (ETH) determined?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The fee is calculated with Commit to Next Period taking into account the number of policies Ursula is enforcing.
+The fee is calculated based on each period committed to and the number of policies that the Ursula is enforcing.
 
 Q: How many Ursulas per period collect Inflation rewards (NU)?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -224,7 +224,7 @@ This is **ONLY** a heuristic to ensure that your node is running correctly, it d
        connection eg. cell phone, other computer etc. by navigating to: ``https://<node_ip>:9151/status``
 
     #. Ensure that your worker is bonded with your staker - ``nucypher stake list`` and check that
-       *Worker* is attached correctly i.e. not ``0x0000``.
+       *Worker* is not ``0x0000``.
 
     #. Run the following command and ensure that the various settings are correct::
 

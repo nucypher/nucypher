@@ -538,7 +538,7 @@ def test_collect_rewards_integration(click_runner,
 
     mock_transacting_power_activation(account=worker_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    # Make a commitments for half the first stake duration
+    # Make a commitment for half the first stake duration
     for _ in range(half_stake_time):
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
         ursula.commit_to_next_period()
@@ -594,7 +594,7 @@ def test_collect_rewards_integration(click_runner,
         current_period += 1
 
     # Finish the passage of time
-    for _ in range(5 - 1):  # minus 1 because the first period was already committed in test_ursula_run
+    for _ in range(5 - 1):  # minus 1 because the first period was already committed to in test_ursula_run
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
         ursula.commit_to_next_period()
         current_period += 1

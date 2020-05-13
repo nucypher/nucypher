@@ -119,7 +119,7 @@ def test_invalid_workers_tolerance(testerchain,
     # OK. Now we learn about this worker.
     lonely_blockchain_learner.remember_node(worker)
 
-    # The worker already committed one period before. Let's commit the remaining 29.
+    # The worker already committed one period before. Let's commit to the remaining 29.
     for i in range(29):
         worker.commit_to_next_period()
         testerchain.time_travel(periods=1)

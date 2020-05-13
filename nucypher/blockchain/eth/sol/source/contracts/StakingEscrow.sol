@@ -544,7 +544,7 @@ contract StakingEscrow is Issuer, IERC900History {
 
     /**
     * @notice Set `windDown` parameter.
-    * If true then stakes duration will be decreasing in each period with `commitToNextPeriod()`
+    * If true then stake's duration will be decreasing in each period with `commitToNextPeriod()`
     * @param _windDown Value for parameter
     */
     function setWindDown(bool _windDown) external onlyStaker {
@@ -1294,11 +1294,11 @@ contract StakingEscrow is Issuer, IERC900History {
         internal
     {
         // Check that the old sub stake should be saved
-        bool oldcurrentCommittedPeriod = _info.currentCommittedPeriod != 0 &&
+        bool oldCurrentCommittedPeriod = _info.currentCommittedPeriod != 0 &&
             _info.currentCommittedPeriod < _currentPeriod;
         bool oldnextCommittedPeriod = _info.nextCommittedPeriod != 0 &&
             _info.nextCommittedPeriod < _currentPeriod;
-        bool crosscurrentCommittedPeriod = oldcurrentCommittedPeriod && _info.currentCommittedPeriod >= _firstPeriod;
+        bool crosscurrentCommittedPeriod = oldCurrentCommittedPeriod && _info.currentCommittedPeriod >= _firstPeriod;
         bool crossnextCommittedPeriod = oldnextCommittedPeriod && _info.nextCommittedPeriod >= _firstPeriod;
         if (!crosscurrentCommittedPeriod && !crossnextCommittedPeriod) {
             return;
@@ -1309,7 +1309,7 @@ contract StakingEscrow is Issuer, IERC900History {
             SubStakeInfo storage subStake = _info.subStakes[i];
             if (subStake.lastPeriod == previousPeriod &&
                 ((crosscurrentCommittedPeriod ==
-                (oldcurrentCommittedPeriod && _info.currentCommittedPeriod >= subStake.firstPeriod)) &&
+                (oldCurrentCommittedPeriod && _info.currentCommittedPeriod >= subStake.firstPeriod)) &&
                 (crossnextCommittedPeriod ==
                 (oldnextCommittedPeriod && _info.nextCommittedPeriod >= subStake.firstPeriod))))
             {

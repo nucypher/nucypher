@@ -731,7 +731,7 @@ def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> N
             emitter.echo(f"Next period committed (#{last_committed_period})", color='green')
         elif missing_commitments == 0:
             emitter.echo(f"Current period committed (#{last_committed_period}). "
-                         f"Pending making a commitment to next period.", color='yellow')
+                         f"Pending commitment to next period.", color='yellow')
         elif missing_commitments == current_period:
             emitter.echo(f"Never made a commitment", color='red')
         else:
@@ -978,7 +978,7 @@ def paint_bidding_notice(emitter, bidder):
   in the NuCypher slashing protocol.
 
 - Keeping your Ursula node online during the staking period and correctly servicing
-  re-encryption work orders will result in fees paid out in ethers retro-actively
+  re-encryption work orders will earn fees paid out in ethers retroactively
   and on-demand.
 
 Accept WorkLock terms and node operator obligation?"""  # TODO: Show a special message for first bidder, since there's no refund rate yet?

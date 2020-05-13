@@ -26,7 +26,7 @@ from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 # Crash on server error by default
 WebEmitter._crash_on_error_default = True
 
-# Dont re-lock account in background during making a commitments
+# Dont re-lock account in background while making commitments
 LOCK_FUNCTION = TransactingPower.lock_account
 TransactingPower.lock_account = lambda *a, **k: True
 
@@ -126,4 +126,3 @@ def pytest_collection_modifyitems(config, items):
     GlobalLoggerSettings.set_log_level(log_level_name)
     GlobalLoggerSettings.start_text_file_logging()
     GlobalLoggerSettings.start_json_file_logging()
-
