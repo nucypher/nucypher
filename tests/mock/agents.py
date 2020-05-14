@@ -23,11 +23,11 @@ FAKE_RECEIPT = {'transactionHash': HexBytes(b'FAKE29890FAKE8349804'),
                 'blockHash': HexBytes(b'FAKE43434343FAKE43443434')}
 
 
-def fake_transaction(*_a, **_kw) -> dict:
+def default_fake_transaction(*_a, **_kw) -> dict:
     return FAKE_RECEIPT
 
 
-def fake_call(*_a, **_kw) -> 1:
+def default_fake_call(*_a, **_kw) -> 1:
     return 1
 
 
@@ -64,9 +64,9 @@ class MockContractAgent:
     @classmethod
     def __setup_mock(cls) -> None:
         for call in cls.CALLS:
-            setattr(cls, call, fake_call)
+            setattr(cls, call, Mock(return_value=default_fake_call()))
         for tx in cls.TRANSACTIONS:
-            setattr(cls, tx, fake_transaction)
+            setattr(cls, tx, Mock(return_value=default_fake_transaction()))
 
     def __record_tx(self, name: str, params: tuple) -> None:
         self._SPY_TRANSACTIONS[str(name)].append(params)
