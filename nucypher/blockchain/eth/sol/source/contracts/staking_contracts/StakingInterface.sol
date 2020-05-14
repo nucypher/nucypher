@@ -193,7 +193,7 @@ contract StakingInterface is BaseStakingInterface {
     }
 
     /**
-    * @notice Withdraw available fee from the policy manager to the staking contract
+    * @notice Withdraw available policy fees from the policy manager to the staking contract
     */
     function withdrawPolicyFee() public onlyDelegateCall {
         uint256 value = policyManager.withdraw();
@@ -201,7 +201,7 @@ contract StakingInterface is BaseStakingInterface {
     }
 
     /**
-    * @notice Set the minimum fee that the staker will take in the policy manager
+    * @notice Set the minimum fee that the staker will accept in the policy manager contract
     */
     function setMinFeeRate(uint256 _minFeeRate) public onlyDelegateCall {
         policyManager.setMinFeeRate(_minFeeRate);
@@ -253,7 +253,7 @@ contract StakingInterface is BaseStakingInterface {
     }
 
     /**
-    * @notice Claimed tokens will be deposited and locked as stake in the StakingEscrow contract.
+    * @notice Claimed tokens will be deposited and locked as stake in the StakingEscrow contract
     */
     function claim() public onlyDelegateCall workLockSet {
         uint256 claimedTokens = workLock.claim();

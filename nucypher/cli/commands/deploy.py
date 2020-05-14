@@ -594,7 +594,8 @@ def transfer_ownership(general_config, actor_options, target_address, gas):
 @click.option('--maximum', help="Maximum value for range (in wei)", type=WEI)
 def set_range(general_config, actor_options, minimum, default, maximum):
     """
-    Set the allowed range for the minimum fee rate in the policy manager contract.
+    Set the maximum, minimum & default fee rate for all stakers and all policies ('global fee range') in the policy manager contract.
+    The minimum acceptable fee rate (set by stakers) must fall within the global fee range.
     """
     emitter = general_config.emitter
     ADMINISTRATOR, _, _, _ = actor_options.create_actor(emitter)

@@ -916,10 +916,10 @@ def events(general_config, staker_options, config_file, event_name):
 @option_config_file
 @option_force
 @group_general_config
-@click.option('--min-rate', help="Minimum acceptable fee rate", type=WEI)
+@click.option('--min-rate', help="Minimum acceptable fee rate, set by staker", type=WEI)
 def set_min_rate(general_config, transacting_staker_options, config_file, force, min_rate):
     """
-    Set minimum acceptable value for the fee rate.
+    Staker sets the minimum fee rate they will accept.
     """
     emitter = _setup_emitter(general_config)
 
@@ -936,13 +936,13 @@ def set_min_rate(general_config, transacting_staker_options, config_file, force,
     if not min_rate:
         painting.paint_min_rate(emitter, STAKEHOLDER.registry, STAKEHOLDER.policy_agent, staking_address)
         # TODO check range
-        min_rate = click.prompt("Enter new value for min fee rate within range", type=WEI)
+        min_rate = click.prompt("Enter new value so the minimum fee rate falls within global fee range", type=WEI)
 
     password = transacting_staker_options.get_password(blockchain, client_account)
 
     if not force:
         click.confirm(f"Commit new value {min_rate} for "
-                      f"minimum acceptable fee rate?", abort=True)
+                      f"minimum fee rate?", abort=True)
 
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
     receipt = STAKEHOLDER.set_min_fee_rate(min_rate=min_rate)

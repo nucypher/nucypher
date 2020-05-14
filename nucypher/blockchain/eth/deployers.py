@@ -813,7 +813,7 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                                confirmations: int = 0) -> dict:
 
         if minimum > default or default > maximum:
-            raise ValueError(f"Default fee rate ({default}) must fall within the universal fee range by satisfying the condition: "
+            raise ValueError(f"Default fee rate ({default}) must fall within the global fee range by satisfying the condition: "
                              f"minimum ({minimum}) <= default ({default}) <= maximum ({maximum})")
 
         policy_manager = self.blockchain.get_contract_by_name(registry=self.registry,

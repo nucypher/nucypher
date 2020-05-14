@@ -821,18 +821,19 @@ class PolicyManagerAgent(EthereumContractAgent):
         return fee_amount
 
     def get_fee_rate_range(self) -> Tuple[int, int, int]:
-        """Check max, min & default fee rate for all stakers and all policies (universal fee range)"""
+        """Check maximum, minimum & default fee rate for all stakers and all policies ('global fee range')"""
         minimum, default, maximum = self.contract.functions.FeeRateRange().call()
         return minimum, default, maximum
 
     @validate_checksum_address
-    """Check min fee rate acceptable to staker"""
     def get_min_fee_rate(self, staker_address: str) -> int:
+        """Check minimum fee rate that staker earns"""
         min_rate = self.contract.functions.getMinFeeRate(staker_address).call()
         return min_rate
 
     @validate_checksum_address
     def get_raw_min_fee_rate(self, staker_address: str) -> int:
+        """Check minimum acceptable fee rate set by staker"""
         min_rate = self.contract.functions.nodes(staker_address).call()[3]
         return min_rate
 

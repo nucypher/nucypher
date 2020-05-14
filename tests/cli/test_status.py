@@ -97,7 +97,7 @@ def test_nucypher_status_stakers(click_runner, agency_local_registry, stakers):
 
 def test_nucypher_status_fee_range(click_runner, agency_local_registry, stakers):
 
-    # Get info about fee range
+    # Get information about global fee range (maximum rate, minimum rate, default rate)
     stakers_command = ('fee-range',
                        '--registry-filepath', agency_local_registry.filepath,
                        '--provider', TEST_PROVIDER_URI,

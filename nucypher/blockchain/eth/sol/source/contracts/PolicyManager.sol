@@ -13,7 +13,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 
 /**
-* @notice Contract holds policy data and locks fees
+* @notice Contract holds policy data and locks accrued policy fees until collection
 * @dev |v5.1.1|
 */
 contract PolicyManager is Upgradeable {
@@ -145,7 +145,7 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Set maximum, minimum and and default fee rate for all stakers and all transactions (universal fee range)
+    * @notice Set maximum, minimum and and default fee rate for all stakers and all policies ('global fee range')
     */
     // TODO # 1501
     // function setFeeRateRange(Range calldata _range) external onlyOwner {
@@ -156,13 +156,13 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Set the minimum fee rate acceptable to staker
-    * @dev Input value must fall within `FeeRateRange` (universal fee range)
+    * @notice Set the minimum acceptable fee rate (set by staker)
+    * @dev Input value must fall within `FeeRateRange` (global fee range)
     */
     function setMinFeeRate(uint256 _minFeeRate) external {
         require(_minFeeRate >= FeeRateRange.min &&
             _minFeeRate <= FeeRateRange.max,
-            "The staker's min fee rate must fall within the universal fee range");
+            "The staker's min fee rate must fall within the global fee range");
         NodeInfo storage nodeInfo = nodes[msg.sender];
         if (nodeInfo.minFeeRate == _minFeeRate) {
             return;
@@ -172,11 +172,11 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Get the minimum fee rate acceptable to staker
+    * @notice Get the minimum acceptable fee rate (set by staker)
     */
     function getMinFeeRate(NodeInfo storage _nodeInfo) internal view returns (uint256) {
-        // if minFeeRate has not been set or chosen value falls outside the universal fee range
-        // default
+        // if minFeeRate has not been set or chosen value falls outside the global fee range
+        // a default value is returned instead
         if (_nodeInfo.minFeeRate == 0 ||
             _nodeInfo.minFeeRate < FeeRateRange.min ||
             _nodeInfo.minFeeRate > FeeRateRange.max) {
@@ -187,7 +187,7 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Get the minimum fee rate acceptable to staker
+    * @notice Get the minimum acceptable fee rate (set by staker)
     */
     function getMinFeeRate(address _node) public view returns (uint256) {
         NodeInfo storage nodeInfo = nodes[_node];
@@ -626,8 +626,8 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Get information about node fee
-    * @param _node Address of node
+    * @notice Get information about staker fee
+    * @param _node Address of staker
     * @param _period Period to get fee delta
     */
     function getNodeFeeDelta(address _node, uint16 _period)
