@@ -212,8 +212,32 @@ class Stake:
         self.receipt = NO_STAKING_RECEIPT
 
     def __repr__(self) -> str:
-        r = f'Stake(index={self.index}, value={self.value}, end_period={self.final_locked_period})'
+        r = f'Stake(' \
+            f'index={self.index}, ' \
+            f'value={self.value}, ' \
+            f'end_period={self.final_locked_period}, ' \
+            f'address={self.staker_address[:6]}, ' \
+            f'escrow={self.staking_agent.contract_address[:6]}' \
+            f')'
         return r
+
+    def __eq__(self, other: 'Stake') -> bool:
+        this_stake = (self.index,
+                      self.value,
+                      self.first_locked_period,
+                      self.final_locked_period,
+                      self.staker_address,
+                      self.staking_agent.contract_address)
+        try:
+            that_stake = (other.index,
+                          other.value,
+                          other.first_locked_period,
+                          other.final_locked_period,
+                          other.staker_address,
+                          other.staking_agent.contract_address)
+        except AttributeError:
+            return False
+        return bool(sorted(map(str, this_stake)) == sorted(map(str, that_stake)))
 
     @property
     def address_index_ordering_key(self):
