@@ -58,7 +58,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     policy_refund_log = policy_manager.events.RefundForPolicy.createFilter(fromBlock='latest')
     warn_log = policy_manager.events.NodeBrokenState.createFilter(fromBlock='latest')
     min_fee_log = policy_manager.events.MinFeeRateSet.createFilter(fromBlock='latest')
-    fee_range_log = policy_manager.events.feeRateRangeSet.createFilter(fromBlock='latest')
+    fee_range_log = policy_manager.events.FeeRateRangeSet.createFilter(fromBlock='latest')
 
     # Only past periods is allowed in register method
     current_period = policy_manager.functions.getCurrentPeriod().call()
