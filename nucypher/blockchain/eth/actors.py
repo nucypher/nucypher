@@ -1203,7 +1203,7 @@ class Staker(NucypherTokenActor):
 
     @property
     def min_fee_rate(self) -> int:
-        """Minimum fee rate that staker earns"""
+        """Minimum fee rate that staker accepts"""
         staker_address = self.checksum_address
         min_fee = self.policy_agent.get_min_fee_rate(staker_address)
         return min_fee
