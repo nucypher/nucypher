@@ -14,7 +14,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 /**
 * @notice Contract holds policy data and locks accrued policy fees until collection
-* @dev |v5.1.1|
+* @dev |v6.1.1|
 */
 contract PolicyManager is Upgradeable {
     using SafeERC20 for NuCypherToken;
@@ -51,7 +51,7 @@ contract PolicyManager is Upgradeable {
     event MinFeeRateSet(address indexed node, uint256 value);
     // TODO #1501
     // Range range
-    event FeeRateRangeSet(address indexed sender, uint256 min, uint256 defaultValue, uint256 max);
+    event feeRateRangeSet(address indexed sender, uint256 min, uint256 defaultValue, uint256 max);
     event Withdrawn(address indexed node, address indexed recipient, uint256 value);
 
     struct ArrangementInfo {
@@ -103,7 +103,7 @@ contract PolicyManager is Upgradeable {
 
     mapping (bytes16 => Policy) public policies;
     mapping (address => NodeInfo) public nodes;
-    Range public FeeRateRange;
+    Range public feeRateRange;
 
     /**
     * @notice Constructor sets address of the escrow contract
@@ -145,23 +145,23 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Set maximum, minimum and and default fee rate for all stakers and all policies ('global fee range')
+    * @notice Set maximum, minimum and default fee rate for all stakers and all policies ('global fee range')
     */
     // TODO # 1501
     // function setFeeRateRange(Range calldata _range) external onlyOwner {
     function setFeeRateRange(uint128 _min, uint128 _default, uint128 _max) external onlyOwner {
         require(_min <= _default && _default <= _max);
-        FeeRateRange = Range(_min, _default, _max);
-        emit FeeRateRangeSet(msg.sender, _min, _default, _max);
+        feeRateRange = Range(_min, _default, _max);
+        emit feeRateRangeSet(msg.sender, _min, _default, _max);
     }
 
     /**
     * @notice Set the minimum acceptable fee rate (set by staker)
-    * @dev Input value must fall within `FeeRateRange` (global fee range)
+    * @dev Input value must fall within `feeRateRange` (global fee range)
     */
     function setMinFeeRate(uint256 _minFeeRate) external {
-        require(_minFeeRate >= FeeRateRange.min &&
-            _minFeeRate <= FeeRateRange.max,
+        require(_minFeeRate >= feeRateRange.min &&
+            _minFeeRate <= feeRateRange.max,
             "The staker's min fee rate must fall within the global fee range");
         NodeInfo storage nodeInfo = nodes[msg.sender];
         if (nodeInfo.minFeeRate == _minFeeRate) {
@@ -178,9 +178,9 @@ contract PolicyManager is Upgradeable {
         // if minFeeRate has not been set or chosen value falls outside the global fee range
         // a default value is returned instead
         if (_nodeInfo.minFeeRate == 0 ||
-            _nodeInfo.minFeeRate < FeeRateRange.min ||
-            _nodeInfo.minFeeRate > FeeRateRange.max) {
-            return FeeRateRange.defaultValue;
+            _nodeInfo.minFeeRate < feeRateRange.min ||
+            _nodeInfo.minFeeRate > feeRateRange.max) {
+            return feeRateRange.defaultValue;
         } else {
             return _nodeInfo.minFeeRate;
         }
@@ -690,10 +690,10 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @dev Get FeeRateRange structure by delegatecall
+    * @dev Get feeRateRange structure by delegatecall
     */
     function delegateGetFeeRateRange(address _target) internal returns (Range memory result) {
-        bytes32 memoryAddress = delegateGetData(_target, this.FeeRateRange.selector, 0, 0, 0);
+        bytes32 memoryAddress = delegateGetData(_target, this.feeRateRange.selector, 0, 0, 0);
         assembly {
             result := memoryAddress
         }
@@ -703,9 +703,9 @@ contract PolicyManager is Upgradeable {
     function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
         Range memory rangeToCheck = delegateGetFeeRateRange(_testTarget);
-        require(FeeRateRange.min == rangeToCheck.min &&
-            FeeRateRange.defaultValue == rangeToCheck.defaultValue &&
-            FeeRateRange.max == rangeToCheck.max);
+        require(feeRateRange.min == rangeToCheck.min &&
+            feeRateRange.defaultValue == rangeToCheck.defaultValue &&
+            feeRateRange.max == rangeToCheck.max);
         Policy storage policy = policies[RESERVED_POLICY_ID];
         Policy memory policyToCheck = delegateGetPolicy(_testTarget, RESERVED_POLICY_ID);
         require(policyToCheck.sponsor == policy.sponsor &&

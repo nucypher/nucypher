@@ -502,10 +502,10 @@ class ContractAdministrator(NucypherTokenActor):
         return filepath
 
     def set_fee_rate_range(self,
-                               minimum: int,
-                               default: int,
-                               maximum: int,
-                               transaction_gas_limit: int = None) -> dict:
+                           minimum: int,
+                           default: int,
+                           maximum: int,
+                           transaction_gas_limit: int = None) -> dict:
 
         policy_manager_deployer = PolicyManagerDeployer(registry=self.registry,
                                                         deployer_address=self.deployer_address,

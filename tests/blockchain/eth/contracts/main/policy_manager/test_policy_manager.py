@@ -58,7 +58,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     policy_refund_log = policy_manager.events.RefundForPolicy.createFilter(fromBlock='latest')
     warn_log = policy_manager.events.NodeBrokenState.createFilter(fromBlock='latest')
     min_fee_log = policy_manager.events.MinFeeRateSet.createFilter(fromBlock='latest')
-    fee_range_log = policy_manager.events.FeeRateRangeSet.createFilter(fromBlock='latest')
+    fee_range_log = policy_manager.events.feeRateRangeSet.createFilter(fromBlock='latest')
 
     # Only past periods is allowed in register method
     current_period = policy_manager.functions.getCurrentPeriod().call()
@@ -311,7 +311,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.setFeeRateRange(10, 20, 30).transact({'from': node1})
         testerchain.wait_for_receipt(tx)
-    assert policy_manager.functions.FeeRateRange().call() == [0, 0, 0]
+    assert policy_manager.functions.feeRateRange().call() == [0, 0, 0]
 
     tx = policy_manager.functions.setMinFeeRate(0).transact({'from': node1})
     testerchain.wait_for_receipt(tx)
@@ -320,7 +320,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
 
     tx = policy_manager.functions.setFeeRateRange(0, 0, 0).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    assert policy_manager.functions.FeeRateRange().call() == [0, 0, 0]
+    assert policy_manager.functions.feeRateRange().call() == [0, 0, 0]
 
     events = fee_range_log.get_all_entries()
     assert len(events) == 1
@@ -341,7 +341,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     min_rate, default_rate, max_rate = 10, 20, 30
     tx = policy_manager.functions.setFeeRateRange(min_rate, default_rate, max_rate).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    assert policy_manager.functions.FeeRateRange().call() == [min_rate, default_rate, max_rate]
+    assert policy_manager.functions.feeRateRange().call() == [min_rate, default_rate, max_rate]
     assert policy_manager.functions.nodes(node1).call()[MIN_FEE_RATE_FIELD] == 0
     assert policy_manager.functions.nodes(node2).call()[MIN_FEE_RATE_FIELD] == 0
     assert policy_manager.functions.getMinFeeRate(node1).call() == default_rate
@@ -485,7 +485,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     min_rate, default_rate, max_rate = 11, 15, 19
     tx = policy_manager.functions.setFeeRateRange(min_rate, default_rate, max_rate).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    assert policy_manager.functions.FeeRateRange().call() == [min_rate, default_rate, max_rate]
+    assert policy_manager.functions.feeRateRange().call() == [min_rate, default_rate, max_rate]
     assert policy_manager.functions.nodes(node1).call()[MIN_FEE_RATE_FIELD] == 10
     assert policy_manager.functions.nodes(node2).call()[MIN_FEE_RATE_FIELD] == 20
     assert policy_manager.functions.getMinFeeRate(node1).call() == default_rate
