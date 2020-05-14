@@ -34,22 +34,30 @@ from tests.mock.agents import FAKE_RECEIPT, MockContractAgency, MockStakingAgent
 from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
 
 
-@pytest.fixture(scope='function', autouse=True)
-def mock_contract_agency(monkeypatch, mocker, token_economics):
-    monkeypatch.setattr(ContractAgency, 'get_agent', MockContractAgency.get_agent)
-    mocker.patch.object(EconomicsFactory, 'get_economics', return_value=token_economics)
+@pytest.fixture(scope='module')
+def monkeymodule():
+    from _pytest.monkeypatch import MonkeyPatch
+    mpatch = MonkeyPatch()
+    yield mpatch
+    mpatch.undo()
+
+
+@pytest.fixture(scope='module', autouse=True)
+def mock_contract_agency(monkeymodule, module_mocker, token_economics):
+    monkeymodule.setattr(ContractAgency, 'get_agent', MockContractAgency.get_agent)
+    module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=token_economics)
     yield MockContractAgency()
-    monkeypatch.delattr(ContractAgency, 'get_agent')
+    monkeymodule.delattr(ContractAgency, 'get_agent')
 
 
-@pytest.fixture(scope='function', autouse=True)
+@pytest.fixture(scope='module', autouse=True)
 def mock_worklock_agent(mock_testerchain, token_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(MockWorkLockAgent)
     yield mock_agent
     mock_agent.reset()
 
 
-@pytest.fixture(scope='function', autouse=True)
+@pytest.fixture(scope='module', autouse=True)
 def mock_staking_agent(mock_testerchain, token_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(MockStakingAgent)
     yield mock_agent

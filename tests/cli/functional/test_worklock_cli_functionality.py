@@ -30,7 +30,7 @@ from tests.mock.agents import FAKE_RECEIPT, MockWorkLockAgent
 
 
 @pytest.fixture(scope='module')
-def surrogate_bidder(mock_testerchain, test_registry):
+def surrogate_bidder(mock_testerchain, test_registry, mock_worklock_agent):
     address = mock_testerchain.etherbase_account
     bidder = Bidder(checksum_address=address, registry=test_registry)
     return bidder
