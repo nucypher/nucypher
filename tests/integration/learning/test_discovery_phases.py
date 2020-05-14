@@ -89,6 +89,7 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
 
 _POLICY_PRESERVER = []
 
+
 @pytest.mark.parametrize('fleet_of_highperf_mocked_ursulas', [1000], indirect=True)
 def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
                                             highperf_mocked_alice,
@@ -132,6 +133,8 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
     highperf_mocked_alice.network_middleware = SluggishLargeFleetMiddleware()
 
     policy = _POLICY_PRESERVER[0]
+
+
     with patch('umbral.keys.UmbralPublicKey.__eq__', lambda *args, **kwargs: True), mock_metadata_validation:
         try:
             deferreds = policy.publish_treasure_map(network_middleware=highperf_mocked_alice.network_middleware)
@@ -139,13 +142,40 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
             # Retained for convenient breakpointing during test reuns.
             raise
 
+        nodes_we_expect_to_have_the_map = highperf_mocked_bob.matching_nodes_among(highperf_mocked_alice.known_nodes)
+
+        def map_is_probably_about_ten_percent_published(*args, **kwargs):
+            nodes_that_have_the_map_when_we_unblock = []
+
+            for ursula in fleet_of_highperf_mocked_ursulas:
+                if policy.treasure_map in list(ursula.treasure_maps.values()):
+                    nodes_that_have_the_map_when_we_unblock.append(ursula)
+
+            approximate_expected_distribution = int(len(nodes_we_expect_to_have_the_map) / 10)
+            assert len(nodes_that_have_the_map_when_we_unblock) == pytest.approx(approximate_expected_distribution, 2)
+
+        deferreds.addCallback(map_is_probably_about_ten_percent_published)
+
+        # Fun fact: if you outdent this next line, you'll be unable to validate nodes - pytest
+        # fires the callback of the DeferredList in the context of the yield (as it ought to).
         yield deferreds
 
-    nodes_we_expect_to_have_the_map = highperf_mocked_bob.matching_nodes_among(highperf_mocked_alice.known_nodes)
-    nodes_that_actually_have_the_map = []
+        # Now we're back over here (which will be in the threadpool in the background in the real world, but in the main thread
+        # for the remainder of this test), distributing the test to the rest of the eligible nodes.
+        resumed_publication = maya.now()
 
-    for ursula in fleet_of_highperf_mocked_ursulas:
-        if policy.treasure_map in list(ursula.treasure_maps.values()):
-            nodes_that_actually_have_the_map.append(ursula)
+        nodes_that_actually_have_the_map_eventually = []
+        nodes_we_expect_to_have_the_map_but_which_do_not = [u for u in fleet_of_highperf_mocked_ursulas if u in nodes_we_expect_to_have_the_map]
 
-    assert nodes_that_actually_have_the_map == nodes_we_expect_to_have_the_map
+        while nodes_we_expect_to_have_the_map_but_which_do_not:
+            for ursula in nodes_we_expect_to_have_the_map_but_which_do_not:
+                if policy.treasure_map in list(ursula.treasure_maps.values()):
+                    nodes_that_actually_have_the_map_eventually.append(ursula)
+                    nodes_we_expect_to_have_the_map_but_which_do_not.remove(ursula)
+            time_spent_publishing = maya.now() - resumed_publication
+            if time_spent_publishing.seconds > 30:
+                pytest.fail("Treasure Map wasn't published to the rest of the eligible fleet.")
+            time.sleep(.01)
+
+        # For clarity.
+        assert nodes_that_actually_have_the_map_eventually == nodes_we_expect_to_have_the_map
