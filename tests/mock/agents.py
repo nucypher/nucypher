@@ -1,8 +1,8 @@
 from collections import defaultdict
 
 from hexbytes import HexBytes
-from typing import Tuple
-from unittest.mock import Mock
+from typing import List, Tuple
+from unittest.mock import Mock, _CallList
 
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent, \
@@ -49,91 +49,83 @@ class MockContractAgent:
     # API
     # TODO: Auto generate calls and txs from class inspection
 
+    DEFAULT_TRANSACTION = default_fake_transaction()
+    DEFAULT_CALL = default_fake_call()
+
     ATTRS = dict()
     CALLS = tuple()
     TRANSACTIONS = tuple()
 
-    # Spy
-    _SPY_TRANSACTIONS = defaultdict(list)
-    _SPY_CALLS = defaultdict(list)
-
     def __init__(self):
+        # initial state
+        self.spy = True
+        self.setup_mock(agent_attrs=self.ATTRS)
 
-        self.spy = True  # initial state
-
-        # Bind mock agent attributes to the *subclass*
-        for agent_method, mock_value in self.ATTRS.items():
-            setattr(self.__class__, agent_method, mock_value)
-
-        for call in self.CALLS:
-            setattr(self.__class__, call, Mock(return_value=default_fake_call()))
-
-        for tx in self.TRANSACTIONS:
-            setattr(self.__class__, tx, Mock(return_value=default_fake_transaction()))
-
-    def __record_tx(self, name: str, params: tuple) -> None:
-        self._SPY_TRANSACTIONS[str(name)].append(params)
-
-    def __record_call(self, name: str, params: tuple) -> None:
-        self._SPY_CALLS[str(name)].append(params)
-
-    def __getattribute__(self, name):
-        """Spy"""
-
-        get = object.__getattribute__
-        attr = get(self, name)
-        if not get(self, 'spy'):
-            return attr
-
-        transaction = name in get(self, 'TRANSACTIONS')
-        call = name in get(self, 'CALLS')
-        if not transaction or call:
-            return attr
-
-        spy = self.__record_tx if transaction else self.__record_call
-
-        class Spy(attr):
-            def __call__(self, *args, **kwargs):
-                result = super().__call__(*args, **kwargs)
-                params = args, kwargs
-                spy(name, params)
-                return result
-        return Spy()
+    @classmethod
+    def setup_mock(cls, agent_attrs: dict = None):
+        """Bind mock agent attributes to the *subclass* with default values"""
+        if not agent_attrs:
+            agent_attrs = dict()
+        for agent_method, mock_value in agent_attrs.items():
+            setattr(cls, agent_method, mock_value)
+        for call in cls.CALLS:
+            setattr(cls, call, Mock(return_value=cls.DEFAULT_CALL))
+        for tx in cls.TRANSACTIONS:
+            setattr(cls, tx, Mock(return_value=cls.DEFAULT_TRANSACTION))
 
     #
     # Utils
     #
 
-    @classmethod
-    def reset(cls) -> None:
-        cls._SPY_TRANSACTIONS.clear()
-        cls._SPY_CALLS.clear()
+    def reset(self):
+        for name in (*self.CALLS, *self.TRANSACTIONS):
+            mock = getattr(self, name)
+            mock.call_args_list = _CallList()
+
+    def __get_call_list(self, name_list: Tuple[str]) -> defaultdict:
+        result = defaultdict(list)
+        for name in name_list:
+            mock = getattr(self, name)
+            calls = mock.call_args_list
+            if calls:
+                result[name].extend(calls)
+        return result
+
+    @property
+    def spy_transactions(self) -> defaultdict:
+        result = self.__get_call_list(name_list=self.TRANSACTIONS)
+        return result
+            
+    @property
+    def spy_contract_calls(self) -> defaultdict:
+        result = self.__get_call_list(name_list=self.CALLS)
+        return result
 
     #
     # Assertions
     #
 
     def assert_any_transaction(self) -> None:
-        assert self._SPY_TRANSACTIONS, 'No transactions performed'
+        assert self.spy_transactions, 'No transactions performed'
 
     def assert_no_transactions(self) -> None:
-        assert not self._SPY_TRANSACTIONS, 'Transactions performed'
+        assert not self.spy_transactions, 'Transactions performed'
 
     def assert_only_one_transaction_executed(self) -> None:
-        fail = f"{len(self._SPY_TRANSACTIONS)} were performed ({', '.join(self._SPY_TRANSACTIONS)})."
-        assert len(self._SPY_TRANSACTIONS) == 1, fail
+        fail = f"{len(self.spy_transactions)} were performed ({', '.join(self.spy_transactions)})."
+        assert len(self.spy_transactions) == 1, fail
 
     def assert_transaction_not_called(self, name: str) -> None:
-        assert name not in self._SPY_TRANSACTIONS, f'Unexpected transaction call "{name}".'
+        assert name not in self.spy_transactions, f'Unexpected transaction call "{name}".'
 
     def assert_transaction(self, name: str, call_count: int = 1, **kwargs) -> None:
 
         # some transaction
-        assert self._SPY_TRANSACTIONS, 'No transactions performed'
-        assert name in self.TRANSACTIONS, f'"{name}" was not performed. Recorded txs: ({" ,".join(self._SPY_TRANSACTIONS)})'
+        assert self.spy_transactions, 'No transactions performed'
+        assert name in self.TRANSACTIONS, f'"{name}" was not performed. Recorded txs: ({" ,".join(self.spy_transactions)})'
 
         # this transaction
-        transaction_executions = self._SPY_TRANSACTIONS[name]
+        transaction_executions = self.spy_transactions[name]
         fail = f'Transaction "{name}" was called an unexpected number of times; ' \
                f'Expected {call_count} got {len(transaction_executions)}.'
         assert len(transaction_executions) == call_count, fail
@@ -144,7 +136,7 @@ class MockContractAgent:
 
     def assert_contract_calls(self, calls: Tuple[str]) -> None:
         for call_name in calls:
-            assert call_name in self._SPY_CALLS, f'"{call_name}" was not called'
+            assert call_name in self.spy_contract_calls, f'"{call_name}" was not called'
 
 
 class MockNucypherToken(MockContractAgent, NucypherTokenAgent):

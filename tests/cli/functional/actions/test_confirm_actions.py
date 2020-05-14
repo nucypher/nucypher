@@ -1,24 +1,12 @@
 import click
 import pytest
-from io import StringIO
 
 from nucypher.blockchain.eth.clients import EthereumTesterClient, PUBLIC_CHAINS
 from nucypher.blockchain.eth.token import NU
-from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.actions.confirm import (
-    confirm_deployment,
-    confirm_enable_restaking_lock,
-    confirm_enable_restaking,
-    confirm_enable_winding_down,
-    confirm_staged_stake,
-    confirm_large_stake
-)
-from nucypher.cli.literature import (
-    ABORT_DEPLOYMENT,
-    RESTAKING_LOCK_AGREEMENT,
-    RESTAKING_AGREEMENT,
-    WINDING_DOWN_AGREEMENT
-)
+from nucypher.cli.actions.confirm import (confirm_deployment, confirm_enable_restaking, confirm_enable_restaking_lock,
+                                          confirm_enable_winding_down, confirm_large_stake, confirm_staged_stake)
+from nucypher.cli.literature import (ABORT_DEPLOYMENT, RESTAKING_AGREEMENT, RESTAKING_LOCK_AGREEMENT,
+                                     WINDING_DOWN_AGREEMENT)
 
 
 def test_confirm_deployment(mocker, mock_click_prompt, test_emitter, stdout_trap, mock_testerchain):

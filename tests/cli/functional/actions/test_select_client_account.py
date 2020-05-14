@@ -1,12 +1,11 @@
 import click
-from unittest.mock import Mock
-
 import pytest
 from eth_utils import is_checksum_address
+from unittest.mock import Mock
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Wallet
-from nucypher.blockchain.eth.clients import EthereumClient, EthereumTesterClient
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.actions.select import select_client_account
@@ -112,7 +111,7 @@ def test_select_client_account_valid_sources(mocker,
     assert selected_account == expected_account
 
 
-@pytest.mark.parametrize('selection,show_staking,show_eth,show_tokens,mock_stakes', (
+@pytest.mark.parametrize('selection,show_staking,show_eth,show_tokens,stake_info', (
         (0,  True, True, True, []),
         (1, True, True, True, []),
         (5, True, True, True, []),
@@ -134,10 +133,11 @@ def test_select_client_account_with_balance_display(mock_click_prompt,
                                                     show_staking,
                                                     show_eth,
                                                     show_tokens,
-                                                    mock_stakes):
+                                                    stake_info):
 
     # Setup
     mock_click_prompt.return_value = selection
+    mock_staking_agent.get_all_stakes.return_value = stake_info
 
     # Missing network kwarg with balance display active
     blockchain_read_required = any((show_staking, show_eth, show_tokens))
@@ -149,7 +149,7 @@ def test_select_client_account_with_balance_display(mock_click_prompt,
                                   show_staking=show_staking,
                                   provider_uri=MOCK_PROVIDER_URI)
 
-    mock_staking_agent.get_all_stakes.return_value = mock_stakes
+    # Good selection
     selected_account = select_client_account(emitter=test_emitter,
                                              network=TEMPORARY_DOMAIN,
                                              show_eth_balance=show_eth,
@@ -194,7 +194,7 @@ def test_select_client_account_with_balance_display(mock_click_prompt,
             assert str(Web3.fromWei(balance, 'ether')) in row
 
         if show_staking:
-            if len(mock_stakes) == 0:
+            if len(stake_info) == 0:
                 assert "No" in row
             else:
                 assert 'Yes' in row

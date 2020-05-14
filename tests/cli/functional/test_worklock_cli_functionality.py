@@ -29,7 +29,7 @@ from tests.constants import CLI_TEST_ENV, MOCK_PROVIDER_URI, YES
 from tests.mock.agents import FAKE_RECEIPT, MockWorkLockAgent
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture()
 def surrogate_bidder(mock_testerchain, test_registry, mock_worklock_agent):
     address = mock_testerchain.etherbase_account
     bidder = Bidder(checksum_address=address, registry=test_registry)
@@ -51,7 +51,7 @@ def test_status(click_runner, mock_worklock_agent, test_registry_source_manager)
     assert result.exit_code == 0
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture()
 def bidding_command(token_economics, surrogate_bidder):
     minimum = token_economics.worklock_min_allowed_bid
     bid_value = random.randint(minimum, minimum*100)
@@ -110,9 +110,10 @@ def test_valid_bid(click_runner,
 
     now = mock_testerchain.get_blocktime()
     sometime_later = now + 100
-    mock_blocktime = mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=sometime_later)
+    mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=sometime_later)
 
     # Spy on the corresponding CLI function we are testing
+    # TODO: Mock at the agent layer instead
     mock_ensure = mocker.spy(Bidder, 'ensure_bidding_is_open')
     mock_bidder = mocker.spy(Bidder, 'place_bid')
 
@@ -365,7 +366,7 @@ def test_participant_status(click_runner,
                       'get_bonus_deposit_rate',
                       'get_bonus_refund_rate',
                       'get_base_refund_rate',
-                      'get_completed_work',
+                      # 'get_completed_work',  # TODO Yes or no?
                       'get_refunded_work')
     # Calls
     mock_worklock_agent.assert_contract_calls(calls=expected_calls)
