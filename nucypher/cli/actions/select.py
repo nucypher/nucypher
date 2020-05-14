@@ -96,6 +96,9 @@ def select_client_account(emitter,
     Note: Showing ETH and/or NU balances, causes an eager blockchain connection.
     """
 
+    if wallet and (provider_uri or signer_uri or signer):
+        raise ValueError("If pass a wallet, don't pass a signer, provider URI, or signer URI also.")
+
     # We use Wallet internally as an account management abstraction
     if not wallet:
 
@@ -114,9 +117,6 @@ def select_client_account(emitter,
             signer = Signer.from_signer_uri(signer_uri) if signer_uri else None
 
         wallet = Wallet(provider_uri=provider_uri, signer=signer)
-
-    elif provider_uri or signer_uri:
-        raise ValueError("If you input a wallet, don't pass a provider URI or signer URI too")
 
     # Display accounts info
     if show_nu_balance or show_staking:  # Lazy registry fetching

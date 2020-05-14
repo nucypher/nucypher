@@ -23,13 +23,13 @@ from eth_account.account import Account
 from io import StringIO
 
 from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth import KeystoreSigner
 from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.config.characters import UrsulaConfiguration
-from tests.constants import KEYFILE_NAME_TEMPLATE, MOCK_KEYSTORE_PATH, NUMBER_OF_ETH_TEST_ACCOUNTS
+from tests.constants import KEYFILE_NAME_TEMPLATE, MOCK_KEYSTORE_PATH, NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS
 from tests.fixtures import _make_testerchain, make_token_economics
 from tests.mock.agents import FAKE_RECEIPT, MockContractAgency, MockNucypherToken, MockStakingAgent, MockWorkLockAgent
 from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
@@ -151,7 +151,7 @@ def mock_contract_agency(module_mocker, token_economics):
 @pytest.fixture(scope='module')
 def mock_accounts():
     accounts = dict()
-    for i in range(NUMBER_OF_ETH_TEST_ACCOUNTS):
+    for i in range(NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS):
         account = Account.create()
         filename = KEYFILE_NAME_TEMPLATE.format(month=i+1, address=account.address)
         accounts[filename] = account

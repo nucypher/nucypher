@@ -50,7 +50,7 @@ MOCK_KEYSTORE_PATH = '/home/fakeMcfakeson/.ethereum/llamanet/keystore/'
 
 MOCK_SIGNER_URI = f'keystore://{MOCK_KEYSTORE_PATH}'
 
-NUMBER_OF_MOCK_ACCOUNTS = 3
+NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS = NUMBER_OF_ETH_TEST_ACCOUNTS
 
 
 #
