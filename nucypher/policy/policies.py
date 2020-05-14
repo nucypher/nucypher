@@ -163,6 +163,22 @@ class BlockchainArrangement(Arrangement):
         return bytes(self.publish_transaction) + partial_payload
 
 
+class PolicyPayloadMutex(DeferredList):
+
+    def __init__(self, deferredList, *args, **kwargs):
+        super().__init__(deferredList, *args, **kwargs)
+        self.done_when = int(len(deferredList) / 10)
+
+    def _cbDeferred(self, *args, **kwargs):
+        if self.finishedCount == self.done_when:
+            self.fireOnOneCallback = True
+            result = super()._cbDeferred(*args, **kwargs)
+            self.called = False  # Keep running.
+            return result
+
+        return super()._cbDeferred(*args, **kwargs)
+
+
 class Policy(ABC):
     """
     An edict by Alice, arranged with n Ursulas, to perform re-encryption for a specific Bob
@@ -281,25 +297,7 @@ class Policy(ABC):
                           map_payload=bytes(self.treasure_map)
                           ))
 
-            # try:
-            #     response = network_middleware.put_treasure_map_on_node()
-            # except NodeSeemsToBeDown:
-            #     # TODO: Introduce good failure mode here if too few nodes receive the map.
-            #     self.log.debug(f"Failed pushing {self.treasure_map} to unresponsive {node}")
-            #     continue
-            #
-            # if response.status_code == 202:
-            #     # TODO: #341 - Handle response wherein node already had a copy of this TreasureMap.
-            #     responses[node] = response
-            #     self.log.debug(f"{self.treasure_map} successfully pushed to {node}")
-            #
-            # else:
-            #     # TODO: Do something useful here.
-            #     message = f"Failed pushing {self.treasure_map} to {node}, with status {response.status_code}"
-            #     self.log.debug(message)
-            #     raise RuntimeError(message)
-
-        return DeferredList(responses)
+        return PolicyPayloadMutex(responses)
 
     def credential(self, with_treasure_map=True):
         """
