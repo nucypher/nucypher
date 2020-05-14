@@ -47,6 +47,8 @@ class MockContractAgent:
     contract_address = NULL_ADDRESS
 
     # API
+    # TODO: Auto generate calls and txs from class inspection
+
     ATTRS = dict()
     CALLS = tuple()
     TRANSACTIONS = tuple()

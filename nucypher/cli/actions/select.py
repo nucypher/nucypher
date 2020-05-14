@@ -22,7 +22,7 @@ import glob
 import click
 import os
 from tabulate import tabulate
-from typing import Tuple
+from typing import List, Tuple
 from web3.main import Web3
 
 from nucypher.blockchain.eth.actors import Staker, Wallet
@@ -50,7 +50,11 @@ from nucypher.cli.painting.staking import paint_stakes
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ADDRESS
 
 
-def select_stake(stakeholder, emitter, divisible: bool = False, staker_address: str = None) -> Stake:
+def select_stake(stakeholder,
+                 emitter: StdoutEmitter,
+                 divisible: bool = False,
+                 staker_address: str = None
+                 ) -> Stake:
     if staker_address:
         staker = stakeholder.get_staker(checksum_address=staker_address)
         stakes = staker.stakes
@@ -60,10 +64,10 @@ def select_stake(stakeholder, emitter, divisible: bool = False, staker_address: 
         emitter.echo(NO_STAKES_FOUND, color='red')
         raise click.Abort
 
-    stakes = sorted((stake for stake in stakes if stake.is_active), key=lambda s: s.address_index_ordering_key)
+    stakes = stakeholder.sorted_stakes
     if divisible:
         emitter.echo(ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE, color='yellow')
-        stakes = list(filter(lambda s: bool(s.value >= stakeholder.economics.minimum_allowed_locked*2), stakes))  # TODO: Move to method on Stake
+        stakes = stakeholder.divisible_stakes
         if not stakes:
             emitter.echo(NO_DIVISIBLE_STAKES, color='red')
             raise click.Abort

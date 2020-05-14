@@ -19,16 +19,23 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import tabulate
 from web3.main import Web3
 
+from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import datetime_at_period, prettify_eth_amount
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import NO_ACTIVE_STAKES, NO_STAKES_AT_ALL, NO_STAKING_ACCOUNTS, POST_STAKING_ADVICE
 from nucypher.cli.painting.transactions import paint_receipt_summary
 
 
-def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_address: str = None):
-    headers = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination')
-    staker_headers = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees', 'Min fee rate')
+STAKE_TABLE_COLUMNS = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination')
+STAKER_TABLE_COLUMNS = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees', 'Min fee rate')
+
+
+def paint_stakes(emitter: StdoutEmitter,
+                 stakeholder: StakeHolder,
+                 paint_inactive: bool = False,
+                 staker_address: str = None) -> None:
 
     stakers = stakeholder.get_stakers()
     if not stakers:
@@ -74,7 +81,7 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
             emitter.echo(snippet_with_line, bold=True)
         emitter.echo(f"Staker {staker.checksum_address} ════", bold=True, color='red' if missing else 'green')
         emitter.echo(f"Worker {staker.worker_address} ════")
-        emitter.echo(tabulate.tabulate(zip(staker_headers, staker_data), floatfmt="fancy_grid"))
+        emitter.echo(tabulate.tabulate(zip(STAKER_TABLE_COLUMNS, staker_data), floatfmt="fancy_grid"))
 
         rows = list()
         for index, stake in enumerate(stakes):
@@ -83,7 +90,7 @@ def paint_stakes(emitter, stakeholder, paint_inactive: bool = False, staker_addr
                 continue
             rows.append(list(stake.describe().values()))
         total_stakers += 1
-        emitter.echo(tabulate.tabulate(rows, headers=headers, tablefmt="fancy_grid"))  # newline
+        emitter.echo(tabulate.tabulate(rows, headers=STAKE_TABLE_COLUMNS, tablefmt="fancy_grid"))  # newline
 
     if not total_stakers:
         emitter.echo("No Stakes found", color='red')
