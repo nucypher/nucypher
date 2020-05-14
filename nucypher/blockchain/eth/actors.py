@@ -511,9 +511,9 @@ class ContractAdministrator(NucypherTokenActor):
                                                         deployer_address=self.deployer_address,
                                                         economics=self.economics)
         receipt = policy_manager_deployer.set_fee_rate_range(minimum=minimum,
-                                                                 default=default,
-                                                                 maximum=maximum,
-                                                                 gas_limit=transaction_gas_limit)
+                                                             default=default,
+                                                             maximum=maximum,
+                                                             gas_limit=transaction_gas_limit)
         return receipt
 
 

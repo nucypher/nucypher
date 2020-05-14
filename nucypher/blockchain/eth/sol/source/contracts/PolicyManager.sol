@@ -13,7 +13,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 
 /**
-* @notice Contract holds policy data and locks accrued policy fees until collection
+* @notice Contract holds policy data and locks accrued policy fees
 * @dev |v6.1.1|
 */
 contract PolicyManager is Upgradeable {
@@ -51,7 +51,7 @@ contract PolicyManager is Upgradeable {
     event MinFeeRateSet(address indexed node, uint256 value);
     // TODO #1501
     // Range range
-    event feeRateRangeSet(address indexed sender, uint256 min, uint256 defaultValue, uint256 max);
+    event FeeRateRangeSet(address indexed sender, uint256 min, uint256 defaultValue, uint256 max);
     event Withdrawn(address indexed node, address indexed recipient, uint256 value);
 
     struct ArrangementInfo {
@@ -152,7 +152,7 @@ contract PolicyManager is Upgradeable {
     function setFeeRateRange(uint128 _min, uint128 _default, uint128 _max) external onlyOwner {
         require(_min <= _default && _default <= _max);
         feeRateRange = Range(_min, _default, _max);
-        emit feeRateRangeSet(msg.sender, _min, _default, _max);
+        emit FeeRateRangeSet(msg.sender, _min, _default, _max);
     }
 
     /**

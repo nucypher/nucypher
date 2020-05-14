@@ -361,7 +361,7 @@ def paint_fee_rate_range(emitter, policy_agent):
     minimum, default, maximum = policy_agent.get_fee_rate_range()
 
     range_payload = f"""
-Global fee range:
+Global fee Range:
     ~ Minimum ............ {prettify_eth_amount(minimum)}
     ~ Default ............ {prettify_eth_amount(default)}
     ~ Maximum ............ {prettify_eth_amount(maximum)}"""

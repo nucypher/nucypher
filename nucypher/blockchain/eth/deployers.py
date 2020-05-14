@@ -806,11 +806,11 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         return deployment_receipts
 
     def set_fee_rate_range(self,
-                               minimum: int,
-                               default: int,
-                               maximum: int,
-                               gas_limit: int = None,
-                               confirmations: int = 0) -> dict:
+                           minimum: int,
+                           default: int,
+                           maximum: int,
+                           gas_limit: int = None,
+                           confirmations: int = 0) -> dict:
 
         if minimum > default or default > maximum:
             raise ValueError(f"Default fee rate ({default}) must fall within the global fee range by satisfying the condition: "
