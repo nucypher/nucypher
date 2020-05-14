@@ -9,7 +9,7 @@ NuCypher staking operations are divided into two roles "Staker" and "Worker" - T
 Worker Overview
 ----------------
 
-*Worker* - (aka "Ursula") Active network participant, Carries out re-encryption work orders.
+*Worker* - (aka "Ursula") Active network participant who carries out re-encryption work orders.
 
 The Worker is the bonded delegate of a Staker and an active network node. Workers must remain online to provide
 uninterrupted re-encryption services on-demand. Each staking account or Staker is bonded to exactly one Worker.
@@ -36,37 +36,8 @@ Working Procedure:
 1. Running an Ethereum node for Ursula
 ----------------------------------------
 
-Run Geth with Docker
-~~~~~~~~~~~~~~~~~~~~~
-
-Run a local geth using volume bindings:
-
-.. code:: bash
-
-    docker run -it -p 30303:30303 -v ~/.ethereum:/root/.ethereum ethereum/client-go
-
-For alternate geth configuration via docker see:
-`Geth Docker Documentation <https://geth.ethereum.org/docs/install-and-build/installing-geth#run-inside-docker-container>`_.
-
-
-Run Geth with the CLI
-~~~~~~~~~~~~~~~~~~~~~
-
-.. code:: bash
-
-    $ geth --nousb
-    ... (geth log output)
-
-Create a software-controlled account in geth in another console:
-
-.. code:: bash
-
-    $ geth attach ~/.ethereum/geth.ipc
-    > personal.newAccount();
-    > eth.accounts[0]
-    ["0xc080708026a3a280894365efd51bb64521c45147"]
-
-The new account is ``0xc080708026a3a280894365efd51bb64521c45147`` in this case.
+Worker (Ursula) transactions can be broadcasted using either a local or remote ethereum node. See :ref:`using-eth-node`
+for more information.
 
 
 .. _fund-worker-account:
@@ -120,7 +91,7 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
 
     - ``ipc:///home/<username>/.ethereum/geth.ipc`` - IPC Socket-based JSON-RPC server
     - ``https://<host>`` - HTTP(S)-based JSON-RPC server
-    - ``ws://<host>:8080`` - Websocket-based JSON-RPC server
+    - ``wss://<host>:8080`` - Websocket(Secure)-based JSON-RPC server
 
 ``<NETWORK_NAME>`` is the name of the NuCypher network domain where the node will run.
 

@@ -131,8 +131,9 @@ Whitepapers
    guides/installation_guide
    guides/network_node/network_node
    guides/development/development
+   guides/ethereum_node
    guides/worklock_guide
-   guides/environment_variables.rst
+   guides/environment_variables
    guides/contribution_guide
 
 .. toctree::

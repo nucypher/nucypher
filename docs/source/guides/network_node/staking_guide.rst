@@ -108,135 +108,32 @@ All staking-related operations done by Staker are performed through the ``nucyph
 Staking
 --------
 
-Staking transactions can be broadcast using either a local or remote ethereum node.
-By default transaction signing requests are forwarded to the configured ethereum provider;
-This is the typical configuration for locally or independently run ethereum nodes.
-In order to use a remote ethereum provider (e.g. Alchemy, Infura, Public Remote Node) an external transaction signing client
-(e.g. clef or geth) is needed separate from the broadcasting node.
+Running an Ethereum Node for Staking
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Below we describe the usage of both local and remote ethereum providers...
-
-Running an Ethereum Node for Staking (Local Provider)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Here we describe the steps required to run an ethereum node for both transaction signing and broadcast.
-This is the typical configuration for a locally operated trusted ethereum node.
-
-Assuming you have ``geth`` installed
-
-.. code:: bash
-
-    $ geth
-
-If you want to use your hardware wallet, just connect it to your machine. You'll see something like this in logs:
-
-.. code:: bash
-
-    INFO [08-30|15:50:39.153] New wallet appeared      url=ledger://0001:000b:00      status="Ethereum app v1.2.7 online"
-
-If you see something like ``New wallet appeared, failed to open`` in the logs,
-you need to reconnect the hardware wallet (without turning the ``geth`` node
-off).
-
-If you don't have a hardware wallet, you can create a software one:
-
-Whilst running the initialized node:
-
-.. code:: bash
-
-    Linux:
-    $ geth attach /home/<username>/.ethereum/geth.ipc
-    > personal.newAccount();
-    > eth.accounts
-    ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
-
-    MacOS:
-    $ geth attach /Users/<username>/Library/Ethereum/geth.ipc
-    > personal.newAccount();
-    > eth.accounts
-    ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
-
-Where ``0x287a817426dd1ae78ea23e9918e2273b6733a43d`` is your newly created
-account address and ``<username>`` is your user.
-
-Using Clef as an external transaction signer (Remote Provider)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. important::
-
-    External signing support is an experimental feature and under active development.
-
-Motivation
-**********
-
-Instead of using a local ethereum node for both transaction signing and broadcast, an external signer can be specified
-and operated independently of the provider/broadcaster. This separation allows stakers to use local hardware and software wallets
-to send pre-signed transactions to an external (possibly remote) ethereum node.
-
-Some examples:
-
-- Infura/Alchemy/Etc. for broadcasting with clef signer
-- Local geth node for broadcasting with clef signer
-- Remote ethereum node for broadcasting with local geth signer
+Staking transactions can be broadcasted using either a local or remote ethereum node. See
+:ref:`using-eth-node` for more information.
 
 
-Clef Setup
-**********
+Using External Signing
+**********************
 
-We'll quickly walk through setup steps below, but additional in-depth documentation on clef can
-be found in the source repository here https://github.com/ethereum/go-ethereum/tree/master/cmd/clef
+By default, transaction signing requests are forwarded to the configured ethereum provider. This is the typical
+configuration for locally or independently run ethereum nodes. To use a remote ethereum provider
+(e.g. Alchemy, Infura, Public Remote Node) an external transaction signing client (e.g. `clef` or `geth`) is needed
+separate from the broadcasting node.
 
-Clef is typically installed alongside geth.  If you already have geth installed on your system you
-may already have clef installed.  To check for an existing installation run:
-
-.. code:: bash
-
-    $ clef --version
-    Clef version 0.0.0
-
-If clef was not found, upgrade geth to the latest version and try again.
-
-Next, initialize Clef with your chosen password to encrypt the master seed:
-
-.. code:: bash
-
-    $ clef init
-    ...
-    The master seed of clef will be locked with a password.
-    Please specify a password. Do not forget this password!
-    Password:
+Using Clef
+++++++++++
+See :ref:`signing-with-clef` for setting up Clef. By default, all requests to the clef signer require manual
+confirmation. This includes not only transactions but also more innocuous requests such as listing the accounts
+that the signer is handling. This means, for example, that a command like ``nucypher stake accounts`` will first ask
+for user confirmation in the clef CLI before showing the staker accounts. You can automate this confirmation by
+using :ref:`clef-rules`.
 
 
-Running Clef
-************
-
-Clef can use hardware wallets (ledger and trezor) over USB, or geth formatted private keys
-by specifying the keystore directory path:
-
-.. code:: bash
-
-    $ clef --keystore <PATH TO KEYSTORE> --chainid <CHAIN ID> --advanced
-
-
-- <PATH TO KEYSTORE> - The path to the directory containing geth-formatted private key files; the default path for Linux is ``~/.ethereum/keystore``.
-- Chain ID 1 is specified to ensure clef signs transactions with the network ID of mainnet.
-
-
-.. code:: bash
-
-    Enter 'ok' to proceed:
-    > ok
-   ...
-
-    ------- Signer info -------
-    * extapi_version : 6.0.0
-    * extapi_http : n/a
-    * extapi_ipc : /home/<username>/.clef/clef.ipc
-    * intapi_version : 7.0.0
-
-
-Using clef with nucypher commands
-*********************************
+Using Clef with nucypher commands
++++++++++++++++++++++++++++++++++
 
 .. code:: bash
 
@@ -256,65 +153,6 @@ Some examples:
     $ nucypher stake create --signer clef:///home/<username>/.clef/clef.ipc --provider ~/.ethereum/geth.ipc
 
 
-Interacting with clef
-*********************
-
-Requests for account management, and signing will be directed at clef, with a 60 second timeout.
-Be alert for user-interactive requests and confirmations from the clef CLI.
-
-
-By default, all requests to the clef signer require manual confirmation.
-This include not only transactions, but also more innocuous requests such as listing the accounts
-that the signer is handling. This means, for example, that a command like ``nucypher stake accounts`` will first
-ask for user confirmation in the clef CLI before showing the staker accounts.
-
-To overcome this, Clef allows to define rules to automate the confirmation of certain transactions,
-or more generally, of some requests to the signer.
-In particular, we recommend that users of a Clef signer with nucypher define the following rules file,
-which simply approves the listing of accounts:
-
-.. code:: javascript
-
-    function ApproveListing() {
-        return "Approve"
-    }
-
-The sha256 digest of this particular 3-line file is ``8d089001fbb55eb8d9661b04be36ce3285ffa940e5cdf248d0071620cf02ebcd``.
-We will use this digest to attest that we trust these rules:
-
-.. code:: bash
-
-    $ clef attest 8d089001fbb55eb8d9661b04be36ce3285ffa940e5cdf248d0071620cf02ebcd
-
-    WARNING!
-
-    Clef is an account management tool. It may, like any software, contain bugs.
-
-    Please take care to
-    - backup your keystore files,
-    - verify that the keystore(s) can be opened with your password.
-
-    Clef is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-    without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE. See the GNU General Public License for more details.
-
-    Enter 'ok' to proceed:
-    > ok
-
-    Decrypt master seed of clef
-    Password:
-    INFO [04-14|02:00:54.740] Ruleset attestation updated    sha256=8d089001fbb55eb8d9661b04be36ce3285ffa940e5cdf248d0071620cf02ebcd
-
-
-Once the rules file is attested, we can run Clef with the ``--rules rules.js`` flag,
-to indicate which are the automated rules (in our case, allowing listing of accounts):
-
-.. code:: bash
-
-    $ clef --keystore <PATH TO KEYSTORE> --chainid <CHAIN ID> --advanced --rules rules.js
-
-
-
 Initialize a new stakeholder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -327,7 +165,8 @@ This will create a configuration file (`~/.local/share/nucypher/stakeholder.json
 
 where:
 
-    * If you utilized `Clef Setup`_, the ``SIGNER URI`` is ``clef:///home/<username>/.clef/clef.ipc``
+    * If you utilized :ref:`signing-with-clef`, the ``SIGNER URI`` is ``clef:///home/<username>/.clef/clef.ipc``
+      (on MacOS for Goerli testnet, ``ipc:///Users/<username>/Library/Signer/clef.ipc``)
     * If you ran ``geth`` node as above, your ``<PROVIDER>`` is ``ipc:///home/<username>/.ethereum/geth.ipc``
       (on MacOS for Goerli testnet, ``ipc:///Users/<username>/Library/Ethereum/goerli/geth.ipc``)
     * ``<NETWORK_NAME>`` is the name of the NuCypher network domain where the staker will participate.
