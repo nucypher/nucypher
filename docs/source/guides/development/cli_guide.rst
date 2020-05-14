@@ -12,7 +12,7 @@ in :doc:`getting_started`.
 .. note::
 
     While the example provided uses Ethereum mainnet, these steps can be followed for the Goerli Testnet
-    with updated `geth` (``~/.ethereum/goerli/geth.ipc``) and `seed` uri (``https://gemini.nucypher.network:9151``).
+    with updated `geth` (``~/.ethereum/goerli/geth.ipc``) and `seed` URI (``https://gemini.nucypher.network:9151``).
 
 
 To better understand the commands and their options, use the ``--help`` option.
@@ -30,7 +30,7 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
 
     - ``ipc:///home/<username>/.ethereum/geth.ipc`` - IPC Socket-based JSON-RPC server
     - ``https://<host>`` - HTTP(S)-based JSON-RPC server
-    - ``ws://<host>:8080`` - Websocket-based JSON-RPC server
+    - ``wss://<host>:8080`` - Websocket(Secure)-based JSON-RPC server
 
 
 Get Bob's Public Keys
