@@ -17,7 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import click
+import os
 import pytest
+from eth_account.account import Account
 from io import StringIO
 
 from nucypher.blockchain.economics import EconomicsFactory
@@ -25,9 +27,33 @@ from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.config.characters import UrsulaConfiguration
+from tests.constants import KEYFILE_NAME_TEMPLATE, NUMBER_OF_ETH_TEST_ACCOUNTS
 from tests.fixtures import _make_testerchain, make_token_economics
-from tests.mock.agents import FAKE_RECEIPT, MockContractAgency
+from tests.mock.agents import FAKE_RECEIPT, MockContractAgency, MockStakingAgent, MockWorkLockAgent
 from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_contract_agency(monkeypatch, mocker, token_economics):
+    monkeypatch.setattr(ContractAgency, 'get_agent', MockContractAgency.get_agent)
+    mocker.patch.object(EconomicsFactory, 'get_economics', return_value=token_economics)
+    yield MockContractAgency()
+    monkeypatch.delattr(ContractAgency, 'get_agent')
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_worklock_agent(mock_testerchain, token_economics, mock_contract_agency):
+    mock_agent = mock_contract_agency.get_agent(MockWorkLockAgent)
+    yield mock_agent
+    mock_agent.reset()
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_staking_agent(mock_testerchain, token_economics, mock_contract_agency):
+    mock_agent = mock_contract_agency.get_agent(MockStakingAgent)
+    yield mock_agent
+    mock_agent.reset()
 
 
 @pytest.fixture()
@@ -103,3 +129,31 @@ def mock_contract_agency(module_mocker, token_economics):
     # Restore the monkey patching
     ContractAgency.get_agent = get_agent
     ContractAgency.get_agent_by_contract_name = get_agent_by_name
+
+
+@pytest.fixture(scope='module')
+def mock_accounts():
+    accounts = dict()
+    for i in range(NUMBER_OF_ETH_TEST_ACCOUNTS):
+        account = Account.create()
+        filename = KEYFILE_NAME_TEMPLATE.format(month=i+1, address=account.address)
+        accounts[filename] = account
+    return accounts
+
+
+@pytest.fixture(scope='module')
+def worker_account(mock_accounts, mock_testerchain):
+    account = list(mock_accounts.values())[0]
+    return account
+
+
+@pytest.fixture(scope='module')
+def worker_address(worker_account):
+    address = worker_account.address
+    return address
+
+
+@pytest.fixture(scope='module')
+def custom_config_filepath(custom_filepath):
+    filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
+    return filepath

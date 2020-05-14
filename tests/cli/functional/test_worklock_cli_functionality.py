@@ -29,13 +29,6 @@ from tests.constants import CLI_TEST_ENV, MOCK_PROVIDER_URI, YES
 from tests.mock.agents import FAKE_RECEIPT, MockWorkLockAgent
 
 
-@pytest.fixture(scope='function')
-def mock_worklock_agent(mock_testerchain, token_economics):
-    mock_agent = MockWorkLockAgent()
-    yield mock_agent
-    mock_agent.reset()
-
-
 @pytest.fixture(scope='module')
 def surrogate_bidder(mock_testerchain, test_registry):
     address = mock_testerchain.etherbase_account

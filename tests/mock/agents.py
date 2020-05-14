@@ -5,7 +5,8 @@ from typing import Tuple
 from unittest.mock import Mock
 
 from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent, WorkLockAgent
+from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent, \
+    WorkLockAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from tests.constants import MOCK_PROVIDER_URI
@@ -56,17 +57,17 @@ class MockContractAgent:
 
     def __init__(self):
 
+        self.spy = True  # initial state
+
         # Bind mock agent attributes to the *subclass*
         for agent_method, mock_value in self.ATTRS.items():
             setattr(self.__class__, agent_method, mock_value)
-        self.__setup_mock()
 
-    @classmethod
-    def __setup_mock(cls) -> None:
-        for call in cls.CALLS:
-            setattr(cls, call, Mock(return_value=default_fake_call()))
-        for tx in cls.TRANSACTIONS:
-            setattr(cls, tx, Mock(return_value=default_fake_transaction()))
+        for call in self.CALLS:
+            setattr(self.__class__, call, Mock(return_value=default_fake_call()))
+
+        for tx in self.TRANSACTIONS:
+            setattr(self.__class__, tx, Mock(return_value=default_fake_transaction()))
 
     def __record_tx(self, name: str, params: tuple) -> None:
         self._SPY_TRANSACTIONS[str(name)].append(params)
@@ -79,19 +80,23 @@ class MockContractAgent:
 
         get = object.__getattribute__
         attr = get(self, name)
+        if not get(self, 'spy'):
+            return attr
+
         transaction = name in get(self, 'TRANSACTIONS')
         call = name in get(self, 'CALLS')
+        if not transaction or call:
+            return attr
 
-        if transaction or call:
-            spy = self.__record_tx if transaction else self.__record_call
-            def wrapped(*args, **kwargs):
-                result = attr(*args, **kwargs)
+        spy = self.__record_tx if transaction else self.__record_call
+
+        class Spy(attr):
+            def __call__(self, *args, **kwargs):
+                result = super().__call__(*args, **kwargs)
                 params = args, kwargs
                 spy(name, params)
                 return result
-            return wrapped
-        else:
-            return attr
+        return Spy()
 
     #
     # Utils
@@ -147,11 +152,22 @@ class MockNucypherToken(MockContractAgent, NucypherTokenAgent):
 class MockStakingAgent(MockContractAgent, StakingEscrowAgent):
     """dont forget the eggs!"""
 
-    CALLS = ('get_completed_work', )
+    CALLS = ('get_completed_work',
+             'get_all_stakes',
+             'get_current_period',
+             'get_worker_from_staker',
+             'get_last_committed_period',
+             'get_flags',
+             'is_restaking',
+             'is_winding_down',
+             )
 
 
 class MockPolicyManagerAgent(MockContractAgent, PolicyManagerAgent):
     """The best ethereum policy manager ever"""
+
+    CALLS = ('get_fee_amount',
+             )
 
 
 class MockWorkLockAgent(MockContractAgent, WorkLockAgent):
@@ -200,22 +216,32 @@ class MockContractAgency:
                      PolicyManagerAgent: MockPolicyManagerAgent,
                      WorkLockAgent: MockWorkLockAgent}
 
+    AGENTS = dict()
+
     class NoMockFound(ValueError):
         """Well we hadn't made one yet"""
 
     @classmethod
     def get_agent(cls, agent_class, *args, **kwargs) -> MockContractAgent:
+        if "Mock" not in str(agent_class.__name__):
+            try:
+                double = cls.DOUBLE_AGENTS[agent_class]
+            except KeyError:
+                raise ValueError(f'No mock class available for "{str(agent_class)}"')
+            else:
+                agent_class = double
         try:
-            double = cls.DOUBLE_AGENTS[agent_class]
+            agent = cls.AGENTS[agent_class]
         except KeyError:
-            raise ValueError(f'No mock class available for "{str(agent_class)}"')
-        else:
-            return double()
+            agent = agent_class()
+            cls.AGENTS[agent_class] = agent_class()
+
+        return agent
 
     @classmethod
     def get_agent_by_contract_name(cls, contract_name: str, *args, **kwargs) -> MockContractAgent:
         for agent, test_double in cls.DOUBLE_AGENTS.items():
             if test_double.registry_contract_name == contract_name:
-                return test_double()
+                return cls.get_agent(agent_class=test_double)
         else:
             raise ValueError(f'No mock available for "{contract_name}"')
