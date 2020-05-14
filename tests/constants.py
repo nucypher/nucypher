@@ -16,17 +16,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import string
-from pathlib import Path
 from random import SystemRandom
 
 import tempfile
 import time
 from datetime import datetime
+from pathlib import Path
 from web3 import Web3
 
 from nucypher.blockchain.eth.token import NU
-from nucypher.config.constants import BASE_DIR, NUCYPHER_ENVVAR_KEYRING_PASSWORD
-
+from nucypher.config.constants import BASE_DIR, NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
 
 #
 # Ursula
@@ -40,6 +39,18 @@ NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS
 NUMBER_OF_ETH_TEST_ACCOUNTS = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS + NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS + 10
 
 NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS
+
+#
+# Local Signer Keystore
+#
+
+KEYFILE_NAME_TEMPLATE = 'UTC--2020-{month}-21T03-42-07.869432648Z--{address}'
+
+MOCK_KEYSTORE_PATH = '/home/fakeMcfakeson/.ethereum/llamanet/keystore/'
+
+MOCK_SIGNER_URI = f'keystore://{MOCK_KEYSTORE_PATH}'
+
+NUMBER_OF_MOCK_ACCOUNTS = 3
 
 
 #
@@ -112,6 +123,9 @@ MOCK_IP_ADDRESS_2 = '203.0.113.20'
 
 MOCK_URSULA_DB_FILEPATH = ':memory:'
 
+FEE_RATE_RANGE = (5, 10, 15)
+
+
 #
 # Gas
 #
@@ -120,10 +134,17 @@ TEST_GAS_LIMIT = 8_000_000  # gas
 
 PYEVM_GAS_LIMIT = TEST_GAS_LIMIT  # TODO: move elsewhere (used to set pyevm gas limit in tests)?
 
+
+#
+# CLI
+#
+
 YES = 'Y\n'
 
 NO = 'N\n'
 
+
 CLI_TEST_ENV = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 
-FEE_RATE_RANGE = (5, 10, 15)
+CLI_ENV = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
+           NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}

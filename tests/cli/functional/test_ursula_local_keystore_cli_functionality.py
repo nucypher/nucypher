@@ -16,11 +16,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
+import secrets
 
 import pytest
-import secrets
 from eth_account import Account
-from pathlib import Path
 
 from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.token import StakeList
@@ -29,18 +28,15 @@ from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYRING_PASSWORD,
     NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
-    TEMPORARY_DOMAIN,
+    TEMPORARY_DOMAIN
 )
-from tests.constants import (
-    MOCK_IP_ADDRESS,
-    TEST_PROVIDER_URI
-)
+from tests.constants import MOCK_IP_ADDRESS, TEST_PROVIDER_URI
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 
 @pytest.fixture(scope='module')
 def mock_account_password_keystore(tmp_path_factory):
-    '''Generate a random keypair & password and create a local keystore'''
+    """Generate a random keypair & password and create a local keystore"""
     keystore = tmp_path_factory.mktemp('keystore', numbered=True)
     password = secrets.token_urlsafe(12)
     account = Account.create()

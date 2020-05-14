@@ -24,16 +24,9 @@ from nucypher.blockchain.eth.actors import Bidder
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.commands.worklock import worklock
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from tests.constants import CLI_TEST_ENV, MOCK_PROVIDER_URI, YES
 from tests.mock.agents import FAKE_RECEIPT, MockWorkLockAgent
-from tests.constants import (MOCK_PROVIDER_URI, YES)
-from nucypher.config.constants import (
-    NUCYPHER_ENVVAR_KEYRING_PASSWORD,
-    NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
-    TEMPORARY_DOMAIN,
-)
-
-
-CLI_ENV={}
 
 
 @pytest.fixture(scope='function')
@@ -92,7 +85,7 @@ def test_bid_too_soon(click_runner,
     a_month_too_soon = now-(3600*30)
     mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=a_month_too_soon)
     with pytest.raises(Bidder.BiddingIsClosed):
-        result = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=YES, env=CLI_ENV)
+        result = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=YES, env=CLI_TEST_ENV)
         assert result.exit_code != 0
 
 
@@ -110,7 +103,7 @@ def test_bid_too_late(click_runner,
     a_month_too_late = now+(3600*30)
     mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=a_month_too_late)
     with pytest.raises(Bidder.BiddingIsClosed):
-        result = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=YES, env=CLI_ENV)
+        result = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=YES, env=CLI_TEST_ENV)
         assert result.exit_code != 0
 
 
@@ -140,7 +133,7 @@ def test_valid_bid(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
-    result = click_runner.invoke(worklock, command, catch_exceptions=False, input=YES, env=CLI_ENV)
+    result = click_runner.invoke(worklock, command, catch_exceptions=False, input=YES, env=CLI_TEST_ENV)
     assert result.exit_code == 0
 
     # OK - Let's see what happened
@@ -175,7 +168,7 @@ def test_cancel_bid(click_runner,
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--force')
-    result = click_runner.invoke(worklock, command, input=YES, env=CLI_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
     # Bidder
@@ -208,7 +201,7 @@ def test_post_initialization(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--gas-limit', 100000)
 
-    result = click_runner.invoke(worklock, command, input=YES, env=CLI_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
     # Bidder
@@ -246,7 +239,7 @@ def test_initial_claim(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
-    result = click_runner.invoke(worklock, command, input=YES, env=CLI_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
     mock_worklock_agent.assert_transaction(name='claim', checksum_address=surrogate_bidder.checksum_address)
@@ -291,7 +284,7 @@ def test_already_claimed(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
-    result = click_runner.invoke(worklock, command, input=YES, env=CLI_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
     # Bidder
@@ -346,7 +339,7 @@ def test_refund(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
-    result = click_runner.invoke(worklock, command, input=YES, env=CLI_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
     # Bidder
