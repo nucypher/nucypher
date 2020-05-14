@@ -348,7 +348,7 @@ Registry  ................ {registry.filepath}
     try:
 
         policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
-        paint_min_fee_range(emitter, policy_agent)
+        paint_fee_rate_range(emitter, policy_agent)
         emitter.echo(sep, nl=False)
 
     except BaseContractRegistry.UnknownContract:
@@ -357,8 +357,8 @@ Registry  ................ {registry.filepath}
         emitter.echo(sep, nl=False)
 
 
-def paint_min_fee_range(emitter, policy_agent):
-    minimum, default, maximum = policy_agent.get_min_fee_rate_range()
+def paint_fee_rate_range(emitter, policy_agent):
+    minimum, default, maximum = policy_agent.get_fee_rate_range()
 
     range_payload = f"""
 Range of the minimum fee rate:
@@ -369,7 +369,7 @@ Range of the minimum fee rate:
 
 
 def paint_min_rate(emitter, registry, policy_agent, staker_address):
-    paint_min_fee_range(emitter, policy_agent)
+    paint_fee_rate_range(emitter, policy_agent)
     minimum = policy_agent.min_fee_rate(staker_address)
     raw_minimum = policy_agent.raw_min_fee_rate(staker_address)
 

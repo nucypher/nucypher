@@ -140,9 +140,9 @@ def test_rollback(testerchain, test_registry):
 
 def test_set_fee_range(policy_manager_deployer, test_registry):
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)  # type: PolicyManagerAgent
-    assert policy_agent.get_min_fee_rate_range() == (0, 0, 0)
+    assert policy_agent.get_fee_rate_range() == (0, 0, 0)
 
     minimum, default, maximum = 10, 20, 30
-    receipt = policy_manager_deployer.set_min_fee_rate_range(minimum, default, maximum)
+    receipt = policy_manager_deployer.set_fee_rate_range(minimum, default, maximum)
     assert receipt['status'] == 1
-    assert policy_agent.get_min_fee_rate_range() == (minimum, default, maximum)
+    assert policy_agent.get_fee_rate_range() == (minimum, default, maximum)

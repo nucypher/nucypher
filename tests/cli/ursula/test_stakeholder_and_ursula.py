@@ -39,7 +39,7 @@ from nucypher.utilities.sandbox.constants import (
     select_test_port,
 )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-from tests.fixtures import MIN_FEE_RATE_RANGE
+from tests.fixtures import FEE_RATE_RANGE
 
 
 @mock.patch('nucypher.config.characters.StakeHolderConfiguration.default_filepath', return_value='/non/existent/file')
@@ -139,7 +139,7 @@ def test_stake_list(click_runner,
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     assert str(stake_value) in result.output
-    _minimum, default, _maximum = MIN_FEE_RATE_RANGE
+    _minimum, default, _maximum = FEE_RATE_RANGE
     assert f"{default} wei" in result.output
 
 
@@ -610,7 +610,7 @@ def test_set_min_rate(click_runner,
                       agency_local_registry,
                       stakeholder_configuration_file_location):
 
-    _minimum, _default, maximum = MIN_FEE_RATE_RANGE
+    _minimum, _default, maximum = FEE_RATE_RANGE
     min_rate = maximum - 1
     staker = Staker(is_me=True, checksum_address=manual_staker, registry=agency_local_registry)
     assert staker.raw_min_fee_rate == 0

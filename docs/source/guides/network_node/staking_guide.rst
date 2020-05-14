@@ -371,8 +371,8 @@ the commitment period.
     will result in the loss of staked tokens as described in the NuCypher slashing protocol.
 
     Keeping your Ursula node online during the staking period and successfully
-    producing correct re-encryption work orders will result in fees
-    paid out in ethers retro-actively and on-demand.
+    producing correct re-encryption work orders will earn fees
+    paid out in ETH on-demand and retroactively.
 
     Accept ursula node operator obligation? [y/N]: y
     Publish staged stake to the blockchain? [y/N]: y

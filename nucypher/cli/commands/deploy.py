@@ -606,6 +606,6 @@ def set_range(general_config, actor_options, minimum, default, maximum):
     if not maximum:
         maximum = click.prompt("Enter new maximum value for range", type=click.IntRange(min=default))
 
-    ADMINISTRATOR.set_min_fee_rate_range(minimum=minimum, default=default, maximum=maximum)
-    emitter.echo(f"The minimum fee rate was limited to the range [{minimum}, {maximum}] "
-                 f"with the default value {default}")
+    ADMINISTRATOR.set_fee_rate_range(minimum=minimum, default=default, maximum=maximum)
+    emitter.echo(f"The staker fee rate was set to the default value {default} such that it falls "
+                 f"within the range [{minimum}, {maximum}]")
