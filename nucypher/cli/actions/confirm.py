@@ -39,7 +39,7 @@ def confirm_deployment(emitter, deployer_interface) -> bool:
         expected_chain_name = 'DEPLOY'
     else:
         expected_chain_name = deployer_interface.client.chain_name
-    if click.prompt(f"Type '{expected_chain_name}' to continue") != expected_chain_name:
+    if click.prompt(f"Type '{expected_chain_name.upper()}' to continue") != expected_chain_name.upper():
         emitter.echo(ABORT_DEPLOYMENT, color='red', bold=True)
         raise click.Abort()
     return True
@@ -63,14 +63,17 @@ def confirm_enable_winding_down(emitter, staking_address: str) -> bool:
     return True
 
 
-def confirm_staged_stake(staker_address, value, lock_periods) -> None:
-    click.confirm(CONFIRM_STAGED_STAKE.format(value=value,
+def confirm_staged_stake(staker_address: str, value: NU, lock_periods: int) -> bool:
+    click.confirm(CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
+                                              tokens=str(value.to_tokens()),
                                               staker_address=staker_address,
                                               lock_periods=lock_periods), abort=True)
+    return True
 
 
-def confirm_large_stake(value: NU = None, lock_periods: int = None) -> None:
+def confirm_large_stake(value: NU = None, lock_periods: int = None) -> bool:
     if value and (value > NU.from_tokens(150000)):
         click.confirm(CONFIRM_LARGE_STAKE_VALUE.format(value=value), abort=True)
     if lock_periods and (lock_periods > 365):
         click.confirm(CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods), abort=True)
+    return True

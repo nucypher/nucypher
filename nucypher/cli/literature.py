@@ -55,7 +55,7 @@ CONFIRM_STAGED_STAKE = """
 * Ursula Node Operator Notice *
 -------------------------------
 
-By agreeing to stake {str(value)} ({str(value.to_nunits())} NuNits):
+By agreeing to stake {tokens} ({nunits} NuNits):
 
 - Staked tokens will be locked for the stake duration.
 
