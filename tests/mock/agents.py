@@ -150,6 +150,9 @@ class MockContractAgent:
 class MockNucypherToken(MockContractAgent, NucypherTokenAgent):
     """Look at me im a token!"""
 
+    CALLS = ('get_balance',
+             )
+
 
 class MockStakingAgent(MockContractAgent, StakingEscrowAgent):
     """dont forget the eggs!"""

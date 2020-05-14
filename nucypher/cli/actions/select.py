@@ -80,6 +80,7 @@ def select_stake(stakeholder,
 
 def select_client_account(emitter,
                           provider_uri: str = None,
+                          signer: Signer = None,
                           signer_uri: str = None,
                           wallet: Wallet = None,
                           prompt: str = None,
@@ -97,19 +98,31 @@ def select_client_account(emitter,
 
     # We use Wallet internally as an account management abstraction
     if not wallet:
+
+        if signer and signer_uri:
+            raise ValueError('Pass either signer or signer_uri but not both.')
+
         if not provider_uri and not signer_uri:
             raise ValueError("At least a provider URI or signer URI is necessary to select an account")
-        # Lazy connect the blockchain interface
-        if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-            BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, emitter=emitter)
-        signer = Signer.from_signer_uri(signer_uri) if signer_uri else None
+
+        if provider_uri:
+            # Lazy connect the blockchain interface
+            if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
+                BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, emitter=emitter)
+
+        if signer_uri:
+            signer = Signer.from_signer_uri(signer_uri) if signer_uri else None
+
         wallet = Wallet(provider_uri=provider_uri, signer=signer)
+
     elif provider_uri or signer_uri:
         raise ValueError("If you input a wallet, don't pass a provider URI or signer URI too")
 
     # Display accounts info
     if show_nu_balance or show_staking:  # Lazy registry fetching
         if not registry:
+            if not network:
+                raise ValueError("Pass network name or registry; Got neither.")
             registry = InMemoryContractRegistry.from_latest_publication(network=network)
 
     wallet_accounts = wallet.accounts

@@ -23,14 +23,15 @@ from eth_account.account import Account
 from io import StringIO
 
 from nucypher.blockchain.economics import EconomicsFactory
+from nucypher.blockchain.eth import KeystoreSigner
 from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.config.characters import UrsulaConfiguration
-from tests.constants import KEYFILE_NAME_TEMPLATE, NUMBER_OF_ETH_TEST_ACCOUNTS
+from tests.constants import KEYFILE_NAME_TEMPLATE, MOCK_KEYSTORE_PATH, NUMBER_OF_ETH_TEST_ACCOUNTS
 from tests.fixtures import _make_testerchain, make_token_economics
-from tests.mock.agents import FAKE_RECEIPT, MockContractAgency, MockStakingAgent, MockWorkLockAgent
+from tests.mock.agents import FAKE_RECEIPT, MockContractAgency, MockNucypherToken, MockStakingAgent, MockWorkLockAgent
 from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
 
 
@@ -48,6 +49,13 @@ def mock_contract_agency(monkeymodule, module_mocker, token_economics):
     module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=token_economics)
     yield MockContractAgency()
     monkeymodule.delattr(ContractAgency, 'get_agent')
+
+
+@pytest.fixture(scope='module', autouse=True)
+def mock_token_agent(mock_testerchain, token_economics, mock_contract_agency):
+    mock_agent = mock_contract_agency.get_agent(MockNucypherToken)
+    yield mock_agent
+    mock_agent.reset()
 
 
 @pytest.fixture(scope='module', autouse=True)
@@ -74,10 +82,11 @@ def mock_click_confirm(mocker):
     return mocker.patch.object(click, 'confirm')
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def stdout_trap():
     trap = StringIO()
-    return trap
+    yield trap
+    trap.truncate(0)
 
 
 @pytest.fixture()
@@ -165,3 +174,26 @@ def worker_address(worker_account):
 def custom_config_filepath(custom_filepath):
     filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
     return filepath
+
+
+@pytest.fixture(scope='function')
+def patch_keystore(mock_accounts, monkeypatch, mocker):
+
+    def successful_mock_keyfile_reader(_keystore, path):
+
+        # Ensure the absolute path is passed to the keyfile reader
+        assert MOCK_KEYSTORE_PATH in path
+        full_path = path
+        del path
+
+        for filename, account in mock_accounts.items():  # Walk the mock filesystem
+            if filename in full_path:
+                break
+        else:
+            raise FileNotFoundError(f"No such file {full_path}")
+        return account.address, dict(version=3, address=account.address)
+
+    mocker.patch('os.listdir', return_value=list(mock_accounts.keys()))
+    monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keyfile', successful_mock_keyfile_reader)
+    yield
+    monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keyfile')

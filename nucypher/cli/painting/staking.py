@@ -19,21 +19,19 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import tabulate
 from web3.main import Web3
 
-from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import datetime_at_period, prettify_eth_amount
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.literature import NO_ACTIVE_STAKES, NO_STAKES_AT_ALL, NO_STAKING_ACCOUNTS, POST_STAKING_ADVICE
+from nucypher.cli.literature import POST_STAKING_ADVICE
 from nucypher.cli.painting.transactions import paint_receipt_summary
-
 
 STAKE_TABLE_COLUMNS = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination')
 STAKER_TABLE_COLUMNS = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees', 'Min fee rate')
 
 
 def paint_stakes(emitter: StdoutEmitter,
-                 stakeholder: StakeHolder,
+                 stakeholder: 'StakeHolder',
                  paint_inactive: bool = False,
                  staker_address: str = None) -> None:
 
