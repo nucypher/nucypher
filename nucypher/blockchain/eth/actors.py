@@ -1191,7 +1191,7 @@ class Staker(NucypherTokenActor):
     @only_me
     @save_receipt
     def set_min_fee_rate(self, min_rate: int) -> Tuple[str, str]:
-        """Public facing method for staker to set their minimum acceptable fee rate"""
+        """Public facing method for staker to set the minimum acceptable fee rate for their associated worker"""
         minimum, _default, maximum = self.policy_agent.get_fee_rate_range()
         if min_rate < minimum or min_rate > maximum:
             raise ValueError(f"Minimum fee rate {min_rate} must fall within global fee range of [{minimum}, {maximum}]")
@@ -1210,7 +1210,7 @@ class Staker(NucypherTokenActor):
 
     @property
     def raw_min_fee_rate(self) -> int:
-        """Minimum acceptable fee rate set by staker.
+        """Minimum acceptable fee rate set by staker for their associated worker.
         This fee rate is only used if it falls within the global fee range.
         If it doesn't a default fee rate is used instead of the raw value (see `min_fee_rate`)"""
         staker_address = self.checksum_address

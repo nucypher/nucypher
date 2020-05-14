@@ -919,7 +919,7 @@ def events(general_config, staker_options, config_file, event_name):
 @click.option('--min-rate', help="Minimum acceptable fee rate, set by staker", type=WEI)
 def set_min_rate(general_config, transacting_staker_options, config_file, force, min_rate):
     """
-    Staker sets the minimum fee rate they will accept.
+    Staker sets the minimum acceptable fee rate for their associated worker.
     """
     emitter = _setup_emitter(general_config)
 

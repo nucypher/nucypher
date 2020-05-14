@@ -145,7 +145,7 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Set maximum, minimum and default fee rate for all stakers and all policies ('global fee range')
+    * @notice Set minimum, default & maximum fee rate for all stakers and all policies ('global fee range')
     */
     // TODO # 1501
     // function setFeeRateRange(Range calldata _range) external onlyOwner {
@@ -156,7 +156,7 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Set the minimum acceptable fee rate (set by staker)
+    * @notice Set the minimum acceptable fee rate (set by staker for their associated worker)
     * @dev Input value must fall within `feeRateRange` (global fee range)
     */
     function setMinFeeRate(uint256 _minFeeRate) external {
@@ -172,7 +172,7 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Get the minimum acceptable fee rate (set by staker)
+    * @notice Get the minimum acceptable fee rate (set by staker for their associated worker)
     */
     function getMinFeeRate(NodeInfo storage _nodeInfo) internal view returns (uint256) {
         // if minFeeRate has not been set or chosen value falls outside the global fee range
@@ -187,7 +187,7 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Get the minimum acceptable fee rate (set by staker)
+    * @notice Get the minimum acceptable fee rate (set by staker for their associated worker)
     */
     function getMinFeeRate(address _node) public view returns (uint256) {
         NodeInfo storage nodeInfo = nodes[_node];
@@ -626,7 +626,7 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Get information about staker fee
+    * @notice Get information about staker's fee rate
     * @param _node Address of staker
     * @param _period Period to get fee delta
     */
