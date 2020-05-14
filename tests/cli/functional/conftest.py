@@ -16,18 +16,40 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import os
+import click
 import pytest
-from eth_account import Account
+from io import StringIO
 
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from nucypher.config.characters import UrsulaConfiguration
+from nucypher.characters.control.emitters import StdoutEmitter
 from tests.fixtures import _make_testerchain, make_token_economics
 from tests.mock.agents import FAKE_RECEIPT, MockContractAgency
 from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
+
+
+@pytest.fixture()
+def mock_click_prompt(mocker):
+    return mocker.patch.object(click, 'prompt')
+
+
+@pytest.fixture()
+def mock_click_confirm(mocker):
+    return mocker.patch.object(click, 'confirm')
+
+
+@pytest.fixture()
+def stdout_trap():
+    trap = StringIO()
+    return trap
+
+
+@pytest.fixture()
+def test_emitter(mocker, stdout_trap):
+    mocker.patch('sys.stdout', new=stdout_trap)
+    return StdoutEmitter()
 
 
 @pytest.fixture(scope='module', autouse=True)
