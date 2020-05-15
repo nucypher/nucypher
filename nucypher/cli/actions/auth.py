@@ -19,9 +19,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 import os
-from constant_sorrow.constants import NO_PASSWORD
 from nacl.exceptions import CryptoError
 
+from constant_sorrow.constants import NO_PASSWORD
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.cli.literature import (
     COLLECT_ETH_PASSWORD,
@@ -30,21 +30,24 @@ from nucypher.cli.literature import (
     GENERIC_PASSWORD_PROMPT
 )
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
+from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import CharacterConfiguration
 
 
-def get_password_from_prompt(prompt: str = GENERIC_PASSWORD_PROMPT, envvar: str = '', confirm: bool = False) -> str:
-    password = os.environ.get(envvar, NO_PASSWORD)
+def get_password_from_prompt(prompt: str = GENERIC_PASSWORD_PROMPT, envvar: str = None, confirm: bool = False) -> str:
+    password = NO_PASSWORD
+    if envvar:
+        password = os.environ.get(envvar, NO_PASSWORD)
     if password is NO_PASSWORD:  # Collect password, prefer env var
         password = click.prompt(prompt, confirmation_prompt=confirm, hide_input=True)
     return password
 
 
 @validate_checksum_address
-def get_client_password(checksum_address: str, envvar: str = '') -> str:
+def get_client_password(checksum_address: str, envvar: str = None, confirm: bool = False) -> str:
     client_password = get_password_from_prompt(prompt=COLLECT_ETH_PASSWORD.format(checksum_address=checksum_address),
                                                envvar=envvar,
-                                               confirm=False)
+                                               confirm=confirm)
     return client_password
 
 
@@ -69,6 +72,6 @@ def unlock_nucypher_keyring(emitter, password: str, character_configuration: Cha
         character_configuration.attach_keyring()
         character_configuration.keyring.unlock(password=password)  # Takes ~3 seconds, ~1GB Ram
     except CryptoError:
-        raise character_configuration.keyring.AuthenticationFailed
+        raise NucypherKeyring.AuthenticationFailed
     else:
         return True

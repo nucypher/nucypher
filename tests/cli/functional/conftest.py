@@ -28,11 +28,18 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainIn
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.config.characters import UrsulaConfiguration
-from tests.constants import KEYFILE_NAME_TEMPLATE, MOCK_KEYSTORE_PATH, NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS
+from nucypher.config.characters import AliceConfiguration, UrsulaConfiguration
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from tests.constants import (
+    KEYFILE_NAME_TEMPLATE,
+    MOCK_KEYSTORE_PATH,
+    MOCK_PROVIDER_URI,
+    NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS
+)
 from tests.fixtures import _make_testerchain, make_token_economics
 from tests.mock.agents import FAKE_RECEIPT, MockContractAgency, MockNucypherToken, MockStakingAgent, MockWorkLockAgent
 from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
+from tests.utils.middleware import MockRestMiddleware
 
 
 @pytest.fixture(scope='module')
@@ -85,8 +92,7 @@ def mock_click_confirm(mocker):
 @pytest.fixture(scope='function')
 def stdout_trap():
     trap = StringIO()
-    yield trap
-    trap.truncate(0)
+    return trap
 
 
 @pytest.fixture()
@@ -159,6 +165,11 @@ def mock_accounts():
 
 
 @pytest.fixture(scope='module')
+def mock_account(mock_accounts):
+    return list(mock_accounts.items())[0][1]
+
+
+@pytest.fixture(scope='module')
 def worker_account(mock_accounts, mock_testerchain):
     account = list(mock_accounts.values())[0]
     return account
@@ -197,3 +208,18 @@ def patch_keystore(mock_accounts, monkeypatch, mocker):
     monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keyfile', successful_mock_keyfile_reader)
     yield
     monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keyfile')
+
+
+@pytest.fixture(scope="module")
+def alice_blockchain_test_config(mock_account, test_registry):
+    config = AliceConfiguration(dev_mode=True,
+                                domains={TEMPORARY_DOMAIN},
+                                provider_uri=MOCK_PROVIDER_URI,
+                                checksum_address=mock_account.address,
+                                network_middleware=MockRestMiddleware(),
+                                abort_on_learning_error=True,
+                                save_metadata=False,
+                                reload_metadata=False,
+                                registry=test_registry)
+    yield config
+    config.cleanup()
