@@ -17,8 +17,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-from constant_sorrow.constants import (DEVELOPMENT_CONFIGURATION, FEDERATED_ADDRESS, LIVE_CONFIGURATION,
-                                       NO_BLOCKCHAIN_CONNECTION, NO_KEYRING_ATTACHED, UNINITIALIZED_CONFIGURATION)
+import re
+from constant_sorrow.constants import (
+    DEVELOPMENT_CONFIGURATION,
+    FEDERATED_ADDRESS,
+    LIVE_CONFIGURATION,
+    NO_BLOCKCHAIN_CONNECTION,
+    NO_KEYRING_ATTACHED,
+    UNINITIALIZED_CONFIGURATION
+)
+from eth_utils.address import is_checksum_address
 from tempfile import TemporaryDirectory
 from twisted.logger import Logger
 from typing import Callable, List, Set, Union

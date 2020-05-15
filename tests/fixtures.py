@@ -46,6 +46,7 @@ from nucypher.blockchain.eth.deployers import (
     WorklockDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
     LocalContractRegistry
@@ -585,7 +586,10 @@ def _make_agency(testerchain,
 
 @pytest.fixture(scope='module')
 def test_registry_source_manager(testerchain, test_registry):
-    return make_mock_registry_source_manager(blockchain=testerchain, test_registry=test_registry)
+    real_inventory = make_mock_registry_source_manager(blockchain=testerchain, test_registry=test_registry)
+    yield
+    # restore the original state
+    NetworksInventory.NETWORKS = real_inventory
 
 
 @pytest.fixture(scope='module')
@@ -908,6 +912,7 @@ def manual_worker(testerchain):
 # Test logging
 #
 
+# TODO : Use a pytest Flag to enable/disable this functionality
 @pytest.fixture(autouse=True, scope='function')
 def log_in_and_out_of_test(request):
     test_name = request.node.name

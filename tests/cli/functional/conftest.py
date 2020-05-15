@@ -25,6 +25,7 @@ from io import StringIO
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -129,9 +130,12 @@ def test_registry():
 
 @pytest.fixture(scope='module')
 def test_registry_source_manager(mock_testerchain, test_registry):
-    return make_mock_registry_source_manager(blockchain=mock_testerchain,
-                                             test_registry=test_registry,
-                                             mock_backend=True)
+    real_inventory = make_mock_registry_source_manager(blockchain=mock_testerchain,
+                                                       test_registry=test_registry,
+                                                       mock_backend=True)
+    yield
+    # restore the original state
+    NetworksInventory.NETWORKS = real_inventory
 
 
 @pytest.fixture(scope='module', autouse=True)
@@ -212,6 +216,7 @@ def patch_keystore(mock_accounts, monkeypatch, mocker):
 
 @pytest.fixture(scope="module")
 def alice_blockchain_test_config(mock_account, test_registry):
+    # TODO: Combine with larger scoped fixture via factory function
     config = AliceConfiguration(dev_mode=True,
                                 domains={TEMPORARY_DOMAIN},
                                 provider_uri=MOCK_PROVIDER_URI,

@@ -43,7 +43,9 @@ def make_mock_registry_source_manager(blockchain, test_registry, mock_backend: b
             return raw_registry_data
 
     RegistrySourceManager._FALLBACK_CHAIN = (MockRegistrySource,)
+    real_inventory = NetworksInventory.NETWORKS
     NetworksInventory.NETWORKS = (TEMPORARY_DOMAIN,)
+    return real_inventory
 
 
 class MockBlockchain(TesterBlockchain):
