@@ -56,75 +56,8 @@ Running an Ethereum Node
 
 Operation of a decentralized NuCypher character [\ ``Alice``\ , ``Bob``\ , ``Ursula``\ ] requires
 a connection to an Ethereum node and wallet to interact with smart
-contracts (https://docs.nucypher.com/en/latest/architecture/contracts.html). 
-
-For general background information about choosing a node technology and operation,
-see https://web3py.readthedocs.io/en/stable/node.html. 
-
-In this guide, a local Geth node connected to Ethereum mainnet.
-For detailed information on using the geth CLI and Javascript console,
-see https://geth.ethereum.org/interface/Command-Line-Options.
-
-.. important::
-
-    While the example provided uses Ethereum mainnet, these steps can be followed for the Goerli Testnet
-    with updated `geth` (``~/.ethereum/goerli/geth.ipc``) and `seed` uri (``https://gemini.nucypher.network:9151``).
-
-
-To run a Geth node in *fast* syncing mode:
-
-.. code-block:: bash
-
-   $ geth
-
-
-To run a Geth node in *light* syncing mode:
-
-.. code-block:: bash
-
-   $ geth --syncmode light
-
-
-Note that using ``--syncmode light`` is not 100% stable.
-
-Connect to the Geth Console to test your ethereum node's IPC:
-
-.. code-block:: bash
-
-   $ geth attach ~/.ethereum/geth.ipc
-
-
-Wallets
-^^^^^^^
-
-To list available accounts on your geth node (Hardware wallet addresses will also be listed here 
-if one is attached to the system hardware):
-
-.. code-block:: bash
-
-   $ geth attach ~/.ethereum/geth.ipc
-   > eth.accounts
-   ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
-
-
-To create a new software based Geth account:
-
-.. code-block:: bash
-
-   $ geth attach ~/.ethereum/geth.ipc
-   > personal.newAccount()
-   ...
-   "0xc080708026a3a280894365efd51bb64521c45147"
-
-
-Note that the Geth console does not return EIP-55 compliant checksum addresses, and instead will output
-the *lowercase* version of the address.  Since Nucypher requires EIP-55 checksum addresses, you will need 
-to convert your address to checksum format:
-
-.. code-block:: javascript
-
-   > web3.toChecksumAddress(eth.accounts[0])
-   "0x287A817426DD1AE78ea23e9918e2273b6733a43D"
+contracts (https://docs.nucypher.com/en/latest/architecture/contracts.html). For more information about running an
+Ethereum node, see :ref:`using-eth-node`.
 
 
 Connecting to The NuCypher Network
@@ -133,14 +66,20 @@ Connecting to The NuCypher Network
 Provider URI
 ^^^^^^^^^^^^
 
-This example uses the ethereum node's IPC-File to communicate, specified by ``provider_uri``.
-By default in ubuntu, the path is ``~/.ethereum/geth.ipc`` - This path
+This example uses a local ethereum geth node's IPC-File specified by ``provider_uri``.
+By default on ubuntu, the path is ``~/.ethereum/geth.ipc`` - this path
 will also be logged to the geth-running console on startup.
 
-However, Nucypher also supports alternative web3 node providers such as:
+.. important::
 
-    * HTTP(S)-based JSON-RPC server e.g. ``http://<host>``
-    * Websocket-based JSON-RPC server e.g. ``ws://<host>:8080``
+    While the example provided uses Ethereum mainnet, these steps can be followed for the Goerli Testnet with
+    updated `geth` (``~/.ethereum/goerli/geth.ipc``) and `seed` URI (``https://gemini.nucypher.network:9151``).
+
+
+Nucypher also supports alternative web3 node providers such as:
+
+    * HTTP(S)-based JSON-RPC server e.g. ``https://<host>``
+    * Websocket(Secure)-based JSON-RPC server e.g. ``ws://<host>:8080``, ``wss://<host>:8080``
 
 
 Connecting Nucypher to an Ethereum Provider

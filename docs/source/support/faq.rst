@@ -338,5 +338,5 @@ Q: What types of Ethereum web3 node providers do you support?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * IPC Socket-based JSON-RPC server e.g. ``ipc:///home/<username>/.ethereum/geth.ipc``
-* HTTP(S)-based JSON-RPC server e.g. ``http://<host>``
-* Websocket-based JSON-RPC server e.g. ``ws://<host>:8080``
+* HTTP(S)-based JSON-RPC server e.g. ``http://<host>``, ``https://<host>``
+* Websocket(Secure)-based JSON-RPC server e.g. ``ws://<host>:8080``, ``wss://<host>:8080``
