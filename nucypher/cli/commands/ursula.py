@@ -19,21 +19,17 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 import os
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
 from nucypher.cli.actions.config import (
     destroy_configuration,
-    get_or_update_configuration,
     handle_missing_configuration_file
 )
-from nucypher.cli.processes import get_geth_provider_process
-from nucypher.utilities.networking import determine_external_ip_address
 from nucypher.cli.actions.select import select_client_account, select_config_file, select_network
-from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
@@ -64,7 +60,9 @@ from nucypher.cli.options import (
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.transactions import paint_receipt_summary
+from nucypher.cli.processes import get_geth_provider_process
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT
+from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
@@ -72,6 +70,7 @@ from nucypher.config.constants import (
     TEMPORARY_DOMAIN
 )
 from nucypher.config.keyring import NucypherKeyring
+from nucypher.utilities.networking import determine_external_ip_address
 
 
 class UrsulaConfigOptions:

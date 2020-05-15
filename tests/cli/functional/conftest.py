@@ -90,13 +90,14 @@ def mock_click_confirm(mocker):
     return mocker.patch.object(click, 'confirm')
 
 
-@pytest.fixture(scope='function')
-def stdout_trap():
+@pytest.fixture(scope='function', autouse=True)
+def stdout_trap(mocker):
     trap = StringIO()
+    mocker.patch('sys.stdout', new=trap)
     return trap
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def test_emitter(mocker, stdout_trap):
     mocker.patch('sys.stdout', new=stdout_trap)
     return StdoutEmitter()
