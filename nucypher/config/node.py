@@ -226,6 +226,44 @@ class CharacterConfiguration(BaseConfiguration):
     def __call__(self, **character_kwargs):
         return self.produce(**character_kwargs)
 
+    @classmethod
+    def checksum_address_from_filepath(cls, filepath: str) -> str:
+
+        pattern = re.compile(r'''
+                             (^\w+)-
+                             (0x{1}         # Then, 0x the start of the string, exactly once
+                             [0-9a-fA-F]{40}) # Followed by exactly 40 hex chars
+                             ''',
+                             re.VERBOSE)
+
+        filename = os.path.basename(filepath)
+        match = pattern.match(filename)
+
+        if match:
+            character_name, checksum_address = match.groups()
+
+        else:
+            # Extract from default by "peeking" inside the configuration file.
+            default_name = cls.generate_filename()
+            if filename == default_name:
+                checksum_address = cls.peek(filepath=filepath, field='checksum_address')
+
+                ###########
+                # TODO: Cleanup and deprecate worker_address in config files, leaving only checksum_address
+                from nucypher.config.characters import UrsulaConfiguration
+                if isinstance(cls, UrsulaConfiguration):
+                    federated = bool(cls.peek(filepath=filepath, field='federated_only'))
+                    if not federated:
+                        checksum_address = cls.peek(filepath=cls.filepath, field='worker_address')
+                ###########
+
+            else:
+                raise ValueError(f"Cannot extract checksum from filepath '{filepath}'")
+
+        if not is_checksum_address(checksum_address):
+            raise RuntimeError(f"Invalid checksum address detected in configuration file at '{filepath}'.")
+        return checksum_address
+
     def update(self, **kwargs) -> None:
         """
         A facility for updating existing attributes on existing configuration instances.
