@@ -27,7 +27,7 @@ from twisted.internet import threads
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.characters.base import Learner
 from nucypher.cli import actions
-from nucypher.cli.actions.network import UnknownIPAddress
+from nucypher.utilities.networking import UnknownIPAddress
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN

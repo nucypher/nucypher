@@ -16,35 +16,26 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
+from json.decoder import JSONDecodeError
 
 import json
 
-import click
 import os
-import requests
-from json.decoder import JSONDecodeError
-from typing import Dict, List, Optional, Set
+
+from typing import Set, Optional, Dict, List
 
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.cli.literature import (
-    COLLECT_URSULA_IPV4_ADDRESS,
-    CONFIRM_URSULA_IPV4_ADDRESS,
-    FORCE_DETECT_URSULA_IP_WARNING,
-    NO_DOMAIN_PEERS,
-    SEEDNODE_NOT_STAKING_WARNING,
     START_LOADING_SEEDNODES,
-    UNREADABLE_SEEDNODE_ADVISORY
+    NO_DOMAIN_PEERS,
+    UNREADABLE_SEEDNODE_ADVISORY,
+    SEEDNODE_NOT_STAKING_WARNING
 )
-from nucypher.cli.types import IPV4_ADDRESS
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Teacher
 from nucypher.network.teachers import TEACHER_NODES
-
-
-class UnknownIPAddress(RuntimeError):
-    pass
 
 
 def load_static_nodes(domains: Set[str], filepath: Optional[str] = None) -> Dict[str, 'Ursula']:
@@ -136,32 +127,3 @@ def load_seednodes(emitter,
     if not teacher_nodes:
         emitter.message(NO_DOMAIN_PEERS.format(domains=','.join(network_domains)))
     return teacher_nodes
-
-
-def get_external_ip_from_centralized_source() -> str:
-    ip_request = requests.get('https://ifconfig.me/')
-    if ip_request.status_code == 200:
-        return ip_request.text
-    raise UnknownIPAddress(f"There was an error determining the IP address automatically. "
-                           f"(status code {ip_request.status_code})")
-
-
-def determine_external_ip_address(emitter, force: bool = False) -> str:
-    """
-    Attempts to automatically get the external IP from ifconfig.me
-    If the request fails, it falls back to the standard process.
-    """
-    try:
-        rest_host = get_external_ip_from_centralized_source()
-    except UnknownIPAddress:
-        if force:
-            raise
-    else:
-        # Interactive
-        if not force:
-            if not click.confirm(CONFIRM_URSULA_IPV4_ADDRESS.format(rest_host=rest_host)):
-                rest_host = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=IPV4_ADDRESS)
-        else:
-            emitter.message(FORCE_DETECT_URSULA_IP_WARNING.format(rest_host=rest_host), color='yellow')
-
-        return rest_host
