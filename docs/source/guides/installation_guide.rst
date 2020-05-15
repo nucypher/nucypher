@@ -14,27 +14,33 @@ Contents
 System Requirements and Dependencies
 ------------------------------------
 
+``nucypher`` has been tested on GNU/Linux **(recommended)**, Mac OS, and Windows.
 
-* At least 1 GB of RAM is required for secure password-based key derivation with `scrypt <http://www.tarsnap.com/scrypt.html>`_.
-* We have tested ``nucypher`` with Windows, Mac OS, and GNU/Linux (GNU/Linux is recommended).
-* If you don’t already have it, install `Python <https://www.python.org/downloads/>`_. As of November 2019, we are working with Python 3.6, 3.7, and 3.8.
+* Before installing ``nucypher``\ , you may need to install necessary developer tools and headers, if you don't
+  have them already. For Ubuntu, Debian, Linux Mint or similar distros:
 
-Before installing ``nucypher``\ , you may need to install necessary developer
-tools and headers, if you don't have them already. In Ubuntu, Debian, Linux Mint
-or similar distros:
+    .. code::
 
-.. code-block::
+       - libffi-dev
+       - python3-dev
+       - python3-pip
+       - python3-virtualenv
+       - build-essential
+       - libssl-dev
 
-   - libffi-dev
-   - python3-dev
-   - python3-pip
-   - python3-virtualenv
-   - build-essential
-   - libssl-dev
+    One-liner to install the above packages on linux:
 
+    .. code:: bash
 
-Here's a one-liner to install the above packages on linux:
-``sudo apt-get install python3-dev build-essential libffi-dev python3-pip``
+        $ sudo apt-get install python3-dev build-essential libffi-dev python3-pip
+
+* As of November 2019, ``nucypher`` works with Python 3.6, 3.7, and 3.8. If you don’t already have it, install `Python <https://www.python.org/downloads/>`_.
+* At least 1 GB of RAM for secure password-based key derivation with `scrypt <http://www.tarsnap.com/scrypt.html>`_.
+
+.. important::
+
+    If also running a local Ethereum node on the same machine, `additional requirements <https://docs.ethhub.io/using-ethereum/running-an-ethereum-node/>`_ are needed.
+
 
 Standard Installation
 ---------------------
