@@ -24,7 +24,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.cli.actions.auth import get_client_password
-from nucypher.cli.actions.config import get_provider_process
+from nucypher.cli.processes import get_geth_provider_process
 from nucypher.cli.actions.select import select_client_account
 from nucypher.cli.utils import get_registry
 from nucypher.cli.commands.stake import option_signer_uri
@@ -72,7 +72,7 @@ class BlockchainOptions:
         try:
             eth_node = None
             if self.geth:
-                eth_node = get_provider_process()
+                eth_node = get_geth_provider_process()
 
             # Note: For test compatibility.
             if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri):

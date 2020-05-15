@@ -26,9 +26,9 @@ from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
 from nucypher.cli.actions.config import (
     destroy_configuration,
     get_or_update_configuration,
-    get_provider_process,
     handle_missing_configuration_file
 )
+from nucypher.cli.processes import get_geth_provider_process
 from nucypher.cli.actions.select import select_client_account
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.cli.commands.deploy import option_gas_strategy
@@ -101,7 +101,7 @@ class AliceConfigOptions:
         # Managed Ethereum Client
         eth_node = NO_BLOCKCHAIN_CONNECTION
         if geth:
-            eth_node = get_provider_process()
+            eth_node = get_geth_provider_process()
             provider_uri = eth_node.provider_uri(scheme='file')
 
         self.dev = dev

@@ -25,7 +25,8 @@ from nucypher.cli.actions.auth import (
     get_nucypher_password,
     unlock_nucypher_keyring
 )
-from nucypher.cli.actions.config import destroy_configuration, get_provider_process, handle_missing_configuration_file
+from nucypher.cli.actions.config import destroy_configuration, handle_missing_configuration_file
+from nucypher.cli.processes import get_geth_provider_process
 from nucypher.cli.utils import setup_emitter
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
@@ -79,7 +80,7 @@ class FelixConfigOptions:
 
         eth_node = NO_BLOCKCHAIN_CONNECTION
         if geth:
-            eth_node = get_provider_process(dev)
+            eth_node = get_geth_provider_process(dev)
             provider_uri = eth_node.provider_uri
 
         self.eth_node = eth_node
