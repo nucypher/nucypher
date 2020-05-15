@@ -786,7 +786,7 @@ class PolicyManagerAgent(EthereumContractAgent):
 
     @validate_checksum_address
     def collect_policy_fee(self, collector_address: str, staker_address: str):
-        """Collect fee ETH"""
+        """Collect fees (ETH) earned since last withdrawal"""
         contract_function = self.contract.functions.withdraw(collector_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
@@ -820,17 +820,20 @@ class PolicyManagerAgent(EthereumContractAgent):
         fee_amount = self.contract.functions.nodes(staker_address).call()[0]
         return fee_amount
 
-    def get_min_fee_rate_range(self) -> Tuple[int, int, int]:
-        minimum, default, maximum = self.contract.functions.minFeeRateRange().call()
+    def get_fee_rate_range(self) -> Tuple[int, int, int]:
+        """Check minimum, default & maximum fee rate for all policies ('global fee range')"""
+        minimum, default, maximum = self.contract.functions.feeRateRange().call()
         return minimum, default, maximum
 
     @validate_checksum_address
     def get_min_fee_rate(self, staker_address: str) -> int:
+        """Check minimum fee rate that staker accepts"""
         min_rate = self.contract.functions.getMinFeeRate(staker_address).call()
         return min_rate
 
     @validate_checksum_address
     def get_raw_min_fee_rate(self, staker_address: str) -> int:
+        """Check minimum acceptable fee rate set by staker for their associated worker"""
         min_rate = self.contract.functions.nodes(staker_address).call()[3]
         return min_rate
 

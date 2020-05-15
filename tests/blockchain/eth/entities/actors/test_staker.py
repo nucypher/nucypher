@@ -26,7 +26,7 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.blockchain import token_airdrop
 from nucypher.utilities.sandbox.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
-from tests.fixtures import MIN_FEE_RATE_RANGE
+from tests.fixtures import FEE_RATE_RANGE
 
 
 @pytest.mark.slow()
@@ -202,7 +202,7 @@ def test_staker_manages_winding_down(testerchain,
 def test_set_min_fee_rate(testerchain, test_registry, staker):
 
     # Check before set
-    _minimum, default, maximum = MIN_FEE_RATE_RANGE
+    _minimum, default, maximum = FEE_RATE_RANGE
     assert staker.min_fee_rate == default
 
     # New value must be within range

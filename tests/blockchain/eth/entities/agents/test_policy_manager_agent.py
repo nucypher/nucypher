@@ -25,7 +25,7 @@ from eth_utils import is_checksum_address, to_wei
 from nucypher.blockchain.eth.agents import PolicyManagerAgent, ContractAgency
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
-from tests.fixtures import MIN_FEE_RATE_RANGE
+from tests.fixtures import FEE_RATE_RANGE
 
 MockPolicyMetadata = collections.namedtuple('MockPolicyMetadata', 'policy_id author addresses')
 
@@ -139,7 +139,7 @@ def test_collect_refund(testerchain, agency, policy_meta):
 @pytest.mark.slow()
 def test_set_min_fee_rate(testerchain, test_registry, agency, policy_meta):
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)  # type: PolicyManagerAgent
-    minimum, default, maximum = MIN_FEE_RATE_RANGE
+    minimum, default, maximum = FEE_RATE_RANGE
     staker = policy_meta.addresses[-1]
 
     assert policy_agent.get_min_fee_rate(staker) == default

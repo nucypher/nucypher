@@ -805,15 +805,15 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         self._contract = wrapped_contract
         return deployment_receipts
 
-    def set_min_fee_rate_range(self,
-                               minimum: int,
-                               default: int,
-                               maximum: int,
-                               gas_limit: int = None,
-                               confirmations: int = 0) -> dict:
+    def set_fee_rate_range(self,
+                           minimum: int,
+                           default: int,
+                           maximum: int,
+                           gas_limit: int = None,
+                           confirmations: int = 0) -> dict:
 
         if minimum > default or default > maximum:
-            raise ValueError(f"Default rate ({default}) must satisfy the condition: "
+            raise ValueError(f"Default fee rate ({default}) must fall within the global fee range by satisfying the condition: "
                              f"minimum ({minimum}) <= default ({default}) <= maximum ({maximum})")
 
         policy_manager = self.blockchain.get_contract_by_name(registry=self.registry,
@@ -823,7 +823,7 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         tx_args = {}
         if gas_limit:
             tx_args.update({'gas': gas_limit})  # TODO: Gas management - 842
-        set_range_function = policy_manager.functions.setMinFeeRateRange(minimum, default, maximum)
+        set_range_function = policy_manager.functions.setFeeRateRange(minimum, default, maximum)
         set_range_receipt = self.blockchain.send_transaction(contract_function=set_range_function,
                                                              sender_address=self.deployer_address,
                                                              payload=tx_args,

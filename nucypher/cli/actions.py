@@ -296,7 +296,7 @@ will result in the loss of staked tokens as described in the NuCypher slashing p
 
 Keeping your Ursula node online during the staking period and successfully
 producing correct re-encryption work orders will earn fees
-paid out in ethers retroactively and on-demand.
+paid out in ETH on-demand and retroactively.
 
 Accept ursula node operator obligation?""", abort=True)
 

@@ -501,19 +501,19 @@ class ContractAdministrator(NucypherTokenActor):
             file.write(data)
         return filepath
 
-    def set_min_fee_rate_range(self,
-                               minimum: int,
-                               default: int,
-                               maximum: int,
-                               transaction_gas_limit: int = None) -> dict:
+    def set_fee_rate_range(self,
+                           minimum: int,
+                           default: int,
+                           maximum: int,
+                           transaction_gas_limit: int = None) -> dict:
 
         policy_manager_deployer = PolicyManagerDeployer(registry=self.registry,
                                                         deployer_address=self.deployer_address,
                                                         economics=self.economics)
-        receipt = policy_manager_deployer.set_min_fee_rate_range(minimum=minimum,
-                                                                 default=default,
-                                                                 maximum=maximum,
-                                                                 gas_limit=transaction_gas_limit)
+        receipt = policy_manager_deployer.set_fee_rate_range(minimum=minimum,
+                                                             default=default,
+                                                             maximum=maximum,
+                                                             gas_limit=transaction_gas_limit)
         return receipt
 
 
@@ -1125,7 +1125,7 @@ class Staker(NucypherTokenActor):
     @save_receipt
     @validate_checksum_address
     def collect_policy_fee(self, collector_address=None) -> dict:
-        """Collect fee ETH."""
+        """Collect fees (ETH) earned since last withdrawal"""
         if self.is_contract:
             if collector_address and collector_address != self.beneficiary_address:
                 raise ValueError("Policy fees must be withdrawn to the beneficiary address")
@@ -1140,7 +1140,7 @@ class Staker(NucypherTokenActor):
     @only_me
     @save_receipt
     def collect_staking_reward(self) -> dict:
-        """Withdraw tokens rewarded for staking."""
+        """Withdraw tokens rewarded for staking"""
         if self.is_contract:
             reward_amount = self.calculate_staking_reward()
             self.log.debug(f"Withdrawing staking reward ({NU.from_nunits(reward_amount)}) to {self.checksum_address}")
@@ -1191,10 +1191,10 @@ class Staker(NucypherTokenActor):
     @only_me
     @save_receipt
     def set_min_fee_rate(self, min_rate: int) -> Tuple[str, str]:
-        """Public facing method for setting min fee rate."""
-        minimum, _default, maximum = self.policy_agent.get_min_fee_rate_range()
+        """Public facing method for staker to set the minimum acceptable fee rate for their associated worker"""
+        minimum, _default, maximum = self.policy_agent.get_fee_rate_range()
         if min_rate < minimum or min_rate > maximum:
-            raise ValueError(f"Min fee rate  {min_rate} must be within range [{minimum}, {maximum}]")
+            raise ValueError(f"Minimum fee rate {min_rate} must fall within global fee range of [{minimum}, {maximum}]")
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.set_min_fee_rate(min_rate=min_rate)
         else:
@@ -1203,17 +1203,16 @@ class Staker(NucypherTokenActor):
 
     @property
     def min_fee_rate(self) -> int:
-        """Minimum acceptable fee rate"""
+        """Minimum fee rate that staker accepts"""
         staker_address = self.checksum_address
         min_fee = self.policy_agent.get_min_fee_rate(staker_address)
         return min_fee
 
     @property
     def raw_min_fee_rate(self) -> int:
-        """Minimum acceptable fee rate set by staker.
-        This's not applicable if this rate out of global range.
-        In that case default value will be used instead of raw value (see `min_fee_rate`)"""
-
+        """Minimum acceptable fee rate set by staker for their associated worker.
+        This fee rate is only used if it falls within the global fee range.
+        If it doesn't a default fee rate is used instead of the raw value (see `min_fee_rate`)"""
         staker_address = self.checksum_address
         min_fee = self.policy_agent.get_raw_min_fee_rate(staker_address)
         return min_fee
@@ -1385,7 +1384,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
 
     @property
     def default_rate(self):
-        _minimum, default, _maximum = self.policy_agent.get_min_fee_rate_range()
+        _minimum, default, _maximum = self.policy_agent.get_fee_rate_range()
         return default
 
     def generate_policy_parameters(self,

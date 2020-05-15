@@ -348,7 +348,7 @@ Registry  ................ {registry.filepath}
     try:
 
         policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
-        paint_min_fee_range(emitter, policy_agent)
+        paint_fee_rate_range(emitter, policy_agent)
         emitter.echo(sep, nl=False)
 
     except BaseContractRegistry.UnknownContract:
@@ -357,11 +357,11 @@ Registry  ................ {registry.filepath}
         emitter.echo(sep, nl=False)
 
 
-def paint_min_fee_range(emitter, policy_agent):
-    minimum, default, maximum = policy_agent.get_min_fee_rate_range()
+def paint_fee_rate_range(emitter, policy_agent):
+    minimum, default, maximum = policy_agent.get_fee_rate_range()
 
     range_payload = f"""
-Range of the minimum fee rate:
+Global fee Range:
     ~ Minimum ............ {prettify_eth_amount(minimum)}
     ~ Default ............ {prettify_eth_amount(default)}
     ~ Maximum ............ {prettify_eth_amount(maximum)}"""
@@ -369,12 +369,12 @@ Range of the minimum fee rate:
 
 
 def paint_min_rate(emitter, registry, policy_agent, staker_address):
-    paint_min_fee_range(emitter, policy_agent)
+    paint_fee_rate_range(emitter, policy_agent)
     minimum = policy_agent.min_fee_rate(staker_address)
     raw_minimum = policy_agent.raw_min_fee_rate(staker_address)
 
     rate_payload = f"""
-Minimum fee rate:
+Minimum acceptable fee rate (set by staker for their associated worker):
     ~ Previously set ....... {prettify_eth_amount(raw_minimum)}
     ~ Effective ............ {prettify_eth_amount(minimum)}"""
     emitter.echo(rate_payload)
@@ -978,8 +978,7 @@ def paint_bidding_notice(emitter, bidder):
   in the NuCypher slashing protocol.
 
 - Keeping your Ursula node online during the staking period and correctly servicing
-  re-encryption work orders will earn fees paid out in ethers retroactively
-  and on-demand.
+  re-encryption work orders will earn fees paid out in ETH on-demand and retroactively.
 
 Accept WorkLock terms and node operator obligation?"""  # TODO: Show a special message for first bidder, since there's no refund rate yet?
 

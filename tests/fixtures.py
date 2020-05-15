@@ -100,7 +100,7 @@ from tests.performance_mocks import (
 )
 
 test_logger = Logger("test-logger")
-MIN_FEE_RATE_RANGE = (5, 10, 15)
+FEE_RATE_RANGE = (5, 10, 15)
 
 
 #
@@ -564,8 +564,8 @@ def _make_agency(testerchain,
     _worklock_agent = worklock_deployer.make_agent()                    # 5 Worklock
 
     # Set additional parameters
-    minimum, default, maximum = MIN_FEE_RATE_RANGE
-    txhash = policy_agent.contract.functions.setMinFeeRateRange(minimum, default, maximum).transact()
+    minimum, default, maximum = FEE_RATE_RANGE
+    txhash = policy_agent.contract.functions.setFeeRateRange(minimum, default, maximum).transact()
     _receipt = testerchain.wait_for_receipt(txhash)
 
     # TODO: Get rid of returning these agents here.

@@ -58,7 +58,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     policy_refund_log = policy_manager.events.RefundForPolicy.createFilter(fromBlock='latest')
     warn_log = policy_manager.events.NodeBrokenState.createFilter(fromBlock='latest')
     min_fee_log = policy_manager.events.MinFeeRateSet.createFilter(fromBlock='latest')
-    fee_range_log = policy_manager.events.MinFeeRateRangeSet.createFilter(fromBlock='latest')
+    fee_range_log = policy_manager.events.FeeRateRangeSet.createFilter(fromBlock='latest')
 
     # Only past periods is allowed in register method
     current_period = policy_manager.functions.getCurrentPeriod().call()
@@ -309,18 +309,18 @@ def test_create_revoke(testerchain, escrow, policy_manager):
 
     # Only owner can change range
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.setMinFeeRateRange(10, 20, 30).transact({'from': node1})
+        tx = policy_manager.functions.setFeeRateRange(10, 20, 30).transact({'from': node1})
         testerchain.wait_for_receipt(tx)
-    assert policy_manager.functions.minFeeRateRange().call() == [0, 0, 0]
+    assert policy_manager.functions.feeRateRange().call() == [0, 0, 0]
 
     tx = policy_manager.functions.setMinFeeRate(0).transact({'from': node1})
     testerchain.wait_for_receipt(tx)
     assert policy_manager.functions.getMinFeeRate(node1).call() == 0
     assert len(min_fee_log.get_all_entries()) == 0
 
-    tx = policy_manager.functions.setMinFeeRateRange(0, 0, 0).transact({'from': creator})
+    tx = policy_manager.functions.setFeeRateRange(0, 0, 0).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    assert policy_manager.functions.minFeeRateRange().call() == [0, 0, 0]
+    assert policy_manager.functions.feeRateRange().call() == [0, 0, 0]
 
     events = fee_range_log.get_all_entries()
     assert len(events) == 1
@@ -332,16 +332,16 @@ def test_create_revoke(testerchain, escrow, policy_manager):
 
     # Can't set range with inconsistent values
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.setMinFeeRateRange(10, 5, 11).transact({'from': creator})
+        tx = policy_manager.functions.setFeeRateRange(10, 5, 11).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.setMinFeeRateRange(10, 15, 11).transact({'from': creator})
+        tx = policy_manager.functions.setFeeRateRange(10, 15, 11).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     min_rate, default_rate, max_rate = 10, 20, 30
-    tx = policy_manager.functions.setMinFeeRateRange(min_rate, default_rate, max_rate).transact({'from': creator})
+    tx = policy_manager.functions.setFeeRateRange(min_rate, default_rate, max_rate).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    assert policy_manager.functions.minFeeRateRange().call() == [min_rate, default_rate, max_rate]
+    assert policy_manager.functions.feeRateRange().call() == [min_rate, default_rate, max_rate]
     assert policy_manager.functions.nodes(node1).call()[MIN_FEE_RATE_FIELD] == 0
     assert policy_manager.functions.nodes(node2).call()[MIN_FEE_RATE_FIELD] == 0
     assert policy_manager.functions.getMinFeeRate(node1).call() == default_rate
@@ -483,9 +483,9 @@ def test_create_revoke(testerchain, escrow, policy_manager):
 
     # If min fee rate is outside of the range after changing it - then default value must be returned
     min_rate, default_rate, max_rate = 11, 15, 19
-    tx = policy_manager.functions.setMinFeeRateRange(min_rate, default_rate, max_rate).transact({'from': creator})
+    tx = policy_manager.functions.setFeeRateRange(min_rate, default_rate, max_rate).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    assert policy_manager.functions.minFeeRateRange().call() == [min_rate, default_rate, max_rate]
+    assert policy_manager.functions.feeRateRange().call() == [min_rate, default_rate, max_rate]
     assert policy_manager.functions.nodes(node1).call()[MIN_FEE_RATE_FIELD] == 10
     assert policy_manager.functions.nodes(node2).call()[MIN_FEE_RATE_FIELD] == 20
     assert policy_manager.functions.getMinFeeRate(node1).call() == default_rate
@@ -542,7 +542,7 @@ def test_upgrading(testerchain, deploy_contract):
         abi=contract_library_v2.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
-    tx = contract.functions.setMinFeeRateRange(10, 15, 20).transact({'from': creator})
+    tx = contract.functions.setFeeRateRange(10, 15, 20).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Can't call `finishUpgrade` and `verifyState` methods outside upgrade lifecycle
