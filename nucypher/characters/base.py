@@ -289,6 +289,7 @@ class Character(Learner):
 
     @property
     def canonical_public_address(self):
+        # TODO: This is wasteful.  #1995
         return to_canonical_address(self._checksum_address)
 
     @canonical_public_address.setter
