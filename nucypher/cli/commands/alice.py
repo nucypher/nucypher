@@ -25,12 +25,9 @@ from nucypher.characters.control.interfaces import AliceInterface
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
 from nucypher.cli.actions.config import (
     destroy_configuration,
-    get_or_update_configuration,
-    handle_missing_configuration_file
+    handle_missing_configuration_file, update_configuration
 )
-from nucypher.cli.processes import get_geth_provider_process
 from nucypher.cli.actions.select import select_client_account
-from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
@@ -58,7 +55,9 @@ from nucypher.cli.options import (
     option_teacher_uri
 )
 from nucypher.cli.painting.help import paint_new_installation_help
+from nucypher.cli.processes import get_geth_provider_process
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
+from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, TEMPORARY_DOMAIN
 from nucypher.config.keyring import NucypherKeyring
@@ -331,10 +330,10 @@ def config(general_config, config_file, full_config_options):
     emitter = setup_emitter(general_config)
     configuration_file_location = config_file or AliceConfiguration.default_filepath()
     emitter.echo(f"Alice Configuration {configuration_file_location} \n {'='*55}")
-    get_or_update_configuration(emitter=emitter,
-                                config_class=AliceConfiguration,
-                                filepath=configuration_file_location,
-                                config_options=full_config_options)
+    update_configuration(emitter=emitter,
+                         config_class=AliceConfiguration,
+                         filepath=configuration_file_location,
+                         config_options=full_config_options)
 
 
 @alice.command()

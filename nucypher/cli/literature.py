@@ -230,6 +230,11 @@ COLLECTING_PREALLOCATION_REWARD = 'Collecting {unlocked_tokens} from Preallocati
 # Configuration
 #
 
+MISSING_CONFIGURATION_FILE = """No {name} configuration file found. 'To create a new persistent {name} run:
+nucypher {init_command}
+"""
+
+
 SELECT_NETWORK = "Select Network"
 
 NO_CONFIGURATIONS_ON_DISK = "No {name} configurations found.  run 'nucypher {command} init' then try again."

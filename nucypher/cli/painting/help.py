@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 import click
 
 from nucypher.blockchain.eth.sol.__conf__ import SOLIDITY_COMPILER_VERSION
@@ -61,3 +62,5 @@ def paint_new_installation_help(emitter, new_configuration):
     how_to_run_message = f"\nTo run {adjective} {character_name.capitalize()} node from the default configuration filepath run: \n\n'{suggested_command}'\n"
 
     emitter.echo(how_to_run_message.format(suggested_command), color='green')
+
+
