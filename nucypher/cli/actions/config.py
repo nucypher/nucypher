@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import json
+from typing import Type
 
 import click
 from json.decoder import JSONDecodeError
@@ -32,10 +33,11 @@ from nucypher.cli.literature import (
     SUCCESSFUL_FORGET_NODES,
     SUCCESSFUL_UPDATE_CONFIGURATION_VALUES
 )
+from nucypher.config.node import CharacterConfiguration
 
 
 def get_or_update_configuration(emitter: StdoutEmitter,
-                                config_class,
+                                config_class: Type[CharacterConfiguration],
                                 filepath: str,
                                 config_options) -> None:
 
@@ -59,12 +61,17 @@ def get_or_update_configuration(emitter: StdoutEmitter,
         return emitter.echo(config.serialize())
 
 
-def destroy_configuration(emitter, character_config, force: bool = False) -> None:
+def destroy_configuration(emitter, character_config: CharacterConfiguration, force: bool = False) -> None:
+    """Destroy a character configuration and report rhe result with an emitter."""
     if not force:
+
+        ################################
+        # TODO: This is a workaround for ursula - needs follow up
         try:
             database = character_config.db_filepath
         except AttributeError:
             database = "No database found"  # FIXME: This cannot be right.....
+        ################################
 
         click.confirm(CHARACTER_DESTRUCTION.format(name=character_config.NAME,
                                                    root=character_config.config_root,
@@ -77,18 +84,17 @@ def destroy_configuration(emitter, character_config, force: bool = False) -> Non
     character_config.log.debug(SUCCESSFUL_DESTRUCTION)
 
 
-def forget(emitter, configuration):
+def forget(emitter: StdoutEmitter, configuration: CharacterConfiguration) -> None:
     """Forget all known nodes via storage"""
     click.confirm(CONFIRM_FORGET_NODES, abort=True)
     configuration.forget_nodes()
     emitter.message(SUCCESSFUL_FORGET_NODES, color='red')
 
 
-def handle_missing_configuration_file(character_config_class,
+def handle_missing_configuration_file(character_config_class: Type[CharacterConfiguration],
                                       init_command_hint: str = None,
                                       config_file: str = None
                                       ) -> None:
-
     config_file_location = config_file or character_config_class.default_filepath()
     init_command = init_command_hint or f"{character_config_class.NAME} init"
     message = f'No {character_config_class.NAME.capitalize()} configuration file found.\n' \

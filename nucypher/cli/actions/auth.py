@@ -23,6 +23,7 @@ from nacl.exceptions import CryptoError
 
 from constant_sorrow.constants import NO_PASSWORD
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
     COLLECT_ETH_PASSWORD,
     COLLECT_NUCYPHER_PASSWORD,
@@ -35,6 +36,7 @@ from nucypher.config.node import CharacterConfiguration
 
 
 def get_password_from_prompt(prompt: str = GENERIC_PASSWORD_PROMPT, envvar: str = None, confirm: bool = False) -> str:
+    """Collect a password interactively, preferring an env var is one is provided and set."""
     password = NO_PASSWORD
     if envvar:
         password = os.environ.get(envvar, NO_PASSWORD)
@@ -45,6 +47,7 @@ def get_password_from_prompt(prompt: str = GENERIC_PASSWORD_PROMPT, envvar: str 
 
 @validate_checksum_address
 def get_client_password(checksum_address: str, envvar: str = None, confirm: bool = False) -> str:
+    """Interactively collect an ethereum client password"""
     client_password = get_password_from_prompt(prompt=COLLECT_ETH_PASSWORD.format(checksum_address=checksum_address),
                                                envvar=envvar,
                                                confirm=confirm)
@@ -52,6 +55,7 @@ def get_client_password(checksum_address: str, envvar: str = None, confirm: bool
 
 
 def get_nucypher_password(confirm: bool = False, envvar=NUCYPHER_ENVVAR_KEYRING_PASSWORD) -> str:
+    """Interactively collect a nucypher password"""
     prompt = COLLECT_NUCYPHER_PASSWORD
     if confirm:
         from nucypher.config.keyring import NucypherKeyring
@@ -60,7 +64,8 @@ def get_nucypher_password(confirm: bool = False, envvar=NUCYPHER_ENVVAR_KEYRING_
     return keyring_password
 
 
-def unlock_nucypher_keyring(emitter, password: str, character_configuration: CharacterConfiguration) -> bool:
+def unlock_nucypher_keyring(emitter: StdoutEmitter, password: str, character_configuration: CharacterConfiguration) -> bool:
+    """Unlocks a nucypher keyring and attaches it to the supplied configuration if successful."""
     emitter.message(DECRYPTING_CHARACTER_KEYRING.format(name=character_configuration.NAME), color='yellow')
 
     # precondition

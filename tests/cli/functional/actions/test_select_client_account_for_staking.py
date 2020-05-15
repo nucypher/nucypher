@@ -2,7 +2,7 @@ import pytest
 
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
-from nucypher.cli.actions.select import handle_client_account_for_staking
+from nucypher.cli.actions.select import select_client_account_for_staking
 from nucypher.config.constants import TEMPORARY_DOMAIN
 
 
@@ -13,7 +13,7 @@ def test_handle_client_account_for_staking(test_emitter, test_registry, test_reg
     registry = IndividualAllocationRegistry(beneficiary_address='0xdeadbeef',
                                             contract_address='0xdeadbeef',
                                             network=TEMPORARY_DOMAIN)
-    result = handle_client_account_for_staking(emitter=test_emitter,
+    result = select_client_account_for_staking(emitter=test_emitter,
                                                stakeholder=stakeholder,
                                                staking_address='0xdeadbeef',
                                                individual_allocation=registry,

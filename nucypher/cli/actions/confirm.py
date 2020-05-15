@@ -19,7 +19,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
 
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.token import NU
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
     ABORT_DEPLOYMENT,
     CONFIRM_ENABLE_RESTAKING,
@@ -34,7 +36,13 @@ from nucypher.cli.literature import (
 )
 
 
-def confirm_deployment(emitter, deployer_interface) -> bool:
+def confirm_deployment(emitter: StdoutEmitter, deployer_interface: BlockchainDeployerInterface) -> bool:
+    """
+    Interactively confirm deployment by asking the user to type the ALL CAPS name of
+    the network they are deploying to or 'DEPLOY' if the network if not a known public chain.
+
+    Aborts if the confirmation work is incorrect.
+    """
     if deployer_interface.client.chain_name == UNKNOWN_DEVELOPMENT_CHAIN_ID or deployer_interface.client.is_local:
         expected_chain_name = 'DEPLOY'
     else:
@@ -45,25 +53,29 @@ def confirm_deployment(emitter, deployer_interface) -> bool:
     return True
 
 
-def confirm_enable_restaking_lock(emitter, staking_address: str, release_period: int) -> bool:
+def confirm_enable_restaking_lock(emitter: StdoutEmitter, staking_address: str, release_period: int) -> bool:
+    """Interactively confirm enabling of the staking lock with user agreements."""
     emitter.message(RESTAKING_LOCK_AGREEMENT.format(staking_address=staking_address, release_period=release_period))
     click.confirm(CONFIRM_RESTAKING_LOCK.format(staking_address=staking_address, release_period=release_period), abort=True)
     return True
 
 
-def confirm_enable_restaking(emitter, staking_address: str) -> bool:
+def confirm_enable_restaking(emitter: StdoutEmitter, staking_address: str) -> bool:
+    """Interactively confirm enabling of the restaking with user agreements."""
     emitter.message(RESTAKING_AGREEMENT.format(staking_address=staking_address))
     click.confirm(CONFIRM_ENABLE_RESTAKING.format(staking_address=staking_address), abort=True)
     return True
 
 
-def confirm_enable_winding_down(emitter, staking_address: str) -> bool:
+def confirm_enable_winding_down(emitter: StdoutEmitter, staking_address: str) -> bool:
+    """Interactively confirm enabling of winding down with user agreements."""
     emitter.message(WINDING_DOWN_AGREEMENT)
     click.confirm(CONFIRM_ENABLE_WINDING_DOWN.format(staking_address=staking_address), abort=True)
     return True
 
 
 def confirm_staged_stake(staker_address: str, value: NU, lock_periods: int) -> bool:
+    """Interactively confirm a new stake reviewing all staged stake details."""
     click.confirm(CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
                                               tokens=str(value.to_tokens()),
                                               staker_address=staker_address,
@@ -72,6 +84,7 @@ def confirm_staged_stake(staker_address: str, value: NU, lock_periods: int) -> b
 
 
 def confirm_large_stake(value: NU = None, lock_periods: int = None) -> bool:
+    """Interactively confirm a large or a long stake"""
     if value and (value > NU.from_tokens(150000)):
         click.confirm(CONFIRM_LARGE_STAKE_VALUE.format(value=value), abort=True)
     if lock_periods and (lock_periods > 365):

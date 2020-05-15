@@ -22,10 +22,10 @@ import glob
 import click
 import os
 from tabulate import tabulate
-from typing import List, Tuple
+from typing import Tuple, Type
 from web3.main import Web3
 
-from nucypher.blockchain.eth.actors import Staker, Wallet
+from nucypher.blockchain.eth.actors import StakeHolder, Staker, Wallet
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, IndividualAllocationRegistry
@@ -47,13 +47,17 @@ from nucypher.cli.literature import (
 )
 from nucypher.cli.painting.staking import paint_stakes
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ADDRESS
+from nucypher.config.node import CharacterConfiguration
 
 
-def select_stake(stakeholder,
+def select_stake(stakeholder: StakeHolder,
                  emitter: StdoutEmitter,
                  divisible: bool = False,
                  staker_address: str = None
                  ) -> Stake:
+    """Interactively select a stake or abort if there are no eligible stakes."""
+
+    # Precondition: Active Stakes
     if staker_address:
         staker = stakeholder.get_staker(checksum_address=staker_address)
         stakes = staker.stakes
@@ -63,6 +67,7 @@ def select_stake(stakeholder,
         emitter.echo(NO_STAKES_FOUND, color='red')
         raise click.Abort
 
+    # Precondition: Divisible Stakes
     stakes = stakeholder.sorted_stakes
     if divisible:
         emitter.echo(ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE, color='yellow')
@@ -70,6 +75,8 @@ def select_stake(stakeholder,
         if not stakes:
             emitter.echo(NO_DIVISIBLE_STAKES, color='red')
             raise click.Abort
+
+    # Interactive Selection
     enumerated_stakes = dict(enumerate(stakes))
     paint_stakes(stakeholder=stakeholder, emitter=emitter, staker_address=staker_address)
     choice = click.prompt(SELECT_STAKE, type=click.IntRange(min=0, max=len(enumerated_stakes)-1))
@@ -92,6 +99,8 @@ def select_client_account(emitter,
                           poa: bool = None
                           ) -> str:
     """
+    Interactively select an ethereum wallet account from a table of nucypher account metadata.
+
     Note: Showing ETH and/or NU balances, causes an eager blockchain connection.
     """
 
@@ -166,8 +175,8 @@ def select_client_account(emitter,
     return chosen_account
 
 
-def handle_client_account_for_staking(emitter: StdoutEmitter,
-                                      stakeholder,
+def select_client_account_for_staking(emitter: StdoutEmitter,
+                                      stakeholder: StakeHolder,
                                       staking_address: str,
                                       individual_allocation: IndividualAllocationRegistry,
                                       force: bool,
@@ -203,6 +212,7 @@ def handle_client_account_for_staking(emitter: StdoutEmitter,
 
 
 def select_network(emitter: StdoutEmitter) -> str:
+    """Interactively select a network from nucypher networks inventory list"""
     headers = ["Network"]
     rows = [[n] for n in NetworksInventory.NETWORKS]
     emitter.echo(tabulate(rows, headers=headers, showindex='always'))
@@ -212,10 +222,27 @@ def select_network(emitter: StdoutEmitter) -> str:
 
 
 def select_config_file(emitter: StdoutEmitter,
-                       config_class,
+                       config_class: Type[CharacterConfiguration],
                        config_root: str = None,
                        checksum_address: str = None,
                        ) -> str:
+    """
+    Selects a nucypher character configuration file from the disk automatically or interactively.
+
+    Behaviour
+    ~~~~~~~~~
+
+    - If checksum address is supplied by parameter or worker address env var - confirm there is a corresponding
+      file on the disk or raise ValueError.
+
+    - If there is only one configuration file for the character, automatically return its filepath.
+
+    - If there are multiple character configurations on the disk in the same configuration root,
+      interactively selection commences.
+
+    - Aborts if there are no configurations associated with the supplied character configuration class.
+
+    """
 
     #
     # Scrape Disk Configurations
