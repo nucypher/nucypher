@@ -37,6 +37,7 @@ from nucypher.cli.literature import (
     SUCCESSFUL_UPDATE_CONFIGURATION_VALUES
 )
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.node import CharacterConfiguration
 
 
 def get_or_update_configuration(emitter: StdoutEmitter,
@@ -112,7 +113,7 @@ def get_provider_process(start_now: bool = False) -> NuCypherGethGoerliProcess:
     return process
 
 
-def extract_checksum_address_from_filepath(filepath: str, config_class=UrsulaConfiguration) -> str:
+def extract_checksum_address_from_filepath(filepath: str, config_class: CharacterConfiguration) -> str:
 
     pattern = re.compile(r'''
                          (^\w+)-

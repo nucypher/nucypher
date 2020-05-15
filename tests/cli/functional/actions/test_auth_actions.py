@@ -1,21 +1,28 @@
 import os
 import pytest
+from constant_sorrow.constants import NO_PASSWORD
 from nacl.exceptions import CryptoError
 
-from constant_sorrow.constants import NO_PASSWORD
 from nucypher.blockchain.eth.decorators import InvalidChecksumAddress
-from nucypher.cli.actions.auth import get_password_from_prompt, get_client_password, get_nucypher_password, \
+from nucypher.cli.actions.auth import (
+    get_client_password,
+    get_nucypher_password,
+    get_password_from_prompt,
     unlock_nucypher_keyring
-from nucypher.cli.literature import GENERIC_PASSWORD_PROMPT, COLLECT_ETH_PASSWORD, COLLECT_NUCYPHER_PASSWORD, \
-    DECRYPTING_CHARACTER_KEYRING
-from nucypher.config import keyring
+)
+from nucypher.cli.literature import (
+    COLLECT_ETH_PASSWORD,
+    COLLECT_NUCYPHER_PASSWORD,
+    DECRYPTING_CHARACTER_KEYRING,
+    GENERIC_PASSWORD_PROMPT
+)
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import CharacterConfiguration
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.mark.parametrize('confirm', (True, False))
-def test_get_password_from_prompt(mocker, mock_click_prompt, mock_click_confirm, confirm):
+def test_get_password_from_prompt(mock_click_prompt, mock_click_confirm, confirm):
 
     # Setup
     mock_click_prompt.return_value = INSECURE_DEVELOPMENT_PASSWORD

@@ -239,7 +239,8 @@ def select_config_file(emitter: StdoutEmitter,
         # Manual
         #
 
-        parsed_addresses = {extract_checksum_address_from_filepath(fp): fp for fp in config_files}
+        parsed_addresses = {extract_checksum_address_from_filepath(fp, config_class=config_class): fp
+                            for fp in config_files}
         try:
             config_file = parsed_addresses[checksum_address]
         except KeyError:
@@ -251,7 +252,8 @@ def select_config_file(emitter: StdoutEmitter,
         # Interactive
         #
 
-        parsed_addresses = tuple([extract_checksum_address_from_filepath(fp)] for fp in config_files)
+        parsed_addresses = tuple([extract_checksum_address_from_filepath(fp, config_class=config_class)]
+                                 for fp in config_files)
 
         # Display account info
         headers = ['Account']

@@ -102,7 +102,10 @@ class BaseConfiguration(ABC):
         super().__init__()
 
     def __eq__(self, other):
-        return bool(self.static_payload() == other.static_payload())
+        try:
+            return bool(self.static_payload() == other.static_payload())
+        except TypeError:
+            return False
 
     @abstractmethod
     def static_payload(self) -> dict:
