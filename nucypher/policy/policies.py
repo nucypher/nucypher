@@ -169,20 +169,23 @@ class PolicyPayloadMutex(DeferredList):
 
     def __init__(self, deferredList, percent_to_complete_before_release=10, *args, **kwargs):
         self.percent_to_complete_before_release = percent_to_complete_before_release
-        self.q = Queue()
+        self._policy_locking_queue = Queue()
 
         super().__init__(deferredList, *args, **kwargs)
-        self.done_when = int(len(deferredList) / self.percent_to_complete_before_release)
+        self._block_until_this_many_are_complete = int(len(deferredList) / self.percent_to_complete_before_release)
 
     def _cbDeferred(self, *args, **kwargs):
         result = super()._cbDeferred(*args, **kwargs)
 
-        if self.finishedCount == self.done_when:
-            self.q.put(None)
-
-        if self.finishedCount == len(self.resultList):
-            print("********************** DONE!!! **********************")
+        if self.finishedCount == self._block_until_this_many_are_complete:
+            self._policy_locking_queue.put(None)  # TODO: It'd be rad to return a list of nodes here who were contacted, but it's non-trivial.
         return result
+
+    def block_for_a_little_while(self):
+        """
+        https://www.youtube.com/watch?v=OkSLswPSq2o
+        """
+        return self._policy_locking_queue.get()
 
 
 class Policy(ABC):
@@ -278,7 +281,7 @@ class Policy(ABC):
         """
         return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)
 
-    def publish_treasure_map(self, network_middleware: RestMiddleware, blockchain_signer: Callable = None) -> dict:
+    def publish_treasure_map(self, network_middleware: RestMiddleware, blockchain_signer: Callable = None) -> PolicyPayloadMutex:
         self.treasure_map.prepare_for_publication(self.bob.public_keys(DecryptingPower),
                                                   self.bob.public_keys(SigningPower),
                                                   self.alice.stamp,
@@ -287,7 +290,7 @@ class Policy(ABC):
             self.treasure_map.include_blockchain_signature(blockchain_signer)
 
         if not self.alice.known_nodes:
-            # TODO: Optionally, block.
+            # TODO: Optionally, block.  This is increasingly important.
             raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
 
         responses = list()
