@@ -949,7 +949,10 @@ def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas):
 
     with mock_cert_storage, mock_verify_node, mock_record_fleet_state, mock_message_verification, mock_keep_learning:
         alice = config.produce(known_nodes=list(fleet_of_highperf_mocked_ursulas)[:1])
-    return alice
+    yield alice
+    # TODO: Where does this really, truly belong?
+    alice._learning_task.stop()
+    alice.publication_threadpool.stop()
 
 
 @pytest.fixture(scope="module")
@@ -962,8 +965,10 @@ def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
                               save_metadata=False,
                               reload_metadata=False)
 
-    with mock_cert_storage, mock_verify_node, mock_record_fleet_state:
+    with mock_cert_storage, mock_verify_node, mock_record_fleet_state, mock_keep_learning:
         bob = config.produce(known_nodes=list(fleet_of_highperf_mocked_ursulas)[:1])
+    yield bob
+    bob._learning_task.stop()
     return bob
 
 #
