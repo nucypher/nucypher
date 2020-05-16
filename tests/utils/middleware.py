@@ -116,9 +116,11 @@ class SluggishLargeFleetMiddleware(MockRestMiddlewareForLargeFleetTests):
     """
     Similar to above, but with added delay to simulate network latency.
     """
-    def put_treasure_map_on_node(self, *args, **kwargs):
+    def put_treasure_map_on_node(self, node, *args, **kwargs):
         time.sleep(.1)
-        return super().put_treasure_map_on_node(*args, **kwargs)
+        result = super().put_treasure_map_on_node(node=node, *args, **kwargs)
+        time.sleep(.1)
+        return result
 
 
 class _MiddlewareClientWithConnectionProblems(_TestMiddlewareClient):
