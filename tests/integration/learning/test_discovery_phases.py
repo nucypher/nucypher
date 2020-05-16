@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import random
+from datetime import datetime
 from unittest.mock import patch
 
 import maya
@@ -25,6 +26,7 @@ import pytest_twisted
 from flask import Response
 from twisted.internet import threads, reactor
 from twisted.internet.defer import Deferred
+from twisted.internet.threads import deferToThread
 
 from nucypher.utilities.sandbox.middleware import SluggishLargeFleetMiddleware
 from umbral.keys import UmbralPublicKey
@@ -137,24 +139,32 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
 
     policy = _POLICY_PRESERVER.pop()
 
-    with patch('umbral.keys.UmbralPublicKey.__eq__', lambda *args, **kwargs: True), mock_metadata_validation:
-        try:
-            publisher = policy.publish_treasure_map(network_middleware=highperf_mocked_alice.network_middleware)
-        except Exception as e:
-            # Retained for convenient breakpointing during test reuns.
-            raise
+    started = datetime.now()
 
+    with patch('umbral.keys.UmbralPublicKey.__eq__', lambda *args, **kwargs: True), mock_metadata_validation:
+        # The nodes who match the map distribution criteria.
         nodes_we_expect_to_have_the_map = highperf_mocked_bob.matching_nodes_among(highperf_mocked_alice.known_nodes)
 
-        # TODO: This is heavy enough to affect this test.
-        nodes_we_expect_to_have_the_map_but_which_do_not = [u for u in fleet_of_highperf_mocked_ursulas if u in nodes_we_expect_to_have_the_map]
-        for node in nodes_we_expect_to_have_the_map_but_which_do_not:
-            node.verify_node(network_middleware_client=policy.alice.network_middleware.client)
+        # returns instantly.
+        publisher = policy.publish_treasure_map(network_middleware=highperf_mocked_alice.network_middleware)
 
-        # Fun fact: if you outdent this next line, you'll be unable to validate nodes - pytest
-        # fires the callback of the DeferredList in the context of the yield (as it ought to).
-        # yield threads.deferToThread(lambda: None)
-        # publisher.q.get()
+        nodes_that_have_the_map_when_we_return = []
+
+        for ursula in fleet_of_highperf_mocked_ursulas:
+            if policy.treasure_map in list(ursula.treasure_maps.values()):
+                nodes_that_have_the_map_when_we_return.append(ursula)
+
+        # Very few have gotten the map yet; it's happening in the background.
+        # Note: if you put a breakpoint above this line, you will likely need to comment this assertion out.
+        assert len(nodes_that_have_the_map_when_we_return) <= 5  # Maybe a couple finished already, especially if this is a lightning fast computer.  But more than five is weird.
+
+        # Wait until about ten percent of the distribution has occurred.
+        # We do it in a deferred here in the test because it will block the entire process, but in the real-world, we can do this on the granting thread.
+        yield deferToThread(publisher.block_for_a_little_while)
+        initial_blocking_duration = datetime.now() - started
+
+        # Here we'll just count the nodes that have the map.  In the real world, we can do a sanity check
+        # to make sure things haven't gone sideways.
 
         nodes_that_have_the_map_when_we_unblock = []
 
@@ -162,13 +172,26 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
             if policy.treasure_map in list(ursula.treasure_maps.values()):
                 nodes_that_have_the_map_when_we_unblock.append(ursula)
 
-        # Now we're back over here (which will be in the threadpool in the background in the real world, but in the main thread
-        # for the remainder of this test), distributing the test to the rest of the eligible nodes.
+        approximate_number_of_nodes_we_expect_to_have_the_map_already = len(nodes_we_expect_to_have_the_map) / 10
+        assert len(nodes_that_have_the_map_when_we_unblock) == pytest.approx(approximate_number_of_nodes_we_expect_to_have_the_map_already, .5)
 
-        def wtf(map_publication_responses):
-            for was_succssfull, http_response in map_publication_responses:
-                assert was_succssfull
+        # The rest of the distributions is continuing in the background.
+
+        successful_responses = []
+        def find_successful_responses(map_publication_responses):
+            for was_succssful, http_response in map_publication_responses:
+                assert was_succssful
                 assert http_response.status_code == 202
+                successful_responses.append(http_response)
 
-        publisher.addCallback(wtf)
-        yield publisher
+        publisher.addCallback(find_successful_responses)
+        yield publisher  # This will block until the distribution is complete.
+        complete_distribution_time = datetime.now() - started
+
+        # We have the same number of successful responses as nodes we expected to have the map.
+        assert len(successful_responses) == len(nodes_we_expect_to_have_the_map)
+
+        # Before Treasure Island (1741), this process took about 3 minutes.
+
+        assert initial_blocking_duration.total_seconds() < 1.8
+        assert complete_distribution_time.total_seconds() < 4.5
