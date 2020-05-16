@@ -129,7 +129,7 @@ class Alice(Character, BlockchainPolicyAuthor):
             self.m = m
             self.n = n
 
-            self.publication_threadpool = ThreadPool(maxthreads=120, minthreads=20, name="Alice Policy Publication")  # In the future, this value is perhaps best set to something like 3-4 times the optimal "high n", whatever we determine that to be.
+            self.publication_threadpool = ThreadPool(maxthreads=120, name="Alice Policy Publication")  # In the future, this value is perhaps best set to something like 3-4 times the optimal "high n", whatever we determine that to be.
             self.publication_threadpool.start()
         else:
             self.m = STRANGER_ALICE
