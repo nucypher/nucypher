@@ -65,8 +65,11 @@ from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS, \
+from nucypher.config.constants import (
+    NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
+    NUCYPHER_ENVVAR_WORKER_IP_ADDRESS,
     TEMPORARY_DOMAIN
+)
 from nucypher.config.keyring import NucypherKeyring
 
 
@@ -310,7 +313,7 @@ def init(general_config, config_options, force, config_root):
     if not config_options.federated_only and not config_options.domains:  # TODO: Again, weird network/domains mapping. See UrsulaConfigOptions' constructor. #1580
         config_options.domains = {select_network(emitter)}
     ursula_config = config_options.generate_config(emitter, config_root, force)
-    return paint_new_installation_help(emitter, new_configuration=ursula_config)
+    paint_new_installation_help(emitter, new_configuration=ursula_config)
 
 
 @ursula.command()
@@ -329,7 +332,7 @@ def destroy(general_config, config_options, config_file, force):
                                          checksum_address=config_options.worker_address,
                                          config_class=UrsulaConfiguration)
     ursula_config = config_options.create_config(emitter, config_file)
-    return destroy_configuration(emitter, character_config=ursula_config, force=force)
+    destroy_configuration(emitter, character_config=ursula_config, force=force)
 
 
 @ursula.command()
@@ -341,7 +344,7 @@ def forget(general_config, config_options, config_file):
     emitter = setup_emitter(general_config, config_options.worker_address)
     _pre_launch_warnings(emitter, dev=config_options.dev, force=None)
     ursula_config = config_options.create_config(emitter, config_file)
-    return forget(emitter, configuration=ursula_config)
+    forget(emitter, configuration=ursula_config)
 
 
 @ursula.command()
@@ -368,10 +371,10 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
                                                                config_file=config_file,
                                                                json_ipc=general_config.json_ipc)
 
-    return URSULA.run(emitter=emitter,
-                      start_reactor=not dry_run,
-                      interactive=interactive,
-                      prometheus=prometheus)
+    URSULA.run(emitter=emitter,
+               start_reactor=not dry_run,
+               interactive=interactive,
+               prometheus=prometheus)
 
 
 @ursula.command(name='save-metadata')
@@ -399,10 +402,10 @@ def config(general_config, config_options, config_file):
                                          checksum_address=config_options.worker_address,
                                          config_class=UrsulaConfiguration)
     emitter.echo(f"Ursula Configuration {config_file} \n {'='*55}")
-    return get_or_update_configuration(emitter=emitter,
-                                       config_class=UrsulaConfiguration,
-                                       filepath=config_file,
-                                       config_options=config_options)
+    get_or_update_configuration(emitter=emitter,
+                                config_class=UrsulaConfiguration,
+                                filepath=config_file,
+                                config_options=config_options)
 
 
 @ursula.command(name='commit-next')

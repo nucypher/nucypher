@@ -296,9 +296,9 @@ def inspect(general_config, provider_uri, config_root, registry_infile, deployer
     local_registry = establish_deployer_registry(emitter=emitter,
                                                  registry_infile=registry_infile,
                                                  download_registry=not bool(registry_infile))
-    return paint_deployer_contract_inspection(emitter=emitter,
-                                              registry=local_registry,
-                                              deployer_address=deployer_address)
+    paint_deployer_contract_inspection(emitter=emitter,
+                                       registry=local_registry,
+                                       deployer_address=deployer_address)
 
 
 @deploy.command()
@@ -379,7 +379,8 @@ def rollback(general_config, actor_options):
     ADMINISTRATOR, _, _, _ = actor_options.create_actor(emitter)
     if not actor_options.contract_name:
         raise click.BadArgumentUsage(message="--contract-name is required when using --rollback")
-    return ADMINISTRATOR.rollback_contract(contract_name=actor_options.contract_name)
+    receipt = ADMINISTRATOR.rollback_contract(contract_name=actor_options.contract_name)
+    paint_receipt_summary(emitter=emitter, receipt=receipt)
 
 
 @deploy.command()
@@ -545,7 +546,7 @@ def transfer_tokens(general_config, actor_options, target_address, value):
                                                  target_address=target_address)
     click.confirm(confirmation, abort=True)
     receipt = token_agent.transfer(amount=int(value), sender_address=deployer_address, target_address=target_address)
-    return paint_receipt_summary(emitter=emitter, receipt=receipt)
+    paint_receipt_summary(emitter=emitter, receipt=receipt)
 
 
 @deploy.command("transfer-ownership")
@@ -584,7 +585,6 @@ def transfer_ownership(general_config, actor_options, target_address, gas):
                                                 deployer_address=ADMINISTRATOR.deployer_address)
     receipt = contract_deployer.transfer_ownership(new_owner=target_address, transaction_gas_limit=gas)
     paint_receipt_summary(emitter=emitter, receipt=receipt)
-    return
 
 
 @deploy.command("set-range")

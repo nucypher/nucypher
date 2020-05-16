@@ -149,7 +149,6 @@ def status(general_config, worklock_options):
     if worklock_options.bidder_address:
         bidder = worklock_options.create_transactionless_bidder(registry=registry)
         paint_bidder_status(emitter=emitter, bidder=bidder)
-    return  # Exit
 
 
 @worklock.command()
@@ -210,7 +209,6 @@ def bid(general_config, worklock_options, force, hw_wallet, value):
     emitter.echo(message, color='yellow')
 
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
-    return  # Exit
 
 
 @worklock.command()
@@ -296,7 +294,6 @@ def claim(general_config, worklock_options, force, hw_wallet):
                          bidder_address=worklock_options.bidder_address,
                          network=worklock_options.network,
                          provider_uri=worklock_options.provider_uri)
-    return  # Exit
 
 
 @worklock.command()
@@ -316,7 +313,6 @@ def remaining_work(general_config, worklock_options):
     bidder = worklock_options.create_transactionless_bidder(registry=registry)
     _remaining_work = bidder.remaining_work
     emitter.echo(f"Work Remaining for {worklock_options.bidder_address}: {_remaining_work}")
-    return  # Exit
 
 
 @worklock.command()
@@ -341,7 +337,6 @@ def refund(general_config, worklock_options, force, hw_wallet):
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
     receipt = bidder.refund_deposit()
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
-    return  # Exit
 
 
 @worklock.command()
@@ -403,5 +398,3 @@ def enable_claiming(general_config, worklock_options, force, hw_wallet, gas_limi
                                   transaction_type=f"verify-correctness[{iteration}]")
     else:
         emitter.echo(BIDDERS_ALREADY_VERIFIED, color='yellow')
-
-    return  # Exit

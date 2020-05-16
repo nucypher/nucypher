@@ -114,7 +114,6 @@ Base Refund Rate ...... {worklock_agent.get_base_refund_rate()} units of work to
     * NOTE: bonus ETH is refunded before base ETH
     """
     emitter.echo(payload)
-    return
 
 
 def paint_bidder_status(emitter, bidder):
@@ -155,4 +154,3 @@ Remaining Work ....... {bidder.remaining_work}
 """
 
     emitter.echo(message)
-    return

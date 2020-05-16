@@ -252,7 +252,7 @@ class AliceCharacterOptions:
 
     __option_name__ = 'character_options'
 
-    def __init__(self, config_options: AliceFullConfigOptions, hw_wallet: bool, teacher_uri: str, min_stake: int):
+    def __init__(self, config_options: AliceConfigOptions, hw_wallet: bool, teacher_uri: str, min_stake: int):
         self.config_options = config_options
         self.hw_wallet = hw_wallet
         self.teacher_uri = teacher_uri
@@ -326,10 +326,10 @@ def config(general_config, config_file, full_config_options):
     emitter = setup_emitter(general_config)
     configuration_file_location = config_file or AliceConfiguration.default_filepath()
     emitter.echo(f"Alice Configuration {configuration_file_location} \n {'='*55}")
-    return get_or_update_configuration(emitter=emitter,
-                                       config_class=AliceConfiguration,
-                                       filepath=configuration_file_location,
-                                       config_options=full_config_options)
+    get_or_update_configuration(emitter=emitter,
+                                config_class=AliceConfiguration,
+                                filepath=configuration_file_location,
+                                config_options=full_config_options)
 
 
 @alice.command()
@@ -341,7 +341,7 @@ def destroy(general_config, config_options, config_file, force):
     """Delete existing Alice's configuration."""
     emitter = setup_emitter(general_config)
     alice_config = config_options.create_config(emitter, config_file)
-    return destroy_configuration(emitter, character_config=alice_config, force=force)
+    destroy_configuration(emitter, character_config=alice_config, force=force)
 
 
 @alice.command()

@@ -82,9 +82,8 @@ from nucypher.cli.options import (
     option_signer_uri,
     option_staking_address
 )
-from nucypher.cli.painting.policies import paint_min_rate
 from nucypher.cli.painting.staking import (
-    paint_staged_stake,
+    paint_min_rate, paint_staged_stake,
     paint_staged_stake_division,
     paint_stakes,
     paint_staking_accounts,
@@ -292,7 +291,6 @@ def init_stakeholder(general_config, config_root, force, config_options):
     new_stakeholder = config_options.generate_config(config_root)
     filepath = new_stakeholder.to_configuration_file(override=force)
     emitter.echo(SUCCESSFUL_NEW_STAKEHOLDER_CONFIG.format(filepath=filepath), color='green')
-    return  # Exit
 
 
 @stake.command()
@@ -304,10 +302,10 @@ def config(general_config, config_file, config_options):
     emitter = setup_emitter(general_config)
     configuration_file_location = config_file or StakeHolderConfiguration.default_filepath()
     emitter.echo(f"StakeHolder Configuration {configuration_file_location} \n {'='*55}")
-    return get_or_update_configuration(emitter=emitter,
-                                       config_class=StakeHolderConfiguration,
-                                       filepath=configuration_file_location,
-                                       config_options=config_options)
+    get_or_update_configuration(emitter=emitter,
+                                config_class=StakeHolderConfiguration,
+                                filepath=configuration_file_location,
+                                config_options=config_options)
 
 
 @stake.command('list')
@@ -320,7 +318,6 @@ def list_stakes(general_config, staker_options, config_file, all):
     emitter = setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
     paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER, paint_inactive=all)
-    return  # Exit
 
 
 @stake.command()
@@ -332,7 +329,6 @@ def accounts(general_config, staker_options, config_file):
     emitter = setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
     paint_staking_accounts(emitter=emitter, wallet=STAKEHOLDER.wallet, registry=STAKEHOLDER.registry)
-    return  # Exit
 
 
 @stake.command('bond-worker')
@@ -394,7 +390,6 @@ def bond_worker(general_config, transacting_staker_options, config_file, force, 
                           transaction_type='bond_worker')
     emitter.echo(BONDING_DETAILS.format(current_period=current_period, bonded_date=bonded_date), color='green')
     emitter.echo(BONDING_RELEASE_INFO.format(release_period=release_period, release_date=release_date), color='green')
-    return  # Exit
 
 
 @stake.command('unbond-worker')
@@ -437,7 +432,6 @@ def unbond_worker(general_config, transacting_staker_options, config_file, force
                           chain_name=blockchain.client.chain_name,
                           transaction_type='unbond_worker')
     emitter.echo(DETACH_DETAILS.format(current_period=current_period, bonded_date=bonded_date), color='green')
-    return  # Exit
 
 
 @stake.command()
@@ -524,7 +518,7 @@ def create(general_config, transacting_staker_options, config_file, force, value
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
 
     new_stake = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods)
-    return paint_staking_confirmation(emitter=emitter, staker=STAKEHOLDER, new_stake=new_stake)
+    paint_staking_confirmation(emitter=emitter, staker=STAKEHOLDER, new_stake=new_stake)
 
 
 @stake.command()
@@ -572,7 +566,6 @@ def restake(general_config, transacting_staker_options, config_file, enable, loc
         emitter.echo(SUCCESSFUL_DISABLE_RESTAKING.format(staking_address=staking_address), color='green', verbosity=1)
 
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
-    return  # Exit
 
 
 @stake.command()
@@ -614,7 +607,6 @@ def winddown(general_config, transacting_staker_options, config_file, enable, lo
         emitter.echo(SUCCESSFUL_DISABLE_WIND_DOWN.format(staking_address=staking_address), color='green', verbosity=1)
 
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
-    return  # Exit
 
 
 @stake.command()
@@ -708,7 +700,6 @@ def divide(general_config, transacting_staker_options, config_file, force, value
 
     # Show the resulting stake list
     paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER)
-    return  # Exit
 
 
 @stake.command()
@@ -777,7 +768,6 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
     emitter.echo(SUCCESSFUL_STAKE_PROLONG, color='green', verbosity=1)
     paint_receipt_summary(emitter=emitter, receipt=receipt, chain_name=blockchain.client.chain_name)
     paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER)
-    return  # Exit
 
 
 @stake.command('collect-reward')
@@ -831,7 +821,7 @@ def collect_reward(general_config,
         paint_receipt_summary(receipt=policy_receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
                               emitter=emitter)
-    return  # Exit
+
 
 @stake.command()
 @click.argument('action', type=click.Choice(['status', 'withdraw']))
@@ -876,7 +866,6 @@ def preallocation(general_config, transacting_staker_options, config_file, actio
         paint_receipt_summary(receipt=receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
                               emitter=emitter)
-        return  # Exit
 
 
 @stake.command()
@@ -916,7 +905,6 @@ def events(general_config, staker_options, config_file, event_name):
         entries = event_filter.get_all_entries()
         for event_record in entries:
             emitter.echo(f"  - {EventRecord(event_record)}")
-    return  # Exit
 
 
 @stake.command('set-min-rate')
@@ -953,7 +941,7 @@ def set_min_rate(general_config, transacting_staker_options, config_file, force,
     # Report Success
     message = SUCCESSFUL_SET_MIN_POLICY_RATE.format(min_rate=min_rate, staking_address=staking_address)
     emitter.echo(message, color='green')
-    return paint_receipt_summary(emitter=emitter,
-                                 receipt=receipt,
-                                 chain_name=blockchain.client.chain_name,
-                                 transaction_type='set_min_rate')
+    paint_receipt_summary(emitter=emitter,
+                          receipt=receipt,
+                          chain_name=blockchain.client.chain_name,
+                          transaction_type='set_min_rate')

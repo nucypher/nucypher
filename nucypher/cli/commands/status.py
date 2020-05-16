@@ -40,7 +40,7 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_staking_address,
 )
-from nucypher.cli.painting.policies import paint_fee_rate_range
+from nucypher.cli.painting.staking import paint_fee_rate_range
 from nucypher.cli.painting.status import paint_contract_status, paint_locked_tokens_status, paint_stakers
 from nucypher.cli.utils import connect_to_blockchain, get_registry, setup_emitter
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI

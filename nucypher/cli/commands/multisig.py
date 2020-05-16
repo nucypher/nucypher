@@ -68,16 +68,8 @@ class BlockchainOptions:
         self.light = light
         self.network = network
 
-    def get_registry(self, connect_blockchain: bool = False, emitter=None, debug=None):
-        if connect_blockchain:
-            self.connect_blockchain(emitter, debug)
-        if self.registry_filepath:
-            registry = LocalContractRegistry(filepath=self.registry_filepath)
-        else:
-            registry = InMemoryContractRegistry.from_latest_publication(network=self.network)
-        return registry
-
     def connect_blockchain(self, emitter, debug):
+        # TODO: Move to common method shared with the rest of the CLI
         try:
             eth_node = None
             if self.geth:
@@ -176,7 +168,7 @@ def inspect(general_config, blockchain_options):
     registry = get_registry(network=blockchain_options.network)
     multisig_agent = ContractAgency.get_agent(MultiSigAgent, registry=registry)
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
-    return paint_multisig_contract_info(emitter, multisig_agent, token_agent)
+    paint_multisig_contract_info(emitter, multisig_agent, token_agent)
 
 
 @multisig.command()

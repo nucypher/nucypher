@@ -31,7 +31,7 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import etherscan_url
 from nucypher.characters.banners import NU_BANNER
-from nucypher.cli.painting.policies import paint_fee_rate_range
+from nucypher.cli.painting.staking import paint_fee_rate_range
 from nucypher.cli.painting.transactions import paint_receipt_summary
 
 

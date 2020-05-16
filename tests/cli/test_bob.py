@@ -123,7 +123,7 @@ def test_bob_destroy(click_runner, custom_filepath):
 
 
 # FIXME
-@pytest.mark.skip(reason="Needs propery mocking of bob")
+@pytest.mark.skip(reason="Needs proper mocking of bob")
 def test_bob_retrieves_twice_via_cli(click_runner,
                                      capsule_side_channel,
                                      enacted_federated_policy,

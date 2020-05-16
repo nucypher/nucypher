@@ -184,7 +184,7 @@ def init(general_config, config_options, config_root):
     if not config_root:
         config_root = general_config.config_root
     new_bob_config = config_options.generate_config(emitter, config_root)
-    return paint_new_installation_help(emitter, new_configuration=new_bob_config)
+    paint_new_installation_help(emitter, new_configuration=new_bob_config)
 
 
 @bob.command()
@@ -227,10 +227,10 @@ def config(general_config, config_options, config_file):
     bob_config = config_options.create_config(emitter, config_file)
     filepath = config_file or bob_config.config_file_location
     emitter.echo(f"Bob Configuration {filepath} \n {'='*55}")
-    return get_or_update_configuration(emitter=emitter,
-                                       config_class=BobConfiguration,
-                                       filepath=filepath,
-                                       config_options=config_options)
+    get_or_update_configuration(emitter=emitter,
+                                config_class=BobConfiguration,
+                                filepath=filepath,
+                                config_options=config_options)
 
 
 @bob.command()
@@ -245,7 +245,7 @@ def destroy(general_config, config_options, config_file, force):
         message = "'nucypher bob destroy' cannot be used in --dev mode"
         raise click.BadOptionUsage(option_name='--dev', message=message)
     bob_config = config_options.create_config(emitter, config_file)
-    return destroy_configuration(emitter, character_config=bob_config, force=force)
+    destroy_configuration(emitter, character_config=bob_config, force=force)
 
 
 @bob.command(name='public-keys')
