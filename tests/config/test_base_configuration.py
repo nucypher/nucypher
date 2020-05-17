@@ -181,7 +181,7 @@ def test_configuration_preservation():
 
         # Restore from JSON file
         restored_item = RestorableTestItem.from_configuration_file()
-        assert restorable_item == restored_item
+        assert restorable_item.serialize() == restored_item.serialize()
         assert restorable_item.item == configuration_value
         assert restorable_item.filepath == expected_default_filepath
 

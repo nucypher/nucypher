@@ -2,7 +2,7 @@ import click
 import pytest
 from pathlib import Path
 
-from nucypher.cli.actions import configure as config_actions
+from nucypher.cli.actions import configure
 from nucypher.cli.actions.configure import (
     destroy_configuration,
     forget,
@@ -40,8 +40,7 @@ def config(request, mocker):
 
     # Setup
     config = request.getfixturevalue(request.param)
-    config_class = config.__class__
-    config_file = config.filepath
+    config_class, config_file = config.__class__, config.filepath
 
     # Test Data
     raw_payload = config.serialize()
@@ -55,15 +54,15 @@ def config(request, mocker):
     mocker.patch.object(config_class, '_write_configuration_file', return_value=config_file)
 
     # Spy on the code path
-    mocker.spy(config_class, 'update')
-    mocker.spy(config_actions, 'handle_invalid_configuration_file')
-    mocker.spy(config_actions, 'handle_missing_configuration_file')
+    mocker.patch.object(config_class, 'update', side_effect=config_class._write_configuration_file)
+    mocker.spy(configure, 'handle_invalid_configuration_file')
+    mocker.spy(configure, 'handle_missing_configuration_file')
 
-    return config
+    yield config
+    mocker.resetall()  # dont carry over context between functions
 
 
 def test_forget_cli_action(alice_blockchain_test_config, test_emitter, stdout_trap, mock_click_confirm, mocker):
-    """Tes"""
     mock_forget = mocker.patch.object(CharacterConfiguration, 'forget_nodes')
     mock_click_confirm.return_value = YES
     forget(emitter=test_emitter, configuration=alice_blockchain_test_config)
@@ -71,25 +70,12 @@ def test_forget_cli_action(alice_blockchain_test_config, test_emitter, stdout_tr
 
 
 def test_update_configuration_cli_action(config, test_emitter, stdout_trap, test_registry_source_manager):
-    config_class = config.__class__
-    config_file = config.filepath
+    config_class, config_file = config.__class__, config.filepath
     updates = dict(federated_only=True)
-    assert not config.federated_only
-    get_or_update_configuration(emitter=test_emitter,
-                                config_class=config_class,
-                                filepath=config_file,
-                                updates=updates)
-
-    # The stand-in configuration is untouched...
-    assert not config.federated_only
-
-    # ... but updates were passed along to the config file system writing handlers
-    config._write_configuration_file.assert_called_once_with(filepath=config.filepath, override=True)
-    assert config.update.call_args.kwargs == updates
-
-    # Ensure only the affirmative path was followed
-    config_actions.handle_invalid_configuration_file.assert_not_called()
-    config_actions.handle_missing_configuration_file.assert_not_called()
+    get_or_update_configuration(emitter=test_emitter, config_class=config_class, filepath=config_file, updates=updates)
+    config.update.assert_called_once_with(**updates)
+    configure.handle_invalid_configuration_file.assert_not_called()
+    configure.handle_missing_configuration_file.assert_not_called()
 
 
 def test_handle_update_missing_configuration_file_cli_action(config,
@@ -97,8 +83,7 @@ def test_handle_update_missing_configuration_file_cli_action(config,
                                                              stdout_trap,
                                                              test_registry_source_manager,
                                                              mocker):
-    config_class = config.__class__
-    config_file = config.filepath
+    config_class, config_file = config.__class__, config.filepath
     mocker.patch.object(config_class, '_read_configuration_file', side_effect=FileNotFoundError)
     updates = dict(federated_only=True)
     with pytest.raises(click.FileError):
@@ -106,9 +91,9 @@ def test_handle_update_missing_configuration_file_cli_action(config,
                                     config_class=config_class,
                                     filepath=config_file,
                                     updates=updates)
-    config_actions.handle_missing_configuration_file.assert_called()
+    configure.handle_missing_configuration_file.assert_called()
     config._write_configuration_file.assert_not_called()
-    config_actions.handle_invalid_configuration_file.assert_not_called()
+    configure.handle_invalid_configuration_file.assert_not_called()
 
 
 def test_handle_update_invalid_configuration_file_cli_action(config,
@@ -125,9 +110,9 @@ def test_handle_update_invalid_configuration_file_cli_action(config,
                                     config_class=config_class,
                                     filepath=config_file,
                                     updates=updates)
-    config_actions.handle_missing_configuration_file.assert_not_called()
+    configure.handle_missing_configuration_file.assert_not_called()
     config._write_configuration_file.assert_not_called()
-    config_actions.handle_invalid_configuration_file.assert_called()
+    configure.handle_invalid_configuration_file.assert_called()
 
 
 def test_destroy_configuration_cli_action(config, test_emitter, stdout_trap, mocker, mock_click_confirm):

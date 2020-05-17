@@ -110,7 +110,7 @@ def test_default_character_configuration_preservation(configuration_class, teste
 
         # Restore from JSON file
         restored_configuration = configuration_class.from_configuration_file()
-        assert character_config == restored_configuration
+        assert character_config.serialize() == restored_configuration.serialize()
 
         # File still exists after reading
         assert os.path.exists(written_filepath)
