@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import contextlib
 import json
+from io import StringIO
 
 import os
 import pytest
@@ -26,9 +27,29 @@ from click.testing import CliRunner
 from datetime import datetime
 
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
-from tests.constants import (BASE_TEMP_DIR, BASE_TEMP_PREFIX, DATETIME_FORMAT, MOCK_ALLOCATION_INFILE,
-                                   MOCK_CUSTOM_INSTALLATION_PATH, MOCK_CUSTOM_INSTALLATION_PATH_2)
+from tests.constants import (
+    BASE_TEMP_DIR,
+    BASE_TEMP_PREFIX,
+    DATETIME_FORMAT,
+    MOCK_ALLOCATION_INFILE,
+    MOCK_CUSTOM_INSTALLATION_PATH,
+    MOCK_CUSTOM_INSTALLATION_PATH_2
+)
+
+
+@pytest.fixture(scope='function', autouse=True)
+def stdout_trap(mocker):
+    trap = StringIO()
+    mocker.patch('sys.stdout', new=trap)
+    return trap
+
+
+@pytest.fixture(scope='function')
+def test_emitter(mocker, stdout_trap):
+    mocker.patch('sys.stdout', new=stdout_trap)
+    return StdoutEmitter()
 
 
 @pytest.fixture(scope='module')

@@ -19,8 +19,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 import os
 import pytest
+from eth_account import Account
 from eth_account.account import Account
-from io import StringIO
+from tests.utils.config import (
+    make_alice_test_configuration,
+    make_bob_test_configuration,
+    make_ursula_test_configuration
+)
 
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency
@@ -28,9 +33,6 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainIn
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import KeystoreSigner
-from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.config.characters import AliceConfiguration, UrsulaConfiguration
-from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.config.characters import UrsulaConfiguration
 from tests.constants import (
     KEYFILE_NAME_TEMPLATE,
@@ -41,20 +43,7 @@ from tests.constants import (
 from tests.fixtures import _make_testerchain, make_token_economics
 from tests.mock.agents import FAKE_RECEIPT, MockContractAgency, MockNucypherToken, MockStakingAgent, MockWorkLockAgent
 from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
-from tests.utils.config import (
-    make_alice_test_configuration,
-    make_bob_test_configuration,
-    make_ursula_test_configuration
-)
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
-
-
-@pytest.fixture(scope='module')
-def monkeymodule():
-    from _pytest.monkeypatch import MonkeyPatch
-    mpatch = MonkeyPatch()
-    yield mpatch
-    mpatch.undo()
 
 
 @pytest.fixture(autouse=True)
@@ -94,19 +83,6 @@ def mock_click_prompt(mocker):
 @pytest.fixture()
 def mock_click_confirm(mocker):
     return mocker.patch.object(click, 'confirm')
-
-
-@pytest.fixture(scope='function', autouse=True)
-def stdout_trap(mocker):
-    trap = StringIO()
-    mocker.patch('sys.stdout', new=trap)
-    return trap
-
-
-@pytest.fixture(scope='function')
-def test_emitter(mocker, stdout_trap):
-    mocker.patch('sys.stdout', new=stdout_trap)
-    return StdoutEmitter()
 
 
 @pytest.fixture(scope='module', autouse=True)

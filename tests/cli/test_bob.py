@@ -3,6 +3,7 @@ from base64 import b64encode
 from unittest import mock
 
 import os
+import pytest
 from twisted.logger import Logger
 
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter
@@ -96,6 +97,7 @@ def test_bob_public_keys(click_runner):
     assert "bob_verifying_key" in result.output
 
 
+@pytest.mark.skip("Needs mock middleware handling")  # TODO
 def test_bob_retrieves_twice_via_cli(click_runner,
                                      capsule_side_channel,
                                      enacted_federated_policy,

@@ -95,8 +95,11 @@ from tests.performance_mocks import (
     mock_verify_node
 )
 from tests.utils.blockchain import TesterBlockchain, token_airdrop
-from tests.utils.config import make_alice_test_configuration, make_bob_test_configuration, \
+from tests.utils.config import (
+    make_alice_test_configuration,
+    make_bob_test_configuration,
     make_ursula_test_configuration
+)
 from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
 from tests.utils.policy import generate_random_label
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, make_decentralized_ursulas, make_federated_ursulas
