@@ -42,7 +42,7 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
     result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
     assert result.exit_code != 0
     assert default_filepath_mock.called
-    assert "run: 'nucypher stake init-stakeholder'" in result.output
+    assert "nucypher stake init-stakeholder" in result.output
 
 
 def test_new_stakeholder(click_runner,

@@ -186,10 +186,10 @@ def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry)
     config = make_alice_test_configuration(federated=False,
                                            provider_uri=TEST_PROVIDER_URI,
                                            known_nodes=blockchain_ursulas,
+                                           checksum_address=testerchain.alice_account,
                                            test_registry=test_registry)
     yield config
     config.cleanup()
-
 
 
 @pytest.fixture(scope="module")

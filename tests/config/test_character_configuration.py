@@ -146,3 +146,44 @@ def test_ursula_development_configuration(federated_only=True):
         ursula = config()
         assert ursula not in ursulas
         ursulas.append(ursula)
+
+
+
+
+def test_destroy_configuration(config,
+                               test_emitter,
+                               stdout_trap,
+                               mocker):
+    # Setup
+    config_class = config.__class__
+    config_file = config.filepath
+
+    # Isolate from filesystem and Spy on the methods we're testing here
+    spy_keyring_attached = mocker.spy(CharacterConfiguration, 'attach_keyring')
+    mock_config_destroy = mocker.patch.object(CharacterConfiguration, 'destroy')
+    spy_keyring_destroy = mocker.spy(NucypherKeyring, 'destroy')
+    mock_os_remove = mocker.patch('os.remove')
+
+    # Test
+    destroy_configuration(emitter=test_emitter, character_config=config)
+
+    mock_config_destroy.assert_called_once()
+    output = stdout_trap.getvalue()
+    assert SUCCESSFUL_DESTRUCTION in output
+
+    # spy_keyring_attached.assert_called_once()
+    # spy_keyring_destroy.assert_called_once()
+    # mock_os_remove.assert_called_with(str(config_file))
+
+    # TODO: move this test to config FT
+    # Ensure all destroyed files belong to this Ursula
+    # for call in mock_os_remove.call_args_list:
+    #     filepath = str(call.args[0])
+    #     assert config.checksum_address in filepath
+    #
+    # expected_removal = 7  # TODO: Source this number from somewhere else
+    # if config_class is UrsulaConfiguration:
+    #     expected_removal += 1
+    #     mock_os_remove.assert_called_with(config.db_filepath)
+    #
+    # assert mock_os_remove.call_count == expected_removal
