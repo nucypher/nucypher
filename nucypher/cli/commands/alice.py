@@ -201,7 +201,10 @@ class AliceFullConfigOptions:
 
         pay_with = opts.pay_with
         if not pay_with and not opts.federated_only:
-            pay_with = select_client_account(emitter=emitter, provider_uri=opts.provider_uri, show_eth_balance=True)
+            pay_with = select_client_account(emitter=emitter,
+                                             provider_uri=opts.provider_uri,
+                                             signer_uri=opts.signer_uri,
+                                             show_eth_balance=True)
 
         return AliceConfiguration.generate(
             password=get_nucypher_password(confirm=True),
