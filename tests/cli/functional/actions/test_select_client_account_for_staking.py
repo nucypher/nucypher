@@ -7,7 +7,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 
 
 @pytest.mark.skip(reason="David, please send help.")
-def test_handle_client_account_for_staking(test_emitter, test_registry, test_registry_source_manager):
+def test_handle_client_account_for_staking_cli_action(test_emitter, test_registry, test_registry_source_manager):
     stakeholder = StakeHolder(registry=test_registry)
     force = False
     registry = IndividualAllocationRegistry(beneficiary_address='0xdeadbeef',

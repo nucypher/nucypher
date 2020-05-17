@@ -9,7 +9,7 @@ from nucypher.cli.literature import (ABORT_DEPLOYMENT, RESTAKING_AGREEMENT, REST
                                      WINDING_DOWN_AGREEMENT)
 
 
-def test_confirm_deployment(mocker, mock_click_prompt, test_emitter, stdout_trap, mock_testerchain):
+def test_confirm_deployment_cli_action(mocker, mock_click_prompt, test_emitter, stdout_trap, mock_testerchain):
 
     mock_click_prompt.return_value = False
     with pytest.raises(click.Abort):
@@ -55,7 +55,7 @@ def test_confirm_deployment(mocker, mock_click_prompt, test_emitter, stdout_trap
     assert result
 
 
-def test_confirm_enable_restaking_lock(mock_click_confirm, test_emitter, stdout_trap):
+def test_confirm_enable_restaking_lock_cli_action(mock_click_confirm, test_emitter, stdout_trap):
 
     # Test data
     staking_address, release_period = '0xdeadbeef', 1
@@ -85,7 +85,7 @@ def test_confirm_enable_restaking_lock(mock_click_confirm, test_emitter, stdout_
     assert restake_agreement in output
 
 
-def test_confirm_enable_restaking(test_emitter, mock_click_confirm, stdout_trap):
+def test_confirm_enable_restaking_cli_action(test_emitter, mock_click_confirm, stdout_trap):
 
     # Positive Case
     mock_click_confirm.return_value = True
@@ -108,7 +108,7 @@ def test_confirm_enable_restaking(test_emitter, mock_click_confirm, stdout_trap)
     assert restake_agreement in output
 
 
-def test_confirm_enable_winding_down(test_emitter, mock_click_confirm, stdout_trap):
+def test_confirm_enable_winding_down_cli_action(test_emitter, mock_click_confirm, stdout_trap):
 
     # Positive Case
     mock_click_confirm.return_value = True
@@ -129,7 +129,7 @@ def test_confirm_enable_winding_down(test_emitter, mock_click_confirm, stdout_tr
     assert WINDING_DOWN_AGREEMENT in output
 
 
-def test_confirm_staged_stake(test_emitter, mock_click_confirm, stdout_trap):
+def test_confirm_staged_stake_cli_action(test_emitter, mock_click_confirm, stdout_trap):
 
     # Positive Case
     mock_click_confirm.return_value = True
@@ -162,7 +162,7 @@ def test_confirm_staged_stake(test_emitter, mock_click_confirm, stdout_trap):
         (NU.from_tokens(150000), 366, True),
         (NU.from_tokens(150001), 366, True),
 ))
-def test_confirm_large_stake(test_emitter, mock_click_confirm, stdout_trap, value, duration, prompt_indicated):
+def test_confirm_large_stake_cli_action(test_emitter, mock_click_confirm, stdout_trap, value, duration, prompt_indicated):
 
     # Positive Cases
     mock_click_confirm.return_value = True

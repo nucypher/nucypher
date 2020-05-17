@@ -58,7 +58,7 @@ def config(request, mocker):
     return config
 
 
-def test_forget(alice_blockchain_test_config, test_emitter, stdout_trap, mock_click_confirm, mocker):
+def test_forget_cli_action(alice_blockchain_test_config, test_emitter, stdout_trap, mock_click_confirm, mocker):
     """Tes"""
     mock_forget = mocker.patch.object(CharacterConfiguration, 'forget_nodes')
     mock_click_confirm.return_value = YES
@@ -66,7 +66,7 @@ def test_forget(alice_blockchain_test_config, test_emitter, stdout_trap, mock_cl
     mock_forget.assert_called_once()
 
 
-def test_update_configuration(config, test_emitter, stdout_trap, test_registry_source_manager):
+def test_update_configuration_cli_action(config, test_emitter, stdout_trap, test_registry_source_manager):
     config_class = config.__class__
     config_file = config.filepath
     updates = dict(federated_only=True)
@@ -88,7 +88,7 @@ def test_update_configuration(config, test_emitter, stdout_trap, test_registry_s
     config_actions.handle_missing_configuration_file.assert_not_called()
 
 
-def test_destroy_configuration_action(config, test_emitter, stdout_trap, mocker, mock_click_confirm):
+def test_destroy_configuration_cli_action(config, test_emitter, stdout_trap, mocker, mock_click_confirm):
     config_class = config.__class__
     mock_config_destroy = mocker.patch.object(config_class, 'destroy')
     mock_click_confirm.return_value = YES
@@ -98,7 +98,7 @@ def test_destroy_configuration_action(config, test_emitter, stdout_trap, mocker,
     assert SUCCESSFUL_DESTRUCTION in output
 
 
-def test_handle_missing_configuration_file(config):
+def test_handle_missing_configuration_file_cli_action(config):
     config_class = config.__class__
     config_file = Path(config.filepath)
     init_command = f"{config_class.NAME} init"
@@ -111,7 +111,7 @@ def test_handle_missing_configuration_file(config):
 
 
 @pytest.mark.parametrize('bad_config_payload', BAD_CONFIG_FILE_CONTENTS)
-def test_handle_invalid_configuration_file_action(mocker, config, test_emitter, stdout_trap, bad_config_payload):
+def test_handle_invalid_configuration_file_cli_action(mocker, config, test_emitter, stdout_trap, bad_config_payload):
     config_class = config.__class__
     config_file = Path(config.filepath)
     mocker.patch.object(CharacterConfiguration, '_read_configuration_file', return_value=bad_config_payload)
@@ -122,7 +122,7 @@ def test_handle_invalid_configuration_file_action(mocker, config, test_emitter, 
 
 
 @pytest.mark.parametrize('side_effect', (TypeError, JSONDecodeError))
-def test_handle_corrupted_configuration_file(mocker, config, test_emitter, stdout_trap, side_effect):
+def test_handle_corrupted_configuration_file_cli_action(mocker, config, test_emitter, stdout_trap, side_effect):
     config_class = config.__class__
     config_file = Path(config.filepath)
     mocker.patch.object(CharacterConfiguration, '_read_configuration_file', side_effect=side_effect)

@@ -22,7 +22,7 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.mark.parametrize('confirm', (True, False))
-def test_get_password_from_prompt(mock_click_prompt, mock_click_confirm, confirm):
+def test_get_password_from_prompt_cli_action(mock_click_prompt, mock_click_confirm, confirm):
 
     # Setup
     mock_click_prompt.return_value = INSECURE_DEVELOPMENT_PASSWORD
@@ -40,7 +40,7 @@ def test_get_password_from_prompt(mock_click_prompt, mock_click_confirm, confirm
 
 
 @pytest.mark.parametrize('confirm', (True, False))
-def test_get_password_from_prompt(mocker, mock_click_prompt, mock_click_confirm, confirm):
+def test_get_password_from_prompt_cli_action(mocker, mock_click_prompt, mock_click_confirm, confirm):
 
     # Setup
     mock_click_prompt.return_value = INSECURE_DEVELOPMENT_PASSWORD
