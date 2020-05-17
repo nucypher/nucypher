@@ -3,7 +3,7 @@ import click
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import BobInterface
 from nucypher.cli.actions.auth import get_nucypher_password
-from nucypher.cli.actions.config import (
+from nucypher.cli.actions.configure import (
     destroy_configuration,
     get_or_update_configuration,
     handle_missing_configuration_file

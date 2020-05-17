@@ -28,7 +28,7 @@ from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.blockchain.eth.token import NU, StakeList
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.auth import get_client_password
-from nucypher.cli.actions.config import get_or_update_configuration, handle_missing_configuration_file
+from nucypher.cli.actions.configure import get_or_update_configuration, handle_missing_configuration_file
 from nucypher.cli.actions.confirm import (
     confirm_enable_restaking,
     confirm_enable_restaking_lock,

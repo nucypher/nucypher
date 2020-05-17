@@ -18,8 +18,7 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import (
     FAKE_PASSWORD_CONFIRMED,
     INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_CUSTOM_INSTALLATION_PATH,
-    MOCK_IP_ADDRESS
+    MOCK_CUSTOM_INSTALLATION_PATH
 )
 
 log = Logger()

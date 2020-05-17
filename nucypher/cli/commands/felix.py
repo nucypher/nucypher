@@ -25,7 +25,7 @@ from nucypher.cli.actions.auth import (
     get_nucypher_password,
     unlock_nucypher_keyring
 )
-from nucypher.cli.actions.config import destroy_configuration, handle_missing_configuration_file
+from nucypher.cli.actions.configure import destroy_configuration, handle_missing_configuration_file
 from nucypher.cli.processes import get_geth_provider_process
 from nucypher.cli.utils import setup_emitter
 from nucypher.cli.config import group_general_config
