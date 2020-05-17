@@ -852,3 +852,5 @@ jobs:
         key: geth-cache-v1
         paths:
           - "/home/circleci/geth"
+    - store_artifacts:
+        path: /tmp/geth.log
