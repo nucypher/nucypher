@@ -169,32 +169,23 @@ def test_select_client_account_with_balance_display(mock_click_prompt,
     if show_tokens:
         headers.append('NU')
 
-    raw_output = stdout_trap.getvalue()
+    output = stdout_trap.getvalue()
     for column_name in headers:
-        assert column_name in raw_output, f'"{column_name}" column was not displayed'
+        assert column_name in output, f'"{column_name}" column was not displayed'
 
-    output = raw_output.strip().split('\n')
-    body = output[2:-1]
-    assert len(body) == len(mock_testerchain.client.accounts), "Some accounts are not displayed"
-
-    accounts = dict()
-    for row in body:
-        account_display = row.split()
-        account_data = dict(zip(headers, account_display[1::]))
-        account = account_data['Account']
-        accounts[account] = account_data
-        assert is_checksum_address(account)
+    for account in mock_testerchain.client.accounts:
+        assert account in output
 
         if show_tokens:
             balance = mock_token_agent.get_balance(address=account)
-            assert str(NU.from_nunits(balance)) in row
+            assert str(NU.from_nunits(balance)) in output
 
         if show_eth:
             balance = mock_testerchain.client.get_balance(account=account)
-            assert str(Web3.fromWei(balance, 'ether')) in row
+            assert str(Web3.fromWei(balance, 'ether')) in output
 
         if show_staking:
             if len(stake_info) == 0:
-                assert "No" in row
+                assert "No" in output
             else:
-                assert 'Yes' in row
+                assert 'Yes' in output
