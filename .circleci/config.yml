@@ -843,13 +843,10 @@ jobs:
           cd ~
           [ -d "geth" ] || curl -o g.tar.gz $GETH_URL && tar -xzf g.tar.gz && mv $GETH_BUILD_NAME geth
           geth/geth version
-          geth/clef --version
-          mkdir -p ~/keystore /home/circleci/.clef
+          mkdir -p ~/keystore
           cp ~/nucypher/tests/circleci/0xa11ce.json ~/keystore
-          cp ~/nucypher/tests/circleci/clef-masterseed.json /home/circleci/.clef/masterseed.json
-          chmod 400 /home/circleci/.clef/masterseed.json
-          echo -e "ok\n$CLEF_PASSWORD\n" | geth/clef --keystore ~/keystore --chainid 4 --nousb
-          rm -f ~/pwd.txt
+          geth/geth --rinkeby --maxpeers 0 --nousb --keystore ~/keystore > /tmp/geth.log 2>&1 &
+          sleep 30
         when: always
     - save_cache:
         key: geth-cache-v1
