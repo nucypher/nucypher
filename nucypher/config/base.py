@@ -253,7 +253,7 @@ class BaseConfiguration(ABC):
                                  f"Expected version {cls.VERSION}; Got version {version}")
         return deserialized_payload
 
-    def update(self, filepath: str = None, modifier: str = None, **updates):
+    def update(self, filepath: str = None, modifier: str = None, **updates) -> None:
         for field, value in updates.items():
             try:
                 getattr(self, field)

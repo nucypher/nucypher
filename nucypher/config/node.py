@@ -364,10 +364,7 @@ class CharacterConfiguration(BaseConfiguration):
         """Initialize a CharacterConfiguration from a JSON file."""
         filepath = filepath or cls.default_filepath()
         assembled_params = cls.assemble(filepath=filepath, **overrides)
-        try:
-            node_configuration = cls(filepath=filepath, provider_process=provider_process, **assembled_params)
-        except TypeError as e:
-            raise cls.ConfigurationError(e)
+        node_configuration = cls(filepath=filepath, provider_process=provider_process, **assembled_params)
         return node_configuration
 
     def validate(self) -> bool:

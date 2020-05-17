@@ -227,10 +227,12 @@ def config(general_config, config_options, config_file):
     bob_config = config_options.create_config(emitter, config_file)
     filepath = config_file or bob_config.config_file_location
     emitter.echo(f"Bob Configuration {filepath} \n {'='*55}")
-    update_configuration(emitter=emitter,
-                         config_class=BobConfiguration,
-                         filepath=filepath,
-                         config_options=config_options)
+    updates = config_options.get_updates()
+    if updates:
+        update_configuration(emitter=emitter,
+                             config_class=BobConfiguration,
+                             filepath=filepath,
+                             updates=updates)
 
 
 @bob.command()

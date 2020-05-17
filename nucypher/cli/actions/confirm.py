@@ -24,7 +24,7 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
     ABORT_DEPLOYMENT,
-    CONFIRM_ENABLE_RESTAKING,
+    CHARACTER_DESTRUCTION, CONFIRM_ENABLE_RESTAKING,
     CONFIRM_ENABLE_WINDING_DOWN,
     CONFIRM_LARGE_STAKE_DURATION,
     CONFIRM_LARGE_STAKE_VALUE,
@@ -34,6 +34,7 @@ from nucypher.cli.literature import (
     RESTAKING_LOCK_AGREEMENT,
     WINDING_DOWN_AGREEMENT
 )
+from nucypher.config.node import CharacterConfiguration
 
 
 def confirm_deployment(emitter: StdoutEmitter, deployer_interface: BlockchainDeployerInterface) -> bool:
@@ -89,4 +90,21 @@ def confirm_large_stake(value: NU = None, lock_periods: int = None) -> bool:
         click.confirm(CONFIRM_LARGE_STAKE_VALUE.format(value=value), abort=True)
     if lock_periods and (lock_periods > 365):
         click.confirm(CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods), abort=True)
+    return True
+
+
+def confirm_destroy_configuration(config: CharacterConfiguration) -> bool:
+    """Interactively confirm destruction of nucypher configuration files"""
+    # TODO: This is a workaround for ursula - needs follow up
+    try:
+        database = config.db_filepath
+    except AttributeError:
+        database = "No database found"
+    confirmation = CHARACTER_DESTRUCTION.format(name=config.NAME,
+                                                root=config.config_root,
+                                                keystore=config.keyring_root,
+                                                nodestore=config.node_storage.source,
+                                                config=config.filepath,
+                                                database=database)
+    click.confirm(confirmation, abort=True)
     return True

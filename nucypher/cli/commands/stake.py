@@ -305,10 +305,12 @@ def config(general_config, config_file, config_options):
     emitter = setup_emitter(general_config)
     configuration_file_location = config_file or StakeHolderConfiguration.default_filepath()
     emitter.echo(f"StakeHolder Configuration {configuration_file_location} \n {'='*55}")
-    update_configuration(emitter=emitter,
-                         config_class=StakeHolderConfiguration,
-                         filepath=configuration_file_location,
-                         config_options=config_options)
+    updates = config_options.get_updates()
+    if updates:
+        update_configuration(emitter=emitter,
+                             config_class=StakeHolderConfiguration,
+                             filepath=configuration_file_location,
+                             updates=updates)
 
 
 @stake.command('list')

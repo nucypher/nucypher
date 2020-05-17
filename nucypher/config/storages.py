@@ -82,6 +82,12 @@ class NodeStorage(ABC):
     def __iter__(self):
         return self.all(federated_only=self.federated_only)
 
+    @property
+    @abstractmethod
+    def source(self) -> str:
+        """Human readable source string"""
+        return NotImplemented
+
     def _read_common_name(self, certificate: Certificate):
         x509 = OpenSSL.crypto.X509.from_cryptography(certificate)
         subject_components = x509.get_subject().get_components()
@@ -195,9 +201,10 @@ class ForgetfulNodeStorage(NodeStorage):
         self.__temporary_certificates = list()
         self._temp_certificates_dir = tempfile.mkdtemp(prefix='nucypher-temp-certs-', dir=parent_dir)
 
-    # TODO: Pending fix for 1554.
-    # def __del__(self):
-    #     shutil.rmtree(self._temp_certificates_dir, ignore_errors=True)
+    @property
+    def source(self) -> str:
+        """Human readable source string"""
+        return self._name
 
     def all(self, federated_only: bool, certificates_only: bool = False) -> set:
         return set(self.__metadata.values() if not certificates_only else self.__certificates.values())
@@ -383,6 +390,11 @@ class LocalFileBasedNodeStorage(NodeStorage):
         self.metadata_dir = metadata_dir
         self.certificates_dir = certificates_dir
         self._cache_storage_filepaths(config_root=config_root)
+
+    @property
+    def source(self) -> str:
+        """Human readable source string"""
+        return self.root_dir
 
     @staticmethod
     def _generate_storage_filepaths(config_root: str = None,

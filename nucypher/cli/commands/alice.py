@@ -330,10 +330,12 @@ def config(general_config, config_file, full_config_options):
     emitter = setup_emitter(general_config)
     configuration_file_location = config_file or AliceConfiguration.default_filepath()
     emitter.echo(f"Alice Configuration {configuration_file_location} \n {'='*55}")
-    update_configuration(emitter=emitter,
-                         config_class=AliceConfiguration,
-                         filepath=configuration_file_location,
-                         config_options=full_config_options)
+    updates = full_config_options.get_updates()
+    if updates:
+        update_configuration(emitter=emitter,
+                             config_class=AliceConfiguration,
+                             filepath=configuration_file_location,
+                             updates=updates)
 
 
 @alice.command()

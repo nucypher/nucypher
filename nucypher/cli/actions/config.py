@@ -24,8 +24,8 @@ from json.decoder import JSONDecodeError
 from typing import Type
 
 from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.cli.actions.confirm import confirm_destroy_configuration
 from nucypher.cli.literature import (
-    CHARACTER_DESTRUCTION,
     CONFIRM_FORGET_NODES,
     INVALID_CONFIGURATION_FILE_WARNING,
     INVALID_JSON_IN_CONFIGURATION_WARNING,
@@ -47,19 +47,20 @@ def forget(emitter: StdoutEmitter, configuration: CharacterConfiguration) -> Non
 def update_configuration(emitter: StdoutEmitter,
                          config_class: Type[CharacterConfiguration],
                          filepath: str,
-                         config_options) -> None:
+                         updates: dict) -> None:
     """
-    Writes updates to an existing configuration file then display the result.
+    Utility for writing updates to an existing configuration file then displaying the result.
     If the config file is invalid, trey very hard to display the problem.
     """
     try:
         config = config_class.from_configuration_file(filepath=filepath)
     except config_class.ConfigurationError:
-        return handle_invalid_configuration_file(emitter=emitter, config_class=config_class, filepath=filepath)
-    updates = config_options.get_updates()
-    if updates:
-        emitter.message(SUCCESSFUL_UPDATE_CONFIGURATION_VALUES.format(fields=', '.join(updates)), color='yellow')
-        config.update(**updates)
+        return handle_invalid_configuration_file(emitter=emitter,
+                                                 config_class=config_class,
+                                                 filepath=filepath)
+    pretty_fields = ', '.join(updates)
+    emitter.message(SUCCESSFUL_UPDATE_CONFIGURATION_VALUES.format(fields=pretty_fields), color='yellow')
+    config.update(**updates)
     emitter.echo(config.serialize())
 
 
@@ -68,21 +69,7 @@ def destroy_configuration(emitter: StdoutEmitter,
                           force: bool = False) -> None:
     """Destroy a character configuration and report rhe result with an emitter."""
     if not force:
-
-        ################################
-        # TODO: This is a workaround for ursula - needs follow up
-        try:
-            database = character_config.db_filepath
-        except AttributeError:
-            database = "No database found"  # FIXME: This cannot be right.....
-        ################################
-
-        click.confirm(CHARACTER_DESTRUCTION.format(name=character_config.NAME,
-                                                   root=character_config.config_root,
-                                                   keystore=character_config.keyring_root,
-                                                   nodestore=character_config.node_storage.root_dir,
-                                                   config=character_config.filepath,
-                                                   database=database), abort=True)
+        confirm_destroy_configuration(config=character_config)
     character_config.destroy()
     emitter.message(SUCCESSFUL_DESTRUCTION, color='green')
     character_config.log.debug(SUCCESSFUL_DESTRUCTION)
@@ -111,14 +98,15 @@ def handle_invalid_configuration_file(emitter: StdoutEmitter,
     try:
         # ... but try to display it anyways
         response = config_class._read_configuration_file(filepath=filepath)
-        return emitter.echo(json.dumps(response, indent=4))
-    except JSONDecodeError:
+        emitter.echo(json.dumps(response, indent=4))
+        raise config_class.ConfigurationError
+    except (TypeError, JSONDecodeError):
         emitter.message(INVALID_JSON_IN_CONFIGURATION_WARNING.format(filepath=filepath))
         try:
-            # something is very wrong
             with open(filepath, 'r') as file:
                 content = file.read()
-                return emitter.echo(content)
+            emitter.echo(content)
+            raise
         except Exception:
             # ... sorry.. we tried as hard as we could
             raise  # crash :-(
