@@ -25,9 +25,9 @@ from nucypher.characters.control.interfaces import AliceInterface
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
 from nucypher.cli.actions.config import (
     destroy_configuration,
-    handle_missing_configuration_file, update_configuration
+    handle_missing_configuration_file, get_or_update_configuration
 )
-from nucypher.cli.actions.select import select_client_account
+from nucypher.cli.actions.select import select_client_account, select_config_file
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
@@ -328,14 +328,15 @@ def init(general_config, full_config_options, config_root):
 def config(general_config, config_file, full_config_options):
     """View and optionally update existing Alice's configuration."""
     emitter = setup_emitter(general_config)
-    configuration_file_location = config_file or AliceConfiguration.default_filepath()
-    emitter.echo(f"Alice Configuration {configuration_file_location} \n {'='*55}")
+    if not config_file:
+        config_file = select_config_file(emitter=emitter,
+                                         checksum_address=full_config_options.pay_with,
+                                         config_class=AliceConfiguration)
     updates = full_config_options.get_updates()
-    if updates:
-        update_configuration(emitter=emitter,
-                             config_class=AliceConfiguration,
-                             filepath=configuration_file_location,
-                             updates=updates)
+    get_or_update_configuration(emitter=emitter,
+                                config_class=AliceConfiguration,
+                                filepath=config_file,
+                                updates=updates)
 
 
 @alice.command()

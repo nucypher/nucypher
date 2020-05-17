@@ -5,10 +5,10 @@ from nucypher.characters.control.interfaces import BobInterface
 from nucypher.cli.actions.auth import get_nucypher_password
 from nucypher.cli.actions.config import (
     destroy_configuration,
-    update_configuration,
+    get_or_update_configuration,
     handle_missing_configuration_file
 )
-from nucypher.cli.actions.select import select_client_account
+from nucypher.cli.actions.select import select_client_account, select_config_file
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
@@ -224,15 +224,15 @@ def run(general_config, character_options, config_file, controller_port, dry_run
 def config(general_config, config_options, config_file):
     """View and optionally update existing Bob's configuration."""
     emitter = setup_emitter(general_config)
-    bob_config = config_options.create_config(emitter, config_file)
-    filepath = config_file or bob_config.config_file_location
-    emitter.echo(f"Bob Configuration {filepath} \n {'='*55}")
+    if not config_file:
+        config_file = select_config_file(emitter=emitter,
+                                         checksum_address=config_options.checksum_address,
+                                         config_class=BobConfiguration)
     updates = config_options.get_updates()
-    if updates:
-        update_configuration(emitter=emitter,
-                             config_class=BobConfiguration,
-                             filepath=filepath,
-                             updates=updates)
+    get_or_update_configuration(emitter=emitter,
+                                config_class=BobConfiguration,
+                                filepath=config_file,
+                                updates=updates)
 
 
 @bob.command()

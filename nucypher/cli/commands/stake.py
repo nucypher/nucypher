@@ -28,7 +28,7 @@ from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.blockchain.eth.token import NU, StakeList
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.auth import get_client_password
-from nucypher.cli.actions.config import update_configuration, handle_missing_configuration_file
+from nucypher.cli.actions.config import get_or_update_configuration, handle_missing_configuration_file
 from nucypher.cli.actions.confirm import (
     confirm_enable_restaking,
     confirm_enable_restaking_lock,
@@ -304,13 +304,11 @@ def config(general_config, config_file, config_options):
     """View and optionally update existing StakeHolder's configuration."""
     emitter = setup_emitter(general_config)
     configuration_file_location = config_file or StakeHolderConfiguration.default_filepath()
-    emitter.echo(f"StakeHolder Configuration {configuration_file_location} \n {'='*55}")
     updates = config_options.get_updates()
-    if updates:
-        update_configuration(emitter=emitter,
-                             config_class=StakeHolderConfiguration,
-                             filepath=configuration_file_location,
-                             updates=updates)
+    get_or_update_configuration(emitter=emitter,
+                                config_class=StakeHolderConfiguration,
+                                filepath=configuration_file_location,
+                                updates=updates)
 
 
 @stake.command('list')

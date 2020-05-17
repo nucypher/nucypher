@@ -95,6 +95,8 @@ from tests.performance_mocks import (
     mock_verify_node
 )
 from tests.utils.blockchain import TesterBlockchain, token_airdrop
+from tests.utils.config import make_alice_test_configuration, make_bob_test_configuration, \
+    make_ursula_test_configuration
 from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
 from tests.utils.policy import generate_random_label
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, make_decentralized_ursulas, make_federated_ursulas
@@ -139,101 +141,64 @@ def certificates_tempdir():
 
 
 #
-# Configuration
+# Federated Configuration
 #
 
-@pytest.fixture(scope="module")
-def ursula_federated_test_config():
-    ursula_config = UrsulaConfiguration(dev_mode=True,
-                                        domains={TEMPORARY_DOMAIN},
-                                        rest_port=MOCK_URSULA_STARTING_PORT,
-                                        start_learning_now=False,
-                                        abort_on_learning_error=True,
-                                        federated_only=True,
-                                        network_middleware=MockRestMiddleware(),
-                                        save_metadata=False,
-                                        reload_metadata=False,
-                                        availability_check=False)
-    yield ursula_config
-    ursula_config.cleanup()
-
 
 @pytest.fixture(scope="module")
-def ursula_decentralized_test_config(test_registry):
-    ursula_config = UrsulaConfiguration(dev_mode=True,
-                                        domains={TEMPORARY_DOMAIN},
-                                        provider_uri=TEST_PROVIDER_URI,
-                                        rest_port=MOCK_URSULA_STARTING_PORT,
-                                        start_learning_now=False,
-                                        abort_on_learning_error=True,
-                                        federated_only=False,
-                                        network_middleware=MockRestMiddleware(),
-                                        save_metadata=False,
-                                        reload_metadata=False,
-                                        registry=test_registry,
-                                        availability_check=False)
-    yield ursula_config
-    ursula_config.cleanup()
-
-
-@pytest.fixture(scope="module")
-def alice_federated_test_config(federated_ursulas):
-    config = AliceConfiguration(dev_mode=True,
-                                domains={TEMPORARY_DOMAIN},
-                                network_middleware=MockRestMiddleware(),
-                                known_nodes=federated_ursulas,
-                                federated_only=True,
-                                abort_on_learning_error=True,
-                                save_metadata=False,
-                                reload_metadata=False,)
+def ursula_federated_test_config(test_registry):
+    config = make_ursula_test_configuration(federated=True, rest_port=MOCK_URSULA_STARTING_PORT)
     yield config
     config.cleanup()
 
 
 @pytest.fixture(scope="module")
-def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry):
-    config = AliceConfiguration(dev_mode=True,
-                                domains={TEMPORARY_DOMAIN},
-                                provider_uri=TEST_PROVIDER_URI,
-                                checksum_address=testerchain.alice_account,
-                                network_middleware=MockRestMiddleware(),
-                                known_nodes=blockchain_ursulas,
-                                abort_on_learning_error=True,
-                                save_metadata=False,
-                                reload_metadata=False,
-                                registry=test_registry)
+def alice_federated_test_config(federated_ursulas):
+    config = make_alice_test_configuration(federated=True, known_nodes=federated_ursulas)
     yield config
     config.cleanup()
 
 
 @pytest.fixture(scope="module")
 def bob_federated_test_config():
-    config = BobConfiguration(dev_mode=True,
-                              domains={TEMPORARY_DOMAIN},
-                              network_middleware=MockRestMiddleware(),
-                              start_learning_now=False,
-                              abort_on_learning_error=True,
-                              federated_only=True,
-                              save_metadata=False,
-                              reload_metadata=False,)
+    config = make_bob_test_configuration(federated=True)
+    yield config
+    config.cleanup()
+
+
+#
+# Decentralized Configuration
+#
+
+
+@pytest.fixture(scope="module")
+def ursula_decentralized_test_config(test_registry):
+    config = make_ursula_test_configuration(federated=False,
+                                            provider_uri=TEST_PROVIDER_URI,
+                                            test_registry=test_registry,
+                                            rest_port=MOCK_URSULA_STARTING_PORT)
     yield config
     config.cleanup()
 
 
 @pytest.fixture(scope="module")
+def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry):
+    config = make_alice_test_configuration(federated=False,
+                                           provider_uri=TEST_PROVIDER_URI,
+                                           known_nodes=blockchain_ursulas,
+                                           test_registry=test_registry)
+    yield config
+    config.cleanup()
+
+
+
+@pytest.fixture(scope="module")
 def bob_blockchain_test_config(blockchain_ursulas, testerchain, test_registry):
-    config = BobConfiguration(dev_mode=True,
-                              domains={TEMPORARY_DOMAIN},
-                              provider_uri=TEST_PROVIDER_URI,
-                              checksum_address=testerchain.bob_account,
-                              network_middleware=MockRestMiddleware(),
-                              known_nodes=blockchain_ursulas,
-                              start_learning_now=False,
-                              abort_on_learning_error=True,
-                              federated_only=False,
-                              save_metadata=False,
-                              reload_metadata=False,
-                              registry=test_registry)
+    config = make_bob_test_configuration(federated=False,
+                                         provider_uri=TEST_PROVIDER_URI,
+                                         test_registry=test_registry,
+                                         checksum_address=testerchain.bob_account,
+                                         known_nodes=blockchain_ursulas)
     yield config
     config.cleanup()
 

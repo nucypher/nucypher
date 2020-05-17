@@ -3,19 +3,24 @@ from base64 import b64encode
 from unittest import mock
 
 import os
-import pytest
 from twisted.logger import Logger
 
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter
 from nucypher.characters.lawful import Ursula
+from nucypher.cli import utils
 from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import BobConfiguration
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower
 from nucypher.utilities.logging import GlobalLoggerSettings
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH, MOCK_IP_ADDRESS
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from tests.constants import (
+    FAKE_PASSWORD_CONFIRMED,
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_CUSTOM_INSTALLATION_PATH,
+    MOCK_IP_ADDRESS
+)
 
 log = Logger()
 
@@ -26,15 +31,12 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
     result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
     assert result.exit_code != 0
     assert default_filepath_mock.called
-    assert "run: 'nucypher bob init'" in result.output
+    assert "nucypher bob init" in result.output
 
 
 def test_bob_public_keys(click_runner):
-    derive_key_args = ('bob', 'public-keys',
-                       '--dev')
-
+    derive_key_args = ('bob', 'public-keys', '--dev')
     result = click_runner.invoke(nucypher_cli, derive_key_args, catch_exceptions=False)
-
     assert result.exit_code == 0
     assert "bob_encrypting_key" in result.output
     assert "bob_verifying_key" in result.output
@@ -46,9 +48,7 @@ def test_initialize_bob_with_custom_configuration_root(custom_filepath, click_ru
                  '--network', TEMPORARY_DOMAIN,
                  '--federated-only',
                  '--config-root', custom_filepath)
-
-    user_input = '{password}\n{password}'.format(password=INSECURE_DEVELOPMENT_PASSWORD, ip=MOCK_IP_ADDRESS)
-    result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
+    result = click_runner.invoke(nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False)
     assert result.exit_code == 0, result.exception
 
     # CLI Output
@@ -71,13 +71,8 @@ def test_initialize_bob_with_custom_configuration_root(custom_filepath, click_ru
 
 def test_bob_control_starts_with_preexisting_configuration(click_runner, custom_filepath):
     custom_config_filepath = os.path.join(custom_filepath, BobConfiguration.generate_filename())
-
-    init_args = ('bob', 'run',
-                 '--dry-run',
-                 '--config-file', custom_config_filepath)
-
-    user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
-    result = click_runner.invoke(nucypher_cli, init_args, input=user_input)
+    init_args = ('bob', 'run', '--dry-run', '--config-file', custom_config_filepath)
+    result = click_runner.invoke(nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0, result.exception
     assert "Bob Verifying Key" in result.output
     assert "Bob Encrypting Key" in result.output
@@ -85,13 +80,8 @@ def test_bob_control_starts_with_preexisting_configuration(click_runner, custom_
 
 def test_bob_view_with_preexisting_configuration(click_runner, custom_filepath):
     custom_config_filepath = os.path.join(custom_filepath, BobConfiguration.generate_filename())
-
-    view_args = ('bob', 'config',
-                 '--config-file', custom_config_filepath)
-
-    user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
-    result = click_runner.invoke(nucypher_cli, view_args, input=user_input)
-
+    view_args = ('bob', 'config', '--config-file', custom_config_filepath)
+    result = click_runner.invoke(nucypher_cli, view_args, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0, result.exception
     assert "checksum_address" in result.output
     assert "domains" in result.output
@@ -101,29 +91,12 @@ def test_bob_view_with_preexisting_configuration(click_runner, custom_filepath):
 
 def test_bob_public_keys(click_runner):
     derive_key_args = ('bob', 'public-keys', '--dev')
-
     result = click_runner.invoke(nucypher_cli, derive_key_args, catch_exceptions=False)
-
     assert result.exit_code == 0
     assert "bob_encrypting_key" in result.output
     assert "bob_verifying_key" in result.output
 
 
-# Should be the last test since it deletes the configuration file
-def test_bob_destroy(click_runner, custom_filepath):
-    custom_config_filepath = os.path.join(custom_filepath, BobConfiguration.generate_filename())
-    destroy_args = ('bob', 'destroy',
-                    '--config-file', custom_config_filepath,
-                    '--force')
-
-    result = click_runner.invoke(nucypher_cli, destroy_args, catch_exceptions=False)
-    assert result.exit_code == 0, result.exception
-    assert SUCCESSFUL_DESTRUCTION in result.output
-    assert not os.path.exists(custom_config_filepath), "Bob config file was deleted"
-
-
-# FIXME
-@pytest.mark.skip(reason="Needs proper mocking of bob")
 def test_bob_retrieves_twice_via_cli(click_runner,
                                      capsule_side_channel,
                                      enacted_federated_policy,
@@ -180,7 +153,7 @@ def test_bob_retrieves_twice_via_cli(click_runner,
         this_fuckin_guy.controller.emitter = JSONRPCStdoutEmitter()
         return this_fuckin_guy
 
-    mocker.patch('nucypher.cli.actions.utils.make_cli_character', return_value=substitute_bob)
+    mocker.patch.object(utils, 'make_cli_character', return_value=substitute_bob)
 
     # Once...
     with GlobalLoggerSettings.pause_all_logging_while():
@@ -203,3 +176,13 @@ def test_bob_retrieves_twice_via_cli(click_runner,
     retrieve_response = json.loads(retrieve_response.output)
     for cleartext in retrieve_response['result']['cleartexts']:
         assert cleartext.encode() == capsule_side_channel.plaintexts[1]
+
+
+# NOTE: Should be the last test in this module since it deletes the configuration file
+def test_bob_destroy(click_runner, custom_filepath):
+    custom_config_filepath = os.path.join(custom_filepath, BobConfiguration.generate_filename())
+    destroy_args = ('bob', 'destroy', '--config-file', custom_config_filepath, '--force')
+    result = click_runner.invoke(nucypher_cli, destroy_args, catch_exceptions=False)
+    assert result.exit_code == 0, result.exception
+    assert SUCCESSFUL_DESTRUCTION in result.output
+    assert not os.path.exists(custom_config_filepath), "Bob config file was deleted"

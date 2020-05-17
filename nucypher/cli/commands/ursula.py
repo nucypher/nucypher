@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
 from nucypher.cli.actions.config import (
     destroy_configuration,
-    handle_missing_configuration_file
+    handle_missing_configuration_file, get_or_update_configuration
 )
 from nucypher.cli.actions.select import select_client_account, select_config_file, select_network
 from nucypher.cli.commands.deploy import option_gas_strategy
@@ -401,10 +401,11 @@ def config(general_config, config_options, config_file):
                                          checksum_address=config_options.worker_address,
                                          config_class=UrsulaConfiguration)
     emitter.echo(f"Ursula Configuration {config_file} \n {'='*55}")
+    updates = config_options.get_updates()
     get_or_update_configuration(emitter=emitter,
                                 config_class=UrsulaConfiguration,
                                 filepath=config_file,
-                                config_options=config_options)
+                                updates=updates)
 
 
 @ursula.command(name='commit-next')

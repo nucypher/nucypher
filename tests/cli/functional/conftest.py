@@ -31,6 +31,7 @@ from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.config.characters import AliceConfiguration, UrsulaConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.characters import UrsulaConfiguration
 from tests.constants import (
     KEYFILE_NAME_TEMPLATE,
     MOCK_KEYSTORE_PATH,
@@ -40,7 +41,12 @@ from tests.constants import (
 from tests.fixtures import _make_testerchain, make_token_economics
 from tests.mock.agents import FAKE_RECEIPT, MockContractAgency, MockNucypherToken, MockStakingAgent, MockWorkLockAgent
 from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
-from tests.utils.middleware import MockRestMiddleware
+from tests.utils.config import (
+    make_alice_test_configuration,
+    make_bob_test_configuration,
+    make_ursula_test_configuration
+)
+from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 
 @pytest.fixture(scope='module')
@@ -216,16 +222,31 @@ def patch_keystore(mock_accounts, monkeypatch, mocker):
 
 
 @pytest.fixture(scope="module")
-def alice_blockchain_test_config(mock_account, test_registry):
-    # TODO: Combine with larger scoped fixture via factory function
-    config = AliceConfiguration(dev_mode=True,
-                                domains={TEMPORARY_DOMAIN},
-                                provider_uri=MOCK_PROVIDER_URI,
-                                checksum_address=mock_account.address,
-                                network_middleware=MockRestMiddleware(),
-                                abort_on_learning_error=True,
-                                save_metadata=False,
-                                reload_metadata=False,
-                                registry=test_registry)
+def alice_blockchain_test_config(mock_testerchain, test_registry):
+    config = make_alice_test_configuration(federated=False,
+                                           provider_uri=MOCK_PROVIDER_URI,
+                                           test_registry=test_registry,
+                                           checksum_address=mock_testerchain.alice_account)
+    yield config
+    config.cleanup()
+
+
+@pytest.fixture(scope="module")
+def bob_blockchain_test_config(mock_testerchain, test_registry):
+    config = make_bob_test_configuration(federated=False,
+                                         provider_uri=MOCK_PROVIDER_URI,
+                                         test_registry=test_registry,
+                                         checksum_address=mock_testerchain.bob_account)
+    yield config
+    config.cleanup()
+
+
+@pytest.fixture(scope="module")
+def ursula_decentralized_test_config(mock_testerchain, test_registry):
+    config = make_ursula_test_configuration(federated=False,
+                                            provider_uri=MOCK_PROVIDER_URI,
+                                            test_registry=test_registry,
+                                            rest_port=MOCK_URSULA_STARTING_PORT,
+                                            checksum_address=mock_testerchain.ursula_account(index=0))
     yield config
     config.cleanup()

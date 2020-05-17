@@ -2,12 +2,13 @@ import click
 import pytest
 from pathlib import Path
 
+from nucypher.cli.actions import config as config_actions
 from nucypher.cli.actions.config import (
     destroy_configuration,
     forget,
     handle_invalid_configuration_file,
     handle_missing_configuration_file,
-    update_configuration
+    get_or_update_configuration
 )
 from nucypher.cli.literature import MISSING_CONFIGURATION_FILE, SUCCESSFUL_DESTRUCTION
 from nucypher.config.characters import UrsulaConfiguration
@@ -30,54 +31,81 @@ def test_forget(alice_blockchain_test_config,
                 mock_click_confirm):
     mock_click_confirm.return_value = YES
     forget(emitter=test_emitter, configuration=alice_blockchain_test_config)
+    # TODO: Finish me
 
 
-def test_update_configuration(alice_blockchain_test_config,
+CONFIGS = [
+    'alice_blockchain_test_config',
+    'bob_blockchain_test_config',
+    'ursula_decentralized_test_config',
+]
+
+
+@pytest.fixture(scope='function', params=CONFIGS)
+def config(request, mocker):
+
+    # Setup
+    config = request.getfixturevalue(request.param)
+    config_class = config.__class__
+    config_file = config.filepath
+
+    # Test Data
+    raw_payload = config.serialize()
+    JSON_payload = config.deserialize(payload=raw_payload)
+
+    # Isolate from filesystem
+    mocker.patch('__main__.open', return_value=raw_payload)
+
+    # Mock configuration disk I/O
+    mocker.patch.object(config_class, '_read_configuration_file', return_value=JSON_payload)
+    mocker.patch.object(config_class, '_write_configuration_file', return_value=config_file)
+
+    # Spy on the code path
+    mocker.spy(config_class, 'update')
+    mocker.spy(config_actions, 'handle_invalid_configuration_file')
+    mocker.spy(config_actions, 'handle_missing_configuration_file')
+
+    return config
+
+
+def test_update_configuration(config,
                               test_emitter,
                               stdout_trap,
-                              mocker,
                               test_registry_source_manager):
 
     # Setup
-    config_class = alice_blockchain_test_config.__class__
-    config_file = alice_blockchain_test_config.filepath
-
-    # Test Data
-    raw_payload = alice_blockchain_test_config.serialize()
-    JSON_payload = alice_blockchain_test_config.deserialize(payload=raw_payload)
-
-    # Isolate from filesystem and Spy on the methods we're testing here
-    mocker.patch('__main__.open', return_value=raw_payload)
-    mocker.patch.object(config_class, '_read_configuration_file', return_value=JSON_payload)
-    ghostwriter = mocker.patch.object(config_class, '_write_configuration_file', return_value=config_file)
-    spy_update = mocker.spy(config_class, 'update')
+    config_class = config.__class__
+    config_file = config.filepath
 
     # Test
     updates = dict(federated_only=True)
-    assert not alice_blockchain_test_config.federated_only
-    update_configuration(emitter=test_emitter,
-                         config_class=config_class,
-                         filepath=config_file,
-                         updates=updates)
+    assert not config.federated_only
+    get_or_update_configuration(emitter=test_emitter,
+                                config_class=config_class,
+                                filepath=config_file,
+                                updates=updates)
 
     # The stand-in configuration is untouched...
-    assert not alice_blockchain_test_config.federated_only
+    assert not config.federated_only
 
-    # ... but updates were passed aloing to the config file system writing handlers
-    ghostwriter.assert_called_once_with(filepath=alice_blockchain_test_config.filepath, override=True)
-    assert spy_update.call_args.kwargs == updates
+    # ... but updates were passed along to the config file system writing handlers
+    config._write_configuration_file.assert_called_once_with(filepath=config.filepath, override=True)
+    assert config.update.call_args.kwargs == updates
+
+    # Ensure only the affirmative path was followed
+    config_actions.handle_invalid_configuration_file.assert_not_called()
+    config_actions.handle_missing_configuration_file.assert_not_called()
 
 
-def test_destroy_configuration(alice_blockchain_test_config,
+def test_destroy_configuration(config,
                                test_emitter,
                                stdout_trap,
                                mocker,
                                mock_click_confirm):
 
     # Setup
-    config = alice_blockchain_test_config
-    config_class = alice_blockchain_test_config.__class__
-    config_file = Path(alice_blockchain_test_config.filepath)
+    config_class = config.__class__
+    config_file = config.filepath
 
     # Isolate from filesystem and Spy on the methods we're testing here
     spy_keyring_attached = mocker.spy(CharacterConfiguration, 'attach_keyring')
@@ -86,7 +114,7 @@ def test_destroy_configuration(alice_blockchain_test_config,
 
     # Test
     mock_click_confirm.return_value = YES
-    destroy_configuration(emitter=test_emitter, character_config=alice_blockchain_test_config)
+    destroy_configuration(emitter=test_emitter, character_config=config)
 
     output = stdout_trap.getvalue()
     assert SUCCESSFUL_DESTRUCTION in output
@@ -99,11 +127,11 @@ def test_destroy_configuration(alice_blockchain_test_config,
         mock_os_remove.assert_called_with(filepath=config.db_filepath)
 
 
-def test_handle_missing_configuration_file(alice_blockchain_test_config):
+def test_handle_missing_configuration_file(config):
 
     # Setup
-    config_class = alice_blockchain_test_config.__class__
-    config_file = Path(alice_blockchain_test_config.filepath)
+    config_class = config.__class__
+    config_file = Path(config.filepath)
 
     # Test Data
     init_command = f"{config_class.NAME} init"
@@ -119,17 +147,16 @@ def test_handle_missing_configuration_file(alice_blockchain_test_config):
                                           character_config_class=config_class)
 
 
-
 @pytest.mark.parametrize('bad_config_payload', BAD_CONFIG_PAYLOADS)
 def test_handle_invalid_configuration_file(mocker,
-                                           alice_blockchain_test_config,
+                                           config,
                                            test_emitter,
                                            stdout_trap,
                                            bad_config_payload):
 
     # Setup
-    config_class = alice_blockchain_test_config.__class__
-    config_file = Path(alice_blockchain_test_config.filepath)
+    config_class = config.__class__
+    config_file = Path(config.filepath)
 
     # Assume the file exists but is full of garbage
     mocker.patch.object(CharacterConfiguration,

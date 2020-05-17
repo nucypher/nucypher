@@ -21,7 +21,7 @@ import json
 
 import click
 from json.decoder import JSONDecodeError
-from typing import Type
+from typing import Optional, Type
 
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.confirm import confirm_destroy_configuration
@@ -44,23 +44,31 @@ def forget(emitter: StdoutEmitter, configuration: CharacterConfiguration) -> Non
     emitter.message(SUCCESSFUL_FORGET_NODES, color='red')
 
 
-def update_configuration(emitter: StdoutEmitter,
-                         config_class: Type[CharacterConfiguration],
-                         filepath: str,
-                         updates: dict) -> None:
+def get_or_update_configuration(emitter: StdoutEmitter,
+                                filepath: str,
+                                config_class: Type[CharacterConfiguration],
+                                updates: Optional[dict] = None) -> None:
     """
     Utility for writing updates to an existing configuration file then displaying the result.
-    If the config file is invalid, trey very hard to display the problem.
+    If the config file is invalid, trey very hard to display the problem.  If there are no updates,
+    the config file will be displayed without changes.
     """
     try:
         config = config_class.from_configuration_file(filepath=filepath)
+    except FileNotFoundError:
+        return handle_invalid_configuration_file(emitter=emitter,
+                                                 config_class=config_class,
+                                                 filepath=filepath)
     except config_class.ConfigurationError:
         return handle_invalid_configuration_file(emitter=emitter,
                                                  config_class=config_class,
                                                  filepath=filepath)
-    pretty_fields = ', '.join(updates)
-    emitter.message(SUCCESSFUL_UPDATE_CONFIGURATION_VALUES.format(fields=pretty_fields), color='yellow')
-    config.update(**updates)
+
+    emitter.echo(f"{config_class.NAME.capitalize()} Configuration {filepath} \n {'='*55}")
+    if updates:
+        pretty_fields = ', '.join(updates)
+        emitter.message(SUCCESSFUL_UPDATE_CONFIGURATION_VALUES.format(fields=pretty_fields), color='yellow')
+        config.update(**updates)
     emitter.echo(config.serialize())
 
 
