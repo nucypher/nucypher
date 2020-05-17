@@ -16,48 +16,28 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import contextlib
 from contextlib import suppress
-from typing import Dict, ClassVar, Set
-from typing import Optional
-from typing import Union, List
 
-from bytestring_splitter import BytestringSplitter
 from constant_sorrow import default_constant_splitter
-from constant_sorrow.constants import (
-    DO_NOT_SIGN,
-    NO_BLOCKCHAIN_CONNECTION,
-    NO_CONTROL_PROTOCOL,
-    NO_DECRYPTION_PERFORMED,
-    NO_NICKNAME,
-    NO_SIGNING_POWER,
-    SIGNATURE_TO_FOLLOW,
-    SIGNATURE_IS_ON_CIPHERTEXT,
-    STRANGER,
-    FEDERATED_ONLY
-)
+from constant_sorrow.constants import (DO_NOT_SIGN, NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTOCOL,
+                                       NO_DECRYPTION_PERFORMED, NO_NICKNAME, NO_SIGNING_POWER,
+                                       SIGNATURE_IS_ON_CIPHERTEXT, SIGNATURE_TO_FOLLOW, STRANGER)
 from cryptography.exceptions import InvalidSignature
 from eth_keys import KeyAPI as EthKeyAPI
-from eth_utils import to_checksum_address, to_canonical_address
+from eth_utils import to_canonical_address, to_checksum_address
+from typing import ClassVar, Dict, List, Optional, Set, Union
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
-from nucypher.blockchain.eth.agents import StakingEscrowAgent
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import Signer
-from nucypher.characters.control.controllers import JSONRPCController, CLIController
+from nucypher.characters.control.controllers import CLIController, JSONRPCController
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import (
-    CryptoPower,
-    SigningPower,
-    DecryptingPower,
-    NoSigningPower,
-    CryptoPowerUp,
-    DelegatingPower
-)
-from nucypher.crypto.signing import signature_splitter, StrangerStamp, SignatureStamp
+from nucypher.crypto.powers import (CryptoPower, CryptoPowerUp, DecryptingPower, DelegatingPower, NoSigningPower,
+                                    SigningPower)
+from nucypher.crypto.signing import SignatureStamp, StrangerStamp, signature_splitter
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Learner

@@ -16,39 +16,30 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import os
 import random
 
 import maya
+import os
 import pytest
 from twisted.logger import Logger
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.agents import (
-    StakingEscrowAgent,
-    ContractAgency,
-    PreallocationEscrowAgent,
-    NucypherTokenAgent
-)
+from nucypher.blockchain.eth.agents import (ContractAgency, NucypherTokenAgent, PreallocationEscrowAgent,
+                                            StakingEscrowAgent)
 from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer
-from nucypher.blockchain.eth.registry import IndividualAllocationRegistry, InMemoryAllocationRegistry
+from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry, IndividualAllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeList
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.utilities.sandbox.constants import (
-    TEST_PROVIDER_URI,
-    INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_IP_ADDRESS,
-    MOCK_URSULA_STARTING_PORT,
-    TEMPORARY_DOMAIN,
-    MOCK_KNOWN_URSULAS_CACHE,
-    select_test_port,
-    MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
-    ONE_YEAR_IN_SECONDS
-)
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_INDIVIDUAL_ALLOCATION_FILEPATH, MOCK_IP_ADDRESS,
+                             ONE_YEAR_IN_SECONDS,
+                             TEST_PROVIDER_URI)
+from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT, select_test_port
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from tests.utils.middleware import MockRestMiddleware
+
 
 #
 # This test module is intended to mirror tests/cli/ursula/test_stakeholder_and_ursula.py,

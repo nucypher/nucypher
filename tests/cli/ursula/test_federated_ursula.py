@@ -16,21 +16,20 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import os
 from json import JSONDecodeError
 
+import os
 import pytest
 
-from nucypher.cli.actions import SUCCESSFUL_DESTRUCTION
+from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import APP_DIR, DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_KEYRING_PASSWORD
-from nucypher.utilities.sandbox.constants import (
+from nucypher.config.constants import APP_DIR, DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
+from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH,
-    MOCK_IP_ADDRESS,
-    MOCK_URSULA_STARTING_PORT,
-    TEMPORARY_DOMAIN)
+    MOCK_IP_ADDRESS)
+from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 
 def test_initialize_ursula_defaults(click_runner, mocker):
@@ -71,7 +70,7 @@ def test_initialize_custom_configuration_root(custom_filepath, click_runner):
     assert result.exit_code == 0
 
     # CLI Output
-    assert MOCK_CUSTOM_INSTALLATION_PATH in result.output, "Configuration not in system temporary directory"
+    assert str(MOCK_CUSTOM_INSTALLATION_PATH) in result.output, "Configuration not in system temporary directory"
     assert "nucypher ursula run" in result.output, 'Help message is missing suggested command'
     assert 'IPv4' not in result.output
 
@@ -126,7 +125,7 @@ def test_ursula_view_configuration(custom_filepath, click_runner, nominal_federa
                                  catch_exceptions=False)
 
     # CLI Output
-    assert MOCK_CUSTOM_INSTALLATION_PATH in result.output
+    assert str(MOCK_CUSTOM_INSTALLATION_PATH) in result.output
     for field in nominal_federated_configuration_fields:
         assert field in result.output, "Missing field '{}' from configuration file."
 
@@ -191,9 +190,9 @@ def test_ursula_destroy_configuration(custom_filepath, click_runner):
     # CLI Output
     assert not os.path.isfile(custom_config_filepath), 'Configuration file still exists'
     assert '? [y/N]:' in result.output, 'WARNING: User was not asked to destroy files'
-    assert custom_filepath in result.output, 'WARNING: Configuration path not in output. Deleting the wrong path?'
+    assert str(custom_filepath) in result.output, 'WARNING: Configuration path not in output. Deleting the wrong path?'
     assert SUCCESSFUL_DESTRUCTION in result.output, '"Destroyed" not in output'
-    assert custom_filepath in result.output
+    assert str(custom_filepath) in result.output
     assert result.exit_code == 0, 'Destruction did not succeed'
 
     # Ensure the files are deleted from the filesystem

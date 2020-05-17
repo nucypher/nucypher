@@ -5,22 +5,22 @@ from pathlib import Path
 
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.characters import FelixConfiguration, UrsulaConfiguration, AliceConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
+from nucypher.config.characters import AliceConfiguration, FelixConfiguration, UrsulaConfiguration
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.network.nodes import Teacher
-from nucypher.utilities.sandbox.constants import (
-    TEMPORARY_DOMAIN,
+from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
-    TEST_PROVIDER_URI,
+    MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_IP_ADDRESS,
-    MOCK_IP_ADDRESS_2, MOCK_CUSTOM_INSTALLATION_PATH,
+    MOCK_IP_ADDRESS_2,
+    TEST_PROVIDER_URI
 )
 
 
 @pytest.fixture(scope='function')
 def custom_filepath():
-    _path = MOCK_CUSTOM_INSTALLATION_PATH
+    _path = str(MOCK_CUSTOM_INSTALLATION_PATH)
     shutil.rmtree(_path, ignore_errors=True)
     assert not Path(_path).exists()
     yield Path(_path)
@@ -48,7 +48,7 @@ def test_coexisting_configurations(click_runner,
     #
 
     if custom_filepath.exists():
-        shutil.rmtree(custom_filepath, ignore_errors=True)
+        shutil.rmtree(str(custom_filepath), ignore_errors=True)
     assert not custom_filepath.exists()
 
     # Parse node addresses

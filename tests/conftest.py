@@ -21,7 +21,7 @@ from nucypher.characters.control.emitters import WebEmitter
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.logging import GlobalLoggerSettings
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 # Crash on server error by default
 WebEmitter._crash_on_error_default = True

@@ -16,8 +16,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 # Experimental max error
 MAX_ERROR_FIRST_PHASE = 1e-20

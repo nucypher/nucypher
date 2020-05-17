@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
+
 import pytest
 from eth_account import Account
 from pathlib import Path
@@ -24,14 +25,14 @@ from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.token import StakeList
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
-from nucypher.utilities.sandbox.constants import (
-    MOCK_IP_ADDRESS,
-    TEST_PROVIDER_URI,
-    MOCK_URSULA_STARTING_PORT,
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD, \
+    TEMPORARY_DOMAIN
+from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
-    TEMPORARY_DOMAIN,
+    MOCK_IP_ADDRESS,
+    TEST_PROVIDER_URI
 )
+from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 # TODO: Move to fixtures
 CLI_ENV = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,

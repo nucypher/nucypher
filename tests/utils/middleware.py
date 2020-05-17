@@ -18,14 +18,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import requests
 import socket
-
 from bytestring_splitter import VariableLengthBytestring
-from nucypher.characters.lawful import Ursula
-from nucypher.network.middleware import RestMiddleware, NucypherMiddlewareClient
-from nucypher.utilities.sandbox.constants import MOCK_KNOWN_URSULAS_CACHE
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
-
 from flask import Response
+
+from nucypher.characters.lawful import Ursula
+from nucypher.network.middleware import NucypherMiddlewareClient, RestMiddleware
+from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
 
 
 class _TestMiddlewareClient(NucypherMiddlewareClient):
@@ -158,7 +157,6 @@ class NodeIsDownMiddleware(MockRestMiddleware):
 
     def all_nodes_down(self):
         self.client.ports_that_are_down = set(MOCK_KNOWN_URSULAS_CACHE)
-
 
 
 class EvilMiddleWare(MockRestMiddleware):

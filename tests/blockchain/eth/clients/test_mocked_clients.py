@@ -1,16 +1,9 @@
 import datetime
-
 import pytest
 from web3 import HTTPProvider, IPCProvider, WebsocketProvider
 
-from nucypher.blockchain.eth.clients import (
-    EthereumClient,
-    GethClient,
-    ParityClient,
-    GanacheClient,
-    InfuraClient,
-    PUBLIC_CHAINS
-)
+from nucypher.blockchain.eth.clients import (EthereumClient, GanacheClient, GethClient, InfuraClient, PUBLIC_CHAINS,
+                                             ParityClient)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 

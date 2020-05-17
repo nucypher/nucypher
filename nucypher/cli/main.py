@@ -17,14 +17,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 
-from nucypher.cli.commands import ursula, alice, bob, enrico, felix, stake, status, worklock, multisig
-from nucypher.cli.painting import echo_version
+from nucypher.cli.commands import alice, bob, enrico, felix, multisig, stake, status, ursula, worklock
+from nucypher.cli.painting.help import echo_version
 
 
 @click.group()
 @click.option('--version', help="Echo the CLI version", is_flag=True, callback=echo_version, expose_value=False, is_eager=True)
 def nucypher_cli():
-    pass
+    """Top level command for all things nucypher."""
 
 
 #
@@ -54,17 +54,17 @@ def nucypher_cli():
 ENTRY_POINTS = (
 
     # Characters
-    alice.alice,  # Author of Policies
-    bob.bob,  # Builder of Capsules
-    enrico.enrico,  # Encryptor of Data
-    ursula.ursula,  # Untrusted Re-Encryption Proxy
+    alice.alice,        # Author of Policies
+    bob.bob,            # Builder of Capsules
+    enrico.enrico,      # Encryptor of Data
+    ursula.ursula,      # Untrusted Re-Encryption Proxy
 
     # Utility Commands
-    stake.stake,  # Stake Management
-    status.status,  # Network Status
-    felix.felix,    # Faucet
+    stake.stake,        # Stake Management
+    status.status,      # Network Status
+    felix.felix,        # Faucet
     multisig.multisig,  # MultiSig operations
-    worklock.worklock  # WorkLock
+    worklock.worklock   # WorkLock
 )
 
 for entry_point in ENTRY_POINTS:

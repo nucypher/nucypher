@@ -1,16 +1,14 @@
-from base64 import b64encode, b64decode
+from base64 import b64encode
 
-import pytest
-from marshmallow import validates_schema
-import maya
 import datetime
+import maya
+import pytest
 
-from nucypher.characters.control.specifications.alice import CreatePolicy, GrantPolicy
-from nucypher.characters.control.specifications.exceptions import (
-    InvalidInputData, InvalidArgumentCombo, SpecificationError)
 from nucypher.characters.control.specifications import fields
+from nucypher.characters.control.specifications.alice import GrantPolicy
 from nucypher.characters.control.specifications.base import BaseSchema
-
+from nucypher.characters.control.specifications.exceptions import (InvalidArgumentCombo, InvalidInputData,
+                                                                   SpecificationError)
 from nucypher.crypto.powers import DecryptingPower
 
 

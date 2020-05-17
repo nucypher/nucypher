@@ -16,31 +16,30 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-from base64 import b64encode, b64decode
+from base64 import b64decode, b64encode
 from collections import OrderedDict
-from datetime import datetime
-from functools import partial
-from json.decoder import JSONDecodeError
 from random import shuffle
-from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
 import time
-from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from bytestring_splitter import BytestringKwargifier, BytestringSplitter, BytestringSplittingError, \
+    VariableLengthBytestring
 from constant_sorrow import constants
 from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
-from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
+from cryptography.x509 import Certificate, NameOID, load_pem_x509_certificate
+from datetime import datetime
 from eth_utils import to_checksum_address
-from flask import request, Response
+from flask import Response, request
+from functools import partial
+from json.decoder import JSONDecodeError
 from sqlalchemy.exc import OperationalError
-from twisted.internet import stdio, reactor
-from twisted.internet import threads
+from twisted.internet import reactor, stdio, threads
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
+from typing import Dict, Iterable, List, Set, Tuple, Union
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
@@ -49,7 +48,7 @@ from umbral.signing import Signature
 
 import nucypher
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers import Web3Signer
@@ -62,22 +61,21 @@ from nucypher.characters.control.controllers import (
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
 from nucypher.cli.processes import UrsulaCommandProtocol
-from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
-from nucypher.crypto.api import keccak_digest, encrypt_and_sign
-from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
+from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
+from nucypher.crypto.api import encrypt_and_sign, keccak_digest
+from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, TransactingPower, PowerUpError
+from nucypher.crypto.powers import DecryptingPower, DelegatingPower, PowerUpError, SigningPower, TransactingPower
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.keypairs import HostingKeypair
 from nucypher.datastore.threading import ThreadedSession
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
-from nucypher.network.nodes import NodeSprout
-from nucypher.network.nodes import Teacher
+from nucypher.network.nodes import NodeSprout, Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
-from nucypher.network.trackers import AvailabilityTracker
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
+from nucypher.network.trackers import AvailabilityTracker
 
 
 class Alice(Character, BlockchainPolicyAuthor):

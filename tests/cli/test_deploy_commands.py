@@ -1,25 +1,13 @@
 import os
 
-from nucypher.blockchain.eth.agents import (
-    PolicyManagerAgent,
-    StakingEscrowAgent,
-    AdjudicatorAgent,
-    ContractAgency
-)
-from nucypher.blockchain.eth.constants import (
-    NUCYPHER_TOKEN_CONTRACT_NAME,
-    STAKING_ESCROW_CONTRACT_NAME,
-    POLICY_MANAGER_CONTRACT_NAME,
-    ADJUDICATOR_CONTRACT_NAME,
-    DISPATCHER_CONTRACT_NAME
-)
+from nucypher.blockchain.eth.agents import (AdjudicatorAgent, ContractAgency, PolicyManagerAgent, StakingEscrowAgent)
+from nucypher.blockchain.eth.constants import (ADJUDICATOR_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME,
+                                               NUCYPHER_TOKEN_CONTRACT_NAME, POLICY_MANAGER_CONTRACT_NAME,
+                                               STAKING_ESCROW_CONTRACT_NAME)
 from nucypher.blockchain.eth.deployers import StakingEscrowDeployer
-from nucypher.blockchain.eth.registry import LocalContractRegistry, InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.cli.commands.deploy import deploy
-from nucypher.utilities.sandbox.constants import (
-    TEST_PROVIDER_URI,
-    INSECURE_DEVELOPMENT_PASSWORD,
-)
+from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, TEST_PROVIDER_URI)
 
 ALTERNATE_REGISTRY_FILEPATH = '/tmp/nucypher-test-registry-alternate.json'
 ALTERNATE_REGISTRY_FILEPATH_2 = '/tmp/nucypher-test-registry-alternate-2.json'

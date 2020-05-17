@@ -16,17 +16,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import os
-from typing import List
-from typing import Tuple
-
 import maya
+import os
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from twisted.logger import Logger
+from typing import List, Tuple
 from web3 import Web3
 
-from nucypher.blockchain.economics import StandardTokenEconomics, BaseEconomics
+from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
@@ -35,13 +33,9 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.config.constants import BASE_DIR
 from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.sandbox.constants import (
-    NUMBER_OF_ETH_TEST_ACCOUNTS,
-    NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
-    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
-    DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-    INSECURE_DEVELOPMENT_PASSWORD
-)
+from tests.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD,
+                             NUMBER_OF_ETH_TEST_ACCOUNTS, NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
+                             NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
 
 
 def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):

@@ -14,9 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
-
 import maya
+import os
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import is_checksum_address, to_wei
@@ -25,8 +24,8 @@ from nucypher.blockchain.eth.agents import PreallocationEscrowAgent
 from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 from nucypher.blockchain.eth.token import NU
-from nucypher.utilities.sandbox.blockchain import token_airdrop
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.blockchain import token_airdrop
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 TEST_LOCK_DURATION_IN_SECONDS = 60 * 60 * 24  # 1 day
 TEST_ALLOCATION_REGISTRY = InMemoryAllocationRegistry()
@@ -173,7 +172,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value + expected_rewards
 
 
-def test_collect_policy_reward(testerchain, agent, agency, token_economics, mock_transacting_power_activation):
+def test_collect_policy_fees(testerchain, agent, agency, token_economics, mock_transacting_power_activation):
     _token_agent, staking_agent, policy_agent = agency
     deployer_address, beneficiary_address, author, ursula, *everybody_else = testerchain.client.accounts
 

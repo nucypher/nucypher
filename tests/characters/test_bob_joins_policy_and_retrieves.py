@@ -1,22 +1,16 @@
 import datetime
-import os
-
 import maya
+import os
 import pytest
 import time
-
 from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
 from twisted.internet.task import Clock
 
-from nucypher.characters.lawful import Bob, Ursula
-from nucypher.characters.lawful import Enrico
+from nucypher.characters.lawful import Bob, Enrico, Ursula
 from nucypher.policy.collections import TreasureMap
-from nucypher.utilities.sandbox.constants import (
-    NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-    MOCK_POLICY_DEFAULT_M,
-    TEMPORARY_DOMAIN
-)
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from tests.constants import (MOCK_POLICY_DEFAULT_M, NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from tests.utils.middleware import MockRestMiddleware
 
 
 def test_federated_bob_full_retrieve_flow(federated_ursulas,

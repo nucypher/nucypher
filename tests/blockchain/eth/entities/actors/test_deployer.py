@@ -25,8 +25,8 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.crypto.powers import TransactingPower
 # Prevents TesterBlockchain to be picked up by py.test as a test class
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
-from nucypher.utilities.sandbox.constants import NUMBER_OF_ALLOCATIONS_IN_TESTS, INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.blockchain import TesterBlockchain as _TesterBlockchain
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, NUMBER_OF_ALLOCATIONS_IN_TESTS
 
 
 @pytest.mark.slow()

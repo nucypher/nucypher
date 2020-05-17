@@ -1,20 +1,15 @@
 import os
-
 import pytest
-from eth_utils import is_checksum_address
-from eth_utils import to_checksum_address
+from eth_utils import is_checksum_address, to_checksum_address
 
 from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface, \
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface, \
     BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.crypto.api import verify_eip_191
-
-
 #
 # NOTE: This module is skipped on CI
 #
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 def test_geth_EIP_191_client_signature_integration(instant_geth_dev_node):

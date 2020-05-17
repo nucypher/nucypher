@@ -1,14 +1,11 @@
-import io
 import json
-import os
-
-import sys
-from functools import partial
-from typing import Callable, Union
 
 import click
+import os
 from flask import Response
+from functools import partial
 from twisted.logger import Logger
+from typing import Callable, Union
 
 import nucypher
 

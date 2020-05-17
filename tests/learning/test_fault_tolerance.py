@@ -1,19 +1,18 @@
-import os
 from collections import namedtuple
 
+import os
 import pytest
-from eth_utils.address import to_checksum_address
-from twisted.logger import globalLogPublisher, LogLevel
-
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow.constants import NOT_SIGNED
+from eth_utils.address import to_checksum_address
+from twisted.logger import LogLevel, globalLogPublisher
 
 from nucypher.characters.base import Character
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import FleetStateTracker, Learner
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_ursula_for_staker
+from tests.utils.middleware import MockRestMiddleware
+from tests.utils.ursula import make_federated_ursulas, make_ursula_for_staker
 
 
 def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mocker):

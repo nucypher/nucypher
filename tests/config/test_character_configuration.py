@@ -1,21 +1,15 @@
-import json
 import os
-import tempfile
-
-import click
 import pytest
-from constant_sorrow.constants import NO_KEYRING_ATTACHED, CERTIFICATE_NOT_SAVED, NO_BLOCKCHAIN_CONNECTION
+import tempfile
+from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, NO_KEYRING_ATTACHED
 
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.characters.chaotic import Felix
-from nucypher.characters.lawful import Alice, Bob
-from nucypher.characters.lawful import Ursula
-from nucypher.cli.actions import handle_missing_configuration_file
-from nucypher.config.characters import AliceConfiguration, BobConfiguration, \
-    FelixConfiguration, StakeHolderConfiguration
-from nucypher.config.characters import UrsulaConfiguration
+from nucypher.characters.lawful import Alice, Bob, Ursula
+from nucypher.config.characters import AliceConfiguration, BobConfiguration, FelixConfiguration, \
+    StakeHolderConfiguration, UrsulaConfiguration
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN
 
 # Main Cast
 configurations = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)
@@ -80,7 +74,7 @@ def test_default_character_configuration_preservation(configuration_class, teste
     fake_address = '0xdeadbeef'
     network = TEMPORARY_DOMAIN
 
-    expected_filename = f'{configuration_class._NAME}.{configuration_class._CONFIG_FILE_EXTENSION}'
+    expected_filename = f'{configuration_class.NAME}.{configuration_class._CONFIG_FILE_EXTENSION}'
     generated_filename = configuration_class.generate_filename()
     assert generated_filename == expected_filename
     expected_filepath = os.path.join('/', 'tmp', generated_filename)

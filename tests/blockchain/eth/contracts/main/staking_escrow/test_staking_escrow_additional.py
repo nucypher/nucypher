@@ -24,7 +24,7 @@ from web3.contract import Contract
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.token import NU
-from tests.utils.solidity import to_bytes32, get_mapping_entry_location, get_array_data_location
+from tests.utils.solidity import get_array_data_location, get_mapping_entry_location, to_bytes32
 
 LOCK_RE_STAKE_UNTIL_PERIOD_FIELD = 4
 

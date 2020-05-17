@@ -16,15 +16,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import os
-
 import pytest
 from eth_tester.exceptions import TransactionFailed
-from eth_utils.address import to_checksum_address, is_address
+from eth_utils.address import is_address, to_checksum_address
 
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.mark.slow()

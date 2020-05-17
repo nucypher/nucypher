@@ -17,14 +17,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-from tempfile import TemporaryDirectory
-
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION
 )
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
+from tempfile import TemporaryDirectory
 
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.signers import Signer
@@ -37,13 +36,13 @@ class UrsulaConfiguration(CharacterConfiguration):
 
     from nucypher.characters.lawful import Ursula
     CHARACTER_CLASS = Ursula
-    _NAME = CHARACTER_CLASS.__name__.lower()
+    NAME = CHARACTER_CLASS.__name__.lower()
 
     DEFAULT_REST_HOST = '127.0.0.1'
     DEFAULT_REST_PORT = 9151
     DEFAULT_DEVELOPMENT_REST_PORT = 10151
     __DEFAULT_TLS_CURVE = ec.SECP384R1
-    DEFAULT_DB_NAME = '{}.db'.format(_NAME)
+    DEFAULT_DB_NAME = '{}.db'.format(NAME)
     DEFAULT_AVAILABILITY_CHECKS = True
     LOCAL_SIGNERS_ALLOWED = True
 
@@ -144,7 +143,7 @@ class AliceConfiguration(CharacterConfiguration):
     from nucypher.characters.lawful import Alice
 
     CHARACTER_CLASS = Alice
-    _NAME = CHARACTER_CLASS.__name__.lower()
+    NAME = CHARACTER_CLASS.__name__.lower()
 
     DEFAULT_CONTROLLER_PORT = 8151
 
@@ -187,7 +186,7 @@ class BobConfiguration(CharacterConfiguration):
     from nucypher.characters.lawful import Bob
 
     CHARACTER_CLASS = Bob
-    _NAME = CHARACTER_CLASS.__name__.lower()
+    NAME = CHARACTER_CLASS.__name__.lower()
 
     DEFAULT_CONTROLLER_PORT = 7151
 
@@ -203,9 +202,9 @@ class FelixConfiguration(CharacterConfiguration):
 
     # Character
     CHARACTER_CLASS = Felix
-    _NAME = CHARACTER_CLASS.__name__.lower()
+    NAME = CHARACTER_CLASS.__name__.lower()
 
-    DEFAULT_DB_NAME = '{}.db'.format(_NAME)
+    DEFAULT_DB_NAME = '{}.db'.format(NAME)
     DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, DEFAULT_DB_NAME)
     DEFAULT_REST_PORT = 6151
     DEFAULT_LEARNER_PORT = 9151
@@ -248,7 +247,7 @@ class FelixConfiguration(CharacterConfiguration):
 
 class StakeHolderConfiguration(CharacterConfiguration):
 
-    _NAME = 'stakeholder'
+    NAME = 'stakeholder'
     CHARACTER_CLASS = StakeHolder
 
     def __init__(self, checksum_addresses: set = None, *args, **kwargs):

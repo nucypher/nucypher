@@ -24,11 +24,10 @@ from nucypher.blockchain.eth.actors import Bidder
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.commands.worklock import worklock
-from nucypher.utilities.sandbox.constants import (
-    TEMPORARY_DOMAIN, MOCK_PROVIDER_URI, YES,
-)
 from tests.cli.functional.test_ursula_local_keystore_cli_functionality import CLI_ENV
 from tests.mock.agents import FAKE_RECEIPT, MockWorkLockAgent
+from tests.constants import (MOCK_PROVIDER_URI, YES)
+from nucypher.config.constants import TEMPORARY_DOMAIN
 
 
 @pytest.fixture(scope='function')
@@ -187,7 +186,7 @@ def test_cancel_bid(click_runner,
     mock_worklock_agent.assert_contract_calls(calls=expected_calls)
 
 
-@pytest.mark.skip
+@pytest.mark.skip  # TODO
 def test_post_initialization(click_runner,
                              mocker,
                              mock_worklock_agent,

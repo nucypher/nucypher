@@ -25,12 +25,11 @@ from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.utilities.sandbox.constants import MOCK_PROVIDER_URI
-from tests.cli.functional.test_ursula_local_keystore_cli_functionality import NUMBER_OF_MOCK_ACCOUNTS, \
-    KEYFILE_NAME_TEMPLATE
+from tests.cli.functional.test_ursula_local_keystore_cli_functionality import KEYFILE_NAME_TEMPLATE, \
+    NUMBER_OF_MOCK_ACCOUNTS
 from tests.fixtures import _make_testerchain, make_token_economics
-from tests.mock.interfaces import make_mock_registry_source_manager, MockBlockchain
 from tests.mock.agents import FAKE_RECEIPT, MockContractAgency
+from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
 
 
 @pytest.fixture(scope='module', autouse=True)

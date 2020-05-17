@@ -1,8 +1,10 @@
 from base64 import b64decode, b64encode
+
 from marshmallow import fields
+
+from nucypher.characters.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
 from nucypher.characters.control.specifications.fields.base import BaseField
 from nucypher.crypto.kits import UmbralMessageKit as UmbralMessageKitClass
-from nucypher.characters.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
 
 
 class UmbralMessageKit(BaseField, fields.Field):

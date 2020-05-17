@@ -16,20 +16,17 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
-import os
-
 import click
 import maya
+import os
 
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency, PolicyManagerAgent
+from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import (
-    STAKING_ESCROW_CONTRACT_NAME,
+    AVERAGE_BLOCK_TIME_IN_SECONDS,
     POLICY_MANAGER_CONTRACT_NAME,
-    AVERAGE_BLOCK_TIME_IN_SECONDS
+    STAKING_ESCROW_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.utils import datetime_at_period
-from nucypher.characters.banners import NU_BANNER
-from nucypher.cli.actions import connect_to_blockchain, get_registry
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -43,12 +40,9 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_staking_address,
 )
-from nucypher.cli.painting import (
-    paint_contract_status,
-    paint_stakers,
-    paint_locked_tokens_status,
-    paint_fee_rate_range
-)
+from nucypher.cli.painting.staking import paint_fee_rate_range
+from nucypher.cli.painting.status import paint_contract_status, paint_locked_tokens_status, paint_stakers
+from nucypher.cli.utils import connect_to_blockchain, get_registry, setup_emitter
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
 
 
@@ -65,7 +59,7 @@ class RegistryOptions:
         self.network = network
 
     def setup(self, general_config) -> tuple:
-        emitter = _setup_emitter(general_config)
+        emitter = setup_emitter(general_config)
         registry = get_registry(network=self.network, registry_filepath=self.registry_filepath)
         blockchain = connect_to_blockchain(emitter=emitter, provider_uri=self.provider_uri)
         return emitter, registry, blockchain
@@ -82,16 +76,9 @@ group_registry_options = group_options(
 )
 
 
-def _setup_emitter(general_config):
-    emitter = general_config.emitter
-    emitter.banner(NU_BANNER)
-    return emitter
-
-
 @click.group()
 def status():
     """Echo a snapshot of live NuCypher Network metadata."""
-    pass
 
 
 @status.command()

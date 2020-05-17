@@ -15,8 +15,9 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import pytest
 from collections import Counter
+
+import pytest
 
 from nucypher.blockchain.economics import BaseEconomics
 from nucypher.blockchain.eth.agents import StakingEscrowAgent

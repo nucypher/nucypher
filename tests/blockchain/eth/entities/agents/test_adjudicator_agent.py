@@ -16,7 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
-
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
@@ -25,7 +24,7 @@ from nucypher.blockchain.eth.agents import AdjudicatorAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.signing import SignatureStamp
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 def mock_ursula(testerchain, account, mocker):

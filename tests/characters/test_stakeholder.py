@@ -3,10 +3,9 @@ import json
 import pytest
 
 from nucypher.blockchain.eth.actors import Worker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.config.characters import StakeHolderConfiguration
-from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 def test_software_stakeholder_configuration(testerchain,
@@ -17,8 +16,8 @@ def test_software_stakeholder_configuration(testerchain,
     path = stakeholder_config_file_location
 
     # Save the stakeholder JSON config
-    stakeholder_configuration.to_configuration_file(filepath=path)
-    with open(path, 'r') as file:
+    stakeholder_configuration.to_configuration_file(filepath=str(path))
+    with open(str(path), 'r') as file:
 
         # Ensure file contents are serializable
         contents = file.read()

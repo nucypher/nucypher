@@ -1,11 +1,10 @@
-import sys
 from contextlib import contextmanager
 
 import pytest
+import sys
 from io import StringIO
 
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.config import GroupGeneralConfig
 from nucypher.cli.processes import UrsulaCommandProtocol
 
 

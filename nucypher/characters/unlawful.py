@@ -14,26 +14,27 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from copy import copy
-from unittest.mock import patch
 
 from eth_tester.exceptions import ValidationError
+from unittest.mock import patch
 
-from nucypher.characters.lawful import Ursula, Alice
+from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.powers import CryptoPower, SigningPower
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_URSULA_DB_FILEPATH
-from nucypher.utilities.sandbox.middleware import EvilMiddleWare
 
 
 class Vladimir(Ursula):
     """
     The power of Ursula, but with a heart forged deep in the mountains of Microsoft or a State Actor or whatever.
     """
+    from tests.utils.middleware import EvilMiddleWare
 
     network_middleware = EvilMiddleWare()
     fraud_address = '0xbad022A87Df21E4c787C7B1effD5077014b8CC45'
     fraud_key = 'a75d701cc4199f7646909d15f22e2e0ef6094b3e2aa47a188f35f47e8932a7b9'
-    db_filepath = MOCK_URSULA_DB_FILEPATH
+    db_filepath = ':memory:'
 
     @classmethod
     def from_target_ursula(cls,
@@ -77,7 +78,7 @@ class Vladimir(Ursula):
         Upload Vladimir's ETH keys to the keychain via web3.
         """
         try:
-            password = INSECURE_DEVELOPMENT_PASSWORD
+            password = 'iamverybadass'
             blockchain.w3.provider.ethereum_tester.add_account(cls.fraud_key, password=password)
         except (ValidationError,):
             # check if Vlad's key is already on the keyring...

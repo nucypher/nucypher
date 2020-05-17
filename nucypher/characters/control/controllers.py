@@ -1,22 +1,19 @@
-import inspect
 import json
-from abc import ABC, abstractmethod
 from json import JSONDecodeError
-from typing import Callable
 
+import inspect
 import maya
-from flask import Response, Flask
+from abc import ABC, abstractmethod
+from flask import Flask, Response
 from hendrix.deploy.base import HendrixDeploy
-from marshmallow import Schema
 from twisted.internet import reactor, stdio
 from twisted.logger import Logger
 
-from nucypher.characters.control.emitters import StdoutEmitter, WebEmitter, JSONRPCStdoutEmitter
+from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter, WebEmitter
 from nucypher.characters.control.interfaces import CharacterPublicInterface
 from nucypher.characters.control.specifications.exceptions import SpecificationError
-from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.cli.processes import JSONRPCLineReceiver
-from nucypher.utilities.controllers import JSONRPCTestClient
+from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 
 
 class CharacterControllerBase(ABC):
@@ -138,7 +135,12 @@ class JSONRPCController(CharacterControlServer):
         _transport = self.make_control_transport()
         reactor.run()  # < ------ Blocking Call (Reactor)
 
-    def test_client(self) -> JSONRPCTestClient:
+    def test_client(self):
+        try:
+            from tests.utils.controllers import JSONRPCTestClient
+        except ImportError:
+            raise ImportError("Nucypher is not installed in development mode,  "
+                              "Please checkout the code locally and reinstall to use the test client.")
         test_client = JSONRPCTestClient(rpc_controller=self)
         return test_client
 

@@ -1,16 +1,12 @@
-import os
 from unittest import mock
 
+import os
+
+from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
-from nucypher.utilities.sandbox.constants import (
-    INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_IP_ADDRESS,
-    MOCK_CUSTOM_INSTALLATION_PATH,
-    TEMPORARY_DOMAIN
-)
-from nucypher.cli.actions import SUCCESSFUL_DESTRUCTION
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
+from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH, MOCK_IP_ADDRESS)
 
 
 @mock.patch('nucypher.config.characters.AliceConfiguration.default_filepath', return_value='/non/existent/file')
@@ -82,7 +78,7 @@ def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_
     assert result.exit_code == 0
 
     # CLI Output
-    assert MOCK_CUSTOM_INSTALLATION_PATH in result.output, "Configuration not in system temporary directory"
+    assert str(MOCK_CUSTOM_INSTALLATION_PATH) in result.output, "Configuration not in system temporary directory"
     assert "nucypher alice run" in result.output, 'Help message is missing suggested command'
     assert 'IPv4' not in result.output
 
@@ -160,12 +156,12 @@ def test_alice_view_preexisting_configuration(click_runner, custom_filepath):
     assert "checksum_address" in result.output
     assert "domains" in result.output
     assert TEMPORARY_DOMAIN in result.output
-    assert custom_filepath in result.output
+    assert str(custom_filepath) in result.output
 
 
 def test_alice_destroy(click_runner, custom_filepath):
     """Should be the last test since it deletes the configuration file"""
-    custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.generate_filename())
+    custom_config_filepath = custom_filepath / AliceConfiguration.generate_filename()
     destroy_args = ('alice', 'destroy',
                     '--config-file', custom_config_filepath,
                     '--force')
@@ -173,4 +169,4 @@ def test_alice_destroy(click_runner, custom_filepath):
     result = click_runner.invoke(nucypher_cli, destroy_args, catch_exceptions=False)
     assert result.exit_code == 0
     assert SUCCESSFUL_DESTRUCTION in result.output
-    assert not os.path.exists(custom_config_filepath), "Alice config file was deleted"
+    assert not custom_config_filepath.exists(), "Alice config file was deleted"

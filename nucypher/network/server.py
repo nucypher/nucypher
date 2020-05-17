@@ -16,33 +16,28 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import binascii
-import json
 import os
-from typing import Tuple
-
-import requests
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
-from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
-from flask import Flask, Response, request
-from flask import jsonify
+from constant_sorrow.constants import FLEET_STATES_MATCH, NO_BLOCKCHAIN_CONNECTION, NO_KNOWN_NODES
+from flask import Flask, Response, jsonify, request
 from hendrix.experience import crosstown_traffic
 from jinja2 import Template, TemplateError
 from twisted.logger import Logger
+from typing import Tuple
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 from web3.exceptions import TimeExhausted
 
 import nucypher
-from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
+from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.utils import canonical_address_from_umbral_key
-from nucypher.datastore.keypairs import HostingKeypair
 from nucypher.datastore.datastore import NotFound
+from nucypher.datastore.keypairs import HostingKeypair
 from nucypher.datastore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown

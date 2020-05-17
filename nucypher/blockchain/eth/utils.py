@@ -15,12 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from decimal import Decimal
-from typing import Union
-
 import maya
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
-from eth_utils import is_address, to_checksum_address, is_hex
+from decimal import Decimal
+from eth_utils import is_address, is_hex, to_checksum_address
+from typing import Union
 from web3 import Web3
 from web3.contract import ContractConstructor, ContractFunction
 

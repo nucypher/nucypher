@@ -15,66 +15,63 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import csv
 import json
+import traceback
+
+import click
+import csv
+import maya
 import os
 import sys
 import time
-import traceback
+from constant_sorrow.constants import FULL, NO_WORKER_BONDED, WORKER_NOT_RUNNING
 from decimal import Decimal
-from typing import Tuple, List, Dict, Optional
-
-import click
-import maya
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
-from eth_utils import is_checksum_address, to_checksum_address, to_canonical_address
+from eth_utils import to_canonical_address, to_checksum_address
 from twisted.logger import Logger
+from typing import Dict, List, Optional, Tuple
 from web3 import Web3
 from web3.exceptions import ValidationError
 
-from constant_sorrow.constants import (
-    WORKER_NOT_RUNNING,
-    NO_WORKER_BONDED,
-    FULL
-)
-from nucypher.blockchain.economics import StandardTokenEconomics, EconomicsFactory, BaseEconomics
+from nucypher.blockchain.economics import BaseEconomics, EconomicsFactory, StandardTokenEconomics
 from nucypher.blockchain.eth.agents import (
-    NucypherTokenAgent,
-    StakingEscrowAgent,
-    PolicyManagerAgent,
     AdjudicatorAgent,
     ContractAgency,
-    PreallocationEscrowAgent,
     MultiSigAgent,
+    NucypherTokenAgent,
+    PolicyManagerAgent,
+    PreallocationEscrowAgent,
+    StakingEscrowAgent,
     WorkLockAgent
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import only_me, save_receipt, validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
-    NucypherTokenDeployer,
-    StakingEscrowDeployer,
-    PolicyManagerDeployer,
-    StakingInterfaceDeployer,
     AdjudicatorDeployer,
     BaseContractDeployer,
-    WorklockDeployer,
     MultiSigDeployer,
-    StakingInterfaceRouterDeployer
+    NucypherTokenDeployer,
+    PolicyManagerDeployer,
+    StakingEscrowDeployer,
+    StakingInterfaceDeployer,
+    StakingInterfaceRouterDeployer,
+    WorklockDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.registry import BaseContractRegistry, IndividualAllocationRegistry
-from nucypher.blockchain.eth.signers import Web3Signer, Signer, KeystoreSigner
+from nucypher.blockchain.eth.signers import KeystoreSigner, Signer, Web3Signer
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
-from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration, datetime_at_period, \
+from nucypher.blockchain.eth.utils import (
+    calculate_period_duration,
+    datetime_at_period,
+    datetime_to_period,
     prettify_eth_amount
+)
 from nucypher.characters.banners import STAKEHOLDER_BANNER
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.painting import (
-    paint_contract_deployment,
-    paint_input_allocation_file,
-    paint_receipt_summary
-)
+from nucypher.cli.painting.deployment import paint_contract_deployment, paint_input_allocation_file
+from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nicknames import nickname_from_seed
@@ -535,7 +532,7 @@ class Allocator:
         self.economics = EconomicsFactory.get_economics(registry)
 
         self.__total_to_allocate = 0
-        self.__process_allocation_data(filepath)
+        self.__process_allocation_data(str(filepath))
         self.__approve_token_transfer(registry, deployer_address)
 
     def __process_allocation_data(self, filepath: str):

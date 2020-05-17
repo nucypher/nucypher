@@ -1,8 +1,9 @@
 from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
+from functools import partial
 from hendrix.experience import crosstown_traffic
 from hendrix.utils.test_utils import crosstownTaskListDecoratorFactory
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas
-from functools import partial
+
+from tests.utils.ursula import make_federated_ursulas
 
 
 def test_learning_from_node_with_no_known_nodes(ursula_federated_test_config):

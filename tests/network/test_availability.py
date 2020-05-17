@@ -1,15 +1,13 @@
 import maya
 import pytest
-import time
-
 import pytest_twisted as pt
-import requests
+import time
 from flask import Response
 from twisted.internet import threads
 
 from nucypher.network.middleware import NucypherMiddlewareClient, RestMiddleware
 from nucypher.network.trackers import AvailabilityTracker
-from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
+from tests.utils.ursula import start_pytest_ursula_services
 
 
 @pt.inlineCallbacks

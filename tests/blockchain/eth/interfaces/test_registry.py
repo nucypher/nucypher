@@ -16,12 +16,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
+
 import pytest
 
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import BaseContractRegistry
-from nucypher.blockchain.eth.registry import LocalContractRegistry, IndividualAllocationRegistry
-from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
+from nucypher.blockchain.eth.registry import IndividualAllocationRegistry, LocalContractRegistry
+from nucypher.config.constants import TEMPORARY_DOMAIN
 
 
 def test_contract_registry(tempfile_path):

@@ -15,22 +15,42 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
+import contextlib
+
+import socket
+
 from cryptography.x509 import Certificate
-from typing import Set, List, Iterable, Optional
+from typing import Iterable, List, Optional, Set
 
 from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.blockchain.eth.token import WorkTracker
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.sandbox.constants import (
-    MOCK_KNOWN_URSULAS_CACHE,
-    MOCK_URSULA_STARTING_PORT,
-    NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-    MOCK_URSULA_DB_FILEPATH, INSECURE_DEVELOPMENT_PASSWORD)
+from tests.constants import (
+    MOCK_URSULA_DB_FILEPATH,
+    NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
+)
+
+
+def select_test_port() -> int:
+    """
+    Search for a network port that is open at the time of the call;
+    Verify that the port is not the same as the default Ursula running port.
+
+    Note: There is no guarantee that the returned port will still be available later.
+    """
+
+    closed_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    with contextlib.closing(closed_socket) as open_socket:
+        open_socket.bind(('localhost', 0))
+        port = open_socket.getsockname()[1]
+
+        if port == UrsulaConfiguration.DEFAULT_REST_PORT:
+            return select_test_port()
+
+        open_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return port
 
 
 def make_federated_ursulas(ursula_config: UrsulaConfiguration,
@@ -137,3 +157,7 @@ def start_pytest_ursula_services(ursula: Ursula) -> Certificate:
 
     certificate_as_deployed = node_deployer.cert.to_cryptography()
     return certificate_as_deployed
+
+
+MOCK_KNOWN_URSULAS_CACHE = dict()
+MOCK_URSULA_STARTING_PORT = select_test_port()

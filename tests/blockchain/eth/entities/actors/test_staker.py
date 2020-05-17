@@ -19,14 +19,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from eth_tester.exceptions import TransactionFailed
 
-from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.token import NU, Stake
-from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.sandbox.blockchain import token_airdrop
-from nucypher.utilities.sandbox.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD
-from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
-from tests.fixtures import FEE_RATE_RANGE
+from tests.constants import FEE_RATE_RANGE, INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.ursula import make_decentralized_ursulas
 
 
 @pytest.mark.slow()

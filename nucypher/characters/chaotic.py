@@ -1,33 +1,30 @@
 import json
-import os
-from datetime import datetime, timedelta
-from decimal import Decimal
 
 import eth_utils
 import math
 import maya
+import os
 import time
 from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE
+from datetime import datetime, timedelta
+from decimal import Decimal
 from flask import Flask, Response
 from hendrix.deploy.base import HendrixDeploy
 from nacl.hash import sha256
 from sqlalchemy import create_engine, or_
-from twisted.internet import threads, reactor
+from twisted.internet import reactor, threads
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.actors import NucypherTokenActor
-from nucypher.blockchain.eth.agents import (
-    NucypherTokenAgent,
-    ContractAgency
-)
+from nucypher.blockchain.eth.agents import (ContractAgency, NucypherTokenAgent)
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
-from nucypher.config.constants import TEMPLATES_DIR, MAX_UPLOAD_CONTENT_LENGTH
+from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH, TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower, TransactingPower
 from nucypher.datastore.threading import ThreadedSession
 

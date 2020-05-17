@@ -3,16 +3,12 @@ import json
 from typing import Union
 
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.registry import (
-    CanonicalRegistrySource,
-    BaseContractRegistry,
-    IndividualAllocationRegistry,
-    RegistrySourceManager
-)
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain
-from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN, MOCK_PROVIDER_URI
+from nucypher.blockchain.eth.registry import (BaseContractRegistry, CanonicalRegistrySource,
+                                              IndividualAllocationRegistry, RegistrySourceManager)
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from tests.utils.blockchain import TesterBlockchain
+from tests.constants import MOCK_PROVIDER_URI
 
 
 def make_mock_registry_source_manager(blockchain, test_registry, mock_backend: bool = False):

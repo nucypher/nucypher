@@ -15,50 +15,39 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import binascii
 import contextlib
 import random
-from collections import defaultdict, OrderedDict
-from collections import deque
-from collections import namedtuple
+from collections import OrderedDict, defaultdict, deque, namedtuple
 from contextlib import suppress
-from typing import Set, Tuple, Union
 
+import binascii
 import maya
 import requests
 import time
-from bytestring_splitter import BytestringSplitter, PartiallyKwargifiedBytes
-from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
+from bytestring_splitter import BytestringSplitter, BytestringSplittingError, PartiallyKwargifiedBytes, \
+    VariableLengthBytestring
 from constant_sorrow import constant_or_bytes
-from constant_sorrow.constants import (
-    NO_KNOWN_NODES,
-    NOT_SIGNED,
-    NEVER_SEEN,
-    NO_STORAGE_AVAILIBLE,
-    FLEET_STATES_MATCH,
-    CERTIFICATE_NOT_SAVED,
-    UNKNOWN_FLEET_STATE
-)
+from constant_sorrow.constants import (CERTIFICATE_NOT_SAVED, FLEET_STATES_MATCH, NEVER_SEEN, NOT_SIGNED,
+                                       NO_KNOWN_NODES, NO_STORAGE_AVAILIBLE, UNKNOWN_FLEET_STATE)
 from cryptography.x509 import Certificate
 from eth_utils import to_checksum_address
 from requests.exceptions import SSLError
-from twisted.internet import reactor, defer
-from twisted.internet import task
+from twisted.internet import defer, reactor, task
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
-
-import nucypher
+from typing import Set, Tuple, Union
 from umbral.signing import Signature
 
+import nucypher
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.api import keccak_digest, verify_eip_191, recover_address_eip_191
+from nucypher.crypto.api import keccak_digest, recover_address_eip_191, verify_eip_191
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import TransactingPower, SigningPower, DecryptingPower, NoSigningPower
+from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower, TransactingPower
 from nucypher.crypto.signing import signature_splitter
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown

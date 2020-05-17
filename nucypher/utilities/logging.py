@@ -15,16 +15,15 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import pathlib
 from contextlib import contextmanager
 
-from twisted.logger import FileLogObserver, jsonFileLogObserver, formatEvent, formatEventAsClassicLogText
-from twisted.logger import LogLevel
-from twisted.logger import globalLogPublisher
+import pathlib
+from twisted.logger import FileLogObserver, LogLevel, formatEvent, formatEventAsClassicLogText, globalLogPublisher, \
+    jsonFileLogObserver
 from twisted.python.logfile import LogFile
 
 import nucypher
-from nucypher.config.constants import USER_LOG_DIR, NUCYPHER_SENTRY_ENDPOINT
+from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT, USER_LOG_DIR
 
 ONE_MEGABYTE = 1_048_576
 MAXIMUM_LOG_SIZE = ONE_MEGABYTE * 10

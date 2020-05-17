@@ -16,19 +16,20 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import random
+
 import re
 
 from nucypher.blockchain.eth.agents import (
-    PolicyManagerAgent,
-    StakingEscrowAgent,
     AdjudicatorAgent,
+    ContractAgency,
     NucypherTokenAgent,
-    ContractAgency
+    PolicyManagerAgent,
+    StakingEscrowAgent
 )
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.commands.status import status
-from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI, TEMPORARY_DOMAIN
-from tests.fixtures import FEE_RATE_RANGE
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from tests.constants import FEE_RATE_RANGE, TEST_PROVIDER_URI
 
 
 def test_nucypher_status_network(click_runner, testerchain, agency_local_registry):

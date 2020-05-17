@@ -14,15 +14,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import Union
-
 import os
+from eth_tester import EthereumTester, PyEVMBackend
 from eth_tester.backends.mock.main import MockBackend
+from typing import Union
 from urllib.parse import urlparse
-
-from eth_tester import EthereumTester
-from eth_tester import PyEVMBackend
-from web3 import WebsocketProvider, HTTPProvider, IPCProvider
+from web3 import HTTPProvider, IPCProvider, WebsocketProvider
 from web3.exceptions import InfuraKeyNotFound
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
@@ -92,7 +89,11 @@ def _get_auto_provider(provider_uri):
 
 
 def _get_pyevm_test_backend() -> PyEVMBackend:
-    from nucypher.utilities.sandbox.constants import PYEVM_GAS_LIMIT, NUMBER_OF_ETH_TEST_ACCOUNTS
+    try:
+        from tests.constants import PYEVM_GAS_LIMIT, NUMBER_OF_ETH_TEST_ACCOUNTS
+    except ImportError:
+        raise ImportError("Nucypher is not installed in development mode.  "
+                          "Please checkout the code locally and reinstall to use the test client.")
 
     # Initialize
     genesis_params = PyEVMBackend._generate_genesis_params(overrides={'gas_limit': PYEVM_GAS_LIMIT})

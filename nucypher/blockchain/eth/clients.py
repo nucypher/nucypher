@@ -16,20 +16,18 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import os
-import shutil
-from typing import Union
 
 import maya
+import os
+import shutil
 import time
 from constant_sorrow.constants import NOT_RUNNING, UNKNOWN_DEVELOPMENT_CHAIN_ID
 from cytoolz.dicttoolz import dissoc
 from eth_account import Account
 from eth_account.messages import encode_defunct
-from eth_utils import to_canonical_address
-from eth_utils import to_checksum_address
+from eth_utils import to_canonical_address, to_checksum_address
 from geth import LoggingMixin
-from geth.accounts import get_accounts, create_new_account
+from geth.accounts import create_new_account, get_accounts
 from geth.chain import (
     get_chain_data_dir,
     initialize_chain,
@@ -38,9 +36,9 @@ from geth.chain import (
 )
 from geth.process import BaseGethProcess
 from twisted.logger import Logger
+from typing import Union
 from web3 import Web3
 
-from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
 
 UNKNOWN_DEVELOPMENT_CHAIN_ID.bool_value(True)

@@ -1,8 +1,6 @@
 import functools
-from base64 import b64decode
-from typing import Union
-
 import maya
+from typing import Union
 from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.control.specifications import alice, bob, enrico
