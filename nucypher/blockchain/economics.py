@@ -67,9 +67,9 @@ class BaseEconomics:
 
     # Adjudicator
     _default_hash_algorithm = HASH_ALGORITHM_SHA256
-    _default_base_penalty = 100
-    _default_penalty_history_coefficient = 10
-    _default_percentage_penalty_coefficient = 8
+    _default_base_penalty = 2
+    _default_penalty_history_coefficient = 0
+    _default_percentage_penalty_coefficient = 100000  # 0.001%
     _default_reward_coefficient = 2
 
     # Worklock
