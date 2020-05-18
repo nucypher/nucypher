@@ -22,7 +22,6 @@ from nucypher.blockchain.eth.actors import Executive, Trustee
 from nucypher.blockchain.eth.agents import ContractAgency, MultiSigAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.config import get_provider_process
@@ -117,7 +116,8 @@ class MultiSigOptions:
 
     def __create_executive(self, registry, transacting: bool = False) -> Executive:
         client_password = None
-        if transacting and not self.hw_wallet:
+        is_clef = ClefSigner.is_valid_clef_uri(self.signer_uri)
+        if transacting and not self.hw_wallet and not is_clef:
             client_password = get_client_password(checksum_address=self.checksum_address)
         executive = Executive(checksum_address=self.checksum_address,
                               registry=registry,
@@ -133,7 +133,8 @@ class MultiSigOptions:
 
     def __create_trustee(self, registry, transacting: bool = False) -> Trustee:
         client_password = None
-        if transacting and not self.hw_wallet:
+        is_clef = ClefSigner.is_valid_clef_uri(self.signer_uri)
+        if transacting and not self.hw_wallet and not is_clef:
             client_password = get_client_password(checksum_address=self.checksum_address)
         trustee = Trustee(checksum_address=self.checksum_address, registry=registry, client_password=client_password)
         return trustee

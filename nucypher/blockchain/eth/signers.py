@@ -193,6 +193,11 @@ class ClefSigner(Signer):
         return response
 
     @classmethod
+    def is_valid_clef_uri(cls, uri: str) -> bool:  # TODO: Workaround for #1941
+        uri_breakdown = urlparse(uri)
+        return uri_breakdown.scheme == cls.URI_SCHEME
+
+    @classmethod
     def from_signer_uri(cls, uri: str) -> 'ClefSigner':
         uri_breakdown = urlparse(uri)
         if uri_breakdown.scheme != cls.URI_SCHEME:
