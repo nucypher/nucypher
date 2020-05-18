@@ -89,3 +89,21 @@ def save_receipt(actor_method):
         self._saved_receipts.append((datetime.utcnow(), receipt))
         return receipt
     return wrapped
+
+
+def transaction(func: Callable):
+    """Marks an agent method as containing contract transactions"""
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+        result = func(*args, **kwargs)
+        return result
+    return wrapped
+
+
+def contract_call(func: Callable):
+    """Marks an agent method as containing contract calls"""
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+        result = func(*args, **kwargs)
+        return result
+    return wrapped
