@@ -34,7 +34,7 @@ from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
     RegistrySourceManager
 )
-from nucypher.blockchain.eth.signers import Signer
+from nucypher.blockchain.eth.signers import Signer, ClefSigner
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import get_client_password
@@ -196,7 +196,9 @@ class ActorOptions:
             if not self.force:
                 click.confirm(CONFIRM_SELECTED_ACCOUNT.format(address=deployer_address), abort=True)
 
-            if not self.hw_wallet and not deployer_interface.client.is_local:
+            is_clef = ClefSigner.is_valid_clef_uri(self.signer_uri)
+            eth_password_is_needed = not self.hw_wallet and not deployer_interface.client.is_local and not is_clef
+            if eth_password_is_needed:
                 password = get_client_password(checksum_address=deployer_address)
         # Produce Actor
         signer = Signer.from_signer_uri(self.signer_uri) if self.signer_uri else None

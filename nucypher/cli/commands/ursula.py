@@ -22,6 +22,7 @@ import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 from nucypher.blockchain.economics import EconomicsFactory
+from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
 from nucypher.cli.actions.config import (
@@ -248,7 +249,7 @@ class UrsulaCharacterOptions:
 
     __option_name__ = 'character_options'
 
-    def __init__(self, config_options, lonely, teacher_uri, min_stake):
+    def __init__(self, config_options: UrsulaConfigOptions, lonely, teacher_uri, min_stake):
         self.config_options = config_options
         self.lonely = lonely
         self.teacher_uri = teacher_uri
@@ -257,11 +258,10 @@ class UrsulaCharacterOptions:
     def create_character(self, emitter, config_file, json_ipc, load_seednodes=True):
 
         ursula_config = self.config_options.create_config(emitter, config_file)
-
-        # TODO: WAT
+        is_clef = ClefSigner.is_valid_clef_uri(self.config_options.signer_uri)
         client_password = None
         if not ursula_config.federated_only:
-            if not self.config_options.dev and not json_ipc:
+            if not self.config_options.dev and not json_ipc and not is_clef:
                 client_password = get_client_password(checksum_address=ursula_config.worker_address,
                                                       envvar=NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD)
 

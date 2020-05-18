@@ -19,6 +19,7 @@ import click
 import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 
+from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
@@ -266,7 +267,8 @@ class AliceCharacterOptions:
         config = self.config_options.create_config(emitter, config_file)
 
         client_password = None
-        eth_password_is_needed = not config.federated_only and not self.hw_wallet and not config.dev_mode
+        is_clef = ClefSigner.is_valid_clef_uri(self.config_options.signer_uri)
+        eth_password_is_needed = not config.federated_only and not self.hw_wallet and not config.dev_mode and not is_clef
         if eth_password_is_needed:
             if json_ipc:
                 client_password = os.environ.get(NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, NO_PASSWORD)

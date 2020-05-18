@@ -24,6 +24,7 @@ from nucypher.blockchain.eth.constants import MAX_UINT16
 from nucypher.blockchain.eth.events import EventRecord
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
+from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.blockchain.eth.token import NU, StakeList
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.auth import get_client_password
@@ -184,7 +185,7 @@ class StakerOptions:
 
     __option_name__ = 'staker_options'
 
-    def __init__(self, config_options, staking_address):
+    def __init__(self, config_options: StakeHolderConfigOptions, staking_address: str):
         self.config_options = config_options
         self.staking_address = staking_address
 
@@ -209,7 +210,7 @@ class TransactingStakerOptions:
 
     __option_name__ = 'transacting_staker_options'
 
-    def __init__(self, staker_options, hw_wallet, beneficiary_address, allocation_filepath):
+    def __init__(self, staker_options: StakerOptions, hw_wallet, beneficiary_address, allocation_filepath):
         self.staker_options = staker_options
         self.hw_wallet = hw_wallet
         self.beneficiary_address = beneficiary_address
@@ -260,8 +261,10 @@ class TransactingStakerOptions:
         return self.staker_options.get_blockchain()
 
     def get_password(self, blockchain, client_account):
+        is_clef = ClefSigner.is_valid_clef_uri(self.staker_options.config_options.signer_uri)
+        eth_password_needed = not self.hw_wallet and not blockchain.client.is_local and not is_clef
         password = None
-        if not self.hw_wallet and not blockchain.client.is_local:
+        if eth_password_needed:
             password = get_client_password(checksum_address=client_account)
         return password
 
