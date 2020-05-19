@@ -1,13 +1,18 @@
 from collections import defaultdict
 
 from hexbytes import HexBytes
-from typing import List, Tuple
+from typing import Callable, Tuple
 from unittest.mock import Mock, _CallList
 
 from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent, \
+from nucypher.blockchain.eth.agents import (
+    NucypherTokenAgent,
+    PolicyManagerAgent,
+    StakingEscrowAgent,
     WorkLockAgent
+)
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.decorators import _CONTRACT_TRANSACTIONS, _CONTRACT_CALLS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from tests.constants import MOCK_PROVIDER_URI
 
@@ -39,6 +44,8 @@ def default_fake_call(*_a, **_kw) -> 1:
 
 class MockContractAgent:
 
+    MOCK_PREFIX = 'Mock'
+
     # Internal
     registry = Mock()
     blockchain = MOCK_TESTERCHAIN
@@ -57,34 +64,44 @@ class MockContractAgent:
     TRANSACTIONS = tuple()
 
     def __init__(self):
-        # initial state
-        self.spy = True
         self.setup_mock(agent_attrs=self.ATTRS)
 
     @classmethod
-    def setup_mock(cls, agent_attrs: dict = None):
+    def setup_mock(cls, agent_attrs: dict = None) -> None:
         """Bind mock agent attributes to the *subclass* with default values"""
-        if not agent_attrs:
-            agent_attrs = dict()
-        for agent_method, mock_value in agent_attrs.items():
-            setattr(cls, agent_method, mock_value)
+
+        # Default mocks for decorated agent methods
+        real_name = cls.__name__.strip(cls.MOCK_PREFIX)
+        cls.CALLS = _CONTRACT_CALLS[real_name]
+        cls.TRANSACTIONS = _CONTRACT_TRANSACTIONS[real_name]
+
         for call in cls.CALLS:
-            setattr(cls, call, Mock(return_value=cls.DEFAULT_CALL))
+            llama = call.__name__
+            setattr(cls, call.__name__, Mock(return_value=cls.DEFAULT_CALL))
         for tx in cls.TRANSACTIONS:
-            setattr(cls, tx, Mock(return_value=cls.DEFAULT_TRANSACTION))
+            setattr(cls, tx.__name__, Mock(return_value=cls.DEFAULT_TRANSACTION))
+
+        # Explicit Attrs
+        cls.ATTRS = agent_attrs
+        if agent_attrs:
+            for agent_method, mock_value in agent_attrs.items():
+                setattr(cls, agent_method, mock_value)
 
     #
     # Utils
     #
 
     def reset(self):
-        for name in (*self.CALLS, *self.TRANSACTIONS):
-            mock = getattr(self, name)
+        for func in (*self.CALLS, *self.TRANSACTIONS):
+            if func.__name__ in self.ATTRS:
+                return  # Skip Explicit
+            mock = getattr(self, func.__name__)
             mock.call_args_list = _CallList()
 
-    def __get_call_list(self, name_list: Tuple[str]) -> defaultdict:
+    def __get_call_list(self, callables: Tuple[Callable]) -> defaultdict:
         result = defaultdict(list)
-        for name in name_list:
+        for callable in callables:
+            name = callable.__name__
             mock = getattr(self, name)
             calls = mock.call_args_list
             if calls:
@@ -93,12 +110,12 @@ class MockContractAgent:
 
     @property
     def spy_transactions(self) -> defaultdict:
-        result = self.__get_call_list(name_list=self.TRANSACTIONS)
+        result = self.__get_call_list(callables=self.TRANSACTIONS)
         return result
             
     @property
     def spy_contract_calls(self) -> defaultdict:
-        result = self.__get_call_list(name_list=self.CALLS)
+        result = self.__get_call_list(callables=self.CALLS)
         return result
 
     #
@@ -118,22 +135,6 @@ class MockContractAgent:
     def assert_transaction_not_called(self, name: str) -> None:
         assert name not in self.spy_transactions, f'Unexpected transaction call "{name}".'
 
-    def assert_transaction(self, name: str, call_count: int = 1, **kwargs) -> None:
-
-        # some transaction
-        assert self.spy_transactions, 'No transactions performed'
-        assert name in self.TRANSACTIONS, f'"{name}" was not performed. Recorded txs: ({" ,".join(self.spy_transactions)})'
-
-        # this transaction
-        transaction_executions = self.spy_transactions[name]
-        fail = f'Transaction "{name}" was called an unexpected number of times; ' \
-               f'Expected {call_count} got {len(transaction_executions)}.'
-        assert len(transaction_executions) == call_count, fail
-
-        # transaction params
-        agent_args, agent_kwargs = transaction_executions[0]  # use the first occurrence
-        assert kwargs == agent_kwargs, 'Unexpected agent input'
-
     def assert_contract_calls(self, calls: Tuple[str]) -> None:
         for call_name in calls:
             assert call_name in self.spy_contract_calls, f'"{call_name}" was not called'
@@ -142,52 +143,16 @@ class MockContractAgent:
 class MockNucypherToken(MockContractAgent, NucypherTokenAgent):
     """Look at me im a token!"""
 
-    CALLS = ('get_balance',
-             )
 
-
-class MockStakingAgent(MockContractAgent, StakingEscrowAgent):
+class MockStakingEscrowAgent(MockContractAgent, StakingEscrowAgent):
     """dont forget the eggs!"""
-
-    CALLS = ('get_completed_work',
-             'get_all_stakes',
-             'get_current_period',
-             'get_worker_from_staker',
-             'get_last_committed_period',
-             'get_flags',
-             'is_restaking',
-             'is_winding_down',
-             )
 
 
 class MockPolicyManagerAgent(MockContractAgent, PolicyManagerAgent):
     """The best ethereum policy manager ever"""
 
-    CALLS = ('get_fee_amount',
-             )
-
 
 class MockWorkLockAgent(MockContractAgent, WorkLockAgent):
-
-    CALLS = ('check_claim',
-             'eth_to_tokens',
-             'get_deposited_eth',
-             'get_eth_supply',
-             'get_base_deposit_rate',
-             'get_bonus_lot_value',
-             'get_bonus_deposit_rate',
-             'get_bonus_refund_rate',
-             'get_base_refund_rate',
-             'get_completed_work',
-             'get_refunded_work')
-
-    TRANSACTIONS = ('bid',
-                    'cancel_bid',
-                    'force_refund',
-                    'verify_bidding_correctness',
-                    'claim',
-                    'refund',
-                    'withdraw_compensation')
 
     def __init__(self):
 
@@ -207,9 +172,10 @@ class MockWorkLockAgent(MockContractAgent, WorkLockAgent):
 
 class MockContractAgency:
 
+
     # Test doubles
     DOUBLE_AGENTS = {NucypherTokenAgent: MockNucypherToken,
-                     StakingEscrowAgent: MockStakingAgent,
+                     StakingEscrowAgent: MockStakingEscrowAgent,
                      PolicyManagerAgent: MockPolicyManagerAgent,
                      WorkLockAgent: MockWorkLockAgent}
 
@@ -220,7 +186,7 @@ class MockContractAgency:
 
     @classmethod
     def get_agent(cls, agent_class, *args, **kwargs) -> MockContractAgent:
-        if "Mock" not in str(agent_class.__name__):
+        if MockContractAgent.MOCK_PREFIX not in str(agent_class.__name__):
             try:
                 double = cls.DOUBLE_AGENTS[agent_class]
             except KeyError:

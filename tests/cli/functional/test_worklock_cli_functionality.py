@@ -142,7 +142,7 @@ def test_valid_bid(click_runner,
     # Transactions
     mock_worklock_agent.assert_any_transaction()
     mock_worklock_agent.assert_only_one_transaction_executed()
-    mock_worklock_agent.assert_transaction(name='bid', checksum_address=surrogate_bidder.checksum_address, value=nunits)
+    mock_worklock_agent.bid.assert_called_with(checksum_address=surrogate_bidder.checksum_address, value=nunits)
 
     # Calls
     expected_calls = ('get_deposited_eth', 'eth_to_tokens')

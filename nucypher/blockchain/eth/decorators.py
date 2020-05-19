@@ -1,9 +1,12 @@
+from collections import defaultdict
+
 import eth_utils
 import functools
 import inspect
 from datetime import datetime
 from twisted.logger import Logger
 from typing import Callable
+
 
 __VERIFIED_ADDRESSES = set()
 
@@ -73,8 +76,9 @@ def validate_checksum_address(func: Callable) -> Callable:
     return wrapped
 
 
-def only_me(func):
+def only_me(func: Callable):
     """Decorator to enforce invocation of permissioned actor methods"""
+    @functools.wraps(func)
     def wrapped(actor=None, *args, **kwargs):
         if not actor.is_me:
             raise actor.StakerError("You are not {}".format(actor.__class.__.__name__))
@@ -84,6 +88,7 @@ def only_me(func):
 
 def save_receipt(actor_method):
     """Decorator to save the receipts of transmitted transactions from actor methods"""
+    @functools.wraps(actor_method)
     def wrapped(self, *args, **kwargs):
         receipt = actor_method(self, *args, **kwargs)
         self._saved_receipts.append((datetime.utcnow(), receipt))
@@ -91,19 +96,20 @@ def save_receipt(actor_method):
     return wrapped
 
 
+# TODO: Make agent-local
+_CONTRACT_TRANSACTIONS = defaultdict(list)
+_CONTRACT_CALLS = defaultdict(list)
+
+
 def transaction(func: Callable):
     """Marks an agent method as containing contract transactions"""
-    @functools.wraps(func)
-    def wrapped(*args, **kwargs):
-        result = func(*args, **kwargs)
-        return result
-    return wrapped
+    class_name, method_name = func.__qualname__.split('.')
+    _CONTRACT_TRANSACTIONS[class_name].append(func)
+    return func
 
 
 def contract_call(func: Callable):
     """Marks an agent method as containing contract calls"""
-    @functools.wraps(func)
-    def wrapped(*args, **kwargs):
-        result = func(*args, **kwargs)
-        return result
-    return wrapped
+    class_name, method_name = func.__qualname__.split('.')  # TODO: Leave the dot in and mock directly?
+    _CONTRACT_CALLS[class_name].append(func)
+    return func

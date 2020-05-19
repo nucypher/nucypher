@@ -22,7 +22,7 @@ import math
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
 from eth_utils.address import to_checksum_address
 from twisted.logger import Logger
-from typing import Dict, Generator, Iterable, List, Tuple, Type, Union
+from typing import Dict, Generator, List, Tuple, Type, Union
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.constants import (
@@ -50,6 +50,7 @@ class ContractAgency:
     # TODO: Enforce singleton - #1506 - Okay, actually, make this into a module
 
     __agents = dict()
+    TRANSACTION_REGISTRY = dict()
 
     @classmethod
     def get_agent(cls,

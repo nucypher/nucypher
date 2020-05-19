@@ -41,7 +41,7 @@ from tests.constants import (
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS
 )
 from tests.fixtures import _make_testerchain, make_token_economics
-from tests.mock.agents import FAKE_RECEIPT, MockContractAgency, MockNucypherToken, MockStakingAgent, MockWorkLockAgent
+from tests.mock.agents import FAKE_RECEIPT, MockContractAgency, MockNucypherToken, MockStakingEscrowAgent, MockWorkLockAgent
 from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
@@ -70,7 +70,7 @@ def mock_worklock_agent(mock_testerchain, token_economics, mock_contract_agency)
 
 @pytest.fixture(autouse=True)
 def mock_staking_agent(mock_testerchain, token_economics, mock_contract_agency):
-    mock_agent = mock_contract_agency.get_agent(MockStakingAgent)
+    mock_agent = mock_contract_agency.get_agent(MockStakingEscrowAgent)
     yield mock_agent
     mock_agent.reset()
 
