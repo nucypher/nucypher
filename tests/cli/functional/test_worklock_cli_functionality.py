@@ -26,7 +26,7 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.cli.commands.worklock import worklock
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import CLI_TEST_ENV, MOCK_PROVIDER_URI, YES
-from tests.mock.agents import FAKE_RECEIPT, MockWorkLockAgent
+from tests.mock.agents import FAKE_RECEIPT
 
 
 @pytest.fixture()
@@ -140,7 +140,6 @@ def test_valid_bid(click_runner,
     assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
 
     # Transactions
-    mock_worklock_agent.assert_any_transaction()
     mock_worklock_agent.assert_only_one_transaction_executed()
     mock_worklock_agent.bid.assert_called_with(checksum_address=surrogate_bidder.checksum_address, value=nunits)
 

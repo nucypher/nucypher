@@ -28,7 +28,7 @@ from tests.utils.config import (
 )
 
 from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.agents import ContractAgency
+from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, StakingEscrowAgent, WorkLockAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
@@ -41,7 +41,7 @@ from tests.constants import (
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS
 )
 from tests.fixtures import _make_testerchain, make_token_economics
-from tests.mock.agents import FAKE_RECEIPT, MockContractAgency, MockNucypherToken, MockStakingEscrowAgent, MockWorkLockAgent
+from tests.mock.agents import FAKE_RECEIPT, MockContractAgency
 from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
@@ -56,21 +56,32 @@ def mock_contract_agency(monkeypatch, module_mocker, token_economics):
 
 @pytest.fixture(autouse=True)
 def mock_token_agent(mock_testerchain, token_economics, mock_contract_agency):
-    mock_agent = mock_contract_agency.get_agent(MockNucypherToken)
+    mock_agent = mock_contract_agency.get_agent(NucypherTokenAgent)
     yield mock_agent
     mock_agent.reset()
 
 
 @pytest.fixture(autouse=True)
 def mock_worklock_agent(mock_testerchain, token_economics, mock_contract_agency):
-    mock_agent = mock_contract_agency.get_agent(MockWorkLockAgent)
+    economics = token_economics
+    mock_agent = mock_contract_agency.get_agent(WorkLockAgent)
+    # Customize the mock agent
+    spec = {'boosting_refund': economics.worklock_boosting_refund_rate,
+            'slowing_refund': 1,  # TODO: another way to get this value?
+            'start_bidding_date': economics.bidding_start_date,
+            'end_bidding_date': economics.bidding_end_date,
+            'end_cancellation_date': economics.cancellation_end_date,
+            'minimum_allowed_bid': economics.worklock_min_allowed_bid,
+            'lot_value': economics.worklock_supply}
+    for method_name, return_value in spec.items():
+        setattr(mock_agent.__class__, method_name, return_value)
     yield mock_agent
     mock_agent.reset()
 
 
 @pytest.fixture(autouse=True)
 def mock_staking_agent(mock_testerchain, token_economics, mock_contract_agency):
-    mock_agent = mock_contract_agency.get_agent(MockStakingEscrowAgent)
+    mock_agent = mock_contract_agency.get_agent(StakingEscrowAgent)
     yield mock_agent
     mock_agent.reset()
 

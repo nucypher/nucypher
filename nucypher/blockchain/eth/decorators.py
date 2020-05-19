@@ -1,4 +1,5 @@
 from collections import defaultdict
+from enum import Enum
 
 import eth_utils
 import functools
@@ -96,20 +97,29 @@ def save_receipt(actor_method):
     return wrapped
 
 
-# TODO: Make agent-local
-_CONTRACT_TRANSACTIONS = defaultdict(list)
-_CONTRACT_CALLS = defaultdict(list)
+#
+# Contract Function Handling
+#
+
+# TODO: Disable collection in prod (detect test package)
+COLLECT_CONTRACT_API = True
 
 
-def transaction(func: Callable):
-    """Marks an agent method as containing contract transactions"""
-    class_name, method_name = func.__qualname__.split('.')
-    _CONTRACT_TRANSACTIONS[class_name].append(func)
-    return func
+class ContractInterfaces(Enum):
+    CALL = 0
+    TRANSACTION = 1
+    ATTRIBUTE = 2
+    UNKNOWN = 3
 
 
-def contract_call(func: Callable):
-    """Marks an agent method as containing contract calls"""
-    class_name, method_name = func.__qualname__.split('.')  # TODO: Leave the dot in and mock directly?
-    _CONTRACT_CALLS[class_name].append(func)
-    return func
+def contract_api(interface: ContractInterfaces = None) -> Callable:
+    """Decorator factory for contract API markers"""
+    if not interface:
+        interface = ContractInterfaces.UNKNOWN
+
+    def decorator(agent_method: Callable) -> Callable:
+        """Marks an agent method as containing transactions"""
+        if COLLECT_CONTRACT_API:
+            agent_method.contract_api = interface
+        return agent_method
+    return decorator
