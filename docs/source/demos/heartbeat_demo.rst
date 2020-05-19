@@ -113,4 +113,3 @@ The result is printed in the console:
     ---------------------❤︎ (81 BPM)                     Retrieval time:  1483.04 ms
     ----------------❤︎ (76 BPM)                          Retrieval time:  1687.72 ms
     ---------------❤︎ (75 BPM)                           Retrieval time:  1563.65 ms
-

@@ -25,4 +25,3 @@ pipenv lock --clear --pre --requirements --dev > dev-$PREFIX.txt
 
 echo "building $PREFIX.txt"
 pipenv lock --clear --pre --requirements > $PREFIX.txt
-

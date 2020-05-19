@@ -187,4 +187,3 @@ def test_configuration_preservation():
 
     finally:
         shutil.rmtree(restorable_item.filepath, ignore_errors=True)
-

@@ -64,6 +64,3 @@ def test_multisig_deployer_and_agent(testerchain,
         assert multisig_agent.get_owner(i) == owner
         assert multisig_agent.is_owner(owner)
     assert multisig_agent.owners == tuple(owners)
-
-
-

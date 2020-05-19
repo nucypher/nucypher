@@ -47,4 +47,3 @@
     - name: "wait a few seconds for the docker daemon to startup (you can ctrl-C this...)"
       pause:
         seconds: 10
-

@@ -15,4 +15,3 @@
     - name: Rename Configuration File (if existing)
       command: mv {{ old }} {{ new }}
       when: configuration_file.stat.exists
-

@@ -65,6 +65,3 @@ def test_deploy_multisig_contract(click_runner,
     assert agent.owners == multisig_owners
     assert agent.threshold == MULTISIG_THRESHOLD
     assert agent.nonce == 0
-
-
-

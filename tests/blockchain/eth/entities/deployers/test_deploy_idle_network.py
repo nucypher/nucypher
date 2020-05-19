@@ -153,4 +153,3 @@ def test_activate_network(testerchain, token_economics, test_registry):
     assert not staking_escrow_deployer.ready_to_activate
     with pytest.raises(StakingEscrowDeployer.ContractDeploymentError):
         staking_escrow_deployer.activate()
-
