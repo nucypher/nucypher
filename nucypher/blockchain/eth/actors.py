@@ -29,7 +29,7 @@ from decimal import Decimal
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import to_canonical_address, to_checksum_address
 from twisted.logger import Logger
-from typing import Dict, Generator, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 from web3 import Web3
 from web3.exceptions import ValidationError
 
@@ -45,7 +45,11 @@ from nucypher.blockchain.eth.agents import (
     WorkLockAgent
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.decorators import only_me, save_receipt, validate_checksum_address
+from nucypher.blockchain.eth.decorators import (
+    only_me,
+    save_receipt,
+    validate_checksum_address
+)
 from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     BaseContractDeployer,
