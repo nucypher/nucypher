@@ -15,11 +15,10 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import importlib
 import random
-import sys
 
 import math
+import sys
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
 from eth_utils.address import to_checksum_address
 from twisted.logger import Logger
@@ -45,6 +44,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
 from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.crypto.api import sha256_digest
+
 
 #  TODO: Agents type alias
 # Agents = Union['AdjudicatorAgent', '']
@@ -323,6 +323,7 @@ class StakingEscrowAgent(EthereumContractAgent):
 
         return n_tokens, stakers
 
+    @contract_api(ContractInterfaces.CALL)
     def get_all_locked_tokens(self, periods: int, pagination_size: int = None) -> int:
         all_locked_tokens, _stakers = self.get_all_active_stakers(periods=periods, pagination_size=pagination_size)
         return all_locked_tokens
@@ -521,6 +522,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         reward_amount = token_amount - staked_amount
         return reward_amount
 
+    @contract_api(ContractInterfaces.TRANSACTION)
     def collect_staking_reward(self, staker_address: str) -> dict:
         """Withdraw tokens rewarded for staking."""
         reward_amount = self.calculate_staking_reward(staker_address=staker_address)
@@ -544,7 +546,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         wind_down_flag, restake_flag, measure_work_flag, snapshot_flag = flags
         return wind_down_flag, restake_flag, measure_work_flag, snapshot_flag
 
-    @validate_checksum_address
+    @contract_api(ContractInterfaces.CALL)
     def is_restaking(self, staker_address: str) -> bool:
         _winddown_flag, restake_flag, _measure_work_flag, _snapshots_flag = self.get_flags(staker_address)
         return restake_flag
@@ -571,13 +573,13 @@ class StakingEscrowAgent(EthereumContractAgent):
         # TODO: Handle ReStakeLocked event (see #1193)
         return receipt
 
-    @validate_checksum_address
+    @contract_api(ContractInterfaces.CALL)
     def get_restake_unlock_period(self, staker_address: str) -> int:
         staker_info = self.get_staker_info(staker_address)
         restake_unlock_period = int(staker_info[4])  # TODO: #1348 Use constant or enum
         return restake_unlock_period
 
-    @validate_checksum_address
+    @contract_api(ContractInterfaces.CALL)
     def is_winding_down(self, staker_address: str) -> bool:
         winddown_flag, _restake_flag, _measure_work_flag, _snapshots_flag = self.get_flags(staker_address)
         return winddown_flag
@@ -593,7 +595,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         # TODO: Handle WindDownSet event (see #1193)
         return receipt
 
-    @validate_checksum_address
+    @contract_api(ContractInterfaces.CALL)
     def is_taking_snapshots(self, staker_address: str) -> bool:
         _winddown_flag, _restake_flag, _measure_work_flag, snapshots_flag = self.get_flags(staker_address)
         return snapshots_flag
@@ -650,6 +652,7 @@ class StakingEscrowAgent(EthereumContractAgent):
             staker_address = self.contract.functions.stakers(index).call()
             yield staker_address
 
+    @contract_api(ContractInterfaces.CALL)
     def sample(self,
                quantity: int,
                duration: int,
@@ -721,7 +724,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         total_completed_work = self.contract.functions.getCompletedWork(bidder_address).call()
         return total_completed_work
 
-    @validate_checksum_address
+    @contract_api(ContractInterfaces.CALL)
     def get_missing_commitments(self, checksum_address: str) -> int:
         # TODO: Move this up one layer, since it utilizes a combination of contract API methods.
         last_committed_period = self.get_last_committed_period(checksum_address)
@@ -789,7 +792,6 @@ class PolicyManagerAgent(EthereumContractAgent):
         blockchain_record = self.contract.functions.policies(policy_id).call()
         return blockchain_record
 
-    @contract_api()
     def fetch_arrangement_addresses_from_policy_txid(self, txhash: bytes, timeout: int = 600):
         # TODO: Won't it be great when this is impossible?  #1274
         _receipt = self.blockchain.wait_for_receipt(txhash, timeout=timeout)
@@ -1020,6 +1022,7 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
+    @contract_api(ContractInterfaces.TRANSACTION)
     def release_worker(self):
         receipt = self.bond_worker(worker_address=NULL_ADDRESS)
         return receipt
@@ -1273,6 +1276,7 @@ class WorkLockAgent(EthereumContractAgent):
         supply = self.contract.functions.bonusETHSupply().call()
         return supply
 
+    @contract_api(ContractInterfaces.CALL)
     def get_eth_supply(self) -> int:
         num_bidders = self.get_bidders_population()
         min_bid = self.minimum_allowed_bid
@@ -1314,6 +1318,7 @@ class WorkLockAgent(EthereumContractAgent):
         deposit_rate = min_allowed_locked_tokens // self.minimum_allowed_bid  # should never divide by 0
         return deposit_rate
 
+    @contract_api(ContractInterfaces.CALL)
     def get_bonus_deposit_rate(self) -> int:
         try:
             deposit_rate = self.get_bonus_lot_value() // self.get_bonus_eth_supply()
