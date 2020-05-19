@@ -52,11 +52,11 @@ class MockContractAgent:
         mock_methods, real_methods = list(), list(cls.__collect_real_methods(agent_class=agent_class))
         for agent_method in real_methods:
 
-            # Get effect
+            # Get default effect
             interface = getattr(agent_method, cls.__COLLECTION_MARKER)
             default_return = cls.__DEFAULTS.get(interface)
 
-            # Setup Mock
+            # Setup Mock - Carry over the decorator marker to the mock
             mock = Mock(return_value=default_return)
             setattr(mock, cls.__COLLECTION_MARKER, interface)
             mock_methods.append(mock)
@@ -144,3 +144,8 @@ class MockContractAgency(ContractAgency):
         agent_class = getattr(agents, agent_name)
         mock_agent = cls.get_agent(agent_class=agent_class)
         return mock_agent
+
+    @classmethod
+    def reset(cls) -> None:
+        for agent in cls.__agents.values():
+            agent.reset()

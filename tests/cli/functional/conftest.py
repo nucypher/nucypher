@@ -21,14 +21,10 @@ import os
 import pytest
 from eth_account import Account
 from eth_account.account import Account
-from tests.utils.config import (
-    make_alice_test_configuration,
-    make_bob_test_configuration,
-    make_ursula_test_configuration
-)
 
 from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, StakingEscrowAgent, WorkLockAgent
+from nucypher.blockchain.eth.agents import (AdjudicatorAgent, ContractAgency, MultiSigAgent, NucypherTokenAgent,
+                                            PolicyManagerAgent, StakingEscrowAgent, WorkLockAgent)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
@@ -46,22 +42,45 @@ from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_mana
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(scope='function', autouse=True)
 def mock_contract_agency(monkeypatch, module_mocker, token_economics):
     monkeypatch.setattr(ContractAgency, 'get_agent', MockContractAgency.get_agent)
     module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=token_economics)
-    yield MockContractAgency()
-    monkeypatch.delattr(ContractAgency, 'get_agent')
+    mock_agency = MockContractAgency()
+    yield mock_agency
+    mock_agency.reset()
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(scope='function', autouse=True)
 def mock_token_agent(mock_testerchain, token_economics, mock_contract_agency):
-    mock_agent = mock_contract_agency.get_agent(NucypherTokenAgent)
-    yield mock_agent
-    mock_agent.reset()
+    return mock_contract_agency.get_agent(NucypherTokenAgent)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(scope='function', autouse=True)
+def mock_staking_agent(mock_testerchain, token_economics, mock_contract_agency):
+    mock_agent = mock_contract_agency.get_agent(StakingEscrowAgent)
+    return mock_agent
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_adjudicator_agent(mock_testerchain, token_economics, mock_contract_agency):
+    mock_agent = mock_contract_agency.get_agent(AdjudicatorAgent)
+    return mock_agent
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_policy_manager_agent(mock_testerchain, token_economics, mock_contract_agency):
+    mock_agent = mock_contract_agency.get_agent(PolicyManagerAgent)
+    return mock_agent
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_multisig_agent(mock_testerchain, token_economics, mock_contract_agency):
+    mock_agent = mock_contract_agency.get_agent(MultiSigAgent)
+    return mock_agent
+
+
+@pytest.fixture(scope='function', autouse=True)
 def mock_worklock_agent(mock_testerchain, token_economics, mock_contract_agency):
     economics = token_economics
     mock_agent = mock_contract_agency.get_agent(WorkLockAgent)
@@ -79,19 +98,12 @@ def mock_worklock_agent(mock_testerchain, token_economics, mock_contract_agency)
     mock_agent.reset()
 
 
-@pytest.fixture(autouse=True)
-def mock_staking_agent(mock_testerchain, token_economics, mock_contract_agency):
-    mock_agent = mock_contract_agency.get_agent(StakingEscrowAgent)
-    yield mock_agent
-    mock_agent.reset()
-
-
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def mock_click_prompt(mocker):
     return mocker.patch.object(click, 'prompt')
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def mock_click_confirm(mocker):
     return mocker.patch.object(click, 'confirm')
 
