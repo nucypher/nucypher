@@ -19,7 +19,6 @@ import json
 import os
 import pytest
 from eth_account import Account
-from pathlib import Path
 from web3 import Web3
 
 from nucypher.blockchain.eth.signers import KeystoreSigner
@@ -85,6 +84,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
                                                       worker_account,
                                                       worker_address,
                                                       mocker,
+                                                      mock_keystore,
                                                       testerchain):
 
     #

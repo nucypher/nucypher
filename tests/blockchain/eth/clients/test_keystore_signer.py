@@ -1,7 +1,7 @@
-import json
-
-import os
 import collections
+import json
+import os
+
 import pytest
 import shutil
 from cytoolz.dicttoolz import assoc
