@@ -175,7 +175,7 @@ class EthereumContractAgent:
         return self.registry_contract_name
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def owner(self):
         if not self._proxy_name:
             # Only upgradeable + ownable contracts can implement ownership transference.
@@ -741,22 +741,22 @@ class StakingEscrowAgent(EthereumContractAgent):
         return result
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def is_test_contract(self):
         return self.contract.functions.isTestContract().call()
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def worklock(self):
         return self.contract.functions.workLock().call()
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def adjudicator(self):
         return self.contract.functions.adjudicator().call()
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def policy_manager(self):
         return self.contract.functions.policyManager().call()
 
@@ -928,7 +928,7 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         self.__set_owner()
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def owner(self) -> str:
         owner = self.principal_contract.functions.owner().call()
         return owner
@@ -951,12 +951,12 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         return self.__principal_contract
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def initial_locked_amount(self) -> int:
         return self.principal_contract.functions.lockedValue().call()
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def available_balance(self) -> int:
         token_agent = ContractAgency.get_agent(NucypherTokenAgent, self.registry)
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, self.registry)
@@ -977,12 +977,12 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         return available_balance
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def unvested_tokens(self) -> int:
         return self.principal_contract.functions.getLockedTokens().call()
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def end_timestamp(self) -> int:
         return self.principal_contract.functions.endLockTimestamp().call()
 
@@ -1096,32 +1096,32 @@ class AdjudicatorAgent(EthereumContractAgent):
         return self.contract.functions.evaluatedCFrags(data_hash).call()
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def staking_escrow_contract(self) -> str:
         return self.contract.functions.escrow().call()
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def hash_algorithm(self) -> int:
         return self.contract.functions.hashAlgorithm().call()
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def base_penalty(self) -> int:
         return self.contract.functions.basePenalty().call()
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def penalty_history_coefficient(self) -> int:
         return self.contract.functions.penaltyHistoryCoefficient().call()
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def percentage_penalty_coefficient(self) -> int:
         return self.contract.functions.percentagePenaltyCoefficient().call()
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def reward_coefficient(self) -> int:
         return self.contract.functions.rewardCoefficient().call()
 
@@ -1247,7 +1247,7 @@ class WorkLockAgent(EthereumContractAgent):
         return current_bid
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def lot_value(self) -> int:
         """
         Total number of tokens than can be bid for and awarded in or the number of NU
@@ -1284,13 +1284,13 @@ class WorkLockAgent(EthereumContractAgent):
         return supply
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def boosting_refund(self) -> int:
         refund = self.contract.functions.boostingRefund().call()
         return refund
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def slowing_refund(self) -> int:
         refund = self.contract.functions.SLOWING_REFUND().call()
         return refund
@@ -1360,7 +1360,7 @@ class WorkLockAgent(EthereumContractAgent):
         return result
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def next_bidder_to_check(self) -> int:
         """Returns the index of the next bidder to check as part of the bids verification process"""
         return self.contract.functions.nextBidderToCheck().call()
@@ -1371,25 +1371,25 @@ class WorkLockAgent(EthereumContractAgent):
         return self.next_bidder_to_check == bidders_population
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def minimum_allowed_bid(self) -> int:
         min_bid = self.contract.functions.minAllowedBid().call()
         return min_bid
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def start_bidding_date(self) -> int:
         date = self.contract.functions.startBidDate().call()
         return date
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def end_bidding_date(self) -> int:
         date = self.contract.functions.endBidDate().call()
         return date
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def end_cancellation_date(self) -> int:
         date = self.contract.functions.endCancellationDate().call()
         return date
@@ -1418,7 +1418,7 @@ class MultiSigAgent(EthereumContractAgent):
     registry_contract_name = MULTISIG_CONTRACT_NAME
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def nonce(self) -> int:
         nonce = self.contract.functions.nonce().call()
         return nonce
@@ -1429,7 +1429,7 @@ class MultiSigAgent(EthereumContractAgent):
         return owner
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def number_of_owners(self):
         number = self.contract.functions.getNumberOfOwners().call()
         return number
@@ -1439,7 +1439,7 @@ class MultiSigAgent(EthereumContractAgent):
         return tuple(self.get_owner(i) for i in range(self.number_of_owners))
 
     @property
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(ContractInterfaces.ATTRIBUTE)
     def threshold(self) -> int:
         threshold = self.contract.functions.required().call()
         return threshold
