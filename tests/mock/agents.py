@@ -2,10 +2,10 @@ from enum import Enum
 
 from hexbytes import HexBytes
 from typing import Callable, Generator, Iterable, List, Type, Union
-from unittest.mock import Mock
+from unittest.mock import Mock, PropertyMock
 
 from nucypher.blockchain.eth import agents
-from nucypher.blockchain.eth.agents import ContractAgency, EthereumContractAgent
+from nucypher.blockchain.eth.agents import ContractAgency, EthereumContractAgent, WorkLockAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import ContractInterfaces
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -28,7 +28,8 @@ class MockContractAgent:
     __COLLECTION_MARKER = "contract_api"  # decorator attribute
     __DEFAULTS = {
         ContractInterfaces.CALL: FAKE_CALL_RESULT,
-        ContractInterfaces.TRANSACTION:  FAKE_RECEIPT
+        ContractInterfaces.ATTRIBUTE: FAKE_CALL_RESULT,
+        ContractInterfaces.TRANSACTION:  FAKE_RECEIPT,
     }
 
     _MOCK_METHODS = list()
@@ -47,25 +48,47 @@ class MockContractAgent:
         self.agent_class = agent_class
         self.__setup_mock(agent_class=agent_class)
 
+    def __repr__(self) -> str:
+        r = f'Mock{self.agent_class.__name__}(id={id(self)})'
+        return r
+
+
+
     @classmethod
     def __setup_mock(cls, agent_class: Type[EthereumContractAgent]) -> None:
-        mock_methods, real_methods = list(), list(cls.__collect_real_methods(agent_class=agent_class))
-        for agent_method in real_methods:
 
-            # Get default effect
-            interface = getattr(agent_method, cls.__COLLECTION_MARKER)
+        api_methods = list(cls.__collect_contract_api(agent_class=agent_class))
+        mock_methods, mock_properties = list(), dict()
+
+        for agent_interface in api_methods:
+
+            # Handle
+            try:
+                real_method = agent_interface.fget  # Handle properties
+            except AttributeError:
+                real_method = agent_interface
+
+            # Get
+            interface = getattr(real_method, cls.__COLLECTION_MARKER)
             default_return = cls.__DEFAULTS.get(interface)
 
-            # Setup Mock - Carry over the decorator marker to the mock
+            # TODO: Special handling of PropertyMocks?
+            # # Setup
+            # if interface == ContractInterfaces.ATTRIBUTE:
+            #     mock = PropertyMock()
+            #     mock_properties[real_method.__name__] = mock
+            # else:
             mock = Mock(return_value=default_return)
+
+            # Mark
             setattr(mock, cls.__COLLECTION_MARKER, interface)
             mock_methods.append(mock)
 
-            # Bind Mock to agent class
-            setattr(cls, agent_method.__name__, mock)
+            # Bind
+            setattr(cls, real_method.__name__, mock)
 
         cls._MOCK_METHODS = mock_methods
-        cls._REAL_METHODS = real_methods
+        cls._REAL_METHODS = api_methods
 
     @classmethod
     def __get_interface_calls(cls, interface: Enum) -> List[Callable]:
@@ -75,14 +98,16 @@ class MockContractAgent:
 
     @classmethod
     def __is_contract_method(cls, agent_class: Type['EthereumContractAgent'], method_name: str) -> bool:
-        real_method = getattr(agent_class, method_name)
-        method_is_callable = callable(real_method)
-        method_is_contract_api = hasattr(real_method, cls.__COLLECTION_MARKER)
-        is_contract_method = method_is_callable and method_is_contract_api
-        return is_contract_method
+        method_or_property = getattr(agent_class, method_name)
+        try:
+            real_method: Callable = method_or_property.fget  # Property (getter)
+        except AttributeError:
+            real_method: Callable = method_or_property       # Method
+        contract_api: bool = hasattr(real_method, cls.__COLLECTION_MARKER)
+        return contract_api
 
     @classmethod
-    def __collect_real_methods(cls, agent_class: Type[EthereumContractAgent]) -> Generator[Callable, None, None]:
+    def __collect_contract_api(cls, agent_class: Type[EthereumContractAgent]) -> Generator[Callable, None, None]:
         agent_attrs = dir(agent_class)
         predicate = cls.__is_contract_method
         methods = (getattr(agent_class, name) for name in agent_attrs if predicate(agent_class, name))

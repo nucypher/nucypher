@@ -82,17 +82,19 @@ def mock_multisig_agent(mock_testerchain, token_economics, mock_contract_agency)
 
 @pytest.fixture(scope='function', autouse=True)
 def mock_worklock_agent(mock_testerchain, token_economics, mock_contract_agency):
-    # Get the mock agent
     economics = token_economics
+
     mock_agent = mock_contract_agency.get_agent(WorkLockAgent)
+
     # Customize the mock agent
-    mock_agent.boosting_refund.return_value = economics.worklock_boosting_refund_rate
-    mock_agent.slowing_refund.return_value = 1,  # TODO: another way to get this value?
-    mock_agent.start_bidding_date.return_value = economics.bidding_start_date
-    mock_agent.end_bidding_date.return_value = economics.bidding_end_date
-    mock_agent.end_cancellation_date.return_value = economics.cancellation_end_date
-    mock_agent.minimum_allowed_bid.return_value = economics.worklock_min_allowed_bid
-    mock_agent.lot_value.return_value = economics.worklock_supply
+    mock_agent.boosting_refund = economics.worklock_boosting_refund_rate
+    mock_agent.slowing_refund = 1  # TODO: another way to get this value?
+    mock_agent.start_bidding_date = economics.bidding_start_date
+    mock_agent.end_bidding_date = economics.bidding_end_date
+    mock_agent.end_cancellation_date = economics.cancellation_end_date
+    mock_agent.minimum_allowed_bid = economics.worklock_min_allowed_bid
+    mock_agent.lot_value = economics.worklock_supply
+
     yield mock_agent
     mock_agent.reset()
 
