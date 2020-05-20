@@ -24,7 +24,8 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
     ABORT_DEPLOYMENT,
-    CHARACTER_DESTRUCTION, CONFIRM_ENABLE_RESTAKING,
+    CHARACTER_DESTRUCTION,
+    CONFIRM_ENABLE_RESTAKING,
     CONFIRM_ENABLE_WINDING_DOWN,
     CONFIRM_LARGE_STAKE_DURATION,
     CONFIRM_LARGE_STAKE_VALUE,
@@ -42,7 +43,7 @@ def confirm_deployment(emitter: StdoutEmitter, deployer_interface: BlockchainDep
     Interactively confirm deployment by asking the user to type the ALL CAPS name of
     the network they are deploying to or 'DEPLOY' if the network if not a known public chain.
 
-    Aborts if the confirmation work is incorrect.
+    Aborts if the confirmation word is incorrect.
     """
     if deployer_interface.client.chain_name == UNKNOWN_DEVELOPMENT_CHAIN_ID or deployer_interface.client.is_local:
         expected_chain_name = 'DEPLOY'
@@ -85,7 +86,7 @@ def confirm_staged_stake(staker_address: str, value: NU, lock_periods: int) -> b
 
 
 def confirm_large_stake(value: NU = None, lock_periods: int = None) -> bool:
-    """Interactively confirm a large or a long stake"""
+    """Interactively confirm a large stake and/or a long stake duration."""
     if value and (value > NU.from_tokens(150000)):
         click.confirm(CONFIRM_LARGE_STAKE_VALUE.format(value=value), abort=True)
     if lock_periods and (lock_periods > 365):

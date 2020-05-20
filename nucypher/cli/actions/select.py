@@ -105,7 +105,7 @@ def select_client_account(emitter,
     """
 
     if wallet and (provider_uri or signer_uri or signer):
-        raise ValueError("If pass a wallet, don't pass a signer, provider URI, or signer URI also.")
+        raise ValueError("If a wallet is provided, don't provide a signer, provider URI, or signer URI.")
 
     # We use Wallet internally as an account management abstraction
     if not wallet:
@@ -238,7 +238,7 @@ def select_config_file(emitter: StdoutEmitter,
     - If there is only one configuration file for the character, automatically return its filepath.
 
     - If there are multiple character configurations on the disk in the same configuration root,
-      interactively selection commences.
+      use interactive selection.
 
     - Aborts if there are no configurations associated with the supplied character configuration class.
 

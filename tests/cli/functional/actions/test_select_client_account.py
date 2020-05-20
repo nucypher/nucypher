@@ -56,7 +56,7 @@ def test_select_client_account_ambiguous_source(mock_click_prompt, test_emitter,
     # Explicit wallet
     #
 
-    error_message = "If pass a wallet, don't pass a signer, provider URI, or signer URI also."
+    error_message = "If a wallet is provided, don't provide a signer, provider URI, or signer URI."
     with pytest.raises(ValueError, match=error_message):
         select_client_account(emitter=test_emitter,
                               signer_uri=Mock(),
