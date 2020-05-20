@@ -120,11 +120,13 @@ class MockContractAgent:
         unexpected_transactions = self.get_unexpected_transactions(allowed=None)
         assert not bool(unexpected_transactions)
 
-    def reset(self) -> None:
+    def reset(self, clear_side_effects: bool = True) -> None:
         for mock in self._MOCK_METHODS:
             mock.reset_mock()
+            if clear_side_effects:
+                mock.side_effect = None
 
-
+                
 class MockContractAgency(ContractAgency):
 
     __agents = dict()
