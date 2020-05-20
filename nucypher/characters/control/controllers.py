@@ -14,6 +14,7 @@ from nucypher.characters.control.interfaces import CharacterPublicInterface
 from nucypher.characters.control.specifications.exceptions import SpecificationError
 from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
+from nucypher.exceptions import DevelopmentInstallationRequired
 
 
 class CharacterControllerBase(ABC):
@@ -139,8 +140,8 @@ class JSONRPCController(CharacterControlServer):
         try:
             from tests.utils.controllers import JSONRPCTestClient
         except ImportError:
-            raise ImportError("Nucypher is not installed in development mode,  "
-                              "Please checkout the code locally and reinstall to use the test client.")
+            raise DevelopmentInstallationRequired(importable_name='tests.utils.controllers.JSONRPCTestClient')
+
         test_client = JSONRPCTestClient(rpc_controller=self)
         return test_client
 
