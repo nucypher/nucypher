@@ -24,6 +24,7 @@ from web3.exceptions import InfuraKeyNotFound
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
+from nucypher.exceptions import DevelopmentInstallationRequired
 
 
 class ProviderError(Exception):
@@ -90,10 +91,10 @@ def _get_auto_provider(provider_uri):
 
 def _get_pyevm_test_backend() -> PyEVMBackend:
     try:
+        # TODO: Consider packaged support of --dev mode with testerchain
         from tests.constants import PYEVM_GAS_LIMIT, NUMBER_OF_ETH_TEST_ACCOUNTS
     except ImportError:
-        raise ImportError("Nucypher is not installed in development mode.  "
-                          "Please checkout the code locally and reinstall to use the test client.")
+        raise DevelopmentInstallationRequired(importable_name='tests.constants')
 
     # Initialize
     genesis_params = PyEVMBackend._generate_genesis_params(overrides={'gas_limit': PYEVM_GAS_LIMIT})

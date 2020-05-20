@@ -20,6 +20,7 @@ from collections import namedtuple
 import click
 import functools
 import os
+from twisted.python.log import Logger
 
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
 from nucypher.cli.types import (
@@ -30,6 +31,7 @@ from nucypher.cli.types import (
 )
 
 # Alphabetical
+
 option_checksum_address = click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 option_config_file = click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 option_config_root = click.option('--config-root', help="Custom configuration directory", type=click.Path())
@@ -182,22 +184,18 @@ def wrap_option(handler, **options):
     return _decorator
 
 
-def process_middleware(mock_networking):
+def process_middleware(mock_networking) -> tuple:
+    """Must not raise"""
     try:
-        import tests
-    except ImportError:
-        # TODO: IDK what to say here...needs further discussion around deprecation in lieu of mocks.
-        tests_available = False
-    else:
-        tests_available = True
-
-    if mock_networking and tests_available:
         from tests.utils.middleware import MockRestMiddleware
+    except ImportError:
+        logger = Logger("CLI-Middleware-Optional-Handler")
+        logger.info('--mock-networking flag is unavailable without dev install.')
+    if mock_networking:
         middleware = MockRestMiddleware()
     else:
         from nucypher.network.middleware import RestMiddleware
         middleware = RestMiddleware()
-
     return 'middleware', middleware
 
 
