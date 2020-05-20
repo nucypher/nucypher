@@ -199,4 +199,3 @@ def test_validate_cfrag(testerchain, reencryption_validator, mock_ursula_reencry
     # Evaluation must fail since Bob precomputed wrong values
     with pytest.raises(TransactionFailed):
         _ = reencryption_validator.functions.validateCFrag(*args).call()
-

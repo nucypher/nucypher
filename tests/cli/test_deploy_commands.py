@@ -296,4 +296,3 @@ def test_manual_deployment_of_idle_network(click_runner):
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     assert list(new_registry.enrolled_names) == deployed_contracts
-

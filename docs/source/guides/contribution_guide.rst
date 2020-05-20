@@ -247,4 +247,3 @@ Label the pull request as "Release Candidate" and wait for all checks to pass.
 7. Monitor the triggered deployment build on CircleCI for manual approval.
 
 8. Merge the pull request
-

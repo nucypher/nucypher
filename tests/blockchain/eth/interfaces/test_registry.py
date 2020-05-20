@@ -124,4 +124,3 @@ def test_individual_allocation_registry(get_random_checksum_address,
     allocation_registry = IndividualAllocationRegistry.from_allocation_file(filepath=tempfile_path,
                                                                             network=TEMPORARY_DOMAIN)
     assert registry_data == allocation_registry.read()
-

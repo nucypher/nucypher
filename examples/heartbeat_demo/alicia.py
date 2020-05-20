@@ -137,4 +137,3 @@ policy_info = {
 filename = POLICY_FILENAME
 with open(filename, 'w') as f:
     json.dump(policy_info, f)
-

@@ -130,4 +130,3 @@ A summary of deployed contract addresses, transactions, and gas usage will be di
 
     Generated registry /Users/david/nucypher/contract_registry.json
     Saved deployment receipts to /Users/david/nucypher/deployment-receipts-0x53Ec-1565690714.json
-

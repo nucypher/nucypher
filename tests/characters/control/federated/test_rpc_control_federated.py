@@ -75,4 +75,3 @@ def test_bob_rpc_character_control_retrieve(bob_rpc_controller, retrieve_control
     request_data = {'method': method_name, 'params': params}
     response = bob_rpc_controller.send(request_data)
     assert 'jsonrpc' in response.data
-

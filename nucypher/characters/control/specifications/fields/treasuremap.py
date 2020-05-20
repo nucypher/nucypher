@@ -32,5 +32,3 @@ class TreasureMap(BaseField, fields.Field):
             return True
         except InvalidNativeDataTypes as e:
             raise InvalidInputData(f"Could not parse {self.name}: {e}")
-
-

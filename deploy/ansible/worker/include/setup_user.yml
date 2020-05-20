@@ -7,4 +7,3 @@
     - name: "create nucypher user as {{default_user}}"
       user:
         name: nucypher
-

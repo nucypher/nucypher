@@ -86,6 +86,3 @@ def test_trustee_proposes_multisig_management_operations(testerchain, test_regis
 
     contract_function, params = proposal.decode_transaction_data(registry=test_registry)
     assert list(params.values()) == [evicted_owner]  # The owner to remove is the only parameter in the call
-
-
-

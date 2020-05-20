@@ -207,4 +207,3 @@ def test_ursula_destroy_configuration(custom_filepath, click_runner):
     if preexisting_live_configuration_file:
         file_still_exists = os.path.isfile(os.path.join(DEFAULT_CONFIG_ROOT, UrsulaConfiguration.generate_filename()))
         assert file_still_exists, 'WARNING: Test command deleted live non-test files'
-

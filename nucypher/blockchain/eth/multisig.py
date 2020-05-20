@@ -160,6 +160,3 @@ class Authorization:
         with open(filepath, 'rb') as file:
             data = file.read()
         return cls.deserialize(data=data)
-
-
-
