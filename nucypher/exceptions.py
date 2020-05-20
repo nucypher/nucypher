@@ -19,15 +19,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 # Package Warnings #
 ####################
 
-MESSAGE = '''
-A development installation of nucypher is required to import {module_name}. 
-Please follow the installation instructions published at ' 
-https://docs.nucypher.com/en/latest/guides/installation_guide.html
-'''
-
 
 class DevelopmentInstallationRequired(RuntimeError):
 
+    MESSAGE = '''
+    A development installation of nucypher is required to import {importable_name}. 
+    Please follow the installation instructions published at:
+    https://docs.nucypher.com/en/latest/guides/installation_guide.html
+    '''
+
     def __init__(self, importable_name: str, *args, **kwargs):
-        msg = MESSAGE.format(module_name=importable_name)
+        msg = self.MESSAGE.format(importable_name=importable_name)
         super().__init__(msg, *args, **kwargs)

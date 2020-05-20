@@ -185,10 +185,13 @@ def wrap_option(handler, **options):
 
 
 def process_middleware(mock_networking) -> tuple:
-    """Must not raise"""
+    #################
+    # MUST NOT RAISE!
+    #################
     try:
         from tests.utils.middleware import MockRestMiddleware
     except ImportError:
+        # It's okay to to not crash here despite not having the tests package available.
         logger = Logger("CLI-Middleware-Optional-Handler")
         logger.info('--mock-networking flag is unavailable without dev install.')
     if mock_networking:

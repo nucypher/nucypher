@@ -28,7 +28,7 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.exceptions import DevelopmentInstallationRequired
 
 try:
-    from tests.utils.networking import select_test_port
+    from tests.utils.ursula import select_test_port
 except ImportError:
     raise DevelopmentInstallationRequired(importable_name='tests.utils.ursula.select_test_port')
 

@@ -31,7 +31,6 @@ class Vladimir(Ursula):
     """
     The power of Ursula, but with a heart forged deep in the mountains of Microsoft or a State Actor or whatever.
     """
-    from tests.utils.middleware import EvilMiddleWare
 
     fraud_address = '0xbad022A87Df21E4c787C7B1effD5077014b8CC45'
     fraud_key = 'a75d701cc4199f7646909d15f22e2e0ef6094b3e2aa47a188f35f47e8932a7b9'
@@ -52,8 +51,7 @@ class Vladimir(Ursula):
             from tests.utils.middleware import EvilMiddleWare
         except ImportError:
             raise DevelopmentInstallationRequired(importable_name='tests.utils.middleware.EvilMiddleWare')
-        else:
-            cls.network_middleware = EvilMiddleWare()
+        cls.network_middleware = EvilMiddleWare()
 
         crypto_power = CryptoPower(power_ups=target_ursula._default_crypto_powerups)
 
