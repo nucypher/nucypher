@@ -62,5 +62,3 @@ def paint_new_installation_help(emitter, new_configuration):
     how_to_run_message = f"\nTo run {adjective} {character_name.capitalize()} node from the default configuration filepath run: \n\n'{suggested_command}'\n"
 
     emitter.echo(how_to_run_message.format(suggested_command), color='green')
-
-
