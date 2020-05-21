@@ -37,7 +37,7 @@ repos:
       - id: check-vcs-permalinks
 
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.1.7
+    rev: ffbd448645bad2e7ca13f96fca5830058d27ccd5
     hooks:
       # License
       - id: insert-license
