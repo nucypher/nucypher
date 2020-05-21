@@ -75,4 +75,3 @@ def test_message_kit_serialization_via_enrico(enacted_federated_policy, federate
 
     # Confirm
     assert message_kit_bytes == the_same_message_kit.to_bytes()
-

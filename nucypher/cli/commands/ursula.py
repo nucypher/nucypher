@@ -15,24 +15,34 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-import os
+
 
 import click
+import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 from nucypher.blockchain.economics import EconomicsFactory
+from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.blockchain.eth.utils import datetime_at_period
-from nucypher.characters.banners import URSULA_BANNER
-from nucypher.cli import actions, painting
-from nucypher.cli.actions import (
-    get_nucypher_password,
-    select_client_account,
-    get_client_password,
+from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
+from nucypher.cli.actions.config import (
+    destroy_configuration,
     get_or_update_configuration,
-    select_config_file,
-    select_network)
+    get_provider_process,
+    handle_missing_configuration_file
+)
+from nucypher.cli.actions.network import determine_external_ip_address
+from nucypher.cli.actions.select import select_client_account, select_config_file, select_network
+from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
+from nucypher.cli.literature import (
+    CONFIRMING_ACTIVITY_NOW,
+    DEVELOPMENT_MODE_WARNING,
+    FORCE_MODE_WARNING,
+    SUCCESSFUL_CONFIRM_ACTIVITY,
+    SUCCESSFUL_MANUALLY_SAVE_METADATA
+)
 from nucypher.cli.options import (
     group_options,
     option_config_file,
@@ -49,29 +59,45 @@ from nucypher.cli.options import (
     option_poa,
     option_provider_uri,
     option_registry_filepath,
-    option_teacher_uri,
-    option_signer_uri)
-from nucypher.cli.processes import UrsulaCommandProtocol
+    option_signer_uri,
+    option_teacher_uri
+)
+from nucypher.cli.painting.help import paint_new_installation_help
+from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, IPV4_ADDRESS
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS
+from nucypher.config.constants import (
+    NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
+    NUCYPHER_ENVVAR_WORKER_IP_ADDRESS,
+    TEMPORARY_DOMAIN
+)
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 
 class UrsulaConfigOptions:
 
     __option_name__ = 'config_options'
 
-    def __init__(self, geth, provider_uri, worker_address, federated_only, rest_host,
-                 rest_port, db_filepath, network, registry_filepath, dev, poa, light,
-                 gas_strategy, signer_uri, availability_check):
+    def __init__(self,
+                 geth,
+                 provider_uri,
+                 worker_address,
+                 federated_only,
+                 rest_host,
+                 rest_port,
+                 db_filepath,
+                 network,
+                 registry_filepath,
+                 dev,
+                 poa,
+                 light,
+                 gas_strategy,
+                 signer_uri,
+                 availability_check):
 
         if federated_only:
-            # TODO: consider rephrasing in a more universal voice.
             if geth:
-                raise click.BadOptionUsage(option_name="--geth",
-                                           message="--geth cannot be used in federated mode.")
+                raise click.BadOptionUsage(option_name="--geth", message="--geth cannot be used in federated mode.")
 
             if registry_filepath:
                 raise click.BadOptionUsage(option_name="--registry-filepath",
@@ -80,7 +106,7 @@ class UrsulaConfigOptions:
         eth_node = NO_BLOCKCHAIN_CONNECTION
         provider_uri = provider_uri
         if geth:
-            eth_node = actions.get_provider_process()
+            eth_node = get_provider_process()
             provider_uri = eth_node.provider_uri(scheme='file')
 
         self.eth_node = eth_node
@@ -139,8 +165,7 @@ class UrsulaConfigOptions:
                     availability_check=self.availability_check
                 )
             except FileNotFoundError:
-                return actions.handle_missing_configuration_file(character_config_class=UrsulaConfiguration,
-                                                                 config_file=config_file)
+                return handle_missing_configuration_file(character_config_class=UrsulaConfiguration, config_file=config_file)
             except NucypherKeyring.AuthenticationFailed as e:
                 emitter.echo(str(e), color='red', bold=True)
                 # TODO: Exit codes (not only for this, but for other exceptions)
@@ -154,7 +179,7 @@ class UrsulaConfigOptions:
         if (not worker_address) and not self.federated_only:
             if not worker_address:
                 prompt = "Select worker account"
-                worker_address = select_client_account(emitter=emitter, prompt=prompt, provider_uri=self.provider_uri)
+                worker_address = select_client_account(emitter=emitter, prompt=prompt, provider_uri=self.provider_uri, signer_uri=self.signer_uri)
 
         rest_host = self.rest_host
         if not rest_host:
@@ -162,7 +187,7 @@ class UrsulaConfigOptions:
             if not rest_host:
                 # TODO: Something less centralized... :-(
                 # TODO: Ask Ursulas instead
-                rest_host = actions.determine_external_ip_address(emitter, force=force)
+                rest_host = determine_external_ip_address(emitter, force=force)
 
         return UrsulaConfiguration.generate(password=get_nucypher_password(confirm=True),
                                             config_root=config_root,
@@ -224,7 +249,7 @@ class UrsulaCharacterOptions:
 
     __option_name__ = 'character_options'
 
-    def __init__(self, config_options, lonely, teacher_uri, min_stake):
+    def __init__(self, config_options: UrsulaConfigOptions, lonely, teacher_uri, min_stake):
         self.config_options = config_options
         self.lonely = lonely
         self.teacher_uri = teacher_uri
@@ -233,24 +258,23 @@ class UrsulaCharacterOptions:
     def create_character(self, emitter, config_file, json_ipc, load_seednodes=True):
 
         ursula_config = self.config_options.create_config(emitter, config_file)
-
-        # TODO: WAT
+        is_clef = ClefSigner.is_valid_clef_uri(self.config_options.signer_uri)
         client_password = None
         if not ursula_config.federated_only:
-            if not self.config_options.dev and not json_ipc:
+            if not self.config_options.dev and not json_ipc and not is_clef:
                 client_password = get_client_password(checksum_address=ursula_config.worker_address,
                                                       envvar=NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD)
 
         try:
-            URSULA = actions.make_cli_character(character_config=ursula_config,
-                                                emitter=emitter,
-                                                min_stake=self.min_stake,
-                                                teacher_uri=self.teacher_uri,
-                                                unlock_keyring=not self.config_options.dev,
-                                                lonely=self.lonely,
-                                                client_password=client_password,
-                                                load_preferred_teachers=load_seednodes and not self.lonely,
-                                                start_learning_now=load_seednodes)
+            URSULA = make_cli_character(character_config=ursula_config,
+                                        emitter=emitter,
+                                        min_stake=self.min_stake,
+                                        teacher_uri=self.teacher_uri,
+                                        unlock_keyring=not self.config_options.dev,
+                                        lonely=self.lonely,
+                                        client_password=client_password,
+                                        load_preferred_teachers=load_seednodes and not self.lonely,
+                                        start_learning_now=load_seednodes)
             return ursula_config, URSULA
 
         except NucypherKeyring.AuthenticationFailed as e:
@@ -264,14 +288,13 @@ group_character_options = group_options(
     config_options=group_config_options,
     lonely=click.option('--lonely', help="Do not connect to seednodes", is_flag=True),
     teacher_uri=option_teacher_uri,
-    min_stake=option_min_stake)
+    min_stake=option_min_stake
+)
 
 
 @click.group()
 def ursula():
-    """
-    "Ursula the Untrusted" PRE Re-encryption node management commands.
-    """
+    """"Ursula the Untrusted" PRE Re-encryption node management commands."""
 
 
 @ursula.command()
@@ -283,14 +306,14 @@ def init(general_config, config_options, force, config_root):
     """
     Create a new Ursula node configuration.
     """
-    emitter = _setup_emitter(general_config, config_options.worker_address)
+    emitter = setup_emitter(general_config, config_options.worker_address)
     _pre_launch_warnings(emitter, dev=None, force=force)
     if not config_root:
         config_root = general_config.config_root
     if not config_options.federated_only and not config_options.domains:  # TODO: Again, weird network/domains mapping. See UrsulaConfigOptions' constructor. #1580
         config_options.domains = {select_network(emitter)}
     ursula_config = config_options.generate_config(emitter, config_root, force)
-    painting.paint_new_installation_help(emitter, new_configuration=ursula_config)
+    paint_new_installation_help(emitter, new_configuration=ursula_config)
 
 
 @ursula.command()
@@ -302,14 +325,14 @@ def destroy(general_config, config_options, config_file, force):
     """
     Delete Ursula node configuration.
     """
-    emitter = _setup_emitter(general_config, config_options.worker_address)
+    emitter = setup_emitter(general_config, config_options.worker_address)
     _pre_launch_warnings(emitter, dev=config_options.dev, force=force)
     if not config_file:
         config_file = select_config_file(emitter=emitter,
                                          checksum_address=config_options.worker_address,
                                          config_class=UrsulaConfiguration)
     ursula_config = config_options.create_config(emitter, config_file)
-    actions.destroy_configuration(emitter, character_config=ursula_config, force=force)
+    destroy_configuration(emitter, character_config=ursula_config, force=force)
 
 
 @ursula.command()
@@ -317,13 +340,11 @@ def destroy(general_config, config_options, config_file, force):
 @option_config_file
 @group_general_config
 def forget(general_config, config_options, config_file):
-    """
-    Forget all known nodes.
-    """
-    emitter = _setup_emitter(general_config, config_options.worker_address)
+    """Forget all known nodes."""
+    emitter = setup_emitter(general_config, config_options.worker_address)
     _pre_launch_warnings(emitter, dev=config_options.dev, force=None)
     ursula_config = config_options.create_config(emitter, config_file)
-    actions.forget(emitter, configuration=ursula_config)
+    forget(emitter, configuration=ursula_config)
 
 
 @ursula.command()
@@ -340,7 +361,7 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
     """Run an "Ursula" node."""
 
     worker_address = character_options.config_options.worker_address
-    emitter = _setup_emitter(general_config, worker_address=worker_address)
+    emitter = setup_emitter(general_config)
     _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
 
     if not character_options.config_options.dev and not config_file:
@@ -348,11 +369,9 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
                                          checksum_address=worker_address,
                                          config_class=UrsulaConfiguration)
 
-    ursula_config, URSULA = character_options.create_character(
-            emitter=emitter,
-            config_file=config_file,
-            json_ipc=general_config.json_ipc
-    )
+    ursula_config, URSULA = character_options.create_character(emitter=emitter,
+                                                               config_file=config_file,
+                                                               json_ipc=general_config.json_ipc)
 
     return URSULA.run(emitter=emitter,
                       start_reactor=not dry_run,
@@ -363,20 +382,17 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
                       metrics_prefix=metrics_prefix)
 
 
-
 @ursula.command(name='save-metadata')
 @group_character_options
 @option_config_file
 @group_general_config
 def save_metadata(general_config, character_options, config_file):
-    """
-    Manually write node metadata to disk without running.
-    """
-    emitter = _setup_emitter(general_config, character_options.config_options.worker_address)
+    """Manually write node metadata to disk without running."""
+    emitter = setup_emitter(general_config, character_options.config_options.worker_address)
     _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
     _, URSULA = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
     metadata_path = URSULA.write_node_metadata(node=URSULA)
-    emitter.message(f"Successfully saved node metadata to {metadata_path}.", color='green')
+    emitter.message(SUCCESSFUL_MANUALLY_SAVE_METADATA.format(metadata_path=metadata_path), color='green')
 
 
 @ursula.command()
@@ -384,62 +400,51 @@ def save_metadata(general_config, character_options, config_file):
 @option_config_file
 @group_general_config
 def config(general_config, config_options, config_file):
-    """
-    View and optionally update the Ursula node's configuration.
-    """
-    emitter = _setup_emitter(general_config, config_options.worker_address)
+    """View and optionally update the Ursula node's configuration."""
+    emitter = setup_emitter(general_config, config_options.worker_address)
     if not config_file:
         config_file = select_config_file(emitter=emitter,
                                          checksum_address=config_options.worker_address,
                                          config_class=UrsulaConfiguration)
     emitter.echo(f"Ursula Configuration {config_file} \n {'='*55}")
-    return get_or_update_configuration(emitter=emitter,
-                                       config_class=UrsulaConfiguration,
-                                       filepath=config_file,
-                                       config_options=config_options)
+    get_or_update_configuration(emitter=emitter,
+                                config_class=UrsulaConfiguration,
+                                filepath=config_file,
+                                config_options=config_options)
 
 
-@ursula.command(name='confirm-activity')
+@ursula.command(name='commit-next')
 @group_character_options
 @option_config_file
 @group_general_config
-def confirm_activity(general_config, character_options, config_file):
-    """
-    Manually confirm-activity for the current period.
-    """
-    emitter = _setup_emitter(general_config, character_options.config_options.worker_address)
+# TODO make available only for debug purposes #1970
+def commit_to_next_period(general_config, character_options, config_file):
+    """Manually make a commitment to the next period."""
+
+    # Setup
+    emitter = setup_emitter(general_config, character_options.config_options.worker_address)
     _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
     _, URSULA = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
 
-    confirmed_period = URSULA.staking_agent.get_current_period() + 1
-    click.echo(f"Confirming activity for period {confirmed_period}", color='blue')
-    receipt = URSULA.confirm_activity()
+    committed_period = URSULA.staking_agent.get_current_period() + 1
+    click.echo(CONFIRMING_ACTIVITY_NOW.format(committed_period=committed_period), color='blue')
+    receipt = URSULA.commit_to_next_period()
 
     economics = EconomicsFactory.get_economics(registry=URSULA.registry)
-    date = datetime_at_period(period=confirmed_period,
-                              seconds_per_period=economics.seconds_per_period)
+    date = datetime_at_period(period=committed_period, seconds_per_period=economics.seconds_per_period)
 
     # TODO: Double-check dates here
-    emitter.echo(f'\nActivity confirmed for period #{confirmed_period} '
-                 f'(starting at {date})', bold=True, color='blue')
-    painting.paint_receipt_summary(emitter=emitter,
-                                   receipt=receipt,
-                                   chain_name=URSULA.staking_agent.blockchain.client.chain_name)
+    message = SUCCESSFUL_CONFIRM_ACTIVITY.format(committed_period=committed_period, date=date)
+    emitter.echo(message, bold=True, color='blue')
+    paint_receipt_summary(emitter=emitter,
+                          receipt=receipt,
+                          chain_name=URSULA.staking_agent.blockchain.client.chain_name)
 
-    # TODO: Check ActivityConfirmation event (see #1193)
-
-
-def _setup_emitter(general_config, worker_address):
-    # Banner
-    emitter = general_config.emitter
-    emitter.clear()
-    emitter.banner(URSULA_BANNER.format(worker_address or ''))
-
-    return emitter
+    # TODO: Check CommitmentMade event (see #1193)
 
 
 def _pre_launch_warnings(emitter, dev, force):
     if dev:
-        emitter.echo("WARNING: Running in Development mode", color='yellow', verbosity=1)
+        emitter.echo(DEVELOPMENT_MODE_WARNING, color='yellow', verbosity=1)
     if force:
-        emitter.echo("WARNING: Force is enabled", color='yellow', verbosity=1)
+        emitter.echo(FORCE_MODE_WARNING, color='yellow', verbosity=1)

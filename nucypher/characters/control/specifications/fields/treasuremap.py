@@ -1,11 +1,13 @@
-from marshmallow import fields
 from base64 import b64decode, b64encode
+
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from nucypher.characters.control.specifications.fields.base import BaseField
+from marshmallow import fields
+
 from nucypher.characters.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
-from nucypher.crypto.signing import Signature
+from nucypher.characters.control.specifications.fields.base import BaseField
 from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.signing import Signature
 
 
 class TreasureMap(BaseField, fields.Field):
@@ -30,5 +32,3 @@ class TreasureMap(BaseField, fields.Field):
             return True
         except InvalidNativeDataTypes as e:
             raise InvalidInputData(f"Could not parse {self.name}: {e}")
-
-

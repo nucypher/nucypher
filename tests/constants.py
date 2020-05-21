@@ -15,51 +15,22 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import contextlib
-import os
-import socket
 import string
-import tempfile
-from datetime import datetime
+from pathlib import Path
 from random import SystemRandom
 
+import tempfile
 import time
+from datetime import datetime
 from web3 import Web3
 
 from nucypher.blockchain.eth.token import NU
-from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import BASE_DIR
-from nucypher.crypto.api import keccak_digest
-
-
-def select_test_port() -> int:
-    """
-    Search for a network port that is open at the time of the call;
-    Verify that the port is not the same as the default Ursula running port.
-
-    Note: There is no guarantee that the returned port will still be available later.
-    """
-
-    closed_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    with contextlib.closing(closed_socket) as open_socket:
-        open_socket.bind(('localhost', 0))
-        port = open_socket.getsockname()[1]
-
-        if port == UrsulaConfiguration.DEFAULT_REST_PORT:
-            return select_test_port()
-
-        open_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        return port
+from nucypher.config.constants import BASE_DIR, NUCYPHER_ENVVAR_KEYRING_PASSWORD
 
 
 #
 # Ursula
 #
-
-MOCK_URSULA_STARTING_PORT = select_test_port()
-
-MOCK_KNOWN_URSULAS_CACHE = dict()
 
 NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS = 10
 
@@ -75,7 +46,7 @@ NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS
 # Testerchain
 #
 
-TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
+TEST_CONTRACTS_DIR = Path(BASE_DIR) / 'tests' / 'blockchain' / 'eth' / 'contracts' / 'contracts'
 
 ONE_YEAR_IN_SECONDS = ((60 * 60) * 24) * 365
 
@@ -87,7 +58,7 @@ BONUS_TOKENS_FOR_TESTS = NU(150_000, 'NU').to_nunits()
 
 DEVELOPMENT_ETH_AIRDROP_AMOUNT = int(Web3().toWei(100, 'ether'))
 
-NUMBER_OF_ALLOCATIONS_IN_TESTS = 100  # TODO: Move to constants
+NUMBER_OF_ALLOCATIONS_IN_TESTS = 50  # TODO: Move to constants
 
 
 #
@@ -102,24 +73,23 @@ INSECURE_DEVELOPMENT_PASSWORD = ''.join(SystemRandom().choice(__valid_password_c
 # Temporary Directories and Files
 #
 
-BASE_TEMP_DIR = tempfile.gettempdir()
+BASE_TEMP_DIR = Path(tempfile.gettempdir())
 
 BASE_TEMP_PREFIX = 'nucypher-tmp-'
+
 DATETIME_FORMAT = "%Y-%m-%d_%H-%M-%S.%f"
 
-MOCK_CUSTOM_INSTALLATION_PATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-custom-{datetime.now().strftime(DATETIME_FORMAT)}')
+MOCK_CUSTOM_INSTALLATION_PATH = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}test-custom-{datetime.now().strftime(DATETIME_FORMAT)}'
 
-MOCK_ALLOCATION_INFILE = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-allocations-{datetime.now().strftime(DATETIME_FORMAT)}.json')
+MOCK_ALLOCATION_INFILE = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}test-allocations-{datetime.now().strftime(DATETIME_FORMAT)}.json'
 
-MOCK_ALLOCATION_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-allocation-registry-{datetime.now().strftime(DATETIME_FORMAT)}.json')
+MOCK_ALLOCATION_REGISTRY_FILEPATH = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}test-allocation-registry-{datetime.now().strftime(DATETIME_FORMAT)}.json'
 
-MOCK_INDIVIDUAL_ALLOCATION_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-individual-allocation-{datetime.now().strftime(DATETIME_FORMAT)}.json')
+MOCK_INDIVIDUAL_ALLOCATION_FILEPATH = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}test-individual-allocation-{datetime.now().strftime(DATETIME_FORMAT)}.json'
 
 MOCK_CUSTOM_INSTALLATION_PATH_2 = '/tmp/nucypher-tmp-test-custom-2-{}'.format(time.time())
 
-MOCK_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}mock-registry-{datetime.now().strftime(DATETIME_FORMAT)}.json')
-
-TEMPORARY_DOMAIN = ":TEMPORARY_DOMAIN:"  # for use with `--dev` node runtimes and tests
+MOCK_REGISTRY_FILEPATH = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}mock-registry-{datetime.now().strftime(DATETIME_FORMAT)}.json'
 
 GETH_DEV_URI = f'ipc://{BASE_TEMP_DIR}/geth.ipc'  # Standard IPC path for `geth --dev`
 
@@ -127,6 +97,7 @@ PYEVM_DEV_URI = "tester://pyevm"
 
 TEST_PROVIDER_URI = PYEVM_DEV_URI  # TODO: Pytest flag entry point?
 
+MOCK_PROVIDER_URI = 'tester://mock'
 
 #
 # Node Configuration
@@ -134,9 +105,10 @@ TEST_PROVIDER_URI = PYEVM_DEV_URI  # TODO: Pytest flag entry point?
 
 MOCK_POLICY_DEFAULT_M = 3
 
-MOCK_IP_ADDRESS = '0.0.0.0'
-
-MOCK_IP_ADDRESS_2 = '10.10.10.10'
+# These IP addresses are reserved for usage in documentation
+# https://tools.ietf.org/html/rfc5737
+MOCK_IP_ADDRESS = '192.0.2.100'
+MOCK_IP_ADDRESS_2 = '203.0.113.20'
 
 MOCK_URSULA_DB_FILEPATH = ':memory:'
 
@@ -148,3 +120,10 @@ TEST_GAS_LIMIT = 8_000_000  # gas
 
 PYEVM_GAS_LIMIT = TEST_GAS_LIMIT  # TODO: move elsewhere (used to set pyevm gas limit in tests)?
 
+YES = 'Y\n'
+
+NO = 'N\n'
+
+CLI_TEST_ENV = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
+
+FEE_RATE_RANGE = (5, 10, 15)

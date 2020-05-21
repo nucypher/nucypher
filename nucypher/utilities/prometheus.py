@@ -132,13 +132,12 @@ def collect_prometheus_metrics(ursula, event_metrics_collectors: List[BaseEventM
 
         node_metrics["current_period_gauge"].set(staking_agent.get_current_period())
 
-        missing_confirmations = staking_agent.get_missing_confirmations(
-            checksum_address=ursula.checksum_address)
-        node_metrics["missing_confirmation_gauge"].set(missing_confirmations)
+        missing_commitments = staking_agent.get_missing_commitments(staker_address=ursula.checksum_address)  # TODO: lol
+        node_metrics["missing_commitments_gauge"].set(missing_commitments)
 
         decentralized_payload = {'provider': str(ursula.provider_uri),
                                  'active_stake': str(locked),
-                                 'missing_confirmations': str(missing_confirmations)}
+                                 'missing_commitments': str(missing_commitments)}
 
         base_payload.update(decentralized_payload)
 
@@ -235,8 +234,8 @@ def get_event_metrics_collectors(ursula, metrics_prefix):
 
     event_metrics_collectors = [
         config["collector"](ursula.checksum_address, ursula.worker_address, config["contract_agent"],
-                                  config["event"],
-                                  config["argument_filters"], config["metrics"]) for config in event_collectors_config]
+                            config["event"],
+                            config["argument_filters"], config["metrics"]) for config in event_collectors_config]
 
     return event_metrics_collectors
 
@@ -250,8 +249,8 @@ def initialize_prometheus_exporter(ursula, listen_address, port: int, metrics_pr
     node_metrics = {
         "known_nodes_gauge": Gauge(f'{metrics_prefix}_known_nodes', 'Number of currently known nodes'),
         "work_orders_gauge": Gauge(f'{metrics_prefix}_work_orders', 'Number of accepted work orders'),
-        "missing_confirmation_gauge": Gauge(f'{metrics_prefix}_missing_confirmations',
-                                            'Currently missed confirmations'),
+        "missing_commitments_gauge": Gauge(f'{metrics_prefix}_missing_commitments',
+                                           'Currently missed commitments'),
         "learning_status": Enum(f'{metrics_prefix}_node_discovery', 'Learning loop status',
                                 states=['starting', 'running', 'stopped']),
         "eth_balance_gauge": Gauge(f'{metrics_prefix}_staker_eth_balance', 'Ethereum balance'),
@@ -275,7 +274,7 @@ def initialize_prometheus_exporter(ursula, listen_address, port: int, metrics_pr
         "worklock_remaining_work_gauge": Gauge(f'{metrics_prefix}_worklock_refund_remaining_work',
                                                'Worklock remaining work'),
         "worklock_refund_completed_work_gauge": Gauge(f'{metrics_prefix}_worklock_refund_completedWork',
-                                                       'Worklock completed work'),
+                                                      'Worklock completed work'),
     }
 
     event_metrics_collectors = get_event_metrics_collectors(ursula, metrics_prefix)

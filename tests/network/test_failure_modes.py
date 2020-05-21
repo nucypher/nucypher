@@ -1,20 +1,17 @@
 import datetime
 import maya
-import pytest
-import io
 import os
-import requests
-from twisted.internet import threads
+import pytest
 import pytest_twisted
-from werkzeug.exceptions import RequestEntityTooLarge
-
-from nucypher.network.nodes import Learner
-from nucypher.policy.collections import TreasureMap
-from nucypher.policy.policies import Policy
-from nucypher.utilities.sandbox.middleware import NodeIsDownMiddleware, EvilMiddleWare
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+import requests
 from bytestring_splitter import BytestringSplittingError
 from functools import partial
+from twisted.internet import threads
+
+from nucypher.policy.collections import TreasureMap
+from nucypher.policy.policies import Policy
+from tests.utils.middleware import EvilMiddleWare, NodeIsDownMiddleware
+from tests.utils.ursula import make_federated_ursulas
 
 
 def test_bob_does_not_let_a_connection_error_stop_him(enacted_federated_policy,

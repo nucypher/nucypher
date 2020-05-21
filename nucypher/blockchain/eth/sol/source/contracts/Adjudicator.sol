@@ -10,7 +10,7 @@ import "zeppelin/math/Math.sol";
 
 /**
 * @notice Supervises stakers' behavior and punishes when something's wrong.
-* @dev |v2.1.1|
+* @dev |v2.1.2|
 */
 contract Adjudicator is Upgradeable {
 
@@ -157,7 +157,7 @@ contract Adjudicator is Upgradeable {
         address worker = SignatureVerifier.recover(
             SignatureVerifier.hashEIP191(stamp, byte(0x45)), // Currently, we use version E (0x45) of EIP191 signatures
             _workerIdentityEvidence);
-        address staker = escrow.getStakerFromWorker(worker);
+        address staker = escrow.stakerFromWorker(worker);
         require(staker != address(0), "Worker must be related to a staker");
 
         // 5. Check that staker can be slashed

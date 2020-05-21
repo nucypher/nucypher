@@ -1,7 +1,7 @@
 import pytest
 from eth_tester.exceptions import TransactionFailed
 
-from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, WorkLockAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 

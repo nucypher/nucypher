@@ -1707,4 +1707,3 @@ class Ec2Inventory(object):
 if __name__ == '__main__':
     # Run the script
     Ec2Inventory()
-

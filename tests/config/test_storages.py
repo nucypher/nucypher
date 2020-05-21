@@ -18,14 +18,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 
 from nucypher.characters.lawful import Ursula
-from nucypher.config.storages import (
-    ForgetfulNodeStorage,
-    SQLiteForgetfulNodeStorage,
-    TemporaryFileBasedNodeStorage,
-    NodeStorage)
-from nucypher.utilities.sandbox.constants import (
-    MOCK_URSULA_DB_FILEPATH,
-    MOCK_URSULA_STARTING_PORT)
+from nucypher.config.storages import (ForgetfulNodeStorage, NodeStorage, SQLiteForgetfulNodeStorage,
+                                      TemporaryFileBasedNodeStorage)
+from tests.constants import (
+    MOCK_URSULA_DB_FILEPATH)
+from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 
 class BaseTestNodeStorageBackends:

@@ -15,13 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from functools import partial
-
 import pytest_twisted as pt
+from functools import partial
 from twisted.internet.threads import deferToThread
 
 from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+from tests.utils.ursula import make_federated_ursulas
 
 
 def test_proper_seed_node_instantiation(ursula_federated_test_config):

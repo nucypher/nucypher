@@ -16,13 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from datetime import datetime
-from typing import List
-
 import maya
 from bytestring_splitter import BytestringSplitter
+from datetime import datetime
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
+from typing import List
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 

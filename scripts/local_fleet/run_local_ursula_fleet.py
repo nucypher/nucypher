@@ -78,4 +78,3 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
 
 if __name__ == "__main__":
     spin_up_federated_ursulas()
-

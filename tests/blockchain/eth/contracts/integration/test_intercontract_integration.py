@@ -17,7 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address, to_wei
@@ -46,9 +45,12 @@ def pytest_namespace():
 def token_economics():
     economics = BaseEconomics(
         initial_supply=10 ** 9,
+        first_phase_supply=int(0.5 * 10 ** 9),
         total_supply=2 * 10 ** 9,
-        staking_coefficient=8 * 10 ** 7,
-        locked_periods_coefficient=4,
+        first_phase_max_issuance=200,
+        issuance_decay_coefficient=10 ** 7,
+        lock_duration_coefficient_1=4,
+        lock_duration_coefficient_2=8,
         maximum_rewarded_periods=4,
         hours_per_period=1,
         minimum_locked_periods=6,
@@ -491,7 +493,7 @@ def test_worklock_phases(testerchain,
     assert worklock.functions.workToETH(staker2_remaining_work, staker2_bid).call() == staker2_bid
     assert worklock.functions.getRemainingWork(staker2).call() == staker2_remaining_work
     assert token.functions.balanceOf(worklock.address).call() == worklock_supply - staker2_tokens
-    tx = escrow.functions.setWorker(staker2).transact({'from': staker2})
+    tx = escrow.functions.bondWorker(staker2).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
     pytest.escrow_supply += staker2_tokens
     assert escrow.functions.getAllTokens(staker2).call() == staker2_tokens
@@ -600,15 +602,15 @@ def test_staking(testerchain,
         tx = escrow.functions.deposit(2001, 1).transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
-    # Can't confirm activity before initialization
+    # Can't make a commitment before initialization
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.confirmActivity().transact({'from': staker1})
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.confirmActivity().transact({'from': staker2})
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.confirmActivity().transact({'from': staker3})
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
         testerchain.wait_for_receipt(tx)
 
     # Initialize escrow
@@ -629,7 +631,7 @@ def test_staking(testerchain,
     # Staker transfers some tokens to the escrow and lock them
     tx = escrow.functions.deposit(1000, 10).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setWorker(staker1).transact({'from': staker1})
+    tx = escrow.functions.bondWorker(staker1).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setReStake(False).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
@@ -637,7 +639,7 @@ def test_staking(testerchain,
     testerchain.wait_for_receipt(tx)
     wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
     assert wind_down
-    tx = escrow.functions.confirmActivity().transact({'from': staker1})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     pytest.escrow_supply += 1000
     second_sub_stake = 1000
@@ -690,13 +692,13 @@ def test_policy(testerchain,
     testerchain.time_travel(hours=1)
     tx = preallocation_escrow_interface_1.functions.depositAsStaker(1000, 10).transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
-    tx = preallocation_escrow_interface_1.functions.setWorker(staker3).transact({'from': staker3})
+    tx = preallocation_escrow_interface_1.functions.bondWorker(staker3).transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
     tx = preallocation_escrow_interface_1.functions.setWindDown(True).transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
     wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(preallocation_escrow_interface_1.address).call()
     assert wind_down
-    tx = escrow.functions.confirmActivity().transact({'from': staker3})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
     pytest.escrow_supply += 1000
     assert 1000 == escrow.functions.getAllTokens(preallocation_escrow_1.address).call()
@@ -724,16 +726,16 @@ def test_policy(testerchain,
     tx = preallocation_escrow_interface_1.functions.divideStake(0, 500, 6).transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
 
-    # Confirm activity
-    tx = escrow.functions.confirmActivity().transact({'from': staker1})
+    # Make a commitment
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
 
     testerchain.time_travel(hours=1)
-    tx = escrow.functions.confirmActivity().transact({'from': staker1})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmActivity().transact({'from': staker2})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmActivity().transact({'from': staker3})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
 
     # Turn on re-stake for staker1
@@ -745,11 +747,11 @@ def test_policy(testerchain,
     assert re_stake
 
     testerchain.time_travel(hours=1)
-    tx = escrow.functions.confirmActivity().transact({'from': staker1})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmActivity().transact({'from': staker2})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmActivity().transact({'from': staker3})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
 
     # Create other policies
@@ -827,13 +829,13 @@ def test_policy(testerchain,
             .transact({'from': alice1})
         testerchain.wait_for_receipt(tx)
 
-    # Wait, confirm activity, mint
+    # Wait, make a commitment, mint
     testerchain.time_travel(hours=1)
-    tx = escrow.functions.confirmActivity().transact({'from': staker1})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmActivity().transact({'from': staker2})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmActivity().transact({'from': staker3})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
 
     # Check work measurement
@@ -850,11 +852,11 @@ def test_policy(testerchain,
         .transact({'from': alice2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
 
-    tx = escrow.functions.confirmActivity().transact({'from': staker1})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmActivity().transact({'from': staker2})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmActivity().transact({'from': staker3})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
 
     # Turn off re-stake for staker1
@@ -866,14 +868,14 @@ def test_policy(testerchain,
     assert not re_stake
 
     testerchain.time_travel(hours=1)
-    tx = escrow.functions.confirmActivity().transact({'from': staker1})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
 
     testerchain.time_travel(hours=1)
-    tx = escrow.functions.confirmActivity().transact({'from': staker1})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
 
-    # Withdraw reward and refund
+    # Withdraw fee and refund
     testerchain.time_travel(hours=3)
     staker1_balance = testerchain.client.get_balance(staker1)
     tx = policy_manager.functions.withdraw().transact({'from': staker1, 'gas_price': 0})
@@ -884,7 +886,7 @@ def test_policy(testerchain,
     testerchain.wait_for_receipt(tx)
     assert staker2_balance < testerchain.client.get_balance(staker2)
     staker3_balance = testerchain.client.get_balance(staker3)
-    tx = preallocation_escrow_interface_1.functions.withdrawPolicyReward().transact({'from': staker3, 'gas_price': 0})
+    tx = preallocation_escrow_interface_1.functions.withdrawPolicyFee().transact({'from': staker3, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     tx = preallocation_escrow_1.functions.withdrawETH().transact({'from': staker3, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
@@ -1041,19 +1043,19 @@ def test_slashing(testerchain,
     ursula3_with_stamp = mock_ursula(testerchain, staker3, mocker=mocker)
 
     # Slash stakers
-    # Confirm activity for two periods
-    tx = escrow.functions.confirmActivity().transact({'from': staker1})
+    # Make a commitment to two periods
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmActivity().transact({'from': staker2})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmActivity().transact({'from': staker3})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
-    tx = escrow.functions.confirmActivity().transact({'from': staker1})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmActivity().transact({'from': staker2})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmActivity().transact({'from': staker3})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
 
@@ -1262,11 +1264,11 @@ def test_withdraw(testerchain,
 
     # Unlock and withdraw all tokens
     for index in range(9):
-        tx = escrow.functions.confirmActivity().transact({'from': staker1})
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
-        tx = escrow.functions.confirmActivity().transact({'from': staker2})
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
         testerchain.wait_for_receipt(tx)
-        tx = escrow.functions.confirmActivity().transact({'from': staker3})
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
         testerchain.wait_for_receipt(tx)
         testerchain.time_travel(hours=1)
 

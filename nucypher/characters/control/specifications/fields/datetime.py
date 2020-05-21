@@ -1,5 +1,6 @@
-from marshmallow import fields
 import maya
+from marshmallow import fields
+
 from nucypher.characters.control.specifications.fields.base import BaseField
 
 

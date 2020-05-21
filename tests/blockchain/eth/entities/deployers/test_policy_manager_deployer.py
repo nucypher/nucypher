@@ -15,16 +15,9 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import pytest
-from eth_utils import keccak
-
-from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakingEscrowAgent, ContractAgency
+from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import POLICY_MANAGER_CONTRACT_NAME
-from nucypher.blockchain.eth.deployers import (
-    PolicyManagerDeployer,
-    DispatcherDeployer
-)
+from nucypher.blockchain.eth.deployers import (DispatcherDeployer, PolicyManagerDeployer)
 
 
 def test_policy_manager_deployment(policy_manager_deployer, staking_escrow_deployer, deployment_progress):
@@ -138,11 +131,11 @@ def test_rollback(testerchain, test_registry):
     assert new_target == old_target
 
 
-def test_set_reward_range(policy_manager_deployer, test_registry):
+def test_set_fee_range(policy_manager_deployer, test_registry):
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)  # type: PolicyManagerAgent
-    assert policy_agent.get_min_reward_rate_range() == (0, 0, 0)
+    assert policy_agent.get_fee_rate_range() == (0, 0, 0)
 
     minimum, default, maximum = 10, 20, 30
-    receipt = policy_manager_deployer.set_min_reward_rate_range(minimum, default, maximum)
+    receipt = policy_manager_deployer.set_fee_rate_range(minimum, default, maximum)
     assert receipt['status'] == 1
-    assert policy_agent.get_min_reward_rate_range() == (minimum, default, maximum)
+    assert policy_agent.get_fee_rate_range() == (minimum, default, maximum)

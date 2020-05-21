@@ -1,25 +1,19 @@
-import os
 from unittest import mock
 
+import os
 import pytest_twisted
-
-from nucypher.blockchain.eth.registry import LocalContractRegistry
-from nucypher.cli.actions import SUCCESSFUL_DESTRUCTION
 from twisted.internet import threads
 from twisted.internet.task import Clock
 
 from nucypher.blockchain.eth.actors import Staker
+from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.chaotic import Felix
+from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import FelixConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
-from nucypher.utilities.sandbox.constants import (
-    TEMPORARY_DOMAIN,
-    TEST_PROVIDER_URI,
-    INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_CUSTOM_INSTALLATION_PATH_2,
-)
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
+from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH_2, TEST_PROVIDER_URI)
 
 
 @mock.patch('nucypher.config.characters.FelixConfiguration.default_filepath', return_value='/non/existent/file')
@@ -52,7 +46,7 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
     # Felix creates a system configuration
     init_args = ('felix', 'init',
                  '--debug',
-                 '--registry-filepath', agency_local_registry.filepath,
+                 '--registry-filepath', str(agency_local_registry.filepath),
                  '--checksum-address', testerchain.client.accounts[0],
                  '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
                  '--network', TEMPORARY_DOMAIN,

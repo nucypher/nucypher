@@ -17,11 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-
 import pytest
 from eth_tester.exceptions import TransactionFailed
-
-from umbral import pre, keys
+from umbral import keys, pre
 from umbral.signing import Signer
 
 

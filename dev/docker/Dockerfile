@@ -22,11 +22,13 @@ COPY dev/docker/scripts/install/entrypoint.sh /install
 # install reqs and solc
 RUN pip install --upgrade pip
 RUN pip3 install -r /install/dev-requirements.txt --src /usr/local/src
-RUN python3 /install/scripts/installation/install_solc.py
 RUN pip3 install ipdb
 
 # puts the nucypher executable in bin path
 RUN python3 /install/setup.py develop
+
+# now install solc
+RUN python3 /install/scripts/installation/install_solc.py
 
 # this gets called after volumes are mounted and so can modify the local disk
 CMD ["/install/entrypoint.sh"]

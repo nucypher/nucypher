@@ -15,11 +15,10 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from decimal import Decimal, DecimalException
-from ipaddress import ip_address
-
 import click
+from decimal import Decimal, DecimalException
 from eth_utils import to_checksum_address
+from ipaddress import ip_address
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.networks import NetworksInventory

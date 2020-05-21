@@ -13,9 +13,12 @@ contract StakingEscrowBad is StakingEscrow {
     constructor(
         NuCypherToken _token,
         uint32 _hoursPerPeriod,
-        uint256 _miningCoefficient,
-        uint256 _lockedPeriodsCoefficient,
-        uint16 _rewardedPeriods,
+        uint256 _issuanceDecayCoefficient,
+        uint256 _lockDurationCoefficient1,
+        uint256 _lockDurationCoefficient2,
+        uint16 _maximumRewardedPeriods,
+        uint256 _firstPhaseTotalSupply,
+        uint256 _firstPhaseMaxIssuance,
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
@@ -26,9 +29,12 @@ contract StakingEscrowBad is StakingEscrow {
         StakingEscrow(
             _token,
             _hoursPerPeriod,
-            _miningCoefficient,
-            _lockedPeriodsCoefficient,
-            _rewardedPeriods,
+            _issuanceDecayCoefficient,
+            _lockDurationCoefficient1,
+            _lockDurationCoefficient2,
+            _maximumRewardedPeriods,
+            _firstPhaseTotalSupply,
+            _firstPhaseMaxIssuance,
             _minLockedPeriods,
             _minAllowableLockedTokens,
             _maxAllowableLockedTokens,
@@ -53,9 +59,12 @@ contract StakingEscrowV2Mock is StakingEscrow {
     constructor(
         NuCypherToken _token,
         uint32 _hoursPerPeriod,
-        uint256 _miningCoefficient,
-        uint256 _lockedPeriodsCoefficient,
-        uint16 _rewardedPeriods,
+        uint256 _issuanceDecayCoefficient,
+        uint256 _lockDurationCoefficient1,
+        uint256 _lockDurationCoefficient2,
+        uint16 _maximumRewardedPeriods,
+        uint256 _firstPhaseTotalSupply,
+        uint256 _firstPhaseMaxIssuance,
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
@@ -67,9 +76,12 @@ contract StakingEscrowV2Mock is StakingEscrow {
         StakingEscrow(
             _token,
             _hoursPerPeriod,
-            _miningCoefficient,
-            _lockedPeriodsCoefficient,
-            _rewardedPeriods,
+            _issuanceDecayCoefficient,
+            _lockDurationCoefficient1,
+            _lockDurationCoefficient2,
+            _maximumRewardedPeriods,
+            _firstPhaseTotalSupply,
+            _firstPhaseMaxIssuance,
             _minLockedPeriods,
             _minAllowableLockedTokens,
             _maxAllowableLockedTokens,
@@ -113,11 +125,11 @@ contract PolicyManagerForStakingEscrowMock {
         nodes[_node].push(_period);
     }
 
-    function updateReward(address _node, uint16 _period) external {
+    function updateFee(address _node, uint16 _period) external {
         nodes[_node].push(_period);
     }
 
-    function setDefaultRewardDelta(address _node, uint16 _period) external {
+    function setDefaultFeeDelta(address _node, uint16 _period) external {
         nodes[_node].push(_period);
     }
 
@@ -168,8 +180,8 @@ contract Intermediary {
         escrow = _escrow;
     }
 
-    function setWorker(address _worker) external {
-        escrow.setWorker(_worker);
+    function bondWorker(address _worker) external {
+        escrow.bondWorker(_worker);
     }
 
     function deposit(uint256 _value, uint16 _periods) external {
@@ -177,8 +189,8 @@ contract Intermediary {
         escrow.deposit(_value, _periods);
     }
 
-    function confirmActivity() external {
-        escrow.confirmActivity();
+    function commitToNextPeriod() external {
+        escrow.commitToNextPeriod();
     }
 
 }

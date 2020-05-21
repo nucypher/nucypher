@@ -17,52 +17,36 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import collections
-import os
-import pprint
-from typing import List, Callable
-from typing import Tuple
-from typing import Union
-from urllib.parse import urlparse
 
 import click
 import maya
+import os
+import pprint
 import requests
 import time
-from constant_sorrow.constants import (
-    NO_BLOCKCHAIN_CONNECTION,
-    NO_COMPILATION_PERFORMED,
-    UNKNOWN_TX_STATUS,
-    NO_PROVIDER_PROCESS,
-    READ_ONLY_INTERFACE,
-    INSUFFICIENT_ETH
-)
+from constant_sorrow.constants import (INSUFFICIENT_ETH, NO_BLOCKCHAIN_CONNECTION, NO_COMPILATION_PERFORMED,
+                                       NO_PROVIDER_PROCESS, READ_ONLY_INTERFACE, UNKNOWN_TX_STATUS)
 from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import to_checksum_address
 from twisted.logger import Logger
-from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider, middleware
-from web3.contract import ContractConstructor, Contract
-from web3.contract import ContractFunction
-from web3.exceptions import TimeExhausted
-from web3.exceptions import ValidationError
+from typing import Callable, List, Tuple, Union
+from urllib.parse import urlparse
+from web3 import HTTPProvider, IPCProvider, Web3, WebsocketProvider, middleware
+from web3.contract import Contract, ContractConstructor, ContractFunction
+from web3.exceptions import TimeExhausted, ValidationError
 from web3.gas_strategies import time_based
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.providers import (
-    _get_tester_pyevm,
-    _get_test_geth_parity_provider,
-    _get_auto_provider,
-    _get_infura_provider,
-    _get_IPC_provider,
-    _get_websocket_provider,
-    _get_HTTP_provider
-)
+from nucypher.blockchain.eth.providers import (_get_HTTP_provider, _get_IPC_provider, _get_auto_provider,
+                                               _get_infura_provider, _get_mock_test_provider, _get_pyevm_test_provider,
+                                               _get_test_geth_parity_provider, _get_websocket_provider)
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.blockchain.eth.utils import prettify_eth_amount, get_transaction_name
-from nucypher.characters.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
+from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
+from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
@@ -379,9 +363,10 @@ class BlockchainInterface:
 
             if uri_breakdown.scheme == 'tester':
                 providers = {
-                    'pyevm': _get_tester_pyevm,
+                    'pyevm': _get_pyevm_test_provider,
                     'geth': _get_test_geth_parity_provider,
                     'parity-ethereum': _get_test_geth_parity_provider,
+                    'mock': _get_mock_test_provider
                 }
                 provider_scheme = uri_breakdown.netloc
 
@@ -392,6 +377,7 @@ class BlockchainInterface:
                     'ipc': _get_IPC_provider,
                     'file': _get_IPC_provider,
                     'ws': _get_websocket_provider,
+                    'wss': _get_websocket_provider,
                     'http': _get_HTTP_provider,
                     'https': _get_HTTP_provider,
                 }
@@ -456,6 +442,10 @@ class BlockchainInterface:
         # Format
         if tx.get('to'):
             tx['to'] = to_checksum_address(contract_function.address)
+        try:
+            tx['selector'] = contract_function.selector
+        except AttributeError:
+            pass
         tx['from'] = to_checksum_address(tx['from'])
         tx.update({f: prettify_eth_amount(v) for f, v in tx.items() if f in ('gasPrice', 'value')})
         payload_pprint = ', '.join("{}: {}".format(k, v) for k, v in tx.items())
@@ -493,7 +483,7 @@ class BlockchainInterface:
         # Build Transaction
         #
 
-        transaction_name = self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
+        self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
         try:
             transaction_dict = contract_function.buildTransaction(payload)  # Gas estimation occurs here
         except (TestTransactionFailed, ValidationError, ValueError) as error:
@@ -541,9 +531,7 @@ class BlockchainInterface:
         try:
             txhash = self.client.send_raw_transaction(signed_raw_transaction)  # <--- BROADCAST
         except (TestTransactionFailed, ValueError) as error:
-            raise self.__transaction_failed(exception=error,
-                                            transaction_dict=transaction_dict,
-                                            transaction_name=transaction_name)
+            raise  # TODO: Unify with Transaction failed handling
 
         #
         # Receipt
@@ -747,8 +735,14 @@ class BlockchainDeployerInterface(BlockchainInterface):
     class DeploymentFailed(RuntimeError):
         pass
 
-    def __init__(self, compiler: SolidityCompiler = None, ignore_solidity_check: bool = False, *args, **kwargs):
+    def __init__(self,
+                 compiler: SolidityCompiler = None,
+                 ignore_solidity_check: bool = False,
+                 dry_run: bool = False,
+                 *args, **kwargs):
+
         super().__init__(*args, **kwargs)
+        self.dry_run = dry_run
         self.compiler = compiler or SolidityCompiler(ignore_solidity_check=ignore_solidity_check)
 
     def connect(self):
@@ -756,7 +750,10 @@ class BlockchainDeployerInterface(BlockchainInterface):
         self._setup_solidity(compiler=self.compiler)
         return self.is_connected
 
-    def _setup_solidity(self, compiler: SolidityCompiler = None):
+    def _setup_solidity(self, compiler: SolidityCompiler = None) -> None:
+        if self.dry_run:
+            self.log.info("Dry run is active, skipping solidity compile steps.")
+            return
         if compiler:
             # Execute the compilation if we're recompiling
             # Otherwise read compiled contract data from the registry.

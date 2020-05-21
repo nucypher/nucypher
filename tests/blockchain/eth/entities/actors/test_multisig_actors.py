@@ -16,13 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
+from unittest.mock import PropertyMock, patch
 
 from nucypher.blockchain.eth.actors import Trustee
 from nucypher.blockchain.eth.agents import MultiSigAgent
 from nucypher.blockchain.eth.deployers import MultiSigDeployer
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
-
-from unittest.mock import PropertyMock, patch
 
 
 @pytest.mark.slow()
@@ -88,6 +86,3 @@ def test_trustee_proposes_multisig_management_operations(testerchain, test_regis
 
     contract_function, params = proposal.decode_transaction_data(registry=test_registry)
     assert list(params.values()) == [evicted_owner]  # The owner to remove is the only parameter in the call
-
-
-

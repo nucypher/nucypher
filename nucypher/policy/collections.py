@@ -16,19 +16,18 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import binascii
 import json
 from collections import OrderedDict
-from typing import List, Optional, Tuple
 
+import binascii
 import maya
 import msgpack
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring, BytestringSplittingError
-from constant_sorrow.constants import CFRAG_NOT_RETAINED
-from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
+from bytestring_splitter import BytestringSplitter, BytestringSplittingError, VariableLengthBytestring
+from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
+from typing import List, Optional, Tuple
 from umbral.cfrags import CapsuleFrag
 from umbral.config import default_params
 from umbral.curvebn import CurveBN
@@ -36,11 +35,11 @@ from umbral.keys import UmbralPublicKey
 from umbral.pre import Capsule
 
 from nucypher.characters.lawful import Bob, Character
-from nucypher.crypto.api import keccak_digest, encrypt_and_sign
-from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
+from nucypher.crypto.api import encrypt_and_sign, keccak_digest
+from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.signing import Signature, InvalidSignature, signature_splitter
-from nucypher.crypto.splitters import key_splitter, capsule_splitter
+from nucypher.crypto.signing import InvalidSignature, Signature, signature_splitter
+from nucypher.crypto.splitters import capsule_splitter, key_splitter
 from nucypher.crypto.utils import (canonical_address_from_umbral_key,
                                    get_coordinates_as_bytes,
                                    get_signature_recovery_value)

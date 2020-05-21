@@ -18,9 +18,8 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, DispatcherDeployer
-from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.fixture(scope='module')

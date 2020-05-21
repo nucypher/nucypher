@@ -16,20 +16,18 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import os
-import shutil
-from typing import Union
 
 import maya
+import os
+import shutil
 import time
 from constant_sorrow.constants import NOT_RUNNING, UNKNOWN_DEVELOPMENT_CHAIN_ID
 from cytoolz.dicttoolz import dissoc
 from eth_account import Account
 from eth_account.messages import encode_defunct
-from eth_utils import to_canonical_address
-from eth_utils import to_checksum_address
+from eth_utils import to_canonical_address, to_checksum_address
 from geth import LoggingMixin
-from geth.accounts import get_accounts, create_new_account
+from geth.accounts import create_new_account, get_accounts
 from geth.chain import (
     get_chain_data_dir,
     initialize_chain,
@@ -38,9 +36,9 @@ from geth.chain import (
 )
 from geth.process import BaseGethProcess
 from twisted.logger import Logger
+from typing import Union
 from web3 import Web3
 
-from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
 
 UNKNOWN_DEVELOPMENT_CHAIN_ID.bool_value(True)
@@ -435,9 +433,9 @@ class EthereumTesterClient(EthereumClient):
 
     def unlock_account(self, account, password, duration: int = None) -> bool:
         """Returns True if the testing backend keyring has control of the given address."""
-        account = to_canonical_address(account)
-        keystore = self.w3.provider.ethereum_tester.backend._key_lookup
-        if account in keystore:
+        account = to_checksum_address(account)
+        keystore_accounts = self.w3.provider.ethereum_tester.get_accounts()
+        if account in keystore_accounts:
             return True
         else:
             return self.w3.provider.ethereum_tester.unlock_account(account=account,
@@ -447,8 +445,8 @@ class EthereumTesterClient(EthereumClient):
     def lock_account(self, account) -> bool:
         """Returns True if the testing backend keyring has control of the given address."""
         account = to_canonical_address(account)
-        keystore = self.w3.provider.ethereum_tester.backend._key_lookup
-        if account in keystore:
+        keystore_accounts = self.w3.provider.ethereum_tester.backend.get_accounts()
+        if account in keystore_accounts:
             return True
         else:
             return self.w3.provider.ethereum_tester.lock_account(account=account)

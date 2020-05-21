@@ -17,22 +17,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from _pydecimal import Decimal
 from collections import UserList
-from typing import Dict
-from typing import Union, Tuple, Callable
 
 import maya
-from constant_sorrow.constants import (
-    NEW_STAKE,
-    NO_STAKING_RECEIPT,
-    NOT_STAKING,
-    EMPTY_STAKING_SLOT,
-    UNKNOWN_WORKER_STATUS
-)
+from constant_sorrow.constants import (EMPTY_STAKING_SLOT, NEW_STAKE, NOT_STAKING, NO_STAKING_RECEIPT,
+                                       UNKNOWN_WORKER_STATUS)
 from eth_utils import currency, is_checksum_address
-from twisted.internet import task, reactor
+from twisted.internet import reactor, task
 from twisted.logger import Logger
+from typing import Callable, Dict, Tuple, Union
 
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
@@ -191,9 +185,9 @@ class Stake:
 
         # TODO: #1502 - Move Me Brightly - Docs
         # After this period has passes, workers can go offline, if this is the only stake.
-        # This is the last period that can be confirmed for this stake.
-        # Meaning, It must be confirmed in the previous period,
-        # and no confirmation can be performed in this period for this stake.
+        # This is the last period that can be committed for this stake.
+        # Meaning, It must be committed in the previous period,
+        # and no commitment can be made in this period for this stake.
         self.final_locked_period = final_locked_period
 
         # Blockchain
@@ -579,25 +573,25 @@ class WorkTracker:
             # self.worker.stakes.refresh()  # TODO: #1517 Track stakes for fast access to terminal period.
 
         # Measure working interval
-        interval = onchain_period - self.worker.last_active_period
+        interval = onchain_period - self.worker.last_committed_period
         if interval < 0:
-            return  # No need to confirm this period.  Save the gas.
+            return  # No need to commit to this period.  Save the gas.
         if interval > 0:
             # TODO: #1516 Follow-up actions for downtime
-            self.log.warn(f"MISSED CONFIRMATIONS - {interval} missed staking confirmations detected.")
+            self.log.warn(f"MISSED COMMITMENTS - {interval} missed staking commitments detected.")
 
         # Only perform work this round if the requirements are met
         if not self.__check_work_requirement():
-            self.log.warn(f'CONFIRMATION PREVENTED (callable: "{self.__requirement.__name__}") - '
-                          f'There are unmet confirmation requirements.')
+            self.log.warn(f'COMMIT PREVENTED (callable: "{self.__requirement.__name__}") - '
+                          f'There are unmet commit requirements.')
             # TODO: Follow-up actions for downtime
             return
 
-        # Confirm Activity
-        self.log.info("Confirmed activity for period {}".format(self.current_period))
+        # Make a Commitment
+        self.log.info("Made a commitment to period {}".format(self.current_period))
         transacting_power = self.worker.transacting_power
         with transacting_power:
-            self.worker.confirm_activity()  # < --- blockchain WRITE
+            self.worker.commit_to_next_period()  # < --- blockchain WRITE
 
 
 class StakeList(UserList):

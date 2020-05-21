@@ -16,37 +16,30 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import os
 import random
 
 import maya
+import os
 import pytest
 from twisted.logger import Logger
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.agents import (
-    StakingEscrowAgent,
-    ContractAgency,
-    PreallocationEscrowAgent,
-    NucypherTokenAgent
-)
-from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
+from nucypher.blockchain.eth.agents import (ContractAgency, NucypherTokenAgent, PreallocationEscrowAgent,
+                                            StakingEscrowAgent)
+from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer
+from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry, IndividualAllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeList
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.utilities.sandbox.constants import (
-    TEST_PROVIDER_URI,
-    INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_IP_ADDRESS,
-    MOCK_URSULA_STARTING_PORT,
-    TEMPORARY_DOMAIN,
-    MOCK_KNOWN_URSULAS_CACHE,
-    select_test_port,
-    MOCK_INDIVIDUAL_ALLOCATION_FILEPATH
-)
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_INDIVIDUAL_ALLOCATION_FILEPATH, MOCK_IP_ADDRESS,
+                             ONE_YEAR_IN_SECONDS,
+                             TEST_PROVIDER_URI)
+from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT, select_test_port
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from tests.utils.middleware import MockRestMiddleware
+
 
 #
 # This test module is intended to mirror tests/cli/ursula/test_stakeholder_and_ursula.py,
@@ -55,8 +48,24 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
 @pytest.fixture(scope='module')
+def mock_allocation_registry(testerchain, agency_local_registry, token_economics):
+    # Deploy the PreallocationEscrow contract
+    allocation_registry = InMemoryAllocationRegistry()
+    deployer = PreallocationEscrowDeployer(deployer_address=testerchain.etherbase_account,
+                                           registry=agency_local_registry,
+                                           allocation_registry=allocation_registry)
+
+    deployer.deploy()
+    deployer.assign_beneficiary(checksum_address=testerchain.unassigned_accounts[0])
+    deployer.initial_deposit(value=2 * token_economics.minimum_allowed_locked,
+                             duration_seconds=ONE_YEAR_IN_SECONDS)
+    deployer.enroll_principal_contract()
+    return allocation_registry
+
+
+@pytest.fixture(scope='module')
 def beneficiary(testerchain, mock_allocation_registry):
-    # First, let's be give the beneficiary some cash for TXs
+    # First, let's give the beneficiary some cash for TXs
     beneficiary = testerchain.unassigned_accounts[0]
     tx = {'to': beneficiary,
           'from': testerchain.etherbase_account,
@@ -82,7 +91,7 @@ def beneficiary(testerchain, mock_allocation_registry):
 
 
 @pytest.fixture(scope='module')
-def individual_allocation():
+def individual_allocation(beneficiary):
     return IndividualAllocationRegistry.from_allocation_file(MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                                                              network=TEMPORARY_DOMAIN)
 
@@ -182,15 +191,15 @@ def test_stake_via_contract(click_runner,
     assert stake.duration == token_economics.minimum_locked_periods
 
 
-def test_stake_set_worker(click_runner,
-                          beneficiary,
-                          mock_allocation_registry,
-                          agency_local_registry,
-                          manual_worker,
-                          individual_allocation,
-                          stakeholder_configuration_file_location):
+def test_stake_bond_worker(click_runner,
+                           beneficiary,
+                           mock_allocation_registry,
+                           agency_local_registry,
+                           manual_worker,
+                           individual_allocation,
+                           stakeholder_configuration_file_location):
 
-    init_args = ('stake', 'set-worker',
+    init_args = ('stake', 'bond-worker',
                  '--config-file', stakeholder_configuration_file_location,
                  '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                  '--worker-address', manual_worker,
@@ -211,7 +220,7 @@ def test_stake_set_worker(click_runner,
     assert staker.worker_address == manual_worker
 
 
-def test_stake_detach_worker(click_runner,
+def test_stake_unbond_worker(click_runner,
                              testerchain,
                              token_economics,
                              beneficiary,
@@ -229,7 +238,7 @@ def test_stake_detach_worker(click_runner,
 
     testerchain.time_travel(periods=token_economics.minimum_worker_periods)
 
-    init_args = ('stake', 'detach-worker',
+    init_args = ('stake', 'unbond-worker',
                  '--config-file', stakeholder_configuration_file_location,
                  '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                  '--force')
@@ -247,9 +256,9 @@ def test_stake_detach_worker(click_runner,
 
     assert not staker.worker_address
 
-    # Ok ok, let's set the worker again.
+    # Ok ok, let's bond the worker again.
 
-    init_args = ('stake', 'set-worker',
+    init_args = ('stake', 'bond-worker',
                  '--config-file', stakeholder_configuration_file_location,
                  '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                  '--worker-address', manual_worker,
@@ -520,10 +529,10 @@ def test_collect_rewards_integration(click_runner,
 
     mock_transacting_power_activation(account=worker_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    # Confirm for half the first stake duration
+    # Make a commitment for half the first stake duration
     for _ in range(half_stake_time):
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
-        ursula.confirm_activity()
+        ursula.commit_to_next_period()
         testerchain.time_travel(periods=1)
         current_period += 1
 
@@ -558,7 +567,7 @@ def test_collect_rewards_integration(click_runner,
 
     for index in range(half_stake_time - 5):
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
-        ursula.confirm_activity()
+        ursula.commit_to_next_period()
 
         # Encrypt
         random_data = os.urandom(random.randrange(20, 100))
@@ -576,9 +585,9 @@ def test_collect_rewards_integration(click_runner,
         current_period += 1
 
     # Finish the passage of time
-    for _ in range(5 - 1):  # minus 1 because the first period was already confirmed in test_ursula_run
+    for _ in range(5 - 1):  # minus 1 because the first period was already committed to in test_ursula_run
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
-        ursula.confirm_activity()
+        ursula.commit_to_next_period()
         current_period += 1
         testerchain.time_travel(periods=1)
 
@@ -589,7 +598,7 @@ def test_collect_rewards_integration(click_runner,
     balance = testerchain.client.get_balance(beneficiary)
 
     # Rewards will be unlocked after the
-    # final confirmed period has passed (+1).
+    # final committed period has passed (+1).
     logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
     testerchain.time_travel(periods=1)
     current_period += 1
@@ -598,10 +607,10 @@ def test_collect_rewards_integration(click_runner,
     # Since we are mocking the blockchain connection, manually consume the transacting power of the Beneficiary.
     mock_transacting_power_activation(account=beneficiary, password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    # Collect Policy Reward
+    # Collect Policy Fee
     collection_args = ('stake', 'collect-reward',
                        '--config-file', stakeholder_configuration_file_location,
-                       '--policy-reward',
+                       '--policy-fee',
                        '--no-staking-reward',
                        '--withdraw-address', beneficiary,
                        '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
@@ -613,9 +622,9 @@ def test_collect_rewards_integration(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    # Policy Reward
-    collected_policy_reward = testerchain.client.get_balance(beneficiary)
-    assert collected_policy_reward > balance
+    # Policy Fee
+    collected_policy_fee = testerchain.client.get_balance(beneficiary)
+    assert collected_policy_fee > balance
 
     #
     # Collect Staking Reward
@@ -625,7 +634,7 @@ def test_collect_rewards_integration(click_runner,
 
     collection_args = ('stake', 'collect-reward',
                        '--config-file', stakeholder_configuration_file_location,
-                       '--no-policy-reward',
+                       '--no-policy-fee',
                        '--staking-reward',
                        '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
                        '--force')

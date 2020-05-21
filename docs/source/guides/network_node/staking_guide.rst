@@ -54,9 +54,9 @@ All staking-related operations done by Staker are performed through the ``nucyph
 +----------------------+-------------------------------------------------------------------------------+
 |  ``sync``            | Synchronize stake data with on-chain information                              |
 +----------------------+-------------------------------------------------------------------------------+
-|  ``set-worker``      | Bond a worker to a staker                                                     |
+|  ``bond-worker``     | Bond a worker to a staker                                                     |
 +----------------------+-------------------------------------------------------------------------------+
-|  ``detach-worker``   | Detach worker currently bonded to a staker                                    |
+|  ``unbond-worker``   | Unbond worker currently bonded to a staker                                    |
 +----------------------+-------------------------------------------------------------------------------+
 |  ``collect-reward``  | Withdraw staking compensation from the contract to your wallet                |
 +----------------------+-------------------------------------------------------------------------------+
@@ -371,8 +371,8 @@ the commitment period.
     will result in the loss of staked tokens as described in the NuCypher slashing protocol.
 
     Keeping your Ursula node online during the staking period and successfully
-    producing correct re-encryption work orders will result in rewards
-    paid out in ethers retro-actively and on-demand.
+    producing correct re-encryption work orders will earn fees
+    paid out in ETH on-demand and retroactively.
 
     Accept ursula node operator obligation? [y/N]: y
     Publish staged stake to the blockchain? [y/N]: y
@@ -406,7 +406,7 @@ Once you have created one or more stakes, you can view all active stake for conn
     | 2 | 0xbb03 | 0x0000 | 0 | 30000 NU | 30 periods . | Aug 09 12:15:16 CEST - Sep 9 12:15:16 CEST
 
 If the Worker in the list is shown as ``0x0000``, it means that you haven't yet
-attached a Worker node to your Staker, so you still have to do it!
+bonded a Worker node to your Staker, so you still have to do it!
 
 .. _bond-worker:
 
@@ -416,13 +416,13 @@ Bonding a Worker
 After initiating a stake, the staker must delegate access to a work address through *bonding*.
 There is a 1:1 relationship between the roles: A Staker may have multiple Stakes but only ever has one Worker at a time.
 
-.. note:: The Worker cannot be changed for a minimum of 2 periods once set.
+.. note:: The Worker cannot be changed for a minimum of 2 periods once bonded.
 
-.. note:: Stakers without a worker bonded will be highlighted in yellow (sometimes called "Detached" or "Headless").
+.. note:: Stakers without a worker bonded will be highlighted in yellow (sometimes called "Unbonded" or "Headless").
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake set-worker --hw-wallet
+    (nucypher)$ nucypher stake bond-worker --hw-wallet
 
     ======================================= Active Stakes =========================================
 
@@ -577,16 +577,16 @@ To divide an existing stake:
 Collect rewards earned by the staker
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-NuCypher nodes earn two types of rewards: staking rewards (in NU) and policy rewards (i.e., service fees in ETH).
-To collect these rewards use ``nucypher stake collect-reward`` with flags ``--staking-reward`` and ``--policy-reward``
+NuCypher nodes earn two types of rewards: staking rewards (in NU) and policy fees (i.e., service fees in ETH).
+To collect these rewards use ``nucypher stake collect-reward`` with flags ``--staking-reward`` and ``--policy-fee``
 (or even both).
 
 While staking rewards can only be collected to the original staker account, you can decide which account receives
-policy rewards using the ``--withdraw-address <ETH_ADDRESS>`` flag.
+policy fees using the ``--withdraw-address <ETH_ADDRESS>`` flag.
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake collect-reward --staking-reward --policy-reward --staking-address 0x287A817426DD1AE78ea23e9918e2273b6733a43D --hw-wallet
+    (nucypher)$ nucypher stake collect-reward --staking-reward --policy-fee --staking-address 0x287A817426DD1AE78ea23e9918e2273b6733a43D --hw-wallet
 
      ____    __            __
     /\  _`\ /\ \__        /\ \
@@ -604,7 +604,7 @@ policy rewards using the ``--withdraw-address <ETH_ADDRESS>`` flag.
     Block #1245170 | 0x63e4da39056873adaf869674db4002e016c80466f38256a4c251516a0e25e547
      See https://goerli.etherscan.io/tx/0xb0625030224e228198faa3ed65d43f93247cf6067aeb62264db6f31b5bf411fa
 
-    Collecting 0.978 ETH from policy rewards...
+    Collecting 0.978 ETH from policy fees...
 
     OK | 0xe6d555be43263702b74727ce29dc4bcd6e32019159ccb15120791dfda0975372 (25070 gas)
     Block #1245171 | 0x0d8180a69213c240e2bf2045179976d5f18de56a82f17a9d59db54756b6604e4
@@ -646,11 +646,11 @@ For example, to create a stake:
     (nucypher)$ nucypher stake create --hw-wallet --allocation-filepath PATH
 
 
-Or to set a worker:
+Or to bond a worker:
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake set-worker --hw-wallet --allocation-filepath PATH
+    (nucypher)$ nucypher stake bond-worker --hw-wallet --allocation-filepath PATH
 
 
 As an alternative to the ``--allocation-filepath`` flag, preallocation users

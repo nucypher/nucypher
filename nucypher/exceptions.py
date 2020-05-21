@@ -14,3 +14,20 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
+# Package Warnings #
+####################
+
+
+class DevelopmentInstallationRequired(RuntimeError):
+
+    MESSAGE = '''
+    A development installation of nucypher is required to import {importable_name}. 
+    Please follow the installation instructions published at:
+    https://docs.nucypher.com/en/latest/guides/installation_guide.html
+    '''
+
+    def __init__(self, importable_name: str, *args, **kwargs):
+        msg = self.MESSAGE.format(importable_name=importable_name)
+        super().__init__(msg, *args, **kwargs)

@@ -1,19 +1,18 @@
-import os
 from collections import namedtuple
 
+import os
 import pytest
-from eth_utils.address import to_checksum_address
-from twisted.logger import globalLogPublisher, LogLevel
-
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow.constants import NOT_SIGNED
+from eth_utils.address import to_checksum_address
+from twisted.logger import LogLevel, globalLogPublisher
 
 from nucypher.characters.base import Character
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import FleetStateTracker, Learner
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_ursula_for_staker
+from tests.utils.middleware import MockRestMiddleware
+from tests.utils.ursula import make_federated_ursulas, make_ursula_for_staker
 
 
 def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mocker):
@@ -104,10 +103,10 @@ def test_invalid_workers_tolerance(testerchain,
                                     worker_address=testerchain.unassigned_accounts[-1],
                                     ursula_config=ursula_decentralized_test_config,
                                     blockchain=testerchain,
-                                    confirm_activity=True,
+                                    commit_to_next_period=True,
                                     ursulas_to_learn_about=None)
 
-    # Since we confirmed activity, we need to advance one period
+    # Since we made a commitment, we need to advance one period
     testerchain.time_travel(periods=1)
 
     # The worker is valid and can be verified (even with the force option)
@@ -119,9 +118,9 @@ def test_invalid_workers_tolerance(testerchain,
     # OK. Now we learn about this worker.
     lonely_blockchain_learner.remember_node(worker)
 
-    # The worker already confirmed one period before. Let's confirm the remaining 29.
+    # The worker already committed one period before. Let's commit to the remaining 29.
     for i in range(29):
-        worker.confirm_activity()
+        worker.commit_to_next_period()
         testerchain.time_travel(periods=1)
 
     # The stake period has ended, and the staker wants her tokens back ("when lambo?").

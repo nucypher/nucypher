@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import base64
+
 import sha3
 from constant_sorrow.constants import PUBLIC_ONLY
 from umbral.keys import UmbralPrivateKey

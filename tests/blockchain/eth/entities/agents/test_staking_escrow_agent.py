@@ -16,14 +16,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import os
-
 import pytest
-from eth_utils.address import to_checksum_address, is_address
+from eth_tester.exceptions import TransactionFailed
+from eth_utils.address import is_address, to_checksum_address
 
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.mark.slow()
@@ -106,11 +106,11 @@ def test_stakers_and_workers_relationships(testerchain, agency):
 
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
-    # The staker hasn't set a worker yet
+    # The staker hasn't bond a worker yet
     assert NULL_ADDRESS == staking_agent.get_worker_from_staker(staker_address=staker_account)
 
-    _txhash = staking_agent.set_worker(staker_address=staker_account,
-                                       worker_address=worker_account)
+    _txhash = staking_agent.bond_worker(staker_address=staker_account,
+                                        worker_address=worker_account)
 
     # We can check the staker-worker relation from both sides
     assert worker_account == staking_agent.get_worker_from_staker(staker_address=staker_account)
@@ -178,14 +178,14 @@ def test_get_current_period(agency, testerchain):
 
 
 @pytest.mark.slow()
-def test_confirm_activity(agency, testerchain, mock_transacting_power_activation):
+def test_commit_to_next_period(agency, testerchain, mock_transacting_power_activation):
     _token_agent, staking_agent, _policy_agent = agency
 
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
     mock_transacting_power_activation(account=worker_account, password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    receipt = staking_agent.confirm_activity(worker_address=worker_account)
+    receipt = staking_agent.commit_to_next_period(worker_address=worker_account)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == staking_agent.contract_address
 
@@ -211,8 +211,8 @@ def test_divide_stake(agency, token_economics):
                                    sender_address=someone,
                                    staker_address=someone)
 
-    # Confirm Activity
-    _txhash = agent.confirm_activity(node_address=someone)
+    # Commit to next period
+    _txhash = agent.commit_to_next_period(node_address=someone)
     testerchain.time_travel(periods=1)
 
     receipt = agent.divide_stake(staker_address=someone,
@@ -289,8 +289,8 @@ def test_collect_staking_reward(agency, testerchain, mock_transacting_power_acti
 
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
-    # Confirm Activity
-    _receipt = staking_agent.confirm_activity(worker_address=worker_account)
+    # Commit to next period
+    _receipt = staking_agent.commit_to_next_period(worker_address=worker_account)
     testerchain.time_travel(periods=2)
 
     mock_transacting_power_activation(account=staker_account, password=INSECURE_DEVELOPMENT_PASSWORD)
@@ -320,7 +320,7 @@ def test_winding_down(agency, testerchain, test_registry, token_economics):
 
     assert not staking_agent.is_winding_down(staker_account)
     check_last_period()
-    staking_agent.confirm_activity(worker_address=worker_account)
+    staking_agent.commit_to_next_period(worker_address=worker_account)
     check_last_period()
 
     # Examine the last periods of sub-stakes
@@ -331,7 +331,7 @@ def test_winding_down(agency, testerchain, test_registry, token_economics):
     assert receipt['status'] == 1
     assert staking_agent.is_winding_down(staker_account)
     check_last_period()
-    staking_agent.confirm_activity(worker_address=worker_account)
+    staking_agent.commit_to_next_period(worker_address=worker_account)
     check_last_period()
 
     testerchain.time_travel(periods=1)
@@ -341,5 +341,59 @@ def test_winding_down(agency, testerchain, test_registry, token_economics):
     assert receipt['status'] == 1
     assert not staking_agent.is_winding_down(staker_account)
     check_last_period()
-    staking_agent.confirm_activity(worker_address=worker_account)
+    staking_agent.commit_to_next_period(worker_address=worker_account)
     check_last_period()
+
+
+@pytest.mark.slow()
+def test_batch_deposit(testerchain,
+                       agency,
+                       token_economics,
+                       mock_transacting_power_activation,
+                       get_random_checksum_address):
+
+    token_agent, staking_agent, _policy_agent = agency
+
+    amount = token_economics.minimum_allowed_locked
+    lock_periods = token_economics.minimum_locked_periods
+
+    stakers = [get_random_checksum_address() for _ in range(4)]
+
+    N = 5
+    substakes = [(amount, lock_periods)] * N
+    deposits = {staker: substakes for staker in stakers}
+
+    batch_parameters = staking_agent.construct_batch_deposit_parameters(deposits=deposits)
+
+    assert batch_parameters[0] == stakers
+    assert batch_parameters[1] == [N] * len(stakers)
+    assert batch_parameters[2] == [amount] * (N * len(stakers))
+    assert batch_parameters[3] == [lock_periods] * (N * len(stakers))
+
+    mock_transacting_power_activation(account=testerchain.etherbase_account, password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    tokens_in_batch = sum(batch_parameters[2])
+
+    _receipt = token_agent.approve_transfer(amount=tokens_in_batch,
+                                            target_address=staking_agent.contract_address,
+                                            sender_address=testerchain.etherbase_account)
+
+    not_enough_gas = 800_000
+    with pytest.raises((TransactionFailed, ValueError)):
+        staking_agent.batch_deposit(*batch_parameters,
+                                    sender_address=testerchain.etherbase_account,
+                                    dry_run=True,
+                                    gas_limit=not_enough_gas)
+
+    staking_agent.batch_deposit(*batch_parameters, sender_address=testerchain.etherbase_account, dry_run=True)
+
+    staking_agent.batch_deposit(*batch_parameters, sender_address=testerchain.etherbase_account)
+
+    for staker in stakers:
+        assert staking_agent.owned_tokens(staker_address=staker) == amount * N
+        staker_substakes = list(staking_agent.get_all_stakes(staker_address=staker))
+        assert N == len(staker_substakes)
+        for substake in staker_substakes:
+            first_period, last_period, locked_value = substake
+            assert last_period == first_period + lock_periods - 1
+            assert locked_value == amount

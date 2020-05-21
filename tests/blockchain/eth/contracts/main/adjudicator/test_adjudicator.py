@@ -17,18 +17,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-
 import pytest
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import keccak
 from typing import Tuple
-from web3.contract import Contract
-
 from umbral.keys import UmbralPrivateKey
 from umbral.point import Point
+from web3.contract import Contract
 
 from nucypher.crypto.api import sha256_digest
-
 
 ALGORITHM_KECCAK256 = 0
 ALGORITHM_SHA256 = 1

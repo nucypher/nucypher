@@ -1,23 +1,21 @@
 import json
-import os
-import sys
-import shutil
-import msgpack
-import maya
 import traceback
 from timeit import default_timer as timer
 
-from nucypher.characters.lawful import Bob, Ursula, Enrico
+import maya
+import msgpack
+import os
+import shutil
+import sys
+from umbral.keys import UmbralPublicKey
+
+from nucypher.characters.lawful import Bob, Enrico, Ursula
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.datastore.keypairs import DecryptingKeypair, SigningKeypair
 from nucypher.network.middleware import RestMiddleware
-
-from umbral.keys import UmbralPublicKey
-
 from nucypher.utilities.logging import GlobalLoggerSettings
-from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
-
 
 GlobalLoggerSettings.start_console_logging()
 

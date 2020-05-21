@@ -1,5 +1,6 @@
-from nucypher.cli.main import nucypher_cli
 from umbral.keys import UmbralPrivateKey
+
+from nucypher.cli.main import nucypher_cli
 
 
 def test_enrico_encrypt(click_runner):

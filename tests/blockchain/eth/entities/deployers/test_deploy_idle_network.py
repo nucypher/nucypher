@@ -14,22 +14,18 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
 
 import pytest
-from eth_tester.exceptions import TransactionFailed
 from constant_sorrow import constants
+from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, ContractAgency
-from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
-                                               StakingEscrowDeployer,
-                                               PolicyManagerDeployer,
-                                               AdjudicatorDeployer,
-                                               BaseContractDeployer)
+from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, StakingEscrowAgent
+from nucypher.blockchain.eth.deployers import (AdjudicatorDeployer, BaseContractDeployer, NucypherTokenDeployer,
+                                               PolicyManagerDeployer, StakingEscrowDeployer)
 from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.sandbox.blockchain import token_airdrop
-from nucypher.utilities.sandbox.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.blockchain import token_airdrop
+from tests.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.mark.slow()
@@ -126,13 +122,13 @@ def test_stake_in_idle_network(testerchain, token_economics, test_registry):
     staker.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=staker.checksum_address)
     staker.transacting_power.activate()
 
-    # Since StakingEscrow hasn't been activated yet, deposit should work but confirmation must fail
+    # Since StakingEscrow hasn't been activated yet, deposit should work but making a commitment must fail
     amount = token_economics.minimum_allowed_locked
     periods = token_economics.minimum_locked_periods
     staker.initialize_stake(amount=amount, lock_periods=periods)
-    staker.set_worker(account)
+    staker.bond_worker(account)
     with pytest.raises((TransactionFailed, ValueError)):
-        staker.staking_agent.confirm_activity(worker_address=account)
+        staker.staking_agent.commit_to_next_period(worker_address=account)
 
 
 @pytest.mark.slow()
@@ -157,4 +153,3 @@ def test_activate_network(testerchain, token_economics, test_registry):
     assert not staking_escrow_deployer.ready_to_activate
     with pytest.raises(StakingEscrowDeployer.ContractDeploymentError):
         staking_escrow_deployer.activate()
-

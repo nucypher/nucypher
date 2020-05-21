@@ -311,4 +311,3 @@ Systemd Method:
 .. code::
 
     $ sudo systemctl start ursula
-

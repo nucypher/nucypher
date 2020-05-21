@@ -14,9 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
-
 import maya
+import os
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import is_checksum_address, to_wei
@@ -25,8 +24,8 @@ from nucypher.blockchain.eth.agents import PreallocationEscrowAgent
 from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 from nucypher.blockchain.eth.token import NU
-from nucypher.utilities.sandbox.blockchain import token_airdrop
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.blockchain import token_airdrop
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 TEST_LOCK_DURATION_IN_SECONDS = 60 * 60 * 24  # 1 day
 TEST_ALLOCATION_REGISTRY = InMemoryAllocationRegistry()
@@ -132,9 +131,9 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     receipt = agent.deposit_as_staker(amount=token_economics.minimum_allowed_locked, lock_periods=token_economics.minimum_locked_periods)
     assert receipt['status'] == 1, "Transaction Rejected"
 
-    # Owner sets a worker in StakingEscrow via PreallocationEscrow
+    # Owner bonds a worker in StakingEscrow via PreallocationEscrow
     worker = testerchain.ursula_account(0)
-    _receipt = agent.set_worker(worker_address=worker)
+    _receipt = agent.bond_worker(worker_address=worker)
 
     # Owner enables winding down
     receipt = agent.set_winding_down(value=True)
@@ -150,7 +149,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     mock_transacting_power_activation(account=worker, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     for _ in range(token_economics.minimum_locked_periods):
-        staking_agent.confirm_activity(worker_address=worker)
+        staking_agent.commit_to_next_period(worker_address=worker)
         testerchain.time_travel(periods=1)
     testerchain.time_travel(periods=1)
 
@@ -173,7 +172,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value + expected_rewards
 
 
-def test_collect_policy_reward(testerchain, agent, agency, token_economics, mock_transacting_power_activation):
+def test_collect_policy_fees(testerchain, agent, agency, token_economics, mock_transacting_power_activation):
     _token_agent, staking_agent, policy_agent = agency
     deployer_address, beneficiary_address, author, ursula, *everybody_else = testerchain.client.accounts
 
@@ -182,9 +181,9 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics, mock
     _receipt = agent.deposit_as_staker(amount=token_economics.minimum_allowed_locked,
                                        lock_periods=token_economics.minimum_locked_periods)
 
-    # Owner sets a worker in StakingEscrow via PreallocationEscrow
+    # Owner bonds a worker in StakingEscrow via PreallocationEscrow
     worker = testerchain.ursula_account(0)
-    _receipt = agent.set_worker(worker_address=worker)
+    _receipt = agent.bond_worker(worker_address=worker)
 
     testerchain.time_travel(periods=1)
 
@@ -198,15 +197,15 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics, mock
                                           node_addresses=[agent.contract_address])
 
     mock_transacting_power_activation(account=worker, password=INSECURE_DEVELOPMENT_PASSWORD)
-    _receipt = staking_agent.confirm_activity(worker_address=worker)
+    _receipt = staking_agent.commit_to_next_period(worker_address=worker)
     testerchain.time_travel(periods=2)
-    _receipt = staking_agent.confirm_activity(worker_address=worker)
+    _receipt = staking_agent.commit_to_next_period(worker_address=worker)
 
     old_balance = testerchain.client.get_balance(account=agent.beneficiary)
 
     mock_transacting_power_activation(account=agent.beneficiary, password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    receipt = agent.collect_policy_reward()
+    receipt = agent.collect_policy_fee()
     assert receipt['status'] == 1, "Transaction Rejected"
     receipt = agent.withdraw_eth()
     assert receipt['status'] == 1, "Transaction Rejected"

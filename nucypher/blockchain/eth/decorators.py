@@ -1,12 +1,9 @@
+import eth_utils
 import functools
+import inspect
 from datetime import datetime
-
 from twisted.logger import Logger
 from typing import Callable
-import inspect
-import eth_utils
-
-from nucypher.crypto.api import keccak_digest
 
 __VERIFIED_ADDRESSES = set()
 

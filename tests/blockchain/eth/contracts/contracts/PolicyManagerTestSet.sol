@@ -13,7 +13,7 @@ contract PolicyManagerBad is PolicyManager {
     constructor(StakingEscrow _escrow) public PolicyManager(_escrow) {
     }
 
-    function getNodeRewardDelta(address, uint16) public view override returns (int256) {}
+    function getNodeFeeDelta(address, uint16) public view override returns (int256) {}
 
 }
 
@@ -52,7 +52,7 @@ contract StakingEscrowForPolicyMock {
     uint32 public immutable secondsPerPeriod;
 
     PolicyManager public policyManager;
-    uint16 public lastActivePeriod;
+    uint16 public lastCommittedPeriod;
     Downtime[] public downtime;
 
     /**
@@ -70,10 +70,10 @@ contract StakingEscrowForPolicyMock {
     }
 
     /**
-    * @notice Set last active period
+    * @notice Set last committed period
     */
-    function setLastActivePeriod(uint16 _lastActivePeriod) external {
-        lastActivePeriod = _lastActivePeriod;
+    function setLastCommittedPeriod(uint16 _lastCommittedPeriod) external {
+        lastCommittedPeriod = _lastCommittedPeriod;
     }
 
     /**
@@ -91,7 +91,7 @@ contract StakingEscrowForPolicyMock {
     */
     function mint(address _staker, uint16 _startPeriod, uint16 _numberOfPeriods) public {
         for (uint16 i = 0; i < _numberOfPeriods; i++) {
-            policyManager.updateReward(_staker, i + _startPeriod);
+            policyManager.updateFee(_staker, i + _startPeriod);
         }
     }
 
@@ -123,8 +123,8 @@ contract StakingEscrowForPolicyMock {
         endPeriod = data.endPeriod;
     }
 
-    function getLastActivePeriod(address) public view returns (uint256) {
-        return lastActivePeriod;
+    function getLastCommittedPeriod(address) public view returns (uint256) {
+        return lastCommittedPeriod;
     }
 
     function register(address _node, uint16 _period) public {
@@ -143,9 +143,9 @@ contract StakingEscrowForPolicyMock {
         }
     }
 
-    function setDefaultRewardDelta(address _node, uint16 _startPeriod, uint16 _numberOfPeriods) public {
+    function setDefaultFeeDelta(address _node, uint16 _startPeriod, uint16 _numberOfPeriods) public {
         for (uint16 i = 0; i < _numberOfPeriods; i++) {
-            policyManager.setDefaultRewardDelta(_node, i + _startPeriod);
+            policyManager.setDefaultFeeDelta(_node, i + _startPeriod);
         }
     }
 
@@ -160,8 +160,8 @@ contract ExtendedPolicyManager is PolicyManager {
     constructor(StakingEscrow _escrow) public PolicyManager(_escrow) {
     }
 
-    function setNodeRewardDelta(address _node, uint16 _period, int256 _value) external {
+    function setNodeFeeDelta(address _node, uint16 _period, int256 _value) external {
         NodeInfo storage node = nodes[_node];
-        node.rewardDelta[_period] = _value;
+        node.feeDelta[_period] = _value;
     }
 }

@@ -15,8 +15,9 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import pytest
 from collections import Counter
+
+import pytest
 
 from nucypher.blockchain.economics import BaseEconomics
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
@@ -26,17 +27,18 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS, STAKING_ESCROW_CONTR
 @pytest.fixture()
 def token_economics():
     economics = BaseEconomics(initial_supply=10 ** 9,
+                              first_phase_supply=int(0.5 * 10 ** 9),
+                              first_phase_max_issuance=10 ** 6,
                               total_supply=2 * 10 ** 9,
-                              staking_coefficient=8 * 10 ** 7,
-                              locked_periods_coefficient=4,
+                              issuance_decay_coefficient=10 ** 7,
+                              lock_duration_coefficient_1=4,
+                              lock_duration_coefficient_2=8,
                               maximum_rewarded_periods=4,
                               hours_per_period=1,
-                              minimum_locked_periods=6,
+                              minimum_locked_periods=2,
                               minimum_allowed_locked=100,
-                              maximum_allowed_locked=2000,
-                              minimum_worker_periods=2,
-                              base_penalty=300,
-                              percentage_penalty_coefficient=2)
+                              maximum_allowed_locked=5 * 10 ** 8,
+                              minimum_worker_periods=1)
     return economics
 
 
@@ -48,25 +50,16 @@ def token(token_economics, deploy_contract):
 
 
 @pytest.mark.nightly
-def test_sampling_distribution(testerchain, token, deploy_contract):
+def test_sampling_distribution(testerchain, token, deploy_contract, token_economics):
 
     #
     # SETUP
     #
 
-    max_allowed_locked_tokens = 5 * 10 ** 8
-    _staking_coefficient = 2 * 10 ** 7
     staking_escrow_contract, _ = deploy_contract(
-        contract_name=STAKING_ESCROW_CONTRACT_NAME,
-        _token=token.address,
-        _hoursPerPeriod=1,
-        _miningCoefficient=4 * _staking_coefficient,
-        _lockedPeriodsCoefficient=4,
-        _rewardedPeriods=4,
-        _minLockedPeriods=2,
-        _minAllowableLockedTokens=100,
-        _maxAllowableLockedTokens=max_allowed_locked_tokens,
-        _minWorkerPeriods=1,
+        STAKING_ESCROW_CONTRACT_NAME,
+        token.address,
+        *token_economics.staking_deployment_parameters,
         _isTestContract=False
     )
     staking_agent = StakingEscrowAgent(registry=None, contract=staking_escrow_contract)
@@ -104,8 +97,8 @@ def test_sampling_distribution(testerchain, token, deploy_contract):
         testerchain.wait_for_receipt(tx)
 
         staking_agent.deposit_tokens(amount=balance, lock_periods=10, sender_address=staker, staker_address=staker)
-        staking_agent.set_worker(staker_address=staker, worker_address=staker)
-        staking_agent.confirm_activity(staker)
+        staking_agent.bond_worker(staker_address=staker, worker_address=staker)
+        staking_agent.commit_to_next_period(staker)
 
     # Wait next period and check all locked tokens
     testerchain.time_travel(hours=1)

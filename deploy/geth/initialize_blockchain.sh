@@ -18,4 +18,3 @@ geth --datadir ./chaindata    \
      --identity "NuCypherTestnet"    \
      --networkid 112358       \
      init custom_genesis.json \
-

@@ -25,7 +25,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from click.testing import CliRunner
 
 from nucypher.cli.main import nucypher_cli
-from nucypher.utilities.sandbox.constants import select_test_port
+from nucypher.exceptions import DevelopmentInstallationRequired
+
+try:
+    from tests.utils.ursula import select_test_port
+except ImportError:
+    raise DevelopmentInstallationRequired(importable_name='tests.utils.ursula.select_test_port')
 
 click_runner = CliRunner()
 

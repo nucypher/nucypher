@@ -16,21 +16,21 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import random
-from abc import abstractmethod, ABC
 from collections import OrderedDict, deque
-from typing import Generator, Set, List
 
 import maya
+from abc import ABC, abstractmethod
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG, FEDERATED_POLICY, UNKNOWN_ARRANGEMENTS
+from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG
 from twisted.logger import Logger
+from typing import Generator, List, Set
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, PolicyManagerAgent
+from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakingEscrowAgent
 from nucypher.characters.lawful import Alice, Ursula
-from nucypher.crypto.api import secure_random, keccak_digest
+from nucypher.crypto.api import keccak_digest, secure_random
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
@@ -533,9 +533,9 @@ class BlockchainPolicy(Policy):
         super().__init__(alice=alice, expiration=expiration, *args, **kwargs)
 
         self.selection_buffer = 1.5
-        self.validate_reward_value()
+        self.validate_fee_value()
 
-    def validate_reward_value(self) -> None:
+    def validate_fee_value(self) -> None:
         rate_per_period = self.value // self.n // self.duration_periods  # wei
         recalculated_value = self.duration_periods * rate_per_period * self.n
         if recalculated_value != self.value:

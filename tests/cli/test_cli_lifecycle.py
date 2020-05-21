@@ -1,24 +1,24 @@
-import datetime
 import json
-import os
-import shutil
 from base64 import b64decode
 from collections import namedtuple
 from json import JSONDecodeError
 
+import datetime
 import maya
+import os
 import pytest
 import pytest_twisted as pt
+import shutil
 from twisted.internet import threads
 from web3 import Web3
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.utilities.logging import GlobalLoggerSettings
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, TEMPORARY_DOMAIN, TEST_PROVIDER_URI
-from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, TEST_PROVIDER_URI
+from tests.utils.ursula import start_pytest_ursula_services
 
 PLAINTEXT = "I'm bereaved, not a sap!"
 
@@ -121,15 +121,15 @@ def _cli_lifecycle(click_runner,
     federated = list(ursulas)[0].federated_only
 
     # Boring Setup Stuff
-    alice_config_root = custom_filepath
-    bob_config_root = custom_filepath_2
+    alice_config_root = str(custom_filepath)
+    bob_config_root = str(custom_filepath_2)
     envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 
     # A side channel exists - Perhaps a dApp
     side_channel = MockSideChannel()
 
-    shutil.rmtree(custom_filepath, ignore_errors=True)
-    shutil.rmtree(custom_filepath_2, ignore_errors=True)
+    shutil.rmtree(str(custom_filepath), ignore_errors=True)
+    shutil.rmtree(str(custom_filepath_2), ignore_errors=True)
 
     """
     Scene 1: Alice Installs nucypher to a custom filepath and examines her configuration
@@ -144,7 +144,7 @@ def _cli_lifecycle(click_runner,
     else:
         alice_init_args += ('--provider', TEST_PROVIDER_URI,
                             '--pay-with', testerchain.alice_account,
-                            '--registry-filepath', registry_filepath)
+                            '--registry-filepath', str(registry_filepath))
 
     alice_init_response = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
     assert alice_init_response.exit_code == 0
@@ -186,7 +186,7 @@ def _cli_lifecycle(click_runner,
         bob_init_args += ('--federated-only', )
     else:
         bob_init_args += ('--provider', TEST_PROVIDER_URI,
-                          '--registry-filepath', registry_filepath,
+                          '--registry-filepath', str(registry_filepath),
                           '--checksum-address', testerchain.bob_account)
 
     bob_init_response = click_runner.invoke(nucypher_cli, bob_init_args, catch_exceptions=False, env=envvars)

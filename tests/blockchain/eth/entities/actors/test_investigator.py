@@ -16,15 +16,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
-
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
-from nucypher.blockchain.eth.actors import Staker, Investigator
+from nucypher.blockchain.eth.actors import Investigator, Staker
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.signing import SignatureStamp
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 def mock_ursula(testerchain, account, mocker):
@@ -72,11 +71,11 @@ def test_investigator_requests_slashing(testerchain,
                             lock_periods=token_economics.minimum_locked_periods)
     assert staker.locked_tokens(periods=1) == locked_tokens
 
-    # The staker hasn't set a worker yet
+    # The staker hasn't bond a worker yet
     assert NULL_ADDRESS == staking_agent.get_worker_from_staker(staker_address=staker_account)
 
-    _txhash = staking_agent.set_worker(staker_address=staker_account,
-                                       worker_address=worker_account)
+    _txhash = staking_agent.bond_worker(staker_address=staker_account,
+                                        worker_address=worker_account)
 
     assert worker_account == staking_agent.get_worker_from_staker(staker_address=staker_account)
     assert staker_account == staking_agent.get_staker_from_worker(worker_address=worker_account)

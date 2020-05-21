@@ -1,10 +1,10 @@
 import random
-from typing import Union
 
 import maya
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
+from typing import Union
 
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware

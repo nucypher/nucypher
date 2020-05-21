@@ -58,8 +58,8 @@ Alice can choose stakers by herself ("handpicked") or select from the result of 
 
 In order to place the fee for a policy, Alice calls the method ``PolicyManager.createPolicy(bytes16, address, uint64, address[])``\ ,
 specifying the policy ID (off-chain generation), the policy owner (could be zero address), the end timestamp of the policy and the stakers' addresses.
-Payment should be added to the transaction in ETH and the amount is ``rewardRate * periods * stakers.length``\ , where ``periods`` is ``endTimestampPeriod - currentPeriod + 1``.
-The reward rate must be greater than or equal to the minimum reward for each staker in the list.
+Payment should be added to the transaction in ETH and the amount is ``feeRate * periods * stakers.length``\ , where ``periods`` is ``endTimestampPeriod - currentPeriod + 1``.
+The fee rate must be greater than or equal to the minimum fee for each staker in the list.
 
 Alice Revokes a Blockchain Policy
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -89,7 +89,7 @@ The parameters are:
 * The periods for locking (which are serialized into an array of bytes)
 
 When staking tokens, the staker sets the number of periods the tokens will be locked, which must be no less than some minimal locking time (30 periods).
-In order to unlock tokens, the staker must be active during the time of locking (and confirm activity each period).
+In order to unlock tokens, the staker must be active during the time of locking (and make a commitment each period).
 Each stake is represented by the amount of tokens locked, and the stake's duration in periods.
 The staker can add a new stake using ``StakingEscrow.deposit(uint256, uint16)`` or ``StakingEscrow.lock(uint256, uint16)`` methods.
 The staker can split stake into two parts: one with the same duration and another with an extended duration.
@@ -100,36 +100,36 @@ When calculating locked tokens using the ``StakingEscrow.getLockedTokens(address
 The Staker Bonds to a Worker ("Ursula")
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The staker must specify a worker who will confirm the activity and sign on behalf of this staker by calling the ``StakingEscrow.setWorker(address)`` method.
-Changing a worker is allowed no more than once within ``StakingEscrow.minWorkerPeriods()``.
-Only the worker can confirm activity.
+The staker must specify a worker who will make a commitment and sign on behalf of this staker by calling the ``StakingEscrow.bondWorker(address)`` method.
+Bonding a new worker is allowed no more than once within ``StakingEscrow.minWorkerPeriods()``.
+Only the worker can make a commitment.
 
-Ursula Confirms Activity
-^^^^^^^^^^^^^^^^^^^^^^^^
+Ursula Makes a Commitment
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
-In order to confirm activity every period, workers call ``StakingEscrow.confirmActivity()`` wherein activities for the next period are registered.
-The staker gets a reward for every confirmed period.
+In order to make a commitment to the next period, workers call ``StakingEscrow.commitToNextPeriod()`` wherein activities for the next period are registered.
+The staker gets a reward for every commitment period.
 
 Ursula Generates Staking Rewards
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 After the period of activity has passed, the staker may call ``StakingEscrow.mint()`` method which computes and transfers tokens to the staker's account.
-Also note that calls to ``StakingEscrow.confirmActivity()`` are included the ``StakingEscrow.mint()`` method.
+Also note that calls to ``StakingEscrow.commitToNextPeriod()`` are included the ``StakingEscrow.mint()`` method.
 
-The reward value depends on the fraction of locked tokens for the period (only those who confirmed activity are accounted for).
+The reward value depends on the fraction of locked tokens for the period (only those who made a commitment are accounted for).
 Also, the reward depends on the number of periods during which the tokens will be locked: if the tokens will be locked for half a year, the coefficient is 1.5.
 The minimum coefficient is 1 (when tokens will get unlocked in the next period), and the maximum is 2 (when the time is 1 year or more).
 The reward is calculated separately for each stake that is active during the mining period and all rewards are summed up.
 The order of calling ``StakingEscrow.mint()`` by stakers (e.g. who calls first, second etc) doesn't matter.
 Stakers can claim their rewards by using the ``StakingEscrow.withdraw(uint256)`` method. Only non-locked tokens can be withdrawn.
 
-Ursula Generates Policy Rewards
+Ursula Generates Policy Fees
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Also the staker gets rewards for policies deployed.
-Computation of a policy reward happens every time ``StakingEscrow.mint()`` is called by the ``PolicyManager.updateReward(address, uint16)`` method.
-In order to take the reward, the staker needs to call method ``withdraw()`` of the contract ``PolicyManager``.
-The staker can set a minimum reward rate for a policy. For that, the staker should call the ``PolicyManager.setMinRewardRate(uint256)`` method.
+Also the staker gets fees for policies deployed.
+Computation of a policy fee happens every time ``StakingEscrow.mint()`` is called by the ``PolicyManager.updateFee(address, uint16)`` method.
+In order to take the fee, the staker needs to call method ``withdraw()`` of the contract ``PolicyManager``.
+The staker can set a minimum fee rate for a policy. For that, the staker should call the ``PolicyManager.setMinFeeRate(uint256)`` method.
 
 NuCypher Partner Ursula Staking
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

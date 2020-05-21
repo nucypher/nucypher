@@ -23,15 +23,11 @@ from eth_account._utils.transactions import Transaction
 from eth_utils import to_checksum_address
 
 from nucypher.blockchain.eth.signers import Web3Signer
-from nucypher.characters.lawful import Alice, Character, Bob
-from nucypher.characters.lawful import Enrico
+from nucypher.characters.lawful import Alice, Bob, Character, Enrico
 from nucypher.crypto import api
 from nucypher.crypto.api import verify_eip_191
-from nucypher.crypto.powers import (CryptoPower,
-                                    SigningPower,
-                                    NoSigningPower,
-                                    TransactingPower)
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.crypto.powers import (CryptoPower, NoSigningPower, SigningPower, TransactingPower)
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 """
 Chapter 1: SIGNING

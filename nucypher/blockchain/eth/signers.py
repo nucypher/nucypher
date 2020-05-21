@@ -14,25 +14,24 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
 import json
-import os
-from abc import ABC, abstractmethod
+import stat
 from json import JSONDecodeError
-from typing import Dict, Tuple
-from typing import List
-from urllib.parse import urlparse
 
+import os
 import sys
+from abc import ABC, abstractmethod
 from cytoolz.dicttoolz import dissoc
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from eth_account.signers.local import LocalAccount
-from eth_utils import is_address, to_checksum_address, apply_formatters_to_dict
+from eth_utils import apply_formatters_to_dict, is_address, to_checksum_address
 from hexbytes import HexBytes
+from pathlib import Path
 from twisted.logger import Logger
-from web3 import Web3, IPCProvider
+from typing import Dict, List, Tuple
+from urllib.parse import urlparse
+from web3 import IPCProvider, Web3
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -195,6 +194,11 @@ class ClefSigner(Signer):
         return response
 
     @classmethod
+    def is_valid_clef_uri(cls, uri: str) -> bool:  # TODO: Workaround for #1941
+        uri_breakdown = urlparse(uri)
+        return uri_breakdown.scheme == cls.URI_SCHEME
+
+    @classmethod
     def from_signer_uri(cls, uri: str) -> 'ClefSigner':
         uri_breakdown = urlparse(uri)
         if uri_breakdown.scheme != cls.URI_SCHEME:
@@ -305,11 +309,19 @@ class KeystoreSigner(Signer):
     def __read_keystore(self, path: str) -> None:
         """Read the keystore directory from the disk and populate accounts."""
         try:
-            files = os.listdir(path=path)
+            st_mode = os.stat(path=path).st_mode
+            if stat.S_ISDIR(st_mode):
+                paths = (entry.path for entry in os.scandir(path=path) if entry.is_file())
+            elif stat.S_ISREG(st_mode):
+                paths = (path,)
+            else:
+                raise self.InvalidSignerURI(f'Invalid keystore file or directory "{path}"')
         except FileNotFoundError:
-            raise self.InvalidSignerURI(f'No such keystore directory "{path}"')
-        for keyfile in files:
-            account, key_metadata = self.__handle_keyfile(path=keyfile)
+            raise self.InvalidSignerURI(f'No such keystore file or directory "{path}"')
+        except OSError as exc:
+            raise self.InvalidSignerURI(f'Error accessing keystore file or directory "{path}": {exc}')
+        for path in paths:
+            account, key_metadata = self.__handle_keyfile(path=path)
             self.__keys[account] = key_metadata
 
     @staticmethod
@@ -334,7 +346,7 @@ class KeystoreSigner(Signer):
             error = f"Invalid JSON in keyfile at {path}"
             raise self.InvalidKeyfile(error)
         except KeyError:
-            error = "Keyfile does not contain address field at '{path}'"
+            error = f"Keyfile does not contain address field at '{path}'"
             raise self.InvalidKeyfile(error)
         else:
             if not is_address(address):

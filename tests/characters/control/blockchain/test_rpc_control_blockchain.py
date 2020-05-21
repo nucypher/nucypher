@@ -1,10 +1,10 @@
+from base64 import b64encode
+
 import pytest
 
-from base64 import b64encode
-from nucypher.policy.collections import TreasureMap
-from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.characters.lawful import Ursula
 from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
+from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.policy.collections import TreasureMap
 
 
 def get_fields(interface, method_name):

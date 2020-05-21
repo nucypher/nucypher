@@ -15,22 +15,18 @@ contract StakingEscrowForAdjudicatorMock {
     uint32 public immutable secondsPerPeriod = 1;
     mapping (address => uint256) public stakerInfo;
     mapping (address => uint256) public rewardInfo;
-    mapping (address => address) public workerToStaker;
+    mapping (address => address) public stakerFromWorker;
 
     function setStakerInfo(address _staker, uint256 _amount, address _worker) public {
         stakerInfo[_staker] = _amount;
         if (_worker == address(0)) {
             _worker = _staker;
         }
-        workerToStaker[_worker] = _staker;
+        stakerFromWorker[_worker] = _staker;
     }
 
     function getAllTokens(address _staker) public view returns (uint256) {
         return stakerInfo[_staker];
-    }
-
-    function getStakerFromWorker(address _worker) public view returns (address) {
-        return workerToStaker[_worker];
     }
 
     function slashStaker(

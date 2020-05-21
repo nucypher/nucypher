@@ -14,19 +14,17 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from unittest.mock import patch
-
 import maya
 import pytest
 import time
 from flask import Response
 from umbral.keys import UmbralPublicKey
+from unittest.mock import patch
 
 from nucypher.characters.lawful import Ursula
-from tests.performance_mocks import mock_cert_storage, mock_cert_loading, mock_verify_node, \
-    mock_message_verification, \
-    mock_metadata_validation, mock_signature_bytes, mock_stamp_call, mock_pubkey_from_bytes, VerificationTracker, \
-    NotARestApp, mock_secret_source, NotAPublicKey
+from tests.performance_mocks import NotAPublicKey, NotARestApp, VerificationTracker, mock_cert_loading, \
+    mock_cert_storage, mock_message_verification, mock_metadata_validation, mock_pubkey_from_bytes, mock_secret_source, \
+    mock_signature_bytes, mock_stamp_call, mock_verify_node
 
 """
 Node Discovery happens in phases.  The first step is for a network actor to learn about the mere existence of a Node.

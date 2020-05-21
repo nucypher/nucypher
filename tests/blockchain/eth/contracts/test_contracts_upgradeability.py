@@ -15,19 +15,19 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import contextlib
-import os
 
+import os
 import pytest
 import requests
 from web3.exceptions import ValidationError
 
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, StakingEscrowDeployer, PolicyManagerDeployer, \
-    AdjudicatorDeployer, BaseContractDeployer
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainDeployerInterface
+from nucypher.blockchain.eth.deployers import AdjudicatorDeployer, BaseContractDeployer, NucypherTokenDeployer, \
+    PolicyManagerDeployer, StakingEscrowDeployer
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler, SourceDirs
 from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 USER = "nucypher"
 REPO = "nucypher"
@@ -67,7 +67,15 @@ def download_github_file(source_link: str, target_folder: str):
 # All versions below the specified version must use these overrides
 # 'None' value removes arg from list of constructor parameters
 CONSTRUCTOR_OVERRIDES = {
-    StakingEscrowDeployer.contract_name: {"v1.5.1": {"_isTestContract": None}}
+    StakingEscrowDeployer.contract_name: {"v4.2.1": {"_issuanceDecayCoefficient": None,
+                                                     "_lockDurationCoefficient1": None,
+                                                     "_lockDurationCoefficient2": None,
+                                                     "_maximumRewardedPeriods": None,
+                                                     "_firstPhaseTotalSupply": None,
+                                                     "_firstPhaseMaxIssuance": None,
+                                                     "_miningCoefficient": 2,
+                                                     "_lockedPeriodsCoefficient": 1,
+                                                     "_rewardedPeriods": 1}}
 }
 
 

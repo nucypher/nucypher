@@ -1,29 +1,17 @@
 import json
-import os
-import tempfile
 
+import os
 import pytest
 from eth_utils import to_checksum_address
 
 from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.agents import (
-    NucypherTokenAgent,
-    StakingEscrowAgent,
-    PreallocationEscrowAgent,
-    PolicyManagerAgent,
-    AdjudicatorAgent,
-    ContractAgency
-)
+from nucypher.blockchain.eth.agents import (AdjudicatorAgent, ContractAgency, NucypherTokenAgent, PolicyManagerAgent,
+                                            StakingEscrowAgent)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.sol.compile import SOLIDITY_COMPILER_VERSION
 from nucypher.cli.commands.deploy import deploy
-from nucypher.utilities.sandbox.constants import (
-    TEST_PROVIDER_URI,
-    MOCK_ALLOCATION_REGISTRY_FILEPATH
-)
-
+from tests.constants import TEST_PROVIDER_URI
 
 PLANNED_UPGRADES = 4
 CONTRACTS_TO_UPGRADE = ('StakingEscrow', 'PolicyManager', 'Adjudicator', 'StakingInterface')
@@ -327,42 +315,3 @@ def test_rollback(click_runner, testerchain, registry_filepath):
         targeted_address = proxy.functions.target().call()
         assert targeted_address != current_target
         assert targeted_address == rollback_target_address
-
-
-def test_nucypher_deploy_allocation_contracts(click_runner,
-                                              testerchain,
-                                              registry_filepath,
-                                              mock_allocation_infile,
-                                              token_economics):
-
-    #
-    # Main
-    #
-
-    deploy_command = ('allocations',
-                      '--registry-infile', registry_filepath,
-                      '--allocation-infile', mock_allocation_infile,
-                      '--allocation-outfile', MOCK_ALLOCATION_REGISTRY_FILEPATH,
-                      '--provider', TEST_PROVIDER_URI)
-
-    account_index = '0\n'
-    yes = 'Y\n'
-    no = 'N\n'
-    user_input = account_index + yes + no + yes
-
-    result = click_runner.invoke(deploy,
-                                 deploy_command,
-                                 input=user_input,
-                                 catch_exceptions=False)
-    assert result.exit_code == 0
-    for allocation_address in testerchain.unassigned_accounts:
-        assert allocation_address in result.output
-
-    # ensure that a pre-allocation recipient has the allocated token quantity.
-    beneficiary = testerchain.client.accounts[-1]
-    allocation_registry = AllocationRegistry(filepath=MOCK_ALLOCATION_REGISTRY_FILEPATH)
-    registry = LocalContractRegistry(filepath=registry_filepath)
-    preallocation_escrow_agent = PreallocationEscrowAgent(registry=registry,
-                                                          beneficiary=beneficiary,
-                                                          allocation_registry=allocation_registry)
-    assert preallocation_escrow_agent.unvested_tokens == 2 * token_economics.minimum_allowed_locked

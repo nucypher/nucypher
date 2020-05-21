@@ -15,11 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import functools
-import os
 from collections import namedtuple
 
 import click
+import functools
+import os
+from twisted.python.log import Logger
 
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
 from nucypher.cli.types import (
@@ -30,6 +31,7 @@ from nucypher.cli.types import (
 )
 
 # Alphabetical
+
 option_checksum_address = click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 option_config_file = click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 option_config_root = click.option('--config-root', help="Custom configuration directory", type=click.Path())
@@ -110,7 +112,7 @@ def option_policy_encrypting_key(required: bool = False):
         required=required)
 
 
-def option_provider_uri(default=os.environ.get("NUCYPHER_PROVIDER_URI"), required: bool = False):
+def option_provider_uri(default=None, required: bool = False):
     return click.option(
         '--provider', 'provider_uri',
         help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'",
@@ -182,14 +184,21 @@ def wrap_option(handler, **options):
     return _decorator
 
 
-def process_middleware(mock_networking):
-    from nucypher.network.middleware import RestMiddleware
-    from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+def process_middleware(mock_networking) -> tuple:
+    #################
+    # MUST NOT RAISE!
+    #################
+    try:
+        from tests.utils.middleware import MockRestMiddleware
+    except ImportError:
+        # It's okay to to not crash here despite not having the tests package available.
+        logger = Logger("CLI-Middleware-Optional-Handler")
+        logger.info('--mock-networking flag is unavailable without dev install.')
     if mock_networking:
         middleware = MockRestMiddleware()
     else:
+        from nucypher.network.middleware import RestMiddleware
         middleware = RestMiddleware()
-
     return 'middleware', middleware
 
 

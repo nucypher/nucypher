@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import datetime
-
 import maya
 import pytest
 from eth_account._utils.signing import to_standard_signature_bytes
@@ -25,9 +24,9 @@ from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.powers import SigningPower
 from nucypher.policy.policies import Policy
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware, NodeIsDownMiddleware
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
+from tests.utils.ursula import make_decentralized_ursulas, make_federated_ursulas
 
 
 def test_new_federated_ursula_announces_herself(ursula_federated_test_config):
@@ -56,7 +55,7 @@ def test_stakers_bond_to_ursulas(testerchain, test_registry, stakers, ursula_dec
     ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                          stakers_addresses=testerchain.stakers_accounts,
                                          workers_addresses=testerchain.ursulas_accounts,
-                                         confirm_activity=False)
+                                         commit_to_next_period=False)
 
     assert len(ursulas) == len(stakers)
     for ursula in ursulas:

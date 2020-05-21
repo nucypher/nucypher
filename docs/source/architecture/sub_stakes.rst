@@ -17,10 +17,10 @@ Each sub-stake has:
 
     * **Locking duration**
 
-        Locking duration is defined to be the required number of times that ``confirmActivity()`` needs to be called so that the sub-stake is registered as locked for the subsequent period. For example, if a sub-stake has a *locking duration of 5 periods* it means that the sub-stake will be locked for periods: 1,2,3,4,5 because ``confirmActivity()`` would be called during periods 0,1,2,3,4 each time confirming activity for the subsequent period (1,2,3,4,5) respectively. Unless the starting period is specified, the sub-stake is considered locked for the 0th (current) period by default.
+        Locking duration is defined to be the required number of times that ``commitToNextPeriod()`` needs to be called so that the sub-stake is registered as locked for the subsequent period. For example, if a sub-stake has a *locking duration of 5 periods* it means that the sub-stake will be locked for periods: 1,2,3,4,5 because ``commitToNextPeriod()`` would be called during periods 0,1,2,3,4 each time making a commitment for the subsequent period (1,2,3,4,5) respectively. Unless the starting period is specified, the sub-stake is considered locked for the 0th (current) period by default.
 
 
-A sub-stake remains active until it becomes unlocked, and a staker gets the reward for the last period by calling ``mint()`` or ``confirmActivity()`` once the last period is surpassed. Each staker can have no more than 30 active sub-stakes which are stored in an array. All sub-stake changes initially reuse slots of inactive sub-stakes for storage in the array, and if there are none, will instead use empty slots. Therefore, attempting to retrieve data about previous inactive sub-stakes is not guaranteed to be successful since the data could have been overwritten.
+A sub-stake remains active until it becomes unlocked, and a staker gets the reward for the last period by calling ``mint()`` or ``commitToNextPeriod()`` once the last period is surpassed. Each staker can have no more than 30 active sub-stakes which are stored in an array. All sub-stake changes initially reuse slots of inactive sub-stakes for storage in the array, and if there are none, will instead use empty slots. Therefore, attempting to retrieve data about previous inactive sub-stakes is not guaranteed to be successful since the data could have been overwritten.
 
 
 Operations that modify the sub-stake array
@@ -148,10 +148,10 @@ Flags that affect the sub-stake array
 
 Re-staking
 ^^^^^^^^^^
-*Used in methods* : ``confirmActivity()``, ``mint()``
+*Used in methods* : ``commitToNextPeriod()``, ``mint()``
 
 When re-staking is disabled, the number of locked tokens in sub-stakes does not change by itself.
-However, when re-staking is enabled (default) then all staking rewards are re-locked as part of each relevant sub-stake (inside ``confirmActivity()`` and/or ``mint()``).  Consequently, each such sub-stake has an increased locked amount (by the accrued staking reward) and the number of sub-stakes remains unchanged.
+However, when re-staking is enabled (default) then all staking rewards are re-locked as part of each relevant sub-stake (inside ``commitToNextPeriod()`` and/or ``mint()``).  Consequently, each such sub-stake has an increased locked amount (by the accrued staking reward) and the number of sub-stakes remains unchanged.
 
 **Example:**
 
@@ -216,13 +216,13 @@ However, when re-staking is enabled (default) then all staking rewards are re-lo
 
 Winding down
 ^^^^^^^^^^^^
-*Used in methods* : ``confirmActivity()``
+*Used in methods* : ``commitToNextPeriod()``
 
-An enabled "winding down" parameter means that each call to ``confirmActivity()`` (no more than once in a period) leads to a reduction of the locking duration for each sub-stake. In other words, the sub-stake will unlock after the worker calls ``confirm-activity()`` at least N times (no more than once in a period), where N is the locking duration of sub-stake. When disabled (default), the unlock date for each sub-stakes shifts forward by 1 period after each period. In other words, the duration continues to remain the same until the "winding down" parameter is enabled.
+An enabled "winding down" parameter means that each call to ``commitToNextPeriod()`` (no more than once in a period) leads to a reduction of the locking duration for each sub-stake. In other words, the sub-stake will unlock after the worker calls ``commitToNextPeriod()`` at least N times (no more than once in a period), where N is the locking duration of sub-stake. When disabled (default), the unlock date for each sub-stakes shifts forward by 1 period after each period. In other words, the duration continues to remain the same until the "winding down" parameter is enabled.
 
 **Example:**
 
-    A staker has few sub-stakes, worker calls ``сonfirmActivity()`` each period:
+    A staker has few sub-stakes, worker calls ``commitToNextPeriod()`` each period:
 		- Current period: 
 			* 1st sub-stake = 400 tokens with locking duration of 8 periods
 			* 2nd sub-stake = 100 tokens locked starting from the next period and a locking duration of 5 periods

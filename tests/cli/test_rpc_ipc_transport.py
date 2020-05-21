@@ -1,10 +1,9 @@
 import json
-import sys
 from collections import deque
 
 import pytest
+import sys
 
-from nucypher.cli.config import GroupGeneralConfig
 from nucypher.cli.processes import JSONRPCLineReceiver
 
 

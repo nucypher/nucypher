@@ -17,14 +17,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import pytest
-
 from eth_tester.exceptions import TransactionFailed
-
 from umbral.config import default_params
 from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPrivateKey
 from umbral.point import Point
-from umbral.random_oracles import hash_to_curvebn, ExtendedKeccak
+from umbral.random_oracles import ExtendedKeccak, hash_to_curvebn
 from umbral.signing import Signer
 
 from nucypher.crypto.signing import SignatureStamp
@@ -201,4 +199,3 @@ def test_validate_cfrag(testerchain, reencryption_validator, mock_ursula_reencry
     # Evaluation must fail since Bob precomputed wrong values
     with pytest.raises(TransactionFailed):
         _ = reencryption_validator.functions.validateCFrag(*args).call()
-

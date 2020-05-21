@@ -20,7 +20,7 @@ import pytest
 import pytest_twisted as pt
 from twisted.internet.threads import deferToThread
 
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+from tests.utils.ursula import make_federated_ursulas
 
 
 @pt.inlineCallbacks

@@ -1,9 +1,9 @@
 from contextlib import contextmanager
-from unittest.mock import patch
 
 from umbral.config import default_params
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
+from unittest.mock import patch
 
 from nucypher.network.server import make_rest_app
 

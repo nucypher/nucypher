@@ -22,7 +22,7 @@ import pytest
 from eth_utils import to_wei
 from web3 import Web3
 
-from nucypher.blockchain.eth.actors import Staker, Bidder
+from nucypher.blockchain.eth.actors import Bidder, Staker
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     WorkLockAgent
@@ -30,12 +30,9 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.commands.worklock import worklock
-from nucypher.utilities.sandbox.constants import (
-    INSECURE_DEVELOPMENT_PASSWORD,
-    TEST_PROVIDER_URI,
-    MOCK_IP_ADDRESS,
-    select_test_port, TEMPORARY_DOMAIN
-)
+from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, TEST_PROVIDER_URI)
+from tests.utils.ursula import select_test_port
+from nucypher.config.constants import TEMPORARY_DOMAIN
 
 
 @pytest.fixture(scope='module')
@@ -225,7 +222,7 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
 
     # Bidder is now STAKER. Bond a worker.
     staker = Staker(is_me=True, checksum_address=bidder, registry=agency_local_registry)
-    receipt = staker.set_worker(worker_address=worker_address)
+    receipt = staker.bond_worker(worker_address=worker_address)
     assert receipt['status'] == 1
 
     worker = Ursula(is_me=True,
@@ -241,7 +238,7 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
 
     # Do some work
     for i in range(3):
-        receipt = worker.confirm_activity()
+        receipt = worker.commit_to_next_period()
         assert receipt['status'] == 1
         testerchain.time_travel(periods=1)
 

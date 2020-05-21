@@ -1,7 +1,7 @@
-import datetime
 import json
-from base64 import b64encode, b64decode
+from base64 import b64decode, b64encode
 
+import datetime
 import maya
 import pytest
 from click.testing import CliRunner

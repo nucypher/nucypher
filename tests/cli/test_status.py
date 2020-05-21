@@ -16,19 +16,20 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import random
+
 import re
 
 from nucypher.blockchain.eth.agents import (
-    PolicyManagerAgent,
-    StakingEscrowAgent,
     AdjudicatorAgent,
+    ContractAgency,
     NucypherTokenAgent,
-    ContractAgency
+    PolicyManagerAgent,
+    StakingEscrowAgent
 )
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.commands.status import status
-from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI, TEMPORARY_DOMAIN
-from tests.fixtures import MIN_REWARD_RATE_RANGE
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from tests.constants import FEE_RATE_RANGE, TEST_PROVIDER_URI
 
 
 def test_nucypher_status_network(click_runner, testerchain, agency_local_registry):
@@ -91,21 +92,21 @@ def test_nucypher_status_stakers(click_runner, agency_local_registry, stakers):
     assert re.search(r"Worker:\s+" + some_dude.worker_address, result.output, re.MULTILINE)
     assert re.search(r"Owned:\s+" + str(round(owned_tokens, 2)), result.output, re.MULTILINE)
     assert re.search(r"Staked: " + str(round(locked_tokens, 2)), result.output, re.MULTILINE)
-    _minimum, default, _maximum = MIN_REWARD_RATE_RANGE
-    assert f"Min reward rate: {default} wei" in result.output
+    _minimum, default, _maximum = FEE_RATE_RANGE
+    assert f"Min fee rate: {default} wei" in result.output
 
 
-def test_nucypher_status_reward_range(click_runner, agency_local_registry, stakers):
+def test_nucypher_status_fee_range(click_runner, agency_local_registry, stakers):
 
-    # Get info about reward range
-    stakers_command = ('reward-range',
+    # Get information about global fee range (minimum rate, default rate, maximum rate)
+    stakers_command = ('fee-range',
                        '--registry-filepath', agency_local_registry.filepath,
                        '--provider', TEST_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN)
 
     result = click_runner.invoke(status, stakers_command, catch_exceptions=False)
     assert result.exit_code == 0
-    minimum, default, maximum = MIN_REWARD_RATE_RANGE
+    minimum, default, maximum = FEE_RATE_RANGE
     assert f"{minimum} wei" in result.output
     assert f"{default} wei" in result.output
     assert f"{maximum} wei" in result.output
@@ -114,9 +115,9 @@ def test_nucypher_status_reward_range(click_runner, agency_local_registry, stake
 def test_nucypher_status_locked_tokens(click_runner, testerchain, agency_local_registry, stakers):
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
-    # All workers confirm activity
+    # All workers make a commitment
     for ursula in testerchain.ursulas_accounts:
-        staking_agent.confirm_activity(worker_address=ursula)
+        staking_agent.commit_to_next_period(worker_address=ursula)
     testerchain.time_travel(periods=1)
 
     periods = 2

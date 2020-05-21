@@ -308,7 +308,7 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
     assert event_args['sender'] == staker1
     assert event_args['depositedETH'] == deposit_eth_1
 
-    # Can't claim, refund or burn while bidding phase
+    # Can't claim or refund while bidding phase
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.claim().transact({'from': staker1, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
