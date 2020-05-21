@@ -29,7 +29,7 @@ from decimal import Decimal
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import to_canonical_address, to_checksum_address
 from twisted.logger import Logger
-from typing import Dict, Generator, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 from web3 import Web3
 from web3.exceptions import ValidationError
 
@@ -866,7 +866,7 @@ class Staker(NucypherTokenActor):
         return self.locked_tokens(periods=0)
 
     @property
-    def active_stakes(self) -> Generator[Stake, None, None]:
+    def active_stakes(self) -> Iterable[Stake]:
         """Returns active stakes for this staker."""
         stakes = (stake for stake in self.stakes if stake.is_active)
         return stakes
@@ -883,7 +883,7 @@ class Staker(NucypherTokenActor):
         what constitutes a divisible stake amongst a given iterable of stakes.
         """
         min_divisible_stake_value = self.economics.minimum_allowed_locked * 2
-        result = bool(stake.value >= min_divisible_stake_value)
+        result = stake.value >= min_divisible_stake_value
         return result
 
     @property

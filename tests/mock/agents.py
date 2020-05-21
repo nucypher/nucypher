@@ -52,8 +52,6 @@ class MockContractAgent:
         r = f'Mock{self.agent_class.__name__}(id={id(self)})'
         return r
 
-
-
     @classmethod
     def __setup_mock(cls, agent_class: Type[EthereumContractAgent]) -> None:
 
@@ -137,7 +135,7 @@ class MockContractAgent:
         unexpected_transactions = list(filter(predicate, self.all_transactions))
         return unexpected_transactions
 
-    def assert_no_unexpected_transactions(self, allowed: Iterable[Callable]) -> None:
+    def assert_only_transactions(self, allowed: Iterable[Callable]) -> None:
         unexpected_transactions = self.get_unexpected_transactions(allowed=allowed)
         assert not bool(unexpected_transactions)
 

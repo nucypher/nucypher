@@ -140,7 +140,7 @@ def test_valid_bid(click_runner,
     assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
 
     # Transactions
-    mock_worklock_agent.assert_no_unexpected_transactions(allowed=[mock_worklock_agent.bid])
+    mock_worklock_agent.assert_only_transactions(allowed=[mock_worklock_agent.bid])
     mock_worklock_agent.bid.assert_called_with(checksum_address=surrogate_bidder.checksum_address, value=nunits)
 
     # Calls
@@ -170,7 +170,7 @@ def test_cancel_bid(click_runner,
     assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
 
     # Transactions
-    mock_worklock_agent.assert_no_unexpected_transactions(allowed=[mock_worklock_agent.cancel_bid])
+    mock_worklock_agent.assert_only_transactions(allowed=[mock_worklock_agent.cancel_bid])
     mock_worklock_agent.cancel_bid.called_once_with(checksum_address=surrogate_bidder.checksum_address)
 
     # Calls
@@ -201,7 +201,7 @@ def test_post_initialization(click_runner,
     assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
 
     # Transactions
-    mock_worklock_agent.assert_no_unexpected_transactions(allowed=mock_worklock_agent.enable_claiming)
+    mock_worklock_agent.assert_only_transactions(allowed=mock_worklock_agent.enable_claiming)
     mock_worklock_agent.enable_claiming.assert_called_with(hecksum_address=surrogate_bidder.checksum_address)
 
 
@@ -338,7 +338,7 @@ def test_refund(click_runner,
     assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
 
     # Transactions
-    mock_worklock_agent.assert_no_unexpected_transactions(allowed=[mock_worklock_agent.refund])
+    mock_worklock_agent.assert_only_transactions(allowed=[mock_worklock_agent.refund])
     mock_worklock_agent.refund.assert_called_with(checksum_address=surrogate_bidder.checksum_address)
 
 
