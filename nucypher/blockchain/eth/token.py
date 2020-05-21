@@ -237,7 +237,8 @@ class Stake:
                           other.staking_agent.contract_address)
         except AttributeError:
             return False
-        return bool(sorted(map(str, this_stake)) == sorted(map(str, that_stake)))
+
+        return this_stake == that_stake
 
     @property
     def address_index_ordering_key(self):
