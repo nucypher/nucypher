@@ -7,6 +7,7 @@ from web3 import Web3
 from nucypher.blockchain.eth.actors import Wallet
 from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.actions.select import select_client_account
 from nucypher.cli.literature import NO_ETH_ACCOUNTS
@@ -86,11 +87,11 @@ def test_select_client_account_valid_sources(mocker,
     mock_click_prompt.return_value = selection
 
     # From External Signer
+    mock_signer = mocker.patch.object(KeystoreSigner, 'from_signer_uri')
     selected_account = select_client_account(emitter=test_emitter, signer_uri=MOCK_SIGNER_URI)
-    signer_etherbase_keystore = list(mock_accounts.items())[selection]
-    _filename, signer_etherbase_account = signer_etherbase_keystore
-    expected_account = signer_etherbase_account.address
+    expected_account = mock_testerchain.client.accounts[selection]
     assert selected_account == expected_account
+    mock_signer.assert_called_once_with(uri=MOCK_SIGNER_URI)
 
     # From Wallet
     expected_account = mock_testerchain.client.accounts[selection]

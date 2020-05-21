@@ -39,6 +39,8 @@ from tests.constants import (
 from tests.fixtures import _make_testerchain, make_token_economics
 from tests.mock.agents import MockContractAgency, MockContractAgent
 from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
+from tests.utils.config import make_alice_test_configuration, make_bob_test_configuration, \
+    make_ursula_test_configuration
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 
@@ -200,7 +202,6 @@ def custom_config_filepath(custom_filepath):
 
 @pytest.fixture(scope='function')
 def patch_keystore(mock_accounts, monkeypatch, mocker):
-
     def successful_mock_keyfile_reader(_keystore, path):
 
         # Ensure the absolute path is passed to the keyfile reader
@@ -216,9 +217,14 @@ def patch_keystore(mock_accounts, monkeypatch, mocker):
         return account.address, dict(version=3, address=account.address)
 
     mocker.patch('os.listdir', return_value=list(mock_accounts.keys()))
-    monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keyfile', successful_mock_keyfile_reader)
+    monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keystore', successful_mock_keyfile_reader)
     yield
-    monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keyfile')
+    monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keystore')
+
+
+@pytest.fixture(scope='function')
+def mock_keystore(mocker):
+    mocker.patch.object(KeystoreSigner, '_KeystoreSigner__read_keystore')
 
 
 @pytest.fixture(scope="module")
