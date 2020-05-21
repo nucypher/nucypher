@@ -22,7 +22,7 @@ import sys
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
 from eth_utils.address import to_checksum_address
 from twisted.logger import Logger
-from typing import Dict, Generator, List, Tuple, Type, Union
+from typing import Dict, Generator, List, Tuple, Type, TypeVar, Union
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.constants import (
@@ -46,8 +46,9 @@ from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.crypto.api import sha256_digest
 
 
-#  TODO: Agents type alias
-# Agents = Union['AdjudicatorAgent', '']
+# TODO: Use everywhere
+# TODO: Uses string to avoid circular import
+Agent = TypeVar('Agent', bound='EthereumContractAgent')
 
 
 class ContractAgency:
@@ -58,9 +59,9 @@ class ContractAgency:
 
     @classmethod
     def get_agent(cls,
-                  agent_class: Type['EthereumContractAgent'],
+                  agent_class: Type[Agent],
                   registry: BaseContractRegistry = None,
-                  provider_uri: str = None):
+                  provider_uri: str = None) -> Agent:
 
         if not issubclass(agent_class, EthereumContractAgent):
             raise TypeError(f"Only agent subclasses can be used from the agency.")
