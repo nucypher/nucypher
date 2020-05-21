@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import json
 
 import pytest
+import secrets
 from eth_account import Account
 from pathlib import Path
 
@@ -31,42 +32,32 @@ from nucypher.config.constants import (
     TEMPORARY_DOMAIN,
 )
 from tests.constants import (
-    INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_IP_ADDRESS,
     TEST_PROVIDER_URI
 )
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 
-@pytest.fixture(scope='function')
-def cli_env():
-    return {
-        NUCYPHER_ENVVAR_KEYRING_PASSWORD:    INSECURE_DEVELOPMENT_PASSWORD,
-        NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
-    }
-
-
 @pytest.fixture(scope='module')
-def mock_account_keystore(tmp_path_factory):
-    '''Create local keystore with 1 account'''
+def mock_account_password_keystore(tmp_path_factory):
+    '''Generate a random keypair & password and create a local keystore'''
     keystore = tmp_path_factory.mktemp('keystore', numbered=True)
+    password = secrets.token_urlsafe(12)
     account = Account.create()
-    filename = f'{account.address}'
-    json.dump(account.encrypt(INSECURE_DEVELOPMENT_PASSWORD),
-    open(keystore / filename, 'x+t'))
-    return account, keystore
+    path = keystore / f'{account.address}'
+    json.dump(account.encrypt(password), open(path, 'x+t'))
+    return account, password, keystore
 
 
 def test_ursula_init_with_local_keystore_signer(click_runner,
-                                                custom_filepath,
-                                                custom_config_filepath,
+                                                tmp_path,
                                                 mocker,
                                                 mock_testerchain,
-                                                mock_account_keystore,
-                                                test_registry_source_manager,
-                                                cli_env):
-
-    worker_account, mock_keystore_path = mock_account_keystore
+                                                mock_account_password_keystore,
+                                                test_registry_source_manager):
+    custom_filepath = tmp_path
+    custom_config_filepath = tmp_path / UrsulaConfiguration.generate_filename()
+    worker_account, password, mock_keystore_path = mock_account_password_keystore
     mock_signer_uri = f'keystore:{mock_keystore_path}'
 
     # Good signer...
@@ -83,7 +74,10 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
                  # The bit we are testing here
                  '--signer', mock_signer_uri)
 
-
+    cli_env = {
+        NUCYPHER_ENVVAR_KEYRING_PASSWORD:    password,
+        NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD: password,
+    }
     result = click_runner.invoke(nucypher_cli,
                                  init_args,
                                  catch_exceptions=False,
@@ -104,11 +98,11 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
     # Mock decryption of web3 client keyring
     mocker.patch.object(Account, 'decrypt', return_value=worker_account.privateKey)
     ursula_config.attach_keyring(checksum_address=worker_account.address)
-    ursula_config.keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    ursula_config.keyring.unlock(password=password)
 
     # Produce an ursula with a Keystore signer correctly derived from the signer URI, and dont do anything else!
     mocker.patch.object(StakeList, 'refresh', autospec=True)
-    ursula = ursula_config.produce(client_password=INSECURE_DEVELOPMENT_PASSWORD,
+    ursula = ursula_config.produce(client_password=password,
                                    block_until_ready=False)
 
     # Verify the keystore path is still preserved
