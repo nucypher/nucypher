@@ -19,7 +19,6 @@ import json
 import os
 import pytest
 from eth_account import Account
-from pathlib import Path
 from web3 import Web3
 
 from nucypher.blockchain.eth.signers import KeystoreSigner
@@ -27,7 +26,6 @@ from nucypher.blockchain.eth.token import StakeList
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from tests.cli.functional.test_ursula_local_keystore_cli_functionality import (CLI_ENV, KEYFILE_NAME_TEMPLATE,
-                                                                               MOCK_KEYSTORE_PATH, MOCK_SIGNER_URI,
                                                                                NUMBER_OF_MOCK_ACCOUNTS)
 from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, TEST_PROVIDER_URI)
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
@@ -67,21 +65,13 @@ def custom_config_filepath(custom_filepath):
     return filepath
 
 
-@pytest.fixture(scope='function', autouse=True)
-def mock_keystore(mock_accounts, monkeypatch, mocker):
-
-    def mock_keyfile_reader(_keystore, path):
-        for filename, account in mock_accounts.items():  # Walk the mock filesystem
-            if filename in path:
-                break
-        else:
-            raise FileNotFoundError(f"No such file {path}")
-        return account.address, dict(version=3, address=account.address)
-
-    mocker.patch('os.listdir', return_value=list(mock_accounts.keys()))
-    monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keyfile', mock_keyfile_reader)
-    yield
-    monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keyfile')
+@pytest.fixture(scope='module')
+def mock_keystore(mock_accounts, tmp_path_factory):
+    keystore = tmp_path_factory.mktemp('keystore', numbered=True)
+    for filename, account in mock_accounts.items():
+        json.dump(account.encrypt(INSECURE_DEVELOPMENT_PASSWORD),
+                  open(keystore / filename, 'x+t'))
+    return keystore
 
 
 def test_ursula_and_local_keystore_signer_integration(click_runner,
@@ -94,6 +84,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
                                                       worker_account,
                                                       worker_address,
                                                       mocker,
+                                                      mock_keystore,
                                                       testerchain):
 
     #
@@ -129,7 +120,9 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     #
 
     # Good signer...
-    pre_config_signer = KeystoreSigner.from_signer_uri(uri=MOCK_SIGNER_URI)
+    mock_keystore_path = mock_keystore
+    mock_signer_uri = f'keystore:{mock_keystore_path}'
+    pre_config_signer = KeystoreSigner.from_signer_uri(uri=mock_signer_uri)
     assert worker_account.address in pre_config_signer.accounts
 
     init_args = ('ursula', 'init',
@@ -141,7 +134,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
                  '--rest-port', MOCK_URSULA_STARTING_PORT,
 
                  # The bit we are testing for here
-                 '--signer', MOCK_SIGNER_URI)
+                 '--signer', mock_signer_uri)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=CLI_ENV)
     assert result.exit_code == 0, result.stdout
@@ -150,12 +143,12 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     with open(custom_config_filepath, 'r') as config_file:
         raw_config_data = config_file.read()
         config_data = json.loads(raw_config_data)
-        assert config_data['signer_uri'] == MOCK_SIGNER_URI,\
+        assert config_data['signer_uri'] == mock_signer_uri,\
             "Keystore URI was not correctly included in configuration file"
 
     # Recreate a configuration with the signer URI preserved
     ursula_config = UrsulaConfiguration.from_configuration_file(custom_config_filepath)
-    assert ursula_config.signer_uri == MOCK_SIGNER_URI
+    assert ursula_config.signer_uri == mock_signer_uri
 
     # Mock decryption of web3 client keyring
     mocker.patch.object(Account, 'decrypt', return_value=worker_account.privateKey)
@@ -169,7 +162,8 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
 
     # Verify the keystore path is still preserved
     assert isinstance(ursula.signer, KeystoreSigner)
-    assert ursula.signer.path == Path(MOCK_KEYSTORE_PATH)
+    assert isinstance(ursula.signer.path, str), "Use str"
+    assert ursula.signer.path == str(mock_keystore_path)
 
     # Show that we can produce the exact same signer as pre-config...
     assert pre_config_signer.path == ursula.signer.path
