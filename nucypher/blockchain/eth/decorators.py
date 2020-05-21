@@ -121,7 +121,8 @@ def contract_api(interface: Optional[ContractInterfaces] = UNKNOWN_CONTRACT_INTE
 
     def decorator(agent_method: Callable) -> Callable:
         """
-        Marks an agent method as containing transactions.
+        Marks an agent method as containing contract interactions (transaction or call)
+        and validates outbound checksum addresses for EIP-55 compliance.
 
         If `COLLECT_CONTRACT_API` is True when running tests,
         all marked methods will be collected for automatic mocking
@@ -129,6 +130,7 @@ def contract_api(interface: Optional[ContractInterfaces] = UNKNOWN_CONTRACT_INTE
         """
         if COLLECT_CONTRACT_API:
             agent_method.contract_api = interface
+        agent_method = validate_checksum_address(func=agent_method)
         return agent_method
 
     return decorator
