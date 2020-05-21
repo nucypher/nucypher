@@ -99,8 +99,8 @@ class PostDevelopCommand(develop):
 
 def read_requirements(path):
     with open(os.path.join(BASE_DIR, path)) as f:
-        _PIPENV_FLAGS, *REQUIREMENTS = f.read().split('\n')
-    return REQUIREMENTS
+        _pipenv_flags, *requirements = f.read().split('\n')
+    return requirements
 
 
 INSTALL_REQUIRES = read_requirements('requirements.txt')
@@ -131,7 +131,7 @@ setup(
 
     # Requirements
     python_requires='>=3',
-    setup_requires=['pytest-runner', 'setuptools-markdown'],
+    setup_requires=['setuptools-markdown'],
     install_requires=INSTALL_REQUIRES,
     extras_require=EXTRAS,
 

@@ -25,7 +25,6 @@ build-docs:
 	# sphinx-apidoc [OPTIONS] -o <OUTPUT_PATH> <MODULE_PATH> [EXCLUDE_PATTERN …]
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
-	# $(MAKE) -C docs html
 
 validate-docs: build-docs
     # Required dependencies from docs/requirements.txt
