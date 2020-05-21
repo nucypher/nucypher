@@ -81,9 +81,3 @@ def mock_contract_agency(module_mocker, token_economics):
     # Restore the monkey patching
     ContractAgency.get_agent = get_agent
     ContractAgency.get_agent_by_contract_name = get_agent_by_name
-
-
-@pytest.fixture(scope='module')
-def custom_config_filepath(custom_filepath):
-    filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
-    return filepath
