@@ -1,7 +1,12 @@
 import eth_utils
 import functools
 import inspect
-from constant_sorrow.constants import (CONTRACT_ATTRIBUTE, CONTRACT_CALL, TRANSACTION, UNKNOWN_CONTRACT_INTERFACE)
+from constant_sorrow.constants import (
+    CONTRACT_ATTRIBUTE,
+    CONTRACT_CALL,
+    TRANSACTION,
+    UNKNOWN_CONTRACT_INTERFACE
+)
 from datetime import datetime
 from twisted.logger import Logger
 from typing import Callable, Optional, Union
@@ -82,7 +87,7 @@ def validate_checksum_address(func: Callable) -> Callable:
     return wrapped
 
 
-def only_me(func: Callable):
+def only_me(func: Callable) -> Callable:
     """Decorator to enforce invocation of permissioned actor methods"""
     @functools.wraps(func)
     def wrapped(actor=None, *args, **kwargs):
@@ -92,10 +97,10 @@ def only_me(func: Callable):
     return wrapped
 
 
-def save_receipt(actor_method):
+def save_receipt(actor_method) -> Callable:
     """Decorator to save the receipts of transmitted transactions from actor methods"""
     @functools.wraps(actor_method)
-    def wrapped(self, *args, **kwargs):
+    def wrapped(self, *args, **kwargs) -> dict:
         receipt = actor_method(self, *args, **kwargs)
         self._saved_receipts.append((datetime.utcnow(), receipt))
         return receipt
@@ -107,7 +112,7 @@ def save_receipt(actor_method):
 #
 
 
-# TODO: Disable collection in prod (detect test package?)
+# TODO: Auto disable collection in prod (detect test package?)
 COLLECT_CONTRACT_API = True
 
 

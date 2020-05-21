@@ -6,9 +6,8 @@ from typing import Callable, Generator, Iterable, List, Type, Union
 from unittest.mock import Mock
 
 from nucypher.blockchain.eth import agents
-from nucypher.blockchain.eth.agents import ContractAgency, EthereumContractAgent
+from nucypher.blockchain.eth.agents import Agent, ContractAgency, EthereumContractAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.decorators import ContractInterfaces
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from tests.constants import MOCK_PROVIDER_URI
 
@@ -54,16 +53,18 @@ class MockContractAgent:
         return r
 
     @classmethod
-    def __setup_mock(cls, agent_class: Type[EthereumContractAgent]) -> None:
+    def __setup_mock(cls, agent_class: Type[Agent]) -> None:
 
-        api_methods = list(cls.__collect_contract_api(agent_class=agent_class))
+        api_methods: Iterable[Callable] = list(cls.__collect_contract_api(agent_class=agent_class))
         mock_methods, mock_properties = list(), dict()
 
         for agent_interface in api_methods:
 
             # Handle
             try:
-                real_method = agent_interface.fget  # Handle properties
+                # TODO: #2022: This might be a method also decorated @property
+                # Get the inner function of the property
+                real_method: Callable = agent_interface.fget  # Handle properties
             except AttributeError:
                 real_method = agent_interface
 
@@ -71,7 +72,7 @@ class MockContractAgent:
             interface = getattr(real_method, cls.__COLLECTION_MARKER)
             default_return = cls.__DEFAULTS.get(interface)
 
-            # TODO: Special handling of PropertyMocks?
+            # TODO: #2022 Special handling of PropertyMocks?
             # # Setup
             # if interface == CONTRACT_ATTRIBUTE:
             #     mock = PropertyMock()
@@ -96,7 +97,7 @@ class MockContractAgent:
         return interface_calls
 
     @classmethod
-    def __is_contract_method(cls, agent_class: Type['EthereumContractAgent'], method_name: str) -> bool:
+    def __is_contract_method(cls, agent_class: Type[Agent], method_name: str) -> bool:
         method_or_property = getattr(agent_class, method_name)
         try:
             real_method: Callable = method_or_property.fget  # Property (getter)
@@ -106,7 +107,7 @@ class MockContractAgent:
         return contract_api
 
     @classmethod
-    def __collect_contract_api(cls, agent_class: Type[EthereumContractAgent]) -> Generator[Callable, None, None]:
+    def __collect_contract_api(cls, agent_class: Type[Agent]) -> Generator[Callable, None, None]:
         agent_attrs = dir(agent_class)
         predicate = cls.__is_contract_method
         methods = (getattr(agent_class, name) for name in agent_attrs if predicate(agent_class, name))
@@ -156,7 +157,7 @@ class MockContractAgency(ContractAgency):
     __agents = dict()
 
     @classmethod
-    def get_agent(cls, agent_class: Type[EthereumContractAgent], *args, **kwargs) -> MockContractAgent:
+    def get_agent(cls, agent_class: Type[Agent], *args, **kwargs) -> Type[MockContractAgent]:
         try:
             mock_agent = cls.__agents[agent_class]
         except KeyError:
@@ -165,7 +166,7 @@ class MockContractAgency(ContractAgency):
         return mock_agent
 
     @classmethod
-    def get_agent_by_contract_name(cls, contract_name: str, *args, **kwargs) -> MockContractAgent:
+    def get_agent_by_contract_name(cls, contract_name: str, *args, **kwargs) -> Type[MockContractAgent]:
         agent_name = super()._contract_name_to_agent_name(name=contract_name)
         agent_class = getattr(agents, agent_name)
         mock_agent = cls.get_agent(agent_class=agent_class)
