@@ -25,8 +25,6 @@ from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.config.characters import UrsulaConfiguration
-from tests.cli.functional.test_ursula_local_keystore_cli_functionality import KEYFILE_NAME_TEMPLATE, \
-    NUMBER_OF_MOCK_ACCOUNTS
 from tests.fixtures import _make_testerchain, make_token_economics
 from tests.mock.agents import FAKE_RECEIPT, MockContractAgency
 from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
@@ -83,28 +81,6 @@ def mock_contract_agency(module_mocker, token_economics):
     # Restore the monkey patching
     ContractAgency.get_agent = get_agent
     ContractAgency.get_agent_by_contract_name = get_agent_by_name
-
-
-@pytest.fixture(scope='module')
-def mock_accounts():
-    accounts = dict()
-    for i in range(NUMBER_OF_MOCK_ACCOUNTS):
-        account = Account.create()
-        filename = KEYFILE_NAME_TEMPLATE.format(month=i+1, address=account.address)
-        accounts[filename] = account
-    return accounts
-
-
-@pytest.fixture(scope='module')
-def worker_account(mock_accounts, mock_testerchain):
-    account = list(mock_accounts.values())[0]
-    return account
-
-
-@pytest.fixture(scope='module')
-def worker_address(worker_account):
-    address = worker_account.address
-    return address
 
 
 @pytest.fixture(scope='module')

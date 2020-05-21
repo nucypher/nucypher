@@ -25,8 +25,11 @@ from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.token import StakeList
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD, \
-    TEMPORARY_DOMAIN
+from nucypher.config.constants import (
+    NUCYPHER_ENVVAR_KEYRING_PASSWORD,
+    NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
+    TEMPORARY_DOMAIN,
+)
 from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_IP_ADDRESS,
@@ -34,37 +37,24 @@ from tests.constants import (
 )
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
-# TODO: Move to fixtures
-CLI_ENV = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
-           NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 
-KEYFILE_NAME_TEMPLATE = 'UTC--2020-{month}-21T03-42-07.869432648Z--{address}'
-MOCK_KEYSTORE_PATH = '/somewhere/fakeMcfakeson/.ethereum/llamanet/keystore/'
-MOCK_SIGNER_URI = f'keystore://{MOCK_KEYSTORE_PATH}'
-NUMBER_OF_MOCK_ACCOUNTS = 3
+@pytest.fixture(scope='function')
+def cli_env():
+    return {
+        NUCYPHER_ENVVAR_KEYRING_PASSWORD:    INSECURE_DEVELOPMENT_PASSWORD,
+        NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
+    }
 
 
-@pytest.fixture(scope='function', autouse=True)
-def patch_keystore(mock_accounts, monkeypatch, mocker):
-
-    def successful_mock_keyfile_reader(_keystore, path):
-
-        # Ensure the absolute path is passed to the keyfile reader
-        assert MOCK_KEYSTORE_PATH in path
-        full_path = path
-        del path
-
-        for filename, account in mock_accounts.items():  # Walk the mock filesystem
-            if filename in full_path:
-                break
-        else:
-            raise FileNotFoundError(f"No such file {full_path}")
-        return account.address, dict(version=3, address=account.address)
-
-    mocker.patch('os.listdir', return_value=list(mock_accounts.keys()))
-    monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keyfile', successful_mock_keyfile_reader)
-    yield
-    monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keyfile')
+@pytest.fixture(scope='module')
+def mock_account_keystore(tmp_path_factory):
+    '''Create local keystore with 1 account'''
+    keystore = tmp_path_factory.mktemp('keystore', numbered=True)
+    account = Account.create()
+    filename = f'{account.address}'
+    json.dump(account.encrypt(INSECURE_DEVELOPMENT_PASSWORD),
+    open(keystore / filename, 'x+t'))
+    return account, keystore
 
 
 def test_ursula_init_with_local_keystore_signer(click_runner,
@@ -72,11 +62,15 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
                                                 custom_config_filepath,
                                                 mocker,
                                                 mock_testerchain,
-                                                worker_account,
-                                                test_registry_source_manager):
+                                                mock_account_keystore,
+                                                test_registry_source_manager,
+                                                cli_env):
+
+    worker_account, mock_keystore_path = mock_account_keystore
+    mock_signer_uri = f'keystore:{mock_keystore_path}'
 
     # Good signer...
-    pre_config_signer = KeystoreSigner.from_signer_uri(uri=MOCK_SIGNER_URI)
+    pre_config_signer = KeystoreSigner.from_signer_uri(uri=mock_signer_uri)
 
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
@@ -87,21 +81,25 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
                  '--rest-port', MOCK_URSULA_STARTING_PORT,
 
                  # The bit we are testing here
-                 '--signer', MOCK_SIGNER_URI)
+                 '--signer', mock_signer_uri)
 
-    result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=CLI_ENV)
+
+    result = click_runner.invoke(nucypher_cli,
+                                 init_args,
+                                 catch_exceptions=False,
+                                 env=cli_env)
     assert result.exit_code == 0, result.stdout
 
     # Inspect the configuration file for the signer URI
     with open(custom_config_filepath, 'r') as config_file:
         raw_config_data = config_file.read()
         config_data = json.loads(raw_config_data)
-        assert config_data['signer_uri'] == MOCK_SIGNER_URI,\
+        assert config_data['signer_uri'] == mock_signer_uri,\
             "Keystore URI was not correctly included in configuration file"
 
     # Recreate a configuration with the signer URI preserved
     ursula_config = UrsulaConfiguration.from_configuration_file(custom_config_filepath)
-    assert ursula_config.signer_uri == MOCK_SIGNER_URI
+    assert ursula_config.signer_uri == mock_signer_uri
 
     # Mock decryption of web3 client keyring
     mocker.patch.object(Account, 'decrypt', return_value=worker_account.privateKey)
@@ -115,8 +113,8 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
 
     # Verify the keystore path is still preserved
     assert isinstance(ursula.signer, KeystoreSigner)
-    assert isinstance(ursula.signer.path, Path), "Use Pathlib"
-    assert ursula.signer.path == Path(MOCK_KEYSTORE_PATH)  # confirm Pathlib is used internally despite string input
+    assert isinstance(ursula.signer.path, str), "Use str"
+    assert ursula.signer.path == str(mock_keystore_path)
 
     # Show that we can produce the exact same signer as pre-config...
     assert pre_config_signer.path == ursula.signer.path

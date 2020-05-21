@@ -43,11 +43,12 @@ def mock_account(mock_key):
 
 @pytest.fixture(scope='module')
 def mock_keystore(mock_account, tmp_path_factory):
-    keystore = tmp_path_factory.mktemp('keystore', numbered=True)
-    for filename, account in ((MOCK_KEYFILE_NAME, mock_account),):
-        json.dump(account.encrypt(INSECURE_DEVELOPMENT_PASSWORD),
-                  open(keystore / filename, 'x+t'))
-        return keystore
+    keystore = tmp_path_factory.mktemp('keystore')
+    json.dump(
+        mock_account.encrypt(INSECURE_DEVELOPMENT_PASSWORD),
+        open(keystore / MOCK_KEYFILE_NAME, 'x+t')
+    )
+    return keystore
 
 
 @pytest.fixture(scope='function')
