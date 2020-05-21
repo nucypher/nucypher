@@ -1,11 +1,12 @@
 from enum import Enum
 
+from constant_sorrow.constants import (CONTRACT_ATTRIBUTE, CONTRACT_CALL, TRANSACTION)
 from hexbytes import HexBytes
 from typing import Callable, Generator, Iterable, List, Type, Union
-from unittest.mock import Mock, PropertyMock
+from unittest.mock import Mock
 
 from nucypher.blockchain.eth import agents
-from nucypher.blockchain.eth.agents import ContractAgency, EthereumContractAgent, WorkLockAgent
+from nucypher.blockchain.eth.agents import ContractAgency, EthereumContractAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import ContractInterfaces
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -27,9 +28,9 @@ class MockContractAgent:
     # Internal
     __COLLECTION_MARKER = "contract_api"  # decorator attribute
     __DEFAULTS = {
-        ContractInterfaces.CALL: FAKE_CALL_RESULT,
-        ContractInterfaces.ATTRIBUTE: FAKE_CALL_RESULT,
-        ContractInterfaces.TRANSACTION:  FAKE_RECEIPT,
+        CONTRACT_CALL: FAKE_CALL_RESULT,
+        CONTRACT_ATTRIBUTE: FAKE_CALL_RESULT,
+        TRANSACTION:  FAKE_RECEIPT,
     }
 
     _MOCK_METHODS = list()
@@ -72,7 +73,7 @@ class MockContractAgent:
 
             # TODO: Special handling of PropertyMocks?
             # # Setup
-            # if interface == ContractInterfaces.ATTRIBUTE:
+            # if interface == CONTRACT_ATTRIBUTE:
             #     mock = PropertyMock()
             #     mock_properties[real_method.__name__] = mock
             # else:
@@ -117,13 +118,13 @@ class MockContractAgent:
 
     @property
     def all_transactions(self) -> List[Callable]:
-        interface = ContractInterfaces.TRANSACTION
+        interface = TRANSACTION
         transaction_functions = self.__get_interface_calls(interface=interface)
         return transaction_functions
 
     @property
     def contract_calls(self) -> List[Callable]:
-        interface = ContractInterfaces.CALL
+        interface = CONTRACT_CALL
         transaction_functions = self.__get_interface_calls(interface=interface)
         return transaction_functions
 

@@ -21,10 +21,22 @@ import os
 import pytest
 from eth_account import Account
 from eth_account.account import Account
+from tests.utils.config import (
+    make_alice_test_configuration,
+    make_bob_test_configuration,
+    make_ursula_test_configuration
+)
 
 from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.agents import (AdjudicatorAgent, ContractAgency, MultiSigAgent, NucypherTokenAgent,
-                                            PolicyManagerAgent, StakingEscrowAgent, WorkLockAgent)
+from nucypher.blockchain.eth.agents import (
+    AdjudicatorAgent,
+    ContractAgency,
+    MultiSigAgent,
+    NucypherTokenAgent,
+    PolicyManagerAgent,
+    StakingEscrowAgent,
+    WorkLockAgent
+)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
@@ -39,8 +51,6 @@ from tests.constants import (
 from tests.fixtures import _make_testerchain, make_token_economics
 from tests.mock.agents import MockContractAgency, MockContractAgent
 from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
-from tests.utils.config import make_alice_test_configuration, make_bob_test_configuration, \
-    make_ursula_test_configuration
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 

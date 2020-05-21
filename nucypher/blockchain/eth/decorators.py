@@ -1,12 +1,17 @@
-from collections import defaultdict
-from enum import Enum
-
 import eth_utils
 import functools
 import inspect
+from constant_sorrow.constants import (CONTRACT_ATTRIBUTE, CONTRACT_CALL, TRANSACTION, UNKNOWN_CONTRACT_INTERFACE)
 from datetime import datetime
 from twisted.logger import Logger
-from typing import Callable
+from typing import Callable, Optional, Union
+
+ContractInterfaces = Union[
+    CONTRACT_CALL,
+    TRANSACTION,
+    CONTRACT_ATTRIBUTE,
+    UNKNOWN_CONTRACT_INTERFACE
+]
 
 
 __VERIFIED_ADDRESSES = set()
@@ -101,25 +106,24 @@ def save_receipt(actor_method):
 # Contract Function Handling
 #
 
-# TODO: Disable collection in prod (detect test package)
+
+# TODO: Disable collection in prod (detect test package?)
 COLLECT_CONTRACT_API = True
 
 
-class ContractInterfaces(Enum):
-    CALL = 0
-    TRANSACTION = 1
-    ATTRIBUTE = 2
-    UNKNOWN = 3
-
-
-def contract_api(interface: ContractInterfaces = None) -> Callable:
+def contract_api(interface: Optional[ContractInterfaces] = UNKNOWN_CONTRACT_INTERFACE) -> Callable:
     """Decorator factory for contract API markers"""
-    if not interface:
-        interface = ContractInterfaces.UNKNOWN
 
     def decorator(agent_method: Callable) -> Callable:
-        """Marks an agent method as containing transactions"""
+        """
+        Marks an agent method as containing transactions.
+
+        If `COLLECT_CONTRACT_API` is True when running tests,
+        all marked methods will be collected for automatic mocking
+        and integration with pytest fixtures.
+        """
         if COLLECT_CONTRACT_API:
             agent_method.contract_api = interface
         return agent_method
+
     return decorator

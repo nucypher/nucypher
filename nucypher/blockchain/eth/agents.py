@@ -19,10 +19,15 @@ import random
 
 import math
 import sys
-from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
+from constant_sorrow.constants import (
+    CONTRACT_CALL,
+    NO_CONTRACT_AVAILABLE,
+    TRANSACTION,
+    CONTRACT_ATTRIBUTE
+)
 from eth_utils.address import to_checksum_address
 from twisted.logger import Logger
-from typing import Dict, Generator, List, Tuple, Type, TypeVar, Union
+from typing import Dict, Generator, Iterable, List, Tuple, Type, TypeVar, Union
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.constants import (
@@ -38,13 +43,12 @@ from nucypher.blockchain.eth.constants import (
     STAKING_INTERFACE_CONTRACT_NAME,
     STAKING_INTERFACE_ROUTER_CONTRACT_NAME
 )
-from nucypher.blockchain.eth.decorators import ContractInterfaces, contract_api, validate_checksum_address
+from nucypher.blockchain.eth.decorators import contract_api, validate_checksum_address
 from nucypher.blockchain.eth.events import ContractEvents
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
 from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.crypto.api import sha256_digest
-
 
 # TODO: Use everywhere
 # TODO: Uses string to avoid circular import
@@ -176,7 +180,7 @@ class EthereumContractAgent:
         return self.registry_contract_name
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def owner(self):
         if not self._proxy_name:
             # Only upgradeable + ownable contracts can implement ownership transference.
@@ -188,25 +192,25 @@ class NucypherTokenAgent(EthereumContractAgent):
 
     registry_contract_name = NUCYPHER_TOKEN_CONTRACT_NAME
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_balance(self, address: str = None) -> int:
         """Get the NU balance (in NuNits) of a token holder address, or of this contract address"""
         address = address if address is not None else self.contract_address
         return self.contract.functions.balanceOf(address).call()
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_allowance(self, owner: str, spender: str) -> int:
         """Check the amount of tokens that an owner allowed to a spender"""
         return self.contract.functions.allowance(owner, spender).call()
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def increase_allowance(self, sender_address: str, target_address: str, increase: int) -> dict:
         contract_function = self.contract.functions.increaseAllowance(target_address, increase)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def approve_transfer(self, amount: int, target_address: str, sender_address: str):
+    @contract_api(TRANSACTION)
+    def approve_transfer(self, amount: int, target_address: str, sender_address: str) -> dict:
         """Approve the transfer of tokens from the sender address to the target address."""
         payload = {'gas': 500_000}  # TODO #842: gas needed for use with geth! <<<< Is this still open?
         contract_function = self.contract.functions.approve(target_address, amount)
@@ -215,19 +219,19 @@ class NucypherTokenAgent(EthereumContractAgent):
                                                    sender_address=sender_address)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def transfer(self, amount: int, target_address: str, sender_address: str):
+    @contract_api(TRANSACTION)
+    def transfer(self, amount: int, target_address: str, sender_address: str) -> dict:
         contract_function = self.contract.functions.transfer(target_address, amount)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def approve_and_call(self,
                          amount: int,
                          target_address: str,
                          sender_address: str,
                          call_data: bytes = b'',
-                         gas_limit: int = None):
+                         gas_limit: int = None) -> dict:
         payload = None
         if gas_limit:  # TODO: Gas management - #842
             payload = {'gas': gas_limit}
@@ -253,24 +257,24 @@ class StakingEscrowAgent(EthereumContractAgent):
     # Staker Network Status
     #
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_staker_population(self) -> int:
         """Returns the number of stakers on the blockchain"""
         return self.contract.functions.getStakersLength().call()
     
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_current_period(self) -> int:
         """Returns the current period"""
         return self.contract.functions.getCurrentPeriod().call()
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_stakers(self) -> List[str]:
         """Returns a list of stakers"""
         num_stakers = self.get_staker_population()
         stakers = [self.contract.functions.stakers(i).call() for i in range(num_stakers)]
         return stakers
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def partition_stakers_by_activity(self) -> Tuple[List[str], List[str], List[str]]:
         """Returns three lists of stakers depending on their commitments:
         The first list contains stakers that already committed to next period.
@@ -293,7 +297,7 @@ class StakingEscrowAgent(EthereumContractAgent):
 
         return active_stakers, pending_stakers, missing_stakers
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_all_active_stakers(self, periods: int, pagination_size: int = None) -> Tuple[int, List[str]]:
         """Only stakers which committed to the current period (in the previous period) are used."""
         if not periods > 0:
@@ -324,7 +328,7 @@ class StakingEscrowAgent(EthereumContractAgent):
 
         return n_tokens, stakers
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_all_locked_tokens(self, periods: int, pagination_size: int = None) -> int:
         all_locked_tokens, _stakers = self.get_all_active_stakers(periods=periods, pagination_size=pagination_size)
         return all_locked_tokens
@@ -333,7 +337,7 @@ class StakingEscrowAgent(EthereumContractAgent):
     # StakingEscrow Contract API
     #
     
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_global_locked_tokens(self, at_period: int = None) -> int:
         """
         Gets the number of locked tokens for *all* stakers that have
@@ -357,11 +361,11 @@ class StakingEscrowAgent(EthereumContractAgent):
             at_period = self.contract.functions.getCurrentPeriod().call()
         return self.contract.functions.lockedPerPeriod(at_period).call()
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_staker_info(self, staker_address: str):
         return self.contract.functions.stakerInfo(staker_address).call()
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_locked_tokens(self, staker_address: str, periods: int = 0) -> int:
         """
         Returns the amount of tokens this staker has locked
@@ -371,34 +375,34 @@ class StakingEscrowAgent(EthereumContractAgent):
             raise ValueError(f"Periods value must not be negative, Got '{periods}'.")
         return self.contract.functions.getLockedTokens(staker_address, periods).call()
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def owned_tokens(self, staker_address: str) -> int:
         """
         Returns all tokens that belong to staker_address, including locked, unlocked and rewards.
         """
         return self.contract.functions.getAllTokens(staker_address).call()
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_substake_info(self, staker_address: str, stake_index: int) -> Tuple[int, int, int]:
         first_period, *others, locked_value = self.contract.functions.getSubStakeInfo(staker_address, stake_index).call()
         last_period = self.contract.functions.getLastPeriodOfSubStake(staker_address, stake_index).call()
         return first_period, last_period, locked_value
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_raw_substake_info(self, staker_address: str, stake_index: int) -> Tuple[int, int, int, int]:
         result = self.contract.functions.getSubStakeInfo(staker_address, stake_index).call()
         first_period, last_period, periods, locked = result
         return first_period, last_period, periods, locked
 
-    @contract_api(ContractInterfaces.CALL)
-    def get_all_stakes(self, staker_address: str):
+    @contract_api(CONTRACT_CALL)
+    def get_all_stakes(self, staker_address: str) -> Iterable[Tuple[int, int, int, int]]:
         stakes_length = self.contract.functions.getSubStakesLength(staker_address).call()
         if stakes_length == 0:
             return iter(())  # Empty iterable, There are no stakes
         for stake_index in range(stakes_length):
             yield self.get_substake_info(staker_address=staker_address, stake_index=stake_index)
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def deposit_tokens(self, staker_address: str, amount: int, lock_periods: int, sender_address: str = None) -> dict:
         """
         Send tokens to the escrow from the sender's address to be locked on behalf of the staker address.
@@ -411,7 +415,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return receipt
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def construct_batch_deposit_parameters(self, deposits: Dict[str, List[Tuple[int, int]]]) -> Tuple[list, list, list, list]:
         max_substakes = self.contract.functions.MAX_SUB_STAKES().call()
         stakers, number_of_substakes, amounts, lock_periods = list(), list(), list(), list()
@@ -429,7 +433,7 @@ class StakingEscrowAgent(EthereumContractAgent):
 
         return stakers, number_of_substakes, amounts, lock_periods
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def batch_deposit(self,
                       stakers: list,
                       number_of_substakes: list,
@@ -457,46 +461,46 @@ class StakingEscrowAgent(EthereumContractAgent):
                                                        transaction_gas_limit=gas_limit)
             return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def divide_stake(self, staker_address: str, stake_index: int, target_value: int, periods: int) -> dict:
         contract_function = self.contract.functions.divideStake(stake_index, target_value, periods)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def prolong_stake(self, staker_address: str, stake_index: int, periods: int) -> dict:
         contract_function = self.contract.functions.prolongStake(stake_index, periods)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_last_committed_period(self, staker_address: str) -> int:
         period = self.contract.functions.getLastCommittedPeriod(staker_address).call()
         return int(period)
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_worker_from_staker(self, staker_address: str) -> str:
         worker = self.contract.functions.getWorkerFromStaker(staker_address).call()
         return to_checksum_address(worker)
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_staker_from_worker(self, worker_address: str) -> str:
         staker = self.contract.functions.stakerFromWorker(worker_address).call()
         return to_checksum_address(staker)
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def bond_worker(self, staker_address: str, worker_address: str):
+    @contract_api(TRANSACTION)
+    def bond_worker(self, staker_address: str, worker_address: str) -> dict:
         contract_function = self.contract.functions.bondWorker(worker_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
     # TODO: Decorate methods like this one (indirect contract call/tx) @contract_api() ?
     @validate_checksum_address
-    def release_worker(self, staker_address: str):
+    def release_worker(self, staker_address: str) -> dict:
         return self.bond_worker(staker_address=staker_address, worker_address=NULL_ADDRESS)
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def commit_to_next_period(self, worker_address: str):
+    @contract_api(TRANSACTION)
+    def commit_to_next_period(self, worker_address: str) -> dict:
         """
         For each period that the worker makes a commitment, the staker is rewarded.
         """
@@ -504,8 +508,8 @@ class StakingEscrowAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=worker_address)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def mint(self, staker_address: str):
+    @contract_api(TRANSACTION)
+    def mint(self, staker_address: str) -> dict:
         """
         Computes reward tokens for the staker's account;
         This is only used to calculate the reward for the final period of a stake,
@@ -515,7 +519,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def calculate_staking_reward(self, staker_address: str) -> int:
         token_amount = self.owned_tokens(staker_address)
         staked_amount = max(self.contract.functions.getLockedTokens(staker_address, 0).call(),
@@ -523,7 +527,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         reward_amount = token_amount - staked_amount
         return reward_amount
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def collect_staking_reward(self, staker_address: str) -> dict:
         """Withdraw tokens rewarded for staking."""
         reward_amount = self.calculate_staking_reward(staker_address=staker_address)
@@ -531,7 +535,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         self.log.debug(f"Withdrawing staking reward ({NU.from_nunits(reward_amount)}) to {staker_address}")
         return self.withdraw(staker_address=staker_address, amount=reward_amount)
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def withdraw(self, staker_address: str, amount: int) -> dict:
         """Withdraw tokens"""
         payload = {'gas': 500_000}  # TODO: #842 Gas Management
@@ -541,22 +545,22 @@ class StakingEscrowAgent(EthereumContractAgent):
                                                    sender_address=staker_address)
         return receipt
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_flags(self, staker_address: str) -> Tuple[bool, bool, bool, bool]:
         flags = self.contract.functions.getFlags(staker_address).call()
         wind_down_flag, restake_flag, measure_work_flag, snapshot_flag = flags
         return wind_down_flag, restake_flag, measure_work_flag, snapshot_flag
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def is_restaking(self, staker_address: str) -> bool:
         _winddown_flag, restake_flag, _measure_work_flag, _snapshots_flag = self.get_flags(staker_address)
         return restake_flag
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def is_restaking_locked(self, staker_address: str) -> bool:
         return self.contract.functions.isReStakeLocked(staker_address).call()
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def set_restaking(self, staker_address: str, value: bool) -> dict:
         """
         Enable automatic restaking for a fixed duration of lock periods.
@@ -567,25 +571,25 @@ class StakingEscrowAgent(EthereumContractAgent):
         # TODO: Handle ReStakeSet event (see #1193)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def lock_restaking(self, staker_address: str, release_period: int) -> dict:
         contract_function = self.contract.functions.lockReStake(release_period)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         # TODO: Handle ReStakeLocked event (see #1193)
         return receipt
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_restake_unlock_period(self, staker_address: str) -> int:
         staker_info = self.get_staker_info(staker_address)
         restake_unlock_period = int(staker_info[4])  # TODO: #1348 Use constant or enum
         return restake_unlock_period
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def is_winding_down(self, staker_address: str) -> bool:
         winddown_flag, _restake_flag, _measure_work_flag, _snapshots_flag = self.get_flags(staker_address)
         return winddown_flag
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def set_winding_down(self, staker_address: str, value: bool) -> dict:
         """
         Enable wind down for stake.
@@ -596,12 +600,12 @@ class StakingEscrowAgent(EthereumContractAgent):
         # TODO: Handle WindDownSet event (see #1193)
         return receipt
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def is_taking_snapshots(self, staker_address: str) -> bool:
         _winddown_flag, _restake_flag, _measure_work_flag, snapshots_flag = self.get_flags(staker_address)
         return snapshots_flag
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def set_snapshots(self, staker_address: str, activate: bool) -> dict:
         """
         Activate/deactivate taking balance snapshots.
@@ -612,7 +616,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         # TODO: Handle SnapshotSet event (see #1193)
         return receipt
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def staking_parameters(self) -> Tuple:
         parameter_signatures = (
             # Period
@@ -643,7 +647,7 @@ class StakingEscrowAgent(EthereumContractAgent):
     # Contract Utilities
     #
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def swarm(self) -> Union[Generator[str, None, None], Generator[str, None, None]]:
         """
         Returns an iterator of all staker addresses via cumulative sum, on-network.
@@ -653,7 +657,7 @@ class StakingEscrowAgent(EthereumContractAgent):
             staker_address = self.contract.functions.stakers(index).call()
             yield staker_address
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def sample(self,
                quantity: int,
                duration: int,
@@ -720,12 +724,12 @@ class StakingEscrowAgent(EthereumContractAgent):
 
         raise self.NotEnoughStakers('Selection failed after {} attempts'.format(attempts))
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_completed_work(self, bidder_address: str):
         total_completed_work = self.contract.functions.getCompletedWork(bidder_address).call()
         return total_completed_work
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_missing_commitments(self, checksum_address: str) -> int:
         # TODO: Move this up one layer, since it utilizes a combination of contract API methods.
         last_committed_period = self.get_last_committed_period(checksum_address)
@@ -742,23 +746,23 @@ class StakingEscrowAgent(EthereumContractAgent):
         return result
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
-    def is_test_contract(self):
+    @contract_api(CONTRACT_ATTRIBUTE)
+    def is_test_contract(self) -> bool:
         return self.contract.functions.isTestContract().call()
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
-    def worklock(self):
+    @contract_api(CONTRACT_ATTRIBUTE)
+    def worklock(self) -> str:
         return self.contract.functions.workLock().call()
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
-    def adjudicator(self):
+    @contract_api(CONTRACT_ATTRIBUTE)
+    def adjudicator(self) -> str:
         return self.contract.functions.adjudicator().call()
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
-    def policy_manager(self):
+    @contract_api(CONTRACT_ATTRIBUTE)
+    def policy_manager(self) -> str:
         return self.contract.functions.policyManager().call()
 
 
@@ -767,7 +771,7 @@ class PolicyManagerAgent(EthereumContractAgent):
     registry_contract_name = POLICY_MANAGER_CONTRACT_NAME
     _proxy_name = DISPATCHER_CONTRACT_NAME
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def create_policy(self,
                       policy_id: str,
                       author_address: str,
@@ -787,7 +791,7 @@ class PolicyManagerAgent(EthereumContractAgent):
                                                    sender_address=author_address)  # TODO: Gas management - #842
         return receipt
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def fetch_policy(self, policy_id: str) -> list:
         """Fetch raw stored blockchain data regarding the policy with the given policy ID"""
         blockchain_record = self.contract.functions.policies(policy_id).call()
@@ -800,70 +804,70 @@ class PolicyManagerAgent(EthereumContractAgent):
         _signature, parameters = self.contract.decode_function_input(transaction.data)
         return parameters['_nodes']
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def revoke_policy(self, policy_id: bytes, author_address: str):
+    @contract_api(TRANSACTION)
+    def revoke_policy(self, policy_id: bytes, author_address: str) -> str:
         """Revoke by arrangement ID; Only the policy's author_address can revoke the policy."""
         contract_function = self.contract.functions.revokePolicy(policy_id)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def collect_policy_fee(self, collector_address: str, staker_address: str):
+    @contract_api(TRANSACTION)
+    def collect_policy_fee(self, collector_address: str, staker_address: str) -> str:
         """Collect fees (ETH) earned since last withdrawal"""
         contract_function = self.contract.functions.withdraw(collector_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
-    @contract_api(ContractInterfaces.CALL)
-    def fetch_policy_arrangements(self, policy_id):
+    @contract_api(CONTRACT_CALL)
+    def fetch_policy_arrangements(self, policy_id) -> Iterable[tuple]:
         record_count = self.contract.functions.getArrangementsLength(policy_id).call()
         for index in range(record_count):
             arrangement = self.contract.functions.getArrangementInfo(policy_id, index).call()
             yield arrangement
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def revoke_arrangement(self, policy_id: str, node_address: str, author_address: str):
+    @contract_api(TRANSACTION)
+    def revoke_arrangement(self, policy_id: str, node_address: str, author_address: str) -> dict:
         contract_function = self.contract.functions.revokeArrangement(policy_id, node_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def calculate_refund(self, policy_id: str, author_address: str):
+    @contract_api(TRANSACTION)
+    def calculate_refund(self, policy_id: str, author_address: str) -> dict:
         contract_function = self.contract.functions.calculateRefundValue(policy_id)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def collect_refund(self, policy_id: str, author_address: str):
+    @contract_api(TRANSACTION)
+    def collect_refund(self, policy_id: str, author_address: str) -> dict:
         contract_function = self.contract.functions.refund(policy_id)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
         return receipt
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_fee_amount(self, staker_address: str) -> int:
         fee_amount = self.contract.functions.nodes(staker_address).call()[0]
         return fee_amount
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_fee_rate_range(self) -> Tuple[int, int, int]:
         """Check minimum, default & maximum fee rate for all policies ('global fee range')"""
         minimum, default, maximum = self.contract.functions.feeRateRange().call()
         return minimum, default, maximum
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_min_fee_rate(self, staker_address: str) -> int:
         """Check minimum fee rate that staker accepts"""
         min_rate = self.contract.functions.getMinFeeRate(staker_address).call()
         return min_rate
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_raw_min_fee_rate(self, staker_address: str) -> int:
         """Check minimum acceptable fee rate set by staker for their associated worker"""
         min_rate = self.contract.functions.nodes(staker_address).call()[3]
         return min_rate
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def set_min_fee_rate(self, staker_address: str, min_rate: int):
+    @contract_api(TRANSACTION)
+    def set_min_fee_rate(self, staker_address: str, min_rate: int) -> dict:
         contract_function = self.contract.functions.setMinFeeRate(min_rate)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
@@ -929,7 +933,7 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         self.__set_owner()
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def owner(self) -> str:
         owner = self.principal_contract.functions.owner().call()
         return owner
@@ -952,12 +956,12 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         return self.__principal_contract
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def initial_locked_amount(self) -> int:
         return self.principal_contract.functions.lockedValue().call()
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def available_balance(self) -> int:
         token_agent = ContractAgency.get_agent(NucypherTokenAgent, self.registry)
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, self.registry)
@@ -978,75 +982,75 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         return available_balance
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def unvested_tokens(self) -> int:
         return self.principal_contract.functions.getLockedTokens().call()
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def end_timestamp(self) -> int:
         return self.principal_contract.functions.endLockTimestamp().call()
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def lock(self, amount: int, periods: int):
+    @contract_api(TRANSACTION)
+    def lock(self, amount: int, periods: int) -> dict:
         contract_function = self.__interface_agent.functions.lock(amount, periods)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def withdraw_tokens(self, value: int):
+    @contract_api(TRANSACTION)
+    def withdraw_tokens(self, value: int) -> dict:
         contract_function = self.principal_contract.functions.withdrawTokens(value)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def withdraw_eth(self):
+    @contract_api(TRANSACTION)
+    def withdraw_eth(self) -> dict:
         contract_function = self.principal_contract.functions.withdrawETH()
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def deposit_as_staker(self, amount: int, lock_periods: int):
+    @contract_api(TRANSACTION)
+    def deposit_as_staker(self, amount: int, lock_periods: int) -> dict:
         contract_function = self.__interface_agent.functions.depositAsStaker(amount, lock_periods)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def withdraw_as_staker(self, value: int):
+    @contract_api(TRANSACTION)
+    def withdraw_as_staker(self, value: int) -> dict:
         contract_function = self.__interface_agent.functions.withdrawAsStaker(value)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def bond_worker(self, worker_address: str):
+    @contract_api(TRANSACTION)
+    def bond_worker(self, worker_address: str) -> dict:
         contract_function = self.__interface_agent.functions.bondWorker(worker_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def release_worker(self):
+    @contract_api(TRANSACTION)
+    def release_worker(self) -> dict:
         receipt = self.bond_worker(worker_address=NULL_ADDRESS)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def mint(self):
+    @contract_api(TRANSACTION)
+    def mint(self) -> dict:
         contract_function = self.__interface_agent.functions.mint()
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def collect_policy_fee(self):
+    @contract_api(TRANSACTION)
+    def collect_policy_fee(self) -> dict:
         contract_function = self.__interface_agent.functions.withdrawPolicyFee()
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
-    def set_min_fee_rate(self, min_rate: int):
+    @contract_api(TRANSACTION)
+    def set_min_fee_rate(self, min_rate: int) -> dict:
         contract_function = self.__interface_agent.functions.setMinFeeRate(min_rate)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def set_restaking(self, value: bool) -> dict:
         """
         Enable automatic restaking for a fixed duration of lock periods.
@@ -1057,14 +1061,14 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         # TODO: Handle ReStakeSet event (see #1193)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def lock_restaking(self, release_period: int) -> dict:
         contract_function = self.__interface_agent.functions.lockReStake(release_period)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         # TODO: Handle ReStakeLocked event (see #1193)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def set_winding_down(self, value: bool) -> dict:
         """
         Enable wind down for stake.
@@ -1081,7 +1085,7 @@ class AdjudicatorAgent(EthereumContractAgent):
     registry_contract_name = ADJUDICATOR_CONTRACT_NAME
     _proxy_name = DISPATCHER_CONTRACT_NAME
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def evaluate_cfrag(self, evidence, sender_address: str) -> dict:
         """Submits proof that a worker created wrong CFrag"""
         payload = {'gas': 500_000}  # TODO #842: gas needed for use with geth.
@@ -1091,46 +1095,46 @@ class AdjudicatorAgent(EthereumContractAgent):
                                                    payload=payload)
         return receipt
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def was_this_evidence_evaluated(self, evidence) -> bool:
         data_hash = sha256_digest(evidence.task.capsule, evidence.task.cfrag)
         return self.contract.functions.evaluatedCFrags(data_hash).call()
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def staking_escrow_contract(self) -> str:
         return self.contract.functions.escrow().call()
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def hash_algorithm(self) -> int:
         return self.contract.functions.hashAlgorithm().call()
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def base_penalty(self) -> int:
         return self.contract.functions.basePenalty().call()
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def penalty_history_coefficient(self) -> int:
         return self.contract.functions.penaltyHistoryCoefficient().call()
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def percentage_penalty_coefficient(self) -> int:
         return self.contract.functions.percentagePenaltyCoefficient().call()
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def reward_coefficient(self) -> int:
         return self.contract.functions.rewardCoefficient().call()
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def penalty_history(self, staker_address: str) -> int:
         return self.contract.functions.penaltyHistory(staker_address).call()
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def slashing_parameters(self) -> Tuple:
         parameter_signatures = (
             'hashAlgorithm',                    # Hashing algorithm
@@ -1155,7 +1159,7 @@ class WorkLockAgent(EthereumContractAgent):
     # Transactions
     #
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def bid(self, value: int, checksum_address: str) -> dict:
         """Bid for NU tokens with ETH."""
         contract_function = self.contract.functions.bid()
@@ -1164,14 +1168,14 @@ class WorkLockAgent(EthereumContractAgent):
                                                    payload={'value': value})
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def cancel_bid(self, checksum_address: str) -> dict:
         """Cancel bid and refund deposited ETH."""
         contract_function = self.contract.functions.cancelBid()
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def force_refund(self, checksum_address: str, addresses: List[str]) -> dict:
         """Force refund to bidders who can get tokens more than maximum allowed."""
         addresses = sorted(addresses, key=str.casefold)
@@ -1179,7 +1183,7 @@ class WorkLockAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def verify_bidding_correctness(self,
                                    checksum_address: str,
                                    gas_limit: int,  # TODO - #842: Gas Management
@@ -1191,7 +1195,7 @@ class WorkLockAgent(EthereumContractAgent):
                                                    transaction_gas_limit=gas_limit)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def claim(self, checksum_address: str) -> dict:
         """
         Claim tokens - will be deposited and locked as stake in the StakingEscrow contract.
@@ -1200,21 +1204,21 @@ class WorkLockAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def refund(self, checksum_address: str) -> dict:
         """Refund ETH for completed work."""
         contract_function = self.contract.functions.refund()
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
         return receipt
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def withdraw_compensation(self, checksum_address: str) -> dict:
         """Withdraw compensation after force refund."""
         contract_function = self.contract.functions.withdrawCompensation()
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
         return receipt
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def check_claim(self, checksum_address: str) -> bool:
         has_claimed = bool(self.contract.functions.workInfo(checksum_address).call()[2])
         return has_claimed
@@ -1223,7 +1227,7 @@ class WorkLockAgent(EthereumContractAgent):
     # Internal
     #
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_refunded_work(self, checksum_address: str) -> int:
         work = self.contract.functions.workInfo(checksum_address).call()[1]
         return work
@@ -1232,23 +1236,23 @@ class WorkLockAgent(EthereumContractAgent):
     # Calls
     #
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_available_refund(self, checksum_address: str) -> int:
         refund_eth = self.contract.functions.getAvailableRefund(checksum_address).call()
         return refund_eth
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_available_compensation(self, checksum_address: str) -> int:
         compensation_eth = self.contract.functions.compensation(checksum_address).call()
         return compensation_eth
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_deposited_eth(self, checksum_address: str) -> int:
         current_bid = self.contract.functions.workInfo(checksum_address).call()[0]
         return current_bid
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def lot_value(self) -> int:
         """
         Total number of tokens than can be bid for and awarded in or the number of NU
@@ -1257,7 +1261,7 @@ class WorkLockAgent(EthereumContractAgent):
         supply = self.contract.functions.tokenSupply().call()
         return supply
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_bonus_lot_value(self) -> int:
         """
         Total number of tokens than can be  awarded for bonus part of bid.
@@ -1266,18 +1270,18 @@ class WorkLockAgent(EthereumContractAgent):
         supply = self.lot_value - num_bidders * self.contract.functions.minAllowableLockedTokens().call()
         return supply
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_remaining_work(self, checksum_address: str) -> int:
         """Get remaining work periods until full refund for the target address."""
         result = self.contract.functions.getRemainingWork(checksum_address).call()
         return result
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_bonus_eth_supply(self) -> int:
         supply = self.contract.functions.bonusETHSupply().call()
         return supply
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_eth_supply(self) -> int:
         num_bidders = self.get_bidders_population()
         min_bid = self.minimum_allowed_bid
@@ -1285,18 +1289,18 @@ class WorkLockAgent(EthereumContractAgent):
         return supply
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def boosting_refund(self) -> int:
         refund = self.contract.functions.boostingRefund().call()
         return refund
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def slowing_refund(self) -> int:
         refund = self.contract.functions.SLOWING_REFUND().call()
         return refund
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_bonus_refund_rate(self) -> int:
         f = self.contract.functions
         slowing_refund = f.SLOWING_REFUND().call()
@@ -1304,7 +1308,7 @@ class WorkLockAgent(EthereumContractAgent):
         refund_rate = self.get_bonus_deposit_rate() * slowing_refund / boosting_refund
         return refund_rate
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_base_refund_rate(self) -> int:
         f = self.contract.functions
         slowing_refund = f.SLOWING_REFUND().call()
@@ -1312,14 +1316,14 @@ class WorkLockAgent(EthereumContractAgent):
         refund_rate = self.get_base_deposit_rate() * slowing_refund / boosting_refund
         return refund_rate
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_base_deposit_rate(self) -> int:
         f = self.contract.functions
         min_allowed_locked_tokens = f.minAllowableLockedTokens().call()
         deposit_rate = min_allowed_locked_tokens // self.minimum_allowed_bid  # should never divide by 0
         return deposit_rate
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_bonus_deposit_rate(self) -> int:
         try:
             deposit_rate = self.get_bonus_lot_value() // self.get_bonus_eth_supply()
@@ -1327,41 +1331,41 @@ class WorkLockAgent(EthereumContractAgent):
             return 0
         return deposit_rate
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def eth_to_tokens(self, value: int) -> int:
         tokens = self.contract.functions.ethToTokens(value).call()
         return tokens
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def eth_to_work(self, value: int) -> int:
         tokens = self.contract.functions.ethToWork(value).call()
         return tokens
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def work_to_eth(self, value: int) -> int:
         tokens = self.contract.functions.workToETH(value).call()
         return tokens
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_bidders_population(self) -> int:
         """Returns the number of bidders on the blockchain"""
         return self.contract.functions.getBiddersLength().call()
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_bidders(self) -> List[str]:
         """Returns a list of bidders"""
         num_bidders = self.get_bidders_population()
         bidders = [self.contract.functions.bidders(i).call() for i in range(num_bidders)]
         return bidders
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def is_claiming_available(self) -> bool:
         """Returns True if claiming is available"""
         result = self.contract.functions.isClaimingAvailable().call()
         return result
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def next_bidder_to_check(self) -> int:
         """Returns the index of the next bidder to check as part of the bids verification process"""
         return self.contract.functions.nextBidderToCheck().call()
@@ -1372,30 +1376,30 @@ class WorkLockAgent(EthereumContractAgent):
         return self.next_bidder_to_check == bidders_population
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def minimum_allowed_bid(self) -> int:
         min_bid = self.contract.functions.minAllowedBid().call()
         return min_bid
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def start_bidding_date(self) -> int:
         date = self.contract.functions.startBidDate().call()
         return date
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def end_bidding_date(self) -> int:
         date = self.contract.functions.endBidDate().call()
         return date
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def end_cancellation_date(self) -> int:
         date = self.contract.functions.endCancellationDate().call()
         return date
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def worklock_parameters(self) -> Tuple:
         parameter_signatures = (
             'tokenSupply',
@@ -1419,19 +1423,19 @@ class MultiSigAgent(EthereumContractAgent):
     registry_contract_name = MULTISIG_CONTRACT_NAME
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def nonce(self) -> int:
         nonce = self.contract.functions.nonce().call()
         return nonce
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_owner(self, index: int) -> str:
         owner = self.contract.functions.owners(index).call()
         return owner
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
-    def number_of_owners(self):
+    @contract_api(CONTRACT_ATTRIBUTE)
+    def number_of_owners(self) -> int:
         number = self.contract.functions.getNumberOfOwners().call()
         return number
 
@@ -1440,12 +1444,12 @@ class MultiSigAgent(EthereumContractAgent):
         return tuple(self.get_owner(i) for i in range(self.number_of_owners))
 
     @property
-    @contract_api(ContractInterfaces.ATTRIBUTE)
+    @contract_api(CONTRACT_ATTRIBUTE)
     def threshold(self) -> int:
         threshold = self.contract.functions.required().call()
         return threshold
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def is_owner(self, checksum_address: str) -> bool:
         result = self.contract.functions.isOwner(checksum_address).call()
         return result
@@ -1486,7 +1490,7 @@ class MultiSigAgent(EthereumContractAgent):
                                                         sender_address=self.contract_address)
         return transaction
 
-    @contract_api(ContractInterfaces.CALL)
+    @contract_api(CONTRACT_CALL)
     def get_unsigned_transaction_hash(self,
                                       trustee_address: str,
                                       target_address: str,
@@ -1503,7 +1507,7 @@ class MultiSigAgent(EthereumContractAgent):
         transaction_hash = self.contract.functions.getUnsignedTransactionHash(*transaction_args).call()
         return transaction_hash
 
-    @contract_api(ContractInterfaces.TRANSACTION)
+    @contract_api(TRANSACTION)
     def execute(self,
                 v: List[str],
                 r: List[str],
