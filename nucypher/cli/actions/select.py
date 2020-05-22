@@ -22,7 +22,7 @@ import glob
 import click
 import os
 from tabulate import tabulate
-from typing import Tuple, Type
+from typing import Optional, Tuple, Type
 from web3.main import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder, Staker, Wallet
@@ -177,8 +177,8 @@ def select_client_account(emitter,
 
 def select_client_account_for_staking(emitter: StdoutEmitter,
                                       stakeholder: StakeHolder,
-                                      staking_address: str,
-                                      individual_allocation: IndividualAllocationRegistry,
+                                      staking_address: Optional[str],
+                                      individual_allocation: Optional[IndividualAllocationRegistry],
                                       force: bool,
                                       ) -> Tuple[str, str]:
     """
