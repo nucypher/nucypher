@@ -43,7 +43,8 @@ from tests.constants import (
 def stdout_trap(mocker):
     trap = StringIO()
     mocker.patch('sys.stdout', new=trap)
-    return trap
+    yield trap
+    trap.truncate(0)
 
 
 @pytest.fixture(scope='function')
