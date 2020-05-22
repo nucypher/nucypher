@@ -40,7 +40,7 @@ interface WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v5.1.1|
+* @dev |v5.1.2|
 */
 contract StakingEscrow is Issuer, IERC900History {
 
@@ -211,7 +211,8 @@ contract StakingEscrow is Issuer, IERC900History {
     */
     modifier onlyStaker()
     {
-        require(stakerInfo[msg.sender].value > 0);
+        StakerInfo storage info = stakerInfo[msg.sender];
+        require(info.value > 0 || info.nextCommittedPeriod != 0);
         _;
     }
 

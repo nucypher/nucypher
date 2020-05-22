@@ -31,8 +31,8 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
         address=escrow.functions.policyManager().call(),
         ContractFactoryClass=Contract)
     creator = testerchain.client.accounts[0]
-    ursula1 = testerchain.client.accounts[1]
-    ursula2 = testerchain.client.accounts[2]
+    staker1 = testerchain.client.accounts[1]
+    staker2 = testerchain.client.accounts[2]
 
     current_supply = token_economics.erc20_initial_supply
 
@@ -54,300 +54,326 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     tx = escrow.functions.initialize(token_economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
-    # Give Ursula and Ursula(2) some coins
-    tx = token.functions.transfer(ursula1, 10000).transact({'from': creator})
+    # Give Staker and Staker(2) some coins
+    tx = token.functions.transfer(staker1, 10000).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = token.functions.transfer(ursula2, 850).transact({'from': creator})
+    tx = token.functions.transfer(staker2, 850).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
-    # Ursula can't make a commitment and mint because no locked tokens
+    # Staker can't make a commitment and mint because no locked tokens
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.mint().transact({'from': ursula1})
+        tx = escrow.functions.mint().transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.commitToNextPeriod().transact({'from': ursula1})
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
-    # Ursula and Ursula(2) give Escrow rights to transfer
-    tx = token.functions.approve(escrow.address, 2000).transact({'from': ursula1})
+    # Staker and Staker(2) give Escrow rights to transfer
+    tx = token.functions.approve(escrow.address, 2000).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    tx = token.functions.approve(escrow.address, 750).transact({'from': ursula2})
+    tx = token.functions.approve(escrow.address, 750).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
 
-    # Ursula and Ursula(2) transfer some tokens to the escrow and lock them
+    # Staker and Staker(2) transfer some tokens to the escrow and lock them
     current_period = escrow.functions.getCurrentPeriod().call()
     ursula1_stake = 1000
-    ursula2_stake = 500
-    tx = escrow.functions.deposit(ursula1_stake, 2).transact({'from': ursula1})
+    staker2_stake = 500
+    tx = escrow.functions.deposit(ursula1_stake, 2).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.bondWorker(ursula1).transact({'from': ursula1})
+    tx = escrow.functions.bondWorker(staker1).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setReStake(False).transact({'from': ursula1})
+    tx = escrow.functions.setReStake(False).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setWindDown(True).transact({'from': ursula1})
+    tx = escrow.functions.setWindDown(True).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.commitToNextPeriod().transact({'from': ursula1})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.deposit(ursula2_stake, 2).transact({'from': ursula2})
+    tx = escrow.functions.deposit(staker2_stake, 2).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.bondWorker(ursula2).transact({'from': ursula2})
+    tx = escrow.functions.bondWorker(staker2).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setReStake(False).transact({'from': ursula2})
+    tx = escrow.functions.setReStake(False).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setWindDown(True).transact({'from': ursula2})
+    tx = escrow.functions.setWindDown(True).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    assert 0 == escrow.functions.findIndexOfPastDowntime(ursula2, 0).call()
-    assert 0 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period + 1).call()
-    tx = escrow.functions.commitToNextPeriod().transact({'from': ursula2})
+    assert 0 == escrow.functions.findIndexOfPastDowntime(staker2, 0).call()
+    assert 0 == escrow.functions.findIndexOfPastDowntime(staker2, current_period + 1).call()
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    assert 0 == escrow.functions.findIndexOfPastDowntime(ursula2, 0).call()
-    assert 1 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period + 1).call()
+    assert 0 == escrow.functions.findIndexOfPastDowntime(staker2, 0).call()
+    assert 1 == escrow.functions.findIndexOfPastDowntime(staker2, current_period + 1).call()
     # Check parameters in call of the policy manager mock
-    assert 2 == policy_manager.functions.getPeriodsLength(ursula1).call()
-    assert 2 == policy_manager.functions.getPeriodsLength(ursula2).call()
-    assert current_period - 1 == policy_manager.functions.getPeriod(ursula1, 0).call()
-    assert current_period - 1 == policy_manager.functions.getPeriod(ursula2, 0).call()
-    assert current_period + 1 == policy_manager.functions.getPeriod(ursula1, 1).call()
-    assert current_period + 1 == policy_manager.functions.getPeriod(ursula2, 1).call()
+    assert 2 == policy_manager.functions.getPeriodsLength(staker1).call()
+    assert 2 == policy_manager.functions.getPeriodsLength(staker2).call()
+    assert current_period - 1 == policy_manager.functions.getPeriod(staker1, 0).call()
+    assert current_period - 1 == policy_manager.functions.getPeriod(staker2, 0).call()
+    assert current_period + 1 == policy_manager.functions.getPeriod(staker1, 1).call()
+    assert current_period + 1 == policy_manager.functions.getPeriod(staker2, 1).call()
     # Check downtime parameters
-    assert 1 == escrow.functions.getPastDowntimeLength(ursula1).call()
-    downtime = escrow.functions.getPastDowntime(ursula1, 0).call()
+    assert 1 == escrow.functions.getPastDowntimeLength(staker1).call()
+    downtime = escrow.functions.getPastDowntime(staker1, 0).call()
     assert 1 == downtime[0]
     assert current_period == downtime[1]
-    assert 1 == escrow.functions.getPastDowntimeLength(ursula2).call()
-    downtime = escrow.functions.getPastDowntime(ursula2, 0).call()
+    assert 1 == escrow.functions.getPastDowntimeLength(staker2).call()
+    downtime = escrow.functions.getPastDowntime(staker2, 0).call()
     assert 1 == downtime[0]
     assert current_period == downtime[1]
-    assert current_period + 1 == escrow.functions.getLastCommittedPeriod(ursula1).call()
-    assert current_period + 1 == escrow.functions.getLastCommittedPeriod(ursula2).call()
+    assert current_period + 1 == escrow.functions.getLastCommittedPeriod(staker1).call()
+    assert current_period + 1 == escrow.functions.getLastCommittedPeriod(staker2).call()
 
-    # Ursula divides her stake
-    tx = escrow.functions.divideStake(0, 500, 1).transact({'from': ursula1})
+    # Staker divides her stake
+    tx = escrow.functions.divideStake(0, 500, 1).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
 
     # Can't use methods from Issuer contract directly
     with pytest.raises(Exception):
-        tx = escrow.functions.mint(1, 1, 1, 1).transact({'from': ursula1})
+        tx = escrow.functions.mint(1, 1, 1, 1).transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises(Exception):
-        tx = escrow.functions.unMint(1).transact({'from': ursula1})
+        tx = escrow.functions.unMint(1).transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
-    # Only Ursula makes a commitment to next period
+    # Only Staker makes a commitment to next period
     testerchain.time_travel(hours=1)
-    tx = escrow.functions.commitToNextPeriod().transact({'from': ursula1})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     current_period = escrow.functions.getCurrentPeriod().call()
-    assert 1 == escrow.functions.getPastDowntimeLength(ursula1).call()
-    assert 3 == policy_manager.functions.getPeriodsLength(ursula1).call()
-    assert current_period + 1 == policy_manager.functions.getPeriod(ursula1, 2).call()
+    assert 1 == escrow.functions.getPastDowntimeLength(staker1).call()
+    assert 3 == policy_manager.functions.getPeriodsLength(staker1).call()
+    assert current_period + 1 == policy_manager.functions.getPeriod(staker1, 2).call()
 
     # Checks that no error from repeated method call
-    tx = escrow.functions.commitToNextPeriod().transact({'from': ursula1})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    assert 3 == policy_manager.functions.getPeriodsLength(ursula1).call()
+    assert 3 == policy_manager.functions.getPeriodsLength(staker1).call()
 
-    # Ursula and Ursula(2) mint tokens for last periods
-    # And only Ursula make a commitment to next period
+    # Staker and Staker(2) mint tokens for last periods
+    # And only Staker make a commitment to next period
     testerchain.time_travel(hours=1)
-    tx = escrow.functions.commitToNextPeriod().transact({'from': ursula1})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     current_period = escrow.functions.getCurrentPeriod().call()
-    assert 5 == policy_manager.functions.getPeriodsLength(ursula1).call()
-    assert current_period + 1 == policy_manager.functions.getPeriod(ursula1, 4).call()
+    assert 5 == policy_manager.functions.getPeriodsLength(staker1).call()
+    assert current_period + 1 == policy_manager.functions.getPeriod(staker1, 4).call()
 
-    tx = escrow.functions.mint().transact({'from': ursula2})
+    tx = escrow.functions.mint().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
 
     current_period = escrow.functions.getCurrentPeriod().call()
     # Check result of minting
-    total_locked = ursula1_stake + ursula2_stake
+    total_locked = ursula1_stake + staker2_stake
     ursula1_reward = calculate_reward(500, total_locked, 1) + calculate_reward(500, total_locked, 2)
-    assert ursula1_stake + ursula1_reward == escrow.functions.getAllTokens(ursula1).call()
+    assert ursula1_stake + ursula1_reward == escrow.functions.getAllTokens(staker1).call()
     ursula2_reward = calculate_reward(500, total_locked, 2)
-    assert ursula2_stake + ursula2_reward == escrow.functions.getAllTokens(ursula2).call()
+    assert staker2_stake + ursula2_reward == escrow.functions.getAllTokens(staker2).call()
     # Check that downtime value has not changed
-    assert 1 == escrow.functions.getPastDowntimeLength(ursula1).call()
-    assert 1 == escrow.functions.getPastDowntimeLength(ursula2).call()
-    assert current_period + 1 == escrow.functions.getLastCommittedPeriod(ursula1).call()
-    assert current_period - 1 == escrow.functions.getLastCommittedPeriod(ursula2).call()
+    assert 1 == escrow.functions.getPastDowntimeLength(staker1).call()
+    assert 1 == escrow.functions.getPastDowntimeLength(staker2).call()
+    assert current_period + 1 == escrow.functions.getLastCommittedPeriod(staker1).call()
+    assert current_period - 1 == escrow.functions.getLastCommittedPeriod(staker2).call()
 
     events = staking_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[0]['args']
-    assert ursula1 == event_args['staker']
+    assert staker1 == event_args['staker']
     assert ursula1_reward == event_args['value']
     assert escrow.functions.getCurrentPeriod().call() - 1 == event_args['period']
     event_args = events[1]['args']
-    assert ursula2 == event_args['staker']
+    assert staker2 == event_args['staker']
     assert ursula2_reward == event_args['value']
     assert escrow.functions.getCurrentPeriod().call() - 1 == event_args['period']
 
     # Check parameters in call of the policy manager mock
-    assert 5 == policy_manager.functions.getPeriodsLength(ursula1).call()
-    assert 3 == policy_manager.functions.getPeriodsLength(ursula2).call()
+    assert 5 == policy_manager.functions.getPeriodsLength(staker1).call()
+    assert 3 == policy_manager.functions.getPeriodsLength(staker2).call()
     current_period = escrow.functions.getCurrentPeriod().call() - 1
-    assert current_period == policy_manager.functions.getPeriod(ursula1, 3).call()
-    assert current_period == policy_manager.functions.getPeriod(ursula2, 2).call()
+    assert current_period == policy_manager.functions.getPeriod(staker1, 3).call()
+    assert current_period == policy_manager.functions.getPeriod(staker2, 2).call()
 
-    # Ursula tries to mint again and doesn't receive a reward
+    # Staker tries to mint again and doesn't receive a reward
     # There are no more committed periods that are ready to mint
     ursula1_stake += ursula1_reward
-    ursula2_stake += ursula2_reward
-    tx = escrow.functions.mint().transact({'from': ursula1})
+    staker2_stake += ursula2_reward
+    tx = escrow.functions.mint().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    assert ursula1_stake == escrow.functions.getAllTokens(ursula1).call()
+    assert ursula1_stake == escrow.functions.getAllTokens(staker1).call()
     events = staking_log.get_all_entries()
     assert 2 == len(events)
 
-    # Ursula can't make a commitment to next period because stake is unlocked in current period
+    # Staker can't make a commitment to next period because stake is unlocked in current period
     testerchain.time_travel(hours=1)
     current_supply += ursula1_reward + ursula2_reward
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.commitToNextPeriod().transact({'from': ursula1})
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
-    # But Ursula(2) can
+    # But Staker(2) can
     current_period = escrow.functions.getCurrentPeriod().call()
-    assert current_period - 2 == escrow.functions.getLastCommittedPeriod(ursula2).call()
-    tx = escrow.functions.commitToNextPeriod().transact({'from': ursula2})
+    assert current_period - 2 == escrow.functions.getLastCommittedPeriod(staker2).call()
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
 
-    assert current_period + 1 == escrow.functions.getLastCommittedPeriod(ursula2).call()
-    assert 2 == escrow.functions.getPastDowntimeLength(ursula2).call()
-    downtime = escrow.functions.getPastDowntime(ursula2, 1).call()
+    assert current_period + 1 == escrow.functions.getLastCommittedPeriod(staker2).call()
+    assert 2 == escrow.functions.getPastDowntimeLength(staker2).call()
+    downtime = escrow.functions.getPastDowntime(staker2, 1).call()
     assert current_period - 1 == downtime[0]
     assert current_period == downtime[1]
 
-    # Ursula mints tokens
+    # Staker mints tokens
     testerchain.time_travel(hours=1)
-    tx = escrow.functions.mint().transact({'from': ursula1})
+    tx = escrow.functions.mint().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    # But Ursula(2) can't get reward because she did not make a commitment
-    tx = escrow.functions.mint().transact({'from': ursula2})
+    # But Staker(2) can't get reward because she did not make a commitment
+    tx = escrow.functions.mint().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
     ursula1_reward = calculate_reward(500, 1000, 0) + calculate_reward(500, 1000, 1) + calculate_reward(500, 500, 0)
-    assert ursula1_stake + ursula1_reward == escrow.functions.getAllTokens(ursula1).call()
-    assert ursula2_stake == escrow.functions.getAllTokens(ursula2).call()
+    assert ursula1_stake + ursula1_reward == escrow.functions.getAllTokens(staker1).call()
+    assert staker2_stake == escrow.functions.getAllTokens(staker2).call()
     ursula1_stake += ursula1_reward
 
     events = staking_log.get_all_entries()
     assert 3 == len(events)
     event_args = events[2]['args']
-    assert ursula1 == event_args['staker']
+    assert staker1 == event_args['staker']
     assert ursula1_reward == event_args['value']
     assert current_period == event_args['period']
 
-    assert 7 == policy_manager.functions.getPeriodsLength(ursula1).call()
-    assert 4 == policy_manager.functions.getPeriodsLength(ursula2).call()
-    assert current_period - 1 == policy_manager.functions.getPeriod(ursula1, 5).call()
-    assert current_period == policy_manager.functions.getPeriod(ursula1, 6).call()
+    assert 7 == policy_manager.functions.getPeriodsLength(staker1).call()
+    assert 4 == policy_manager.functions.getPeriodsLength(staker2).call()
+    assert current_period - 1 == policy_manager.functions.getPeriod(staker1, 5).call()
+    assert current_period == policy_manager.functions.getPeriod(staker1, 6).call()
 
-    # Ursula(2) mints tokens
+    # Staker(2) mints tokens
     testerchain.time_travel(hours=1)
     current_supply += ursula1_reward
-    tx = escrow.functions.mint().transact({'from': ursula2})
+    tx = escrow.functions.mint().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
     ursula2_reward = calculate_reward(500, 500, 0)
-    assert ursula1_stake == escrow.functions.getAllTokens(ursula1).call()
-    assert ursula2_stake + ursula2_reward == escrow.functions.getAllTokens(ursula2).call()
-    ursula2_stake += ursula2_reward
+    assert ursula1_stake == escrow.functions.getAllTokens(staker1).call()
+    assert staker2_stake + ursula2_reward == escrow.functions.getAllTokens(staker2).call()
+    staker2_stake += ursula2_reward
 
     events = staking_log.get_all_entries()
     assert 4 == len(events)
     event_args = events[3]['args']
-    assert ursula2 == event_args['staker']
+    assert staker2 == event_args['staker']
     assert ursula2_reward == event_args['value']
     assert escrow.functions.getCurrentPeriod().call() - 1 == event_args['period']
 
     current_period = escrow.functions.getCurrentPeriod().call() - 1
-    assert 7 == policy_manager.functions.getPeriodsLength(ursula1).call()
-    assert 5 == policy_manager.functions.getPeriodsLength(ursula2).call()
-    assert current_period == policy_manager.functions.getPeriod(ursula2, 3).call()
+    assert 7 == policy_manager.functions.getPeriodsLength(staker1).call()
+    assert 5 == policy_manager.functions.getPeriodsLength(staker2).call()
+    assert current_period == policy_manager.functions.getPeriod(staker2, 3).call()
 
-    # Ursula(2) can't make a commitment because stake is unlocked
+    # Staker(2) can't make a commitment because stake is unlocked
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.commitToNextPeriod().transact({'from': ursula2})
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
         testerchain.wait_for_receipt(tx)
 
-    # Ursula can't make a commitment and get reward because no locked tokens
-    tx = escrow.functions.mint().transact({'from': ursula1})
+    # Staker can't make a commitment and get reward because no locked tokens
+    tx = escrow.functions.mint().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     current_period = escrow.functions.getCurrentPeriod().call()
-    assert current_period - 2 == escrow.functions.getLastCommittedPeriod(ursula1).call()
-    assert ursula1_stake == escrow.functions.getAllTokens(ursula1).call()
-    # Ursula still can't make a commitment
+    assert current_period - 2 == escrow.functions.getLastCommittedPeriod(staker1).call()
+    assert ursula1_stake == escrow.functions.getAllTokens(staker1).call()
+    # Staker still can't make a commitment
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.commitToNextPeriod().transact({'from': ursula1})
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
-    # Ursula(2) deposits and locks more tokens
-    tx = escrow.functions.deposit(250, 4).transact({'from': ursula2})
+    # Staker(2) deposits and locks more tokens
+    tx = escrow.functions.deposit(250, 4).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.commitToNextPeriod().transact({'from': ursula2})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.lock(500, 2).transact({'from': ursula2})
+    tx = escrow.functions.lock(500, 2).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    ursula2_stake += 250
+    staker2_stake += 250
 
-    assert 3 == escrow.functions.getPastDowntimeLength(ursula2).call()
-    downtime = escrow.functions.getPastDowntime(ursula2, 2).call()
+    assert 3 == escrow.functions.getPastDowntimeLength(staker2).call()
+    downtime = escrow.functions.getPastDowntime(staker2, 2).call()
     assert current_period == downtime[0]
     assert current_period == downtime[1]
 
-    # Ursula(2) mints only one period (by using deposit/approveAndCall function)
+    # Staker(2) mints only one period
     testerchain.time_travel(hours=5)
     current_supply += ursula2_reward
     current_period = escrow.functions.getCurrentPeriod().call()
-    assert current_period - 4 == escrow.functions.getLastCommittedPeriod(ursula2).call()
+    assert current_period - 4 == escrow.functions.getLastCommittedPeriod(staker2).call()
     tx = token.functions.approveAndCall(escrow.address, 100, testerchain.w3.toBytes(2))\
-        .transact({'from': ursula2})
+        .transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    ursula2_stake += 100
-    tx = escrow.functions.commitToNextPeriod().transact({'from': ursula2})
+    staker2_stake += 100
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
 
     ursula2_reward = calculate_reward(250, 750, 4) + calculate_reward(500, 750, 4)
-    assert ursula1_stake == escrow.functions.getAllTokens(ursula1).call()
-    assert ursula2_stake + ursula2_reward == escrow.functions.getAllTokens(ursula2).call()
-    assert 4 == escrow.functions.getPastDowntimeLength(ursula2).call()
-    downtime = escrow.functions.getPastDowntime(ursula2, 3).call()
+    assert ursula1_stake == escrow.functions.getAllTokens(staker1).call()
+    assert staker2_stake + ursula2_reward == escrow.functions.getAllTokens(staker2).call()
+    assert 4 == escrow.functions.getPastDowntimeLength(staker2).call()
+    downtime = escrow.functions.getPastDowntime(staker2, 3).call()
     assert current_period - 3 == downtime[0]
     assert current_period == downtime[1]
-    ursula2_stake += ursula2_reward
+    staker2_stake += ursula2_reward
 
-    assert 8 == policy_manager.functions.getPeriodsLength(ursula2).call()
-    assert current_period - 4 == policy_manager.functions.getPeriod(ursula2, 6).call()
+    assert 8 == policy_manager.functions.getPeriodsLength(staker2).call()
+    assert current_period - 4 == policy_manager.functions.getPeriod(staker2, 6).call()
 
     events = staking_log.get_all_entries()
     assert 5 == len(events)
     event_args = events[4]['args']
-    assert ursula2 == event_args['staker']
+    assert staker2 == event_args['staker']
     assert ursula2_reward == event_args['value']
     assert current_period - 1 == event_args['period']
 
-    # Ursula(2) makes a commitment to remaining periods
+    # Staker(2) makes a commitment to remaining periods
     testerchain.time_travel(hours=1)
-    tx = escrow.functions.commitToNextPeriod().transact({'from': ursula2})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    assert 4 == escrow.functions.getPastDowntimeLength(ursula2).call()
+    assert 4 == escrow.functions.getPastDowntimeLength(staker2).call()
     testerchain.time_travel(hours=1)
-    tx = escrow.functions.commitToNextPeriod().transact({'from': ursula2})
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
 
-    # Ursula(2) withdraws all
+    # Staker(2) withdraws all
     testerchain.time_travel(hours=2)
-    ursula2_stake = escrow.functions.getAllTokens(ursula2).call()
-    assert 0 == escrow.functions.getLockedTokens(ursula2, 0).call()
-    tx = escrow.functions.withdraw(ursula2_stake).transact({'from': ursula2})
+    staker2_stake = escrow.functions.getAllTokens(staker2).call()
+    assert 0 == escrow.functions.getLockedTokens(staker2, 0).call()
+    tx = escrow.functions.withdraw(staker2_stake).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    assert 0 == escrow.functions.getAllTokens(ursula2).call()
-    assert ursula2_stake == token.functions.balanceOf(ursula2).call()
+    assert 0 == escrow.functions.getAllTokens(staker2).call()
+    assert staker2_stake == token.functions.balanceOf(staker2).call()
 
     events = withdraw_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert ursula2 == event_args['staker']
-    assert ursula2_stake == event_args['value']
+    assert staker2 == event_args['staker']
+    assert staker2_stake == event_args['value']
+
+    # Staker(2) still can mint tokens for last two periods
+    assert escrow.functions.getAllTokens(staker2).call() == 0
+    assert escrow.functions.getLockedTokens(staker2, 0).call() == 0
+    assert escrow.functions.stakerInfo(staker2).call()[2] > 0  # nextCommittedPeriod
+    tx = escrow.functions.mint().transact({'from': staker2})
+    testerchain.wait_for_receipt(tx)
+    staker2_stake = escrow.functions.getAllTokens(staker2).call()
+    assert staker2_stake > 0
+    assert escrow.functions.getLockedTokens(staker2, 0).call() == 0
+    assert escrow.functions.stakerInfo(staker2).call()[2] == 0  # nextCommittedPeriod
+
+    # Calling mint() again do nothing
+    tx = escrow.functions.mint().transact({'from': staker2})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.getAllTokens(staker2).call() == staker2_stake
+
+    # Withdraw reward
+    tx = escrow.functions.withdraw(staker2_stake).transact({'from': staker2})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.getAllTokens(staker2).call() == 0
+
+    # Now Staker(2) can't even call mint() because she is not staker anymore
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.mint().transact({'from': staker2})
+        testerchain.wait_for_receipt(tx)
 
     assert 4 == len(deposit_log.get_all_entries())
     assert 6 == len(lock_log.get_all_entries())
@@ -356,17 +382,19 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
 
     # Check searching downtime index
     current_period = escrow.functions.getCurrentPeriod().call()
-    assert 0 == escrow.functions.findIndexOfPastDowntime(ursula2, 0).call()
-    assert 0 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period - 14).call()
-    assert 1 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period - 13).call()
-    assert 1 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period - 11).call()
-    assert 2 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period - 10).call()
-    assert 2 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period - 9).call()
-    assert 3 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period - 8).call()
-    assert 3 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period - 4).call()
-    assert 4 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period - 3).call()
-    assert 4 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period).call()
-    assert 4 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period + 100).call()
+    assert 0 == escrow.functions.findIndexOfPastDowntime(staker2, 0).call()
+    assert 0 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 14).call()
+    assert 1 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 13).call()
+    assert 1 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 11).call()
+    assert 2 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 10).call()
+    assert 2 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 9).call()
+    assert 3 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 8).call()
+    assert 3 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 4).call()
+    assert 4 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 3).call()
+    assert 4 == escrow.functions.findIndexOfPastDowntime(staker2, current_period).call()
+    assert 4 == escrow.functions.findIndexOfPastDowntime(staker2, current_period + 100).call()
+
+
 
 
 @pytest.mark.slow
