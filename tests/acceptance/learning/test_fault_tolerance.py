@@ -20,6 +20,9 @@ from constant_sorrow.constants import NOT_SIGNED
 from twisted.logger import LogLevel, globalLogPublisher
 
 from nucypher.crypto.powers import TransactingPower
+from nucypher.acumen.nicknames import nickname_from_seed
+from nucypher.acumen.perception import FleetSensor
+from nucypher.network.nodes import Learner
 from nucypher.network.nodes import FleetStateTracker, Learner
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import make_ursula_for_staker
@@ -44,7 +47,7 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
     unsigned._Teacher__decentralized_identity_evidence = NOT_SIGNED
 
     # Wipe known nodes!
-    lonely_blockchain_learner._Learner__known_nodes = FleetStateTracker()
+    lonely_blockchain_learner._Learner__known_nodes = FleetSensor()
     lonely_blockchain_learner._current_teacher_node = blockchain_teacher
     lonely_blockchain_learner.remember_node(blockchain_teacher)
 
