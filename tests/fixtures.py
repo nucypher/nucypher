@@ -343,14 +343,16 @@ def random_policy_label():
 
 @pytest.fixture(scope="module")
 def federated_alice(alice_federated_test_config):
-    _alice = alice_federated_test_config.produce()
-    return _alice
+    alice = alice_federated_test_config.produce()
+    yield alice
+    alice.publication_threadpool.stop()
 
 
 @pytest.fixture(scope="module")
 def blockchain_alice(alice_blockchain_test_config, testerchain):
-    _alice = alice_blockchain_test_config.produce()
-    return _alice
+    alice = alice_blockchain_test_config.produce()
+    yield alice
+    alice.publication_threadpool.stop()
 
 
 @pytest.fixture(scope="module")
