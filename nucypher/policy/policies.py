@@ -673,7 +673,7 @@ class BlockchainPolicy(Policy):
                                        duration_periods=self.duration_periods,
                                        *args, **kwargs)
 
-    def enact(self, network_middleware, publish_to_blockchain=True, publish_treasure_map=True) -> dict:
+    def enact(self, network_middleware, publish_to_blockchain=True, publish_treasure_map=True) -> PolicyPayloadMutex:
         """
         Assign kfrags to ursulas_on_network, and distribute them via REST,
         populating enacted_arrangements
