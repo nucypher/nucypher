@@ -57,7 +57,7 @@ def escrow_contract(testerchain, token, token_economics, request, deploy_contrac
         if disable_reward:
             deploy_parameters[5] = 0
             deploy_parameters[6] = 0
-        contract, _ = deploy_contract('StakingEscrow', token.address, *deploy_parameters)
+        contract, _ = deploy_contract('EnhancedStakingEscrow', token.address, *deploy_parameters)
 
         if request.param:
             dispatcher, _ = deploy_contract('Dispatcher', contract.address)

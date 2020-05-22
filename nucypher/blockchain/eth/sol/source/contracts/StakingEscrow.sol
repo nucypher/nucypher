@@ -361,21 +361,6 @@ contract StakingEscrow is Issuer, IERC900History {
     }
 
     /**
-    * @notice Get the value of locked tokens for a staker in a previous period
-    * @dev Information may be incorrect for rewarded or not committed surpassed period
-    * @param _staker Staker
-    * @param _periods Amount of periods that will be subtracted from the current period
-    */
-    function getLockedTokensInPast(address _staker, uint16 _periods)
-        external view returns (uint256 lockedValue)
-    {
-        StakerInfo storage info = stakerInfo[_staker];
-        uint16 currentPeriod = getCurrentPeriod();
-        uint16 previousPeriod = currentPeriod.sub16(_periods);
-        return getLockedTokens(info, currentPeriod, previousPeriod);
-    }
-
-    /**
     * @notice Get the last committed staker's period
     * @param _staker Staker
     */

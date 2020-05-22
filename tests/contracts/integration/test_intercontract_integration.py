@@ -73,7 +73,7 @@ def token(token_economics, deploy_contract):
 def escrow_bare(testerchain, token, token_economics, deploy_contract):
     # Creator deploys the escrow
     contract, _ = deploy_contract(
-        'StakingEscrow', token.address, *token_economics.staking_deployment_parameters, True
+        'EnhancedStakingEscrow', token.address, *token_economics.staking_deployment_parameters, True
     )
     return contract
 
