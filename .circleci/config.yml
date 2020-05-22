@@ -432,6 +432,7 @@ commands:
     description: "Upload Coverage Report To codecov.io"
     steps:
       - codecov/upload:
+          flags: all
           file: reports/coverage.xml
 
   capture_test_results:
