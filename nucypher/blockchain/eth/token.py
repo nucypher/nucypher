@@ -550,12 +550,9 @@ class WorkTracker:
         self.__uptime_period = self.staking_agent.get_current_period()
         self.__current_period = self.__uptime_period
 
-        d = self._tracking_task.start(interval=self._refresh_rate)
+        self.log.info(f"START WORK TRACKING")
+        d = self._tracking_task.start(interval=self._refresh_rate, now=act_now)
         d.addErrback(self.handle_working_errors)
-        self.log.info(f"STARTED WORK TRACKING")
-
-        if act_now:
-            self._do_work()
 
     def _crash_gracefully(self, failure=None) -> None:
         """
@@ -588,7 +585,7 @@ class WorkTracker:
         return r
 
     def _do_work(self) -> None:
-         # TODO: #1515 Shut down at end of terminal stake
+        # TODO: #1515 Shut down at end of terminal stake
 
         # Update on-chain status
         self.log.info(f"Checking for new period. Current period is {self.__current_period}")

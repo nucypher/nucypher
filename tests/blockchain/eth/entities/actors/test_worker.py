@@ -20,6 +20,7 @@ import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
 
+from nucypher.blockchain.eth.actors import Worker
 from nucypher.blockchain.eth.token import NU, WorkTracker
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.ursula import make_decentralized_ursulas, start_pytest_ursula_services
@@ -27,7 +28,8 @@ from tests.utils.ursula import make_decentralized_ursulas, start_pytest_ursula_s
 
 @pytest.mark.slow()
 @pytest_twisted.inlineCallbacks
-def test_worker_auto_commitments(testerchain,
+def test_worker_auto_commitments(mocker,
+                                 testerchain,
                                  test_registry,
                                  staker,
                                  agency,
@@ -50,6 +52,8 @@ def test_worker_auto_commitments(testerchain,
     # Bond the Worker and Staker
     staker.bond_worker(worker_address=worker_address)
 
+    commit_spy = mocker.spy(Worker, 'commit_to_next_period')
+
     # Make the Worker
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                         stakers_addresses=[staker.checksum_address],
@@ -57,10 +61,14 @@ def test_worker_auto_commitments(testerchain,
                                         commit_to_next_period=False,
                                         registry=test_registry).pop()
 
+    commit_spy.assert_not_called()
+
+    initial_period = staker.staking_agent.get_current_period()
+
     def start():
         # Start running the worker
         start_pytest_ursula_services(ursula=ursula)
-        ursula.work_tracker.start()
+        ursula.work_tracker.start(act_now=True)
 
     def time_travel(_):
         testerchain.time_travel(periods=1)
@@ -71,9 +79,11 @@ def test_worker_auto_commitments(testerchain,
         last_committed_period = staker.staking_agent.get_last_committed_period(staker_address=staker.checksum_address)
         current_period = staker.staking_agent.get_current_period()
         assert (last_committed_period - current_period) == 1
+        assert commit_spy.call_count == current_period - initial_period + 1
 
     # Run the callbacks
     d = threads.deferToThread(start)
+    d.addCallback(verify)
     for i in range(5):
         d.addCallback(time_travel)
         d.addCallback(verify)
