@@ -600,7 +600,7 @@ class Bob(Character):
                 raise _MapClass.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_id} ")
 
             self.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
-            nodes_with_map = self.matching_nodes_among(self.known_nodes)
+            nodes_with_map = self.matching_nodes_among(self.known_nodes, no_less_than=8)
             random.shuffle(nodes_with_map)
 
             for node in nodes_with_map:
