@@ -99,7 +99,7 @@ def mock_worklock_agent(mock_testerchain, token_economics, mock_contract_agency)
 
     # Customize the mock agent
     mock_agent.boosting_refund = economics.worklock_boosting_refund_rate
-    mock_agent.slowing_refund = 1  # TODO: another way to get this value?
+    mock_agent.slowing_refund = 100
     mock_agent.start_bidding_date = economics.bidding_start_date
     mock_agent.end_bidding_date = economics.bidding_end_date
     mock_agent.end_cancellation_date = economics.cancellation_end_date
