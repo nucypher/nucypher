@@ -20,8 +20,13 @@ from decimal import Decimal, localcontext
 from math import log
 from typing import Tuple
 
-from nucypher.blockchain.eth.agents import AdjudicatorAgent, ContractAgency, NucypherTokenAgent, StakingEscrowAgent, \
+from nucypher.blockchain.eth.agents import (
+    AdjudicatorAgent,
+    ContractAgency,
+    NucypherTokenAgent,
+    StakingEscrowAgent,
     WorkLockAgent
+)
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 

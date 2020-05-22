@@ -26,9 +26,9 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import APP_DIR, DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
 from tests.constants import (
-    INSECURE_DEVELOPMENT_PASSWORD,
+    FAKE_PASSWORD_CONFIRMED, INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH,
-    MOCK_IP_ADDRESS)
+    MOCK_IP_ADDRESS, YES)
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 
@@ -39,11 +39,9 @@ def test_initialize_ursula_defaults(click_runner, mocker):
     mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', autospec=True)
 
     # Use default ursula init args
-    init_args = ('ursula', 'init',
-                 '--network', TEMPORARY_DOMAIN,
-                 '--federated-only')
+    init_args = ('ursula', 'init', '--network', TEMPORARY_DOMAIN, '--federated-only')
 
-    user_input = 'Y\n{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD, ip=MOCK_IP_ADDRESS)
+    user_input = YES + FAKE_PASSWORD_CONFIRMED
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -64,9 +62,7 @@ def test_initialize_custom_configuration_root(custom_filepath, click_runner):
                  '--config-root', custom_filepath,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', MOCK_URSULA_STARTING_PORT)
-
-    user_input = '{password}\n{password}'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
-    result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
+    result = click_runner.invoke(nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False)
     assert result.exit_code == 0
 
     # CLI Output

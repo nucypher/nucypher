@@ -6,10 +6,19 @@ from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, NO_KEYRING_ATTACHED
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.characters.chaotic import Felix
 from nucypher.characters.lawful import Alice, Bob, Ursula
-from nucypher.config.characters import AliceConfiguration, BobConfiguration, FelixConfiguration, \
-    StakeHolderConfiguration, UrsulaConfiguration
-from nucypher.config.storages import ForgetfulNodeStorage
+from nucypher.cli.actions.configure import destroy_configuration
+from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
+from nucypher.config.characters import (
+    AliceConfiguration,
+    BobConfiguration,
+    FelixConfiguration,
+    StakeHolderConfiguration,
+    UrsulaConfiguration
+)
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.keyring import NucypherKeyring
+from nucypher.config.node import CharacterConfiguration
+from nucypher.config.storages import ForgetfulNodeStorage
 
 # Main Cast
 configurations = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)
@@ -103,7 +112,7 @@ def test_default_character_configuration_preservation(configuration_class, teste
 
         # Restore from JSON file
         restored_configuration = configuration_class.from_configuration_file()
-        assert character_config == restored_configuration
+        assert character_config.serialize() == restored_configuration.serialize()
 
         # File still exists after reading
         assert os.path.exists(written_filepath)
@@ -146,3 +155,42 @@ def test_ursula_development_configuration(federated_only=True):
         ursula = config()
         assert ursula not in ursulas
         ursulas.append(ursula)
+
+
+@pytest.mark.skip("See #2016")
+def test_destroy_configuration(config,
+                               test_emitter,
+                               stdout_trap,
+                               mocker):
+    # Setup
+    config_class = config.__class__
+    config_file = config.filepath
+
+    # Isolate from filesystem and Spy on the methods we're testing here
+    spy_keyring_attached = mocker.spy(CharacterConfiguration, 'attach_keyring')
+    mock_config_destroy = mocker.patch.object(CharacterConfiguration, 'destroy')
+    spy_keyring_destroy = mocker.spy(NucypherKeyring, 'destroy')
+    mock_os_remove = mocker.patch('os.remove')
+
+    # Test
+    destroy_configuration(emitter=test_emitter, character_config=config)
+
+    mock_config_destroy.assert_called_once()
+    output = stdout_trap.getvalue()
+    assert SUCCESSFUL_DESTRUCTION in output
+
+    spy_keyring_attached.assert_called_once()
+    spy_keyring_destroy.assert_called_once()
+    mock_os_remove.assert_called_with(str(config_file))
+
+    # Ensure all destroyed files belong to this Ursula
+    for call in mock_os_remove.call_args_list:
+        filepath = str(call.args[0])
+        assert config.checksum_address in filepath
+
+    expected_removal = 7  # TODO: Source this number from somewhere else
+    if config_class is UrsulaConfiguration:
+        expected_removal += 1
+        mock_os_remove.assert_called_with(config.db_filepath)
+
+    assert mock_os_remove.call_count == expected_removal

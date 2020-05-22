@@ -30,7 +30,8 @@ from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.constants import FEE_RATE_RANGE, INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, TEST_PROVIDER_URI
+from tests.constants import FAKE_PASSWORD_CONFIRMED, FEE_RATE_RANGE, INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, \
+    TEST_PROVIDER_URI
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT, select_test_port
 
@@ -41,7 +42,7 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
     result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
     assert result.exit_code != 0
     assert default_filepath_mock.called
-    assert "run: 'nucypher stake init-stakeholder'" in result.output
+    assert "nucypher stake init-stakeholder" in result.output
 
 
 def test_new_stakeholder(click_runner,
@@ -237,10 +238,9 @@ def test_ursula_init(click_runner,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', MOCK_URSULA_STARTING_PORT)
 
-    user_input = '{password}\n{password}'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
     result = click_runner.invoke(nucypher_cli,
                                  init_args,
-                                 input=user_input,
+                                 input=FAKE_PASSWORD_CONFIRMED,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 

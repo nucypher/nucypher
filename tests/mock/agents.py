@@ -1,11 +1,12 @@
-from collections import defaultdict
+from enum import Enum
 
+from constant_sorrow.constants import (CONTRACT_ATTRIBUTE, CONTRACT_CALL, TRANSACTION)
 from hexbytes import HexBytes
-from typing import Tuple
+from typing import Callable, Generator, Iterable, List, Type, Union
 from unittest.mock import Mock
 
-from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent, WorkLockAgent
+from nucypher.blockchain.eth import agents
+from nucypher.blockchain.eth.agents import Agent, ContractAgency, EthereumContractAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from tests.constants import MOCK_PROVIDER_URI
@@ -13,209 +14,165 @@ from tests.constants import MOCK_PROVIDER_URI
 MOCK_TESTERCHAIN = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=MOCK_PROVIDER_URI)
 CURRENT_BLOCK = MOCK_TESTERCHAIN.w3.eth.getBlock(block_identifier='latest')
 
-#
-# Fixtures
-#
-
-FAKE_RECEIPT = {'transactionHash': HexBytes(b'FAKE29890FAKE8349804'),
-                'gasUsed': 1,
-                'blockNumber': CURRENT_BLOCK.number,
-                'blockHash': HexBytes(b'FAKE43434343FAKE43443434')}
-
-
-def fake_transaction(*_a, **_kw) -> dict:
-    return FAKE_RECEIPT
-
-
-def fake_call(*_a, **_kw) -> 1:
-    return 1
-
-
-#
-# Agents
-#
-
 
 class MockContractAgent:
 
-    # Internal
-    registry = Mock()
-    blockchain = MOCK_TESTERCHAIN
+    FAKE_RECEIPT = {'transactionHash': HexBytes(b'FAKE29890FAKE8349804'),
+                    'gasUsed': 1,
+                    'blockNumber': CURRENT_BLOCK.number,
+                    'blockHash': HexBytes(b'FAKE43434343FAKE43443434')}
 
+    FAKE_CALL_RESULT = 1
+
+    # Internal
+    __COLLECTION_MARKER = "contract_api"  # decorator attribute
+    __DEFAULTS = {
+        CONTRACT_CALL: FAKE_CALL_RESULT,
+        CONTRACT_ATTRIBUTE: FAKE_CALL_RESULT,
+        TRANSACTION:  FAKE_RECEIPT,
+    }
+
+    _MOCK_METHODS = list()
+    _REAL_METHODS = list()
+
+    # Mock Nucypher Contract API
     contract = Mock()
     contract_address = NULL_ADDRESS
 
-    # API
-    ATTRS = dict()
-    CALLS = tuple()
-    TRANSACTIONS = tuple()
+    # Mock Blockchain Interfaces
+    registry = Mock()
+    blockchain = MOCK_TESTERCHAIN
 
-    # Spy
-    _SPY_TRANSACTIONS = defaultdict(list)
-    _SPY_CALLS = defaultdict(list)
+    def __init__(self, agent_class: Type[EthereumContractAgent]):
+        """Bind mock agent attributes to the *subclass* with default values"""
+        self.agent_class = agent_class
+        self.__setup_mock(agent_class=agent_class)
 
-    def __init__(self):
-
-        # Bind mock agent attributes to the *subclass*
-        for agent_method, mock_value in self.ATTRS.items():
-            setattr(self.__class__, agent_method, mock_value)
-        self.__setup_mock()
+    def __repr__(self) -> str:
+        r = f'Mock{self.agent_class.__name__}(id={id(self)})'
+        return r
 
     @classmethod
-    def __setup_mock(cls) -> None:
-        for call in cls.CALLS:
-            setattr(cls, call, fake_call)
-        for tx in cls.TRANSACTIONS:
-            setattr(cls, tx, fake_transaction)
+    def __setup_mock(cls, agent_class: Type[Agent]) -> None:
 
-    def __record_tx(self, name: str, params: tuple) -> None:
-        self._SPY_TRANSACTIONS[str(name)].append(params)
+        api_methods: Iterable[Callable] = list(cls.__collect_contract_api(agent_class=agent_class))
+        mock_methods, mock_properties = list(), dict()
 
-    def __record_call(self, name: str, params: tuple) -> None:
-        self._SPY_CALLS[str(name)].append(params)
+        for agent_interface in api_methods:
 
-    def __getattribute__(self, name):
-        """Spy"""
+            # Handle
+            try:
+                # TODO: #2022: This might be a method also decorated @property
+                # Get the inner function of the property
+                real_method: Callable = agent_interface.fget  # Handle properties
+            except AttributeError:
+                real_method = agent_interface
 
-        get = object.__getattribute__
-        attr = get(self, name)
-        transaction = name in get(self, 'TRANSACTIONS')
-        call = name in get(self, 'CALLS')
+            # Get
+            interface = getattr(real_method, cls.__COLLECTION_MARKER)
+            default_return = cls.__DEFAULTS.get(interface)
 
-        if transaction or call:
-            spy = self.__record_tx if transaction else self.__record_call
-            def wrapped(*args, **kwargs):
-                result = attr(*args, **kwargs)
-                params = args, kwargs
-                spy(name, params)
-                return result
-            return wrapped
+            # TODO: #2022 Special handling of PropertyMocks?
+            # # Setup
+            # if interface == CONTRACT_ATTRIBUTE:
+            #     mock = PropertyMock()
+            #     mock_properties[real_method.__name__] = mock
+            # else:
+            mock = Mock(return_value=default_return)
+
+            # Mark
+            setattr(mock, cls.__COLLECTION_MARKER, interface)
+            mock_methods.append(mock)
+
+            # Bind
+            setattr(cls, real_method.__name__, mock)
+
+        cls._MOCK_METHODS = mock_methods
+        cls._REAL_METHODS = api_methods
+
+    @classmethod
+    def __get_interface_calls(cls, interface: Enum) -> List[Callable]:
+        predicate = lambda method: bool(method.contract_api == interface)
+        interface_calls = list(filter(predicate, cls._MOCK_METHODS))
+        return interface_calls
+
+    @classmethod
+    def __is_contract_method(cls, agent_class: Type[Agent], method_name: str) -> bool:
+        method_or_property = getattr(agent_class, method_name)
+        try:
+            real_method: Callable = method_or_property.fget  # Property (getter)
+        except AttributeError:
+            real_method: Callable = method_or_property       # Method
+        contract_api: bool = hasattr(real_method, cls.__COLLECTION_MARKER)
+        return contract_api
+
+    @classmethod
+    def __collect_contract_api(cls, agent_class: Type[Agent]) -> Generator[Callable, None, None]:
+        agent_attrs = dir(agent_class)
+        predicate = cls.__is_contract_method
+        methods = (getattr(agent_class, name) for name in agent_attrs if predicate(agent_class, name))
+        return methods
+
+    #
+    # Test Utilities
+    #
+
+    @property
+    def all_transactions(self) -> List[Callable]:
+        interface = TRANSACTION
+        transaction_functions = self.__get_interface_calls(interface=interface)
+        return transaction_functions
+
+    @property
+    def contract_calls(self) -> List[Callable]:
+        interface = CONTRACT_CALL
+        transaction_functions = self.__get_interface_calls(interface=interface)
+        return transaction_functions
+
+    def get_unexpected_transactions(self, allowed: Union[Iterable[Callable], None]) -> List[Callable]:
+        if allowed:
+            predicate = lambda tx: tx not in allowed and tx.called
         else:
-            return attr
+            predicate = lambda tx: tx.called
+        unexpected_transactions = list(filter(predicate, self.all_transactions))
+        return unexpected_transactions
 
-    #
-    # Utils
-    #
-
-    @classmethod
-    def reset(cls) -> None:
-        cls._SPY_TRANSACTIONS.clear()
-        cls._SPY_CALLS.clear()
-
-    #
-    # Assertions
-    #
-
-    def assert_any_transaction(self) -> None:
-        assert self._SPY_TRANSACTIONS, 'No transactions performed'
+    def assert_only_transactions(self, allowed: Iterable[Callable]) -> None:
+        unexpected_transactions = self.get_unexpected_transactions(allowed=allowed)
+        assert not bool(unexpected_transactions)
 
     def assert_no_transactions(self) -> None:
-        assert not self._SPY_TRANSACTIONS, 'Transactions performed'
+        unexpected_transactions = self.get_unexpected_transactions(allowed=None)
+        assert not bool(unexpected_transactions)
 
-    def assert_only_one_transaction_executed(self) -> None:
-        fail = f"{len(self._SPY_TRANSACTIONS)} were performed ({', '.join(self._SPY_TRANSACTIONS)})."
-        assert len(self._SPY_TRANSACTIONS) == 1, fail
+    def reset(self, clear_side_effects: bool = True) -> None:
+        for mock in self._MOCK_METHODS:
+            mock.reset_mock()
+            if clear_side_effects:
+                mock.side_effect = None
 
-    def assert_transaction_not_called(self, name: str) -> None:
-        assert name not in self._SPY_TRANSACTIONS, f'Unexpected transaction call "{name}".'
+                
+class MockContractAgency(ContractAgency):
 
-    def assert_transaction(self, name: str, call_count: int = 1, **kwargs) -> None:
-
-        # some transaction
-        assert self._SPY_TRANSACTIONS, 'No transactions performed'
-        assert name in self.TRANSACTIONS, f'"{name}" was not performed. Recorded txs: ({" ,".join(self._SPY_TRANSACTIONS)})'
-
-        # this transaction
-        transaction_executions = self._SPY_TRANSACTIONS[name]
-        fail = f'Transaction "{name}" was called an unexpected number of times; ' \
-               f'Expected {call_count} got {len(transaction_executions)}.'
-        assert len(transaction_executions) == call_count, fail
-
-        # transaction params
-        agent_args, agent_kwargs = transaction_executions[0]  # use the first occurrence
-        assert kwargs == agent_kwargs, 'Unexpected agent input'
-
-    def assert_contract_calls(self, calls: Tuple[str]) -> None:
-        for call_name in calls:
-            assert call_name in self._SPY_CALLS, f'"{call_name}" was not called'
-
-
-class MockNucypherToken(MockContractAgent, NucypherTokenAgent):
-    """Look at me im a token!"""
-
-
-class MockStakingAgent(MockContractAgent, StakingEscrowAgent):
-    """dont forget the eggs!"""
-
-    CALLS = ('get_completed_work', )
-
-
-class MockPolicyManagerAgent(MockContractAgent, PolicyManagerAgent):
-    """The best ethereum policy manager ever"""
-
-
-class MockWorkLockAgent(MockContractAgent, WorkLockAgent):
-
-    CALLS = ('check_claim',
-             'eth_to_tokens',
-             'get_deposited_eth',
-             'get_eth_supply',
-             'get_base_deposit_rate',
-             'get_bonus_lot_value',
-             'get_bonus_deposit_rate',
-             'get_bonus_refund_rate',
-             'get_base_refund_rate',
-             'get_completed_work',
-             'get_refunded_work')
-
-    TRANSACTIONS = ('bid',
-                    'cancel_bid',
-                    'force_refund',
-                    'verify_bidding_correctness',
-                    'claim',
-                    'refund',
-                    'withdraw_compensation')
-
-    def __init__(self):
-
-        # Allow for mocking
-        economics = EconomicsFactory.get_economics(registry=Mock())
-
-        self.ATTRS = {'boosting_refund': economics.worklock_boosting_refund_rate,
-                      'slowing_refund': 1,  # TODO: another way to get this value?
-                      'start_bidding_date': economics.bidding_start_date,
-                      'end_bidding_date': economics.bidding_end_date,
-                      'end_cancellation_date': economics.cancellation_end_date,
-                      'minimum_allowed_bid': economics.worklock_min_allowed_bid,
-                      'lot_value': economics.worklock_supply}
-
-        super().__init__()
-
-
-class MockContractAgency:
-
-    # Test doubles
-    DOUBLE_AGENTS = {NucypherTokenAgent: MockNucypherToken,
-                     StakingEscrowAgent: MockStakingAgent,
-                     PolicyManagerAgent: MockPolicyManagerAgent,
-                     WorkLockAgent: MockWorkLockAgent}
-
-    class NoMockFound(ValueError):
-        """Well we hadn't made one yet"""
+    __agents = dict()
 
     @classmethod
-    def get_agent(cls, agent_class, *args, **kwargs) -> MockContractAgent:
+    def get_agent(cls, agent_class: Type[Agent], *args, **kwargs) -> MockContractAgent:
         try:
-            double = cls.DOUBLE_AGENTS[agent_class]
+            mock_agent = cls.__agents[agent_class]
         except KeyError:
-            raise ValueError(f'No mock class available for "{str(agent_class)}"')
-        else:
-            return double()
+            mock_agent = MockContractAgent(agent_class=agent_class)
+            cls.__agents[agent_class] = mock_agent
+        return mock_agent
 
     @classmethod
     def get_agent_by_contract_name(cls, contract_name: str, *args, **kwargs) -> MockContractAgent:
-        for agent, test_double in cls.DOUBLE_AGENTS.items():
-            if test_double.registry_contract_name == contract_name:
-                return test_double()
-        else:
-            raise ValueError(f'No mock available for "{contract_name}"')
+        agent_name = super()._contract_name_to_agent_name(name=contract_name)
+        agent_class = getattr(agents, agent_name)
+        mock_agent = cls.get_agent(agent_class=agent_class)
+        return mock_agent
+
+    @classmethod
+    def reset(cls) -> None:
+        for agent in cls.__agents.values():
+            agent.reset()

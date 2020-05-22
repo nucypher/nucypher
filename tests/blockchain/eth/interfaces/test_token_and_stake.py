@@ -131,6 +131,55 @@ def test_stake(testerchain, token_economics, agency):
     assert isinstance(slang_remaining, str)
 
 
+def test_stake_equality(token_economics, get_random_checksum_address, mocker):
+    address = get_random_checksum_address()
+    a_different_address = get_random_checksum_address()
+
+    mock_agent = mocker.Mock(contract_address=a_different_address)
+
+    stake = Stake(checksum_address=address,
+                  first_locked_period=1,
+                  final_locked_period=2,
+                  value=NU(100, 'NU'),
+                  index=0,
+                  staking_agent=mock_agent,
+                  economics=token_economics,
+                  validate_now=False)
+
+    assert stake == stake
+
+    duck_stake = mocker.Mock(index=0,
+                             value=NU(100, 'NU'),
+                             first_locked_period=1,
+                             final_locked_period=2,
+                             staker_address=address,
+                             staking_agent=mock_agent)
+    assert stake == duck_stake
+
+    a_different_stake = Stake(checksum_address=address,
+                              first_locked_period=0,
+                              final_locked_period=2,
+                              value=NU(100, 'NU'),
+                              index=1,
+                              staking_agent=mock_agent,
+                              economics=token_economics,
+                              validate_now=False)
+
+    assert stake != a_different_stake
+
+    undercover_agent = mocker.Mock(contract_address=address)
+    another_different_stake = Stake(checksum_address=a_different_address,
+                                    first_locked_period=1,
+                                    final_locked_period=2,
+                                    value=NU(100, 'NU'),
+                                    index=0,
+                                    staking_agent=undercover_agent,
+                                    economics=token_economics,
+                                    validate_now=False)
+
+    assert stake != another_different_stake
+
+
 def test_stake_integration(stakers):
     staker = list(stakers)[1]
     stakes = staker.stakes

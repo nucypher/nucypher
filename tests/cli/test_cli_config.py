@@ -8,7 +8,8 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration, UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS, \
     TEMPORARY_DOMAIN
-from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH, MOCK_IP_ADDRESS,
+from tests.constants import (FAKE_PASSWORD_CONFIRMED, INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH,
+                             MOCK_IP_ADDRESS,
                              TEST_PROVIDER_URI)
 
 CONFIG_CLASSES = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)
@@ -28,8 +29,11 @@ def test_initialize_via_cli(config_class, custom_filepath, click_runner, monkeyp
                  '--federated-only',
                  '--config-root', custom_filepath)
 
-    user_input = '{password}\n{password}'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
-    result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False, env=ENV)
+    result = click_runner.invoke(nucypher_cli,
+                                 init_args,
+                                 input=FAKE_PASSWORD_CONFIRMED,
+                                 catch_exceptions=False,
+                                 env=ENV)
     assert result.exit_code == 0
 
     # CLI Output

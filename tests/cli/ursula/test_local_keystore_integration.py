@@ -14,11 +14,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import json
 
-import os
-import pytest
+
+import json
 import secrets
+
+import pytest
 from eth_account import Account
 from web3 import Web3
 
@@ -26,18 +27,21 @@ from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.token import StakeList
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
-from tests.constants import MOCK_IP_ADDRESS, TEST_PROVIDER_URI
-from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYRING_PASSWORD,
     NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
     TEMPORARY_DOMAIN,
 )
+from tests.constants import (
+    MOCK_IP_ADDRESS,
+    TEST_PROVIDER_URI
+)
+from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 
 @pytest.fixture(scope='module')
 def mock_funded_account_password_keystore(tmp_path_factory, testerchain):
-    '''Generate a random keypair & password and create a local keystore'''
+    """Generate a random keypair & password and create a local keystore"""
     keystore = tmp_path_factory.mktemp('keystore', numbered=True)
     password = secrets.token_urlsafe(12)
     account = Account.create()

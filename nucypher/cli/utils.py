@@ -34,7 +34,7 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContr
 from nucypher.characters.base import Character
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import get_nucypher_password, unlock_nucypher_keyring
-from nucypher.cli.actions.network import load_seednodes
+from nucypher.utilities.seednodes import load_seednodes
 from nucypher.cli.literature import (
     CONNECTING_TO_BLOCKCHAIN,
     ETHERSCAN_FLAG_DISABLED_WARNING,

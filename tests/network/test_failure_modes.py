@@ -60,6 +60,9 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_
                                  expiration=policy_end_datetime,
                                  timeout=.1)
 
+    # Go!
+    federated_alice.start_learning_loop()
+
     # Try a first time, failing because no known nodes are up for Alice to even try to learn from.
     with pytest.raises(down_node.NotEnoughNodes):
         alice_grant_action()
