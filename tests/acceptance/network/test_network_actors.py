@@ -25,8 +25,8 @@ from nucypher.characters.lawful import Ursula
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower
-from nucypher.network.nicknames import nickname_from_seed
-from nucypher.network.nodes import FleetStateTracker
+from nucypher.acumen.nicknames import nickname_from_seed
+from nucypher.acumen.perception import FleetSensor
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.middleware import MockRestMiddleware
 
@@ -49,7 +49,7 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
 @pytest.mark.slow()
 def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_ursulas):
     # Imagine alice knows of nobody.
-    blockchain_alice._Learner__known_nodes = FleetStateTracker()
+    blockchain_alice._Learner__known_nodes = FleetSensor()
 
     blockchain_alice.remember_node(blockchain_ursulas[0])
     blockchain_alice.learn_from_teacher_node()
