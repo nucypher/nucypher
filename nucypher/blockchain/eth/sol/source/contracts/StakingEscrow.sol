@@ -442,12 +442,7 @@ contract StakingEscrow is Issuer, IERC900History {
     * @notice Get worker using staker's address
     */
     function getWorkerFromStaker(address _staker) external view returns (address) {
-        StakerInfo storage info = stakerInfo[_staker];
-        // specified address is not a staker
-        if (stakerInfo[_staker].subStakes.length == 0) {
-            return address(0);
-        }
-        return info.worker;
+        return stakerInfo[_staker].worker;
     }
 
     /**
@@ -911,6 +906,16 @@ contract StakingEscrow is Issuer, IERC900History {
         addSnapshot(info, - int256(_value));
         token.safeTransfer(msg.sender, _value);
         emit Withdrawn(msg.sender, _value);
+
+        // unbond worker if staker withdraws last portion of NU
+        if (info.value == 0 &&
+            info.nextCommittedPeriod == 0 &&
+            info.worker != address(0))
+        {
+            stakerFromWorker[info.worker] = address(0);
+            info.worker = address(0);
+            emit WorkerBonded(msg.sender, address(0), currentPeriod);
+        }
     }
 
     /**

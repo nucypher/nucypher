@@ -20,6 +20,8 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
+
 
 @pytest.mark.slow
 def test_minting(testerchain, token, escrow_contract, token_economics):
@@ -47,6 +49,7 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     commitments_log = escrow.events.CommitmentMade.createFilter(fromBlock='latest')
     divides_log = escrow.events.Divided.createFilter(fromBlock='latest')
     withdraw_log = escrow.events.Withdrawn.createFilter(fromBlock='latest')
+    worker_log = escrow.events.WorkerBonded.createFilter(fromBlock='latest')
 
     # Give Escrow tokens for reward and initialize contract
     tx = token.functions.approve(escrow.address, token_economics.erc20_reward_supply).transact({'from': creator})
@@ -336,12 +339,17 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
 
     # Staker(2) withdraws all
     testerchain.time_travel(hours=2)
+    worker_log_length = len(worker_log.get_all_entries())
     staker2_stake = escrow.functions.getAllTokens(staker2).call()
     assert 0 == escrow.functions.getLockedTokens(staker2, 0).call()
+    assert escrow.functions.getWorkerFromStaker(staker2).call() == staker2
+    assert escrow.functions.stakerFromWorker(staker2).call() == staker2
     tx = escrow.functions.withdraw(staker2_stake).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
     assert 0 == escrow.functions.getAllTokens(staker2).call()
     assert staker2_stake == token.functions.balanceOf(staker2).call()
+    assert escrow.functions.getWorkerFromStaker(staker2).call() == staker2
+    assert escrow.functions.stakerFromWorker(staker2).call() == staker2
 
     events = withdraw_log.get_all_entries()
     assert 1 == len(events)
@@ -359,6 +367,8 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     assert staker2_stake > 0
     assert escrow.functions.getLockedTokens(staker2, 0).call() == 0
     assert escrow.functions.stakerInfo(staker2).call()[2] == 0  # nextCommittedPeriod
+    assert escrow.functions.getWorkerFromStaker(staker2).call() == staker2
+    assert escrow.functions.stakerFromWorker(staker2).call() == staker2
 
     # Calling mint() again do nothing
     tx = escrow.functions.mint().transact({'from': staker2})
@@ -366,9 +376,18 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     assert escrow.functions.getAllTokens(staker2).call() == staker2_stake
 
     # Withdraw reward
+    assert len(worker_log.get_all_entries()) == worker_log_length
     tx = escrow.functions.withdraw(staker2_stake).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.getAllTokens(staker2).call() == 0
+    assert escrow.functions.getWorkerFromStaker(staker2).call() == NULL_ADDRESS
+    assert escrow.functions.stakerFromWorker(staker2).call() == NULL_ADDRESS
+
+    events = worker_log.get_all_entries()
+    assert len(events) == worker_log_length + 1
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker2
+    assert event_args['worker'] == NULL_ADDRESS
 
     # Now Staker(2) can't even call mint() because she is not staker anymore
     with pytest.raises((TransactionFailed, ValueError)):
@@ -393,8 +412,6 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     assert 4 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 3).call()
     assert 4 == escrow.functions.findIndexOfPastDowntime(staker2, current_period).call()
     assert 4 == escrow.functions.findIndexOfPastDowntime(staker2, current_period + 100).call()
-
-
 
 
 @pytest.mark.slow
