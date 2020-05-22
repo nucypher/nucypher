@@ -47,6 +47,8 @@ from twisted.internet import reactor, stdio, threads
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 from typing import Dict, Iterable, List, Set, Tuple, Union
+
+from nucypher.acumen.perception import FleetSensor
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
@@ -78,8 +80,7 @@ from nucypher.datastore.keypairs import HostingKeypair
 from nucypher.datastore.threading import ThreadedSession
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.nicknames import nickname_from_seed
-from nucypher.network.nodes import NodeSprout, FleetStateTracker
+from nucypher.network.nodes import NodeSprout
 from nucypher.network.nodes import Teacher
 from nucypher.network.nodes import NodeSprout, Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
@@ -864,7 +865,9 @@ class Bob(Character):
 
         return cleartexts
 
-    def matching_nodes_among(self, nodes: FleetStateTracker):
+    def matching_nodes_among(self,
+                             nodes: FleetSensor,
+                             no_less_than=8):
         # Look for nodes whose checksum address has the second character of Bob's encrypting key in the first
         # few characters.
         # Think of it as a cheap knockoff hamming distance.

@@ -78,7 +78,6 @@ from nucypher.cli.painting.deployment import paint_contract_deployment, paint_in
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
-from nucypher.network.nicknames import nickname_from_seed
 
 
 class BaseActor:
