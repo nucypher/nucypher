@@ -157,7 +157,7 @@ class MockContractAgency(ContractAgency):
     __agents = dict()
 
     @classmethod
-    def get_agent(cls, agent_class: Type[Agent], *args, **kwargs) -> Type[MockContractAgent]:
+    def get_agent(cls, agent_class: Type[Agent], *args, **kwargs) -> MockContractAgent:
         try:
             mock_agent = cls.__agents[agent_class]
         except KeyError:
@@ -166,7 +166,7 @@ class MockContractAgency(ContractAgency):
         return mock_agent
 
     @classmethod
-    def get_agent_by_contract_name(cls, contract_name: str, *args, **kwargs) -> Type[MockContractAgent]:
+    def get_agent_by_contract_name(cls, contract_name: str, *args, **kwargs) -> MockContractAgent:
         agent_name = super()._contract_name_to_agent_name(name=contract_name)
         agent_class = getattr(agents, agent_name)
         mock_agent = cls.get_agent(agent_class=agent_class)

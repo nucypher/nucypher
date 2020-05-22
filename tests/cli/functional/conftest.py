@@ -21,11 +21,6 @@ import os
 import pytest
 from eth_account import Account
 from eth_account.account import Account
-from tests.utils.config import (
-    make_alice_test_configuration,
-    make_bob_test_configuration,
-    make_ursula_test_configuration
-)
 
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import (
@@ -38,7 +33,6 @@ from nucypher.blockchain.eth.agents import (
     WorkLockAgent
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.config.characters import UrsulaConfiguration
@@ -50,7 +44,12 @@ from tests.constants import (
 )
 from tests.fixtures import _make_testerchain, make_token_economics
 from tests.mock.agents import MockContractAgency, MockContractAgent
-from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
+from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
+from tests.utils.config import (
+    make_alice_test_configuration,
+    make_bob_test_configuration,
+    make_ursula_test_configuration
+)
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 
@@ -149,12 +148,10 @@ def test_registry():
 
 @pytest.fixture(scope='module')
 def test_registry_source_manager(mock_testerchain, test_registry):
-    real_inventory = make_mock_registry_source_manager(blockchain=mock_testerchain,
-                                                       test_registry=test_registry,
-                                                       mock_backend=True)
-    yield
-    # restore the original state
-    NetworksInventory.NETWORKS = real_inventory
+    with mock_registry_source_manager(blockchain=mock_testerchain,
+                                      test_registry=test_registry,
+                                      mock_backend=True) as real_inventory:
+        yield real_inventory
 
 
 @pytest.fixture(scope='module', autouse=True)

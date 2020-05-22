@@ -81,7 +81,7 @@ from tests.constants import (
     TEST_GAS_LIMIT,
     TEST_PROVIDER_URI
 )
-from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
+from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.performance_mocks import (
     mock_cert_generation,
     mock_cert_loading,
@@ -554,10 +554,8 @@ def _make_agency(testerchain,
 
 @pytest.fixture(scope='module')
 def test_registry_source_manager(testerchain, test_registry):
-    real_inventory = make_mock_registry_source_manager(blockchain=testerchain, test_registry=test_registry)
-    yield
-    # restore the original state
-    NetworksInventory.NETWORKS = real_inventory
+    with mock_registry_source_manager(blockchain=testerchain, test_registry=test_registry):
+        yield
 
 
 @pytest.fixture(scope='module')

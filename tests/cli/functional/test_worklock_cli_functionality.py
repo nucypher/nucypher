@@ -362,7 +362,7 @@ def test_participant_status(click_runner,
                       mock_worklock_agent.get_bonus_deposit_rate,
                       mock_worklock_agent.get_bonus_refund_rate,
                       mock_worklock_agent.get_base_refund_rate,
-                      # 'get_completed_work',  # TODO Yes or no?
+                      mock_worklock_agent.get_completed_work,
                       mock_worklock_agent.get_refunded_work)
     # Calls
     for call in expected_calls:
