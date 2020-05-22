@@ -353,6 +353,7 @@ class Policy(ABC):
             arrangement_message_kit = arrangement.encrypt_payload_for_ursula()
 
             try:
+                # TODO: Concurrency
                 response = network_middleware.enact_policy(arrangement.ursula,
                                                            arrangement.id,
                                                            arrangement_message_kit.to_bytes())
@@ -361,7 +362,7 @@ class Policy(ABC):
             else:
                 arrangement.status = response.status_code
 
-            # Assuming response is what we hope for.
+            # TODO: Handle problem here - if the arrangement is bad, deal with it.
             self.treasure_map.add_arrangement(arrangement)
 
         else:
@@ -694,6 +695,7 @@ class BlockchainPolicy(Policy):
                                                       label=self.label)
             # Sign the map.
             transacting_power = self.alice._crypto_power.power_ups(TransactingPower)
-            self.publish_treasure_map(network_middleware=network_middleware,
+            publisher = self.publish_treasure_map(network_middleware=network_middleware,
                                       blockchain_signer=transacting_power.sign_message)
-        return
+            # publisher.block_for_a_little_while()
+        return publisher
