@@ -39,24 +39,6 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.mark.parametrize('confirm', (True, False))
-def test_get_password_from_prompt_cli_action(mock_click_prompt, mock_click_confirm, confirm):
-
-    # Setup
-    mock_click_prompt.return_value = INSECURE_DEVELOPMENT_PASSWORD
-    mock_click_confirm.return_value = True
-
-    # Test
-    result = get_password_from_prompt(confirm=confirm)
-    assert result
-    assert result is not NO_PASSWORD
-    assert result == INSECURE_DEVELOPMENT_PASSWORD
-
-    mock_click_prompt.assert_called_once_with(GENERIC_PASSWORD_PROMPT,
-                                              confirmation_prompt=confirm,
-                                              hide_input=True)
-
-
-@pytest.mark.parametrize('confirm', (True, False))
 def test_get_password_from_prompt_cli_action(mocker, mock_click_prompt, mock_click_confirm, confirm):
 
     # Setup
