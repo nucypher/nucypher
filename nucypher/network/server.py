@@ -416,7 +416,6 @@ def make_rest_app(
         else:
             return Response("Can't save a TreasureMap with this ID from you.", status=409)
 
-
         if do_store and not this_node.federated_only:
             alice_checksum_address = this_node.policy_agent.contract.functions.getPolicyOwner(
                 treasure_map._hrac[:16]).call()
