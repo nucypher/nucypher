@@ -593,7 +593,8 @@ class Bob(Character):
             if (start - maya.now()).seconds > timeout:
                 raise _MapClass.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_id} ")
 
-            nodes_with_map = self.matching_nodes_among(self.known_nodes)
+            self.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
+            nodes_with_map = self.matching_nodes_among(self.known_nodes, no_less_than=8)
             random.shuffle(nodes_with_map)
 
             for node in nodes_with_map:
@@ -875,9 +876,23 @@ class Bob(Character):
         # And - famous last words incoming - there's no cognizable attack surface.
         # Sure, Bob can mine encrypting keypairs until he gets the set of target Ursulas on which Alice can
         # store a TreasureMap.  And then... ???... profit?
+
+        # Sanity check - do we even have enough nodes?
+        if len(nodes) < no_less_than:
+            raise ValueError(f"Can't select {no_less_than} from {len(nodes)} (Fleet state: {nodes.FleetState}")
+
+        search_boundary = 2
+        target_nodes = []
         target_hex_match = self.public_keys(DecryptingPower).hex()[1]
-        # This might be a performance issue above a few thousand nodes.
-        target_nodes = [node for node in nodes if target_hex_match in node.checksum_address[2:4]]
+        while len(target_nodes) < 8:  # Arbitrary floor.  Is 8 good?
+            target_nodes = []
+            search_boundary += 2
+
+            if search_boundary > 42:
+                raise self.NotEnoughNodes
+            # TODO: 1995 all throughout here (we might not (need to) know the checksum address yet; canonical will do.)
+            # This might be a performance issue above a few thousand nodes.
+            target_nodes = [node for node in nodes if target_hex_match in node.checksum_address[2:search_boundary]]
         return target_nodes
 
     def make_web_controller(drone_bob, crash_on_error: bool = False):
