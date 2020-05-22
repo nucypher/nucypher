@@ -122,7 +122,7 @@ def select_client_account(emitter,
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, emitter=emitter)
 
         if signer_uri:
-            signer = Signer.from_signer_uri(signer_uri) if signer_uri else None
+            signer = Signer.from_signer_uri(signer_uri)
 
         wallet = Wallet(provider_uri=provider_uri, signer=signer)
 

@@ -79,7 +79,7 @@ def confirm_enable_winding_down(emitter: StdoutEmitter, staking_address: str) ->
 def confirm_staged_stake(staker_address: str, value: NU, lock_periods: int) -> bool:
     """Interactively confirm a new stake reviewing all staged stake details."""
     click.confirm(CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
-                                              tokens=str(value.to_tokens()),
+                                              tokens=value,
                                               staker_address=staker_address,
                                               lock_periods=lock_periods), abort=True)
     return True
