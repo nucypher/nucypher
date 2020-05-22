@@ -36,6 +36,15 @@ repos:
       # Docs
       - id: check-vcs-permalinks
 
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: ffbd448645bad2e7ca13f96fca5830058d27ccd5
+    hooks:
+      # License
+      - id: insert-license
+        files: \.py$
+        args: [--license-filepath, '.nucypher-license', --detect-license-in-X-top-lines=16, --comment-style, '"""||"""']
+
+
 # TODO: Will be incrementally introduced
 #  - repo: https://github.com/PyCQA/bandit
 #    rev: '1.6.2'
