@@ -20,6 +20,7 @@ import os
 
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler, SourceDirs
+from tests.constants import TEST_CONTRACTS_DIR
 from tests.utils.blockchain import TesterBlockchain
 
 
@@ -37,7 +38,7 @@ def test_nucypher_contract_compiled(testerchain, test_registry):
 def test_multi_source_compilation(testerchain):
     solidity_compiler = SolidityCompiler(source_dirs=[
         (SolidityCompiler.default_contract_dir(), None),
-        (SolidityCompiler.default_contract_dir(), {TesterBlockchain.TEST_CONTRACTS_DIR})
+        (SolidityCompiler.default_contract_dir(), {TEST_CONTRACTS_DIR})
     ])
     interfaces = solidity_compiler.compile()
 
