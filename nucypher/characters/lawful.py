@@ -132,6 +132,7 @@ class Alice(Character, BlockchainPolicyAuthor):
 
             self.publication_threadpool = ThreadPool(maxthreads=120, name="Alice Policy Publication")  # In the future, this value is perhaps best set to something like 3-4 times the optimal "high n", whatever we determine that to be.
             self.publication_threadpool.start()
+            reactor.addSystemEventTrigger("before", "shutdown", self.publication_threadpool.stop)  # TODO: Congregate Character Stop activity.
         else:
             self.m = STRANGER_ALICE
             self.n = STRANGER_ALICE
