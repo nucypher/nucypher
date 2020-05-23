@@ -152,7 +152,7 @@ def test_treasure_map_cannot_be_duplicated(blockchain_ursulas, blockchain_alice,
                                     rate=int(1e18),  # one ether
                                     expiration=policy_end_datetime)
 
-    u = blockchain_ursulas[0]
+    u = blockchain_bob.matching_nodes_among(blockchain_alice.known_nodes)[0]
     saved_map = u.treasure_maps[bytes.fromhex(policy.treasure_map.public_id())]
     assert saved_map == policy.treasure_map
     # This Ursula was actually a Vladimir.
