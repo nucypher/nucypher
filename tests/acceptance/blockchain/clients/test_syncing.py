@@ -18,8 +18,14 @@
 import pytest
 
 from nucypher.blockchain.eth.clients import (EthereumClient, GethClient)
-from tests.unit.test_mocked_clients import GethClientTestBlockchain, SyncedMockWeb3, SyncingMockWeb3, \
+
+# TODO: Relocate mock objects out of unt tests
+from tests.unit.test_web3_clients import (
+    GethClientTestBlockchain,
+    SyncedMockWeb3,
+    SyncingMockWeb3,
     SyncingMockWeb3NoPeers
+)
 
 
 def test_synced_geth_client():
@@ -37,7 +43,7 @@ def test_synced_geth_client():
 
 def test_unsynced_geth_client():
 
-    GethClient.SYNC_SLEEP_DURATION = .1
+    GethClient.SYNC_SLEEP_DURATION = .001
 
     class NonSyncedBlockchainInterface(GethClientTestBlockchain):
 
@@ -54,7 +60,7 @@ def test_unsynced_geth_client():
 
 def test_no_peers_unsynced_geth_client():
 
-    GethClient.PEERING_TIMEOUT = .1
+    GethClient.PEERING_TIMEOUT = .001
 
     class NonSyncedNoPeersBlockchainInterface(GethClientTestBlockchain):
 
