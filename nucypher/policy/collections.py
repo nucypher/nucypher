@@ -235,7 +235,10 @@ class TreasureMap:
                 f"TreasureMap lists only {len(self._destinations)} destination, but requires interaction with {self._m} nodes.")
 
     def __eq__(self, other):
-        return bytes(self) == bytes(other)
+        try:
+            return self.public_id() == other.public_id()
+        except AttributeError:
+            raise TypeError(f"Can't compare f{other} to a TreasureMap (it needs to implement public_id() )")
 
     def __iter__(self):
         return iter(self.destinations.items())
