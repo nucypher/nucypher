@@ -14,25 +14,21 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import random
+import time
 from datetime import datetime
 from unittest.mock import patch
 
 import maya
 import pytest
-import time
-
 import pytest_twisted
-from flask import Response
-from twisted.internet import threads, reactor
-from twisted.internet.defer import Deferred
 from twisted.internet.threads import deferToThread
 
-from nucypher.utilities.sandbox.middleware import SluggishLargeFleetMiddleware
-from umbral.keys import UmbralPublicKey
-from unittest.mock import patch
-
 from nucypher.characters.lawful import Ursula
+from tests.performance_mocks import NotAPublicKey, NotARestApp, VerificationTracker, mock_cert_loading, \
+    mock_cert_storage, mock_message_verification, mock_metadata_validation, mock_pubkey_from_bytes, mock_secret_source, \
+    mock_signature_bytes, mock_stamp_call, mock_verify_node
+from tests.utils.middleware import SluggishLargeFleetMiddleware
+from umbral.keys import UmbralPublicKey
 from tests.mock.performance_mocks import (
     NotAPublicKey,
     NotARestApp,
@@ -76,7 +72,8 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     # doesn't take up all the time.
     _teacher = highperf_mocked_alice.current_teacher_node()
     _teacher_known_nodes_bytestring = _teacher.bytestring_of_known_nodes()
-    _teacher.bytestring_of_known_nodes = lambda *args, **kwargs: _teacher_known_nodes_bytestring # TODO: Formalize this?  #1537
+    _teacher.bytestring_of_known_nodes = lambda *args, ** kwargs: _teacher_known_nodes_bytestring  # TODO: Formalize this?  #1537
+
 
     with mock_cert_storage, mock_cert_loading, mock_verify_node, mock_message_verification, mock_metadata_validation:
         with mock_pubkey_from_bytes(), mock_stamp_call, mock_signature_bytes:
@@ -90,6 +87,7 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     assert sum(
         isinstance(u, Ursula) for u in highperf_mocked_alice.known_nodes) < 20  # We haven't instantiated many Ursulas.
     VerificationTracker.node_verifications = 0  # Cleanup
+
 
 _POLICY_PRESERVER = []
 
@@ -125,7 +123,6 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
     assert total_verified == 30
 
 
-
 @pytest_twisted.inlineCallbacks
 @pytest.mark.parametrize('fleet_of_highperf_mocked_ursulas', [1000], indirect=True)
 def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
@@ -146,7 +143,7 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
         nodes_we_expect_to_have_the_map = highperf_mocked_bob.matching_nodes_among(highperf_mocked_alice.known_nodes)
 
         # returns instantly.
-        publisher = policy.publish_treasure_map(network_middleware=highperf_mocked_alice.network_middleware)
+        policy.publish_treasure_map(network_middleware=highperf_mocked_alice.network_middleware)
 
         nodes_that_have_the_map_when_we_return = []
 
@@ -156,11 +153,12 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
 
         # Very few have gotten the map yet; it's happening in the background.
         # Note: if you put a breakpoint above this line, you will likely need to comment this assertion out.
-        assert len(nodes_that_have_the_map_when_we_return) <= 5  # Maybe a couple finished already, especially if this is a lightning fast computer.  But more than five is weird.
+        assert len(
+            nodes_that_have_the_map_when_we_return) <= 5  # Maybe a couple finished already, especially if this is a lightning fast computer.  But more than five is weird.
 
         # Wait until about ten percent of the distribution has occurred.
         # We do it in a deferred here in the test because it will block the entire process, but in the real-world, we can do this on the granting thread.
-        yield deferToThread(publisher.block_for_a_little_while)
+        yield deferToThread(policy.publishing_mutex.block_for_a_little_while)
         initial_blocking_duration = datetime.now() - started
 
         # Here we'll just count the nodes that have the map.  In the real world, we can do a sanity check
@@ -173,19 +171,21 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
                 nodes_that_have_the_map_when_we_unblock.append(ursula)
 
         approximate_number_of_nodes_we_expect_to_have_the_map_already = len(nodes_we_expect_to_have_the_map) / 10
-        assert len(nodes_that_have_the_map_when_we_unblock) == pytest.approx(approximate_number_of_nodes_we_expect_to_have_the_map_already, .5)
+        assert len(nodes_that_have_the_map_when_we_unblock) == pytest.approx(
+            approximate_number_of_nodes_we_expect_to_have_the_map_already, .5)
 
         # The rest of the distributions is continuing in the background.
 
         successful_responses = []
+
         def find_successful_responses(map_publication_responses):
             for was_succssful, http_response in map_publication_responses:
                 assert was_succssful
                 assert http_response.status_code == 202
                 successful_responses.append(http_response)
 
-        publisher.addCallback(find_successful_responses)
-        yield publisher  # This will block until the distribution is complete.
+        policy.publishing_mutex.addCallback(find_successful_responses)
+        yield policy.publishing_mutex  # This will block until the distribution is complete.
         complete_distribution_time = datetime.now() - started
 
         # We have the same number of successful responses as nodes we expected to have the map.
