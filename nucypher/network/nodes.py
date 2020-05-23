@@ -475,6 +475,10 @@ class Learner:
         start = maya.now()
         starting_round = self._learning_round
 
+        if not learn_on_this_thread:
+            # Get a head start by firing the looping call now.  If it's very fast, maybe we'll have enough nodes on the first iteration.
+            self._learning_task()
+
         while True:
             rounds_undertaken = self._learning_round - starting_round
             if len(self.known_nodes) >= number_of_nodes_to_know:
@@ -515,6 +519,10 @@ class Learner:
                                              learn_on_this_thread=False):
         start = maya.now()
         starting_round = self._learning_round
+
+        if not learn_on_this_thread:
+            # Get a head start by firing the looping call now.  If it's very fast, maybe we'll have enough nodes on the first iteration.
+            self._learning_task()
 
         while True:
             if self._crashed:
