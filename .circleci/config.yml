@@ -9,14 +9,14 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - integration_test_suite:
+      - integration:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-      - unit_test_suite:
+      - unit:
           context: "NuCypher Tests"
           filters:
             tags:
@@ -30,71 +30,71 @@ workflows:
               only: /.*/
           requires:
             - pip_install_37
-      - interfaces_acceptance:
+      - interfaces:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - unit_test_suite
-            - integration_test_suite
-      - character_acceptance:
+            - unit
+            - integration
+      - characters:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - unit_test_suite
-            - integration_test_suite
-      - agents_acceptance:
+            - unit
+            - integration
+      - agents:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - unit_test_suite
-            - integration_test_suite
-      - actors_acceptance:
+            - unit
+            - integration
+      - actors:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - unit_test_suite
-            - integration_test_suite
-      - deployers_acceptance:
+            - unit
+            - integration
+      - deployers:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - unit_test_suite
-            - integration_test_suite
-      - cli_acceptance:
+            - unit
+            - integration
+      - cli:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - unit_test_suite
-            - integration_test_suite
+            - unit
+            - integration
       - tests_ok:
           filters:
             tags:
               only: /.*/
           requires:
-            - actors_acceptance
-            - agents_acceptance
-            - interfaces_acceptance
-            - character_acceptance
-            - cli_acceptance
-            - deployers_acceptance
+            - actors
+            - agents
+            - interfaces
+            - characters
+            - cli
+            - deployers
       - build_dev_docker_images:
           filters:
             tags:
               only: /.*/
           requires:
-            - interfaces_acceptance
+            - interfaces
       - finnegans_wake_demo:
           filters:
             tags:
@@ -229,42 +229,42 @@ workflows:
               only: /.*/
           requires:
             - pip_install_37
-      - interfaces_acceptance:
+      - interfaces:
           context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-      - character_acceptance:
+      - characters:
           context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-      - agents_acceptance:
+      - agents:
           context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-      - actors_acceptance:
+      - actors:
           context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-      - deployers_acceptance:
+      - deployers:
           context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-      - cli_acceptance:
+      - cli:
           context: "Nightly"
           filters:
             tags:
@@ -276,12 +276,12 @@ workflows:
             tags:
               only: /.*/
           requires:
-            - actors_acceptance
-            - agents_acceptance
-            - interfaces_acceptance
-            - character_acceptance
-            - cli_acceptance
-            - deployers_acceptance
+            - actors
+            - agents
+            - interfaces
+            - characters
+            - cli
+            - deployers
       - build_dev_docker_images:
           filters:
             tags:
@@ -538,7 +538,7 @@ jobs:
       - pipenv_install:
           python_version: "3.8"
 
-  integration_test_suite:
+  integration:
     <<: *python_37_base
     parallelism: 2
     steps:
@@ -549,7 +549,7 @@ jobs:
             pytest $(circleci tests glob "tests/integration/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
-  unit_test_suite:
+  unit:
     <<: *python_37_base
     parallelism: 1
     steps:
@@ -560,7 +560,7 @@ jobs:
             pytest $(circleci tests glob "tests/unit/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
-  agents_acceptance:
+  agents:
     <<: *python_37_base
     parallelism: 4
     steps:
@@ -571,7 +571,7 @@ jobs:
             pytest $(circleci tests glob "tests/acceptance/blockchain/agents/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
-  actors_acceptance:
+  actors:
     <<: *python_37_base
     parallelism: 2
     steps:
@@ -582,7 +582,7 @@ jobs:
             pytest $(circleci tests glob "tests/acceptance/blockchain/actors/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
-  deployers_acceptance:
+  deployers:
     <<: *python_37_base
     parallelism: 2
     steps:
@@ -604,7 +604,7 @@ jobs:
             pytest $(circleci tests glob "tests/contracts/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
-  interfaces_acceptance:
+  interfaces:
     <<: *python_37_base
     parallelism: 1
     steps:
@@ -615,7 +615,7 @@ jobs:
             pytest $(circleci tests glob "tests/acceptance/blockchain/interfaces" "tests/acceptance/blockchain/clients")
       - capture_test_results
 
-  character_acceptance:
+  characters:
     <<: *python_37_base
     parallelism: 4
     steps:
@@ -626,7 +626,7 @@ jobs:
             pytest $(circleci tests glob "tests/acceptance/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
-  cli_acceptance:
+  cli:
     <<: *python_37_base
     parallelism: 6
     steps:
