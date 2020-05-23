@@ -9,6 +9,20 @@ workflows:
           filters:
             tags:
               only: /.*/
+      - integration_test_suite:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
+      - unit_test_suite:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
       - contracts:
           context: "NuCypher Tests"
           filters:
@@ -16,63 +30,71 @@ workflows:
               only: /.*/
           requires:
             - pip_install_37
-      - basics:
+      - interfaces_acceptance:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pip_install_37
-      - character:
+            - unit_test_suite
+            - integration_test_suite
+      - character_acceptance:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pip_install_37
-      - agents:
+            - unit_test_suite
+            - integration_test_suite
+      - agents_acceptance:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pip_install_37
-      - actors:
+            - unit_test_suite
+            - integration_test_suite
+      - actors_acceptance:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pip_install_37
-      - deployers:
+            - unit_test_suite
+            - integration_test_suite
+      - deployers_acceptance:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pip_install_37
-      - cli:
+            - unit_test_suite
+            - integration_test_suite
+      - cli_acceptance:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pip_install_37
+            - unit_test_suite
+            - integration_test_suite
       - tests_ok:
           filters:
             tags:
               only: /.*/
           requires:
-            - basics
-            - character
-            - cli
-            - deployers
+            - actors_acceptance
+            - agents_acceptance
+            - interfaces_acceptance
+            - character_acceptance
+            - cli_acceptance
+            - deployers_acceptance
       - build_dev_docker_images:
           filters:
             tags:
               only: /.*/
           requires:
-            - basics
+            - interfaces_acceptance
       - finnegans_wake_demo:
           filters:
             tags:
@@ -207,42 +229,42 @@ workflows:
               only: /.*/
           requires:
             - pip_install_37
-      - basics:
+      - interfaces_acceptance:
           context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-      - character:
+      - character_acceptance:
           context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-      - agents:
+      - agents_acceptance:
           context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-      - actors:
+      - actors_acceptance:
           context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-      - deployers:
+      - deployers_acceptance:
           context: "Nightly"
           filters:
             tags:
               only: /.*/
           requires:
             - pip_install_37
-      - cli:
+      - cli_acceptance:
           context: "Nightly"
           filters:
             tags:
@@ -254,16 +276,18 @@ workflows:
             tags:
               only: /.*/
           requires:
-            - basics
-            - character
-            - cli
-            - deployers
+            - actors_acceptance
+            - agents_acceptance
+            - interfaces_acceptance
+            - character_acceptance
+            - cli_acceptance
+            - deployers_acceptance
       - build_dev_docker_images:
           filters:
             tags:
               only: /.*/
           requires:
-            - basics
+            - tests_ok
       - finnegans_wake_demo:
           filters:
             tags:
@@ -514,7 +538,29 @@ jobs:
       - pipenv_install:
           python_version: "3.8"
 
-  agents:
+  integration_test_suite:
+    <<: *python_37_base
+    parallelism: 2
+    steps:
+      - prepare_environment
+      - run:
+          name: Integration Test Suite
+          command: |
+            pytest $(circleci tests glob "tests/integration/**/test_*.py" | circleci tests split --split-by=timings)
+      - capture_test_results
+
+  unit_test_suite:
+    <<: *python_37_base
+    parallelism: 1
+    steps:
+      - prepare_environment
+      - run:
+          name: Unit Test Suite
+          command: |
+            pytest $(circleci tests glob "tests/unit/**/test_*.py" | circleci tests split --split-by=timings)
+      - capture_test_results
+
+  agents_acceptance:
     <<: *python_37_base
     parallelism: 4
     steps:
@@ -522,10 +568,10 @@ jobs:
       - run:
           name: Blockchain Agent Tests
           command: |
-            pytest $(circleci tests glob "tests/blockchain/eth/entities/agents/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/acceptance/blockchain/agents/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
-  actors:
+  actors_acceptance:
     <<: *python_37_base
     parallelism: 2
     steps:
@@ -533,10 +579,10 @@ jobs:
       - run:
           name: Blockchain Actor Tests
           command: |
-            pytest $(circleci tests glob "tests/blockchain/eth/entities/actors/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/acceptance/blockchain/actors/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
-  deployers:
+  deployers_acceptance:
     <<: *python_37_base
     parallelism: 2
     steps:
@@ -544,21 +590,21 @@ jobs:
       - run:
           name: Contract Deployer Tests
           command: |
-            pytest $(circleci tests glob "tests/blockchain/eth/entities/deployers/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/acceptance/blockchain/deployers/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   contracts:
     <<: *python_37_base
-    parallelism: 5
+    parallelism: 4
     steps:
       - prepare_environment
       - run:
           name: Ethereum Contract Unit Tests
           command: |
-            pytest $(circleci tests glob "tests/blockchain/eth/contracts/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/contracts/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
-  basics:
+  interfaces_acceptance:
     <<: *python_37_base
     parallelism: 1
     steps:
@@ -566,10 +612,10 @@ jobs:
       - run:
           name: Tests for Blockhain interfaces, Crypto functions, Node Configuration and Datastore
           command: |
-            pytest $(circleci tests glob "tests/network/**/test_*.py" "tests/config/**/test_*.py" "tests/crypto/**/test_*.py" "tests/datastore/**/test_*.py" "tests/blockchain/eth/interfaces/**/test_*.py" "tests/blockchain/eth/clients/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/acceptance/blockchain/interfaces" "tests/acceptance/blockchain/clients")
       - capture_test_results
 
-  character:
+  character_acceptance:
     <<: *python_37_base
     parallelism: 4
     steps:
@@ -577,10 +623,10 @@ jobs:
       - run:
           name: Character Tests
           command: |
-            pytest $(circleci tests glob "tests/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/acceptance/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
-  cli:
+  cli_acceptance:
     <<: *python_37_base
     parallelism: 6
     steps:
@@ -588,7 +634,7 @@ jobs:
       - run:
           name: Nucypher CLI Tests
           command: |
-            pytest $(circleci tests glob "tests/cli/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/acceptance/cli/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   tests_ok:
