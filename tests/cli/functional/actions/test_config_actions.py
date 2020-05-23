@@ -33,7 +33,7 @@ from nucypher.cli.literature import (
     MISSING_CONFIGURATION_FILE,
     SUCCESSFUL_DESTRUCTION
 )
-from nucypher.config.node import CharacterConfiguration
+from nucypher.config.characters import CharacterConfiguration
 from tests.constants import YES
 
 BAD_CONFIG_FILE_CONTENTS = (

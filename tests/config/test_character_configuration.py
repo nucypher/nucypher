@@ -28,13 +28,12 @@ from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
 from nucypher.config.characters import (
     AliceConfiguration,
     BobConfiguration,
-    FelixConfiguration,
+    CharacterConfiguration, FelixConfiguration,
     StakeHolderConfiguration,
     UrsulaConfiguration
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.config.node import CharacterConfiguration
 from nucypher.config.storages import ForgetfulNodeStorage
 
 # Main Cast
