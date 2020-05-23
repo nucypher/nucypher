@@ -35,7 +35,7 @@ def fake_keep_learning(learner, *args, **kwargs):
 
 mock_keep_learning = patch('nucypher.network.nodes.Learner.keep_learning_about_nodes', new=fake_keep_learning)
 
-mock_record_fleet_state = patch("nucypher.network.nodes.FleetStateTracker.record_fleet_state",
+mock_record_fleet_state = patch("nucypher.acumen.perception.FleetSensor.record_fleet_state",
                                 new=lambda *args, **kwargs: None)
 
 """
