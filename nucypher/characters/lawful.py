@@ -46,6 +46,7 @@ from twisted.internet import reactor, stdio, threads
 from twisted.internet.task import LoopingCall
 from typing import Dict, Iterable, List, Set, Tuple, Union
 
+from nucypher.acumen.nicknames import nickname_from_seed
 from nucypher.acumen.perception import FleetSensor
 from umbral import pre
 from umbral.keys import UmbralPublicKey
