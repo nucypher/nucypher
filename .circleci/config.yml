@@ -93,8 +93,6 @@ workflows:
           filters:
             tags:
               only: /.*/
-          requires:
-            - interfaces
       - finnegans_wake_demo:
           filters:
             tags:
