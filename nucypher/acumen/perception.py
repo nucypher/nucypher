@@ -9,7 +9,7 @@ from collections import namedtuple
 from collections import OrderedDict
 from twisted.logger import Logger
 
-from nucypher.acumen.nicknames import nickname_from_seed
+from .nicknames import nickname_from_seed
 from nucypher.crypto.api import keccak_digest
 
 
