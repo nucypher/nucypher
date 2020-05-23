@@ -244,6 +244,8 @@ class Policy(ABC):
 
         self.alice_signature = alice_signature  # TODO: This is unused / To Be Implemented?
 
+        self.publishing_mutex = None
+
     class MoreKFragsThanArrangements(TypeError):
         """
         Raised when a Policy has been used to generate Arrangements with Ursulas insufficient number
@@ -297,8 +299,8 @@ class Policy(ABC):
         self.log.debug(f"Pushing {self.treasure_map} to all known nodes from {self.alice}")
         treasure_map_id = self.treasure_map.public_id()
 
-        for node in self.bob.matching_nodes_among(self.alice.known_nodes):
-            # TODO: Concurrency here.
+        self.alice.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
+        for node in self.bob.matching_nodes_among(self.alice.known_nodes, no_less_than=8):
 
             responses.append(deferToThreadPool(reactor, self.alice.publication_threadpool,
                                                network_middleware.put_treasure_map_on_node,
@@ -306,8 +308,8 @@ class Policy(ABC):
                                                map_id=treasure_map_id,
                                                map_payload=bytes(self.treasure_map)
                                                ))
-
-        return PolicyPayloadMutex(responses, percent_to_complete_before_release=10)
+        self.publishing_mutex = PolicyPayloadMutex(responses, percent_to_complete_before_release=10)
+        # return self.publishing_mutex  # I dunno.. return this?  Why not just use the composed version?
 
     def credential(self, with_treasure_map=True):
         """
@@ -686,7 +688,7 @@ class BlockchainPolicy(Policy):
             for arrangement in self._accepted_arrangements:
                 arrangement.publish_transaction = self.publish_transaction
 
-        super().enact(network_middleware, publish_treasure_map=False)
+        publisher = super().enact(network_middleware, publish_treasure_map=False)
 
         if publish_treasure_map is True:
             self.treasure_map.prepare_for_publication(bob_encrypting_key=self.bob.public_keys(DecryptingPower),
