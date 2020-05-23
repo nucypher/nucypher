@@ -976,7 +976,9 @@ def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
 def stdout_trap(mocker):
     trap = StringIO()
     mocker.patch('sys.stdout', new=trap)
-    return trap
+    trap.truncate(0)
+    yield trap
+    trap.truncate(0)
 
 
 @pytest.fixture(scope='function')
