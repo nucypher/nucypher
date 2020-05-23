@@ -317,7 +317,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         self.log.debug(f"Enacting {policy} ... ")
 
         # TODO: Make it optional to publish to blockchain?  Or is this presumptive based on the `Policy` type?
-        policy.enact(network_middleware=self.network_middleware, publish_treasure_map=publish_treasure_map)
+        _publisher = policy.enact(network_middleware=self.network_middleware, publish_treasure_map=publish_treasure_map)
         return policy  # Now with TreasureMap affixed!
 
     def get_policy_encrypting_key_from_label(self, label: bytes) -> UmbralPublicKey:
@@ -869,7 +869,7 @@ class Bob(Character):
 
     def matching_nodes_among(self,
                              nodes: FleetSensor,
-                             no_less_than=8):
+                             no_less_than=7):
         # Look for nodes whose checksum address has the second character of Bob's encrypting key in the first
         # few characters.
         # Think of it as a cheap knockoff hamming distance.
@@ -885,7 +885,7 @@ class Bob(Character):
         search_boundary = 2
         target_nodes = []
         target_hex_match = self.public_keys(DecryptingPower).hex()[1]
-        while len(target_nodes) < 8:  # Arbitrary floor.  Is 8 good?
+        while len(target_nodes) < no_less_than:  # Arbitrary floor.  Is 8 good?
             target_nodes = []
             search_boundary += 2
 
