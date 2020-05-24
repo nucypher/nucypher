@@ -37,7 +37,7 @@ from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_IP_ADDRESS,
     TEST_PROVIDER_URI,
-    YES
+    YES_ENTER
 )
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, start_pytest_ursula_services
 
@@ -57,7 +57,7 @@ def test_ursula_rest_host_determination(click_runner, mocker):
     mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', return_value=None)
 
     args = ('ursula', 'init', '--federated-only', '--network', TEMPORARY_DOMAIN)
-    user_input = YES + FAKE_PASSWORD_CONFIRMED
+    user_input = YES_ENTER + FAKE_PASSWORD_CONFIRMED
     result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False, input=user_input)
     assert result.exit_code == 0
     assert MOCK_IP_ADDRESS in result.output

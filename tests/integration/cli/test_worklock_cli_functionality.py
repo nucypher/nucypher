@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.commands.worklock import worklock
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.constants import CLI_TEST_ENV, MOCK_PROVIDER_URI, YES, NO
+from tests.constants import CLI_TEST_ENV, MOCK_PROVIDER_URI, YES_ENTER, NO_ENTER
 from tests.mock.agents import MockContractAgent
 from nucypher.cli.literature import CONFIRM_BID_VERIFICATION
 
@@ -81,7 +81,7 @@ def test_bid_too_soon(click_runner,
     a_month_too_soon = now-(3600*30)
     mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=a_month_too_soon)
     with pytest.raises(Bidder.BiddingIsClosed):
-        result = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=YES, env=CLI_TEST_ENV)
+        result = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=YES_ENTER, env=CLI_TEST_ENV)
         assert result.exit_code != 0
 
 
@@ -99,7 +99,7 @@ def test_bid_too_late(click_runner,
     a_month_too_late = now+(3600*30)
     mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=a_month_too_late)
     with pytest.raises(Bidder.BiddingIsClosed):
-        result = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=YES, env=CLI_TEST_ENV)
+        result = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=YES_ENTER, env=CLI_TEST_ENV)
         assert result.exit_code != 0
 
 
@@ -130,7 +130,7 @@ def test_valid_bid(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
-    result = click_runner.invoke(worklock, command, catch_exceptions=False, input=YES, env=CLI_TEST_ENV)
+    result = click_runner.invoke(worklock, command, catch_exceptions=False, input=YES_ENTER, env=CLI_TEST_ENV)
     assert result.exit_code == 0
 
     # OK - Let's see what happened
@@ -166,7 +166,7 @@ def test_cancel_bid(click_runner,
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--force')
-    result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=YES_ENTER, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
     # Bidder
@@ -234,7 +234,7 @@ def test_enable_claiming(click_runner,
 
     gas_limit_1 = 200000
     gas_limit_2 = 300000
-    user_input = YES + YES + str(gas_limit_1) + '\n' + NO + str(gas_limit_2) + '\n' + YES
+    user_input = YES_ENTER + YES_ENTER + str(gas_limit_1) + '\n' + NO_ENTER + str(gas_limit_2) + '\n' + YES_ENTER
     result = click_runner.invoke(worklock, command, input=user_input, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 0
     confirmation = CONFIRM_BID_VERIFICATION.format(bidder_address=surrogate_bidder.checksum_address,
@@ -305,7 +305,7 @@ def test_initial_claim(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
-    result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=YES_ENTER, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
     mock_worklock_agent.claim.assert_called_once_with(checksum_address=surrogate_bidder.checksum_address)
@@ -352,7 +352,7 @@ def test_already_claimed(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
-    result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=YES_ENTER, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 1  # TODO: Decide if this case should error (like now) or simply do nothing
 
     # Bidder
@@ -408,7 +408,7 @@ def test_refund(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
-    result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=YES_ENTER, env=CLI_TEST_ENV, catch_exceptions=False)
     assert result.exit_code == 0
 
     # Bidder
