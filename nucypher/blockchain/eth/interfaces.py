@@ -63,6 +63,7 @@ class BlockchainInterface:
     """
 
     TIMEOUT = 600  # seconds
+    BLOCK_CONFIRMATIONS_POLLING_TIME = 3  # seconds
 
     DEFAULT_GAS_STRATEGY = 'medium'
     GAS_STRATEGIES = {'glacial': time_based.glacial_gas_price_strategy,     # 24h
@@ -133,6 +134,22 @@ class BlockchainInterface:
                       f'Calculated cost is {cost} but sender only has {balance}.'
             return message
 
+    class ChainReorganizationDetected(InterfaceError):
+        """Raised when block confirmations logic detects that a TX was lost due to a chain reorganization"""
+
+        error_message = ("Chain re-organization detected: Transaction {our_tx} was reported to be in "
+                         "block number {tx_block_number} with block hash {old_block_hash},"
+                         "but current hash is {new_block_hash}")
+
+        def __init__(self, receipt, block):
+            self.receipt = receipt
+            self.block = block
+            self.message = self.error_message.format(our_tx=Web3.toHex(receipt['transactionHash']),
+                                                     tx_block_number=Web3.toInt(receipt['blockNumber']),
+                                                     old_block_hash=Web3.toHex(receipt['blockHash']),
+                                                     new_block_hash=Web3.toHex(block['blockHash']))
+            super().__init__(self.message)
+
     def __init__(self,
                  emitter = None,  # TODO # 1754
                  poa: bool = None,
@@ -143,7 +160,7 @@ class BlockchainInterface:
                  gas_strategy: Union[str, Callable] = DEFAULT_GAS_STRATEGY):
 
         """
-        A blockchain "network interface"; The circumflex wraps entirely around the bounds of
+        A blockchain "network interface"; the circumflex wraps entirely around the bounds of
         contract operations including compilation, deployment, and execution.
 
         TODO: #1502 - Move to API docs.
@@ -550,13 +567,13 @@ class BlockchainInterface:
         #
 
         # Primary check
-        deployment_status = receipt.get('status', UNKNOWN_TX_STATUS)
-        if deployment_status == 0:
+        transaction_status = receipt.get('status', UNKNOWN_TX_STATUS)
+        if transaction_status == 0:
             failure = f"Transaction transmitted, but receipt returned status code 0. " \
                       f"Full receipt: \n {pprint.pformat(receipt, indent=2)}"
             raise self.InterfaceError(failure)
 
-        if deployment_status is UNKNOWN_TX_STATUS:
+        if transaction_status is UNKNOWN_TX_STATUS:
             self.log.info(f"Unknown transaction status for {txhash} (receipt did not contain a status field)")
 
             # Secondary check
@@ -567,25 +584,34 @@ class BlockchainInterface:
 
         # Block confirmations
         if confirmations:
-            start = maya.now()
-            confirmations_so_far = self.get_confirmations(receipt)
-            while confirmations_so_far < confirmations:
-                self.log.info(f"So far, we've received {confirmations_so_far} confirmations. "
-                              f"Waiting for {confirmations - confirmations_so_far} more.")
-                time.sleep(3)
-                confirmations_so_far = self.get_confirmations(receipt)
-                if (maya.now() - start).seconds > self.TIMEOUT:
-                    raise self.NotEnoughConfirmations
+            self._block_until_enough_confirmations(receipt=receipt, confirmations=confirmations)
 
         return receipt
 
+    def _block_until_enough_confirmations(self, receipt: dict, confirmations: int):
+        start = maya.now()
+        confirmations_so_far = self.get_confirmations(receipt)
+        while confirmations_so_far < confirmations:
+            self.log.info(f"So far, we've received {confirmations_so_far} confirmations. "
+                          f"Waiting for {confirmations - confirmations_so_far} more.")
+            time.sleep(self.BLOCK_CONFIRMATIONS_POLLING_TIME)
+            confirmations_so_far = self.get_confirmations(receipt)
+            if (maya.now() - start).seconds > self.TIMEOUT:
+                raise self.NotEnoughConfirmations
+
     def get_confirmations(self, receipt: dict) -> int:
-        tx_block_number = receipt.get('blockNumber')
+        from web3 import Web3
+
+        our_tx = Web3.toHex(receipt['transactionHash'])
+        tx_block_number = Web3.toInt(receipt['blockNumber'])
+
+        # Check that our TX is still in the blockchain (i.e., there has been no chain reorganizations)
+        block_to_check = self.w3.eth.getBlock(block_identifier=tx_block_number, full_transactions=False)
+        if our_tx not in map(Web3.toHex, block_to_check['transactions']):
+            raise self.ChainReorganizationDetected(receipt=receipt, block=block_to_check)
+
         latest_block_number = self.w3.eth.blockNumber
         confirmations = latest_block_number - tx_block_number
-        if confirmations < 0:
-            raise ValueError(f"Can't get number of confirmations for transaction {receipt['transactionHash'].hex()}, "
-                             f"as it seems to come from {-confirmations} blocks in the future...")
         return confirmations
 
     def get_blocktime(self):
