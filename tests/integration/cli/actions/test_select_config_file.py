@@ -52,7 +52,7 @@ def test_auto_select_config_file(test_emitter,
                                  stdout_trap,
                                  alice_blockchain_test_config,
                                  tmpdir,
-                                 mock_click_prompt):
+                                 mock_stdin):
     """Only one configuration was found, so it was chosen automatically"""
 
     config_class = alice_blockchain_test_config
@@ -70,7 +70,7 @@ def test_auto_select_config_file(test_emitter,
     assert result == str(config_path)
 
     # ... the user was *not* prompted
-    mock_click_prompt.assert_not_called()
+    # If they were, `mock_stdin` would complain.
 
     # ...nothing was displayed
     output = stdout_trap.getvalue()
@@ -81,7 +81,7 @@ def test_interactive_select_config_file(test_emitter,
                                         stdout_trap,
                                         alice_blockchain_test_config,
                                         tmpdir,
-                                        mock_click_prompt,
+                                        mock_stdin,
                                         mock_accounts,
                                         patch_keystore):
 
@@ -109,7 +109,7 @@ def test_interactive_select_config_file(test_emitter,
         filenames[path] = account.address
         assert config_path.exists()
 
-    mock_click_prompt.return_value = user_input
+    mock_stdin.line(str(user_input))
     result = select_config_file(emitter=test_emitter,
                                 config_class=config_class,
                                 config_root=tmpdir)
@@ -117,6 +117,7 @@ def test_interactive_select_config_file(test_emitter,
     output = stdout_trap.getvalue()
     for filename, account in accounts:
         assert account.address in output
+    assert mock_stdin.empty()
 
     table_data = output.split('\n')
     table_addresses = [row.split()[1] for row in table_data[2:-2]]

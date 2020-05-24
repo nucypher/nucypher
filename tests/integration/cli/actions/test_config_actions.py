@@ -79,11 +79,12 @@ def config(request, mocker):
     mocker.resetall()  # dont carry over context between functions
 
 
-def test_forget_cli_action(alice_blockchain_test_config, test_emitter, stdout_trap, mock_click_confirm, mocker):
+def test_forget_cli_action(alice_blockchain_test_config, test_emitter, stdout_trap, mock_stdin, mocker):
     mock_forget = mocker.patch.object(CharacterConfiguration, 'forget_nodes')
-    mock_click_confirm.return_value = YES
+    mock_stdin.line(YES)
     forget(emitter=test_emitter, configuration=alice_blockchain_test_config)
     mock_forget.assert_called_once()
+    assert mock_stdin.empty()
 
 
 def test_update_configuration_cli_action(config, test_emitter, stdout_trap, test_registry_source_manager):
@@ -132,14 +133,15 @@ def test_handle_update_invalid_configuration_file_cli_action(config,
     configure.handle_invalid_configuration_file.assert_called()
 
 
-def test_destroy_configuration_cli_action(config, test_emitter, stdout_trap, mocker, mock_click_confirm):
+def test_destroy_configuration_cli_action(config, test_emitter, stdout_trap, mocker, mock_stdin):
     config_class = config.__class__
     mock_config_destroy = mocker.patch.object(config_class, 'destroy')
-    mock_click_confirm.return_value = YES
+    mock_stdin.line(YES)
     destroy_configuration(emitter=test_emitter, character_config=config)
     mock_config_destroy.assert_called_once()
     output = stdout_trap.getvalue()
     assert SUCCESSFUL_DESTRUCTION in output
+    assert mock_stdin.empty()
 
 
 def test_handle_missing_configuration_file_cli_action(config):

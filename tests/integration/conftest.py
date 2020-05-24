@@ -45,6 +45,7 @@ from tests.constants import (
 from tests.fixtures import _make_testerchain, make_token_economics
 from tests.mock.agents import MockContractAgency, MockContractAgent
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
+from tests.mock.io import MockStdinWrapper
 from tests.utils.config import (
     make_alice_test_configuration,
     make_bob_test_configuration,
@@ -111,13 +112,19 @@ def mock_worklock_agent(mock_testerchain, token_economics, mock_contract_agency)
 
 
 @pytest.fixture(scope='function')
-def mock_click_prompt(mocker):
-    return mocker.patch.object(click, 'prompt')
+def mock_stdin(mocker):
 
+    mock = MockStdinWrapper()
 
-@pytest.fixture(scope='function')
-def mock_click_confirm(mocker):
-    return mocker.patch.object(click, 'confirm')
+    mocker.patch('sys.stdin', new=mock.mock_stdin)
+    mocker.patch('getpass.getpass', new=mock.mock_getpass)
+
+    yield mock
+
+    # Sanity check.
+    # The user is encouraged to `assert mock_stdin.empty()` explicitly in the test
+    # right after the input-consuming function call.
+    assert mock.empty(), "Stdin mock was not empty on teardown - some unclaimed input remained"
 
 
 @pytest.fixture(scope='module', autouse=True)

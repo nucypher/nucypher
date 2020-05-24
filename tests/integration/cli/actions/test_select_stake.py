@@ -88,7 +88,7 @@ def test_handle_select_stake_with_no_stakes(test_emitter,
                                             mock_staking_agent,
                                             test_registry,
                                             mock_testerchain,
-                                            mock_click_prompt,
+                                            mock_stdin, # used to assert user hasn't been prompted
                                             stdout_trap):
 
     # Setup
@@ -111,7 +111,7 @@ def test_select_non_divisible_stake(test_emitter,
                                     mock_staking_agent,
                                     test_registry,
                                     mock_testerchain,
-                                    mock_click_prompt,
+                                    mock_stdin,
                                     stdout_trap,
                                     non_divisible_stakes,
                                     stakeholder_with_no_divisible_stakes):
@@ -123,7 +123,7 @@ def test_select_non_divisible_stake(test_emitter,
                                            economics=token_economics)
 
     # User's selection
-    mock_click_prompt.return_value = SELECTION
+    mock_stdin.line(str(SELECTION))
     selected_stake = select_stake(emitter=test_emitter,
                                   divisible=False,
                                   stakeholder=stakeholder_with_no_divisible_stakes)
@@ -137,6 +137,7 @@ def test_select_non_divisible_stake(test_emitter,
     assert NO_STAKES_FOUND not in output
     assert ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE not in output
     assert_stake_table_painted(output=output)
+    assert mock_stdin.empty()
 
 
 def test_handle_selection_with_no_divisible_stakes(test_emitter,
@@ -144,7 +145,7 @@ def test_handle_selection_with_no_divisible_stakes(test_emitter,
                                                    mock_staking_agent,
                                                    test_registry,
                                                    mock_testerchain,
-                                                   mock_click_prompt,
+                                                   mock_stdin, # used to assert the user hasn't been prompted
                                                    stdout_trap,
                                                    non_divisible_stakes):
 
@@ -174,7 +175,7 @@ def test_select_divisible_stake(test_emitter,
                                 mock_staking_agent,
                                 test_registry,
                                 mock_testerchain,
-                                mock_click_prompt,
+                                mock_stdin,
                                 stdout_trap,
                                 divisible_stakes,
                                 stakeholder_with_divisible_stakes):
@@ -186,7 +187,7 @@ def test_select_divisible_stake(test_emitter,
                                            economics=token_economics)
 
     # SUCCESS: Display all divisible-only stakes and make a selection
-    mock_click_prompt.return_value = SELECTION
+    mock_stdin.line(str(SELECTION))
 
     selected_stake = select_stake(emitter=test_emitter,
                                   divisible=True,
@@ -200,3 +201,4 @@ def test_select_divisible_stake(test_emitter,
     assert NO_STAKES_FOUND not in output
     assert ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE in output
     assert_stake_table_painted(output=output)
+    assert mock_stdin.empty()
