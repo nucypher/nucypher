@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from web3.contract import Contract
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 
@@ -42,11 +43,11 @@ class EventRecord:
 
 class ContractEvents:
 
-    def __init__(self, contract):
+    def __init__(self, contract: Contract):
         self.contract = contract
         self.names = tuple(e.event_name for e in contract.events)
 
-    def __get_web3_event_by_name(self, event_name):
+    def __get_web3_event_by_name(self, event_name: str):
         if event_name not in self.names:
             raise TypeError(f"Event '{event_name}' doesn't exist in this contract. Valid events are {self.names}")
         event_method = getattr(self.contract.events, event_name)

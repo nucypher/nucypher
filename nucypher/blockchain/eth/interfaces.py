@@ -30,7 +30,7 @@ from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import to_checksum_address
 from twisted.logger import Logger
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, NamedTuple, Tuple, Union
 from urllib.parse import urlparse
 from web3 import HTTPProvider, IPCProvider, Web3, WebsocketProvider, middleware
 from web3.contract import Contract, ContractConstructor, ContractFunction
@@ -932,9 +932,10 @@ class BlockchainInterfaceFactory:
     _interfaces = dict()
     _default_interface_class = BlockchainInterface
 
-    CachedInterface = collections.namedtuple('CachedInterface', ['interface',    # type: BlockchainInterface
-                                                                 'sync',         # type: bool
-                                                                 'emitter'])     # type: StdoutEmitter
+    class CachedInterface(NamedTuple):
+        interface: BlockchainInterface
+        sync: bool
+        emitter: StdoutEmitter
 
     class FactoryError(Exception):
         pass

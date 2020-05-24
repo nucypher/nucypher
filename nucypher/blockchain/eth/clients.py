@@ -25,6 +25,7 @@ from constant_sorrow.constants import NOT_RUNNING, UNKNOWN_DEVELOPMENT_CHAIN_ID
 from cytoolz.dicttoolz import dissoc
 from eth_account import Account
 from eth_account.messages import encode_defunct
+from eth_typing.evm import BlockNumber, ChecksumAddress
 from eth_utils import to_canonical_address, to_checksum_address
 from geth import LoggingMixin
 from geth.accounts import create_new_account, get_accounts
@@ -38,6 +39,8 @@ from geth.process import BaseGethProcess
 from twisted.logger import Logger
 from typing import Union
 from web3 import Web3
+from web3.contract import Contract
+from web3.types import Wei, TxReceipt
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
 
@@ -236,26 +239,26 @@ class EthereumClient:
     def net_version(self) -> int:
         return int(self.w3.net.version)
 
-    def get_contract(self, **kwargs):
+    def get_contract(self, **kwargs) -> Contract:
         return self.w3.eth.contract(**kwargs)
 
     @property
-    def gas_price(self):
+    def gas_price(self) -> Wei:
         return self.w3.eth.gasPrice
 
     @property
-    def block_number(self) -> int:
+    def block_number(self) -> BlockNumber:
         return self.w3.eth.blockNumber
 
     @property
-    def coinbase(self) -> str:
+    def coinbase(self) -> ChecksumAddress:
         return self.w3.eth.coinbase
 
-    def wait_for_receipt(self, transaction_hash: str, timeout: int) -> dict:
+    def wait_for_receipt(self, transaction_hash: str, timeout: int) -> TxReceipt:
         receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash=transaction_hash, timeout=timeout)
         return receipt
 
-    def sign_transaction(self, transaction_dict: dict):
+    def sign_transaction(self, transaction_dict: dict) -> bytes:
         raise NotImplementedError
 
     def get_transaction(self, transaction_hash) -> str:
@@ -275,16 +278,14 @@ class EthereumClient:
         """
         return self.w3.eth.sign(account, data=message)
 
-    def _has_latest_block(self):
+    def _has_latest_block(self) -> bool:
         # check that our local chain data is up to date
         return (
             time.time() -
             self.w3.eth.getBlock(self.w3.eth.blockNumber)['timestamp']
         ) < 30
 
-    def sync(self,
-             timeout: int = 120,
-             quiet: bool = False):
+    def sync(self, timeout: int = 120, quiet: bool = False):
 
         # Provide compatibility with local chains
         if self.is_local:

@@ -27,6 +27,7 @@ from constant_sorrow.constants import (
 from datetime import datetime
 from twisted.logger import Logger
 from typing import Callable, Optional, Union
+from web3.types import TxReceipt, Wei
 
 ContractInterfaces = Union[
     CONTRACT_CALL,
@@ -136,7 +137,7 @@ COLLECT_CONTRACT_API = True
 def contract_api(interface: Optional[ContractInterfaces] = UNKNOWN_CONTRACT_INTERFACE) -> Callable:
     """Decorator factory for contract API markers"""
 
-    def decorator(agent_method: Callable) -> Callable:
+    def decorator(agent_method: Callable) -> Callable[..., Union[TxReceipt, Wei, int, str, bool]]:
         """
         Marks an agent method as containing contract interactions (transaction or call)
         and validates outbound checksum addresses for EIP-55 compliance.

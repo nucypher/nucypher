@@ -18,8 +18,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
 import os
 import subprocess
 import sys
@@ -27,6 +25,7 @@ from pathlib import Path
 from setuptools import find_packages, setup
 from setuptools.command.develop import develop
 from setuptools.command.install import install
+from typing import Dict
 
 #
 # Metadata
@@ -49,7 +48,7 @@ PYPI_CLASSIFIERS = [
       "Topic :: Security"
 ]
 
-ABOUT = dict()
+ABOUT: Dict[str, str] = dict()
 SOURCE_METADATA_PATH = BASE_DIR / PACKAGE_NAME / "__about__.py"
 with open(str(SOURCE_METADATA_PATH.resolve())) as f:
     exec(f.read(), ABOUT)
