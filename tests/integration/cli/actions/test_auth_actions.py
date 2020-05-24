@@ -39,7 +39,7 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.mark.parametrize('confirm', (True, False))
-def test_get_password_from_prompt_cli_action(mocker, mock_stdin, confirm):
+def test_get_password_from_prompt_cli_action(mocker, mock_stdin, confirm, capsys):
 
     # Setup
     mock_stdin.password(INSECURE_DEVELOPMENT_PASSWORD, confirm=confirm)
@@ -50,6 +50,10 @@ def test_get_password_from_prompt_cli_action(mocker, mock_stdin, confirm):
     result = get_password_from_prompt(confirm=confirm)
     assert result == INSECURE_DEVELOPMENT_PASSWORD
     assert mock_stdin.empty()
+    captured = capsys.readouterr()
+    assert GENERIC_PASSWORD_PROMPT in captured.out
+    if confirm:
+        assert "Repeat for confirmation:" in captured.out
 
     # From env var
     mocker.patch.dict(os.environ, {test_envvar: another_password})
@@ -58,6 +62,9 @@ def test_get_password_from_prompt_cli_action(mocker, mock_stdin, confirm):
     assert result != INSECURE_DEVELOPMENT_PASSWORD
     assert result == another_password
     assert mock_stdin.empty()
+    captured = capsys.readouterr()
+    assert not captured.out
+    assert not captured.err
 
 
 def test_get_client_password_with_invalid_address(mock_stdin):
@@ -68,26 +75,32 @@ def test_get_client_password_with_invalid_address(mock_stdin):
 
 
 @pytest.mark.parametrize('confirm', (True, False))
-def test_get_client_password(mock_stdin, mock_account, confirm):
+def test_get_client_password(mock_stdin, mock_account, confirm, capsys):
     mock_stdin.password(INSECURE_DEVELOPMENT_PASSWORD, confirm=confirm)
     result = get_client_password(checksum_address=mock_account.address, confirm=confirm)
     assert result == INSECURE_DEVELOPMENT_PASSWORD
     assert mock_stdin.empty()
     message = COLLECT_ETH_PASSWORD.format(checksum_address=mock_account.address)
+    captured = capsys.readouterr()
+    assert message in captured.out
+    if confirm:
+        assert "Repeat for confirmation:" in captured.out
 
 
 @pytest.mark.parametrize('confirm', (True, False))
-def test_get_nucypher_password(mock_stdin, mock_account, confirm):
+def test_get_nucypher_password(mock_stdin, mock_account, confirm, capsys):
     mock_stdin.password(INSECURE_DEVELOPMENT_PASSWORD, confirm=confirm)
     result = get_nucypher_password(confirm=confirm)
     assert result == INSECURE_DEVELOPMENT_PASSWORD
     assert mock_stdin.empty()
-    prompt = COLLECT_NUCYPHER_PASSWORD
+    captured = capsys.readouterr()
+    assert COLLECT_NUCYPHER_PASSWORD in captured.out
     if confirm:
-        prompt += f" ({NucypherKeyring.MINIMUM_PASSWORD_LENGTH} character minimum)"
+        prompt = COLLECT_NUCYPHER_PASSWORD + f" ({NucypherKeyring.MINIMUM_PASSWORD_LENGTH} character minimum)"
+        assert prompt in captured.out
 
 
-def test_unlock_nucypher_keyring_invalid_password(mocker, test_emitter, stdout_trap, alice_blockchain_test_config):
+def test_unlock_nucypher_keyring_invalid_password(mocker, test_emitter, alice_blockchain_test_config, capsys):
 
     # Setup
     keyring_attach_spy = mocker.spy(CharacterConfiguration, 'attach_keyring')
@@ -104,8 +117,11 @@ def test_unlock_nucypher_keyring_invalid_password(mocker, test_emitter, stdout_t
                                 character_configuration=alice_blockchain_test_config)
     keyring_attach_spy.assert_called_once()
 
+    captured = capsys.readouterr()
+    assert DECRYPTING_CHARACTER_KEYRING.format(name='alice') in captured.out
 
-def test_unlock_nucypher_keyring_dev_mode(mocker, test_emitter, stdout_trap, alice_blockchain_test_config):
+
+def test_unlock_nucypher_keyring_dev_mode(mocker, test_emitter, capsys, alice_blockchain_test_config):
 
     # Setup
     unlock_spy = mocker.spy(NucypherKeyring, 'unlock')
@@ -120,7 +136,7 @@ def test_unlock_nucypher_keyring_dev_mode(mocker, test_emitter, stdout_trap, ali
                                      character_configuration=alice_blockchain_test_config)
 
     assert result
-    output = stdout_trap.getvalue()
+    output = capsys.readouterr().out
     message = DECRYPTING_CHARACTER_KEYRING.format(name=alice_blockchain_test_config.NAME)
     assert message in output
 
@@ -130,7 +146,7 @@ def test_unlock_nucypher_keyring_dev_mode(mocker, test_emitter, stdout_trap, ali
 
 def test_unlock_nucypher_keyring(mocker,
                                  test_emitter,
-                                 stdout_trap,
+                                 capsys,
                                  alice_blockchain_test_config,
                                  patch_keystore,
                                  tmpdir):
@@ -149,9 +165,9 @@ def test_unlock_nucypher_keyring(mocker,
                                      character_configuration=alice_blockchain_test_config)
 
     assert result
-    output = stdout_trap.getvalue()
+    captured = capsys.readouterr()
     message = DECRYPTING_CHARACTER_KEYRING.format(name=alice_blockchain_test_config.NAME)
-    assert message in output
+    assert message in captured.out
 
     unlock_spy.assert_called_once_with(password=INSECURE_DEVELOPMENT_PASSWORD)
     attach_spy.assert_called_once()

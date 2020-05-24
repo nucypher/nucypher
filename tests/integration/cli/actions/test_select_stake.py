@@ -89,7 +89,7 @@ def test_handle_select_stake_with_no_stakes(test_emitter,
                                             test_registry,
                                             mock_testerchain,
                                             mock_stdin, # used to assert user hasn't been prompted
-                                            stdout_trap):
+                                            capsys):
 
     # Setup
     mock_stakes = []
@@ -101,9 +101,9 @@ def test_handle_select_stake_with_no_stakes(test_emitter,
         select_stake(emitter=test_emitter, stakeholder=stakeholder)
 
     # Examine
-    output = stdout_trap.getvalue()
-    assert NO_STAKES_FOUND in output
-    assert_stake_table_not_painted(output=output)
+    captured = capsys.readouterr()
+    assert NO_STAKES_FOUND in captured.out
+    assert_stake_table_not_painted(output=captured.out)
 
 
 def test_select_non_divisible_stake(test_emitter,
@@ -112,7 +112,7 @@ def test_select_non_divisible_stake(test_emitter,
                                     test_registry,
                                     mock_testerchain,
                                     mock_stdin,
-                                    stdout_trap,
+                                    capsys,
                                     non_divisible_stakes,
                                     stakeholder_with_no_divisible_stakes):
 
@@ -133,10 +133,10 @@ def test_select_non_divisible_stake(test_emitter,
     assert selected_stake == expected_stake
 
     # Examine the output
-    output = stdout_trap.getvalue()
-    assert NO_STAKES_FOUND not in output
-    assert ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE not in output
-    assert_stake_table_painted(output=output)
+    captured = capsys.readouterr()
+    assert NO_STAKES_FOUND not in captured.out
+    assert ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE not in captured.out
+    assert_stake_table_painted(output=captured.out)
     assert mock_stdin.empty()
 
 
@@ -146,7 +146,7 @@ def test_handle_selection_with_no_divisible_stakes(test_emitter,
                                                    test_registry,
                                                    mock_testerchain,
                                                    mock_stdin, # used to assert the user hasn't been prompted
-                                                   stdout_trap,
+                                                   capsys,
                                                    non_divisible_stakes):
 
     # Setup
@@ -164,10 +164,10 @@ def test_handle_selection_with_no_divisible_stakes(test_emitter,
 
     # Divisible warning was displayed, but having
     # no divisible stakes cases an expected failure
-    output = stdout_trap.getvalue()
-    assert NO_STAKES_FOUND not in output
-    assert ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE in output
-    assert_stake_table_not_painted(output=output)
+    captured = capsys.readouterr()
+    assert NO_STAKES_FOUND not in captured.out
+    assert ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE in captured.out
+    assert_stake_table_not_painted(output=captured.out)
 
 
 def test_select_divisible_stake(test_emitter,
@@ -176,7 +176,7 @@ def test_select_divisible_stake(test_emitter,
                                 test_registry,
                                 mock_testerchain,
                                 mock_stdin,
-                                stdout_trap,
+                                capsys,
                                 divisible_stakes,
                                 stakeholder_with_divisible_stakes):
 
@@ -197,8 +197,8 @@ def test_select_divisible_stake(test_emitter,
     assert selected_stake == expected_stake
 
     # Examine the output
-    output = stdout_trap.getvalue()
-    assert NO_STAKES_FOUND not in output
-    assert ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE in output
-    assert_stake_table_painted(output=output)
+    captured = capsys.readouterr()
+    assert NO_STAKES_FOUND not in captured.out
+    assert ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE in captured.out
+    assert_stake_table_painted(output=captured.out)
     assert mock_stdin.empty()

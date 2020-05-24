@@ -27,7 +27,7 @@ def test_select_client_account_for_staking_cli_action(test_emitter,
                                                       test_registry_source_manager,
                                                       mock_stdin,
                                                       mock_testerchain,
-                                                      stdout_trap,
+                                                      capsys,
                                                       mocker):
     """Fine-grained assertions about the return value of interactive client account selection"""
     force = False
@@ -67,7 +67,7 @@ def test_select_client_account_for_staking_cli_action(test_emitter,
     assert staking_address == staking_contract_address
     assert mock_stdin.empty()
 
-    output = stdout_trap.getvalue()
+    captured = capsys.readouterr()
     message = PREALLOCATION_STAKE_ADVISORY.format(client_account=selected_account,
                                                   staking_address=staking_contract_address)
-    assert message in output
+    assert message in captured.out

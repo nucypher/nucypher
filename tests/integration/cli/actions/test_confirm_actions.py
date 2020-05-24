@@ -23,28 +23,25 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.cli.actions.confirm import (confirm_deployment, confirm_enable_restaking, confirm_enable_restaking_lock,
                                           confirm_enable_winding_down, confirm_large_stake, confirm_staged_stake)
 from nucypher.cli.literature import (ABORT_DEPLOYMENT, RESTAKING_AGREEMENT, RESTAKING_LOCK_AGREEMENT,
-                                     WINDING_DOWN_AGREEMENT)
+                                     WINDING_DOWN_AGREEMENT, CONFIRM_STAGED_STAKE,
+                                     CONFIRM_LARGE_STAKE_VALUE, CONFIRM_LARGE_STAKE_DURATION)
 
 from tests.constants import YES, NO
 
 
-def test_confirm_deployment_cli_action(mocker, mock_stdin, test_emitter, stdout_trap, mock_testerchain):
+def test_confirm_deployment_cli_action(mocker, mock_stdin, test_emitter, capsys, mock_testerchain):
     mock_stdin.line('foo') # anything different from `deployer_interface.client.chain_name.upper()`
     with pytest.raises(click.Abort):
         confirm_deployment(emitter=test_emitter, deployer_interface=mock_testerchain)
-    output = stdout_trap.getvalue()
-    assert ABORT_DEPLOYMENT in output
+    captured = capsys.readouterr()
+    assert ABORT_DEPLOYMENT in captured.out
     assert mock_stdin.empty()
-
-    stdout_trap.truncate(0)  # clear
 
     mock_stdin.line('DEPLOY') # say the magic word
     result = confirm_deployment(emitter=test_emitter, deployer_interface=mock_testerchain)
     assert result
-    output = stdout_trap.getvalue()
-    assert "Type 'DEPLOY' to continue: " in output
-
-    stdout_trap.truncate(0)  # clear
+    captured = capsys.readouterr()
+    assert "Type 'DEPLOY' to continue: " in captured.out
     assert mock_stdin.empty()
 
     # Mimick a known chain name
@@ -66,19 +63,27 @@ def test_confirm_deployment_cli_action(mocker, mock_stdin, test_emitter, stdout_
     with pytest.raises(click.Abort):
         confirm_deployment(emitter=test_emitter, deployer_interface=mock_testerchain)
     assert mock_stdin.empty()
+    captured = capsys.readouterr()
+    assert f"Type '{llamanet.upper()}' to continue: " in captured.out
+    assert ABORT_DEPLOYMENT in captured.out
 
     mock_stdin.line(llamanet)  # say the (almost correct) magic word
     with pytest.raises(click.Abort):
         confirm_deployment(emitter=test_emitter, deployer_interface=mock_testerchain)
     assert mock_stdin.empty()
+    captured = capsys.readouterr()
+    assert f"Type '{llamanet.upper()}' to continue: " in captured.out
+    assert ABORT_DEPLOYMENT in captured.out
 
     mock_stdin.line(llamanet.upper())  # say the (correct, uppercase) network name
     result = confirm_deployment(emitter=test_emitter, deployer_interface=mock_testerchain)
     assert result
     assert mock_stdin.empty()
+    captured = capsys.readouterr()
+    assert f"Type '{llamanet.upper()}' to continue: " in captured.out
 
 
-def test_confirm_enable_restaking_lock_cli_action(mock_stdin, test_emitter, stdout_trap):
+def test_confirm_enable_restaking_lock_cli_action(mock_stdin, test_emitter, capsys):
 
     # Test data
     staking_address, release_period = '0xdeadbeef', 1
@@ -89,12 +94,10 @@ def test_confirm_enable_restaking_lock_cli_action(mock_stdin, test_emitter, stdo
                                            release_period=release_period,
                                            staking_address=staking_address)
     assert result
-    output = stdout_trap.getvalue()
+    captured = capsys.readouterr()
     assert mock_stdin.empty()
     restake_agreement = RESTAKING_LOCK_AGREEMENT.format(staking_address=staking_address, release_period=release_period)
-    assert restake_agreement in output
-
-    stdout_trap.truncate(0)  # clear
+    assert restake_agreement in captured.out
 
     # Negative case
     mock_stdin.line(NO)
@@ -103,14 +106,14 @@ def test_confirm_enable_restaking_lock_cli_action(mock_stdin, test_emitter, stdo
         confirm_enable_restaking_lock(emitter=test_emitter,
                                       release_period=release_period,
                                       staking_address=staking_address)
-    output = stdout_trap.getvalue()
+    captured = capsys.readouterr()
     assert mock_stdin.empty()
     restake_agreement = RESTAKING_LOCK_AGREEMENT.format(staking_address=staking_address,
                                                         release_period=release_period)
-    assert restake_agreement in output
+    assert restake_agreement in captured.out
 
 
-def test_confirm_enable_restaking_cli_action(test_emitter, mock_stdin, stdout_trap):
+def test_confirm_enable_restaking_cli_action(test_emitter, mock_stdin, capsys):
 
     # Positive Case
     mock_stdin.line(YES)
@@ -119,24 +122,23 @@ def test_confirm_enable_restaking_cli_action(test_emitter, mock_stdin, stdout_tr
     assert result
     assert mock_stdin.empty()
 
-    output = stdout_trap.getvalue()
+    captured = capsys.readouterr()
     restake_agreement = RESTAKING_AGREEMENT.format(staking_address=staking_address)
-    assert restake_agreement in output
+    assert restake_agreement in captured.out
 
     # Negative case
-    stdout_trap.truncate(0)  # clear
     mock_stdin.line(NO)
 
     with pytest.raises(click.Abort):
         confirm_enable_restaking(emitter=test_emitter, staking_address=staking_address)
-    output = stdout_trap.getvalue()
+    captured = capsys.readouterr()
     assert mock_stdin.empty()
 
     restake_agreement = RESTAKING_AGREEMENT.format(staking_address=staking_address)
-    assert restake_agreement in output
+    assert restake_agreement in captured.out
 
 
-def test_confirm_enable_winding_down_cli_action(test_emitter, mock_stdin, stdout_trap):
+def test_confirm_enable_winding_down_cli_action(test_emitter, mock_stdin, capsys):
 
     # Positive Case
     mock_stdin.line(YES)
@@ -145,36 +147,40 @@ def test_confirm_enable_winding_down_cli_action(test_emitter, mock_stdin, stdout
     assert result
     assert mock_stdin.empty()
 
-    output = stdout_trap.getvalue()
-    assert WINDING_DOWN_AGREEMENT in output
+    captured = capsys.readouterr()
+    assert WINDING_DOWN_AGREEMENT in captured.out
 
     # Negative case
-    stdout_trap.truncate(0)  # clear
     mock_stdin.line(NO)
 
     with pytest.raises(click.Abort):
         confirm_enable_winding_down(emitter=test_emitter, staking_address=staking_address)
-    output = stdout_trap.getvalue()
+    captured = capsys.readouterr()
     assert mock_stdin.empty()
-    assert WINDING_DOWN_AGREEMENT in output
+    assert WINDING_DOWN_AGREEMENT in captured.out
 
 
-def test_confirm_staged_stake_cli_action(test_emitter, mock_stdin, stdout_trap):
+def test_confirm_staged_stake_cli_action(test_emitter, mock_stdin, capsys):
+
+    staking_address, value, lock_periods = '0xdeadbeef', NU.from_tokens(1), 1
+    confirmation = CONFIRM_STAGED_STAKE.format(staker_address=staking_address,
+                                               lock_periods=lock_periods,
+                                               tokens=value,
+                                               nunits=value.to_nunits())
 
     # Positive Case
     mock_stdin.line(YES)
-    staking_address, value, lock_periods = '0xdeadbeef', NU.from_tokens(1), 1
+
     result = confirm_staged_stake(staker_address=staking_address,
                                   value=value,
                                   lock_periods=lock_periods)
     assert result
     assert mock_stdin.empty()
 
-    output = stdout_trap.getvalue()
-    assert 'Accept ursula node operator obligation?' in output
+    captured = capsys.readouterr()
+    assert confirmation in captured.out
 
     # Negative case
-    stdout_trap.truncate(0)  # clear
     mock_stdin.line(NO)
 
     with pytest.raises(click.Abort):
@@ -182,8 +188,8 @@ def test_confirm_staged_stake_cli_action(test_emitter, mock_stdin, stdout_trap):
                              value=value,
                              lock_periods=lock_periods)
 
-    output = stdout_trap.getvalue()
-    assert 'Accept ursula node operator obligation?' in output
+    captured = capsys.readouterr()
+    assert confirmation in captured.out
     assert mock_stdin.empty()
 
 
@@ -197,14 +203,14 @@ def test_confirm_staged_stake_cli_action(test_emitter, mock_stdin, stdout_trap):
 ))
 def test_confirm_large_stake_cli_action(test_emitter,
                                         mock_stdin,
-                                        stdout_trap,
+                                        capsys,
                                         value,
                                         duration,
                                         must_confirm_value,
                                         must_confirm_duration):
 
-    asked_about_value = lambda output: "That's a lot of NU - Are you sure this is correct?" in output
-    asked_about_duration = lambda output: "is a long time - Are you sure this is correct?" in output
+    asked_about_value = lambda output: CONFIRM_LARGE_STAKE_VALUE.format(value=value) in output
+    asked_about_duration = lambda output: CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=duration) in output
 
     # Positive Cases - either do not need to confirm anything, or say yes
     if must_confirm_value:
@@ -213,11 +219,10 @@ def test_confirm_large_stake_cli_action(test_emitter,
         mock_stdin.line(YES)
     result = confirm_large_stake(value=value, lock_periods=duration)
     assert result
-    output = stdout_trap.getvalue()
-    assert must_confirm_value == asked_about_value(output)
-    assert must_confirm_duration == asked_about_duration(output)
+    captured = capsys.readouterr()
+    assert must_confirm_value == asked_about_value(captured.out)
+    assert must_confirm_duration == asked_about_duration(captured.out)
     assert mock_stdin.empty()
-    stdout_trap.truncate(0)  # clear
 
     if must_confirm_value or must_confirm_duration:
         # Negative cases - must confirm something and say no
@@ -231,7 +236,7 @@ def test_confirm_large_stake_cli_action(test_emitter,
 
         with pytest.raises(click.Abort):
             confirm_large_stake(value=value, lock_periods=duration)
-        output = stdout_trap.getvalue()
-        assert must_confirm_value == asked_about_value(output)
-        assert must_confirm_duration == asked_about_duration(output)
+        captured = capsys.readouterr()
+        assert must_confirm_value == asked_about_value(captured.out)
+        assert must_confirm_duration == asked_about_duration(captured.out)
         assert mock_stdin.empty()

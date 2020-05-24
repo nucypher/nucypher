@@ -972,18 +972,11 @@ def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
 #
 
 
-@pytest.fixture(scope='function', autouse=True)
-def stdout_trap(mocker):
-    trap = StringIO()
-    mocker.patch('sys.stdout', new=trap)
-    trap.truncate(0)
-    yield trap
-    trap.truncate(0)
-
-
 @pytest.fixture(scope='function')
-def test_emitter(mocker, stdout_trap):
-    mocker.patch('sys.stdout', new=stdout_trap)
+def test_emitter(mocker):
+    # Note that this fixture does not capture console output.
+    # Whether the output is captured or not is controlled by
+    # the usage of the (built-in) `capsys` fixture or global PyTest run settings.
     return StdoutEmitter()
 
 

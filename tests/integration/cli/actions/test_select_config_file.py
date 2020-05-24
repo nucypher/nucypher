@@ -27,7 +27,7 @@ from nucypher.cli.literature import NO_CONFIGURATIONS_ON_DISK
 
 
 def test_select_config_file_with_no_config_files(test_emitter,
-                                                 stdout_trap,
+                                                 capsys,
                                                  alice_blockchain_test_config,
                                                  tmpdir):
 
@@ -42,14 +42,14 @@ def test_select_config_file_with_no_config_files(test_emitter,
                            config_root=tmpdir)
 
     # Ensure we notified the user accurately.
-    output = stdout_trap.getvalue()
+    captured = capsys.readouterr()
     message = NO_CONFIGURATIONS_ON_DISK.format(name=config_class.NAME.capitalize(),
                                                command=config_class.NAME)
-    assert message in output
+    assert message in captured.out
 
 
 def test_auto_select_config_file(test_emitter,
-                                 stdout_trap,
+                                 capsys,
                                  alice_blockchain_test_config,
                                  tmpdir,
                                  mock_stdin):
@@ -73,12 +73,12 @@ def test_auto_select_config_file(test_emitter,
     # If they were, `mock_stdin` would complain.
 
     # ...nothing was displayed
-    output = stdout_trap.getvalue()
-    assert not output
+    captured = capsys.readouterr()
+    assert not captured.out
 
 
 def test_interactive_select_config_file(test_emitter,
-                                        stdout_trap,
+                                        capsys,
                                         alice_blockchain_test_config,
                                         tmpdir,
                                         mock_stdin,
@@ -114,12 +114,12 @@ def test_interactive_select_config_file(test_emitter,
                                 config_class=config_class,
                                 config_root=tmpdir)
 
-    output = stdout_trap.getvalue()
+    captured = capsys.readouterr()
     for filename, account in accounts:
-        assert account.address in output
+        assert account.address in captured.out
     assert mock_stdin.empty()
 
-    table_data = output.split('\n')
+    table_data = captured.out.split('\n')
     table_addresses = [row.split()[1] for row in table_data[2:-2]]
 
     # TODO: Finish this test

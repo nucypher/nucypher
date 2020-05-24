@@ -25,12 +25,12 @@ __NETWORKS = NetworksInventory.NETWORKS
 
 
 @pytest.mark.parametrize('user_input', range(0, len(__NETWORKS)-1))
-def test_select_network_cli_action(test_emitter, stdout_trap, mock_stdin, user_input):
+def test_select_network_cli_action(test_emitter, capsys, mock_stdin, user_input):
     mock_stdin.line(str(user_input))
     selection = __NETWORKS[user_input]
     result = select_network(emitter=test_emitter)
     assert result == selection
-    output = stdout_trap.getvalue()
+    captured = capsys.readouterr()
     for name in __NETWORKS:
-        assert name in output
+        assert name in captured.out
     assert mock_stdin.empty()
