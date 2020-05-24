@@ -232,7 +232,6 @@ def test_batch_deposits(click_runner,
                                  deploy_command,
                                  input=user_input,
                                  catch_exceptions=False)
-    print(result.output)
     assert result.exit_code == 0
     for allocation_address in testerchain.unassigned_accounts:
         assert allocation_address in result.output
