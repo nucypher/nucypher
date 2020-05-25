@@ -1044,11 +1044,12 @@ class Ursula(Teacher, Character, Worker):
         if is_me and not federated_only:  # TODO: #429
 
             # Prepare a TransactingPower from worker node's transacting keys
-            self.transacting_power = TransactingPower(account=worker_address,
+            _transacting_power = TransactingPower(account=worker_address,
                                                       password=client_password,
                                                       signer=self.signer,
                                                       cache=True)
-            self._crypto_power.consume_power_up(self.transacting_power)
+            self._crypto_power.consume_power_up(_transacting_power)
+            self._set_checksum_address(_transacting_power.account)
 
             # Use this power to substantiate the stamp
             self.substantiate_stamp()
