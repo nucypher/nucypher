@@ -76,7 +76,7 @@ def test_staking(testerchain, token, escrow_contract):
 
     # Can't deposit for too short a period (less than _minLockedPeriods coefficient)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.deposit(1000, 1).transact({'from': staker1})
+        tx = escrow.functions.deposit(staker1, 1000, 1).transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = token.functions.approveAndCall(escrow.address, 1000, testerchain.w3.toBytes(1))\
@@ -85,7 +85,7 @@ def test_staking(testerchain, token, escrow_contract):
 
     # Staker transfers some tokens to the escrow and locks them before initialization
     current_period = escrow.functions.getCurrentPeriod().call()
-    tx = escrow.functions.deposit(1000, 2).transact({'from': staker1})
+    tx = escrow.functions.deposit(staker1, 1000, 2).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.bondWorker(staker1).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
@@ -128,7 +128,7 @@ def test_staking(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     # Ursula(2) stakes tokens also
-    tx = escrow.functions.deposit(500, 2).transact({'from': staker2})
+    tx = escrow.functions.deposit(staker2, 500, 2).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.bondWorker(staker2).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
@@ -563,7 +563,7 @@ def test_max_sub_stakes(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     # Lock one sub stake from current period and others from next one
-    tx = escrow.functions.deposit(100, 2).transact({'from': staker})
+    tx = escrow.functions.deposit(staker, 100, 2).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.bondWorker(staker).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
@@ -575,14 +575,14 @@ def test_max_sub_stakes(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
     for index in range(MAX_SUB_STAKES - 1):
-        tx = escrow.functions.deposit(100, 2).transact({'from': staker})
+        tx = escrow.functions.deposit(staker, 100, 2).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
     assert MAX_SUB_STAKES == escrow.functions.getSubStakesLength(staker).call()
     assert 3000 == escrow.functions.getLockedTokens(staker, 1).call()
 
     # Can't lock more because of reaching the maximum number of active sub stakes
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.deposit(100, 2).transact({'from': staker})
+        tx = escrow.functions.deposit(staker, 100, 2).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
 
     # After two periods first sub stake will be unlocked and we can lock again
@@ -597,11 +597,11 @@ def test_max_sub_stakes(testerchain, token, escrow_contract):
     assert MAX_SUB_STAKES == escrow.functions.getSubStakesLength(staker).call()
     # Before sub stake will be inactive it must be rewarded
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.deposit(100, 2).transact({'from': staker})
+        tx = escrow.functions.deposit(staker, 100, 2).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
     tx = escrow.functions.mint().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.deposit(100, 2).transact({'from': staker})
+    tx = escrow.functions.deposit(staker, 100, 2).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     assert 2900 == escrow.functions.getLockedTokens(staker, 0).call()
     assert 100 == escrow.functions.getLockedTokens(staker, 1).call()
@@ -609,7 +609,7 @@ def test_max_sub_stakes(testerchain, token, escrow_contract):
 
     # Can't lock more because of reaching the maximum number of active sub stakes and they are not rewarded yet
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.deposit(100, 2).transact({'from': staker})
+        tx = escrow.functions.deposit(staker, 100, 2).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
 
 
@@ -646,14 +646,14 @@ def test_allowable_locked_tokens(testerchain, token_economics, token, escrow_con
     testerchain.wait_for_receipt(tx)
     # Staker can't deposit and lock too low value (less than _minAllowableLockedTokens coefficient)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.deposit(minimum_allowed - 1, duration).transact({'from': staker1})
+        tx = escrow.functions.deposit(staker1, minimum_allowed - 1, duration).transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
     # And can't deposit and lock too high value (more than _maxAllowableLockedTokens coefficient)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.deposit(maximum_allowed + 1, duration).transact({'from': staker1})
+        tx = escrow.functions.deposit(staker1, maximum_allowed + 1, duration).transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
-    tx = escrow.functions.deposit(minimum_allowed, duration).transact({'from': staker1})
+    tx = escrow.functions.deposit(staker1, minimum_allowed, duration).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     staker1_lock = minimum_allowed
     tx = token.functions.approve(escrow.address, 0).transact({'from': staker1})
@@ -680,7 +680,7 @@ def test_allowable_locked_tokens(testerchain, token_economics, token, escrow_con
     tx = token.functions.approve(escrow.address, minimum_allowed).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.deposit(minimum_allowed, 2 * duration).transact({'from': staker2})
+        tx = escrow.functions.deposit(staker2, minimum_allowed, 2 * duration).transact({'from': staker2})
         testerchain.wait_for_receipt(tx)
 
     # Prepare for testing `lock()`: staker makes new sub-staker and unlocks first sub-stake

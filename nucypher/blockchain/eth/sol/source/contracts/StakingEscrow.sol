@@ -40,7 +40,7 @@ interface WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v5.1.2|
+* @dev |v5.2.1|
 */
 contract StakingEscrow is Issuer, IERC900History {
 
@@ -476,20 +476,21 @@ contract StakingEscrow is Issuer, IERC900History {
     */
     function bondWorker(address _worker) external onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
-        require(_worker != info.worker, "Specified worker is already bonded with this staker");
+        // Specified worker is already bonded with this staker
+        require(_worker != info.worker);
         uint16 currentPeriod = getCurrentPeriod();
         if (info.worker != address(0)) { // If this staker had a worker ...
             // Check that enough time has passed to change it
-            require(currentPeriod >= info.workerStartPeriod.add16(minWorkerPeriods),
-                "Not enough time has passed since the previous bonding worker");
+            require(currentPeriod >= info.workerStartPeriod.add16(minWorkerPeriods));
             // Remove the old relation "worker->staker"
             stakerFromWorker[info.worker] = address(0);
         }
 
         if (_worker != address(0)) {
-            require(stakerFromWorker[_worker] == address(0), "Specified worker is already in use");
-            require(stakerInfo[_worker].subStakes.length == 0 || _worker == msg.sender,
-                "Specified worker is a staker");
+            // Specified worker is already in use
+            require(stakerFromWorker[_worker] == address(0));
+            // Specified worker is a staker
+            require(stakerInfo[_worker].subStakes.length == 0 || _worker == msg.sender);
             // Set new worker->staker relation
             stakerFromWorker[_worker] = msg.sender;
         }
@@ -638,7 +639,8 @@ contract StakingEscrow is Issuer, IERC900History {
             require(numberOfSubStakes > 0 && subStakesLength >= endIndex);
             StakerInfo storage info = stakerInfo[staker];
             require(info.subStakes.length == 0);
-            require(stakerFromWorker[staker] == address(0), "A staker can't be a worker for another staker");
+            // A staker can't be a worker for another staker
+            require(stakerFromWorker[staker] == address(0));
             stakers.push(staker);
             policyManager.register(staker, previousPeriod);
 
@@ -703,15 +705,6 @@ contract StakingEscrow is Issuer, IERC900History {
 
     /**
     * @notice Deposit tokens
-    * @param _value Amount of tokens to deposit
-    * @param _periods Amount of periods during which tokens will be locked
-    */
-    function deposit(uint256 _value, uint16 _periods) external {
-        deposit(msg.sender, msg.sender, _value, _periods);
-    }
-
-    /**
-    * @notice Deposit tokens
     * @param _staker Staker
     * @param _value Amount of tokens to deposit
     * @param _periods Amount of periods during which tokens will be locked
@@ -730,8 +723,8 @@ contract StakingEscrow is Issuer, IERC900History {
     function deposit(address _staker, address _payer, uint256 _value, uint16 _periods) internal {
         require(_value != 0);
         StakerInfo storage info = stakerInfo[_staker];
-        require(stakerFromWorker[_staker] == address(0) || stakerFromWorker[_staker] == info.worker,
-            "A staker can't be a worker for another staker");
+        // A staker can't be a worker for another staker
+        require(stakerFromWorker[_staker] == address(0) || stakerFromWorker[_staker] == info.worker);
         // initial stake of the staker
         if (info.subStakes.length == 0) {
             stakers.push(_staker);
@@ -837,7 +830,8 @@ contract StakingEscrow is Issuer, IERC900History {
         uint16 currentPeriod = getCurrentPeriod();
         uint16 startPeriod = getStartPeriod(info, currentPeriod);
         uint16 lastPeriod = getLastPeriodOfSubStake(subStake, startPeriod);
-        require(lastPeriod > currentPeriod, "The sub stake must active at least in the next period");
+        // The sub stake must be active at least in the next period
+        require(lastPeriod > currentPeriod);
 
         uint256 oldValue = subStake.lockedValue;
         subStake.lockedValue = uint128(oldValue.sub(_newValue));
@@ -855,20 +849,22 @@ contract StakingEscrow is Issuer, IERC900History {
     */
     function prolongStake(uint256 _index, uint16 _periods) external onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
-        require(_periods > 0, "Incorrect parameters");
+        // Incorrect parameters
+        require(_periods > 0);
         SubStakeInfo storage subStake = info.subStakes[_index];
         uint16 currentPeriod = getCurrentPeriod();
         uint16 startPeriod = getStartPeriod(info, currentPeriod);
         uint16 lastPeriod = getLastPeriodOfSubStake(subStake, startPeriod);
-        require(lastPeriod > currentPeriod, "The sub stake must active at least in the next period");
+        // The sub stake must be active at least in the next period
+        require(lastPeriod > currentPeriod);
 
         subStake.periods = subStake.periods.add16(_periods);
         // if the sub stake ends in the next committed period then reset the `lastPeriod` field
         if (lastPeriod == startPeriod) {
             subStake.lastPeriod = 0;
         }
-        require(uint32(lastPeriod - currentPeriod) + _periods >= minLockedPeriods,
-            "The extended sub stake must not be less than the minimum value");
+        // The extended sub stake must not be less than the minimum value
+        require(uint32(lastPeriod - currentPeriod) + _periods >= minLockedPeriods);
         emit Locked(msg.sender, subStake.lockedValue, lastPeriod + 1, _periods);
         emit Prolonged(msg.sender, subStake.lockedValue, lastPeriod, _periods);
     }
@@ -909,8 +905,10 @@ contract StakingEscrow is Issuer, IERC900History {
     function commitToNextPeriod() external isInitialized {
         address staker = stakerFromWorker[msg.sender];
         StakerInfo storage info = stakerInfo[staker];
-        require(info.value > 0, "Staker must have a stake to make a commitment");
-        require(msg.sender == tx.origin, "Only worker with real address can make a commitment");
+        // Staker must have a stake to make a commitment
+        require(info.value > 0);
+        // Only worker with real address can make a commitment
+        require(msg.sender == tx.origin);
 
         uint16 lastCommittedPeriod = getLastCommittedPeriod(staker);
         mint(staker);

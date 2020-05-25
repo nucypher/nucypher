@@ -244,7 +244,7 @@ contract Intermediary {
 
     function deposit(uint256 _value, uint16 _periods) external {
         token.approve(address(escrow), _value);
-        escrow.deposit(_value, _periods);
+        escrow.deposit(address(this), _value, _periods);
     }
 
     function commitToNextPeriod() external {

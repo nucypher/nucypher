@@ -146,7 +146,7 @@ contract StakingInterface is BaseStakingInterface {
     function depositAsStaker(uint256 _value, uint16 _periods) public onlyDelegateCall {
         require(token.balanceOf(address(this)) >= _value);
         token.approve(address(escrow), _value);
-        escrow.deposit(_value, _periods);
+        escrow.deposit(address(this), _value, _periods);
         emit DepositedAsStaker(msg.sender, _value, _periods);
     }
 
