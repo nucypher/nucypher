@@ -3,25 +3,53 @@
 The Slashing Protocol
 =====================
 
-TBD
+The slashing protocol is a preventative mechanism that disincentivizes certain staker actions, whether deliberate or unintentional, to maximize service quality and preserve network health. If prohibited actions (‘violations’) are attributably detected at any moment, the protocol responds by irreversibly deleting (‘slashing’) a portion of the offending staker’s collateral (‘stake’).
 
+At network genesis, the protocol will be able to detect and attribute instances of incorrect re-encryptions returned by Ursulas. The staker controlling the incorrectly re-encrypting Ursula will have their stake reduced by a nominal number of NU tokens.
 
 Violations
 ----------
 
-TBD
+In response to an access request by Bob, Ursula must generate a ciphertext that perfectly corresponds to the associated sharing policy (i.e. precisely what Alice intended Bob to receive). If the ciphertext is invalid in this regard, then Ursula is deemed to be incorrectly re-encrypting. Each instance of incorrect re-encryption is an official violation and is individually punished.
 
+There are other ways stakers can compromise service quality and network health, such as extended periods of downtime or ignoring access requests. Unlike incorrect re-encryptions, actions of this kind are not yet reliably attributable. Punishing non-attributable actions may result in unacceptable outcomes or introduce perverse incentives, thus these actions are not yet defined as violations by the slashing protocol.  
+Detection
+----------
 
-Calculating the slashing penalty
---------------------------------
+Incorrect re-encryptions are detectable by Bob, who can then send a proof to the protocol to confirm the violation. This is enabled by a bespoke zero-knowledge correctness verification mechanism, which follows these steps:
 
-TBD (https://github.com/nucypher/nucypher/issues/803)
+1. When Alice creates a Kfrag, it includes components to help Ursula prove the correctness of each re-encryption she performs. The Kfrag’s secret component (*bn_key*) is used to perform the re-encryption operation. The Kfrag also comprises public components, including a point commitment on the value of the bn_key.
+2. When Ursula receives the Kfrag, she checks it is valid – that the point commitment on the secret component is correct. This ensures that she doesn’t incorrectly re-encrypt due to Alice’s error (or attack).
+3. Bob makes a re-encryption request by presenting a capsule to Ursula, and she responds with a Cfrag. This contains the payload (a re-encrypted ciphertext) and a non-interactive zero knowledge proofs of knowledge (NIZK).
+4. Bob checks the validity of the Cfrag using the NIZK. He verifies that the point commitment corresponds to the ciphertext. He also checks that the Cfrag was generated using his capsule, by verifying that it was created with the correct public key.
+5. If any of the verifications fail, then Bob supplies the ciphertext and NIZK to the Adjudicator contract. The contract runs extensive verification processes, leveraging optimized ECC algorithms.
+6. If the invalidity of the Cfrag is confirmed by the Adjudicator contract, the delivery of a faulty Cfrag to Bob is ruled to be an official protocol violation. A penalty is computed and the owner of the offending Ursula has their stake immediately slashed by the penalty amount.
 
+Penalties
+---------
 
-How slashing affects stake
---------------------------
+At network genesis, although violations will be detected, attributed and publicly logged, the actual penalty levied will be of nominal size. For each violation, 2*10^-18 NU tokens will be deleted from the offender’s stake. The maximum number of tokens that can be slashed in a given period is limited by the number of blocks processed on Ethereum (assuming 5760 per day and one slash per block) – approximately 10^-12 NU slashable per period.
 
-Slashing aims to reduce the overall number of tokens that belongs to a staking offender. While the reduction of tokens is intended to be punitive, once the tokens have been slashed, the slashing algorithm attempts to preserve the most efficient use of the offenders' remaining tokens based on their existing :ref:`sub-stakes`. The main goal is to decrease the tokens belonging to the staker while considering how tokens are allocated across different sub-stakes.
+This nominal penalty is effectively a placeholder until a more complete slashing model is designed and implemented. The genesis penalty is measurable – so staker behavior can be observed – but small enough that it has a negligible impact on the staker’s ability to continue serving the network. If the severity of penalties and logic of the slashing protocol changes, it may involve any combination of the following:
+
+1. Larger penalties levied in absolute terms (number of tokens slashed per violation). This will imply a material disincentive to stakers.
+
+2. Penalties calculated as a percentage of the offender’s stake (i.e. the larger the stake, the greater the number of tokens slashed per violation). This will levy punishments more equitably, regardless of stake size.
+
+3. Ramped penalties, that increase with each successive violation, potentially resetting in a specified number of periods. This will encourage stakers to avoid repeat offences.
+
+4. Temporal limitations on penalties, for example capping the total number of tokens slashabe in each period. This addresses the uneven distribution of effective punishment based on the unpredictable frequency with which a given Bob makes requests to an Ursula. Because Ursulas have no control over Bob’s behavior, they must be given a chance to rectify their worker’s incorrect re-encryptions before their stake is wiped out. This is particularly risky if a Bob is making requests at a high cadence or batches their requests. A limit on the penalty size per day addresses this unfair scenario.
+
+5. Temporary unbonding of Ursula, which forces the staker to forfeit subsidies, work and fees for a specified period. In a simple construction, this punishment would only apply if the Ursula is not servicing any other policies or all Alices consent to the removal of that Ursula from their policies.
+
+6. In conjunction with (5), delegated tokens being automatically returned to delegators. Delegators must proactively re-delegate to the offending staker after a specified time delay has elapsed.
+
+7. Delegated tokens suffering the same fate as staker-owned tokens, as described in (1), (2), and (3). This strongly encourages delegators to choose the most reliable staker(s).  
+
+Impact on stake
+---------------
+
+While slashing is intended to be punitive, the slashing algorithm attempts to preserve the most efficient configuration of the offenders' remaining tokens. To that end, punislock-up duration of their remaining :ref:`sub-stakes`.
 
 An entire stake consists of:
 
