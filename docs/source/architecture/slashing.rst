@@ -3,7 +3,7 @@
 The Slashing Protocol
 =====================
 
-The slashing protocol is a preventative mechanism that disincentivizes certain staker actions, whether deliberate or unintentional, to maximize service quality and preserve network health. If prohibited actions (‘violations’) are attributably detected at any moment, the protocol responds by irreversibly deleting (‘slashing’) a portion of the offending staker’s collateral (‘stake’).
+The slashing protocol is a preventative mechanism that disincentivizes certain staker actions, whether deliberate or unintentional, to maximize service quality and preserve network health. If prohibited actions (‘violations’) are attributably detected at any moment, the protocol responds by irreversibly forfeiting (‘slashing’) a portion of the offending staker’s collateral (‘stake’).
 
 At network genesis, the protocol will be able to detect and attribute instances of incorrect re-encryptions returned by Ursulas. The staker controlling the incorrectly re-encrypting Ursula will have their stake reduced by a nominal number of NU tokens.
 
@@ -12,7 +12,7 @@ Violations
 
 In response to an access request by Bob, Ursula must generate a ciphertext that perfectly corresponds to the associated sharing policy (i.e. precisely what Alice intended Bob to receive). If the ciphertext is invalid in this regard, then Ursula is deemed to be incorrectly re-encrypting. Each instance of incorrect re-encryption is an official violation and is individually punished.
 
-There are other ways stakers can compromise service quality and network health, such as extended periods of downtime or ignoring access requests. Unlike incorrect re-encryptions, actions of this kind are not yet reliably attributable. Punishing non-attributable actions may result in unacceptable outcomes or introduce perverse incentives, thus these actions are not yet defined as violations by the slashing protocol.  
+There are other ways stakers can compromise service quality and network health, such as extended periods of downtime or ignoring access requests. Unlike incorrect re-encryptions, these actions are not yet reliably attributable. Punishing non-attributable actions may result in unacceptable outcomes or introduce perverse incentives, thus these actions are not yet defined as violations by the slashing protocol.  
 
 Detection
 ----------
@@ -20,7 +20,7 @@ Detection
 Incorrect re-encryptions are detectable by Bob, who can then send a proof to the protocol to confirm the violation. This is enabled by a bespoke zero-knowledge correctness verification mechanism, which follows these steps:
 
 1. When Alice creates a Kfrag, it includes components to help Ursula prove the correctness of each re-encryption she performs. The Kfrag’s secret component (*bn_key*) is used to perform the re-encryption operation. The Kfrag also comprises public components, including a point commitment on the value of the bn_key.
-2. When Ursula receives the Kfrag, she checks it is valid – that the point commitment on the secret component is correct. This ensures that she doesn’t incorrectly re-encrypt due to Alice’s error (or attack).
+2. When Ursula receives the Kfrag, she checks its validity – that the point commitment on the secret component is correct. This ensures that she doesn’t incorrectly re-encrypt due to Alice’s error (or attack).
 3. Bob makes a re-encryption request by presenting a capsule to Ursula, and she responds with a Cfrag. This contains the payload (a re-encrypted ciphertext) and a non-interactive zero knowledge proofs of knowledge (NIZK).
 4. Bob checks the validity of the Cfrag using the NIZK. He verifies that the point commitment corresponds to the ciphertext. He also checks that the Cfrag was generated using his capsule, by verifying that it was created with the correct public key.
 5. If any of the verifications fail, then Bob supplies the ciphertext and NIZK to the Adjudicator contract. The contract runs extensive verification processes, leveraging optimized ECC algorithms.
