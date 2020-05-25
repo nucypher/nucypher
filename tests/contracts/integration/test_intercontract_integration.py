@@ -584,7 +584,7 @@ def test_staking(testerchain,
 
     # And can't lock because nothing to lock
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.lock(500, 2).transact({'from': staker1})
+        tx = escrow.functions.lockAndCreate(500, 2).transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
     # Check that nothing is locked

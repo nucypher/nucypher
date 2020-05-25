@@ -315,7 +315,7 @@ contract StakingEscrow is Issuer, IERC900History {
     * @param _index Stake index
     */
     function getLastPeriodOfSubStake(address _staker, uint256 _index)
-        external view returns (uint16)
+        public view returns (uint16)
     {
         StakerInfo storage info = stakerInfo[_staker];
         SubStakeInfo storage subStake = info.subStakes[_index];
@@ -700,27 +700,39 @@ contract StakingEscrow is Issuer, IERC900History {
             payload := calldataload(0xA4)
         }
         payload = payload >> 8*(32 - payloadSize);
-        deposit(_from, _from, _value, uint16(payload));
+        deposit(_from, _from, MAX_SUB_STAKES, _value, uint16(payload));
     }
 
     /**
-    * @notice Deposit tokens
+    * @notice Deposit tokens and create new sub-stake. Use this method to become a staker
     * @param _staker Staker
     * @param _value Amount of tokens to deposit
     * @param _periods Amount of periods during which tokens will be locked
     */
     function deposit(address _staker, uint256 _value, uint16 _periods) external {
-        deposit(_staker, msg.sender, _value, _periods);
+        deposit(_staker, msg.sender, MAX_SUB_STAKES, _value, _periods);
+    }
+
+    /**
+    * @notice Deposit tokens and increase lock amount of an existing sub-stake
+    * @dev This is preferable way to stake tokens because will be fewer active sub-stakes in the result
+    * @param _index Index of the sub stake
+    * @param _value Amount of tokens which will be locked
+    */
+    function depositAndIncrease(uint256 _index, uint256 _value) external onlyStaker {
+        deposit(msg.sender, msg.sender, _index, _value, 0);
     }
 
     /**
     * @notice Deposit tokens
+    * @dev Specify either index and zero periods or non-existent index and real value for periods, not both
     * @param _staker Staker
     * @param _payer Owner of tokens
+    * @param _index Index of the sub stake
     * @param _value Amount of tokens to deposit
     * @param _periods Amount of periods during which tokens will be locked
     */
-    function deposit(address _staker, address _payer, uint256 _value, uint16 _periods) internal {
+    function deposit(address _staker, address _payer, uint256 _index, uint256 _value, uint16 _periods) internal {
         require(_value != 0);
         StakerInfo storage info = stakerInfo[_staker];
         // A staker can't be a worker for another staker
@@ -732,30 +744,49 @@ contract StakingEscrow is Issuer, IERC900History {
         }
         token.safeTransferFrom(_payer, address(this), _value);
         info.value += _value;
-        lock(_staker, _value, _periods);
+        lock(_staker, _index, _value, _periods);
 
         addSnapshot(info, int256(_value));
-        emit Deposited(_staker, _value, _periods);
+        if (_index >= MAX_SUB_STAKES) {
+            emit Deposited(_staker, _value, _periods);
+        } else {
+            uint16 lastPeriod = getLastPeriodOfSubStake(_staker, _index);
+            emit Deposited(_staker, _value, lastPeriod - getCurrentPeriod());
+        }
     }
 
     /**
-    * @notice Lock some tokens as a stake
+    * @notice Lock some tokens as a new sub-stake
     * @param _value Amount of tokens which will be locked
     * @param _periods Amount of periods during which tokens will be locked
     */
-    function lock(uint256 _value, uint16 _periods) external onlyStaker {
-        lock(msg.sender, _value, _periods);
+    function lockAndCreate(uint256 _value, uint16 _periods) external onlyStaker {
+        lock(msg.sender, MAX_SUB_STAKES, _value, _periods);
+    }
+
+    /**
+    * @notice Increase lock amount of an existing sub-stake
+    * @param _index Index of the sub-stake
+    * @param _value Amount of tokens which will be locked
+    */
+    function lockAndIncrease(uint256 _index, uint256 _value) external onlyStaker {
+        lock(msg.sender, _index, _value, 0);
     }
 
     /**
     * @notice Lock some tokens as a stake
+    * @dev Specify either index and zero periods or non-existent index and real value for periods, not both
     * @param _staker Staker
+    * @param _index Index of the sub stake
     * @param _value Amount of tokens which will be locked
     * @param _periods Amount of periods during which tokens will be locked
     */
-    function lock(address _staker, uint256 _value, uint16 _periods) internal {
-        require(_value >= minAllowableLockedTokens &&
-            _periods >= minLockedPeriods);
+    function lock(address _staker, uint256 _index, uint256 _value, uint16 _periods) internal {
+        if (_index < MAX_SUB_STAKES) {
+            require(_value > 0);
+        } else {
+            require(_value >= minAllowableLockedTokens && _periods >= minLockedPeriods);
+        }
 
         uint16 currentPeriod = getCurrentPeriod();
         uint16 nextPeriod = currentPeriod + 1;
@@ -764,20 +795,108 @@ contract StakingEscrow is Issuer, IERC900History {
         uint256 requestedLockedTokens = _value.add(lockedTokens);
         require(requestedLockedTokens <= info.value && requestedLockedTokens <= maxAllowableLockedTokens);
 
-        uint16 duration = _periods;
         // next period is committed
         if (info.nextCommittedPeriod == nextPeriod) {
-            // if winding down is enabled and next period is committed
-            // then sub-stakes duration were decreased
-            if (info.flags.bitSet(WIND_DOWN_INDEX)) {
-                duration -= 1;
-            }
             lockedPerPeriod[nextPeriod] += _value;
             emit CommitmentMade(_staker, nextPeriod, _value);
         }
-        saveSubStake(info, nextPeriod, 0, duration, _value);
 
-        emit Locked(_staker, _value, nextPeriod, _periods);
+        // if index was provided then increase existing sub-stake
+        if (_index < MAX_SUB_STAKES) {
+            lockAndIncrease(info, currentPeriod, nextPeriod, _staker, _index, _value);
+        // otherwise create new
+        } else {
+            lockAndCreate(info, nextPeriod, _staker, _value, _periods);
+        }
+    }
+
+    /**
+    * @notice Lock some tokens as a new sub-stake
+    * @param _info Staker structure
+    * @param _nextPeriod Next period
+    * @param _staker Staker
+    * @param _value Amount of tokens which will be locked
+    * @param _periods Amount of periods during which tokens will be locked
+    */
+    function lockAndCreate(
+        StakerInfo storage _info,
+        uint16 _nextPeriod,
+        address _staker,
+        uint256 _value,
+        uint16 _periods
+    )
+        internal
+    {
+        uint16 duration = _periods;
+        // if winding down is enabled and next period is committed
+        // then sub-stakes duration were decreased
+        if (_info.nextCommittedPeriod == _nextPeriod && _info.flags.bitSet(WIND_DOWN_INDEX)) {
+            duration -= 1;
+        }
+        saveSubStake(_info, _nextPeriod, 0, duration, _value);
+
+        emit Locked(_staker, _value, _nextPeriod, _periods);
+    }
+
+    /**
+    * @notice Increase lock amount of an existing sub-stake
+    * @dev Probably will be created a new sub-stake but it will be active only one period
+    * @param _info Staker structure
+    * @param _currentPeriod Current period
+    * @param _nextPeriod Next period
+    * @param _staker Staker
+    * @param _index Index of the sub-stake
+    * @param _value Amount of tokens which will be locked
+    */
+    function lockAndIncrease(
+        StakerInfo storage _info,
+        uint16 _currentPeriod,
+        uint16 _nextPeriod,
+        address _staker,
+        uint256 _index,
+        uint256 _value
+    )
+        internal
+    {
+        SubStakeInfo storage subStake = _info.subStakes[_index];
+        (, uint16 lastPeriod) = checkLastPeriodOfSubStake(_info, subStake, _currentPeriod);
+
+        // create temporary sub-stake for current or previous committed periods
+        // to leave locked amount in this period unchanged
+        if (_info.currentCommittedPeriod != 0 &&
+            _info.currentCommittedPeriod <= _currentPeriod ||
+            _info.nextCommittedPeriod != 0 &&
+            _info.nextCommittedPeriod <= _currentPeriod)
+        {
+            saveSubStake(_info, subStake.firstPeriod, _currentPeriod, 0, subStake.lockedValue);
+        }
+
+        subStake.lockedValue += uint128(_value);
+        // all new locks should start from the next period
+        subStake.firstPeriod = _nextPeriod;
+
+        emit Locked(_staker, _value, _nextPeriod, lastPeriod - _currentPeriod);
+    }
+
+    /**
+    * @notice Checks that last period of sub-stake is greater than the current period
+    * @param _info Staker structure
+    * @param _subStake Sub-stake structure
+    * @param _currentPeriod Current period
+    * @return startPeriod Start period. Use in the calculation of the last period of the sub stake
+    * @return lastPeriod Last period of the sub stake
+    */
+    function checkLastPeriodOfSubStake(
+        StakerInfo storage _info,
+        SubStakeInfo storage _subStake,
+        uint16 _currentPeriod
+    )
+        internal view returns (uint16 startPeriod, uint16 lastPeriod)
+    {
+        startPeriod = getStartPeriod(_info, _currentPeriod);
+        lastPeriod = getLastPeriodOfSubStake(_subStake, startPeriod);
+        // The sub stake must be active at least in the next period
+        require(lastPeriod > _currentPeriod);
     }
 
     /**
@@ -828,10 +947,7 @@ contract StakingEscrow is Issuer, IERC900History {
         require(_newValue >= minAllowableLockedTokens && _periods > 0);
         SubStakeInfo storage subStake = info.subStakes[_index];
         uint16 currentPeriod = getCurrentPeriod();
-        uint16 startPeriod = getStartPeriod(info, currentPeriod);
-        uint16 lastPeriod = getLastPeriodOfSubStake(subStake, startPeriod);
-        // The sub stake must be active at least in the next period
-        require(lastPeriod > currentPeriod);
+        (, uint16 lastPeriod) = checkLastPeriodOfSubStake(info, subStake, currentPeriod);
 
         uint256 oldValue = subStake.lockedValue;
         subStake.lockedValue = uint128(oldValue.sub(_newValue));
@@ -853,10 +969,7 @@ contract StakingEscrow is Issuer, IERC900History {
         require(_periods > 0);
         SubStakeInfo storage subStake = info.subStakes[_index];
         uint16 currentPeriod = getCurrentPeriod();
-        uint16 startPeriod = getStartPeriod(info, currentPeriod);
-        uint16 lastPeriod = getLastPeriodOfSubStake(subStake, startPeriod);
-        // The sub stake must be active at least in the next period
-        require(lastPeriod > currentPeriod);
+        (uint16 startPeriod, uint16 lastPeriod) = checkLastPeriodOfSubStake(info, subStake, currentPeriod);
 
         subStake.periods = subStake.periods.add16(_periods);
         // if the sub stake ends in the next committed period then reset the `lastPeriod` field

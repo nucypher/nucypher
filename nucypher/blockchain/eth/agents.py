@@ -1002,7 +1002,7 @@ class PreallocationEscrowAgent(EthereumContractAgent):
 
     @contract_api(TRANSACTION)
     def lock(self, amount: NuNits, periods: PeriodDelta) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_contract.functions.lock(amount, periods)
+        contract_function: ContractFunction = self.__interface_contract.functions.lockAndCreate(amount, periods)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 

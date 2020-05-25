@@ -72,13 +72,15 @@ contract BaseStakingInterface {
 /**
 * @notice Interface for accessing main contracts from a staking contract
 * @dev All methods must be stateless because this code will be executed by delegatecall call, use immutable fields.
-* @dev |v1.4.2|
+* @dev |v1.5.2|
 */
 contract StakingInterface is BaseStakingInterface {
 
     event DepositedAsStaker(address indexed sender, uint256 value, uint16 periods);
     event WithdrawnAsStaker(address indexed sender, uint256 value);
-    event Locked(address indexed sender, uint256 value, uint16 periods);
+    event DepositedAndIncreased(address indexed sender, uint256 index, uint256 value);
+    event LockedAndCreated(address indexed sender, uint256 value, uint16 periods);
+    event LockedAndIncreased(address indexed sender, uint256 index, uint256 value);
     event Divided(address indexed sender, uint256 index, uint256 newValue, uint16 periods);
     event Minted(address indexed sender);
     event PolicyFeeWithdrawn(address indexed sender, uint256 value);
@@ -151,6 +153,18 @@ contract StakingInterface is BaseStakingInterface {
     }
 
     /**
+    * @notice Deposit tokens to the staking escrow
+    * @param _index Index of the sub-stake
+    * @param _value Amount of tokens which will be locked
+    */
+    function depositAndIncrease(uint256 _index, uint256 _value) public onlyDelegateCall {
+        require(token.balanceOf(address(this)) >= _value);
+        token.approve(address(escrow), _value);
+        escrow.depositAndIncrease(_index, _value);
+        emit DepositedAndIncreased(msg.sender, _index, _value);
+    }
+
+    /**
     * @notice Withdraw available amount of tokens from the staking escrow to the staking contract
     * @param _value Amount of token to withdraw
     */
@@ -160,13 +174,23 @@ contract StakingInterface is BaseStakingInterface {
     }
 
     /**
-    * @notice Lock some tokens or increase lock in the staking escrow
+    * @notice Lock some tokens in the staking escrow
     * @param _value Amount of tokens which should lock
     * @param _periods Amount of periods during which tokens will be locked
     */
-    function lock(uint256 _value, uint16 _periods) public onlyDelegateCall {
-        escrow.lock(_value, _periods);
-        emit Locked(msg.sender, _value, _periods);
+    function lockAndCreate(uint256 _value, uint16 _periods) public onlyDelegateCall {
+        escrow.lockAndCreate(_value, _periods);
+        emit LockedAndCreated(msg.sender, _value, _periods);
+    }
+
+    /**
+    * @notice Lock some tokens in the staking escrow
+    * @param _index Index of the sub-stake
+    * @param _value Amount of tokens which will be locked
+    */
+    function lockAndIncrease(uint256 _index, uint256 _value) public onlyDelegateCall {
+        escrow.lockAndIncrease(_index, _value);
+        emit LockedAndIncreased(msg.sender, _index, _value);
     }
 
     /**

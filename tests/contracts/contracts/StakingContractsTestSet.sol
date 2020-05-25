@@ -28,11 +28,7 @@ contract StakingEscrowForStakingContractMock {
         token = _token;
     }
 
-    function deposit(uint256 _value, uint16 _periods) external {
-        deposit(msg.sender, _value, _periods);
-    }
-
-    function deposit(address _node, uint256 _value, uint16 _periods) public {
+    function deposit(address _node, uint256 _value, uint16 _periods) external {
         node = _node;
         value += _value;
         lockedValue += _value;
@@ -40,9 +36,21 @@ contract StakingEscrowForStakingContractMock {
         token.transferFrom(msg.sender, address(this), _value);
     }
 
-    function lock(uint256 _value, uint16 _periods) external {
+    function depositAndIncrease(uint256 _index, uint256 _value) external {
+        index = _index;
+        value += _value;
+        lockedValue += _value;
+        token.transferFrom(msg.sender, address(this), _value);
+    }
+
+    function lockAndCreate(uint256 _value, uint16 _periods) external {
         lockedValue += _value;
         periods += _periods;
+    }
+
+    function lockAndIncrease(uint256 _index, uint256 _value) external {
+        index = _index;
+        lockedValue += _value;
     }
 
     function divideStake(uint256 _index, uint256 _newValue, uint16 _periods) external {

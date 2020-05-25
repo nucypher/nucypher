@@ -288,7 +288,7 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.lock(500, 2).transact({'from': staker2})
+    tx = escrow.functions.lockAndCreate(500, 2).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
     staker2_stake += 250
 
@@ -675,7 +675,7 @@ def test_slashing(testerchain, token, escrow_contract, token_economics, deploy_c
     assert 260 == escrow.functions.lockedPerPeriod(current_period - 1).call()
     assert 260 == escrow.functions.lockedPerPeriod(current_period).call()
     assert 0 == escrow.functions.lockedPerPeriod(current_period + 1).call()
-    tx = escrow.functions.lock(160, 2).transact({'from': staker})
+    tx = escrow.functions.lockAndCreate(160, 2).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker})
     testerchain.wait_for_receipt(tx)

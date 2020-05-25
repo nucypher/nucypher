@@ -227,7 +227,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     # Ursula and Alice give Escrow rights to transfer
     #
     transact_and_log("Approving transfer",
-                     token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6),
+                     token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 7),
                      {'from': staker1})
     transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6), {'from': staker2})
     transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6), {'from': staker3})
@@ -464,8 +464,11 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Check regular deposit
     #
-    transact_and_log("Deposit tokens",
+    transact_and_log("Deposit tokens to new sub-stake",
                      staker_functions.deposit(staker1, MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS),
+                     {'from': staker1})
+    transact_and_log("Deposit tokens using existing sub-stake",
+                     staker_functions.depositAndIncrease(0, MIN_ALLOWED_LOCKED),
                      {'from': staker1})
 
     #
@@ -485,7 +488,12 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     testerchain.time_travel(periods=1)
     transact(staker_functions.commitToNextPeriod(), {'from': staker1})
-    transact_and_log("Locking tokens", staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS), {'from': staker1})
+    transact_and_log("Locking tokens and creating new sub-stake",
+                     staker_functions.lockAndCreate(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS),
+                     {'from': staker1})
+    transact_and_log("Locking tokens using existing sub-stake",
+                     staker_functions.lockAndIncrease(0, MIN_ALLOWED_LOCKED),
+                     {'from': staker1})
 
     #
     # Divide stake
@@ -545,7 +553,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
         transact(staker_functions.commitToNextPeriod(), {'from': staker1})
         testerchain.time_travel(periods=1)
 
-    transact(staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS), {'from': staker1})
+    transact(staker_functions.lockAndCreate(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS), {'from': staker1})
     deposit = staker_functions.stakerInfo(staker1).call()[0]
     unlocked = deposit - staker_functions.getLockedTokens(staker1, 1).call()
     transact(staker_functions.withdraw(unlocked), {'from': staker1})
