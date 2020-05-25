@@ -13,6 +13,7 @@ Violations
 In response to an access request by Bob, Ursula must generate a ciphertext that perfectly corresponds to the associated sharing policy (i.e. precisely what Alice intended Bob to receive). If the ciphertext is invalid in this regard, then Ursula is deemed to be incorrectly re-encrypting. Each instance of incorrect re-encryption is an official violation and is individually punished.
 
 There are other ways stakers can compromise service quality and network health, such as extended periods of downtime or ignoring access requests. Unlike incorrect re-encryptions, actions of this kind are not yet reliably attributable. Punishing non-attributable actions may result in unacceptable outcomes or introduce perverse incentives, thus these actions are not yet defined as violations by the slashing protocol.  
+
 Detection
 ----------
 
@@ -24,6 +25,9 @@ Incorrect re-encryptions are detectable by Bob, who can then send a proof to the
 4. Bob checks the validity of the Cfrag using the NIZK. He verifies that the point commitment corresponds to the ciphertext. He also checks that the Cfrag was generated using his capsule, by verifying that it was created with the correct public key.
 5. If any of the verifications fail, then Bob supplies the ciphertext and NIZK to the Adjudicator contract. The contract runs extensive verification processes, leveraging optimized ECC algorithms.
 6. If the invalidity of the Cfrag is confirmed by the Adjudicator contract, the delivery of a faulty Cfrag to Bob is ruled to be an official protocol violation. A penalty is computed and the owner of the offending Ursula has their stake immediately slashed by the penalty amount.
+
+.. image:: ../.static/img/correctness_verification_schematic.png
+    :target: ../.static/img/correctness_verification_schematic.png
 
 Penalties
 ---------
