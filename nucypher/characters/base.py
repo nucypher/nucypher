@@ -502,6 +502,7 @@ class Character(Learner):
             # Decentralized
             #
             if not self.federated_only:
+                # TODO: And why not return here then?
                 self._checksum_address = checksum_address  # TODO: Check that this matches TransactingPower
 
             #
