@@ -20,8 +20,9 @@ import maya
 import os
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
+from hexbytes import HexBytes
 from twisted.logger import Logger
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from web3 import Web3
 
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
@@ -266,10 +267,10 @@ class TesterBlockchain(BlockchainDeployerInterface):
         accounts = set(self.client.accounts)
         return list(accounts.difference(assigned_accounts))
 
-    def wait_for_receipt(self, txhash: bytes, timeout: int = None) -> dict:
+    def wait_for_receipt(self, txhash: Union[bytes, str, HexBytes], timeout: int = None) -> dict:
         """Wait for a transaction receipt and return it"""
         timeout = timeout or self.TIMEOUT
-        result = self.w3.eth.waitForTransactionReceipt(txhash, timeout=timeout)
+        result = self.client.wait_for_receipt(transaction_hash=txhash, timeout=timeout)
         if result.status == 0:
             raise TransactionFailed()
         return result

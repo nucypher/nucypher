@@ -24,6 +24,7 @@ import maya
 import pytest
 from hexbytes import HexBytes
 
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler, SourceDirs
@@ -162,22 +163,14 @@ def test_multiversion_contract():
     assert contract.functions.VERSION().call() == 2
 
 
-@pytest.fixture(scope='module', autouse=True)
-def mock_testerchain() -> MockBlockchain:
-    BlockchainInterfaceFactory._interfaces = dict()
-    testerchain = _make_testerchain(mock_backend=True)
-    BlockchainInterfaceFactory.register_interface(interface=testerchain)
-    yield testerchain
-
-
-def test_block_confirmations(testerchain, test_registry):  # FIXME: Rename/Relocate
+def test_block_confirmations(testerchain, test_registry):
 
     testerchain.TIMEOUT = 5  # Reduce timeout for tests, for the moment
     origin = testerchain.etherbase_account
 
     # Let's try to deploy a simple contract (ReceiveApprovalMethodMock) with 1 confirmation.
     # Since the testerchain doesn't automine, this fails.
-    with pytest.raises(testerchain.NotEnoughConfirmations):
+    with pytest.raises(EthereumClient.NotEnoughConfirmations):
         _ = testerchain.deploy_contract(origin,
                                         test_registry,
                                         'ReceiveApprovalMethodMock',
@@ -190,7 +183,7 @@ def test_block_confirmations(testerchain, test_registry):  # FIXME: Rename/Reloc
 
     # Trying a simple function of the contract with 1 confirmations fails too, for the same reason
     tx_function = contract.functions.receiveApproval(origin, 0, origin, b'')
-    with pytest.raises(testerchain.NotEnoughConfirmations):
+    with pytest.raises(EthereumClient.NotEnoughConfirmations):
         _ = testerchain.send_transaction(contract_function=tx_function,
                                          sender_address=origin,
                                          confirmations=1)
@@ -200,9 +193,9 @@ def test_block_confirmations(testerchain, test_registry):  # FIXME: Rename/Reloc
                                               sender_address=origin,
                                               confirmations=0)
 
-    assert testerchain.get_confirmations(tx_receipt) == 0
+    assert testerchain.client.get_confirmations(tx_receipt) == 0
     testerchain.w3.eth.web3.testing.mine(1)
-    assert testerchain.get_confirmations(tx_receipt) == 1
+    assert testerchain.client.get_confirmations(tx_receipt) == 1
 
     # # Ok, I admit that the tests so far weren't very exciting, since we cannot directly test confirmations
     # # as new blocks are not mined continuously in our test framework.
@@ -238,63 +231,3 @@ def test_block_confirmations(testerchain, test_registry):  # FIXME: Rename/Reloc
     #     _ = testerchain.send_transaction(contract_function=tx_function,
     #                                      sender_address=origin,
     #                                      confirmations=10)
-
-
-
-def test_get_confirmations(mock_testerchain, mocker):  # FIXME: Rename/Relocate
-
-    # Mock data
-    block_number_of_my_tx = 42
-    my_tx_hash = HexBytes('0xFabadaAcabada')
-
-    receipt = {
-        'transactionHash': my_tx_hash,
-        'blockNumber': block_number_of_my_tx,
-        'blockHash': HexBytes('0xBebeCafe')
-    }
-
-    our_block = {
-        'number': block_number_of_my_tx,
-        'transactions': [my_tx_hash],
-        'blockHash': HexBytes('0xBebeCafe')
-    }
-
-    the_blockchain = {
-        block_number_of_my_tx: our_block
-    }
-
-    # Mock functions and patches
-    def mock_web3_get_block(block_identifier, full_transactions=False):
-        return the_blockchain[block_identifier]
-
-    def mock_web3_get_block_number():
-        return list(sorted(the_blockchain.keys()))[-1]
-
-    mocker.patch('web3.eth.Eth.getBlock', side_effect=mock_web3_get_block)
-    mocker.patch('web3.eth.Eth.blockNumber', side_effect=mock_web3_get_block_number, new_callable=PropertyMock)
-
-    # Test with no chain reorganizations
-    for additional_blocks in range(10):
-        obtained_confirmations = mock_testerchain.get_confirmations(receipt=receipt)
-        assert additional_blocks == obtained_confirmations
-
-        # Mine a new block in this fine chain of ours
-        next_block_number = block_number_of_my_tx + additional_blocks + 1
-        mined_block = {'number': next_block_number, 'transactions': []}
-        the_blockchain[next_block_number] = mined_block
-
-    # Wow, there has been a chain reorganization and our beloved TX is gone:
-    we_hate_this_block = {'number': block_number_of_my_tx,
-                          'transactions': [HexBytes('0xBebeDefeca')],
-                          'blockHash': HexBytes('0xCaca')}
-    the_blockchain = {
-        block_number_of_my_tx: we_hate_this_block
-    }
-
-    exception = mock_testerchain.ChainReorganizationDetected
-    message = exception(receipt=receipt, block=we_hate_this_block).message
-    with pytest.raises(exception, match=message):
-        _ = mock_testerchain.get_confirmations(receipt=receipt)
-
-
-# def test_block_until_enough_confirmations(mock_testerchain):  # FIXME: Rename/Relocate
