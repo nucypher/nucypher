@@ -161,8 +161,6 @@ class Character(Learner):
         else:
             self._crypto_power = CryptoPower(power_ups=self._default_crypto_powerups)
 
-        self._checksum_address = checksum_address
-
         # Fleet and Blockchain Connection (Everyone)
         if not domains:
             domains = {CharacterConfiguration.DEFAULT_DOMAIN}
@@ -225,9 +223,12 @@ class Character(Learner):
         # TODO: Figure out when to do this.
         try:
             _transacting_power = self._crypto_power.power_ups(TransactingPower)
-            self._set_checksum_address(checksum_address)
         except NoTransactingPower:
-            pass  # Hmm, so this Character has no checksum address at all.  Is that what we want?
+            self._checksum_address = checksum_address
+            if checksum_address is None:
+                assert True  # Hmm, so this Character has no checksum address at all.  Is that what we want?
+        else:
+            self._set_checksum_address(checksum_address)
 
         #
         # Nicknames
@@ -239,7 +240,12 @@ class Character(Learner):
             self.nickname = self.nickname_metadata = NO_NICKNAME
         else:
             try:
-                self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_address)
+                # TODO: It's possible that this is NO_BLOCKCHAIN_CONNECTION.
+                if self.checksum_address is NO_BLOCKCHAIN_CONNECTION:
+                    self.nickname = self.nickname_metadata = NO_NICKNAME
+                else:
+                    # This can call _set_checksum_address.
+                    self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_address)
             except SigningPower.not_found_error:  # TODO: Handle NO_BLOCKCHAIN_CONNECTION more coherently - #1547
                 if self.federated_only:
                     self.nickname = self.nickname_metadata = NO_NICKNAME
