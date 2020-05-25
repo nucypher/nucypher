@@ -1275,7 +1275,7 @@ class Worker(NucypherTokenActor):
 
         self.is_me = is_me
 
-        self._checksum_address = None  # Stake Address
+        # self._checksum_address = None  # Stake Address  # TODO - wait, why?  Why are we setting this to None when it may have already been set in an outer method?
         self.__worker_address = worker_address
 
         # Agency
