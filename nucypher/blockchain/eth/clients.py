@@ -41,7 +41,9 @@ from typing import Union
 from web3 import Web3
 from web3.contract import Contract
 from web3.types import Wei, TxReceipt
+from web3._utils.threads import Timeout
 
+from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
 
 UNKNOWN_DEVELOPMENT_CHAIN_ID.bool_value(True)
@@ -59,6 +61,7 @@ class Web3ClientUnexpectedVersionString(Web3ClientError):
     pass
 
 # TODO: Consider creating a ChainInventory class and/or moving this to a separate module
+
 
 PUBLIC_CHAINS = {0: "Olympic",
                  1: "Mainnet",
@@ -106,6 +109,7 @@ class EthereumClient:
     PEERING_TIMEOUT = 30        # seconds
     SYNC_TIMEOUT_DURATION = 60  # seconds to wait for various blockchain syncing endeavors
     SYNC_SLEEP_DURATION = 5     # seconds
+    BLOCK_CONFIRMATIONS_POLLING_TIME = 3  # seconds
 
     class ConnectionNotEstablished(RuntimeError):
         pass
@@ -115,6 +119,25 @@ class EthereumClient:
 
     class UnknownAccount(ValueError):
         pass
+
+    class NotEnoughConfirmations(RuntimeError):
+        pass
+
+    class ChainReorganizationDetected(RuntimeError):
+        """Raised when block confirmations logic detects that a TX was lost due to a chain reorganization"""
+
+        error_message = ("Chain re-organization detected: Transaction {our_tx} was reported to be in "
+                         "block number {tx_block_number} with block hash {old_block_hash},"
+                         "but current hash is {new_block_hash}")
+
+        def __init__(self, receipt, block):
+            self.receipt = receipt
+            self.block = block
+            self.message = self.error_message.format(our_tx=Web3.toHex(receipt['transactionHash']),
+                                                     tx_block_number=Web3.toInt(receipt['blockNumber']),
+                                                     old_block_hash=Web3.toHex(receipt['blockHash']),
+                                                     new_block_hash=Web3.toHex(block['blockHash']))
+            super().__init__(self.message)
 
     def __init__(self,
                  w3,
@@ -254,14 +277,52 @@ class EthereumClient:
     def coinbase(self) -> ChecksumAddress:
         return self.w3.eth.coinbase
 
-    def wait_for_receipt(self, transaction_hash: str, timeout: int) -> TxReceipt:
+    def wait_for_receipt(self,
+                         transaction_hash: str,
+                         timeout: int,
+                         confirmations: int = 0,
+                         confirmations_timeout: int = None) -> TxReceipt:
         receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash=transaction_hash, timeout=timeout)
+        if confirmations:
+            try:
+                self._block_until_enough_confirmations(receipt=receipt,
+                                                   confirmations=confirmations,
+                                                   timeout=confirmations_timeout)
+            except self.NotEnoughConfirmations:
+                raise  # TODO: What should we do here?
+            except self.ChainReorganizationDetected:
+                raise  # TODO: Consider starting again, the TX may still be mined
         return receipt
+
+    def _block_until_enough_confirmations(self, receipt: dict, confirmations: int, timeout: float):
+        if not timeout:
+            timeout = 2 * AVERAGE_BLOCK_TIME_IN_SECONDS * confirmations
+
+        confirmations_so_far = self.get_confirmations(receipt)
+        with Timeout(seconds=timeout, exception=self.NotEnoughConfirmations) as timeout_context:
+            while confirmations_so_far < confirmations:
+                self.log.info(f"So far, we've received {confirmations_so_far} confirmations. "
+                              f"Waiting for {confirmations - confirmations_so_far} more.")
+                timeout_context.sleep(self.BLOCK_CONFIRMATIONS_POLLING_TIME)
+                confirmations_so_far = self.get_confirmations(receipt)
+
+    def get_confirmations(self, receipt: dict) -> int:
+        our_tx = Web3.toHex(receipt['transactionHash'])
+        tx_block_number = Web3.toInt(receipt['blockNumber'])
+
+        # Check that our TX is still in the blockchain (i.e., there has been no chain reorganizations)
+        block_to_check = self.w3.eth.getBlock(block_identifier=tx_block_number, full_transactions=False)
+        if our_tx not in map(Web3.toHex, block_to_check['transactions']):
+            raise self.ChainReorganizationDetected(receipt=receipt, block=block_to_check)
+
+        latest_block_number = self.block_number
+        confirmations = latest_block_number - tx_block_number
+        return confirmations
 
     def sign_transaction(self, transaction_dict: dict) -> bytes:
         raise NotImplementedError
 
-    def get_transaction(self, transaction_hash) -> str:
+    def get_transaction(self, transaction_hash) -> dict:
         return self.w3.eth.getTransaction(transaction_hash=transaction_hash)
 
     def send_transaction(self, transaction_dict: dict) -> str:

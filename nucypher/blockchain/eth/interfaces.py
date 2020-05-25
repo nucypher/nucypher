@@ -19,13 +19,18 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import collections
 
 import click
-import maya
 import os
 import pprint
 import requests
 import time
-from constant_sorrow.constants import (INSUFFICIENT_ETH, NO_BLOCKCHAIN_CONNECTION, NO_COMPILATION_PERFORMED,
-                                       NO_PROVIDER_PROCESS, READ_ONLY_INTERFACE, UNKNOWN_TX_STATUS)
+from constant_sorrow.constants import (
+    INSUFFICIENT_ETH,
+    NO_BLOCKCHAIN_CONNECTION,
+    NO_COMPILATION_PERFORMED,
+    NO_PROVIDER_PROCESS,
+    READ_ONLY_INTERFACE,
+    UNKNOWN_TX_STATUS
+)
 from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import to_checksum_address
@@ -40,9 +45,16 @@ from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.providers import (_get_HTTP_provider, _get_IPC_provider, _get_auto_provider,
-                                               _get_infura_provider, _get_mock_test_provider, _get_pyevm_test_provider,
-                                               _get_test_geth_parity_provider, _get_websocket_provider)
+from nucypher.blockchain.eth.providers import (
+    _get_auto_provider,
+    _get_HTTP_provider,
+    _get_infura_provider,
+    _get_IPC_provider,
+    _get_mock_test_provider,
+    _get_pyevm_test_provider,
+    _get_test_geth_parity_provider,
+    _get_websocket_provider
+)
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
@@ -63,7 +75,6 @@ class BlockchainInterface:
     """
 
     TIMEOUT = 600  # seconds
-    BLOCK_CONFIRMATIONS_POLLING_TIME = 3  # seconds
 
     DEFAULT_GAS_STRATEGY = 'medium'
     GAS_STRATEGIES = {'glacial': time_based.glacial_gas_price_strategy,     # 24h
@@ -90,9 +101,6 @@ class BlockchainInterface:
         pass
 
     class UnknownContract(InterfaceError):
-        pass
-
-    class NotEnoughConfirmations(InterfaceError):
         pass
 
     REASONS = {
@@ -133,22 +141,6 @@ class BlockchainInterface:
             message = f'{self.payload} from {self.payload["from"][:8]} - {self.base_message}.' \
                       f'Calculated cost is {cost} but sender only has {balance}.'
             return message
-
-    class ChainReorganizationDetected(InterfaceError):
-        """Raised when block confirmations logic detects that a TX was lost due to a chain reorganization"""
-
-        error_message = ("Chain re-organization detected: Transaction {our_tx} was reported to be in "
-                         "block number {tx_block_number} with block hash {old_block_hash},"
-                         "but current hash is {new_block_hash}")
-
-        def __init__(self, receipt, block):
-            self.receipt = receipt
-            self.block = block
-            self.message = self.error_message.format(our_tx=Web3.toHex(receipt['transactionHash']),
-                                                     tx_block_number=Web3.toInt(receipt['blockNumber']),
-                                                     old_block_hash=Web3.toHex(receipt['blockHash']),
-                                                     new_block_hash=Web3.toHex(block['blockHash']))
-            super().__init__(self.message)
 
     def __init__(self,
                  emitter = None,  # TODO # 1754
@@ -554,8 +546,8 @@ class BlockchainInterface:
         # Receipt
         #
 
-        try:
-            receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT)
+        try:  # TODO: Handle block confirmation exceptions
+            receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT, confirmations=confirmations)
         except TimeExhausted:
             # TODO: #1504 - Handle transaction timeout
             raise
@@ -582,37 +574,8 @@ class BlockchainInterface:
                 raise self.InterfaceError(f"Transaction consumed 100% of transaction gas."
                                           f"Full receipt: \n {pprint.pformat(receipt, indent=2)}")
 
-        # Block confirmations
-        if confirmations:
-            self._block_until_enough_confirmations(receipt=receipt, confirmations=confirmations)
-
         return receipt
 
-    def _block_until_enough_confirmations(self, receipt: dict, confirmations: int):
-        start = maya.now()
-        confirmations_so_far = self.get_confirmations(receipt)
-        while confirmations_so_far < confirmations:
-            self.log.info(f"So far, we've received {confirmations_so_far} confirmations. "
-                          f"Waiting for {confirmations - confirmations_so_far} more.")
-            time.sleep(self.BLOCK_CONFIRMATIONS_POLLING_TIME)
-            confirmations_so_far = self.get_confirmations(receipt)
-            if (maya.now() - start).seconds > self.TIMEOUT:
-                raise self.NotEnoughConfirmations
-
-    def get_confirmations(self, receipt: dict) -> int:
-        from web3 import Web3
-
-        our_tx = Web3.toHex(receipt['transactionHash'])
-        tx_block_number = Web3.toInt(receipt['blockNumber'])
-
-        # Check that our TX is still in the blockchain (i.e., there has been no chain reorganizations)
-        block_to_check = self.w3.eth.getBlock(block_identifier=tx_block_number, full_transactions=False)
-        if our_tx not in map(Web3.toHex, block_to_check['transactions']):
-            raise self.ChainReorganizationDetected(receipt=receipt, block=block_to_check)
-
-        latest_block_number = self.w3.eth.blockNumber
-        confirmations = latest_block_number - tx_block_number
-        return confirmations
 
     def get_blocktime(self):
         highest_block = self.w3.eth.getBlock('latest')
