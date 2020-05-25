@@ -49,7 +49,7 @@ This nominal penalty is effectively a placeholder until a more complete slashing
 Impact on stake
 ---------------
 
-While slashing is intended to be punitive, the slashing algorithm attempts to preserve the most efficient configuration of the offenders' remaining tokens. To that end, punislock-up duration of their remaining :ref:`sub-stakes`.
+Regardless of how punitive the slashing protocol ends up being, the algorithm will always attempt to preserve the most efficient configuration of the offender's remaining stake, from the perspective of network health. To that end, the lock-up duration of :ref:`sub-stakes` is taken into account when selecting the portion(s) of stake to slash.
 
 An entire stake consists of:
 

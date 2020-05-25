@@ -79,7 +79,7 @@ To run a Goerli-connected Geth node in *light* syncing mode:
    $ geth --goerli --syncmode light
 
 
-Note that using ``--syncmode light`` is not 100% stable but can be a life savior when using 
+Note that using ``--syncmode light`` is not 100% stable but can be a life saver when using
 a mobile connection (or congested hackathon wifi...).
 
 Connect to the Geth Console to test your ethereum node's IPC:
@@ -267,7 +267,7 @@ any Bob that Alice grants access.
 Bob: Decrypt a Secret
 ---------------------
 
-For Bob to retrieve a secret, The ciphertext, label, policy encrypting key, and Alice's veryfying key must all
+For Bob to retrieve a secret, The ciphertext, label, policy encrypting key, and Alice's verifying key must all
 be fetched from the application side channel.  Then, Bob constructs his perspective of the policy's network actors:
 
 Setup Bob
