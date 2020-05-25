@@ -167,7 +167,7 @@ class BlockchainArrangement(Arrangement):
 
 class PolicyPayloadMutex(DeferredList):
 
-    def __init__(self, deferredList, percent_to_complete_before_release=10, *args, **kwargs):
+    def __init__(self, deferredList, percent_to_complete_before_release=5, *args, **kwargs):
         self.percent_to_complete_before_release = percent_to_complete_before_release
         self._policy_locking_queue = Queue()
 

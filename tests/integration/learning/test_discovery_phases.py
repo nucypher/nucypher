@@ -21,6 +21,7 @@ from unittest.mock import patch
 import maya
 import pytest
 import pytest_twisted
+
 from tests.performance_mocks import NotAPublicKey, NotARestApp, VerificationTracker, mock_cert_loading, \
     mock_cert_storage, mock_message_verification, mock_metadata_validation, mock_pubkey_from_bytes, mock_secret_source, \
     mock_signature_bytes, mock_stamp_call, mock_verify_node
@@ -181,7 +182,7 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
             if policy.treasure_map in list(ursula.treasure_maps.values()):
                 nodes_that_have_the_map_when_we_unblock.append(ursula)
 
-        approximate_number_of_nodes_we_expect_to_have_the_map_already = len(nodes_we_expect_to_have_the_map) / 10
+        approximate_number_of_nodes_we_expect_to_have_the_map_already = len(nodes_we_expect_to_have_the_map) / 5
         assert len(nodes_that_have_the_map_when_we_unblock) == pytest.approx(
             approximate_number_of_nodes_we_expect_to_have_the_map_already, .5)
 

@@ -596,13 +596,13 @@ class Bob(Character):
                 raise _MapClass.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_id} ")
 
             self.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
-            nodes_with_map = self.matching_nodes_among(self.known_nodes, no_less_than=8)
+            nodes_with_map = self.matching_nodes_among(self.known_nodes)
             random.shuffle(nodes_with_map)
 
             for node in nodes_with_map:
                 try:
                     response = network_middleware.get_treasure_map_from_node(node=node, map_id=map_id)
-                except NodeSeemsToBeDown:
+                except (NodeSeemsToBeDown, self.NotEnoughNodes):
                     continue
                 except network_middleware.NotFound:
                     self.log.info(f"Node {node} claimed not to have TreasureMap {map_id}")
@@ -1044,11 +1044,12 @@ class Ursula(Teacher, Character, Worker):
         if is_me and not federated_only:  # TODO: #429
 
             # Prepare a TransactingPower from worker node's transacting keys
-            self.transacting_power = TransactingPower(account=worker_address,
+            _transacting_power = TransactingPower(account=worker_address,
                                                       password=client_password,
                                                       signer=self.signer,
                                                       cache=True)
-            self._crypto_power.consume_power_up(self.transacting_power)
+            self._crypto_power.consume_power_up(_transacting_power)
+            self._set_checksum_address(_transacting_power.account)
 
             # Use this power to substantiate the stamp
             self.substantiate_stamp()
