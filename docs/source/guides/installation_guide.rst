@@ -152,7 +152,7 @@ Display network stats:
 
     docker run -it -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 nucypher/nucypher:latest nucypher status network --provider `<PROVIDER URI>` --network `<NETWORK NAME>`
 
-Running a pre-configured Worker as a daemon (See `Configuration Guide </guides/network_node/ursula_configuration_guide>`_\ ):
+Running a pre-configured Worker as a daemon (See :doc:`Configuration Guide </guides/network_node/ursula_configuration_guide>`):
 
 .. code-block::
 
@@ -171,7 +171,7 @@ Before continuing, ensure you have ``git`` installed (\ `Git Documentation <http
 Acquire NuCypher Codebase
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Fork the nucypher repository on GitHub, as explained in the `Contribution Guide </guides/contribution_guide>`_\ ,
+Fork the nucypher repository on GitHub, as explained in the :doc:`Contribution Guide </guides/contribution_guide>`,
 then clone your fork's repository to your local machine:
 
 .. code-block::
