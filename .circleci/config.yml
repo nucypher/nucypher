@@ -432,6 +432,7 @@ commands:
     description: "Upload Coverage Report To codecov.io"
     steps:
       - codecov/upload:
+          flags: all
           file: reports/coverage.xml
 
   capture_test_results:
@@ -447,12 +448,6 @@ commands:
           when: always
       - store_artifacts:
           path: ~/test-logs/
-      - run:
-          name: If $ENABLE_CODECOV, exit job without failing now to avoid uploading codecov results
-          command: |
-            if [ -z "$ENABLE_CODECOV"]; then
-                circleci-agent step halt
-            fi
       - codecov
 
   build_and_save_test_docker:
