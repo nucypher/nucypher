@@ -5,7 +5,7 @@ The Slashing Protocol
 
 The slashing protocol is a preventative mechanism that disincentivizes certain staker actions, whether deliberate or unintentional, to maximize service quality and preserve network health. If prohibited actions (‘violations’) are attributably detected at any moment, the protocol responds by irreversibly forfeiting (‘slashing’) a portion of the offending staker’s collateral (‘stake’).
 
-At network genesis, the protocol will be able to detect and attribute instances of incorrect re-encryptions returned by Ursulas. The staker controlling the incorrectly re-encrypting Ursula will have their stake reduced by a nominal number of NU tokens.
+At network genesis, the protocol will be able to detect and attribute instances of incorrect re-encryptions returned by Ursulas. The staker controlling the incorrectly re-encrypting Ursula will have their stake reduced by a nominal sum of NU tokens.
 
 Violations
 ----------
@@ -36,18 +36,16 @@ At network genesis, although violations will be detected, attributed and publicl
 
 This nominal penalty is effectively a placeholder until a more complete slashing model is designed and implemented. The genesis penalty is measurable – so staker behavior can be observed – but small enough that it has a negligible impact on the staker’s ability to continue serving the network. If the severity of penalties and logic of the slashing protocol changes, it may involve any combination of the following:
 
-1. Larger penalties levied in absolute terms (number of tokens slashed per violation). This will imply a material disincentive to stakers.
-2. Penalties calculated as a percentage of the offender’s stake (i.e. the larger the stake, the greater the number of tokens slashed per violation). This will levy punishments more equitably, regardless of stake size.
-3. Ramped penalties, that increase with each successive violation, potentially resetting in a specified number of periods. This will encourage stakers to avoid repeat offences.
-4. Temporal limitations on penalties, for example capping the total number of tokens slashabe in each period. This addresses the uneven distribution of effective punishment based on the unpredictable frequency with which a given Bob makes requests to an Ursula. Because Ursulas have no control over Bob’s behavior, they must be given a chance to rectify their worker’s incorrect re-encryptions before their stake is wiped out. This is particularly risky if a Bob is making requests at a high cadence or batches their requests. A limit on the penalty size per day addresses this unfair scenario.
-5. Temporary unbonding of Ursula, which forces the staker to forfeit subsidies, work and fees for a specified period. In a simple construction, this punishment would only apply if the Ursula is not servicing any other policies or all Alices consent to the removal of that Ursula from their policies.
-6. In conjunction with (5), delegated tokens being automatically returned to delegators. Delegators must proactively re-delegate to the offending staker after a specified time delay has elapsed.
-7. Delegated tokens suffering the same fate as staker-owned tokens, as described in 1, 2, and 3. This strongly encourages delegators to choose the most reliable staker(s).  
+* Larger penalties levied in absolute terms (number of tokens slashed per violation). This will provide a material disincentive to stakers.
+* Penalties calculated as a percentage of the offender’s stake (i.e. the larger the stake, the greater the number of tokens slashed per violation). This will make punishments and disincentives far more equitable across stakers of diverse sizes.
+* Ramped penalties, that increase with each successive violation, potentially resetting in a specified number of periods. This will encourage stakers to avoid repeat offences and rectify errors quickly.
+* Temporal limitations on penalties, for example capping the total number of tokens slashabe in each period. This addresses a potentially uneven distribution of punishment, despite a near-identical crime, due to the unpredictable frequency with which a given Bob makes requests to an Ursula. A slash limit per period also gives stakers a grace period in which they may rectify their incorrectly re-encrypting Ursula. Since penalties are levied per incorrect re-encryption, a Bob making requests at a high cadence or batching their requests could wipe out a stake before it's possible to manually fix an error – a limit on the maximum penalty size per period mitigates unfair scenarios of this sort.
+* Temporary unbonding of Ursula, which forces the staker to forfeit subsidies, work and fees for a specified period. In a simple construction, this punishment would only apply if the Ursula is not servicing any other policies or all relevant Alices consent to the removal of that Ursula from their sharing policies.
 
 Impact on stake
 ---------------
 
-Regardless of how punitive the slashing protocol ends up being, the algorithm will always attempt to preserve the most efficient configuration of the offender's remaining stake, from the perspective of network health. To that end, the lock-up duration of :ref:`sub-stakes` is taken into account when selecting the portion(s) of stake to slash.
+Regardless of how punitive the slashing protocol ends up being, the algorithm should always attempt to preserve the most efficient configuration of the offender's remaining stake, from the perspective of network health. To that end, the lock-up duration of :ref:`sub-stakes` is taken into account when selecting the portion(s) of stake to slash.
 
 An entire stake consists of:
 
