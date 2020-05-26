@@ -64,7 +64,7 @@ from nucypher.cli.options import (
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.transactions import paint_receipt_summary
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, IPV4_ADDRESS
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,

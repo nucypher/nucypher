@@ -7,13 +7,17 @@ from twisted.internet import reactor, task
 import nucypher
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, WorkLockAgent, PolicyManagerAgent
 from nucypher.blockchain.eth.actors import NucypherTokenActor
-from typing import List
+from typing import List, Union
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.cli.types import NETWORK_PORT
+
+ContractAgents = Union[StakingEscrowAgent, WorkLockAgent, PolicyManagerAgent]
 
 
 class BaseEventMetricsCollector:
 
-    def __init__(self, staker_address, worker_address, contract_agent, event_name, argument_filters, metrics):
+    def __init__(self, staker_address: str, worker_address: str, contract_agent: ContractAgents, event_name: str,
+                 argument_filters: dict, metrics: dict):
         self.event_filter = contract_agent.contract.events[event_name].createFilter(fromBlock='latest',
                                                                                     argument_filters=argument_filters)
         self.metrics = metrics
@@ -22,12 +26,12 @@ class BaseEventMetricsCollector:
         self.worker_address = worker_address
         self.contract_agent = contract_agent
 
-    def collect(self, node_metrics):
+    def collect(self, node_metrics: dict) -> None:
         events = self.event_filter.get_new_entries()
         for event in events:
             self.event_occurred(event, node_metrics)
 
-    def event_occurred(self, event, node_metrics):
+    def event_occurred(self, event, node_metrics: dict) -> None:
         for arg in self.metrics.keys():
             if arg == "block_number":
                 self.metrics["block_number"].set(event["blockNumber"])
@@ -36,39 +40,40 @@ class BaseEventMetricsCollector:
 
 
 class ReStakeEventMetricsCollector(BaseEventMetricsCollector):
-    def __init__(self, staker_address, worker_address, contract_agent, event_name, argument_filters, metrics):
-        super().__init__(staker_address, worker_address, contract_agent, event_name, argument_filters, metrics)
-        self.metrics["reStake"].set(self.contract_agent.is_restaking(staker_address))
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.metrics["reStake"].set(self.contract_agent.is_restaking(self.staker_address))
 
 
 class WindDownEventMetricsCollector(BaseEventMetricsCollector):
-    def __init__(self, staker_address, worker_address, contract_agent, event_name, argument_filters, metrics):
-        super().__init__(staker_address, worker_address, contract_agent, event_name, argument_filters, metrics)
-        self.metrics["windDown"].set(self.contract_agent.is_winding_down(staker_address))
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.metrics["windDown"].set(self.contract_agent.is_winding_down(self.staker_address))
 
 
 class WorkerSetEventMetricsCollector(BaseEventMetricsCollector):
-    def event_occurred(self, event, node_metrics):
+    def event_occurred(self, event, node_metrics: dict) -> None:
         super().event_occurred(event, node_metrics)
         node_metrics["current_worker_is_me_gauge"].set(
             self.contract_agent.get_worker_from_staker(self.staker_address) == self.worker_address)
 
 
 class BidEventMetricsCollector(BaseEventMetricsCollector):
-    def event_occurred(self, event, node_metrics):
+    def event_occurred(self, event, node_metrics: dict) -> None:
         super().event_occurred(event, node_metrics)
         node_metrics["worklock_deposited_eth_gauge"].set(
             self.contract_agent.get_deposited_eth(self.staker_address))
 
 
 class RefundEventMetricsCollector(BaseEventMetricsCollector):
-    def event_occurred(self, event, node_metrics):
+    def event_occurred(self, event, node_metrics: dict) -> None:
         super().event_occurred(event, node_metrics)
         node_metrics["worklock_deposited_eth_gauge"].set(
             self.contract_agent.get_deposited_eth(self.staker_address))
 
 
-def collect_prometheus_metrics(ursula, event_metrics_collectors: List[BaseEventMetricsCollector], node_metrics):
+def collect_prometheus_metrics(ursula, event_metrics_collectors: List[BaseEventMetricsCollector],
+                               node_metrics: dict) -> None:
     base_payload = {'app_version': nucypher.__version__,
                     'teacher_version': str(ursula.TEACHER_VERSION),
                     'host': str(ursula.rest_interface),
@@ -144,9 +149,9 @@ def collect_prometheus_metrics(ursula, event_metrics_collectors: List[BaseEventM
     node_metrics["host_info"].info(base_payload)
 
 
-def get_event_metrics_collectors(ursula, metrics_prefix):
+def get_event_metrics_collectors(ursula, metrics_prefix: str) -> List[BaseEventMetricsCollector]:
     if ursula.federated_only:
-        return {}
+        return []
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=ursula.registry)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=ursula.registry)
@@ -240,7 +245,7 @@ def get_event_metrics_collectors(ursula, metrics_prefix):
     return event_metrics_collectors
 
 
-def initialize_prometheus_exporter(ursula, listen_address, port: int, metrics_prefix) -> None:
+def initialize_prometheus_exporter(ursula, listen_address: str, port: NETWORK_PORT, metrics_prefix: str) -> None:
     from prometheus_client.twisted import MetricsResource
     from twisted.web.resource import Resource
     from twisted.web.server import Site

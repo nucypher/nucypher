@@ -3,6 +3,14 @@ from prometheus_client.utils import floatToGoString
 from twisted.web.resource import Resource
 from prometheus_client.registry import REGISTRY
 import json
+from prometheus_client.core import Timestamp
+
+
+class MetricsEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Timestamp):
+            return obj.__float__()
+        return json.JSONEncoder.default(self, obj)
 
 
 class JSONMetricsResource(Resource):
@@ -19,12 +27,6 @@ class JSONMetricsResource(Resource):
         return self.generate_latest_json()
 
     @staticmethod
-    def get_sample_labels(labels):
-        if not labels:
-            return {}
-        return {k: v for k, v in sorted(labels.items())}
-
-    @staticmethod
     def get_exemplar(sample, metric):
         if not sample.exemplar:
             return {}
@@ -34,12 +36,26 @@ class JSONMetricsResource(Resource):
                 "Metric {} has exemplars, but is not a "
                 "histogram bucket".format(metric.name)
             )
-        exemplar_labels = {k: v for k, v
-                           in sorted(sample.exemplar.labels.items())}
         return {
-            "labels": exemplar_labels,
+            "labels": sample.exemplar.labels,
             "value": floatToGoString(sample.exemplar.value),
             "timestamp": sample.exemplar.timestamp
+        }
+
+    def get_sample(self, sample, metric):
+        return {
+            "sample_name": sample.name,
+            "labels": sample.labels,
+            "value": floatToGoString(sample.value),
+            "timestamp": sample.timestamp,
+            "exemplar": self.get_exemplar(sample, metric)
+        }
+
+    def get_metric(self, metric):
+        return {
+            "samples": [self.get_sample(sample, metric) for sample in metric.samples],
+            "help": metric.documentation,
+            "type": metric.type
         }
 
     def generate_latest_json(self):
@@ -50,15 +66,10 @@ class JSONMetricsResource(Resource):
         output = {}
         for metric in self.registry.collect():
             try:
-                for sample in metric.samples:
-                    output[sample.name] = {
-                        "labels": self.get_sample_labels(sample.labels),
-                        "value": floatToGoString(sample.value),
-                        "timestamp": sample.timestamp,
-                        "exemplar": self.get_exemplar(sample, metric)
-                    }
+                output[metric.name] = self.get_metric(metric)
             except Exception as exception:
                 exception.args = (exception.args or ('',)) + (metric,)
                 raise
 
-        return json.dumps(output).encode('utf-8')
+        json_dump = json.dumps(output, cls=MetricsEncoder).encode('utf-8')
+        return json_dump
