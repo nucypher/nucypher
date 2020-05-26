@@ -3,10 +3,16 @@
 help:
 	@echo "clean-build - remove build artifacts"
 	@echo "clean-pyc - remove Python file artifacts"
-	@echo "lint - check style with flake8"
-	@echo "test - run tests quickly with the default Python"
+	@echo "build-docs - build documentation"
+	@echo "validate-docs - Validate news fragments"
+	@echo "docs - build then validate"
+	@echo "mac-docs - build, validate, the open in default browser (mac only)"
 	@echo "release - package and push a new release"
-	@echo "dist - package"
+	@echo "dist - build wheels and source distribution"
+	@echo "smoke-test - build a source distribution and spawn an active virtual environment"
+	@echo "lock - Regenerate dependency locks"
+	@echo "env - Regenerate locks and create a new development pipenv"
+	@echo "install - Development installation via pipenv"
 
 clean: clean-build clean-pyc
 
@@ -58,7 +64,7 @@ dist: clean
 	python setup.py sdist bdist_wheel
 	ls -l dist
 
-package: clean
+smoke-test: clean
     # Build a source distribution and wheel then build a smoke test virtual env from the wheel
 	python setup.py sdist bdist_wheel
 	python scripts/release/test_package.py
