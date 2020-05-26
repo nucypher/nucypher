@@ -95,33 +95,39 @@ Remote Ethereum Node
 ~~~~~~~~~~~~~~~~~~~~
 
 Nucypher supports remote ethereum providers such as Alchemy, Infura, Public Remote Node, but an external transaction
-signing client (e.g. `clef <External Signing Using Clef>`_ or geth) is needed separate from the broadcasting node.
+signing client (e.g. `clef <Signing with Clef>`_ or geth) is needed separate from the broadcasting node.
 
 
-.. _signing-with-clef:
+External Transaction Signing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-External Signing Using Clef
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-In conjunction with an ethereum provider, an external signer, such as Clef, can be specified and operated
+In conjunction with an ethereum provider, an external transaction signer can be specified and operated
 independently of the provider/broadcaster. This separation allows pre-signed transactions to be sent to an
-external (possibly remote) ethereum node. Clef enables applications to connect to an Ethereum node and send locally signed
-transactions to be broadcasted. This setup could be desirable when interacting with an untrusted Ethereum node. More
-information about Clef can be found `here <https://github.com/ethereum/go-ethereum/tree/master/cmd/clef>`_.
+external (possibly remote) ethereum node and is desirable when interacting with an untrusted Ethereum node.
 
 Some examples:
 
-- Infura/Alchemy/Etc. for broadcasting with clef signer
-- Local geth node for broadcasting with clef signer
-- Remote ethereum node for broadcasting with local geth signer
+- Infura/Alchemy/Etc. for broadcasting with external signer
+- Local geth node for broadcasting with external signer
+- Remote ethereum node for broadcasting with external signer
 
 .. important::
 
     External signing support is an experimental feature and under active development.
 
 
+.. _signing-with-clef:
+
+Signing with Clef
+*****************
+
+Clef enables applications to connect to an Ethereum node and send locally signed
+transactions to be broadcasted. More
+information about Clef can be found `here <https://github.com/ethereum/go-ethereum/tree/master/cmd/clef>`_.
+
+
 Clef Setup
-**********
+++++++++++
 
 We'll quickly walk through setup steps below, but additional in-depth documentation on clef can
 be found in the source repository here https://github.com/ethereum/go-ethereum/tree/master/cmd/clef
@@ -148,7 +154,7 @@ Next, initialize Clef with your chosen password to encrypt the master seed:
 
 
 Running Clef
-************
+++++++++++++
 
 Clef can use hardware wallets (ledger and trezor) over USB, or geth formatted private keys
 by specifying the keystore directory path:
@@ -183,7 +189,7 @@ where ``<CLEF IPC PATH>``:
 .. _clef-rules:
 
 Clef Rules
-**********
+++++++++++
 
 By default, all requests to the clef signer require manual confirmation. To overcome this, Clef allows the
 configuration of rules to automate the confirmation of requests to the signer. In particular, we recommend that users
@@ -229,3 +235,30 @@ to indicate which are the automated rules (in our case, allowing the listing of 
 .. code:: bash
 
     $ clef --keystore <PATH TO KEYSTORE> --chainid <CHAIN ID> --advanced --rules rules.js
+
+Usage
++++++
+
+Specify clef as the ``signer``, either through the CLI (``--signer``) or API, using the URI ``clef://<CLEF IPC PATH>``.
+
+
+Signing with Local Keystore
+***************************
+
+.. important::
+
+    Can only be used for :ref:`Worker (Ursula) <ursula-config-guide>` operations.
+
+Local keystore signing utilizes `eth-account <https://github.com/ethereum/eth-account>`_ to sign ethereum transactions
+using local ethereum keystore files directly. An Ethereum keystore file is an encrypted version of your Ethereum private key
+that is used for signing transactions. By default on ubuntu, the keystore directory path is ``~/.ethereum/keystore``
+(on MacOS for Goerli testnet, ``/Users/<username>/Library/Ethereum/keystore``).
+
+Usage
++++++
+
+Specify local keystore either through the CLI (``--signer``) or API (``nucypher.blockchain.eth.signers.KeystoreSigner``),
+using the URI ``keystore://<PATH TO LOCAL KEYSTORE>``.
+
+The path provided can either be a directory of keystore files or an individual keystore file. In the case of a
+directory, it is scanned and the keystore files contained are processed.

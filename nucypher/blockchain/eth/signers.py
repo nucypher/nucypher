@@ -278,7 +278,7 @@ class ClefSigner(Signer):
 
 
 class KeystoreSigner(Signer):
-    """Local Web3 signer implementation supporting a single account/keystore file"""
+    """Local Web3 signer implementation supporting keystore files"""
 
     URI_SCHEME = 'keystore'
     __keys: Dict[str, dict]
