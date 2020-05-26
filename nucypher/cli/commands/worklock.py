@@ -31,7 +31,7 @@ from nucypher.blockchain.eth.utils import prettify_eth_amount
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.select import select_client_account
 from nucypher.cli.utils import connect_to_blockchain, get_registry, setup_emitter
-from nucypher.cli.config import group_general_config
+from nucypher.cli.config import group_general_config, GroupGeneralConfig
 from nucypher.cli.literature import (
     AVAILABLE_CLAIM_NOTICE,
     BIDDERS_ALREADY_VERIFIED,
@@ -142,7 +142,7 @@ def worklock():
 @worklock.command()
 @group_worklock_options
 @group_general_config
-def status(general_config, worklock_options):
+def status(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions):
     """Show current WorkLock information"""
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     paint_worklock_status(emitter=emitter, registry=registry)
@@ -157,7 +157,11 @@ def status(general_config, worklock_options):
 @option_force
 @option_hw_wallet
 @click.option('--value', help="ETH value of bid", type=DecimalRange(min=0))
-def bid(general_config, worklock_options, force, hw_wallet, value):
+def bid(general_config: GroupGeneralConfig,
+        worklock_options: WorkLockOptions,
+        force: bool,
+        hw_wallet: bool,
+        value: Decimal):
     """Place a bid, or increase an existing bid"""
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
@@ -169,7 +173,6 @@ def bid(general_config, worklock_options, force, hw_wallet, value):
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=worklock_options.provider_uri,
-                                                                poa=worklock_options.poa,
                                                                 network=worklock_options.network,
                                                                 registry=registry,
                                                                 show_eth_balance=True)
@@ -216,7 +219,7 @@ def bid(general_config, worklock_options, force, hw_wallet, value):
 @group_worklock_options
 @option_force
 @option_hw_wallet
-def cancel_bid(general_config, worklock_options, force, hw_wallet):
+def cancel_bid(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions, force: bool, hw_wallet: bool):
     """Cancel your bid and receive your ETH back"""
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
@@ -227,7 +230,6 @@ def cancel_bid(general_config, worklock_options, force, hw_wallet):
     if not worklock_options.bidder_address:  # TODO: Consider bundle this in worklock_options
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=worklock_options.provider_uri,
-                                                                poa=worklock_options.poa,
                                                                 network=worklock_options.network,
                                                                 show_eth_balance=True,
                                                                 registry=registry)
@@ -248,7 +250,7 @@ def cancel_bid(general_config, worklock_options, force, hw_wallet):
 @option_hw_wallet
 @group_worklock_options
 @group_general_config
-def claim(general_config, worklock_options, force, hw_wallet):
+def claim(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions, force: bool, hw_wallet: bool):
     """Claim tokens for your bid, and start staking them"""
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
@@ -258,7 +260,6 @@ def claim(general_config, worklock_options, force, hw_wallet):
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=worklock_options.provider_uri,
-                                                                poa=worklock_options.poa,
                                                                 network=worklock_options.network,
                                                                 registry=registry,
                                                                 show_eth_balance=True)
@@ -299,13 +300,12 @@ def claim(general_config, worklock_options, force, hw_wallet):
 @worklock.command()
 @group_worklock_options
 @group_general_config
-def remaining_work(general_config, worklock_options):
+def remaining_work(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions):
     """Check how much work is pending until you can get all your locked ETH back"""
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=worklock_options.provider_uri,
-                                                                poa=worklock_options.poa,
                                                                 network=worklock_options.network,
                                                                 registry=registry,
                                                                 show_eth_balance=True)
@@ -320,13 +320,12 @@ def remaining_work(general_config, worklock_options):
 @option_hw_wallet
 @group_worklock_options
 @group_general_config
-def refund(general_config, worklock_options, force, hw_wallet):
+def refund(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions, force: bool, hw_wallet: bool):
     """Reclaim ETH unlocked by your work"""
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     if not worklock_options.bidder_address:
         worklock_options.bidder_address = select_client_account(emitter=emitter,
                                                                 provider_uri=worklock_options.provider_uri,
-                                                                poa=worklock_options.poa,
                                                                 network=worklock_options.network,
                                                                 registry=registry,
                                                                 show_eth_balance=True)
@@ -346,7 +345,11 @@ def refund(general_config, worklock_options, force, hw_wallet):
 @option_hw_wallet
 @click.option('--gas-limit', help="Gas limit per each verification transaction", type=click.IntRange(min=60000))
 # TODO: Consider moving to administrator (nucypher-deploy) #1758
-def enable_claiming(general_config, worklock_options, force, hw_wallet, gas_limit):
+def enable_claiming(general_config: GroupGeneralConfig,
+                    worklock_options: WorkLockOptions,
+                    force: bool,
+                    hw_wallet: bool,
+                    gas_limit: int):
     """Ensure correctness of bidding and enable claiming"""
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     if not worklock_options.bidder_address:  # TODO: Consider bundle this in worklock_options
