@@ -32,7 +32,15 @@ Incorrect re-encryptions are detectable by Bob, who can then send a proof to the
 Penalties
 ---------
 
-At network genesis, although violations will be detected, attributed and publicly logged, the actual penalty levied will be of nominal size. For each violation, 2*10^-18 NU tokens will be deleted from the offender’s stake. The maximum number of tokens that can be slashed in a given period is limited by the number of blocks processed on Ethereum (assuming 5760 per day and one slash per block) – approximately 10^-12 NU slashable per period.
+At network genesis, although violations will be detected, attributed and publicly logged, the actual penalty levied will be of nominal size.
+For each violation, :math:`2 \times 10 ^ {-18}` NU tokens will be deleted from the offender’s stake. The theoretical maximum number of tokens
+that can be slashed in a given period is limited by the number of blocks processed on Ethereum per day (~6000) and the number of
+transactions per block (~30 based on transaction gas and current gas limits). This yields a maximum slashable value of:
+
+    .. math::
+
+        &= 2 \times 10 ^ {-18} NU \times 6000 \text{ blocks per period} \times 30 \text{ transactions per block} \\
+        &= 3.6 \times 10 ^ {-13} NU \text{ per period}
 
 This nominal penalty is effectively a placeholder until a more complete slashing model is designed and implemented. The genesis penalty is measurable – so staker behavior can be observed – but small enough that it has a negligible impact on the staker’s ability to continue serving the network. If the severity of penalties and logic of the slashing protocol changes, it may involve any combination of the following:
 
