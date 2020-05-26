@@ -130,7 +130,7 @@ def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_econ
     assert not agent.get_deposited_eth(bidder)    # No more bid
 
 
-def test_post_initialization(click_runner, testerchain, agency_local_registry, token_economics):
+def test_enable_claiming(click_runner, testerchain, agency_local_registry, token_economics):
 
     # Wait until the end of the cancellation period
     testerchain.time_travel(seconds=token_economics.cancellation_window_duration+2)

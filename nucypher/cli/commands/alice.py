@@ -23,14 +23,11 @@ from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
-from nucypher.cli.actions.config import (
+from nucypher.cli.actions.configure import (
     destroy_configuration,
-    get_or_update_configuration,
-    get_provider_process,
-    handle_missing_configuration_file
+    handle_missing_configuration_file, get_or_update_configuration
 )
-from nucypher.cli.actions.select import select_client_account
-from nucypher.cli.utils import make_cli_character, setup_emitter
+from nucypher.cli.actions.select import select_client_account, select_config_file
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
@@ -58,7 +55,9 @@ from nucypher.cli.options import (
     option_teacher_uri
 )
 from nucypher.cli.painting.help import paint_new_installation_help
+from nucypher.cli.processes import get_geth_provider_process
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
+from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, TEMPORARY_DOMAIN
 from nucypher.config.keyring import NucypherKeyring
@@ -101,7 +100,7 @@ class AliceConfigOptions:
         # Managed Ethereum Client
         eth_node = NO_BLOCKCHAIN_CONNECTION
         if geth:
-            eth_node = get_provider_process()
+            eth_node = get_geth_provider_process()
             provider_uri = eth_node.provider_uri(scheme='file')
 
         self.dev = dev
@@ -329,12 +328,15 @@ def init(general_config, full_config_options, config_root):
 def config(general_config, config_file, full_config_options):
     """View and optionally update existing Alice's configuration."""
     emitter = setup_emitter(general_config)
-    configuration_file_location = config_file or AliceConfiguration.default_filepath()
-    emitter.echo(f"Alice Configuration {configuration_file_location} \n {'='*55}")
+    if not config_file:
+        config_file = select_config_file(emitter=emitter,
+                                         checksum_address=full_config_options.pay_with,
+                                         config_class=AliceConfiguration)
+    updates = full_config_options.get_updates()
     get_or_update_configuration(emitter=emitter,
                                 config_class=AliceConfiguration,
-                                filepath=configuration_file_location,
-                                config_options=full_config_options)
+                                filepath=config_file,
+                                updates=updates)
 
 
 @alice.command()

@@ -302,6 +302,7 @@ class KeystoreSigner(Signer):
         self.__read_keystore(path=path)
 
     def __del__(self):
+        # TODO: Might need a finally block or exception context handling
         if self.__keys:
             for account in self.__keys:
                 self.lock_account(account)

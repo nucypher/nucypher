@@ -225,7 +225,7 @@ def test_flags(testerchain, token, escrow_contract):
 
     # Check flag defaults
     wind_down, re_stake, measure_work, snapshots = escrow.functions.getFlags(staker).call()
-    assert (not wind_down, re_stake, not measure_work, snapshots)
+    assert all((not wind_down, re_stake, not measure_work, snapshots))
 
     # There should be no events so far
     assert 0 == len(wind_down_log.get_all_entries())
@@ -240,7 +240,7 @@ def test_flags(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     wind_down, re_stake, measure_work, snapshots = escrow.functions.getFlags(staker).call()
-    assert (not wind_down, re_stake, not measure_work, snapshots)
+    assert all((not wind_down, re_stake, not measure_work, snapshots))
 
     # There should be no events so far
     assert 0 == len(wind_down_log.get_all_entries())
@@ -253,7 +253,7 @@ def test_flags(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     wind_down, re_stake, measure_work, snapshots = escrow.functions.getFlags(staker).call()
-    assert (not wind_down, not re_stake, not measure_work, snapshots)
+    assert all((not wind_down, not re_stake, not measure_work, snapshots))
 
     assert 0 == len(wind_down_log.get_all_entries())
     assert 1 == len(restake_log.get_all_entries())
@@ -269,7 +269,7 @@ def test_flags(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     wind_down, re_stake, measure_work, snapshots = escrow.functions.getFlags(staker).call()
-    assert (not wind_down, not re_stake, not measure_work, not snapshots)
+    assert all((not wind_down, not re_stake, not measure_work, not snapshots))
 
     assert 0 == len(wind_down_log.get_all_entries())
     assert 1 == len(restake_log.get_all_entries())

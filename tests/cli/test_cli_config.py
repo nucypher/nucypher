@@ -1,3 +1,20 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import json
 
 import os
@@ -8,7 +25,8 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration, UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS, \
     TEMPORARY_DOMAIN
-from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH, MOCK_IP_ADDRESS,
+from tests.constants import (FAKE_PASSWORD_CONFIRMED, INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH,
+                             MOCK_IP_ADDRESS,
                              TEST_PROVIDER_URI)
 
 CONFIG_CLASSES = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)
@@ -28,8 +46,11 @@ def test_initialize_via_cli(config_class, custom_filepath, click_runner, monkeyp
                  '--federated-only',
                  '--config-root', custom_filepath)
 
-    user_input = '{password}\n{password}'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
-    result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False, env=ENV)
+    result = click_runner.invoke(nucypher_cli,
+                                 init_args,
+                                 input=FAKE_PASSWORD_CONFIRMED,
+                                 catch_exceptions=False,
+                                 env=ENV)
     assert result.exit_code == 0
 
     # CLI Output

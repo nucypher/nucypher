@@ -29,7 +29,7 @@ from decimal import Decimal
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import to_canonical_address, to_checksum_address
 from twisted.logger import Logger
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 from web3 import Web3
 from web3.exceptions import ValidationError
 
@@ -45,7 +45,11 @@ from nucypher.blockchain.eth.agents import (
     WorkLockAgent
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.decorators import only_me, save_receipt, validate_checksum_address
+from nucypher.blockchain.eth.decorators import (
+    only_me,
+    save_receipt,
+    validate_checksum_address
+)
 from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     BaseContractDeployer,
@@ -858,10 +862,35 @@ class Staker(NucypherTokenActor):
 
     @property
     def current_stake(self) -> NU:
-        """
-        The total number of staked tokens, i.e., tokens locked in the current period.
-        """
+        """The total number of staked tokens, i.e., tokens locked in the current period."""
         return self.locked_tokens(periods=0)
+
+    @property
+    def active_stakes(self) -> Iterable[Stake]:
+        """Returns active stakes for this staker."""
+        stakes = (stake for stake in self.stakes if stake.is_active)
+        return stakes
+
+    @property
+    def sorted_stakes(self) -> List[Stake]:
+        """Returns a list of active stakes sorted by account wallet index."""
+        stakes = sorted(self.active_stakes, key=lambda s: s.address_index_ordering_key)
+        return stakes
+
+    def __filter_divisible_stakes(self, stake: Stake) -> bool:
+        """
+        Helper function for use as a filtration predicate when determining
+        what constitutes a divisible stake amongst a given iterable of stakes.
+        """
+        min_divisible_stake_value = self.economics.minimum_allowed_locked * 2
+        result = stake.value >= min_divisible_stake_value
+        return result
+
+    @property
+    def divisible_stakes(self) -> List[Stake]:
+        """chop chop"""
+        stakes = list(filter(self.__filter_divisible_stakes, self.stakes))
+        return stakes
 
     @only_me
     def divide_stake(self,
@@ -1246,10 +1275,12 @@ class Worker(NucypherTokenActor):
         self.__worker_address = worker_address
 
         # Agency
-        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent,
+                                                      registry=self.registry)  # type: StakingEscrowAgent
 
         # Someday, when we have Workers for tasks other than PRE, this might instead be composed on Ursula.
-        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
+        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent,
+                                                     registry=self.registry)  # type: PolicyManagerAgent
 
         # Stakes
         self.__start_time = WORKER_NOT_RUNNING
@@ -1680,8 +1711,8 @@ class Bidder(NucypherTokenActor):
 
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
         self.log = Logger(f"WorkLockBidder")
-        self.worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=self.registry)
-        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+        self.worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=self.registry)  # type: WorkLockAgent
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)  # type: StakingEscrowAgent
         self.economics = EconomicsFactory.get_economics(registry=self.registry)
 
         if transacting:
@@ -1852,7 +1883,7 @@ class Bidder(NucypherTokenActor):
         if whales:
             raise self.WhaleError(f"Some bidders have bids that are too high: {whales}")
 
-        self.log.debug(f"Starting bidding verification. Next bidder to check: {self.worklock_agent.next_bidder_to_check}")
+        self.log.debug(f"Starting bidding verification. Next bidder to check: {self.worklock_agent.next_bidder_to_check()}")
 
         receipts = dict()
         iteration = 1
@@ -1860,7 +1891,7 @@ class Bidder(NucypherTokenActor):
             self.transacting_power.activate()  # Refresh TransactingPower
             receipt = self.worklock_agent.verify_bidding_correctness(checksum_address=self.checksum_address,
                                                                      gas_limit=gas_limit)
-            self.log.debug(f"Iteration {iteration}. Next bidder to check: {self.worklock_agent.next_bidder_to_check}")
+            self.log.debug(f"Iteration {iteration}. Next bidder to check: {self.worklock_agent.next_bidder_to_check()}")
             receipts[iteration] = receipt
             iteration += 1
         return receipts

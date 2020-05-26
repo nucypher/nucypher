@@ -1,15 +1,31 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import click
 
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import BobInterface
 from nucypher.cli.actions.auth import get_nucypher_password
-from nucypher.cli.actions.config import (
+from nucypher.cli.actions.configure import (
     destroy_configuration,
     get_or_update_configuration,
     handle_missing_configuration_file
 )
-from nucypher.cli.actions.select import select_client_account
-from nucypher.cli.utils import make_cli_character, setup_emitter
+from nucypher.cli.actions.select import select_client_account, select_config_file
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
@@ -32,10 +48,11 @@ from nucypher.cli.options import (
     option_teacher_uri
 )
 from nucypher.cli.painting.help import paint_new_installation_help
+from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import BobConfiguration
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.middleware import RestMiddleware
-from nucypher.config.constants import TEMPORARY_DOMAIN
 
 
 class BobConfigOptions:
@@ -91,15 +108,15 @@ class BobConfigOptions:
                     registry_filepath=self.registry_filepath,
                     network_middleware=self.middleware)
             except FileNotFoundError:
-                return handle_missing_configuration_file(
-                    character_config_class=BobConfiguration,
-                    config_file=config_file)
+                handle_missing_configuration_file(character_config_class=BobConfiguration,
+                                                  config_file=config_file)
 
     def generate_config(self, emitter: StdoutEmitter, config_root: str) -> BobConfiguration:
 
         checksum_address = self.checksum_address
         if not checksum_address and not self.federated_only:
-            checksum_address = select_client_account(emitter=emitter, provider_uri=self.provider_uri)  # TODO: See #1888
+            checksum_address = select_client_account(emitter=emitter,
+                                                     provider_uri=self.provider_uri)  # TODO: See #1888
 
         return BobConfiguration.generate(
             password=get_nucypher_password(confirm=True),
@@ -224,13 +241,15 @@ def run(general_config, character_options, config_file, controller_port, dry_run
 def config(general_config, config_options, config_file):
     """View and optionally update existing Bob's configuration."""
     emitter = setup_emitter(general_config)
-    bob_config = config_options.create_config(emitter, config_file)
-    filepath = config_file or bob_config.config_file_location
-    emitter.echo(f"Bob Configuration {filepath} \n {'='*55}")
+    if not config_file:
+        config_file = select_config_file(emitter=emitter,
+                                         checksum_address=config_options.checksum_address,
+                                         config_class=BobConfiguration)
+    updates = config_options.get_updates()
     get_or_update_configuration(emitter=emitter,
                                 config_class=BobConfiguration,
-                                filepath=filepath,
-                                config_options=config_options)
+                                filepath=config_file,
+                                updates=updates)
 
 
 @bob.command()

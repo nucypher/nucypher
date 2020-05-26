@@ -1,4 +1,13 @@
 [run]
 omit =
     setup.py,
-    *__init__.py
+    *__init__.py,
+    tests
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self.debug:
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:

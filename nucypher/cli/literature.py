@@ -1,19 +1,18 @@
 """
-This file is part of nucypher.
+ This file is part of nucypher.
 
-nucypher is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
 
-nucypher is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU Affero General Public License
-along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
-
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 """Text blobs that are implemented as part of nucypher CLI emitter messages."""
@@ -55,7 +54,7 @@ CONFIRM_STAGED_STAKE = """
 * Ursula Node Operator Notice *
 -------------------------------
 
-By agreeing to stake {str(value)} ({str(value.to_nunits())} NuNits):
+By agreeing to stake {tokens} ({nunits} NuNits):
 
 - Staked tokens will be locked for the stake duration.
 
@@ -229,6 +228,11 @@ COLLECTING_PREALLOCATION_REWARD = 'Collecting {unlocked_tokens} from Preallocati
 #
 # Configuration
 #
+
+MISSING_CONFIGURATION_FILE = """No {name} configuration file found. 'To create a new persistent {name} run:
+nucypher {init_command}
+"""
+
 
 SELECT_NETWORK = "Select Network"
 
@@ -487,8 +491,11 @@ COMPLETED_BID_VERIFICATION = "Bidding has been checked\n"
 BIDS_VALID_NO_FORCE_REFUND_INDICATED = "All bids are correct, force refund is not needed\n"
 
 CONFIRM_BID_VERIFICATION = """
-Confirm verifying of bidding from {bidder_address} using {gas_limit} gas per each transaction?
+Confirm verification of bidding from {bidder_address} using {gas_limit} gas 
+for {bidders_per_transaction} bidders per each transaction?
 """
+
+VERIFICATION_ESTIMATES = "Using {gas_limit} gas for {bidders_per_transaction} bidders per each transaction\n"
 
 WHALE_WARNING = "At least {number} bidders got a force refund\n"
 

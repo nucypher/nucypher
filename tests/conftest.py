@@ -69,6 +69,14 @@ def __very_pretty_and_insecure_scrypt_do_not_use():
 ############################################
 
 
+@pytest.fixture(scope='module')
+def monkeymodule():
+    from _pytest.monkeypatch import MonkeyPatch
+    mpatch = MonkeyPatch()
+    yield mpatch
+    mpatch.undo()
+
+
 #
 # Pytest configuration
 #

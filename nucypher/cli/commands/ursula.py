@@ -1,39 +1,34 @@
 """
-This file is part of nucypher.
+ This file is part of nucypher.
 
-nucypher is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
 
-nucypher is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU Affero General Public License
-along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
-
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
 import click
 import os
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
-from nucypher.cli.actions.config import (
+from nucypher.cli.actions.configure import (
     destroy_configuration,
-    get_or_update_configuration,
-    get_provider_process,
-    handle_missing_configuration_file
+    handle_missing_configuration_file, get_or_update_configuration
 )
-from nucypher.cli.actions.network import determine_external_ip_address
 from nucypher.cli.actions.select import select_client_account, select_config_file, select_network
-from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
@@ -64,7 +59,9 @@ from nucypher.cli.options import (
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.transactions import paint_receipt_summary
+from nucypher.cli.processes import get_geth_provider_process
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT
+from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
@@ -72,6 +69,7 @@ from nucypher.config.constants import (
     TEMPORARY_DOMAIN
 )
 from nucypher.config.keyring import NucypherKeyring
+from nucypher.utilities.networking import determine_external_ip_address
 
 
 class UrsulaConfigOptions:
@@ -106,7 +104,7 @@ class UrsulaConfigOptions:
         eth_node = NO_BLOCKCHAIN_CONNECTION
         provider_uri = provider_uri
         if geth:
-            eth_node = get_provider_process()
+            eth_node = get_geth_provider_process()
             provider_uri = eth_node.provider_uri(scheme='file')
 
         self.eth_node = eth_node
@@ -407,10 +405,11 @@ def config(general_config, config_options, config_file):
                                          checksum_address=config_options.worker_address,
                                          config_class=UrsulaConfiguration)
     emitter.echo(f"Ursula Configuration {config_file} \n {'='*55}")
+    updates = config_options.get_updates()
     get_or_update_configuration(emitter=emitter,
                                 config_class=UrsulaConfiguration,
                                 filepath=config_file,
-                                config_options=config_options)
+                                updates=updates)
 
 
 @ursula.command(name='commit-next')

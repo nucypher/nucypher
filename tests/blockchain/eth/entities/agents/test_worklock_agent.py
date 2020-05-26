@@ -1,3 +1,20 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import pytest
 from eth_tester.exceptions import TransactionFailed
 
@@ -128,9 +145,10 @@ def test_force_refund(testerchain, agency, token_economics, test_registry):
 
 
 def test_verify_correctness(testerchain, agency, token_economics, test_registry):
-    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)  # type: WorkLockAgent
     caller = testerchain.client.accounts[0]
     assert not agent.bidders_checked()
+    assert agent.estimate_verifying_correctness(gas_limit=100000) == 10
     receipt = agent.verify_bidding_correctness(checksum_address=caller, gas_limit=100000)
     assert receipt['status'] == 1
     assert agent.bidders_checked()

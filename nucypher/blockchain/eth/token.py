@@ -212,8 +212,33 @@ class Stake:
         self.receipt = NO_STAKING_RECEIPT
 
     def __repr__(self) -> str:
-        r = f'Stake(index={self.index}, value={self.value}, end_period={self.final_locked_period})'
+        r = f'Stake(' \
+            f'index={self.index}, ' \
+            f'value={self.value}, ' \
+            f'end_period={self.final_locked_period}, ' \
+            f'address={self.staker_address[:6]}, ' \
+            f'escrow={self.staking_agent.contract_address[:6]}' \
+            f')'
         return r
+
+    def __eq__(self, other: 'Stake') -> bool:
+        this_stake = (self.index,
+                      self.value,
+                      self.first_locked_period,
+                      self.final_locked_period,
+                      self.staker_address,
+                      self.staking_agent.contract_address)
+        try:
+            that_stake = (other.index,
+                          other.value,
+                          other.first_locked_period,
+                          other.final_locked_period,
+                          other.staker_address,
+                          other.staking_agent.contract_address)
+        except AttributeError:
+            return False
+
+        return this_stake == that_stake
 
     @property
     def address_index_ordering_key(self):
@@ -525,12 +550,9 @@ class WorkTracker:
         self.__uptime_period = self.staking_agent.get_current_period()
         self.__current_period = self.__uptime_period
 
-        d = self._tracking_task.start(interval=self._refresh_rate)
+        self.log.info(f"START WORK TRACKING")
+        d = self._tracking_task.start(interval=self._refresh_rate, now=act_now)
         d.addErrback(self.handle_working_errors)
-        self.log.info(f"STARTED WORK TRACKING")
-
-        if act_now:
-            self._do_work()
 
     def _crash_gracefully(self, failure=None) -> None:
         """
@@ -563,7 +585,7 @@ class WorkTracker:
         return r
 
     def _do_work(self) -> None:
-         # TODO: #1515 Shut down at end of terminal stake
+        # TODO: #1515 Shut down at end of terminal stake
 
         # Update on-chain status
         self.log.info(f"Checking for new period. Current period is {self.__current_period}")

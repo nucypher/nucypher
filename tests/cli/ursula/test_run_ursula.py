@@ -24,15 +24,21 @@ import pytest_twisted as pt
 import time
 from twisted.internet import threads
 
+from nucypher import utilities
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.characters.base import Learner
-from nucypher.cli import actions
-from nucypher.cli.actions.network import UnknownIPAddress
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
 from nucypher.network.nodes import Teacher
-from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, TEST_PROVIDER_URI)
+from nucypher.utilities.networking import UnknownIPAddress
+from tests.constants import (
+    FAKE_PASSWORD_CONFIRMED,
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_IP_ADDRESS,
+    TEST_PROVIDER_URI,
+    YES
+)
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, start_pytest_ursula_services
 
 
@@ -42,6 +48,31 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
     result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
     assert result.exit_code != 0
     assert "No Ursula configurations found.  run 'nucypher ursula init' then try again." in result.output
+
+
+def test_ursula_rest_host_determination(click_runner, mocker):
+
+    # Patch the get_external_ip call
+    mocker.patch.object(utilities.networking, 'get_external_ip_from_centralized_source', return_value=MOCK_IP_ADDRESS)
+    mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', return_value=None)
+
+    args = ('ursula', 'init', '--federated-only', '--network', TEMPORARY_DOMAIN)
+    user_input = YES + FAKE_PASSWORD_CONFIRMED
+    result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False, input=user_input)
+    assert result.exit_code == 0
+    assert MOCK_IP_ADDRESS in result.output
+
+    args = ('ursula', 'init', '--federated-only', '--network', TEMPORARY_DOMAIN, '--force')
+    result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False, input=FAKE_PASSWORD_CONFIRMED)
+    assert result.exit_code == 0
+    assert MOCK_IP_ADDRESS in result.output
+
+    # Patch get_external_ip call to error output
+    mocker.patch.object(utilities.networking, 'get_external_ip_from_centralized_source', side_effect=UnknownIPAddress)
+    args = ('ursula', 'init', '--federated-only', '--network', TEMPORARY_DOMAIN, '--force')
+    result = click_runner.invoke(nucypher_cli, args, catch_exceptions=True, input=FAKE_PASSWORD_CONFIRMED)
+    assert result.exit_code == 1
+    assert isinstance(result.exception, UnknownIPAddress)
 
 
 @pt.inlineCallbacks
@@ -180,50 +211,3 @@ def test_persistent_node_storage_integration(click_runner,
                                              input=user_input,
                                              env=envvars)
     assert result.exit_code == 0
-
-
-def test_ursula_rest_host_determination(click_runner, mocker):
-
-    # Patch the get_external_ip call
-    mocker.patch.object(actions.network, 'get_external_ip_from_centralized_source', return_value='192.0.2.0')
-    mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', return_value=None)
-
-    args = ('ursula', 'init',
-            '--federated-only',
-            '--network', TEMPORARY_DOMAIN,
-            )
-
-    user_input = f'Y\n{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}'
-
-    result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False,
-                                 input=user_input)
-
-    assert result.exit_code == 0
-    assert '(192.0.2.0)' in result.output
-
-    args = ('ursula', 'init',
-            '--federated-only',
-            '--network', TEMPORARY_DOMAIN,
-            '--force'
-            )
-
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}\n'
-
-    result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False,
-                                 input=user_input)
-
-    assert result.exit_code == 0
-    assert '192.0.2.0' in result.output
-
-    # Patch get_external_ip call to error output
-    mocker.patch.object(actions.network, 'get_external_ip_from_centralized_source', side_effect=UnknownIPAddress)
-
-    args = ('ursula', 'init',
-            '--federated-only',
-            '--network', TEMPORARY_DOMAIN,
-            '--force')
-
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}\n'
-    result = click_runner.invoke(nucypher_cli, args, catch_exceptions=True, input=user_input)
-    assert result.exit_code == 1
-    assert isinstance(result.exception, UnknownIPAddress)

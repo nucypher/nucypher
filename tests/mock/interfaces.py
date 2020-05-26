@@ -1,4 +1,22 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import json
+from contextlib import contextmanager
 
 from typing import Union
 
@@ -11,7 +29,8 @@ from tests.utils.blockchain import TesterBlockchain
 from tests.constants import MOCK_PROVIDER_URI
 
 
-def make_mock_registry_source_manager(blockchain, test_registry, mock_backend: bool = False):
+@contextmanager
+def mock_registry_source_manager(blockchain, test_registry, mock_backend: bool = False):
 
     class MockRegistrySource(CanonicalRegistrySource):
         name = "Mock Registry Source"
@@ -42,8 +61,13 @@ def make_mock_registry_source_manager(blockchain, test_registry, mock_backend: b
             raw_registry_data = json.dumps(registry_data)
             return raw_registry_data
 
-    RegistrySourceManager._FALLBACK_CHAIN = (MockRegistrySource,)
-    NetworksInventory.NETWORKS = (TEMPORARY_DOMAIN,)
+    real_inventory = NetworksInventory.NETWORKS
+    try:
+        RegistrySourceManager._FALLBACK_CHAIN = (MockRegistrySource,)
+        NetworksInventory.NETWORKS = (TEMPORARY_DOMAIN,)
+        yield real_inventory
+    finally:
+        NetworksInventory.NETWORKS = real_inventory
 
 
 class MockBlockchain(TesterBlockchain):

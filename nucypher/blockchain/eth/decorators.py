@@ -1,9 +1,40 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import eth_utils
 import functools
 import inspect
+from constant_sorrow.constants import (
+    CONTRACT_ATTRIBUTE,
+    CONTRACT_CALL,
+    TRANSACTION,
+    UNKNOWN_CONTRACT_INTERFACE
+)
 from datetime import datetime
 from twisted.logger import Logger
-from typing import Callable
+from typing import Callable, Optional, Union
+
+ContractInterfaces = Union[
+    CONTRACT_CALL,
+    TRANSACTION,
+    CONTRACT_ATTRIBUTE,
+    UNKNOWN_CONTRACT_INTERFACE
+]
+
 
 __VERIFIED_ADDRESSES = set()
 
@@ -73,8 +104,9 @@ def validate_checksum_address(func: Callable) -> Callable:
     return wrapped
 
 
-def only_me(func):
+def only_me(func: Callable) -> Callable:
     """Decorator to enforce invocation of permissioned actor methods"""
+    @functools.wraps(func)
     def wrapped(actor=None, *args, **kwargs):
         if not actor.is_me:
             raise actor.StakerError("You are not {}".format(actor.__class.__.__name__))
@@ -82,10 +114,40 @@ def only_me(func):
     return wrapped
 
 
-def save_receipt(actor_method):
+def save_receipt(actor_method) -> Callable:
     """Decorator to save the receipts of transmitted transactions from actor methods"""
-    def wrapped(self, *args, **kwargs):
+    @functools.wraps(actor_method)
+    def wrapped(self, *args, **kwargs) -> dict:
         receipt = actor_method(self, *args, **kwargs)
         self._saved_receipts.append((datetime.utcnow(), receipt))
         return receipt
     return wrapped
+
+
+#
+# Contract Function Handling
+#
+
+
+# TODO: Auto disable collection in prod (detect test package?)
+COLLECT_CONTRACT_API = True
+
+
+def contract_api(interface: Optional[ContractInterfaces] = UNKNOWN_CONTRACT_INTERFACE) -> Callable:
+    """Decorator factory for contract API markers"""
+
+    def decorator(agent_method: Callable) -> Callable:
+        """
+        Marks an agent method as containing contract interactions (transaction or call)
+        and validates outbound checksum addresses for EIP-55 compliance.
+
+        If `COLLECT_CONTRACT_API` is True when running tests,
+        all marked methods will be collected for automatic mocking
+        and integration with pytest fixtures.
+        """
+        if COLLECT_CONTRACT_API:
+            agent_method.contract_api = interface
+        agent_method = validate_checksum_address(func=agent_method)
+        return agent_method
+
+    return decorator

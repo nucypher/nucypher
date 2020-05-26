@@ -1,3 +1,20 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import datetime
 import maya
 import os
@@ -59,6 +76,9 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_
                                  n=n,
                                  expiration=policy_end_datetime,
                                  timeout=.1)
+
+    # Go!
+    federated_alice.start_learning_loop()
 
     # Try a first time, failing because no known nodes are up for Alice to even try to learn from.
     with pytest.raises(down_node.NotEnoughNodes):

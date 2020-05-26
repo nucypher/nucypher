@@ -1,19 +1,18 @@
 """
-This file is part of nucypher.
+ This file is part of nucypher.
 
-nucypher is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
 
-nucypher is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU Affero General Public License
-along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
-
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
@@ -22,17 +21,16 @@ import glob
 import click
 import os
 from tabulate import tabulate
-from typing import Tuple
+from typing import Optional, Tuple, Type
 from web3.main import Web3
 
-from nucypher.blockchain.eth.actors import Staker, Wallet
+from nucypher.blockchain.eth.actors import StakeHolder, Staker, Wallet
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, IndividualAllocationRegistry
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.actions.config import extract_checksum_address_from_filepath
 from nucypher.cli.literature import (
     GENERIC_SELECT_ACCOUNT,
     IS_THIS_CORRECT,
@@ -48,9 +46,17 @@ from nucypher.cli.literature import (
 )
 from nucypher.cli.painting.staking import paint_stakes
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ADDRESS
+from nucypher.config.node import CharacterConfiguration
 
 
-def select_stake(stakeholder, emitter, divisible: bool = False, staker_address: str = None) -> Stake:
+def select_stake(stakeholder: StakeHolder,
+                 emitter: StdoutEmitter,
+                 divisible: bool = False,
+                 staker_address: str = None
+                 ) -> Stake:
+    """Interactively select a stake or abort if there are no eligible stakes."""
+
+    # Precondition: Active Stakes
     if staker_address:
         staker = stakeholder.get_staker(checksum_address=staker_address)
         stakes = staker.stakes
@@ -60,13 +66,16 @@ def select_stake(stakeholder, emitter, divisible: bool = False, staker_address: 
         emitter.echo(NO_STAKES_FOUND, color='red')
         raise click.Abort
 
-    stakes = sorted((stake for stake in stakes if stake.is_active), key=lambda s: s.address_index_ordering_key)
+    # Precondition: Divisible Stakes
+    stakes = stakeholder.sorted_stakes
     if divisible:
         emitter.echo(ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE, color='yellow')
-        stakes = list(filter(lambda s: bool(s.value >= stakeholder.economics.minimum_allowed_locked*2), stakes))  # TODO: Move to method on Stake
+        stakes = stakeholder.divisible_stakes
         if not stakes:
             emitter.echo(NO_DIVISIBLE_STAKES, color='red')
             raise click.Abort
+
+    # Interactive Selection
     enumerated_stakes = dict(enumerate(stakes))
     paint_stakes(stakeholder=stakeholder, emitter=emitter, staker_address=staker_address)
     choice = click.prompt(SELECT_STAKE, type=click.IntRange(min=0, max=len(enumerated_stakes)-1))
@@ -76,6 +85,7 @@ def select_stake(stakeholder, emitter, divisible: bool = False, staker_address: 
 
 def select_client_account(emitter,
                           provider_uri: str = None,
+                          signer: Signer = None,
                           signer_uri: str = None,
                           wallet: Wallet = None,
                           prompt: str = None,
@@ -88,24 +98,38 @@ def select_client_account(emitter,
                           poa: bool = None
                           ) -> str:
     """
+    Interactively select an ethereum wallet account from a table of nucypher account metadata.
+
     Note: Showing ETH and/or NU balances, causes an eager blockchain connection.
     """
 
+    if wallet and (provider_uri or signer_uri or signer):
+        raise ValueError("If a wallet is provided, don't provide a signer, provider URI, or signer URI.")
+
     # We use Wallet internally as an account management abstraction
     if not wallet:
+
+        if signer and signer_uri:
+            raise ValueError('Pass either signer or signer_uri but not both.')
+
         if not provider_uri and not signer_uri:
             raise ValueError("At least a provider URI or signer URI is necessary to select an account")
-        # Lazy connect the blockchain interface
-        if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-            BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, emitter=emitter)
-        signer = Signer.from_signer_uri(signer_uri) if signer_uri else None
+
+        if provider_uri:
+            # Lazy connect the blockchain interface
+            if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
+                BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, emitter=emitter)
+
+        if signer_uri:
+            signer = Signer.from_signer_uri(signer_uri)
+
         wallet = Wallet(provider_uri=provider_uri, signer=signer)
-    elif provider_uri or signer_uri:
-        raise ValueError("If you input a wallet, don't pass a provider URI or signer URI too")
 
     # Display accounts info
     if show_nu_balance or show_staking:  # Lazy registry fetching
         if not registry:
+            if not network:
+                raise ValueError("Pass network name or registry; Got neither.")
             registry = InMemoryContractRegistry.from_latest_publication(network=network)
 
     wallet_accounts = wallet.accounts
@@ -150,10 +174,10 @@ def select_client_account(emitter,
     return chosen_account
 
 
-def handle_client_account_for_staking(emitter: StdoutEmitter,
-                                      stakeholder,
-                                      staking_address: str,
-                                      individual_allocation: IndividualAllocationRegistry,
+def select_client_account_for_staking(emitter: StdoutEmitter,
+                                      stakeholder: StakeHolder,
+                                      staking_address: Optional[str],
+                                      individual_allocation: Optional[IndividualAllocationRegistry],
                                       force: bool,
                                       ) -> Tuple[str, str]:
     """
@@ -187,6 +211,7 @@ def handle_client_account_for_staking(emitter: StdoutEmitter,
 
 
 def select_network(emitter: StdoutEmitter) -> str:
+    """Interactively select a network from nucypher networks inventory list"""
     headers = ["Network"]
     rows = [[n] for n in NetworksInventory.NETWORKS]
     emitter.echo(tabulate(rows, headers=headers, showindex='always'))
@@ -196,10 +221,27 @@ def select_network(emitter: StdoutEmitter) -> str:
 
 
 def select_config_file(emitter: StdoutEmitter,
-                       config_class,
+                       config_class: Type[CharacterConfiguration],
                        config_root: str = None,
                        checksum_address: str = None,
                        ) -> str:
+    """
+    Selects a nucypher character configuration file from the disk automatically or interactively.
+
+    Behaviour
+    ~~~~~~~~~
+
+    - If checksum address is supplied by parameter or worker address env var - confirm there is a corresponding
+      file on the disk or raise ValueError.
+
+    - If there is only one configuration file for the character, automatically return its filepath.
+
+    - If there are multiple character configurations on the disk in the same configuration root,
+      use interactive selection.
+
+    - Aborts if there are no configurations associated with the supplied character configuration class.
+
+    """
 
     #
     # Scrape Disk Configurations
@@ -222,7 +264,7 @@ def select_config_file(emitter: StdoutEmitter,
         # Manual
         #
 
-        parsed_addresses = {extract_checksum_address_from_filepath(fp): fp for fp in config_files}
+        parsed_addresses = {config_class.checksum_address_from_filepath(fp): fp for fp in config_files}
         try:
             config_file = parsed_addresses[checksum_address]
         except KeyError:
@@ -234,7 +276,7 @@ def select_config_file(emitter: StdoutEmitter,
         # Interactive
         #
 
-        parsed_addresses = tuple([extract_checksum_address_from_filepath(fp)] for fp in config_files)
+        parsed_addresses = tuple([config_class.checksum_address_from_filepath(fp)] for fp in config_files)
 
         # Display account info
         headers = ['Account']

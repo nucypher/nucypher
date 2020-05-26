@@ -33,7 +33,8 @@ from nucypher.blockchain.eth.token import NU, Stake, StakeList
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_INDIVIDUAL_ALLOCATION_FILEPATH, MOCK_IP_ADDRESS,
+from tests.constants import (FAKE_PASSWORD_CONFIRMED, INSECURE_DEVELOPMENT_PASSWORD,
+                             MOCK_INDIVIDUAL_ALLOCATION_FILEPATH, MOCK_IP_ADDRESS,
                              ONE_YEAR_IN_SECONDS,
                              TEST_PROVIDER_URI)
 from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT, select_test_port
@@ -426,10 +427,9 @@ def test_ursula_init(click_runner,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', MOCK_URSULA_STARTING_PORT)
 
-    user_input = '{password}\n{password}'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
     result = click_runner.invoke(nucypher_cli,
                                  init_args,
-                                 input=user_input,
+                                 input=FAKE_PASSWORD_CONFIRMED,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 

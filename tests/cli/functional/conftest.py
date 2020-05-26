@@ -16,18 +16,108 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import click
 import os
 import pytest
 from eth_account import Account
+from eth_account.account import Account
 
 from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.agents import ContractAgency
+from nucypher.blockchain.eth.agents import (
+    AdjudicatorAgent,
+    ContractAgency,
+    MultiSigAgent,
+    NucypherTokenAgent,
+    PolicyManagerAgent,
+    StakingEscrowAgent,
+    WorkLockAgent
+)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.config.characters import UrsulaConfiguration
+from tests.constants import (
+    KEYFILE_NAME_TEMPLATE,
+    MOCK_KEYSTORE_PATH,
+    MOCK_PROVIDER_URI,
+    NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS
+)
 from tests.fixtures import _make_testerchain, make_token_economics
-from tests.mock.agents import FAKE_RECEIPT, MockContractAgency
-from tests.mock.interfaces import MockBlockchain, make_mock_registry_source_manager
+from tests.mock.agents import MockContractAgency, MockContractAgent
+from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
+from tests.utils.config import (
+    make_alice_test_configuration,
+    make_bob_test_configuration,
+    make_ursula_test_configuration
+)
+from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_contract_agency(monkeypatch, module_mocker, token_economics):
+    monkeypatch.setattr(ContractAgency, 'get_agent', MockContractAgency.get_agent)
+    module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=token_economics)
+    mock_agency = MockContractAgency()
+    yield mock_agency
+    mock_agency.reset()
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_token_agent(mock_testerchain, token_economics, mock_contract_agency):
+    return mock_contract_agency.get_agent(NucypherTokenAgent)
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_staking_agent(mock_testerchain, token_economics, mock_contract_agency):
+    mock_agent = mock_contract_agency.get_agent(StakingEscrowAgent)
+    return mock_agent
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_adjudicator_agent(mock_testerchain, token_economics, mock_contract_agency):
+    mock_agent = mock_contract_agency.get_agent(AdjudicatorAgent)
+    return mock_agent
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_policy_manager_agent(mock_testerchain, token_economics, mock_contract_agency):
+    mock_agent = mock_contract_agency.get_agent(PolicyManagerAgent)
+    return mock_agent
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_multisig_agent(mock_testerchain, token_economics, mock_contract_agency):
+    mock_agent = mock_contract_agency.get_agent(MultiSigAgent)
+    return mock_agent
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_worklock_agent(mock_testerchain, token_economics, mock_contract_agency):
+    economics = token_economics
+
+    mock_agent = mock_contract_agency.get_agent(WorkLockAgent)
+
+    # Customize the mock agent
+    mock_agent.boosting_refund = economics.worklock_boosting_refund_rate
+    mock_agent.slowing_refund = 100
+    mock_agent.start_bidding_date = economics.bidding_start_date
+    mock_agent.end_bidding_date = economics.bidding_end_date
+    mock_agent.end_cancellation_date = economics.cancellation_end_date
+    mock_agent.minimum_allowed_bid = economics.worklock_min_allowed_bid
+    mock_agent.lot_value = economics.worklock_supply
+
+    yield mock_agent
+    mock_agent.reset()
+
+
+@pytest.fixture(scope='function')
+def mock_click_prompt(mocker):
+    return mocker.patch.object(click, 'prompt')
+
+
+@pytest.fixture(scope='function')
+def mock_click_confirm(mocker):
+    return mocker.patch.object(click, 'confirm')
 
 
 @pytest.fixture(scope='module', autouse=True)
@@ -46,7 +136,7 @@ def token_economics(mock_testerchain):
 @pytest.fixture(scope='module', autouse=True)
 def mock_interface(module_mocker):
     mock_transaction_sender = module_mocker.patch.object(BlockchainInterface, 'sign_and_broadcast_transaction')
-    mock_transaction_sender.return_value = FAKE_RECEIPT
+    mock_transaction_sender.return_value = MockContractAgent.FAKE_RECEIPT
     return mock_transaction_sender
 
 
@@ -58,9 +148,10 @@ def test_registry():
 
 @pytest.fixture(scope='module')
 def test_registry_source_manager(mock_testerchain, test_registry):
-    return make_mock_registry_source_manager(blockchain=mock_testerchain,
-                                             test_registry=test_registry,
-                                             mock_backend=True)
+    with mock_registry_source_manager(blockchain=mock_testerchain,
+                                      test_registry=test_registry,
+                                      mock_backend=True) as real_inventory:
+        yield real_inventory
 
 
 @pytest.fixture(scope='module', autouse=True)
@@ -81,3 +172,94 @@ def mock_contract_agency(module_mocker, token_economics):
     # Restore the monkey patching
     ContractAgency.get_agent = get_agent
     ContractAgency.get_agent_by_contract_name = get_agent_by_name
+
+
+@pytest.fixture(scope='module')
+def mock_accounts():
+    accounts = dict()
+    for i in range(NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS):
+        account = Account.create()
+        filename = KEYFILE_NAME_TEMPLATE.format(month=i+1, address=account.address)
+        accounts[filename] = account
+    return accounts
+
+
+@pytest.fixture(scope='module')
+def mock_account(mock_accounts):
+    return list(mock_accounts.items())[0][1]
+
+
+@pytest.fixture(scope='module')
+def worker_account(mock_accounts, mock_testerchain):
+    account = list(mock_accounts.values())[0]
+    return account
+
+
+@pytest.fixture(scope='module')
+def worker_address(worker_account):
+    address = worker_account.address
+    return address
+
+
+@pytest.fixture(scope='module')
+def custom_config_filepath(custom_filepath):
+    filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
+    return filepath
+
+
+@pytest.fixture(scope='function')
+def patch_keystore(mock_accounts, monkeypatch, mocker):
+    def successful_mock_keyfile_reader(_keystore, path):
+
+        # Ensure the absolute path is passed to the keyfile reader
+        assert MOCK_KEYSTORE_PATH in path
+        full_path = path
+        del path
+
+        for filename, account in mock_accounts.items():  # Walk the mock filesystem
+            if filename in full_path:
+                break
+        else:
+            raise FileNotFoundError(f"No such file {full_path}")
+        return account.address, dict(version=3, address=account.address)
+
+    mocker.patch('os.listdir', return_value=list(mock_accounts.keys()))
+    monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keystore', successful_mock_keyfile_reader)
+    yield
+    monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keystore')
+
+
+@pytest.fixture(scope='function')
+def mock_keystore(mocker):
+    mocker.patch.object(KeystoreSigner, '_KeystoreSigner__read_keystore')
+
+
+@pytest.fixture(scope="module")
+def alice_blockchain_test_config(mock_testerchain, test_registry):
+    config = make_alice_test_configuration(federated=False,
+                                           provider_uri=MOCK_PROVIDER_URI,
+                                           test_registry=test_registry,
+                                           checksum_address=mock_testerchain.alice_account)
+    yield config
+    config.cleanup()
+
+
+@pytest.fixture(scope="module")
+def bob_blockchain_test_config(mock_testerchain, test_registry):
+    config = make_bob_test_configuration(federated=False,
+                                         provider_uri=MOCK_PROVIDER_URI,
+                                         test_registry=test_registry,
+                                         checksum_address=mock_testerchain.bob_account)
+    yield config
+    config.cleanup()
+
+
+@pytest.fixture(scope="module")
+def ursula_decentralized_test_config(mock_testerchain, test_registry):
+    config = make_ursula_test_configuration(federated=False,
+                                            provider_uri=MOCK_PROVIDER_URI,
+                                            test_registry=test_registry,
+                                            rest_port=MOCK_URSULA_STARTING_PORT,
+                                            checksum_address=mock_testerchain.ursula_account(index=0))
+    yield config
+    config.cleanup()

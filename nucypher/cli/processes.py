@@ -1,16 +1,19 @@
 
 """
-This file is part of nucypher.
-nucypher is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-nucypher is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-You should have received a copy of the GNU Affero General Public License
-along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
@@ -23,6 +26,8 @@ from twisted.internet.protocol import connectionDone
 from twisted.internet.stdio import StandardIO
 from twisted.logger import Logger
 from twisted.protocols.basic import LineReceiver
+
+from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
 
 
 class UrsulaCommandProtocol(LineReceiver):
@@ -227,3 +232,12 @@ class JSONRPCLineReceiver(LineReceiver):
         line = line.strip(self.delimiter)
         if line:
             self.rpc_controller.handle_request(control_request=line)
+
+
+def get_geth_provider_process(start_now: bool = False) -> NuCypherGethGoerliProcess:
+    """Stage integrated ethereum node process"""
+    # TODO: Support domains and non-geth clients
+    process = NuCypherGethGoerliProcess()
+    if start_now:
+        process.start()
+    return process

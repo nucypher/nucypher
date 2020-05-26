@@ -1,3 +1,20 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import json
 
 import os
@@ -100,9 +117,6 @@ class BaseConfiguration(ABC):
         self.filepath = filepath
 
         super().__init__()
-
-    def __eq__(self, other):
-        return bool(self.static_payload() == other.static_payload())
 
     @abstractmethod
     def static_payload(self) -> dict:
@@ -250,7 +264,7 @@ class BaseConfiguration(ABC):
                                  f"Expected version {cls.VERSION}; Got version {version}")
         return deserialized_payload
 
-    def update(self, filepath: str = None, modifier: str = None, **updates):
+    def update(self, filepath: str = None, modifier: str = None, **updates) -> None:
         for field, value in updates.items():
             try:
                 getattr(self, field)
