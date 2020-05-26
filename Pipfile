@@ -49,7 +49,7 @@ pyflakes = "*"
 bandit = "*"
 mypy = "*"
 coverage = "*"
-# Devleop & Deploy
+# Develop & Deploy
 py-solc-x = "*"
 
 [scripts]
