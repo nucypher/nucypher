@@ -120,10 +120,16 @@ DEPLOY_REQUIRES = [
 URSULA_REQUIRES = ['prometheus_client']
 
 EXTRAS = {
-    'ursula': URSULA_REQUIRES,
+
+    # Admin
     'docs': DOCS_REQUIRE,
-    'dev': DEV_REQUIRES + DOCS_REQUIRE,
-    'benchmark': DEV_REQUIRES + BENCHMARK_REQUIRES
+    'dev': DEV_REQUIRES + DOCS_REQUIRE + URSULA_REQUIRES,
+    'benchmark': DEV_REQUIRES + BENCHMARK_REQUIRES,
+    'deploy': DOCS_REQUIRE + DEPLOY_REQUIRES,
+
+    # User
+    'ursula': URSULA_REQUIRES
+
 }
 
 
