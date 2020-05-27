@@ -574,6 +574,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact_and_log("Evaluating correct CFrag", adjudicator_functions.evaluateCFrag(*slashing_args), {'from': alice1})
 
     transact_and_log("Prolong stake", staker_functions.prolongStake(0, 20), {'from': staker1})
+    transact_and_log("Merge sub-stakes", staker_functions.mergeStake(2, 3), {'from': staker1})
 
     print("********* All Done! *********")
 

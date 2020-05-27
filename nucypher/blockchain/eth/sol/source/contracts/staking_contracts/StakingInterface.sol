@@ -82,6 +82,7 @@ contract StakingInterface is BaseStakingInterface {
     event LockedAndCreated(address indexed sender, uint256 value, uint16 periods);
     event LockedAndIncreased(address indexed sender, uint256 index, uint256 value);
     event Divided(address indexed sender, uint256 index, uint256 newValue, uint16 periods);
+    event Merged(address indexed sender, uint256 index1, uint256 index2);
     event Minted(address indexed sender);
     event PolicyFeeWithdrawn(address indexed sender, uint256 value);
     event MinFeeRateSet(address indexed sender, uint256 value);
@@ -199,15 +200,19 @@ contract StakingInterface is BaseStakingInterface {
     * @param _newValue New stake value
     * @param _periods Amount of periods for extending stake
     */
-    function divideStake(
-        uint256 _index,
-        uint256 _newValue,
-        uint16 _periods
-    )
-        public onlyDelegateCall
-    {
+    function divideStake(uint256 _index, uint256 _newValue, uint16 _periods) public onlyDelegateCall {
         escrow.divideStake(_index, _newValue, _periods);
         emit Divided(msg.sender, _index, _newValue, _periods);
+    }
+
+    /**
+    * @notice Merge two sub-stakes into one
+    * @param _index1 Index of the first sub-stake
+    * @param _index2 Index of the second sub-stake
+    */
+    function mergeStake(uint256 _index1, uint256 _index2) public onlyDelegateCall {
+        escrow.mergeStake(_index1, _index2);
+        emit Merged(msg.sender, _index1, _index2);
     }
 
     /**

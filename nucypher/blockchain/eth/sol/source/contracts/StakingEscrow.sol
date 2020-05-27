@@ -59,6 +59,7 @@ contract StakingEscrow is Issuer, IERC900History {
         uint256 newValue,
         uint16 periods
     );
+    event Merged(address indexed staker, uint256 value1, uint256 value2, uint16 lastPeriod);
     event Prolonged(address indexed staker, uint256 value, uint16 lastPeriod, uint16 periods);
     event Withdrawn(address indexed staker, uint256 value);
     event CommitmentMade(address indexed staker, uint16 indexed period, uint256 value);
@@ -980,6 +981,40 @@ contract StakingEscrow is Issuer, IERC900History {
         require(uint32(lastPeriod - currentPeriod) + _periods >= minLockedPeriods);
         emit Locked(msg.sender, subStake.lockedValue, lastPeriod + 1, _periods);
         emit Prolonged(msg.sender, subStake.lockedValue, lastPeriod, _periods);
+    }
+
+    /**
+    * @notice Merge two sub-stakes into one if their last periods are equal
+    * @dev It's possible that both sub-stakes will be active after this transaction.
+    * But only one of them will be active until next call `commitToNextPeriod` (in the next period)
+    * @param _index1 Index of the first sub-stake
+    * @param _index2 Index of the second sub-stake
+    */
+    function mergeStake(uint256 _index1, uint256 _index2) external onlyStaker {
+        StakerInfo storage info = stakerInfo[msg.sender];
+        SubStakeInfo storage subStake1 = info.subStakes[_index1];
+        SubStakeInfo storage subStake2 = info.subStakes[_index2];
+        uint16 currentPeriod = getCurrentPeriod();
+
+        (, uint16 lastPeriod1) = checkLastPeriodOfSubStake(info, subStake1, currentPeriod);
+        (, uint16 lastPeriod2) = checkLastPeriodOfSubStake(info, subStake2, currentPeriod);
+        // both sub-stakes must have equal last period to be mergeable
+        require(lastPeriod1 == lastPeriod2);
+        emit Merged(msg.sender, subStake1.lockedValue, subStake2.lockedValue, lastPeriod1);
+
+        if (subStake1.firstPeriod == subStake2.firstPeriod) {
+            subStake1.lockedValue += subStake2.lockedValue;
+            subStake2.lastPeriod = 1;
+            subStake2.periods = 0;
+        } else if (subStake1.firstPeriod > subStake2.firstPeriod) {
+            subStake1.lockedValue += subStake2.lockedValue;
+            subStake2.lastPeriod = subStake1.firstPeriod - 1;
+            subStake2.periods = 0;
+        } else {
+            subStake2.lockedValue += subStake1.lockedValue;
+            subStake1.lastPeriod = subStake2.firstPeriod - 1;
+            subStake1.periods = 0;
+        }
     }
 
     /**

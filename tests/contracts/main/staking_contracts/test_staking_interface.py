@@ -115,6 +115,9 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
         tx = staking_interface.functions.divideStake(1, 100, 1).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.mergeStake(3, 4).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = staking_interface.functions.mint().transact({'from': owner})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
@@ -147,6 +150,7 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     worker_logs = staking_contract_interface.events.WorkerBonded.createFilter(fromBlock='latest')
     prolong_logs = staking_contract_interface.events.Prolonged.createFilter(fromBlock='latest')
     wind_down_logs = staking_contract_interface.events.WindDownSet.createFilter(fromBlock='latest')
+    merge_logs = staking_contract_interface.events.Merged.createFilter(fromBlock='latest')
 
     # Use stakers methods through the preallocation escrow
     tx = staking_contract_interface.functions.depositAndIncrease(2, 100).transact({'from': owner})
@@ -192,6 +196,9 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     testerchain.wait_for_receipt(tx)
     assert 2 == escrow.functions.index().call()
     assert 9 == escrow.functions.periods().call()
+    tx = staking_contract_interface.functions.mergeStake(3, 4).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert 7 == escrow.functions.index().call()
 
     # Test re-stake methods
     tx = staking_contract_interface.functions.setReStake(True).transact({'from': owner})
@@ -278,6 +285,13 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     assert owner == event_args['sender']
     assert 2 == event_args['index']
     assert 2 == event_args['periods']
+
+    events = merge_logs.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['sender']
+    assert 3 == event_args['index1']
+    assert 4 == event_args['index2']
 
     events = wind_down_logs.get_all_entries()
     assert 1 == len(events)

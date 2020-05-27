@@ -89,6 +89,10 @@ contract StakingEscrowForStakingContractMock {
         periods += _periods;
     }
 
+    function mergeStake(uint256 _index1, uint256 _index2) external {
+        index = _index1 + _index2;
+    }
+
     function getAllTokens(address) external view returns (uint256) {
         return value;
     }
