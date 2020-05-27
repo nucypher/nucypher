@@ -95,7 +95,7 @@ Remote Ethereum Node
 ~~~~~~~~~~~~~~~~~~~~
 
 Nucypher supports remote ethereum providers such as Alchemy, Infura, Public Remote Node, but an external transaction
-signing client (e.g. `clef <Signing with Clef>`_ or geth) is needed separate from the broadcasting node.
+signing client is needed separate from the broadcasting node.
 
 
 External Transaction Signing
@@ -103,13 +103,20 @@ External Transaction Signing
 
 In conjunction with an ethereum provider, an external transaction signer can be specified and operated
 independently of the provider/broadcaster. This separation allows pre-signed transactions to be sent to an
-external (possibly remote) ethereum node and is desirable when interacting with an untrusted Ethereum node.
+external (possibly remote) ethereum node and is particularly desirable when interacting with an untrusted
+Ethereum node.
 
-Some examples:
+For example, external signers can be used with:
 
-- Infura/Alchemy/Etc. for broadcasting with external signer
-- Local geth node for broadcasting with external signer
-- Remote ethereum node for broadcasting with external signer
+- Infura/Alchemy/Etc.
+- Local geth node
+- Remote ethereum node
+
+Two external signers are currently supported:
+
+#. `Signing with Clef`_
+#. `Signing with Local Keystore`_
+
 
 .. important::
 
@@ -123,17 +130,19 @@ Signing with Clef
 
 Clef enables applications to connect to an Ethereum node and send locally signed
 transactions to be broadcasted. More
-information about Clef can be found `here <https://github.com/ethereum/go-ethereum/tree/master/cmd/clef>`_.
+information about Clef can be found `here <https://github.com/ethereum/go-ethereum/tree/master/cmd/clef>`_. Clef can
+use hardware wallets (ledger and trezor) over USB, or geth formatted private keys by specifying the keystore
+directory path.
 
 
 Clef Setup
 ++++++++++
 
-We'll quickly walk through setup steps below, but additional in-depth documentation on clef can
-be found in the source repository here https://github.com/ethereum/go-ethereum/tree/master/cmd/clef
+We'll quickly walk through setup steps below, but additional in-depth documentation on Clef can
+be found in the `source repository <https://github.com/ethereum/go-ethereum/tree/master/cmd/clef>`_.
 
 Clef is typically installed alongside geth.  If you already have geth installed on your system you
-may already have clef installed.  To check for an existing installation run:
+may already have Clef installed.  To check for an existing installation run:
 
 .. code:: bash
 
@@ -156,17 +165,13 @@ Next, initialize Clef with your chosen password to encrypt the master seed:
 Running Clef
 ++++++++++++
 
-Clef can use hardware wallets (ledger and trezor) over USB, or geth formatted private keys
-by specifying the keystore directory path:
-
 .. code:: bash
 
     $ clef --keystore <PATH TO KEYSTORE> --chainid <CHAIN ID> --advanced
 
 
-* <PATH TO KEYSTORE> - The path to the directory containing geth-formatted private key files; the default path for Linux is ``~/.ethereum/keystore``.
-* Chain ID 1 is specified to ensure clef signs transactions with the network ID of mainnet.
-
+* ``<PATH TO KEYSTORE>`` - The path to the directory containing geth-formatted private key files; the default path for Linux is ``~/.ethereum/keystore``.
+* ``<CHAIN ID>`` - 1 is specified to ensure Clef signs transactions with the network ID of mainnet.
 
 .. code:: bash
 
@@ -191,9 +196,9 @@ where ``<CLEF IPC PATH>``:
 Clef Rules
 ++++++++++
 
-By default, all requests to the clef signer require manual confirmation. To overcome this, Clef allows the
+By default, all requests to the Clef signer require manual confirmation. To overcome this, Clef allows the
 configuration of rules to automate the confirmation of requests to the signer. In particular, we recommend that users
-of a Clef signer with `nucypher` define the following rules file (``rules.js``), which simply approves the
+of a Clef signer with ``nucypher`` define the following rules file (``rules.js``), which simply approves the
 listing of accounts:
 
 .. code:: javascript
@@ -236,10 +241,12 @@ to indicate which are the automated rules (in our case, allowing the listing of 
 
     $ clef --keystore <PATH TO KEYSTORE> --chainid <CHAIN ID> --advanced --rules rules.js
 
+
 Usage
 +++++
 
-Specify clef as the ``signer``, either through the CLI (``--signer``) or API, using the URI ``clef://<CLEF IPC PATH>``.
+Once ``clef`` is running, specify the Clef signer either through the CLI (``--signer``) or
+API (``nucypher.blockchain.eth.signers.Signer.from_signer_uri``), using the URI ``clef://<CLEF IPC PATH>``.
 
 
 Signing with Local Keystore
@@ -250,15 +257,15 @@ Signing with Local Keystore
     Can only be used for :ref:`Worker (Ursula) <ursula-config-guide>` operations.
 
 Local keystore signing utilizes `eth-account <https://github.com/ethereum/eth-account>`_ to sign ethereum transactions
-using local ethereum keystore files directly. An Ethereum keystore file is an encrypted version of your Ethereum private key
-that is used for signing transactions. By default on ubuntu, the keystore directory path is ``~/.ethereum/keystore``
+using local ethereum keystore files. By default on Linux, the keystore directory path is ``~/.ethereum/keystore``
 (on MacOS for Goerli testnet, ``/Users/<username>/Library/Ethereum/keystore``).
+
 
 Usage
 +++++
 
-Specify local keystore either through the CLI (``--signer``) or API (``nucypher.blockchain.eth.signers.KeystoreSigner``),
+Specify the local keystore signer either through the CLI (``--signer``) or API (``nucypher.blockchain.eth.signers.Signer.from_signer_uri``),
 using the URI ``keystore://<PATH TO LOCAL KEYSTORE>``.
 
 The path provided can either be a directory of keystore files or an individual keystore file. In the case of a
-directory, it is scanned and the keystore files contained are processed.
+directory, it is scanned and each of the keystore files contained are processed.
