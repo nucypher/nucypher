@@ -57,7 +57,7 @@ NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS = NUMBER_OF_ETH_TEST_ACCOUNTS
 # Testerchain
 #
 
-TEST_CONTRACTS_DIR = Path(BASE_DIR) / 'tests' / 'blockchain' / 'eth' / 'contracts' / 'contracts'
+TEST_CONTRACTS_DIR = Path(BASE_DIR) / 'tests' / 'contracts' / 'contracts'
 
 ONE_YEAR_IN_SECONDS = ((60 * 60) * 24) * 365
 

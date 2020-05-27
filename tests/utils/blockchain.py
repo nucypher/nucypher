@@ -31,11 +31,15 @@ from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
-from nucypher.config.constants import BASE_DIR
 from nucypher.crypto.powers import TransactingPower
-from tests.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD,
-                             NUMBER_OF_ETH_TEST_ACCOUNTS, NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
-                             NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
+from tests.constants import (
+    DEVELOPMENT_ETH_AIRDROP_AMOUNT,
+    INSECURE_DEVELOPMENT_PASSWORD,
+    NUMBER_OF_ETH_TEST_ACCOUNTS,
+    NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
+    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
+    TEST_CONTRACTS_DIR
+)
 
 
 def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
@@ -73,7 +77,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
                       'free': free_gas_price_strategy}
 
     _PROVIDER_URI = 'tester://pyevm'
-    TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
     _compiler = SolidityCompiler(source_dirs=[(SolidityCompiler.default_contract_dir(), {TEST_CONTRACTS_DIR})])
     _test_account_cache = list()
 
