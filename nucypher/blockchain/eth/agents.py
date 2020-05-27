@@ -95,7 +95,7 @@ class EthereumContractAgent:
     def __init__(self,
                  registry: BaseContractRegistry,
                  provider_uri: Optional[str] = None,
-                 contract: Optional[Union[Contract, VersionedContract]] = None,
+                 contract: Optional[Contract] = None,
                  transaction_gas: Optional[Wei] = None):
 
         self.log = Logger(self.__class__.__name__)
@@ -104,7 +104,7 @@ class EthereumContractAgent:
         self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=provider_uri)
 
         if not contract:  # Fetch the contract
-            contract: VersionedContract = self.blockchain.get_contract_by_name(
+            contract = self.blockchain.get_contract_by_name(
                 registry=self.registry,
                 contract_name=self.contract_name,
                 proxy_name=self._proxy_name,
