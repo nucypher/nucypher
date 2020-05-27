@@ -44,6 +44,7 @@ from nucypher.cli.literature import (
     COLLECTING_ETH_REWARD,
     COLLECTING_PREALLOCATION_REWARD,
     COLLECTING_TOKEN_REWARD,
+    CONFIRM_BROADCAST_CREATE_STAKE,
     CONFIRM_BROADCAST_STAKE_DIVIDE,
     CONFIRM_DISABLE_RESTAKING, CONFIRM_DISABLE_WIND_DOWN,
     CONFIRM_NEW_MIN_POLICY_RATE,
@@ -505,7 +506,7 @@ def create(general_config, transacting_staker_options, config_file, force, value
         confirm_staged_stake(staker_address=staking_address, value=value, lock_periods=lock_periods)
 
     # Last chance to bail
-    click.confirm(CONFIRM_BROADCAST_STAKE_DIVIDE, abort=True)
+    click.confirm(CONFIRM_BROADCAST_CREATE_STAKE, abort=True)
 
     # Authenticate
     password = transacting_staker_options.get_password(blockchain, client_account)

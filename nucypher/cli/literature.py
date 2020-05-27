@@ -79,6 +79,8 @@ CONFIRM_LARGE_STAKE_VALUE = "Wow, {value} - That's a lot of NU - Are you sure th
 
 CONFIRM_LARGE_STAKE_DURATION = "Woah, {lock_periods} is a long time - Are you sure this is correct?"
 
+CONFIRM_BROADCAST_CREATE_STAKE = "Publish staged stake to the blockchain?"
+
 PREALLOCATION_STAKE_ADVISORY = "Beneficiary {client_account} will use preallocation contract {staking_address} to stake."
 
 NO_STAKING_ACCOUNTS = "No staking accounts found."
