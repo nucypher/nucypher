@@ -30,7 +30,7 @@ from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
 from hexbytes.main import HexBytes
 from twisted.logger import Logger  # type: ignore
-from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional
+from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast
 from web3.contract import Contract, ContractFunction
 from web3.types import Wei, Timestamp, TxReceipt, TxParams, Nonce
 
@@ -1535,7 +1535,7 @@ class ContractAgency:
     """Where agents live and die."""
 
     # TODO: Enforce singleton - #1506 - Okay, actually, make this into a module
-    __agents: Dict[str, Dict[Type[EthereumContractAgent], Agent]] = dict()
+    __agents: Dict[str, Dict[Type[EthereumContractAgent], EthereumContractAgent]] = dict()
 
     @classmethod
     def get_agent(cls,
@@ -1554,9 +1554,9 @@ class ContractAgency:
                 raise ValueError("Need to specify a registry in order to get an agent from the ContractAgency")
 
         try:
-            return cls.__agents[registry.id][agent_class]
+            return cast(Agent, cls.__agents[registry.id][agent_class])
         except KeyError:
-            agent = agent_class(registry=registry, provider_uri=provider_uri)
+            agent = cast(Agent, agent_class(registry=registry, provider_uri=provider_uri))
             cls.__agents[registry.id] = cls.__agents.get(registry.id, dict())
             cls.__agents[registry.id][agent_class] = agent
             return agent
