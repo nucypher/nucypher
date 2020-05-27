@@ -296,7 +296,7 @@ class StakingEscrowAgent(EthereumContractAgent):
             while start_index < num_stakers:
                 active_stakers: Tuple[NuNits, Tuple[int]] = self.contract.functions.getActiveStakers(periods, start_index, pagination_size).call()
                 temp_locked_tokens, temp_stakers = active_stakers
-                n_tokens += temp_locked_tokens
+                n_tokens = NuNits(n_tokens + temp_locked_tokens)
                 stakers += temp_stakers
                 start_index += pagination_size
         else:
