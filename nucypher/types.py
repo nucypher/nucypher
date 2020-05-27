@@ -16,7 +16,7 @@
 """
 
 from eth_typing.evm import ChecksumAddress
-from typing import TypeVar, NewType, Tuple
+from typing import TypeVar, NewType, Tuple, NamedTuple
 from web3.types import Wei, Timestamp
 
 NuNits = NewType("NuNits", int)
@@ -26,10 +26,6 @@ PeriodDelta = NewType('Period', int)
 
 
 class ContractParams(Tuple):
-    pass
-
-
-class ContractStruct(Tuple):
     pass
 
 
@@ -57,32 +53,32 @@ class StakingEscrowParameters(ContractParams):
     min_worker_periods: PeriodDelta
 
 
-class SubStakeInfo(ContractStruct):
+class SubStakeInfo(NamedTuple):
     first_period: Period
     last_period: Period
     locked_value: NuNits
 
 
-class RawSubStakeInfo(ContractStruct):
+class RawSubStakeInfo(NamedTuple):
     first_period: Period
     last_period: Period
     periods: int
     locked_value: NuNits
 
 
-class Downtime(ContractStruct):
+class Downtime(NamedTuple):
     start_period: Period
     end_period: Period
 
 
-class StakerFlags(ContractStruct):
+class StakerFlags(NamedTuple):
     wind_down_flag: bool
     restake_flag: bool
     measure_work_flag: bool
     snapshot_flag: bool
 
 
-class StakerInfo(ContractStruct):
+class StakerInfo(NamedTuple):
     value: NuNits
     current_committed_period: Period
     next_committed_period: Period

@@ -412,13 +412,13 @@ class StakingEscrowAgent(EthereumContractAgent):
     def get_substake_info(self, staker_address: ChecksumAddress, stake_index: int) -> SubStakeInfo:
         first_period, *others, locked_value = self.contract.functions.getSubStakeInfo(staker_address, stake_index).call()
         last_period: Period = self.contract.functions.getLastPeriodOfSubStake(staker_address, stake_index).call()
-        return SubStakeInfo((first_period, last_period, locked_value))
+        return SubStakeInfo(first_period, last_period, locked_value)
 
     @contract_api(CONTRACT_CALL)
     def get_raw_substake_info(self, staker_address: ChecksumAddress, stake_index: int) -> RawSubStakeInfo:
         result: RawSubStakeInfo = self.contract.functions.getSubStakeInfo(staker_address, stake_index).call()
         first_period, last_period, periods, locked = result
-        return RawSubStakeInfo((first_period, last_period, periods, locked))
+        return RawSubStakeInfo(first_period, last_period, periods, locked)
 
     @contract_api(CONTRACT_CALL)
     def get_all_stakes(self, staker_address: ChecksumAddress) -> Iterable[RawSubStakeInfo]:
@@ -591,11 +591,11 @@ class StakingEscrowAgent(EthereumContractAgent):
     def get_flags(self, staker_address: ChecksumAddress) -> StakerFlags:
         flags: tuple = self.contract.functions.getFlags(staker_address).call()
         wind_down_flag, restake_flag, measure_work_flag, snapshot_flag = flags
-        return StakerFlags((wind_down_flag, restake_flag, measure_work_flag, snapshot_flag))
+        return StakerFlags(wind_down_flag, restake_flag, measure_work_flag, snapshot_flag)
 
     @contract_api(CONTRACT_CALL)
     def is_restaking(self, staker_address: ChecksumAddress) -> bool:
-        flags = StakerFlags(self.get_flags(staker_address))
+        flags = self.get_flags(staker_address)
         return flags.restake_flag
 
     @contract_api(CONTRACT_CALL)
@@ -628,7 +628,7 @@ class StakingEscrowAgent(EthereumContractAgent):
 
     @contract_api(CONTRACT_CALL)
     def is_winding_down(self, staker_address: ChecksumAddress) -> bool:
-        flags = StakerFlags(self.get_flags(staker_address))
+        flags = self.get_flags(staker_address)
         return flags.wind_down_flag
 
     @contract_api(TRANSACTION)
