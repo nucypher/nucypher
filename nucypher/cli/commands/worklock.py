@@ -208,9 +208,10 @@ def bid(general_config: GroupGeneralConfig,
 
     maximum = NU.from_nunits(bidder.economics.maximum_allowed_locked)
     available_claim = NU.from_nunits(bidder.available_claim)
-    message = f'Current bid: {prettify_eth_amount(bidder.get_deposited_eth)} | Claim: {available_claim}\n'
+    message = f'\nCurrent bid: {prettify_eth_amount(bidder.get_deposited_eth)} | Claim: {available_claim}\n'
     if available_claim > maximum:
-        message += f"This claim is currently above the allowed max ({maximum}), so the bid may be partially refunded.\n"
+        message += f"\nThis claim is currently above the allowed max ({maximum}), " \
+                   f"so the bid may be partially refunded.\n"
     message += f'Note that available claim value may fluctuate until bidding closes and claims are finalized.\n'
     emitter.echo(message, color='yellow')
 
