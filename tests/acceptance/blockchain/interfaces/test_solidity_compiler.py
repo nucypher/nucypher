@@ -14,14 +14,11 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from os.path import abspath, dirname
 
-import os
+from pathlib import Path
 
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
-from nucypher.blockchain.eth.sol.compile import SolidityCompiler, SourceDirs
-from tests.constants import TEST_CONTRACTS_DIR
-from tests.utils.blockchain import TesterBlockchain
+from nucypher.blockchain.eth.sol.compile import compile_nucypher
 
 
 def test_nucypher_contract_compiled(testerchain, test_registry):
@@ -36,34 +33,19 @@ def test_nucypher_contract_compiled(testerchain, test_registry):
 
 
 def test_multi_source_compilation(testerchain):
-    solidity_compiler = SolidityCompiler(source_dirs=[
-        (SolidityCompiler.default_contract_dir(), None),
-        (SolidityCompiler.default_contract_dir(), {TEST_CONTRACTS_DIR})
-    ])
-    interfaces = solidity_compiler.compile()
-
-    # Remove AST because id in tree node depends on compilation scope
-    for contract_name, contract_data in interfaces.items():
-        for version, data in contract_data.items():
-            data.pop("ast")
+    # TODO: Remove AST because id in tree node depends on compilation scope <<< Still relevant?
+    interfaces = compile_nucypher(test_contracts=True)
     raw_cache = testerchain._raw_contract_cache.copy()
-    for contract_name, contract_data in raw_cache.items():
-        for version, data in contract_data.items():
-            data.pop("ast")
     assert interfaces == raw_cache
 
 
 def test_multi_versions():
-    base_dir = os.path.join(dirname(abspath(__file__)), "contracts", "multiversion")
-    v1_dir = os.path.join(base_dir, "v1")
-    v2_dir = os.path.join(base_dir, "v2")
-    root_dir = SolidityCompiler.default_contract_dir()
-    solidity_compiler = SolidityCompiler(source_dirs=[SourceDirs(root_dir, {v1_dir}),
-                                                      SourceDirs(root_dir, {v2_dir})])
-    interfaces = solidity_compiler.compile()
-    assert "VersionTest" in interfaces
-    contract_data = interfaces["VersionTest"]
+    base_dir = Path(__file__).parent / "contracts" / "multiversion"
+    v1_dir, v2_dir = base_dir / "v1", base_dir / "v2"
+    interfaces = compile_nucypher(source_dirs=(v1_dir, v2_dir))
+    assert "VersionTest.sol" in interfaces['contracts']
+    contract_data = interfaces['contracts']["VersionTest.sol"]
     assert len(contract_data) == 2
     assert "v1.2.3" in contract_data
     assert "v1.1.4" in contract_data
-    assert contract_data["v1.2.3"]["devdoc"] != contract_data["v1.1.4"]["devdoc"]
+    assert contract_data["v1.2.3"]["devdoc"]['details'] != contract_data["v1.1.4"]["devdoc"]['details']

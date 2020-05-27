@@ -16,157 +16,301 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import collections
-from os.path import abspath, dirname
-
-import itertools
 import os
 import re
+from pathlib import Path
 from twisted.logger import Logger
-from typing import List, NamedTuple, Optional, Set
+from typing import Dict, Iterator, List, Optional, Pattern, Tuple, TypeVar, Union
 
-from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
+from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION as SOURCE_VERSION
+from nucypher.exceptions import DevelopmentInstallationRequired
 
-
-class SourceDirs(NamedTuple):
-    root_source_dir: str
-    other_source_dirs: Optional[Set[str]] = None
+LOG: Logger = Logger('solidity-compiler')
 
 
-class SolidityCompiler:
+#
+# Types
+#
 
-    __default_contract_version = 'v0.0.0'
-    __default_contract_dir = os.path.join(dirname(abspath(__file__)), 'source')
+# TODO: Is there a better way to specify complex dictionaries with variable keys?
+CompiledContracts = TypeVar('CompiledContracts', bound=Dict[str, Dict[str, List[Dict[str, Union[str, List[Dict[str, str]]]]]]])
 
-    __compiled_contracts_dir = 'contracts'
-    __zeppelin_library_dir = 'zeppelin'
-    __aragon_library_dir = 'aragon'
 
-    optimization_runs = 200
+class CompilerConfiguration(Dict):
+    language: str
+    sources: Dict[str, Dict[str, str]]
+    settings: Dict
 
-    class CompilerError(Exception):
-        pass
 
-    class VersionError(Exception):
-        pass
+#
+# Exceptions
+#
 
-    @classmethod
-    def default_contract_dir(cls):
-        return cls.__default_contract_dir
+class CompilationError(RuntimeError):
+    """
+    Raised when there is a problem compiling nucypher contracts
+    or with the expected compiler configuration.
+    """
 
-    def __init__(self,
-                 source_dirs: List[SourceDirs] = None,
-                 ignore_solidity_check: bool = False
-                 ) -> None:
 
-        # Allow for optional installation
-        from solcx.install import get_executable
+#
+# Compiler Constants
+#
 
-        self.log = Logger('solidity-compiler')
 
-        version = SOLIDITY_COMPILER_VERSION if not ignore_solidity_check else None
-        self.__sol_binary_path = get_executable(version=version)
+DEFAULT_CONTRACT_VERSION: str = 'v0.0.0'
+SOURCE_ROOT: Path = Path(__file__).parent / 'source'
 
-        if source_dirs is None or len(source_dirs) == 0:
-            self.source_dirs = [SourceDirs(root_source_dir=self.__default_contract_dir)]
-        else:
-            self.source_dirs = source_dirs
+CONTRACTS: str = 'contracts'
+NUCYPHER_CONTRACTS_DIR: Path = SOURCE_ROOT / CONTRACTS
 
-    def compile(self) -> dict:
-        interfaces = dict()
-        for root_source_dir, other_source_dirs in self.source_dirs:
-            if root_source_dir is None:
-                self.log.warn("One of the root directories is None")
-                continue
+# Third Party Contracts
+ZEPPELIN: str = 'zeppelin'
+ARAGON: str = 'aragon'
+ZEPPELIN_DIR: Path = SOURCE_ROOT / ZEPPELIN
+ARAGON_DIR: Path = SOURCE_ROOT / ARAGON
 
-            raw_interfaces = self._compile(root_source_dir, other_source_dirs)
-            for name, data in raw_interfaces.items():
-                # Extract contract version from docs
-                version_search = re.search(r"""
-                
-                \"details\":  # @dev tag in contract docs
-                \".*?         # Skip any data in the beginning of details
-                \|            # Beginning of version definition |
-                (v            # Capture version starting from symbol v
-                \d+           # At least one digit of major version
-                \.            # Digits splitter
-                \d+           # At least one digit of minor version
-                \.            # Digits splitter
-                \d+           # At least one digit of patch
-                )             # End of capturing
-                \|            # End of version definition |
-                .*?\"         # Skip any data in the end of details
-                
-                """, data['devdoc'], re.VERBOSE)
-                version = version_search.group(1) if version_search else self.__default_contract_version
-                try:
-                    existence_data = interfaces[name]
-                except KeyError:
-                    existence_data = dict()
-                    interfaces.update({name: existence_data})
-                if version not in existence_data:
-                    existence_data.update({version: data})
-        return interfaces
 
-    def _compile(self, root_source_dir: str, other_source_dirs: [str]) -> dict:
-        """Executes the compiler with parameters specified in the json config"""
+SOURCES: List[str] = [
+    str(NUCYPHER_CONTRACTS_DIR.resolve(strict=True))
+]
 
-        # Allow for optional installation
-        from solcx import compile_files
-        from solcx.exceptions import SolcError
+ALLOWED_PATHS: List[str] = [
+    str(SOURCE_ROOT.resolve(strict=True))
+]
 
-        self.log.info("Using solidity compiler binary at {}".format(self.__sol_binary_path))
-        contracts_dir = os.path.join(root_source_dir, self.__compiled_contracts_dir)
-        self.log.info("Compiling solidity source files at {}".format(contracts_dir))
+IGNORE_CONTRACT_PREFIXES: Tuple[str, ...] = (
+    'Abstract',
+    'Interface'
+)
 
-        source_paths = set()
-        source_walker = os.walk(top=contracts_dir, topdown=True)
-        if other_source_dirs is not None:
-            for source_dir in other_source_dirs:
-                other_source_walker = os.walk(top=source_dir, topdown=True)
-                source_walker = itertools.chain(source_walker, other_source_walker)
 
+# RE pattern for matching solidity source compile version specification in devdoc details.
+VERSION_PATTERN: Pattern = re.compile(r"""
+^\|           # Anchored pipe literal at beginning of version definition
+(v            # Capture version starting from symbol v
+\d+           # At least one digit of major version
+\.            # Digits splitter
+\d+           # At least one digit of minor version
+\.            # Digits splitter
+\d+           # At least one digit of patch
+)             # End of capturing
+\|$           # Anchored end of version definition |
+""", re.VERBOSE)
+
+
+#
+# Standard "JSON I/O" Compiler Config Reference:
+# https://solidity.readthedocs.io/en/latest/using-the-compiler.html#input-description
+#
+#
+# WARNING: Do not change these values unless you know what you are doing.
+#
+
+LANGUAGE: str = 'Solidity'
+EVM_VERSION: str = 'berlin'
+FILE_OUTPUTS: List[str] = []
+
+CONTRACT_OUTPUTS: List[str] = [
+    'abi',                     # ABI
+    'devdoc',                  # Developer documentation (natspec)
+    'userdoc',                 # User documentation (natspec)
+    'evm.bytecode.object',     # Bytecode object
+]
+
+IMPORT_REMAPPINGS: List[str] = [
+    f"{CONTRACTS}={NUCYPHER_CONTRACTS_DIR.resolve()}",
+    f"{ZEPPELIN}={ZEPPELIN_DIR.resolve()}",
+    f"{ARAGON}={ARAGON_DIR.resolve()}",
+]
+
+OPTIMIZER: bool = True
+OPTIMIZATION_RUNS: int = 200
+OPTIMIZER_SETTINGS = dict(
+    enabled=True,
+    runs=200
+)
+
+COMPILER_SETTINGS: Dict = dict(
+    remappings=IMPORT_REMAPPINGS,
+    optimizer=OPTIMIZER_SETTINGS,
+    evmVersion=EVM_VERSION,
+    outputSelection={"*": {"*": CONTRACT_OUTPUTS, "": FILE_OUTPUTS}}  # all contacts(*), all files("")
+)
+
+
+COMPILER_CONFIG = CompilerConfiguration(
+    language=LANGUAGE,
+    sources=SOURCES,
+    settings=COMPILER_SETTINGS
+)
+
+
+#
+# Collection
+#
+
+
+def __source_filter(filename: str) -> bool:
+    """Helper function for filtering out contracts not intended for compilation"""
+    contains_ignored_prefix: bool = any(prefix in filename for prefix in IGNORE_CONTRACT_PREFIXES)
+    is_solidity_file: bool = filename.endswith('.sol')
+    return is_solidity_file and not contains_ignored_prefix
+
+
+def __collect_sources(test_contracts: bool,
+                      source_dirs: Optional[Path] = None
+                      ) -> Dict[str, Dict[str, List[str]]]:
+
+    # Default
+    if not source_dirs:
+        source_dirs: List[Path] = [SOURCE_ROOT / CONTRACTS]
+
+    # Add test contracts to sources
+    if test_contracts:
+        from tests.constants import TEST_CONTRACTS_DIR
+        source_dirs.append(TEST_CONTRACTS_DIR)
+
+    # Collect all source directories
+    source_paths: Dict[str, Dict[str, List[str]]] = dict()
+    for source_dir in source_dirs:
+        source_walker: Iterator = os.walk(top=str(source_dir), topdown=True)
+        # Collect single directory
         for root, dirs, files in source_walker:
-            for filename in files:
-                if filename.endswith('.sol'):
-                    path = os.path.join(root, filename)
-                    source_paths.add(path)
-                    self.log.debug("Collecting solidity source {}".format(path))
+            # Collect files in source dir
+            for filename in filter(__source_filter, files):
+                path = Path(root) / filename
+                source_paths[filename] = dict(urls=[str(path.resolve(strict=True))])
+                LOG.debug(f"Collecting solidity source {path}")
+        LOG.info(f"Collected {len(source_paths)} solidity source files at {source_dir}")
+    return source_paths
 
-        # Compile with remappings: https://github.com/ethereum/py-solc
-        zeppelin_dir = os.path.join(root_source_dir, self.__zeppelin_library_dir)
-        aragon_dir = os.path.join(root_source_dir, self.__aragon_library_dir)
 
-        remappings = ("contracts={}".format(contracts_dir),
-                      "zeppelin={}".format(zeppelin_dir),
-                      "aragon={}".format(aragon_dir),
-                      )
+def __compile(source_dirs: Tuple[Path, ...] = None,
+              include_ast: bool = True,
+              ignore_version_check: bool = False,
+              test_contracts: bool = False) -> dict:
+    """Executes the compiler"""
 
-        self.log.info("Compiling with import remappings {}".format(", ".join(remappings)))
+    try:
+        # Lazy import to allow for optional installation of solcx
+        from solcx.install import get_executable
+        from solcx.main import compile_standard
+    except ImportError:
+        raise DevelopmentInstallationRequired(importable_name='solcx')
 
-        optimization_runs = self.optimization_runs
+    # Solidity Compiler Binary
+    compiler_version: str = SOURCE_VERSION if not ignore_version_check else None
+    solc_binary_path: str = get_executable(version=compiler_version)
 
-        try:
-            compiled_sol = compile_files(source_files=source_paths,
-                                         solc_binary=self.__sol_binary_path,
-                                         import_remappings=remappings,
-                                         allow_paths=root_source_dir,
-                                         optimize=True,
-                                         optimize_runs=optimization_runs)
+    # Extra compiler options
+    if include_ast:
+        FILE_OUTPUTS.append('ast')
 
-            self.log.info("Successfully compiled {} contracts with {} optimization runs".format(len(compiled_sol),
-                                                                                                optimization_runs))
+    # Handle allowed paths
+    if test_contracts:
+        from tests.constants import TEST_CONTRACTS_DIR
+        ALLOWED_PATHS.append(str(TEST_CONTRACTS_DIR.resolve(True)))
+    if source_dirs:
+        for source in source_dirs:
+            ALLOWED_PATHS.append(str(source.resolve(strict=True)))
 
-        except FileNotFoundError:
-            raise RuntimeError("The solidity compiler is not at the specified path. "
-                               "Check that the file exists and is executable.")
-        except PermissionError:
-            raise RuntimeError("The solidity compiler binary at {} is not executable. "
-                               "Check the file's permissions.".format(self.__sol_binary_path))
+    # Resolve Sources
+    allowed_paths: str = ','.join(ALLOWED_PATHS)
+    sources = __collect_sources(source_dirs=source_dirs, test_contracts=test_contracts)
+    COMPILER_CONFIG.update(dict(sources=sources))
 
-        except SolcError:
-            raise
+    LOG.info(f"Compiling with import remappings {' '.join(IMPORT_REMAPPINGS)}")
+    try:
+        compiled_sol: CompiledContracts = compile_standard(input_data=COMPILER_CONFIG, allow_paths=allowed_paths)
+    except FileNotFoundError:
+        raise RuntimeError("The solidity compiler is not at the specified path. "
+                           "Check that the file exists and is executable.")
+    except PermissionError:
+        raise RuntimeError(f"The solidity compiler binary at {solc_binary_path} is not executable. "
+                           "Check the file's permissions.")
+    LOG.info(f"Successfully compiled {len(compiled_sol)} contracts with {OPTIMIZATION_RUNS} optimization runs")
+    return compiled_sol
 
-        # Cleanup the compiled data keys
-        interfaces = {name.split(':')[-1]: compiled_sol[name] for name in compiled_sol}
-        return interfaces
+
+def __extract_version(contract_name: str, contract_data: dict) -> str:
+
+    # Parse
+    try:
+        devdoc: Dict[str, str] = contract_data['devdoc']
+    except KeyError:
+        raise CompilationError(f'Solidity compiler did not export devdoc for {contract_name}.')
+    try:
+        devdoc_details: str = devdoc['details']
+    except KeyError:
+        LOG.warn(f'No solidity source version specified for {contract_name}')
+        return DEFAULT_CONTRACT_VERSION
+
+    # RE
+    raw_matches = VERSION_PATTERN.fullmatch(devdoc_details)
+
+    # Positive match(es)
+    if raw_matches:
+        matches = raw_matches.groups()
+        if len(matches) != 1:  # sanity check
+            raise CompilationError(f"Multiple version matches in devdoc")
+        version = matches[0]   # good match
+        return version
+
+    # Negative match: Devdoc included without a version
+    else:
+        LOG.warn(f'Compiler version not included in devdoc details for {contract_name}')
+        return DEFAULT_CONTRACT_VERSION
+
+
+def __handle_contract(contract_data: dict,
+                      ast: bool,
+                      source_data,
+                      interfaces: dict,
+                      exported_name: str,
+                      ) -> None:
+    if ast:
+        # TODO: Sort AST by contract
+        ast = source_data['ast']
+        contract_data['ast'] = ast
+    try:
+        existence_data = interfaces[exported_name]
+    except KeyError:
+        existence_data = dict()
+        interfaces.update({exported_name: existence_data})
+    version = __extract_version(contract_name=exported_name, contract_data=contract_data)
+    if version not in existence_data:
+        existence_data.update({version: contract_data})
+
+
+def compile_nucypher(source_dirs: Optional[Tuple[Path, ...]] = None,
+                     include_ast: bool = False,
+                     ignore_version_check: bool = False,
+                     test_contracts: bool = False
+                     ) -> CompiledContracts:
+    """Compile nucypher contracts"""
+
+    # Compile
+    compile_result = __compile(include_ast=include_ast,
+                               ignore_version_check=ignore_version_check,
+                               test_contracts=test_contracts,
+                               source_dirs=source_dirs)
+
+    # Aggregate
+    interfaces = dict()
+    compiled_contracts, compiled_sources = compile_result['contracts'].items(), compile_result['sources'].items()
+    for (source_path, source_data), (contract_path, compiled_contract) in zip(compiled_sources, compiled_contracts):
+        for exported_name, contract_data in compiled_contract.items():
+            __handle_contract(ast=include_ast,
+                              contract_data=contract_data,
+                              source_data=source_data,
+                              interfaces=interfaces,
+                              exported_name=exported_name)
+    return interfaces
+
+
+# Control export values
+__all__ = (
+    compile_nucypher,
+    DEFAULT_CONTRACT_VERSION
+)
