@@ -278,7 +278,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         return active_stakers, pending_stakers, missing_stakers
 
     @contract_api(CONTRACT_CALL)
-    def get_all_active_stakers(self, periods: int, pagination_size: Optional[int] = None) -> Tuple[NuNits, List[List[int]]]:
+    def get_all_active_stakers(self, periods: int, pagination_size: Optional[int] = None) -> Tuple[NuNits, Dict[ChecksumAddress, NuNits]]:
         """Only stakers which committed to the current period (in the previous period) are used."""
         if not periods > 0:
             raise ValueError("Period must be > 0")
@@ -291,22 +291,26 @@ class StakingEscrowAgent(EthereumContractAgent):
         if pagination_size > 0:
             num_stakers: int = self.get_staker_population()
             start_index: int = 0
-            n_tokens: NuNits = NuNits(0)
-            stakers: List[List[int]] = list()
+            n_tokens: int = 0
+            stakers: Dict[int, int] = dict()
             while start_index < num_stakers:
                 active_stakers: Tuple[NuNits, List[List[int]]] = self.contract.functions.getActiveStakers(periods, start_index, pagination_size).call()
                 temp_locked_tokens, temp_stakers = active_stakers
-                n_tokens = NuNits(n_tokens + temp_locked_tokens)
-                stakers += temp_stakers
+                # temp_stakers is a list of length-2 lists (address -> locked tokens)
+                temp_stakers_map = {address: locked_tokens for address, locked_tokens in temp_stakers}
+                n_tokens = n_tokens + temp_locked_tokens
+                stakers.update(temp_stakers_map)
                 start_index += pagination_size
         else:
             n_tokens, stakers = self.contract.functions.getActiveStakers(periods, 0, 0).call()
 
-        # Sanitize output of getActiveStakers: stakers' addresses are returned as uint256, but we need addresses
-        for i in range(len(stakers)):
-            stakers[i][0] = ChecksumAddress(to_checksum_address(stakers[i][0].to_bytes(ETH_ADDRESS_BYTE_LENGTH, 'big')))
+        # stakers' addresses are returned as uint256 by getActiveStakers(), convert to address objects
+        def checksum_address(address: int) -> ChecksumAddress:
+            return ChecksumAddress(to_checksum_address(address.to_bytes(ETH_ADDRESS_BYTE_LENGTH, 'big')))
+        typed_stakers = {
+            checksum_address(address): NuNits(locked_tokens) for address, locked_tokens in stakers.items()}
 
-        return n_tokens, stakers
+        return NuNits(n_tokens), typed_stakers
 
     @contract_api(CONTRACT_CALL)
     def get_all_locked_tokens(self, periods: int, pagination_size: Optional[int] = None) -> NuNits:
@@ -686,7 +690,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         """
 
         system_random = random.SystemRandom()
-        n_tokens, stakers = self.get_all_active_stakers(periods=duration, pagination_size=pagination_size)
+        n_tokens, stakers_map = self.get_all_active_stakers(periods=duration, pagination_size=pagination_size)
         if n_tokens == 0:
             raise self.NotEnoughStakers('There are no locked tokens for duration {}.'.format(duration))
 
@@ -697,6 +701,7 @@ class StakingEscrowAgent(EthereumContractAgent):
             self.log.debug(f"Sampling {sample_size} stakers with random points: {points}")
 
             addresses = set()
+            stakers = list(stakers_map.items())
 
             point_index = 0
             sum_of_locked_tokens = 0
