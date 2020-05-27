@@ -154,7 +154,7 @@ class EthereumContractAgent:
 
         if not contract:  # Fetch the contract
             contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                            contract_name=self.registry_contract_name,
+                                                            contract_name=self.contract_name,
                                                             proxy_name=self._proxy_name,
                                                             use_proxy_address=self._forward_address)
         self.__contract = contract
@@ -172,7 +172,7 @@ class EthereumContractAgent:
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
         r = "{}(registry={}, contract={})"
-        return r.format(class_name, self.registry, self.registry_contract_name)
+        return r.format(class_name, self.registry, self.contract_name)
 
     def __eq__(self, other: Any) -> bool:
         return bool(self.contract.address == other.contract.address)
@@ -186,10 +186,6 @@ class EthereumContractAgent:
         return self.__contract.address
 
     @property
-    def contract_name(self) -> str:
-        return self.registry_contract_name
-
-    @property
     @contract_api(CONTRACT_ATTRIBUTE)
     def owner(self) -> Optional[ChecksumAddress]:
         if not self._proxy_name:
@@ -200,7 +196,7 @@ class EthereumContractAgent:
 
 class NucypherTokenAgent(EthereumContractAgent):
 
-    registry_contract_name: str = NUCYPHER_TOKEN_CONTRACT_NAME
+    contract_name: str = NUCYPHER_TOKEN_CONTRACT_NAME
 
     @contract_api(CONTRACT_CALL)
     def get_balance(self, address: Optional[ChecksumAddress] = None) -> NuNits:
@@ -933,13 +929,13 @@ class PolicyManagerAgent(EthereumContractAgent):
 
 class PreallocationEscrowAgent(EthereumContractAgent):
 
-    registry_contract_name: str = PREALLOCATION_ESCROW_CONTRACT_NAME
+    contract_name: str = PREALLOCATION_ESCROW_CONTRACT_NAME
     _proxy_name: str = NotImplemented
     _forward_address: bool = False
     __allocation_registry = AllocationRegistry
 
     class StakingInterfaceAgent(EthereumContractAgent):
-        registry_contract_name: str = STAKING_INTERFACE_CONTRACT_NAME
+        contract_name: str = STAKING_INTERFACE_CONTRACT_NAME
         _proxy_name: bool = STAKING_INTERFACE_ROUTER_CONTRACT_NAME
         _forward_address: bool = False
 
@@ -1003,14 +999,14 @@ class PreallocationEscrowAgent(EthereumContractAgent):
     @property
     def interface_contract(self) -> Contract:
         if self.__interface_agent is NO_CONTRACT_AVAILABLE:
-            raise RuntimeError("{} not available".format(self.registry_contract_name))
+            raise RuntimeError("{} not available".format(self.contract_name))
         return self.__interface_agent
 
     @property
     def principal_contract(self) -> Contract:
         """Directly reference the beneficiary's deployed contract instead of the interface contracts's ABI"""
         if self.__principal_contract is NO_CONTRACT_AVAILABLE:
-            raise RuntimeError("{} not available".format(self.registry_contract_name))
+            raise RuntimeError("{} not available".format(self.contract_name))
         return self.__principal_contract
 
     @property
@@ -1140,7 +1136,7 @@ class PreallocationEscrowAgent(EthereumContractAgent):
 
 class AdjudicatorAgent(EthereumContractAgent):
 
-    registry_contract_name: str = ADJUDICATOR_CONTRACT_NAME
+    contract_name: str = ADJUDICATOR_CONTRACT_NAME
     _proxy_name: str = DISPATCHER_CONTRACT_NAME
 
     @contract_api(TRANSACTION)
@@ -1484,7 +1480,7 @@ class WorkLockAgent(EthereumContractAgent):
 
 class MultiSigAgent(EthereumContractAgent):
 
-    registry_contract_name: str = MULTISIG_CONTRACT_NAME
+    contract_name: str = MULTISIG_CONTRACT_NAME
 
     @property
     @contract_api(CONTRACT_ATTRIBUTE)
@@ -1518,7 +1514,7 @@ class MultiSigAgent(EthereumContractAgent):
         result: bool = self.contract.functions.isOwner(checksum_address).call()
         return result
 
-    @validate_checksum_address
+    @contract_api(TRANSACTION)
     def build_add_owner_tx(self, new_owner_address: ChecksumAddress) -> TxParams:
         max_owner_count: int = self.contract.functions.MAX_OWNER_COUNT().call()
         if not self.number_of_owners < max_owner_count:
@@ -1532,7 +1528,7 @@ class MultiSigAgent(EthereumContractAgent):
                                                                   sender_address=self.contract_address)
         return transaction
 
-    @validate_checksum_address
+    @contract_api(TRANSACTION)
     def build_remove_owner_tx(self, owner_address: ChecksumAddress) -> TxParams:
         if not self.number_of_owners > self.threshold:
             raise self.RequirementError(f"Need at least one owner above the threshold to remove an owner.")
@@ -1544,7 +1540,7 @@ class MultiSigAgent(EthereumContractAgent):
                                                                    sender_address=self.contract_address)
         return transaction
 
-    @validate_checksum_address
+    @contract_api(TRANSACTION)
     def build_change_threshold_tx(self, threshold: int) -> TxParams:
         if not 0 < threshold <= self.number_of_owners:
             raise self.RequirementError(f"New threshold {threshold} does not satisfy "

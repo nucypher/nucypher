@@ -358,7 +358,7 @@ class UpgradeableContractMixin:
 class NucypherTokenDeployer(BaseContractDeployer):
 
     agency = NucypherTokenAgent
-    contract_name = agency.registry_contract_name
+    contract_name = agency.contract_name
     deployment_steps = ('contract_deployment', )
     _upgradeable = False
     _ownable = False
@@ -484,7 +484,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
     """
 
     agency = StakingEscrowAgent
-    contract_name = agency.registry_contract_name
+    contract_name = agency.contract_name
 
     can_be_idle = True
     preparation_steps = ('contract_deployment', 'dispatcher_deployment')
@@ -686,7 +686,7 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
     """
 
     agency = PolicyManagerAgent
-    contract_name = agency.registry_contract_name
+    contract_name = agency.contract_name
     deployment_steps = ('deployment', 'dispatcher_deployment', 'set_policy_manager')
     _proxy_deployer = DispatcherDeployer
 
@@ -935,7 +935,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
     # TODO: Why does PreallocationEscrowDeployer has an UpgradeableContractMixin?
 
     agency = PreallocationEscrowAgent
-    contract_name = agency.registry_contract_name
+    contract_name = agency.contract_name
     deployment_steps = ('contract_deployment', 'transfer_ownership', 'initial_deposit')
     _router_deployer = StakingInterfaceRouterDeployer
     __allocation_registry = AllocationRegistry
@@ -1040,7 +1040,7 @@ class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin
 class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):
 
     agency = AdjudicatorAgent
-    contract_name = agency.registry_contract_name
+    contract_name = agency.contract_name
     deployment_steps = ('contract_deployment', 'dispatcher_deployment', 'set_adjudicator')
     _proxy_deployer = DispatcherDeployer
 
@@ -1156,7 +1156,7 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
 class WorklockDeployer(BaseContractDeployer):
 
     agency = WorkLockAgent
-    contract_name = agency.registry_contract_name
+    contract_name = agency.contract_name
     deployment_steps = ('contract_deployment', 'bond_escrow', 'approve_funding', 'fund_worklock')
     _upgradeable = False
 
@@ -1264,7 +1264,7 @@ class WorklockDeployer(BaseContractDeployer):
 class MultiSigDeployer(BaseContractDeployer):
 
     agency = MultiSigAgent
-    contract_name = agency.registry_contract_name
+    contract_name = agency.contract_name
     deployment_steps = ('contract_deployment', )
     _upgradeable = False
 

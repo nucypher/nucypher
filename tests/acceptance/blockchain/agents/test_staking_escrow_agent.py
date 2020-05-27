@@ -31,7 +31,7 @@ def test_unknown_contract(testerchain, test_registry):
     with pytest.raises(BaseContractRegistry.UnknownContract) as exception:
         _staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
-    assert exception.value.args[0] == StakingEscrowAgent.registry_contract_name
+    assert exception.value.args[0] == StakingEscrowAgent.contract_name
 
 
 @pytest.mark.slow()
