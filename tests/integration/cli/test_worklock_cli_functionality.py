@@ -353,7 +353,7 @@ def test_already_claimed(click_runner,
                '--force')
 
     result = click_runner.invoke(worklock, command, input=YES, env=CLI_TEST_ENV, catch_exceptions=False)
-    assert result.exit_code == 0
+    assert result.exit_code == 1
 
     # Bidder
     mock_withdraw_compensation.assert_called_once()
