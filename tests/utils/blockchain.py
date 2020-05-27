@@ -28,7 +28,6 @@ from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.crypto.powers import TransactingPower
@@ -81,7 +80,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
     DEFAULT_GAS_STRATEGY = 'free'
 
     _PROVIDER_URI = 'tester://pyevm'
-    _compiler = SolidityCompiler(source_dirs=[(SolidityCompiler.default_contract_dir(), {TEST_CONTRACTS_DIR})])
     _test_account_cache = list()
 
     _default_test_accounts = NUMBER_OF_ETH_TEST_ACCOUNTS
@@ -103,7 +101,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
                  light=False,
                  eth_airdrop=False,
                  free_transactions=False,
-                 compiler: SolidityCompiler = None,
                  mock_backend: bool = False,
                  *args, **kwargs):
 
@@ -120,7 +117,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
                          provider_process=None,
                          poa=poa,
                          light=light,
-                         compiler=self._compiler,
                          dry_run=mock_backend,
                          *args, **kwargs)
 
@@ -137,6 +133,9 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         if eth_airdrop is True:  # ETH for everyone!
             self.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
+
+    def connect(self):
+        return super().connect(test_contracts=True)
 
     def attach_middleware(self):
         if self.free_transactions:
@@ -219,7 +218,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         """For use with metric testing scripts"""
 
         registry = InMemoryContractRegistry()
-        testerchain = cls(compiler=SolidityCompiler())
+        testerchain = cls()
         BlockchainInterfaceFactory.register_interface(testerchain)
         power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                  account=testerchain.etherbase_account)

@@ -55,7 +55,7 @@ from nucypher.blockchain.eth.providers import (
     _get_websocket_provider
 )
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.blockchain.eth.sol.compile import compile_nucypher
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
 from nucypher.utilities.ethereum import encode_constructor_arguments
@@ -806,28 +806,27 @@ class BlockchainDeployerInterface(BlockchainInterface):
         pass
 
     def __init__(self,
-                 compiler: SolidityCompiler = None,
                  ignore_solidity_check: bool = False,
                  dry_run: bool = False,
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.dry_run = dry_run
-        self.compiler = compiler or SolidityCompiler(ignore_solidity_check=ignore_solidity_check)
+        self.ignore_solidity_check = ignore_solidity_check
 
-    def connect(self):
+    def connect(self, test_contracts: bool = False) -> bool:
         super().connect()
-        self._setup_solidity(compiler=self.compiler)
+        self._setup_solidity(compile_now=True, test_contracts=test_contracts)
         return self.is_connected
 
-    def _setup_solidity(self, compiler: SolidityCompiler = None) -> None:
+    def _setup_solidity(self, compile_now: bool, test_contracts: bool) -> None:
         if self.dry_run:
             self.log.info("Dry run is active, skipping solidity compile steps.")
             return
-        if compiler:
+        if compile_now:
             # Execute the compilation if we're recompiling
             # Otherwise read compiled contract data from the registry.
-            _raw_contract_cache = compiler.compile()
+            _raw_contract_cache = compile_nucypher(ignore_version_check=self.ignore_solidity_check, test_contracts=test_contracts)
         else:
             _raw_contract_cache = NO_COMPILATION_PERFORMED
         self._raw_contract_cache = _raw_contract_cache
@@ -945,7 +944,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         """Retrieve compiled interface data from the cache and return web3 contract"""
         version, interface = self.find_raw_contract_data(contract_name, version)
         contract = self.client.w3.eth.contract(abi=interface['abi'],
-                                               bytecode=interface['bin'],
+                                               bytecode=interface['evm']['bytecode']['object'],
                                                version=version,
                                                address=address,
                                                ContractFactoryClass=self._contract_factory)

@@ -52,7 +52,6 @@ from nucypher.blockchain.eth.deployers import (
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.lawful import Bob, Enrico
@@ -456,13 +455,6 @@ def make_token_economics(blockchain):
 @pytest.fixture(scope='module')
 def token_economics(testerchain):
     return make_token_economics(blockchain=testerchain)
-
-
-@pytest.fixture(scope='session')
-def solidity_compiler():
-    """Doing this more than once per session will result in slower test run times."""
-    compiler = SolidityCompiler()
-    yield compiler
 
 
 @pytest.fixture(scope='module')
