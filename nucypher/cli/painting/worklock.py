@@ -26,11 +26,11 @@ from nucypher.cli.literature import SUCCESSFUL_WORKLOCK_CLAIM, WORKLOCK_AGREEMEN
 
 
 def paint_bidding_notice(emitter, bidder):
-    WORKLOCK_AGREEMENT.format(refund_rate=prettify_eth_amount(bidder.worklock_agent.get_bonus_refund_rate()),
-                              end_date=maya.MayaDT(bidder.economics.bidding_end_date).local_datetime(),
-                              bidder_address=bidder.checksum_address,
-                              duration=bidder.economics.worklock_commitment_duration)
-    emitter.echo(WORKLOCK_AGREEMENT)
+    message = WORKLOCK_AGREEMENT.format(refund_rate=prettify_eth_amount(bidder.worklock_agent.get_bonus_refund_rate()),
+                                        end_date=maya.MayaDT(bidder.economics.bidding_end_date).local_datetime(),
+                                        bidder_address=bidder.checksum_address,
+                                        duration=bidder.economics.worklock_commitment_duration)
+    emitter.echo(message)
     return
 
 
