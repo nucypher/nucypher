@@ -182,11 +182,11 @@ def bid(general_config: GroupGeneralConfig,
     _bidder_address = worklock_options.get_bidder_address(emitter, registry)
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
 
+    existing_bid_amount = bidder.get_deposited_eth
     if not value:
         if force:
             raise click.MissingParameter("Missing --value.")
 
-        existing_bid_amount = bidder.get_deposited_eth
         if not existing_bid_amount:  # It's the first bid
             minimum_bid = bidder.worklock_agent.minimum_allowed_bid
             minimum_bid_in_eth = Web3.fromWei(minimum_bid, 'ether')
@@ -200,8 +200,12 @@ def bid(general_config: GroupGeneralConfig,
     value = int(Web3.toWei(Decimal(value), 'ether'))
 
     if not force:
-        paint_bidding_notice(emitter=emitter, bidder=bidder)
-        click.confirm(f"Place WorkLock bid of {prettify_eth_amount(value)}?", abort=True)
+        if not existing_bid_amount:
+            paint_bidding_notice(emitter=emitter, bidder=bidder)
+            click.confirm(f"Place WorkLock bid of {prettify_eth_amount(value)}?", abort=True)
+        else:
+            click.confirm(f"Increase current bid ({prettify_eth_amount(existing_bid_amount)}) "
+                          f"by {prettify_eth_amount(value)}?", abort=True)
 
     receipt = bidder.place_bid(value=value)
     emitter.message("Publishing WorkLock Bid...")
