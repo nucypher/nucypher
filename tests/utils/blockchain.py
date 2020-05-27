@@ -65,6 +65,8 @@ class TesterBlockchain(BlockchainDeployerInterface):
     Blockchain subclass with additional test utility methods and options.
     """
 
+    __test__ = False # prohibit Pytest from picking it up
+
     _instance = None
 
     GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES,

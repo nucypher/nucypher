@@ -578,15 +578,6 @@ def agency_local_registry(testerchain, agency, test_registry):
         os.remove(MOCK_REGISTRY_FILEPATH)
 
 
-@pytest.fixture(scope='module')
-def agency_local_registry(testerchain, agency, test_registry):
-    registry = LocalContractRegistry(filepath=MOCK_REGISTRY_FILEPATH)
-    registry.write(test_registry.read())
-    yield registry
-    if os.path.exists(MOCK_REGISTRY_FILEPATH):
-        os.remove(MOCK_REGISTRY_FILEPATH)
-
-
 @pytest.fixture(scope="module")
 def stakers(testerchain, agency, token_economics, test_registry):
     token_agent, _staking_agent, _policy_agent = agency
