@@ -454,6 +454,8 @@ Accept WorkLock terms and node operator obligation?"""  # TODO: Show a special m
 
 BIDDING_WINDOW_CLOSED = f"You can't bid, the bidding window is closed."
 
+CANCELLATION_WINDOW_CLOSED = "You can't cancel your bid. The cancellation window is closed."
+
 SUCCESSFUL_BID_CANCELLATION = "Bid canceled\n"
 
 WORKLOCK_ADDITIONAL_COMPENSATION_AVAILABLE = """
@@ -469,6 +471,8 @@ Would you like to proceed?
 """
 
 REQUESTING_WORKLOCK_COMPENSATION = "Requesting refund of unspent bid amount..."
+
+CLAIMING_NOT_AVAILABLE = "You can't claim tokens yet. Claiming is not currently available."
 
 CLAIM_ALREADY_PLACED = "Claim was already placed for {bidder_address}"
 

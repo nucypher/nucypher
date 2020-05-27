@@ -36,7 +36,9 @@ from nucypher.cli.literature import (
     BIDDERS_ALREADY_VERIFIED,
     BIDDING_WINDOW_CLOSED,
     BIDS_VALID_NO_FORCE_REFUND_INDICATED,
+    CANCELLATION_WINDOW_CLOSED,
     CLAIM_ALREADY_PLACED,
+    CLAIMING_NOT_AVAILABLE,
     COMPLETED_BID_VERIFICATION,
     CONFIRM_BID_VERIFICATION,
     CONFIRM_COLLECT_WORKLOCK_REFUND,
@@ -233,7 +235,8 @@ def cancel_bid(general_config: GroupGeneralConfig, worklock_options: WorkLockOpt
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
     now = maya.now().epoch
     if not worklock_agent.start_bidding_date <= now <= worklock_agent.end_cancellation_date:
-        raise click.Abort(f"You can't cancel your bid. The cancellation window is closed.")
+        emitter.echo(CANCELLATION_WINDOW_CLOSED, color='red')
+        raise click.Abort()
 
     bidder_address = worklock_options.get_bidder_address(emitter, registry)
 
@@ -257,7 +260,8 @@ def claim(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions,
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
     if not worklock_agent.is_claiming_available():
-        raise click.Abort(f"You can't claim tokens. Claiming is not currently available.")
+        emitter.echo(CLAIMING_NOT_AVAILABLE, color='red')
+        raise click.Abort()
 
     bidder_address = worklock_options.get_bidder_address(emitter, registry)
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
@@ -275,7 +279,7 @@ def claim(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions,
     has_claimed = bidder.has_claimed
     if bool(has_claimed):
         emitter.echo(CLAIM_ALREADY_PLACED.format(bidder_address=bidder.checksum_address), color='red')
-        return
+        raise click.Abort()
 
     tokens = NU.from_nunits(bidder.available_claim)
     emitter.echo(AVAILABLE_CLAIM_NOTICE.format(tokens=tokens), color='green', bold=True)
