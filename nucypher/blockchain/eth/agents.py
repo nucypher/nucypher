@@ -123,9 +123,10 @@ class EthereumContractAgent:
     Base class for ethereum contract wrapper types that interact with blockchain contract instances
     """
 
-    registry_contract_name: str = NotImplemented
+    contract_name: str = NotImplemented
     _forward_address: bool = True
     _proxy_name: Optional[str] = None
+    _excluded_interfaces: Tuple[str] = tuple()
 
     # TODO - #842: Gas Management
     DEFAULT_TRANSACTION_GAS_LIMITS: Dict[str, Union[Wei, None]]
@@ -263,8 +264,15 @@ class NucypherTokenAgent(EthereumContractAgent):
 
 class StakingEscrowAgent(EthereumContractAgent):
 
-    registry_contract_name: str = STAKING_ESCROW_CONTRACT_NAME
+    contract_name: str = STAKING_ESCROW_CONTRACT_NAME
     _proxy_name: str = DISPATCHER_CONTRACT_NAME
+    _excluded_interfaces = (
+        'setPolicyManager',
+        'verifyState',
+        'finishUpgrade',
+        'setAdjudicator',
+        'setWorkLock'
+    )
 
     DEFAULT_PAGINATION_SIZE: int = 30    # TODO: Use dynamic pagination size (see #1424)
 
@@ -807,8 +815,12 @@ class StakingEscrowAgent(EthereumContractAgent):
 
 class PolicyManagerAgent(EthereumContractAgent):
 
-    registry_contract_name: str = POLICY_MANAGER_CONTRACT_NAME
+    contract_name: str = POLICY_MANAGER_CONTRACT_NAME
     _proxy_name: str = DISPATCHER_CONTRACT_NAME
+    _excluded_interfaces = (
+        'verifyState',
+        'finishUpgrade'
+    )
 
     @contract_api(TRANSACTION)
     def create_policy(self,
@@ -1200,7 +1212,8 @@ class AdjudicatorAgent(EthereumContractAgent):
 
 class WorkLockAgent(EthereumContractAgent):
 
-    registry_contract_name: str = WORKLOCK_CONTRACT_NAME
+    contract_name: str = WORKLOCK_CONTRACT_NAME
+    _excluded_interfaces = ('shutdown', 'tokenDeposit')
 
     #
     # Transactions
