@@ -16,13 +16,15 @@
 """
 
 from eth_typing.evm import ChecksumAddress
-from typing import TypeVar, NewType, Tuple, NamedTuple
-from web3.types import Wei, Timestamp
+from typing import TypeVar, NewType, Tuple, NamedTuple, Union
+from web3.types import Wei, Timestamp, TxReceipt
 
 NuNits = NewType("NuNits", int)
 Agent = TypeVar('Agent', bound='EthereumContractAgent')
 Period = NewType('Period', int)
 PeriodDelta = NewType('Period', int)
+Evidence = TypeVar('Evidence', bound='IndisputableEvidence')
+ContractReturnValue = TypeVar('ContractReturnValue', bound=Union[TxReceipt, Wei, int, str, bool])
 
 
 class ContractParams(Tuple):
