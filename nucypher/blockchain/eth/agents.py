@@ -302,7 +302,8 @@ class StakingEscrowAgent(EthereumContractAgent):
                 stakers.update(temp_stakers_map)
                 start_index += pagination_size
         else:
-            n_tokens, stakers = self.contract.functions.getActiveStakers(periods, 0, 0).call()
+            n_tokens, temp_stakers = self.contract.functions.getActiveStakers(periods, 0, 0).call()
+            stakers = {address: locked_tokens for address, locked_tokens in temp_stakers}
 
         # stakers' addresses are returned as uint256 by getActiveStakers(), convert to address objects
         def checksum_address(address: int) -> ChecksumAddress:
