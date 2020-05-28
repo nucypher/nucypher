@@ -3,7 +3,7 @@
 The Slashing Protocol
 =====================
 
-The slashing protocol is a preventative mechanism that disincentivizes certain staker actions, whether deliberate or unintentional, to maximize service quality and preserve network health. If prohibited actions (‘violations’) are attributably detected at any moment, the protocol responds by irreversibly forfeiting (‘slashing’) a portion of the offending staker’s collateral (‘stake’).
+The slashing protocol is a preventative mechanism that disincentivizes certain staker actions, whether deliberate or unintentional, that may negatively impact service quality or network health. If prohibited actions (‘violations’) are attributably detected at any moment, the protocol responds by irreversibly forfeiting (‘slashing’) a portion of the offending staker’s collateral (‘stake’).
 
 At network genesis, the protocol will be able to detect and attribute instances of incorrect re-encryptions returned by Ursulas. The staker controlling the incorrectly re-encrypting Ursula will have their stake reduced by a nominal sum of NU tokens.
 
@@ -23,7 +23,7 @@ Incorrect re-encryptions are detectable by Bob, who can then send a proof to the
 2. When Ursula receives the kFrag, she checks its validity – that the point commitment on the secret component is correct. This ensures that she doesn’t incorrectly re-encrypt due to Alice’s error (or attack).
 3. Bob makes a re-encryption request by presenting a capsule to Ursula, and she responds with a cFrag. This contains the payload (a re-encrypted ciphertext) and a non-interactive zero knowledge proofs of knowledge (NIZK).
 4. Bob checks the validity of the cFrag using the NIZK. He verifies that the point commitment corresponds to the ciphertext. He also checks that the cFrag was generated using his capsule, by verifying that it was created with the correct public key.
-5. If any of the verifications fail, then Bob supplies the ciphertext and NIZK to the :ref:`Adjudicator contract <contracts>`. The contract runs extensive verification processes, leveraging `optimized ECC algorithms <https://github.com/nucypher/numerology>`_.
+5. If any of the verifications fail, then Bob supplies the ciphertext and NIZK to the :ref:`Adjudicator contract <contracts>`. The contract examines Bob's claim by checking whether the NIZK proof for the ciphertext fails, leveraging `optimized ECC algorithms <https://github.com/nucypher/numerology>`_.
 6. If the invalidity of the cFrag is confirmed by the Adjudicator contract, the delivery of a faulty cFrag to Bob is ruled to be an official protocol violation. A penalty is computed and the owner of the offending Ursula has their stake immediately slashed by the penalty amount.
 
 .. image:: ../.static/img/correctness_verification_schematic.png
@@ -42,7 +42,7 @@ transactions per block (~30 based on transaction gas and current gas limits). Th
         &= 2 \times 10 ^ {-18} NU \times 6000 \text{ blocks per period} \times 30 \text{ transactions per block} \\
         &= 3.6 \times 10 ^ {-13} NU \text{ per period}
 
-This nominal penalty is effectively a placeholder until a more complete slashing model is designed and implemented. The genesis penalty is measurable – so staker behavior can be observed – but small enough that it has a negligible impact on the staker’s ability to continue serving the network. If the severity of penalties and logic of the slashing protocol changes, it may involve any combination of the following:
+The genesis penalty is measurable – so staker behavior can be observed – but small enough that it has a negligible impact on the staker’s ability to continue serving the network. If the severity of penalties and logic of the slashing protocol changes, it may involve any combination of the following:
 
 * Larger penalties levied in absolute terms (number of tokens slashed per violation). This will provide a material disincentive to stakers.
 * Penalties calculated as a percentage of the offender’s stake (i.e. the larger the stake, the greater the number of tokens slashed per violation). This will make punishments and disincentives far more equitable across stakers of diverse sizes.
