@@ -104,12 +104,12 @@ External Transaction Signing
 In conjunction with an ethereum provider, an external transaction signer can be specified and operated
 independently of the provider/broadcaster. This separation allows pre-signed transactions to be sent to an
 external (possibly remote) ethereum node and is particularly desirable when interacting with an untrusted
-Ethereum node.
+ethereum node.
 
 For example, external signers can be used with:
 
 - Infura/Alchemy/Etc.
-- Local geth node
+- Local ethereum node
 - Remote ethereum node
 
 Two external signers are currently supported:
@@ -128,7 +128,7 @@ Two external signers are currently supported:
 Signing with Clef
 *****************
 
-Clef enables applications to connect to an Ethereum node and send locally signed
+Clef enables applications to connect to an ethereum node and send locally signed
 transactions to be broadcasted. More
 information about Clef can be found `here <https://github.com/ethereum/go-ethereum/tree/master/cmd/clef>`_. Clef can
 use hardware wallets (ledger and trezor) over USB, or geth formatted private keys by specifying the keystore
@@ -171,7 +171,7 @@ Running Clef
 
 
 * ``<PATH TO KEYSTORE>`` - The path to the directory containing geth-formatted private key files; the default path for Linux is ``~/.ethereum/keystore``.
-* ``<CHAIN ID>`` - 1 is specified to ensure Clef signs transactions with the network ID of mainnet.
+* ``<CHAIN ID>`` - 1 is specified to ensure Clef signs transactions with the network ID of ethereum mainnet.
 
 .. code:: bash
 
@@ -258,7 +258,7 @@ Signing with Local Keystore
 
 Local keystore signing utilizes `eth-account <https://github.com/ethereum/eth-account>`_ to sign ethereum transactions
 using local ethereum keystore files. By default on Linux, the keystore directory path is ``~/.ethereum/keystore``
-(on MacOS for Goerli testnet, ``/Users/<username>/Library/Ethereum/keystore``).
+(on MacOS for Goerli testnet, ``/Users/<username>/Library/Ethereum/goerli/keystore``).
 
 
 Usage
