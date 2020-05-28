@@ -93,7 +93,7 @@ def test_availability_tracker_success(blockchain_ursulas):
             ursula._availability_tracker = None
 
 
-@pytest.mark.skip('See PR #1863')
+@pytest.mark.skip('Awaiting PR #1863')
 @pt.inlineCallbacks
 def test_availability_tracker_integration(blockchain_ursulas, monkeypatch):
 

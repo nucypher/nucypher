@@ -26,6 +26,11 @@ from unittest.mock import patch
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.powers import CryptoPower, SigningPower
 
+try:
+    from tests.utils.middleware import EvilMiddleWare
+except ImportError:
+    pass  # TODO: #2000 Handle this situation with a common Exception
+
 
 class Vladimir(Ursula):
     """

@@ -19,26 +19,40 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import os
+import subprocess
 import sys
-
-from setuptools import setup, find_packages
+from pathlib import Path
+from setuptools import find_packages, setup
+from setuptools.command.develop import develop
 from setuptools.command.install import install
-
 
 #
 # Metadata
 #
 
+
 PACKAGE_NAME = 'nucypher'
-BASE_DIR = os.path.dirname(__file__)
+BASE_DIR = Path(__file__).parent
+PYPI_CLASSIFIERS = [
+      "Development Status :: 3 - Alpha",
+      "Intended Audience :: Developers",
+      "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+      "Natural Language :: English",
+      "Operating System :: OS Independent",
+      "Programming Language :: Python",
+      "Programming Language :: Python :: 3 :: Only",
+      "Programming Language :: Python :: 3.6",
+      "Programming Language :: Python :: 3.7",
+      "Programming Language :: Python :: 3.8",
+      "Topic :: Security"
+]
 
 ABOUT = dict()
-with open(os.path.join(BASE_DIR, PACKAGE_NAME, "__about__.py")) as f:
+SOURCE_METADATA_PATH = BASE_DIR / PACKAGE_NAME / "__about__.py"
+with open(str(SOURCE_METADATA_PATH.resolve())) as f:
     exec(f.read(), ABOUT)
-
-with open(os.path.join(BASE_DIR, "README.md")) as f:
-    long_description = f.read()
 
 
 #
@@ -65,103 +79,93 @@ class VerifyVersionCommand(install):
             sys.exit(info)
 
 
+class PostDevelopCommand(develop):
+    """
+    Post-installation for development mode.
+    Execute manually with python setup.py develop or automatically included with
+    `pip install -e . -r dev-requirements.txt`.
+    """
+    def run(self):
+        """development setup scripts (pre-requirements)"""
+        develop.run(self)
+        subprocess.call(f"scripts/installation/install_solc.py")
+
 #
-#  Dependencies
+#  Requirements
 #
 
-with open(os.path.join(BASE_DIR, "requirements.txt")) as f:
-    _PIP_FLAGS, *INSTALL_REQUIRES = f.read().split('\n')
+
+def read_requirements(path):
+    with open(os.path.join(BASE_DIR, path)) as f:
+        _pipenv_flags, *requirements = f.read().split('\n')
+    return requirements
 
 
-TESTS_REQUIRE = [
-    'pytest',
-    'pytest-xdist',
-    'pytest-mypy',
-    'pytest-twisted',
-    'pytest-cov',
-    'mypy',
-    'codecov',
-    'coverage',
+INSTALL_REQUIRES = read_requirements('requirements.txt')
+DOCS_REQUIRE = read_requirements('docs-requirements.txt')
+DEV_REQUIRES = read_requirements('dev-requirements.txt')
+
+BENCHMARK_REQUIRES = [
+    'pytest-benchmark'
 ]
 
 DEPLOY_REQUIRES = [
     'bumpversion',
     'ansible',
+    'twine'
 ]
 
-DOCS_REQUIRE = [
-    'sphinx',
-    'sphinx-autobuild',
-    'sphinx_rtd_theme'
-]
+URSULA_REQUIRES = ['prometheus_client']
 
-BENCHMARKS_REQUIRE = [
-    'pytest-benchmark'
-]
+EXTRAS = {
 
-EXTRAS_REQUIRE = {'development': TESTS_REQUIRE,
-                  'deployment': DEPLOY_REQUIRES,
-                  'docs': DOCS_REQUIRE,
-                  'benchmark': BENCHMARKS_REQUIRE}
+    # Admin
+    'docs': DOCS_REQUIRE,
+    'dev': DEV_REQUIRES + DOCS_REQUIRE + URSULA_REQUIRES,
+    'benchmark': DEV_REQUIRES + BENCHMARK_REQUIRES,
+    'deploy': DOCS_REQUIRE + DEPLOY_REQUIRES,
 
-PACKAGE_DATA = ['network/templates/basic_status.j2',
-                'network/nicknames/web_colors.json',
-                'blockchain/eth/contract_registry/mainnet/*',
-                'blockchain/eth/contract_registry/cassandra/*',
-                'blockchain/eth/contract_registry/gemini/*',
-                'blockchain/eth/contract_registry/frances/*',
-                'blockchain/eth/contract_registry/miranda/*',
-                'blockchain/eth/sol/source/contracts/*',
-                'blockchain/eth/sol/source/contracts/lib/*',
-                'blockchain/eth/sol/source/contracts/proxy/*',
-                'blockchain/eth/sol/source/zeppelin/math/*',
-                'blockchain/eth/sol/source/zeppelin/utils/*',
-                'blockchain/eth/sol/source/zeppelin/ownership/*',
-                'blockchain/eth/sol/source/zeppelin/token/ERC20/*',
-                'blockchain/eth/sol/source/aragon/contracts/*',
-                'blockchain/eth/sol/source/aragon/interfaces/*',
-                ]
+    # User
+    'ursula': URSULA_REQUIRES
 
-setup(name=ABOUT['__title__'],
-      url=ABOUT['__url__'],
-      version=ABOUT['__version__'],
-      author=ABOUT['__author__'],
-      author_email=ABOUT['__email__'],
-      description=ABOUT['__summary__'],
-      license=ABOUT['__license__'],
-      long_description=long_description,
-      long_description_content_type="text/markdown",
+}
 
-      # Setup
-      python_requires='>=3',
-      setup_requires=['pytest-runner'],  # required for `setup.py test`
-      tests_require=TESTS_REQUIRE,
-      install_requires=INSTALL_REQUIRES,
-      extras_require=EXTRAS_REQUIRE,
 
-      # Package Data
-      packages=find_packages(exclude=["tests"]),
-      package_data={PACKAGE_NAME: PACKAGE_DATA},
-      include_package_data=True,
+setup(
 
-      # Entry Points
-      entry_points={'console_scripts': [
-          f'{PACKAGE_NAME} = {PACKAGE_NAME}.cli.main:nucypher_cli',
-          f'{PACKAGE_NAME}-deploy = {PACKAGE_NAME}.cli.commands.deploy:deploy',
-      ]},
-      cmdclass={'verify': VerifyVersionCommand},
+    # Requirements
+    python_requires='>=3',
+    setup_requires=['setuptools-markdown'],
+    install_requires=INSTALL_REQUIRES,
+    extras_require=EXTRAS,
 
-      # Metadata
-      classifiers=[
-          "Development Status :: 3 - Alpha",
-          "Intended Audience :: Developers",
-          "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
-          "Natural Language :: English",
-          "Operating System :: OS Independent",
-          "Programming Language :: Python",
-          "Programming Language :: Python :: 3 :: Only",
-          "Programming Language :: Python :: 3.6",
-          "Programming Language :: Python :: 3.7",
-          "Programming Language :: Python :: 3.8",
-          "Topic :: Security"
-      ])
+    # Package Data
+    packages=find_packages(exclude=["tests", "scripts"]),
+    include_package_data=True,
+    zip_safe=False,
+
+    # Entry Points
+    entry_points={'console_scripts': [
+      'nucypher = nucypher.cli.main:nucypher_cli',
+      'nucypher-deploy = nucypher.cli.commands.deploy:deploy',
+    ]},
+
+    # setup.py commands
+    cmdclass={
+        'verify': VerifyVersionCommand,
+        'develop': PostDevelopCommand
+    },
+
+    # Metadata
+    name=ABOUT['__title__'],
+    url=ABOUT['__url__'],
+    version=ABOUT['__version__'],
+    author=ABOUT['__author__'],
+    author_email=ABOUT['__email__'],
+    description=ABOUT['__summary__'],
+    license=ABOUT['__license__'],
+    long_description_content_type="text/markdown",
+    long_description_markdown_filename='README.md',
+    keywords="nucypher, proxy re-encryption",
+    classifiers=PYPI_CLASSIFIERS
+)
