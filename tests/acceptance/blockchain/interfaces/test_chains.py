@@ -22,7 +22,7 @@ import pytest
 from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from nucypher.blockchain.eth.sol.compile import _compile
+from nucypher.blockchain.eth.sol.compile import compile_nucypher
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
@@ -97,12 +97,14 @@ def test_multiversion_contract():
     # Prepare compiler
     base_dir = Path(__file__).parent / 'contracts' / 'multiversion'
     v1_dir, v2_dir = base_dir / 'v1', base_dir / 'v2'
-    _compile(source_dirs=(v1_dir, v2_dir))
+    compiled_contracts = compile_nucypher(source_dirs=(v1_dir, v2_dir))
 
     # Prepare chain
     blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm/2',
                                                        gas_strategy=free_gas_price_strategy)
-    blockchain_interface.connect()
+    blockchain_interface.connect(compile_now=False)
+    blockchain_interface._raw_contract_cache = compiled_contracts
+
     origin = blockchain_interface.client.accounts[0]
     blockchain_interface.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=origin)
     blockchain_interface.transacting_power.activate()

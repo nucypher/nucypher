@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from pathlib import Path
 
 import math
 import os
@@ -805,31 +806,20 @@ class BlockchainDeployerInterface(BlockchainInterface):
     class DeploymentFailed(RuntimeError):
         pass
 
-    def __init__(self,
-                 ignore_solidity_check: bool = False,
-                 dry_run: bool = False,
-                 *args, **kwargs):
-
-        super().__init__(*args, **kwargs)
-        self.dry_run = dry_run
-        self.ignore_solidity_check = ignore_solidity_check
-
-    def connect(self, test_contracts: bool = False) -> bool:
+    def connect(self,
+                compile_now: bool = True,
+                test_contracts: bool = False,
+                ignore_solidity_check: bool = False
+                ) -> bool:
         super().connect()
-        self._setup_solidity(compile_now=True, test_contracts=test_contracts)
-        return self.is_connected
-
-    def _setup_solidity(self, compile_now: bool, test_contracts: bool) -> None:
-        if self.dry_run:
-            self.log.info("Dry run is active, skipping solidity compile steps.")
-            return
         if compile_now:
             # Execute the compilation if we're recompiling
             # Otherwise read compiled contract data from the registry.
-            _raw_contract_cache = compile_nucypher(ignore_version_check=self.ignore_solidity_check, test_contracts=test_contracts)
+            self._raw_contract_cache = compile_nucypher(ignore_version_check=ignore_solidity_check,
+                                                        test_contracts=test_contracts)
         else:
-            _raw_contract_cache = NO_COMPILATION_PERFORMED
-        self._raw_contract_cache = _raw_contract_cache
+            self._raw_contract_cache = NO_COMPILATION_PERFORMED
+        return self.is_connected
 
     @validate_checksum_address
     def deploy_contract(self,
@@ -916,9 +906,9 @@ class BlockchainDeployerInterface(BlockchainInterface):
             return requested_version, contract_data[requested_version]
         except KeyError:
             if requested_version != 'latest' and requested_version != 'earliest':
-                raise self.UnknownContract('Version {} of contract {} is not a locally compiled. '
-                                           'Available versions: {}'
-                                           .format(requested_version, contract_name, contract_data.keys()))
+                available = ', '.join(contract_data.keys())
+                raise self.UnknownContract(f'Version {contract_name} of contract {contract_name} is not a locally compiled. '
+                                           f'Available versions: {available}')
 
         if len(contract_data.keys()) == 1:
             return next(iter(contract_data.items()))
