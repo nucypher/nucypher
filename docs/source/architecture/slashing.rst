@@ -27,7 +27,7 @@ Incorrect re-encryptions are detectable by Bob, who can then send a proof to the
 6. If the invalidity of the cFrag is confirmed by the Adjudicator contract, the delivery of a faulty cFrag to Bob is ruled to be an official protocol violation. A penalty is computed and the owner of the offending Ursula has their stake immediately slashed by the penalty amount.
 
 .. image:: ../.static/img/correctness_verification_schematic.svg
-    :target: ../.static/img/correctness_verification_schematic.svg  
+    :target: ../.static/img/correctness_verification_schematic.svg
 
 Penalties
 ---------
