@@ -205,9 +205,6 @@ class Policy(ABC):
         self.treasure_map = TreasureMap(m=m)
         self.expiration = expiration
 
-        # Keep track of this stuff
-        self.selection_buffer = 1
-
         self._accepted_arrangements = set()    # type: Set[Arrangement]
         self._rejected_arrangements = set()    # type: Set[Arrangement]
         self._spare_candidates = set()         # type: Set[Ursula]
@@ -532,7 +529,6 @@ class BlockchainPolicy(Policy):
 
         super().__init__(alice=alice, expiration=expiration, *args, **kwargs)
 
-        self.selection_buffer = 1.5
         self.validate_fee_value()
 
     def validate_fee_value(self) -> None:
@@ -618,8 +614,7 @@ class BlockchainPolicy(Policy):
         selected_addresses = set()
         try:
             sampled_addresses = self.alice.recruit(quantity=quantity,
-                                                   duration=self.duration_periods,
-                                                   additional_ursulas=self.selection_buffer)
+                                                   duration=self.duration_periods)
         except StakingEscrowAgent.NotEnoughStakers as e:
             error = f"Cannot create policy with {quantity} arrangements: {e}"
             raise self.NotEnoughBlockchainUrsulas(error)

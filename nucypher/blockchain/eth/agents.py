@@ -15,8 +15,9 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from bisect import bisect_right
+from itertools import accumulate
 import random
-
 import math
 import sys
 from constant_sorrow.constants import (  # type: ignore
@@ -730,15 +731,11 @@ class StakingEscrowAgent(EthereumContractAgent):
     def sample(self,
                quantity: int,
                duration: int,
-               additional_ursulas: float = 1.5,
-               attempts: int = 5,
                pagination_size: Optional[int] = None
                ) -> List[ChecksumAddress]:
         """
         Select n random Stakers, according to their stake distribution.
-
-        The returned addresses are shuffled, so one can request more than needed and
-        throw away those which do not respond.
+        The returned addresses are shuffled.
 
         See full diagram here: https://github.com/nucypher/kms-whitepaper/blob/master/pdf/miners-ruler.pdf
 
@@ -757,42 +754,30 @@ class StakingEscrowAgent(EthereumContractAgent):
         Only stakers which made a commitment to the current period (in the previous period) are used.
         """
 
-        system_random = random.SystemRandom()
         n_tokens, stakers_map = self.get_all_active_stakers(periods=duration, pagination_size=pagination_size)
+
+        # TODO: can be implemented as an iterator if necessary, where the user can
+        # sample addresses one by one without calling get_all_active_stakers() repeatedly.
+
         if n_tokens == 0:
             raise self.NotEnoughStakers('There are no locked tokens for duration {}.'.format(duration))
 
-        sample_size = quantity
-        for _ in range(attempts):
-            sample_size = math.ceil(sample_size * additional_ursulas)
-            points = sorted(system_random.randrange(n_tokens) for _ in range(sample_size))
-            self.log.debug(f"Sampling {sample_size} stakers with random points: {points}")
+        if quantity > len(stakers_map):
+            raise self.NotEnoughStakers(f'Cannot sample {quantity} out of {len(stakers)} total stakers')
 
-            addresses = set()
-            stakers = list(stakers_map.items())
+        addresses = list(stakers_map.keys())
+        tokens = list(stakers_map.values())
+        sampler = WeightedSampler(addresses, tokens)
 
-            point_index = 0
-            sum_of_locked_tokens = 0
-            staker_index = 0
-            stakers_len = len(stakers)
-            while staker_index < stakers_len and point_index < sample_size:
-                current_staker = stakers[staker_index][0]
-                staker_tokens = stakers[staker_index][1]
-                next_sum_value = sum_of_locked_tokens + staker_tokens
+        system_random = random.SystemRandom()
+        sampled_addresses = sampler.sample_no_replacement(system_random, quantity)
 
-                point = points[point_index]
-                if sum_of_locked_tokens <= point < next_sum_value:
-                    addresses.add(to_checksum_address(current_staker))
-                    point_index += 1
-                else:
-                    staker_index += 1
-                    sum_of_locked_tokens = next_sum_value
+        # Randomize the output to avoid the largest stakers always being the first in the list
+        system_random.shuffle(sampled_addresses) # inplace
 
-            self.log.debug(f"Sampled {len(addresses)} stakers: {list(addresses)}")
-            if len(addresses) >= quantity:
-                return system_random.sample(addresses, quantity)
+        self.log.debug(f"Sampled {len(addresses)} stakers: {list(sampled_addresses)}")
 
-        raise self.NotEnoughStakers('Selection failed after {} attempts'.format(attempts))
+        return sampled_addresses
 
     @contract_api(CONTRACT_CALL)
     def get_completed_work(self, bidder_address: ChecksumAddress) -> Work:
@@ -1650,3 +1635,44 @@ class ContractAgency:
         agent_class: Type[EthereumContractAgent] = getattr(agents_module, agent_name)
         agent: EthereumContractAgent = cls.get_agent(agent_class=agent_class, registry=registry, provider_uri=provider_uri)
         return agent
+
+
+class WeightedSampler:
+    """
+    Samples random elements with probabilities proportioinal to given weights.
+    """
+
+    def __init__(self, elements: Iterable, weights: Iterable[int]):
+        assert len(elements) == len(weights)
+        self.totals = list(accumulate(weights))
+        self.elements = elements
+
+    def sample_no_replacement(self, rng, quantity: int) -> list:
+        """
+        Samples ``quantity`` of elements from the internal array.
+        The probablity of an element to appear is proportional
+        to the weight provided to the constructor.
+
+        The elements will not repeat; every time an element is sampled its weight is set to 0.
+        (does not mutate the object and only applies to the current invocation of the method).
+        """
+
+        if quantity > len(self.totals):
+            raise ValueError("Cannot sample more than the total amount of elements without replacement")
+
+        totals = self.totals.copy()
+        samples = []
+
+        for i in range(quantity):
+            position = rng.randint(0, totals[-1] - 1)
+            idx = bisect_right(totals, position)
+            samples.append(self.elements[idx])
+
+            # Adjust the totals so that they correspond
+            # to the weight of the element `idx` being set to 0.
+            prev_total = totals[idx - 1] if idx > 0 else 0
+            weight = totals[idx] - prev_total
+            for j in range(idx, len(totals)):
+                totals[j] -= weight
+
+        return samples
