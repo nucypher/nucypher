@@ -86,13 +86,9 @@ class PostDevelopCommand(develop):
     `pip install -e . -r dev-requirements.txt`.
     """
     def run(self):
-
-        # super
+        """development setup scripts (pre-requirements)"""
         develop.run(self)
-
-        # development setup scripts (pre-requirements)
         subprocess.call(f"scripts/installation/install_solc.py")
-        subprocess.call(".circleci/install_circle_cli.sh")
 
 #
 #  Requirements

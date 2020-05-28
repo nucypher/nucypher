@@ -15,11 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from __future__ import absolute_import, division, print_function
+
 """
 WARNING: Do not modify this file.
 """
-
-from __future__ import absolute_import, division, print_function
 
 __all__ = [
     "__title__", "__summary__", "__version__", "__author__", "__email__", "__license__", "__copyright__", "__url__"
