@@ -19,11 +19,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import os
 import subprocess
-
 import sys
-from setuptools import setup, find_packages
+from pathlib import Path
+from setuptools import find_packages, setup
 from setuptools.command.develop import develop
 from setuptools.command.install import install
 
@@ -33,7 +34,7 @@ from setuptools.command.install import install
 
 
 PACKAGE_NAME = 'nucypher'
-BASE_DIR = os.path.dirname(__file__)
+BASE_DIR = Path(__file__).parent
 PYPI_CLASSIFIERS = [
       "Development Status :: 3 - Alpha",
       "Intended Audience :: Developers",
@@ -49,7 +50,8 @@ PYPI_CLASSIFIERS = [
 ]
 
 ABOUT = dict()
-with open(os.path.join(BASE_DIR, PACKAGE_NAME, "__about__.py")) as f:
+SOURCE_METADATA_PATH = BASE_DIR / PACKAGE_NAME / "__about__.py"
+with open(str(SOURCE_METADATA_PATH.resolve())) as f:
     exec(f.read(), ABOUT)
 
 

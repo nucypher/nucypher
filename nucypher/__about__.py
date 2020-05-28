@@ -15,6 +15,9 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+"""
+WARNING: Do not modify this file.
+"""
 
 from __future__ import absolute_import, division, print_function
 
