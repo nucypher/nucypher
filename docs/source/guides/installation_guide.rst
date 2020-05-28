@@ -16,7 +16,7 @@ System Requirements and Dependencies
 
 ``nucypher`` has been tested on GNU/Linux **(recommended)**, Mac OS, and Windows.
 
-* Before installing ``nucypher``\ , you may need to install necessary developer tools and headers, if you don't
+* Before installing ``nucypher``, you may need to install necessary developer tools and headers, if you don't
   have them already. For Ubuntu, Debian, Linux Mint or similar distros:
 
     .. code::
