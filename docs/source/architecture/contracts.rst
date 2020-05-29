@@ -10,9 +10,9 @@ Contract Listing
 * ``NuCypherToken`` ERC20 token contract
 * ``StakingEscrow`` Holds Ursula's stake, stores information about Ursula's activity, and assigns a reward for participating in the NuCypher network. (The ``Issuer`` contract is part of the ``StakingEscrow``\ )
 * ``PolicyManager`` Holds a policy's fee and distributes fee by periods
-* ``Adjudicator`` Manages `the slashing protocol </architecture/slashing>`_
+* ``Adjudicator`` Manages :doc:`the slashing protocol </architecture/slashing>`
 * ``WorkLock`` Manages token distribution
-* ``Upgradeable`` Base contract for `upgrading </architecture/upgradeable_proxy_contracts>`_
+* ``Upgradeable`` Base contract for :doc:`upgrading </architecture/upgradeable_proxy_contracts>`
 * ``Dispatcher`` Proxy to other contracts and provides upgrading of the ``StakingEscrow``\ , ``PolicyManager`` and ``Adjudicator`` contracts
 * ``PreallocationEscrow`` Locks tokens for some predetermined time. Tokens will be unlocked after the specified time and all tokens can be used as stake in the ``StakingEscrow`` contract
 
@@ -20,7 +20,7 @@ Deployment Procedure
 --------------------
 
 This section provides a step-by-step guide of how NuCypher contracts are deployed.
-For a guide of how to deploy these contracts automatically, see the `Deployment guide </guides/deployment_guide>`_.
+For a guide of how to deploy these contracts automatically, see the :doc:`Deployment Guide </guides/deployment_guide>`.
 
 #. Deploy ``NuCypherToken`` with all future supply tokens
 #. Deploy ``StakingEscrow`` with a dispatcher targeting it

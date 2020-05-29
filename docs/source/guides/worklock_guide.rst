@@ -25,8 +25,9 @@ All ``nucypher worklock`` commands share a similar structure:
 
 Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
 
-    - ``ipc:///home/ubuntu/.ethereum/goerli/geth.ipc`` - Geth Node on Görli testnet running under user ``ubuntu``.
-
+    - ``ipc:///home/<username>/.ethereum/geth.ipc`` - IPC Socket-based JSON-RPC server
+    - ``https://<host>`` - HTTP(S)-based JSON-RPC server
+    - ``wss://<host>:8080`` - Websocket(Secure)-based JSON-RPC server
 
 Show current WorkLock information
 ---------------------------------

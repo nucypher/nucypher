@@ -19,14 +19,23 @@ they only need to perform stake management transactions. Using a hardware wallet
 for stakers since only temporarily access to private keys is required during stake management while providing a higher standard
 of security than software wallets.
 
-Staking Procedure:
+Mainnet Staking Procedure:
 
-1) Install ``nucypher`` on Staker's machine (see :doc:`/guides/installation_guide`)
-2) Establish ethereum account, provider, and, optionally, signer (see `Staking`_)
-3) Request testnet tokens by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and type ``.getfunded <YOUR_STAKER_ETH_ADDRESS>`` in the #testnet-faucet channel
-4) Initialize a new StakeHolder and Stake (see `Initialize a new stakeholder`_)
-5) Initialize a new stake (see `Initialize a new stake`_)
-6) Bond a Worker to a Staker using the worker's ethereum address (see `Bonding a Worker`_)
+#. Install ``nucypher`` on Staker's machine (see :doc:`/guides/installation_guide`)
+#. Obtain a Stake with tokens (initially via :ref:`WorkLock <worklock-guide>` at launch)
+#. Initialize a new StakeHolder (see `Initialize a new stakeholder`_)
+#. Bond a Worker to your Staker using the worker's ethereum address (see `Bonding a Worker`_)
+
+.. note::
+
+    For testnets the typical staking procedure is:
+
+        #. Install ``nucypher`` on Staker's machine (see :doc:`/guides/installation_guide`)
+        #. Establish ethereum account, provider, and, optionally, signer (see `Staking`_)
+        #. Request testnet tokens by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and type ``.getfunded <YOUR_STAKER_ETH_ADDRESS>`` in the #testnet-faucet channel
+        #. Initialize a new StakeHolder and Stake (see `Initialize a new stakeholder`_)
+        #. Initialize a new stake (see `Initialize a new stake`_)
+        #. Bond a Worker to a Staker using the worker's ethereum address (see `Bonding a Worker`_)
 
 
 Staking CLI
@@ -99,135 +108,32 @@ All staking-related operations done by Staker are performed through the ``nucyph
 Staking
 --------
 
-Staking transactions can be broadcast using either a local or remote ethereum node.
-By default transaction signing requests are forwarded to the configured ethereum provider;
-This is the typical configuration for locally or independently run ethereum nodes.
-In order to use a remote ethereum provider (e.g. Alchemy, Infura, Public Remote Node) an external transaction signing client
-(e.g. clef or geth) is needed separate from the broadcasting node.
+Running an Ethereum Node for Staking
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Below we describe the usage of both local and remote ethereum providers...
-
-Running an Ethereum Node for Staking (Local Provider)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Here we describe the steps required to run an ethereum node for both transaction signing and broadcast.
-This is the typical configuration for a locally operated trusted ethereum node.
-
-Assuming you have ``geth`` installed, let's run a node on the Görli testnet.
-
-.. code:: bash
-
-    $ geth --goerli
-
-If you want to use your hardware wallet, just connect it to your machine. You'll see something like this in logs:
-
-.. code:: bash
-
-    INFO [08-30|15:50:39.153] New wallet appeared      url=ledger://0001:000b:00      status="Ethereum app v1.2.7 online"
-
-If you see something like ``New wallet appeared, failed to open`` in the logs,
-you need to reconnect the hardware wallet (without turning the ``geth`` node
-off).
-
-If you don't have a hardware wallet, you can create a software one:
-
-Whilst running the initialized node:
-
-.. code:: bash
-
-    Linux:
-    $ geth attach /home/<username>/.ethereum/goerli/geth.ipc
-    > personal.newAccount();
-    > eth.accounts
-    ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
-
-    MacOS:
-    $ geth attach /Users/<username>/Library/Ethereum/goerli/geth.ipc
-    > personal.newAccount();
-    > eth.accounts
-    ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
-
-Where ``0x287a817426dd1ae78ea23e9918e2273b6733a43d`` is your newly created
-account address and ``<username>`` is your user.
-
-Using Clef as an external transaction signer (Remote Provider)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. important::
-
-    External signing support is an experimental feature and under active development.
-
-Motivation
-**********
-
-Instead of using a local ethereum node for both transaction signing and broadcast, an external signer can be specified
-and operated independently of the provider/broadcaster. This separation allows stakers to use local hardware and software wallets
-to send pre-signed transactions to an external (possibly remote) ethereum node.
-
-Some examples:
-
-- Infura/Alchemy/Etc. for broadcasting with clef signer
-- Local geth node for broadcasting with clef signer
-- Remote ethereum node for broadcasting with local geth signer
+Staking transactions can be broadcasted using either a local or remote ethereum node. See
+:ref:`using-eth-node` for more information.
 
 
-Clef Setup
-**********
+Using External Signing
+**********************
 
-We'll quickly walk through setup steps below, but additional in-depth documentation on clef can
-be found in the source repository here https://github.com/ethereum/go-ethereum/tree/master/cmd/clef
+By default, transaction signing requests are forwarded to the configured ethereum provider. This is the typical
+configuration for locally or independently run ethereum nodes. To use a remote ethereum provider
+(e.g. Alchemy, Infura, Public Remote Node) an external transaction signing client (e.g. `clef` or `geth`) is needed
+separate from the broadcasting node.
 
-Clef is typically installed alongside geth.  If you already have geth installed on your system you
-may already have clef installed.  To check for an existing installation run:
-
-.. code:: bash
-
-    $ clef --version
-    Clef version 0.0.0
-
-If clef was not found, upgrade geth to the latest version and try again.
-
-Next, initialize Clef with your chosen password to encrypt the master seed:
-
-.. code:: bash
-
-    $ clef init
-    ...
-    The master seed of clef will be locked with a password.
-    Please specify a password. Do not forget this password!
-    Password:
+Using Clef
+++++++++++
+See :ref:`signing-with-clef` for setting up Clef. By default, all requests to the clef signer require manual
+confirmation. This includes not only transactions but also more innocuous requests such as listing the accounts
+that the signer is handling. This means, for example, that a command like ``nucypher stake accounts`` will first ask
+for user confirmation in the clef CLI before showing the staker accounts. You can automate this confirmation by
+using :ref:`clef-rules`.
 
 
-Running Clef for Goerli
-***********************
-
-Clef can use hardware wallets (ledger and trezor) over USB, or geth formatted private keys
-by specifying the keystore directory path:
-
-.. code:: bash
-
-    $ clef --keystore <PATH TO GOERLI KEYSTORE> --chainid 5 --advanced
-
-
-- <PATH TO KEYSTORE> - The path to the directory containing geth-formatted private key files; the default path for Linux is ``~/.ethereum/goerli/keystore``.
-- Chain ID 5 is specified to ensure clef signs transactions with the network ID of Goerli.
-
-
-.. code:: bash
-
-    Enter 'ok' to proceed:
-    > ok
-   ...
-
-    ------- Signer info -------
-    * extapi_version : 6.0.0
-    * extapi_http : n/a
-    * extapi_ipc : /home/user/.clef/clef.ipc
-    * intapi_version : 7.0.0
-
-
-Using clef with nucypher commands
-*********************************
+Using Clef with nucypher commands
++++++++++++++++++++++++++++++++++
 
 .. code:: bash
 
@@ -238,91 +144,35 @@ Some examples:
 .. code:: bash
 
     # Create a new stakeholder with clef as the default signer
-    $ nucypher stake init-stakeholder --signer ~/clef/clef.ipc ...
+    $ nucypher stake init-stakeholder --signer clef:///home/<username>/.clef/clef.ipc ...
 
     # Update an existing configuration with clef as the default signer
-    $ nucypher stake config --signer ~/clef/clef.ipc  # Set clef as the default signer
+    $ nucypher stake config --signer clef:///home/<username>/.clef/clef.ipc  # Set clef as the default signer
 
     # Create a new stake using inline signer and provider values
-    $ nucypher stake create --signer ~/clef/clef.ipc --provider ~/.ethereum/goerli/geth.ipc
-
-
-Interacting with clef
-*********************
-
-Requests for account management, and signing will be directed at clef, with a 60 second timeout.
-Be alert for user-interactive requests and confirmations from the clef CLI.
-
-
-By default, all requests to the clef signer require manual confirmation.
-This include not only transactions, but also more innocuous requests such as listing the accounts
-that the signer is handling. This means, for example, that a command like ``nucypher stake accounts`` will first
-ask for user confirmation in the clef CLI before showing the staker accounts.
-
-To overcome this, Clef allows to define rules to automate the confirmation of certain transactions,
-or more generally, of some requests to the signer.
-In particular, we recommend that users of a Clef signer with nucypher define the following rules file,
-which simply approves the listing of accounts:
-
-.. code:: javascript
-
-    function ApproveListing() {
-        return "Approve"
-    }
-
-The sha256 digest of this particular 3-line file is ``8d089001fbb55eb8d9661b04be36ce3285ffa940e5cdf248d0071620cf02ebcd``.
-We will use this digest to attest that we trust these rules:
-
-.. code:: bash
-
-    $ clef attest 8d089001fbb55eb8d9661b04be36ce3285ffa940e5cdf248d0071620cf02ebcd
-
-    WARNING!
-
-    Clef is an account management tool. It may, like any software, contain bugs.
-
-    Please take care to
-    - backup your keystore files,
-    - verify that the keystore(s) can be opened with your password.
-
-    Clef is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-    without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE. See the GNU General Public License for more details.
-
-    Enter 'ok' to proceed:
-    > ok
-
-    Decrypt master seed of clef
-    Password:
-    INFO [04-14|02:00:54.740] Ruleset attestation updated    sha256=8d089001fbb55eb8d9661b04be36ce3285ffa940e5cdf248d0071620cf02ebcd
-
-
-Once the rules file is attested, we can run Clef with the ``--rules rules.js`` flag,
-to indicate which are the automated rules (in our case, allowing listing of accounts):
-
-.. code:: bash
-
-    $ clef --keystore /path/to/keystore --chainid 5 --advanced --rules rules.js
-
+    $ nucypher stake create --signer clef:///home/<username>/.clef/clef.ipc --provider ~/.ethereum/geth.ipc
 
 
 Initialize a new stakeholder
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Before continuing with stake initiation and management, A setup step is required to configure nucypher for staking.
-This will create a configuration file (`~/.local/share/nucypher/stakeholder.josn`) containing editable configuration values.
+This will create a configuration file (`~/.local/share/nucypher/stakeholder.json`) containing editable configuration values.
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake init-stakeholder --provider <PROVIDER> --network <NETWORK_NAME>
+    (nucypher)$ nucypher stake init-stakeholder --signer <SIGNER URI> --provider <PROVIDER> --network <NETWORK_NAME>
 
-If you ran ``geth`` node as above, your ``<PROVIDER>`` is
-``ipc:///home/<username>/.ethereum/goerli/geth.ipc``
-(on MacOS, ``ipc:///Users/<username>/Library/Ethereum/goerli/geth.ipc``)
+where:
 
-``<NETWORK_NAME>`` is the name of the NuCypher network domain where the staker will participate.
+    * If you utilized :ref:`signing-with-clef`, the ``SIGNER URI`` is ``clef:///home/<username>/.clef/clef.ipc``
+      (on MacOS, ``ipc:///Users/<username>/Library/Signer/clef.ipc``)
+    * If you ran ``geth`` node as above, your ``<PROVIDER>`` is ``ipc:///home/<username>/.ethereum/geth.ipc``
+      (on MacOS, ``ipc:///Users/<username>/Library/Ethereum/geth.ipc``)
+    * ``<NETWORK_NAME>`` is the name of the NuCypher network domain where the staker will participate.
 
-.. note:: If you're participating in NuCypher's incentivized testnet, this name is ``gemini``.
+
+.. note:: If you are using NuCypher's testnet, this name is ``gemini``.
 
 
 Initialize a new stake
@@ -345,7 +195,7 @@ the commitment period.
     ============================== STAGED STAKE ==============================
 
     Staking address: 0xbb01c4fE50f91eF73c5dD6eD89f38D55A6b1EdCA
-    ~ Chain      -> ID # 5 | Goerli
+    ~ Chain      -> ID # <CHAIN ID>
     ~ Value      -> 15000 NU (1.50E+22 NuNits)
     ~ Duration   -> 30 Days (30 Periods)
     ~ Enactment  -> 2019-08-19 09:51:16.704875+00:00 (period #18127)
@@ -443,7 +293,7 @@ There is a 1:1 relationship between the roles: A Staker may have multiple Stakes
 
 .. code:: bash
 
-    $ geth attach ~/.ethereum/goerli/geth.ipc
+    $ geth attach ~/.ethereum/geth.ipc
     > eth.accounts
     ["0x287a817426dd1ae78ea23e9918e2273b6733a43d", "0xc080708026a3a280894365efd51bb64521c45147"]
     > web3.toChecksumAddress(eth.accounts[0])
@@ -549,7 +399,7 @@ To divide an existing stake:
     ============================== STAGED STAKE ==============================
 
     Staking address: 0xbb0300106378096883ca067B198d9d98112760e7
-    ~ Chain      -> ID # 5 | Goerli
+    ~ Chain      -> ID # <CHAIN ID>
     ~ Value      -> 15000 NU (1.50E+22 NuNits)
     ~ Duration   -> 39 Days (39 Periods)
     ~ Enactment  -> 2019-08-09 10:29:49.844348+00:00 (period #18117)
@@ -562,7 +412,7 @@ To divide an existing stake:
     Successfully divided stake
     OK | 0xfa30927f05967b9a752402db9faecf146c46eda0740bd3d67b9e86dd908b6572 (85128 gas)
     Block #1146153 | 0x2f87bccff86bf48d18f8ab0f54e30236bce6ca5ea9f85f3165c7389f2ea44e45
-    See https://goerli.etherscan.io/tx/0xfa30927f05967b9a752402db9faecf146c46eda0740bd3d67b9e86dd908b6572
+    See https://etherscan.io/tx/0xfa30927f05967b9a752402db9faecf146c46eda0740bd3d67b9e86dd908b6572
 
     ======================================= Active Stakes =========================================
 
@@ -602,13 +452,13 @@ policy fees using the ``--withdraw-address <ETH_ADDRESS>`` flag.
 
     OK | 0xb0625030224e228198faa3ed65d43f93247cf6067aeb62264db6f31b5bf411fa (55062 gas)
     Block #1245170 | 0x63e4da39056873adaf869674db4002e016c80466f38256a4c251516a0e25e547
-     See https://goerli.etherscan.io/tx/0xb0625030224e228198faa3ed65d43f93247cf6067aeb62264db6f31b5bf411fa
+     See https://etherscan.io/tx/0xb0625030224e228198faa3ed65d43f93247cf6067aeb62264db6f31b5bf411fa
 
     Collecting 0.978 ETH from policy fees...
 
     OK | 0xe6d555be43263702b74727ce29dc4bcd6e32019159ccb15120791dfda0975372 (25070 gas)
     Block #1245171 | 0x0d8180a69213c240e2bf2045179976d5f18de56a82f17a9d59db54756b6604e4
-     See https://goerli.etherscan.io/tx/0xe6d555be43263702b74727ce29dc4bcd6e32019159ccb15120791dfda0975372
+     See https://etherscan.io/tx/0xe6d555be43263702b74727ce29dc4bcd6e32019159ccb15120791dfda0975372
 
 You can run ``nucypher stake accounts`` to verify that your staking compensation
 is indeed in your wallet. Use your favorite Ethereum wallet (MyCrypto or Metamask

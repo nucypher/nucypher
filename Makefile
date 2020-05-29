@@ -41,7 +41,7 @@ docs: build-docs validate-docs
 	readlink -f docs/build/html/index.html
 
 mac-docs: build-docs
-	open -f docs/_build/html/index.html
+	open docs/build/html/index.html
 
 release: clean
     # Enable GPG signing of release commits

@@ -14,27 +14,33 @@ Contents
 System Requirements and Dependencies
 ------------------------------------
 
+``nucypher`` has been tested on GNU/Linux **(recommended)**, Mac OS, and Windows.
 
-* At least 1 GB of RAM is required for secure password-based key derivation with `scrypt <http://www.tarsnap.com/scrypt.html>`_.
-* We have tested ``nucypher`` with Windows, Mac OS, and GNU/Linux (GNU/Linux is recommended).
-* If you don’t already have it, install `Python <https://www.python.org/downloads/>`_. As of November 2019, we are working with Python 3.6, 3.7, and 3.8.
+* Before installing ``nucypher``, you may need to install necessary developer tools and headers, if you don't
+  have them already. For Ubuntu, Debian, Linux Mint or similar distros:
 
-Before installing ``nucypher``\ , you may need to install necessary developer
-tools and headers, if you don't have them already. In Ubuntu, Debian, Linux Mint
-or similar distros:
+    .. code::
 
-.. code-block::
+       - libffi-dev
+       - python3-dev
+       - python3-pip
+       - python3-virtualenv
+       - build-essential
+       - libssl-dev
 
-   - libffi-dev
-   - python3-dev
-   - python3-pip
-   - python3-virtualenv
-   - build-essential
-   - libssl-dev
+    One-liner to install the above packages on linux:
 
+    .. code:: bash
 
-Here's a one-liner to install the above packages on linux:
-``sudo apt-get install python3-dev build-essential libffi-dev python3-pip``
+        $ sudo apt-get install python3-dev build-essential libffi-dev python3-pip
+
+* As of November 2019, ``nucypher`` works with Python 3.6, 3.7, and 3.8. If you don’t already have it, install `Python <https://www.python.org/downloads/>`_.
+* At least 1 GB of RAM for secure password-based key derivation with `scrypt <http://www.tarsnap.com/scrypt.html>`_.
+
+.. important::
+
+    If also running a local Ethereum node on the same machine, `additional requirements <https://docs.ethhub.io/using-ethereum/running-an-ethereum-node/>`_ are needed.
+
 
 Standard Installation
 ---------------------
@@ -152,7 +158,7 @@ Display network stats:
 
     docker run -it -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 nucypher/nucypher:latest nucypher status network --provider `<PROVIDER URI>` --network `<NETWORK NAME>`
 
-Running a pre-configured Worker as a daemon (See `Configuration Guide </guides/network_node/ursula_configuration_guide>`_\ ):
+Running a pre-configured Worker as a daemon (See :doc:`Configuration Guide </guides/network_node/ursula_configuration_guide>`):
 
 .. code-block::
 
@@ -171,7 +177,7 @@ Before continuing, ensure you have ``git`` installed (\ `Git Documentation <http
 Acquire NuCypher Codebase
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Fork the nucypher repository on GitHub, as explained in the `Contribution Guide </guides/contribution_guide>`_\ ,
+Fork the nucypher repository on GitHub, as explained in the :doc:`Contribution Guide </guides/contribution_guide>`,
 then clone your fork's repository to your local machine:
 
 .. code-block::
@@ -273,12 +279,10 @@ Systemd Service Installation
 
 #. Replace the following values with your own:
 
-   * ``<YOUR_USER>`` - The host system's username to run the process with
+   * ``<YOUR USER>`` - The host system's username to run the process with
    * ``<YOUR WORKER ADDRESS PASSWORD>`` - Worker's ETH account password
-   * ``<YOUR_PASSWORD>`` - Ursula's keyring password
-   * ``<VIRTUALENV_PATH>`` - The absolute path to the python virtual environment containing the ``nucypher`` executable
-   * ``<SEEDNODE_URI>`` - A seednode URI of a node on the network you are connecting to
-
+   * ``<YOUR PASSWORD>`` - Ursula's keyring password
+   * ``<VIRTUALENV PATH>`` - The absolute path to the python virtual environment containing the ``nucypher`` executable
 
 
 #. Enable Ursula System Service

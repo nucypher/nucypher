@@ -131,7 +131,9 @@ Whitepapers
    guides/installation_guide
    guides/network_node/network_node
    guides/development/development
+   guides/ethereum_node
    guides/worklock_guide
+   guides/environment_variables
    guides/contribution_guide
 
 .. toctree::
@@ -169,9 +171,9 @@ Whitepapers
    :maxdepth: 1
    :caption: Release Notes
 
-   release_notes/releases.rst
    release_notes/genesis_release
    release_notes/pre_release_epics
+   release_notes/releases.rst
 
 .. toctree::
    :maxdepth: 1
