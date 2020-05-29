@@ -40,6 +40,7 @@ def test_alice_sets_treasure_map(enacted_federated_policy, federated_ursulas):
     """
     enacted_federated_policy.publish_treasure_map(network_middleware=MockRestMiddleware())
     treasure_map_index = bytes.fromhex(enacted_federated_policy.treasure_map.public_id())
+    # TODO: Ensure that this is... an actual... hmm...
     treasure_map_as_set_on_network = list(federated_ursulas)[0].treasure_maps[treasure_map_index]
     assert treasure_map_as_set_on_network == enacted_federated_policy.treasure_map
 
