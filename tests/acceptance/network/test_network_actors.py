@@ -238,3 +238,32 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
         idle_blockchain_policy.propose_arrangement(network_middleware=blockchain_alice.network_middleware,
                                                    arrangement=FakeArrangement(),
                                                    ursula=vladimir)
+
+
+def test_treasure_map_cannot_be_duplicated(blockchain_ursulas, blockchain_alice, blockchain_bob, agency):
+
+    # Setup the policy details
+    n = 3
+    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    label = b"this_is_the_path_to_which_access_is_being_granted"
+
+    # Create the Policy, Granting access to Bob
+    policy = blockchain_alice.grant(bob=blockchain_bob,
+                                    label=label,
+                                    m=2,
+                                    n=n,
+                                    rate=int(1e18),  # one ether
+                                    expiration=policy_end_datetime)
+
+    u = blockchain_bob.matching_nodes_among(blockchain_alice.known_nodes)[0]
+    saved_map = u.treasure_maps[bytes.fromhex(policy.treasure_map.public_id())]
+    assert saved_map == policy.treasure_map
+    # This Ursula was actually a Vladimir.
+    # Thus, he has access to the (encrypted) TreasureMap and can use its details to
+    # try to store his own fake details.
+    vladimir = Vladimir.from_target_ursula(u)
+    node_on_which_to_store_bad_map = blockchain_ursulas[1]
+    with pytest.raises(vladimir.network_middleware.UnexpectedResponse) as e:
+        vladimir.publish_fraudulent_treasure_map(legit_treasure_map=saved_map,
+                                                 target_node=node_on_which_to_store_bad_map)
+    assert e.value.status == 402
