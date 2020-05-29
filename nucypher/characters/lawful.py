@@ -1107,7 +1107,10 @@ class Ursula(Teacher, Character, Worker):
             pruning: bool = True,
             interactive: bool = False,
             prometheus: bool = False,
-            start_reactor: bool = True
+            start_reactor: bool = True,
+            metrics_port: int = None,
+            metrics_prefix: str = 'ursula',
+            metrics_listen_address: str = ''
             ) -> None:
 
         """Schedule and start select ursula services, then optionally start the reactor."""
@@ -1147,7 +1150,7 @@ class Ursula(Teacher, Character, Worker):
             # TODO: Integrate with Hendrix TLS Deploy?
             # Local scoped to help prevent import without prometheus installed
             from nucypher.utilities.metrics import initialize_prometheus_exporter
-            initialize_prometheus_exporter(ursula=self, port=self._metrics_port)
+            initialize_prometheus_exporter(ursula=self, listen_address=metrics_listen_address, port=metrics_port, metrics_prefix=metrics_prefix)
             if emitter:
                 emitter.message(f"✓ Prometheus Exporter", color='green')
 
