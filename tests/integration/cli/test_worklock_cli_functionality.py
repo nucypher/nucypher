@@ -80,9 +80,8 @@ def test_bid_too_soon(click_runner,
     now = mock_testerchain.get_blocktime()
     a_month_too_soon = now-(3600*30)
     mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=a_month_too_soon)
-    with pytest.raises(Bidder.BiddingIsClosed):
-        result = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=YES_ENTER, env=CLI_TEST_ENV)
-        assert result.exit_code != 0
+    with pytest.raises(Bidder.BiddingIsClosed):  # FIXME: This test belongs to the Bidder layer, not the CLI
+        _ = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=YES, env=CLI_TEST_ENV)
 
 
 def test_bid_too_late(click_runner,
@@ -98,9 +97,8 @@ def test_bid_too_late(click_runner,
     now = mock_testerchain.get_blocktime()
     a_month_too_late = now+(3600*30)
     mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=a_month_too_late)
-    with pytest.raises(Bidder.BiddingIsClosed):
-        result = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=YES_ENTER, env=CLI_TEST_ENV)
-        assert result.exit_code != 0
+    with pytest.raises(Bidder.BiddingIsClosed):  # FIXME: This test belongs to the Bidder layer, not the CLI
+        _ = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=YES, env=CLI_TEST_ENV)
 
 
 def test_valid_bid(click_runner,
