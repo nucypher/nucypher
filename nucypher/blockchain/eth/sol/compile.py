@@ -87,15 +87,20 @@ IGNORE_CONTRACT_PREFIXES: Tuple[str, ...] = (
 
 # RE pattern for matching solidity source compile version specification in devdoc details.
 VERSION_PATTERN: Pattern = re.compile(r"""
-^\|           # Anchored pipe literal at beginning of version definition
-(v            # Capture version starting from symbol v
+(             # Start outer group
+\A            # Anchor must be first
+\|            # Anchored pipe literal at beginning of version definition
+(             # Start Inner capture group
+v             # Capture version starting from symbol v
 \d+           # At least one digit of major version
 \.            # Digits splitter
 \d+           # At least one digit of minor version
 \.            # Digits splitter
 \d+           # At least one digit of patch
 )             # End of capturing
-\|$           # Anchored end of version definition |
+\|            # Anchored end of version definition | 
+\Z            # Anchor must be the end of the match
+){1}          # Limit to a single match
 """, re.VERBOSE)
 
 
