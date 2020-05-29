@@ -166,9 +166,9 @@ This will create a configuration file (`~/.local/share/nucypher/stakeholder.json
 where:
 
     * If you utilized :ref:`signing-with-clef`, the ``SIGNER URI`` is ``clef:///home/<username>/.clef/clef.ipc``
-      (on MacOS for Goerli testnet, ``ipc:///Users/<username>/Library/Signer/clef.ipc``)
+      (on MacOS, ``ipc:///Users/<username>/Library/Signer/clef.ipc``)
     * If you ran ``geth`` node as above, your ``<PROVIDER>`` is ``ipc:///home/<username>/.ethereum/geth.ipc``
-      (on MacOS for Goerli testnet, ``ipc:///Users/<username>/Library/Ethereum/goerli/geth.ipc``)
+      (on MacOS, ``ipc:///Users/<username>/Library/Ethereum/geth.ipc``)
     * ``<NETWORK_NAME>`` is the name of the NuCypher network domain where the staker will participate.
 
 
