@@ -44,7 +44,7 @@ def test_bob_does_not_let_a_connection_error_stop_him(enacted_federated_policy,
     federated_bob.network_middleware = NodeIsDownMiddleware()
     federated_bob.network_middleware.node_is_down(ursula1)
 
-    with pytest.raises(TreasureMap.NowhereToBeFound):
+    with pytest.raises(federated_bob.NotEnoughNodes):
         federated_bob.get_treasure_map(federated_alice.stamp, enacted_federated_policy.label)
 
     federated_bob.remember_node(ursula2)

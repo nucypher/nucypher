@@ -22,8 +22,8 @@ from bytestring_splitter import VariableLengthBytestring
 from eth_utils.address import to_checksum_address
 from twisted.logger import LogLevel, globalLogPublisher
 
+from nucypher.acumen.nicknames import nickname_from_seed
 from nucypher.characters.base import Character
-from nucypher.network.nicknames import nickname_from_seed
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import make_federated_ursulas
 
