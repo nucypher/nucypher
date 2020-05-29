@@ -17,14 +17,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import random
-from unittest.mock import call
+from unittest.mock import call, PropertyMock
 
 import pytest
 from eth_utils import to_wei
+from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Bidder
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.utils import prettify_eth_amount
 from nucypher.cli.commands.worklock import worklock
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import CLI_TEST_ENV, MOCK_PROVIDER_URI, YES_ENTER, NO_ENTER
@@ -113,17 +114,26 @@ def test_valid_bid(click_runner,
     sometime_later = now + 100
     mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=sometime_later)
 
-    # Spy on the corresponding CLI function we are testing
-    # TODO: Mock at the agent layer instead
-    mock_ensure = mocker.spy(Bidder, 'ensure_bidding_is_open')
-    mock_bidder = mocker.spy(Bidder, 'place_bid')
-
     minimum = token_economics.worklock_min_allowed_bid
     bid_value = random.randint(minimum, minimum * 100)
+    bid_value_in_eth = Web3.fromWei(bid_value, 'ether')
+
+    # Spy on the corresponding CLI function we are testing
+    mock_ensure = mocker.spy(Bidder, 'ensure_bidding_is_open')
+    mock_place_bid = mocker.spy(Bidder, 'place_bid')
+
+    # Patch Bidder.get_deposited_eth so it returns what we expect, in the correct sequence
+    deposited_eth_sequence = (
+        0,  # When deciding if it's a new bid or increasing the existing one
+        0,  # When placing the bid, inside Bidder.place_bid
+        bid_value,  # When printing the CLI result, after the bid is placed ..
+        bid_value,  # .. we use it twice
+    )
+    mocker.patch.object(Bidder, 'get_deposited_eth', new_callable=PropertyMock, side_effect=deposited_eth_sequence)
 
     command = ('bid',
                '--bidder-address', surrogate_bidder.checksum_address,
-               '--value', bid_value,
+               '--value', bid_value_in_eth,
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--force')
@@ -135,19 +145,21 @@ def test_valid_bid(click_runner,
 
     # Bidder
     mock_ensure.assert_called_once()  # checked that the bidding window was open via actors layer
-    mock_bidder.assert_called_once()
-    nunits = NU.from_tokens(bid_value).to_nunits()
-    mock_bidder.assert_called_once_with(surrogate_bidder, value=nunits)
+    mock_place_bid.assert_called_once()
+    mock_place_bid.assert_called_once_with(surrogate_bidder, value=bid_value)
     assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
 
     # Transactions
     mock_worklock_agent.assert_only_transactions(allowed=[mock_worklock_agent.bid])
-    mock_worklock_agent.bid.assert_called_with(checksum_address=surrogate_bidder.checksum_address, value=nunits)
+    mock_worklock_agent.bid.assert_called_with(checksum_address=surrogate_bidder.checksum_address, value=bid_value)
 
     # Calls
-    expected_calls = (mock_worklock_agent.get_deposited_eth, mock_worklock_agent.eth_to_tokens)
-    for call in expected_calls:
-        call.assert_called()
+    expected_calls = (mock_worklock_agent.eth_to_tokens, )
+    for expected_call in expected_calls:
+        expected_call.assert_called()
+
+    # CLI output
+    assert prettify_eth_amount(bid_value) in result.output
 
 
 @pytest.mark.usefixtures("test_registry_source_manager")
