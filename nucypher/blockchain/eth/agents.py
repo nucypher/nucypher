@@ -60,7 +60,7 @@ from nucypher.types import (
     SubStakeInfo,
     RawSubStakeInfo,
     Period,
-    WorklockParameters,
+    Work, WorklockParameters,
     StakerFlags,
     StakerInfo,
     PeriodDelta,
@@ -80,7 +80,7 @@ class EthereumContractAgent:
     _excluded_interfaces: Tuple[str, ...]
 
     # TODO - #842: Gas Management
-    DEFAULT_TRANSACTION_GAS_LIMITS: Dict[str, Union[Wei, None]]
+    DEFAULT_TRANSACTION_GAS_LIMITS: Dict[str, Optional[Wei]]
     DEFAULT_TRANSACTION_GAS_LIMITS = {'default': None}
 
     class ContractNotDeployed(Exception):
@@ -293,8 +293,9 @@ class StakingEscrowAgent(EthereumContractAgent):
             start_index: int = 0
             n_tokens: int = 0
             stakers: Dict[int, int] = dict()
+            active_stakers: Tuple[NuNits, List[List[int]]]
             while start_index < num_stakers:
-                active_stakers: Tuple[NuNits, List[List[int]]] = self.contract.functions.getActiveStakers(periods, start_index, pagination_size).call()
+                active_stakers = self.contract.functions.getActiveStakers(periods, start_index, pagination_size).call()
                 temp_locked_tokens, temp_stakers = active_stakers
                 # temp_stakers is a list of length-2 lists (address -> locked tokens)
                 temp_stakers_map = {address: locked_tokens for address, locked_tokens in temp_stakers}
@@ -308,10 +309,9 @@ class StakingEscrowAgent(EthereumContractAgent):
         # stakers' addresses are returned as uint256 by getActiveStakers(), convert to address objects
         def checksum_address(address: int) -> ChecksumAddress:
             return ChecksumAddress(to_checksum_address(address.to_bytes(ETH_ADDRESS_BYTE_LENGTH, 'big')))
-        typed_stakers = {
-            checksum_address(address): NuNits(locked_tokens) for address, locked_tokens in stakers.items()}
+        typed_stakers = {checksum_address(address): NuNits(locked_tokens) for address, locked_tokens in stakers.items()}
 
-        return NuNits(n_tokens), typed_stakers
+        return NuNits(n_tokens), typed_stakers  # TODO: Does not match return annotation
 
     @contract_api(CONTRACT_CALL)
     def get_all_locked_tokens(self, periods: int, pagination_size: Optional[int] = None) -> NuNits:
@@ -376,11 +376,10 @@ class StakingEscrowAgent(EthereumContractAgent):
     @contract_api(CONTRACT_CALL)
     def get_raw_substake_info(self, staker_address: ChecksumAddress, stake_index: int) -> RawSubStakeInfo:
         result: RawSubStakeInfo = self.contract.functions.getSubStakeInfo(staker_address, stake_index).call()
-        first_period, last_period, periods, locked = result
-        return RawSubStakeInfo(first_period, last_period, periods, locked)
+        return RawSubStakeInfo(*result)
 
     @contract_api(CONTRACT_CALL)
-    def get_all_stakes(self, staker_address: ChecksumAddress) -> Iterable[RawSubStakeInfo]:
+    def get_all_stakes(self, staker_address: ChecksumAddress) -> Iterable[SubStakeInfo]:
         stakes_length: int = self.contract.functions.getSubStakesLength(staker_address).call()
         if stakes_length == 0:
             return iter(())  # Empty iterable, There are no stakes
@@ -429,9 +428,9 @@ class StakingEscrowAgent(EthereumContractAgent):
     @contract_api(TRANSACTION)
     def batch_deposit(self,
                       stakers: List[ChecksumAddress],
-                      number_of_substakes: List,
+                      number_of_substakes: List[int],
                       amounts: List[NuNits],
-                      lock_periods: PeriodDelta,
+                      lock_periods: List[PeriodDelta],
                       sender_address: ChecksumAddress,
                       dry_run: bool = False,
                       gas_limit: Optional[Wei] = None
@@ -728,7 +727,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         raise self.NotEnoughStakers('Selection failed after {} attempts'.format(attempts))
 
     @contract_api(CONTRACT_CALL)
-    def get_completed_work(self, bidder_address: ChecksumAddress) -> NuNits:
+    def get_completed_work(self, bidder_address: ChecksumAddress) -> Work:
         total_completed_work = self.contract.functions.getCompletedWork(bidder_address).call()
         return total_completed_work
 
@@ -804,7 +803,7 @@ class PolicyManagerAgent(EthereumContractAgent):
         blockchain_record = self.contract.functions.policies(policy_id).call()
         return blockchain_record
 
-    def fetch_arrangement_addresses_from_policy_txid(self, txhash: str, timeout: int = 600) -> Iterable:
+    def fetch_arrangement_addresses_from_policy_txid(self, txhash: Union[str, bytes], timeout: int = 600) -> Iterable:
         # TODO: Won't it be great when this is impossible?  #1274
         _receipt = self.blockchain.client.wait_for_receipt(txhash, timeout=timeout)
         transaction = self.blockchain.client.w3.eth.getTransaction(txhash)
@@ -1070,14 +1069,14 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         Enable automatic restaking for a fixed duration of lock periods.
         If set to True, then all staking rewards will be automatically added to locked stake.
         """
-        contract_function: ContractFunction = self.__interface_agent.contract.functions.setReStake(value)
+        contract_function: ContractFunction = self.__interface_agent.functions.setReStake(value)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         # TODO: Handle ReStakeSet event (see #1193)
         return receipt
 
     @contract_api(TRANSACTION)
     def lock_restaking(self, release_period: Period) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_agent.contract.functions.lockReStake(release_period)
+        contract_function: ContractFunction = self.__interface_agent.functions.lockReStake(release_period)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         # TODO: Handle ReStakeLocked event (see #1193)
         return receipt
@@ -1244,9 +1243,9 @@ class WorkLockAgent(EthereumContractAgent):
     #
 
     @contract_api(CONTRACT_CALL)
-    def get_refunded_work(self, checksum_address: ChecksumAddress) -> NuNits:
+    def get_refunded_work(self, checksum_address: ChecksumAddress) -> Work:
         work = self.contract.functions.workInfo(checksum_address).call()[1]
-        return NuNits(work)
+        return Work(work)
 
     #
     # Calls
@@ -1287,10 +1286,10 @@ class WorkLockAgent(EthereumContractAgent):
         return NuNits(supply)
 
     @contract_api(CONTRACT_CALL)
-    def get_remaining_work(self, checksum_address: str) -> PeriodDelta:
+    def get_remaining_work(self, checksum_address: str) -> Work:
         """Get remaining work periods until full refund for the target address."""
         result = self.contract.functions.getRemainingWork(checksum_address).call()
-        return PeriodDelta(result)  # TODO: Double check this type
+        return Work(result)
 
     @contract_api(CONTRACT_CALL)
     def get_bonus_eth_supply(self) -> Wei:
@@ -1352,12 +1351,12 @@ class WorkLockAgent(EthereumContractAgent):
         return NuNits(tokens)
 
     @contract_api(CONTRACT_CALL)
-    def eth_to_work(self, value: Wei) -> NuNits:
+    def eth_to_work(self, value: Wei) -> Work:
         tokens: int = self.contract.functions.ethToWork(value).call()
-        return NuNits(tokens)
+        return Work(tokens)
 
     @contract_api(CONTRACT_CALL)
-    def work_to_eth(self, value: NuNits) -> Wei:
+    def work_to_eth(self, value: Work) -> Wei:
         wei: Wei = self.contract.functions.workToETH(value).call()
         return Wei(wei)
 
