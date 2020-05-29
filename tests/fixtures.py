@@ -357,8 +357,9 @@ def blockchain_alice(alice_blockchain_test_config, testerchain):
 
 @pytest.fixture(scope="module")
 def federated_bob(bob_federated_test_config):
-    _bob = bob_federated_test_config.produce()
-    return _bob
+    bob = bob_federated_test_config.produce()
+    _d = bob.start_learning_loop()
+    return bob
 
 
 @pytest.fixture(scope="module")

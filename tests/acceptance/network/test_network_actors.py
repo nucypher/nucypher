@@ -112,7 +112,7 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_federated_poli
     # through a side-channel with Alice.
 
     # If Bob doesn't know about any Ursulas, he can't find the TreasureMap via the REST swarm:
-    with pytest.raises(bob.NotEnoughTeachers):
+    with pytest.raises(bob.NotEnoughNodes):
         treasure_map_from_wire = bob.get_treasure_map(enacted_federated_policy.alice.stamp,
                                                       enacted_federated_policy.label)
 
