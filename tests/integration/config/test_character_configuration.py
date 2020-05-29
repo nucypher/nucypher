@@ -177,7 +177,7 @@ def test_ursula_development_configuration(federated_only=True):
 @pytest.mark.skip("See #2016")
 def test_destroy_configuration(config,
                                test_emitter,
-                               stdout_trap,
+                               capsys,
                                mocker):
     # Setup
     config_class = config.__class__
@@ -193,8 +193,8 @@ def test_destroy_configuration(config,
     destroy_configuration(emitter=test_emitter, character_config=config)
 
     mock_config_destroy.assert_called_once()
-    output = stdout_trap.getvalue()
-    assert SUCCESSFUL_DESTRUCTION in output
+    captured = capsys.readouterr()
+    assert SUCCESSFUL_DESTRUCTION in captured.out
 
     spy_keyring_attached.assert_called_once()
     spy_keyring_destroy.assert_called_once()

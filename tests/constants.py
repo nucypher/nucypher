@@ -139,9 +139,11 @@ PYEVM_GAS_LIMIT = TEST_GAS_LIMIT  # TODO: move elsewhere (used to set pyevm gas 
 # CLI
 #
 
-YES = 'Y\n'
+YES = 'Y'
+YES_ENTER = YES + '\n'
 
-NO = 'N\n'
+NO = 'N'
+NO_ENTER = NO + '\n'
 
 FAKE_PASSWORD_CONFIRMED = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
 

@@ -28,7 +28,7 @@ from nucypher.config.constants import APP_DIR, DEFAULT_CONFIG_ROOT, NUCYPHER_ENV
 from tests.constants import (
     FAKE_PASSWORD_CONFIRMED, INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH,
-    MOCK_IP_ADDRESS, YES)
+    MOCK_IP_ADDRESS, YES_ENTER)
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 
@@ -41,7 +41,7 @@ def test_initialize_ursula_defaults(click_runner, mocker):
     # Use default ursula init args
     init_args = ('ursula', 'init', '--network', TEMPORARY_DOMAIN, '--federated-only')
 
-    user_input = YES + FAKE_PASSWORD_CONFIRMED
+    user_input = YES_ENTER + FAKE_PASSWORD_CONFIRMED
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
