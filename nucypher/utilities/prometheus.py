@@ -24,7 +24,7 @@ from twisted.internet import reactor, task
 import nucypher
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, WorkLockAgent, PolicyManagerAgent
 from nucypher.blockchain.eth.actors import NucypherTokenActor
-from typing import List, Union
+from typing import List, Union, Tuple
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.cli.types import NETWORK_PORT
 
@@ -166,14 +166,11 @@ def collect_prometheus_metrics(ursula, event_metrics_collectors: List[BaseEventM
     node_metrics["host_info"].info(base_payload)
 
 
-def get_event_metrics_collectors(ursula, metrics_prefix: str) -> List[BaseEventMetricsCollector]:
+def get_staking_event_collectors_config(ursula, metrics_prefix: str) -> Tuple:
     if ursula.federated_only:
-        return []
+        return ()
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=ursula.registry)
-    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=ursula.registry)
-    policy_manager_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=ursula.registry)
-
     event_collectors_config = (
         {
             "collector": BaseEventMetricsCollector,
@@ -218,7 +215,17 @@ def get_event_metrics_collectors(ursula, metrics_prefix: str) -> List[BaseEventM
             "argument_filters": {"staker": ursula.checksum_address},
             "metrics": {"startPeriod": Gauge(f'{metrics_prefix}_worker_set_start_period', 'New worker was set'),
                         "block_number": Gauge(f'{metrics_prefix}_worker_set_block_number', 'WorkerSet block number')}
-        },
+        }
+    )
+    return event_collectors_config
+
+
+def get_worklock_event_collectors_config(ursula, metrics_prefix: str) -> Tuple:
+    if ursula.federated_only:
+        return ()
+
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=ursula.registry)
+    event_collectors_config = (
         {
             "collector": BaseEventMetricsCollector,
             "name": "worklock_deposited", "contract_agent": worklock_agent, "event": "Deposited",
@@ -246,14 +253,27 @@ def get_event_metrics_collectors(ursula, metrics_prefix: str) -> List[BaseEventM
                 "refundETH": Gauge(f'{metrics_prefix}_worklock_refund_refundETH', 'Refunded ETH')
             }
         },
+    )
+    return event_collectors_config
+
+
+def get_policy_event_collectors_config(ursula, metrics_prefix: str) -> Tuple:
+    if ursula.federated_only:
+        return ()
+
+    policy_manager_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=ursula.registry)
+    event_collectors_config = (
         {
             "collector": BaseEventMetricsCollector,
             "name": "policy_withdrawn_reward", "contract_agent": policy_manager_agent, "event": "Withdrawn",
             "argument_filters": {"recipient": ursula.checksum_address},
             "metrics": {"value": Gauge(f'{metrics_prefix}_policy_withdrawn_reward', 'Policy reward')}
-        }
+        },
     )
+    return event_collectors_config
 
+
+def build_event_metrics_collectors(ursula, event_collectors_config: Tuple) -> List[BaseEventMetricsCollector]:
     event_metrics_collectors = [
         config["collector"](ursula.checksum_address, ursula.worker_address, config["contract_agent"],
                             config["event"],
@@ -299,7 +319,11 @@ def initialize_prometheus_exporter(ursula, listen_address: str, port: NETWORK_PO
                                                       'Worklock completed work'),
     }
 
-    event_metrics_collectors = get_event_metrics_collectors(ursula, metrics_prefix)
+    event_collectors_config = get_staking_event_collectors_config(ursula, metrics_prefix) + \
+                              get_worklock_event_collectors_config(ursula, metrics_prefix) + \
+                              get_policy_event_collectors_config(ursula, metrics_prefix)
+
+    event_metrics_collectors = build_event_metrics_collectors(ursula, event_collectors_config)
 
     if not ursula.federated_only:
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=ursula.registry)
