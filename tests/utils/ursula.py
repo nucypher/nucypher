@@ -27,6 +27,7 @@ from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.crypto.powers import TransactingPower
 from tests.constants import (
     MOCK_URSULA_DB_FILEPATH,
     NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
@@ -107,7 +108,10 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
                                        rest_port=port + 100,
                                        **ursula_overrides)
         if commit_to_next_period:
-            ursula.transacting_power.activate()
+            # TODO: Is _crypto_power trying to be public?  Or is there a way to expose *something* public about TransactingPower?
+            # Do we need to revisit the concept of "public material"?  Or does this rightly belong as a method?
+            tx_power = ursula._crypto_power.power_ups(TransactingPower)
+            tx_power.activate()
             ursula.commit_to_next_period()
 
         ursulas.append(ursula)

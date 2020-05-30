@@ -1049,7 +1049,7 @@ class Ursula(Teacher, Character, Worker):
                                                       signer=self.signer,
                                                       cache=True)
             self._crypto_power.consume_power_up(_transacting_power)
-            self._set_checksum_address(_transacting_power.account)
+            self._set_checksum_address(checksum_address)
 
             # Use this power to substantiate the stamp
             self.substantiate_stamp()
