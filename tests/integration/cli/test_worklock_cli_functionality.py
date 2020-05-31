@@ -29,6 +29,7 @@ from nucypher.blockchain.eth.utils import prettify_eth_amount
 from nucypher.cli.commands.worklock import worklock
 from nucypher.cli.literature import (
     BID_AMOUNT_PROMPT_WITH_MIN_BID,
+    BID_INCREASE_AMOUNT_PROMPT,
     CONFIRM_BID_VERIFICATION
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -511,3 +512,50 @@ def test_interactive_new_bid(click_runner,
     assert expected_error in result.output
     expected_prompt = BID_AMOUNT_PROMPT_WITH_MIN_BID.format(minimum_bid_in_eth=Web3.fromWei(minimum, 'ether'))
     assert 2 == result.output.count(expected_prompt)
+
+
+def test_interactive_increase_bid(click_runner,
+                                  mocker,
+                                  mock_worklock_agent,
+                                  token_economics,
+                                  test_registry_source_manager,
+                                  surrogate_bidder,
+                                  mock_testerchain):
+
+    now = mock_testerchain.get_blocktime()
+    sometime_later = now + 100
+    mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=sometime_later)
+
+    minimum = token_economics.worklock_min_allowed_bid
+    bid_value = random.randint(1, minimum - 1)
+    bid_value_in_eth = Web3.fromWei(bid_value, 'ether')
+
+    # Spy on the corresponding CLI function we are testing
+    mock_place_bid = mocker.spy(Bidder, 'place_bid')
+
+    # Patch Bidder.get_deposited_eth so it returns what we expect, in the correct sequence
+    deposited_eth_sequence = (
+        minimum,  # When deciding if it's a new bid or increasing the existing one (in this case, increasing)
+        minimum,  # When placing the bid, inside Bidder.place_bid
+        minimum + bid_value,  # When printing the CLI result, after the bid is placed ..
+        minimum + bid_value,  # .. we use it twice
+    )
+    mocker.patch.object(Bidder, 'get_deposited_eth', new_callable=PropertyMock, side_effect=deposited_eth_sequence)
+
+    command = ('bid',
+               '--bidder-address', surrogate_bidder.checksum_address,
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,)
+
+    user_input = "\n".join((INSECURE_DEVELOPMENT_PASSWORD, str(bid_value_in_eth), YES))
+    result = click_runner.invoke(worklock, command, catch_exceptions=False, input=user_input)
+    assert result.exit_code == 0
+
+    # OK - Let's see what happened
+
+    # Bidder
+    mock_place_bid.assert_called_once()
+
+    # Output
+    expected_prompt = BID_INCREASE_AMOUNT_PROMPT
+    assert 1 == result.output.count(expected_prompt)
