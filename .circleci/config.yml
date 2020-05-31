@@ -587,7 +587,7 @@ jobs:
 
   contracts:
     <<: *python_37_base
-    parallelism: 4
+    parallelism: 8
     steps:
       - prepare_environment
       - run:
