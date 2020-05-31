@@ -28,7 +28,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.utils import prettify_eth_amount
 from nucypher.cli.commands.worklock import worklock
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.constants import CLI_TEST_ENV, MOCK_PROVIDER_URI, YES_ENTER, NO_ENTER
+from tests.constants import MOCK_PROVIDER_URI, YES, NO, INSECURE_DEVELOPMENT_PASSWORD
 from tests.mock.agents import MockContractAgent
 from nucypher.cli.literature import CONFIRM_BID_VERIFICATION
 
@@ -82,7 +82,7 @@ def test_bid_too_soon(click_runner,
     a_month_too_soon = now-(3600*30)
     mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=a_month_too_soon)
     with pytest.raises(Bidder.BiddingIsClosed):  # FIXME: This test belongs to the Bidder layer, not the CLI
-        _ = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=YES, env=CLI_TEST_ENV)
+        _ = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=INSECURE_DEVELOPMENT_PASSWORD)
 
 
 def test_bid_too_late(click_runner,
@@ -99,7 +99,7 @@ def test_bid_too_late(click_runner,
     a_month_too_late = now+(3600*30)
     mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=a_month_too_late)
     with pytest.raises(Bidder.BiddingIsClosed):  # FIXME: This test belongs to the Bidder layer, not the CLI
-        _ = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=YES, env=CLI_TEST_ENV)
+        _ = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=INSECURE_DEVELOPMENT_PASSWORD)
 
 
 def test_valid_bid(click_runner,
@@ -138,7 +138,8 @@ def test_valid_bid(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
-    result = click_runner.invoke(worklock, command, catch_exceptions=False, input=YES_ENTER, env=CLI_TEST_ENV)
+    user_input = INSECURE_DEVELOPMENT_PASSWORD
+    result = click_runner.invoke(worklock, command, catch_exceptions=False, input=user_input)
     assert result.exit_code == 0
 
     # OK - Let's see what happened
@@ -176,7 +177,7 @@ def test_cancel_bid(click_runner,
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--force')
-    result = click_runner.invoke(worklock, command, input=YES_ENTER, env=CLI_TEST_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=INSECURE_DEVELOPMENT_PASSWORD, catch_exceptions=False)
     assert result.exit_code == 0
 
     # Bidder
@@ -244,8 +245,8 @@ def test_enable_claiming(click_runner,
 
     gas_limit_1 = 200000
     gas_limit_2 = 300000
-    user_input = YES_ENTER + YES_ENTER + str(gas_limit_1) + '\n' + NO_ENTER + str(gas_limit_2) + '\n' + YES_ENTER
-    result = click_runner.invoke(worklock, command, input=user_input, env=CLI_TEST_ENV, catch_exceptions=False)
+    user_input = '\n'.join((INSECURE_DEVELOPMENT_PASSWORD, YES, str(gas_limit_1), NO, str(gas_limit_2), YES))
+    result = click_runner.invoke(worklock, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     confirmation = CONFIRM_BID_VERIFICATION.format(bidder_address=surrogate_bidder.checksum_address,
                                                    gas_limit=gas_limit_1,
@@ -315,7 +316,7 @@ def test_initial_claim(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
-    result = click_runner.invoke(worklock, command, input=YES_ENTER, env=CLI_TEST_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=INSECURE_DEVELOPMENT_PASSWORD, catch_exceptions=False)
     assert result.exit_code == 0
 
     mock_worklock_agent.claim.assert_called_once_with(checksum_address=surrogate_bidder.checksum_address)
@@ -332,8 +333,8 @@ def test_initial_claim(click_runner,
     # Calls
     expected_calls = (mock_worklock_agent.get_deposited_eth,
                       mock_worklock_agent.eth_to_tokens)
-    for call in expected_calls:
-        call.assert_called()
+    for expected_call in expected_calls:
+        expected_call.assert_called()
 
 
 @pytest.mark.usefixtures("test_registry_source_manager")
@@ -362,7 +363,7 @@ def test_already_claimed(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
-    result = click_runner.invoke(worklock, command, input=YES_ENTER, env=CLI_TEST_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=INSECURE_DEVELOPMENT_PASSWORD, catch_exceptions=False)
     assert result.exit_code == 1  # TODO: Decide if this case should error (like now) or simply do nothing
 
     # Bidder
@@ -418,7 +419,7 @@ def test_refund(click_runner,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
-    result = click_runner.invoke(worklock, command, input=YES_ENTER, env=CLI_TEST_ENV, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, input=INSECURE_DEVELOPMENT_PASSWORD, catch_exceptions=False)
     assert result.exit_code == 0
 
     # Bidder
@@ -454,5 +455,5 @@ def test_participant_status(click_runner,
                       mock_worklock_agent.get_completed_work,
                       mock_worklock_agent.get_refunded_work)
     # Calls
-    for call in expected_calls:
-        call.assert_called()
+    for expected_call in expected_calls:
+        expected_call.assert_called()
