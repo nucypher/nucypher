@@ -86,6 +86,7 @@ def test_rapid_deployment_nonce_uniqueness(mocker, tx_count, delay):
     blockchain_interface.transacting_power.activate()
 
     nonce_spy = mocker.spy(BlockchainDeployerInterface, 'sign_and_broadcast_transaction')
+    # get_code_size == 0? (post-deploy)
 
     contract_name = "VersionTest"
     registry = InMemoryContractRegistry()
@@ -96,7 +97,48 @@ def test_rapid_deployment_nonce_uniqueness(mocker, tx_count, delay):
                                                  contract_name=contract_name,
                                                  contract_version="latest")
             if delay is not None:
+                #FIXME (mutex?)
                 time.sleep(delay)
+        except ValidationError:
+            raise
+            nonces = Counter()
+            for call_args in nonce_spy.call_args_list:
+                transaction_dict = call_args.kwargs['transaction_dict']
+                nonce = transaction_dict['nonce']
+                nonces[nonce] += 1
+            assert len(BlockchainInterfaceFactory._interfaces) == 1
+            assert all(bool(count == 1) for nonce, count in nonces.items()), 'A nonce was reused.'
+
+
+@pytest.mark.parametrize('tx_count, delay', llamas)
+def test_nonce_stability_with_state_stress(mocker, tx_count, delay):
+
+    base_dir = Path(__file__).parent / 'contracts' / 'stress'
+    ALLOWED_PATHS.append(base_dir)
+    stress_contract_dir = base_dir / 'array_push'
+    BlockchainDeployerInterface.SOURCES = (str(stress_contract_dir), )
+
+    # Prepare chain
+    BlockchainInterfaceFactory._interfaces.clear()
+    blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm')
+    blockchain_interface.connect()
+    BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)  # Lets this test run in isolation
+
+    origin = blockchain_interface.client.accounts[0]
+    blockchain_interface.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=origin)
+    blockchain_interface.transacting_power.activate()
+
+    nonce_spy = mocker.spy(BlockchainDeployerInterface, 'sign_and_broadcast_transaction')
+    # get_code_size == 0? (post-deploy)
+
+    contract_name = "StressTest"
+    registry = InMemoryContractRegistry()
+    contract, receipt = blockchain_interface.deploy_contract(deployer_address=origin,
+                                                             registry=registry,
+                                                             contract_name=contract_name)
+    for i in range(tx_count):
+        try:
+            txhash = contract.functions.append(2).transact()
         except ValidationError:
             nonces = Counter()
             for call_args in nonce_spy.call_args_list:
@@ -117,10 +159,19 @@ def test_nonce_stability_with_raw_transactions():
         counter[nonce] += 1
         tx = {
             'value': 100,
-            'gas': 50_000,
+            'gas': 6_000_000,
             'gasPrice': 1,
             'chainId': testerchain.client.chain_id,
-            # 'data': '0000000000000000000000000000000000000000',
+            'data': '00000000000000000000000000000'*10000,
+            # Stress.
+            # Create TX to append on-chain storage (append on array)
+            # Use input to regulate stress level. (check for old state)
+            # WARNING: be aware of exec. time itself biasing results
+            # Later: Instrumentation for on-chan state and data inclusion at block hash
+            # WCS: TX Uncled, commit to next period with out-of-order nonce or non-inclusion.
+            # If the above is ruled out: The bug is within application code.
+            # Current Severity: Identified an new unknown problem when broadcasting deployment Txs (nonce resuse)
+            # Question: What characteristics cause reused nonce?
             'nonce': nonce,
             'from': testerchain.etherbase_account,
             'to': target
