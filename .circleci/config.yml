@@ -860,7 +860,7 @@ jobs:
       - run:
           name: Statistical tests (e.g., sampling)
           command: |
-            pytest --run-nightly --no-cov tests/blockchain/eth/entities/agents/test_sampling_distribution.py
+            pytest --run-nightly --no-cov tests/acceptance/blockchain/agents/test_sampling_distribution.py
       - store_test_results:
           path: reports
       - run:
