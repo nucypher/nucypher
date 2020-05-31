@@ -16,14 +16,17 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import maya
 import os
+from pathlib import Path
+from typing import List, Tuple, Union
+
+import maya
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from hexbytes import HexBytes
-from typing import List, Tuple, Union
 from web3 import Web3
 
+import tests
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
@@ -39,8 +42,7 @@ from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
-    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
-    TEST_CONTRACTS_DIR
+    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS
 )
 
 
@@ -74,6 +76,12 @@ class TesterBlockchain(BlockchainDeployerInterface):
     __test__ = False # prohibit Pytest from picking it up
 
     _instance = None
+
+    TEST_CONTRACTS_DIR = Path(tests.__file__).parent / 'contracts' / 'contracts'
+    SOURCES: List[str] = [
+        *BlockchainDeployerInterface.SOURCES,
+        str(TEST_CONTRACTS_DIR.resolve(strict=True))
+    ]
 
     GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES,
                       'free': free_gas_price_strategy}
@@ -117,7 +125,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
                          provider_process=None,
                          poa=poa,
                          light=light,
-                         dry_run=mock_backend,
                          *args, **kwargs)
 
         self.log = Logger("test-blockchain")
@@ -133,9 +140,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         if eth_airdrop is True:  # ETH for everyone!
             self.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
-
-    def connect(self):
-        return super().connect(test_contracts=True)
 
     def attach_middleware(self):
         if self.free_transactions:

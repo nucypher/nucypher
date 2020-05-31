@@ -26,10 +26,9 @@ from nucypher.blockchain.eth.sol.compile import compile_nucypher
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-    INSECURE_DEVELOPMENT_PASSWORD,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
-    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS
+    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS, INSECURE_DEVELOPMENT_PASSWORD
 )
 # Prevents TesterBlockchain to be picked up by py.test as a test class
 from tests.utils.blockchain import TesterBlockchain as _TesterBlockchain, free_gas_price_strategy
