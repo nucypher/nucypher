@@ -424,6 +424,12 @@ MULTISIG_SIGNATURE_RECEIVED = "\nSignature received from {recovered_address}:\n"
 # Worklock
 #
 
+BID_AMOUNT_PROMPT_WITH_MIN_BID = "Enter bid amount in ETH (at least {minimum_bid_in_eth} ETH)"
+
+BID_INCREASE_AMOUNT_PROMPT = f"Enter the amount in ETH that you want to increase your bid"
+
+EXISTING_BID_AMOUNT_NOTICE = "You have an existing bid of {eth_amount} ETH"
+
 WORKLOCK_AGREEMENT = """
 * WorkLock Participant Notice *
 -------------------------------

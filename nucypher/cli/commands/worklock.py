@@ -33,6 +33,8 @@ from nucypher.cli.utils import connect_to_blockchain, get_registry, setup_emitte
 from nucypher.cli.config import group_general_config, GroupGeneralConfig
 from nucypher.cli.literature import (
     AVAILABLE_CLAIM_NOTICE,
+    BID_AMOUNT_PROMPT_WITH_MIN_BID,
+    BID_INCREASE_AMOUNT_PROMPT,
     BIDDERS_ALREADY_VERIFIED,
     BIDDING_WINDOW_CLOSED,
     BIDS_VALID_NO_FORCE_REFUND_INDICATED,
@@ -44,6 +46,7 @@ from nucypher.cli.literature import (
     CONFIRM_COLLECT_WORKLOCK_REFUND,
     CONFIRM_REQUEST_WORKLOCK_COMPENSATION,
     CONFIRM_WORKLOCK_CLAIM,
+    EXISTING_BID_AMOUNT_NOTICE,
     PROMPT_BID_VERIFY_GAS_LIMIT,
     REQUESTING_WORKLOCK_COMPENSATION,
     SUBMITTING_WORKLOCK_CLAIM,
@@ -192,11 +195,11 @@ def bid(general_config: GroupGeneralConfig,
         if not existing_bid_amount:  # It's the first bid
             minimum_bid = bidder.worklock_agent.minimum_allowed_bid
             minimum_bid_in_eth = Web3.fromWei(minimum_bid, 'ether')
-            prompt = f"Enter bid amount in ETH (at least {minimum_bid_in_eth} ETH)"
+            prompt = BID_AMOUNT_PROMPT_WITH_MIN_BID.format(minimum_bid_in_eth=minimum_bid_in_eth)
         else:  # There's an existing bid and the bidder is increasing the amount
-            emitter.message(f"You have an existing bid of {Web3.fromWei(existing_bid_amount, 'ether')} ETH")
+            emitter.message(EXISTING_BID_AMOUNT_NOTICE.format(eth_amount=Web3.fromWei(existing_bid_amount, 'ether')))
             minimum_bid_in_eth = Web3.fromWei(1, 'ether')
-            prompt = f"Enter the amount in ETH that you want to increase your bid"
+            prompt = BID_INCREASE_AMOUNT_PROMPT
         value = click.prompt(prompt, type=DecimalRange(min=minimum_bid_in_eth))
 
     value = int(Web3.toWei(Decimal(value), 'ether'))

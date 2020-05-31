@@ -27,10 +27,13 @@ from nucypher.blockchain.eth.actors import Bidder
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.utils import prettify_eth_amount
 from nucypher.cli.commands.worklock import worklock
+from nucypher.cli.literature import (
+    BID_AMOUNT_PROMPT_WITH_MIN_BID,
+    CONFIRM_BID_VERIFICATION
+)
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import MOCK_PROVIDER_URI, YES, NO, INSECURE_DEVELOPMENT_PASSWORD
 from tests.mock.agents import MockContractAgent
-from nucypher.cli.literature import CONFIRM_BID_VERIFICATION
 
 
 @pytest.fixture()
@@ -457,3 +460,54 @@ def test_participant_status(click_runner,
     # Calls
     for expected_call in expected_calls:
         expected_call.assert_called()
+
+
+def test_interactive_new_bid(click_runner,
+                             mocker,
+                             mock_worklock_agent,
+                             token_economics,
+                             test_registry_source_manager,
+                             surrogate_bidder,
+                             mock_testerchain):
+    now = mock_testerchain.get_blocktime()
+    sometime_later = now + 100
+    mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=sometime_later)
+
+    minimum = token_economics.worklock_min_allowed_bid
+    bid_value = random.randint(minimum, minimum * 100)
+    bid_value_in_eth = Web3.fromWei(bid_value, 'ether')
+    wrong_bid = random.randint(1, minimum - 1)
+    wrong_bid_in_eth = Web3.fromWei(wrong_bid, 'ether')
+
+    # Spy on the corresponding CLI function we are testing
+    mock_place_bid = mocker.spy(Bidder, 'place_bid')
+
+    # Patch Bidder.get_deposited_eth so it returns what we expect, in the correct sequence
+    deposited_eth_sequence = (
+        0,  # When deciding if it's a new bid or increasing the new one (in this case, a new bid)
+        0,  # When placing the bid, inside Bidder.place_bid
+        bid_value,  # When printing the CLI result, after the bid is placed ..
+        bid_value,  # .. we use it twice
+    )
+    mocker.patch.object(Bidder, 'get_deposited_eth', new_callable=PropertyMock, side_effect=deposited_eth_sequence)
+
+    command = ('bid',
+               '--bidder-address', surrogate_bidder.checksum_address,
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,)
+
+    user_input = "\n".join((INSECURE_DEVELOPMENT_PASSWORD, str(wrong_bid_in_eth), str(bid_value_in_eth), YES))
+    result = click_runner.invoke(worklock, command, catch_exceptions=False, input=user_input)
+    assert result.exit_code == 0
+
+    # OK - Let's see what happened
+
+    # Bidder
+    mock_place_bid.assert_called_once()
+
+    # Output
+    minimum_in_eth = Web3.fromWei(minimum, 'ether')
+    expected_error = f"Error: {wrong_bid_in_eth} is smaller than the minimum valid value {minimum_in_eth}"
+    assert expected_error in result.output
+    expected_prompt = BID_AMOUNT_PROMPT_WITH_MIN_BID.format(minimum_bid_in_eth=Web3.fromWei(minimum, 'ether'))
+    assert 2 == result.output.count(expected_prompt)
