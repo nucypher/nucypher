@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import threading
+
 from pathlib import Path
 
 import collections
@@ -56,7 +58,7 @@ from nucypher.blockchain.eth.providers import (
     _get_websocket_provider
 )
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.blockchain.eth.sol.compile import compile_nucypher
+from nucypher.blockchain.eth.sol.compile import SOLIDITY_SOURCE_ROOT, multiversion_compile
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
@@ -86,7 +88,7 @@ class BlockchainInterface:
     process = NO_PROVIDER_PROCESS.bool_value(False)
     Web3 = Web3
 
-    _contract_factory = VersionedContract
+    _CONTRACT_FACTORY = VersionedContract
 
     class InterfaceError(Exception):
         pass
@@ -227,6 +229,7 @@ class BlockchainInterface:
         self.transacting_power = READ_ONLY_INTERFACE
         self.is_light = light
         self.gas_strategy = self.get_gas_strategy(gas_strategy)
+        self.build_transaction_lock = threading.Lock()
 
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
@@ -280,17 +283,10 @@ class BlockchainInterface:
         self.client.w3.middleware_onion.add(middleware.simple_cache_middleware)
 
     def connect(self):
-
-        # Spawn child process
-        if self._provider_process:
-            self._provider_process.start()
-            provider_uri = self._provider_process.provider_uri(scheme='file')
-        else:
-            provider_uri = self.provider_uri
-            self.log.info(f"Using external Web3 Provider '{self.provider_uri}'")
+        self.log.info(f"Using external Web3 Provider '{self.provider_uri}'")
 
         # Attach Provider
-        self._attach_provider(provider=self._provider, provider_uri=provider_uri)
+        self._attach_provider(provider=self._provider, provider_uri=self.provider_uri)
         self.log.info("Connecting to {}".format(self.provider_uri))
         if self._provider is NO_BLOCKCHAIN_CONNECTION:
             raise self.NoProvider("There are no configured blockchain providers")
@@ -475,8 +471,12 @@ class BlockchainInterface:
         # Build Payload
         #
 
+        with self.build_transaction_lock:
+            time.sleep(1)  # lock   # TODO: Avoids race condition gleaning nonce
+            nonce = self.client.w3.eth.getTransactionCount(sender_address, 'pending')
+
         base_payload = {'chainId': int(self.client.chain_id),
-                        'nonce': self.client.w3.eth.getTransactionCount(sender_address, 'pending'),
+                        'nonce': nonce,
                         'from': sender_address,
                         'gasPrice': self.client.gas_price}
 
@@ -631,7 +631,7 @@ class BlockchainInterface:
                 proxy_contract = self.client.w3.eth.contract(abi=proxy_abi,
                                                              address=proxy_address,
                                                              version=proxy_version,
-                                                             ContractFactoryClass=self._contract_factory)
+                                                             ContractFactoryClass=self._CONTRACT_FACTORY)
 
                 # Read this dispatcher's target address from the blockchain
                 proxy_live_target_address = proxy_contract.functions.target().call()
@@ -683,7 +683,7 @@ class BlockchainInterface:
         unified_contract = self.client.w3.eth.contract(abi=selected_abi,
                                                        address=selected_address,
                                                        version=selected_version,
-                                                       ContractFactoryClass=self._contract_factory)
+                                                       ContractFactoryClass=self._CONTRACT_FACTORY)
 
         return unified_contract
 
@@ -712,7 +712,14 @@ class BlockchainInterface:
 class BlockchainDeployerInterface(BlockchainInterface):
 
     TIMEOUT = 600  # seconds
-    _contract_factory = VersionedContract
+    _CONTRACT_FACTORY = VersionedContract
+
+    # Source directories to (recursively) compile
+    SOURCES: List[str] = [
+        SOLIDITY_SOURCE_ROOT
+    ]
+
+    _raw_contract_cache = NO_COMPILATION_PERFORMED
 
     class NoDeployerAddress(RuntimeError):
         pass
@@ -720,19 +727,14 @@ class BlockchainDeployerInterface(BlockchainInterface):
     class DeploymentFailed(RuntimeError):
         pass
 
-    def connect(self,
-                compile_now: bool = True,
-                test_contracts: bool = False,
-                ignore_solidity_check: bool = False
-                ) -> bool:
+    def connect(self, compile_now: bool = True, ignore_solidity_check: bool = False) -> bool:
         super().connect()
         if compile_now:
             # Execute the compilation if we're recompiling
             # Otherwise read compiled contract data from the registry.
-            self._raw_contract_cache = compile_nucypher(ignore_version_check=ignore_solidity_check,
-                                                        test_contracts=test_contracts)
-        else:
-            self._raw_contract_cache = NO_COMPILATION_PERFORMED
+            compiled_contracts = multiversion_compile(ignore_compiler_version_check=ignore_solidity_check,
+                                                      solidity_source_dirs=self.SOURCES)
+            self._raw_contract_cache = compiled_contracts
         return self.is_connected
 
     @validate_checksum_address
@@ -790,7 +792,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         contract = self.client.w3.eth.contract(address=address,
                                                abi=contract_factory.abi,
                                                version=contract_factory.version,
-                                               ContractFactoryClass=self._contract_factory)
+                                               ContractFactoryClass=self._CONTRACT_FACTORY)
 
         if enroll is True:
             registry.enroll(contract_name=contract_name,
@@ -842,7 +844,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         contract = self.client.w3.eth.contract(abi=interface['abi'],
                                                bytecode=interface['evm']['bytecode']['object'],
                                                version=version,
-                                               ContractFactoryClass=self._contract_factory)
+                                               ContractFactoryClass=self._CONTRACT_FACTORY)
         return contract
 
     def _wrap_contract(self,
@@ -858,7 +860,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         wrapped_contract = self.client.w3.eth.contract(abi=target_contract.abi,
                                                        address=wrapper_contract.address,
                                                        version=target_contract.version,
-                                                       ContractFactoryClass=self._contract_factory)
+                                                       ContractFactoryClass=self._CONTRACT_FACTORY)
         return wrapped_contract
 
     @validate_checksum_address
@@ -875,7 +877,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
             proxy_contract = self.client.w3.eth.contract(abi=abi,
                                                          address=address,
                                                          version=version,
-                                                         ContractFactoryClass=self._contract_factory)
+                                                         ContractFactoryClass=self._CONTRACT_FACTORY)
 
             # Read this dispatchers target address from the blockchain
             proxy_live_target_address = proxy_contract.functions.target().call()
@@ -905,10 +907,10 @@ class BlockchainInterfaceFactory:
     _interfaces = dict()
     _default_interface_class = BlockchainInterface
 
-    class CachedInterface(NamedTuple):
-        interface: BlockchainInterface
-        sync: bool
-        emitter: StdoutEmitter
+    # TODO: Implement a subclass of NamedTuple
+    CachedInterface = collections.namedtuple('CachedInterface', ['interface',    # type: BlockchainInterface
+                                                                 'sync',         # type: bool
+                                                                 'emitter'])     # type: StdoutEmitter
 
     class FactoryError(Exception):
         pass
