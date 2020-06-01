@@ -538,6 +538,14 @@ class Bob(Character):
 
         return unknown_ursulas, known_ursulas, treasure_map.m
 
+    def _try_orient(self, treasure_map, alice_verifying_key):
+        alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
+        compass = self.make_compass_for_alice(alice)
+        try:
+            treasure_map.orient(compass)
+        except treasure_map.InvalidSignature:
+            raise  # TODO: Maybe do something here?  NRN
+
     def get_treasure_map(self, alice_verifying_key, label):
         map_id = self.construct_map_id(verifying_key=alice_verifying_key, label=label)
 
@@ -558,16 +566,8 @@ class Bob(Character):
             map_identifier = map_id
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
                                                                 map_identifier)
-
-        alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
-        compass = self.make_compass_for_alice(alice)
-        try:
-            treasure_map.orient(compass)
-        except treasure_map.InvalidSignature:
-            raise  # TODO: Maybe do something here?  NRN
-        else:
-            self.treasure_maps[map_id] = treasure_map
-
+        self._try_orient(treasure_map, alice_verifying_key)
+        self.treasure_maps[map_identifier] = treasure_map # TODO: make a part of _try_orient()?
         return treasure_map
 
     def make_compass_for_alice(self, alice):
@@ -714,13 +714,7 @@ class Bob(Character):
         # Try our best to get an UmbralPublicKey from input
         alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
 
-        # Part I: Assembling the WorkOrders.
-        capsules_to_activate = set(mk.capsule for mk in message_kits)
-
         if treasure_map is not None:
-
-            alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
-            compass = self.make_compass_for_alice(alice)
 
             if self.federated_only:
                 from nucypher.policy.collections import TreasureMap as _MapClass
@@ -734,12 +728,17 @@ class Bob(Character):
             if isinstance(treasure_map, str):
                 tmap_bytes = treasure_map.encode()
                 treasure_map = _MapClass.from_bytes(b64decode(tmap_bytes))
-            treasure_map.orient(compass)
+
+            self._try_orient(treasure_map, alice_verifying_key)
+            # self.treasure_maps[treasure_map.public_id()] = treasure_map # TODO: Can we?
         else:
             map_id = self.construct_map_id(alice_verifying_key, label)
             treasure_map = self.treasure_maps[map_id]
 
         _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=treasure_map, block=True)
+
+        # Part I: Assembling the WorkOrders.
+        capsules_to_activate = set(mk.capsule for mk in message_kits)
 
         for message in message_kits:
 

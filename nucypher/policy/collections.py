@@ -187,6 +187,20 @@ class TreasureMap:
         return self._id
 
     @classmethod
+    def from_obj_or_bytes(cls, obj):
+
+        if isinstance(obj, cls):
+            return obj
+
+        # TODO: This LBYL is ugly and fraught with danger.  NRN
+        elif isinstance(obj, bytes):
+            return cls.from_bytes(obj)
+
+        elif isinstance(obj, str):
+            tmap_bytes = obj.encode()
+            return cls.from_bytes(b64decode(tmap_bytes))
+
+    @classmethod
     def from_bytes(cls, bytes_representation, verify=True):
         splitter = cls.splitter()
         treasure_map = splitter(bytes_representation)
