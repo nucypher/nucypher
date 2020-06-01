@@ -17,8 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import random
-from unittest.mock import call, PropertyMock
+from unittest.mock import call, patch, PropertyMock
 
+import maya
 import pytest
 from eth_utils import to_wei
 from web3 import Web3
@@ -31,6 +32,7 @@ from nucypher.cli.commands.worklock import worklock
 from nucypher.cli.literature import (
     BID_AMOUNT_PROMPT_WITH_MIN_BID,
     BID_INCREASE_AMOUNT_PROMPT,
+    BIDDING_WINDOW_CLOSED,
     COLLECT_ETH_PASSWORD,
     CONFIRM_BID_VERIFICATION,
     GENERIC_SELECT_ACCOUNT,
@@ -110,11 +112,22 @@ def test_bid_too_soon(click_runner,
                       mock_testerchain,
                       bidding_command):
 
+    a_month_in_seconds = 3600*30
+
     # Bidding window is not open yet
+    the_past = maya.now().epoch - a_month_in_seconds
+    user_input = INSECURE_DEVELOPMENT_PASSWORD
+    with patch.object(maya, 'now', return_value=mocker.Mock(epoch=the_past)):
+        result = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=user_input)
+
+    assert result.exit_code == 1
+    assert BIDDING_WINDOW_CLOSED in result.output
+
+    # Let's assume that the previous check pass for some reason. It still should fail, at the Bidder layer
     now = mock_testerchain.get_blocktime()
-    a_month_too_soon = now-(3600*30)
+    a_month_too_soon = now - a_month_in_seconds
     mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=a_month_too_soon)
-    with pytest.raises(Bidder.BiddingIsClosed):  # FIXME: This test belongs to the Bidder layer, not the CLI
+    with pytest.raises(Bidder.BiddingIsClosed):
         _ = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=INSECURE_DEVELOPMENT_PASSWORD)
 
 
@@ -127,11 +140,22 @@ def test_bid_too_late(click_runner,
                       mock_testerchain,
                       bidding_command):
 
+    a_month_in_seconds = 3600*30
+
     # Bidding window is closed
+    the_future = maya.now().epoch + a_month_in_seconds
+    user_input = INSECURE_DEVELOPMENT_PASSWORD
+    with patch.object(maya, 'now', return_value=mocker.Mock(epoch=the_future)):
+        result = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=user_input)
+
+    assert result.exit_code == 1
+    assert BIDDING_WINDOW_CLOSED in result.output
+
+    # Let's assume that the previous check pass for some reason. It still should fail, at the Bidder layer
     now = mock_testerchain.get_blocktime()
-    a_month_too_late = now+(3600*30)
+    a_month_too_late = now + a_month_in_seconds
     mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=a_month_too_late)
-    with pytest.raises(Bidder.BiddingIsClosed):  # FIXME: This test belongs to the Bidder layer, not the CLI
+    with pytest.raises(Bidder.BiddingIsClosed):
         _ = click_runner.invoke(worklock, bidding_command, catch_exceptions=False, input=INSECURE_DEVELOPMENT_PASSWORD)
 
 

@@ -460,7 +460,7 @@ WORKLOCK_AGREEMENT = """
 
 Accept WorkLock terms and node operator obligation?"""  # TODO: Show a special message for first bidder, since there's no refund rate yet?
 
-BIDDING_WINDOW_CLOSED = f"You can't bid, the bidding window is closed."
+BIDDING_WINDOW_CLOSED = "You can't bid, the bidding window is closed."
 
 CANCELLATION_WINDOW_CLOSED = "You can't cancel your bid. The cancellation window is closed."
 
