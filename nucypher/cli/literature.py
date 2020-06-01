@@ -250,6 +250,8 @@ NO_ETH_ACCOUNTS = "No ETH accounts were found."
 
 GENERIC_SELECT_ACCOUNT = "Select index of account"
 
+SELECTED_ACCOUNT = "Selected {choice}: {chosen_account}"
+
 CHARACTER_DESTRUCTION = """
 Delete all {name} character files including:
     - Private and Public Keys ({keystore})
@@ -424,6 +426,12 @@ MULTISIG_SIGNATURE_RECEIVED = "\nSignature received from {recovered_address}:\n"
 # Worklock
 #
 
+BID_AMOUNT_PROMPT_WITH_MIN_BID = "Enter bid amount in ETH (at least {minimum_bid_in_eth} ETH)"
+
+BID_INCREASE_AMOUNT_PROMPT = "Enter the amount in ETH that you want to increase your bid"
+
+EXISTING_BID_AMOUNT_NOTICE = "You have an existing bid of {eth_amount} ETH"
+
 WORKLOCK_AGREEMENT = """
 * WorkLock Participant Notice *
 -------------------------------
@@ -452,7 +460,7 @@ WORKLOCK_AGREEMENT = """
 
 Accept WorkLock terms and node operator obligation?"""  # TODO: Show a special message for first bidder, since there's no refund rate yet?
 
-BIDDING_WINDOW_CLOSED = f"You can't bid, the bidding window is closed."
+BIDDING_WINDOW_CLOSED = "You can't bid, the bidding window is closed."
 
 CANCELLATION_WINDOW_CLOSED = "You can't cancel your bid. The cancellation window is closed."
 
@@ -505,7 +513,7 @@ VERIFICATION_ESTIMATES = "Using {gas_limit} gas for {bidders_per_transaction} bi
 
 WHALE_WARNING = "At least {number} bidders got a force refund\n"
 
-BIDDERS_ALREADY_VERIFIED = f"Bidders have already been checked\n"
+BIDDERS_ALREADY_VERIFIED = "Bidders have already been checked\n"
 
 SUCCESSFUL_WORKLOCK_CLAIM = """
 

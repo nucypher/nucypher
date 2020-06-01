@@ -42,7 +42,8 @@ from nucypher.cli.literature import (
     PREALLOCATION_STAKE_ADVISORY,
     SELECT_NETWORK,
     SELECT_STAKE,
-    SELECT_STAKING_ACCOUNT_INDEX
+    SELECT_STAKING_ACCOUNT_INDEX,
+    SELECTED_ACCOUNT
 )
 from nucypher.cli.painting.staking import paint_stakes
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ADDRESS
@@ -170,7 +171,7 @@ def select_client_account(emitter,
     choice = click.prompt(prompt, type=account_range, default=default)
     chosen_account = enumerated_accounts[choice]
 
-    emitter.echo(f"Selected {choice}: {chosen_account}", color='blue')
+    emitter.echo(SELECTED_ACCOUNT.format(choice=choice, chosen_account=chosen_account), color='blue')
     return chosen_account
 
 
