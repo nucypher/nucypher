@@ -33,6 +33,7 @@ from nucypher.cli.literature import (
     BID_AMOUNT_PROMPT_WITH_MIN_BID,
     BID_INCREASE_AMOUNT_PROMPT,
     BIDDING_WINDOW_CLOSED,
+    CLAIMING_NOT_AVAILABLE,
     COLLECT_ETH_PASSWORD,
     CONFIRM_BID_VERIFICATION,
     GENERIC_SELECT_ACCOUNT,
@@ -353,6 +354,20 @@ def test_initial_claim(click_runner,
                        mock_worklock_agent,
                        surrogate_bidder):
 
+    command = ('claim',
+               '--bidder-address', surrogate_bidder.checksum_address,
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN)
+
+    # First, let's test that if claiming is not available, command fails
+    mock_worklock_agent.is_claiming_available.return_value = False
+    result = click_runner.invoke(worklock, command, input=INSECURE_DEVELOPMENT_PASSWORD, catch_exceptions=False)
+    assert result.exit_code == 1
+    assert CLAIMING_NOT_AVAILABLE in result.output
+
+    # Let's continue with our test and try the command again. But don't forget to restore the previous mock
+    mock_worklock_agent.is_claiming_available.return_value = True
+
     # Spy on the corresponding CLI function we are testing
     mock_withdraw_compensation = mocker.spy(Bidder, 'withdraw_compensation')
     mock_claim = mocker.spy(Bidder, 'claim')
@@ -366,12 +381,6 @@ def test_initial_claim(click_runner,
         new_callable=mocker.PropertyMock,
         return_value=False
     )
-
-    command = ('claim',
-               '--bidder-address', surrogate_bidder.checksum_address,
-               '--provider', MOCK_PROVIDER_URI,
-               '--network', TEMPORARY_DOMAIN,
-               '--force')
 
     result = click_runner.invoke(worklock, command, input=INSECURE_DEVELOPMENT_PASSWORD, catch_exceptions=False)
     assert result.exit_code == 0
