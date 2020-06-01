@@ -32,13 +32,12 @@ from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
 def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_policy, federated_bob):
     # Assume for the moment that Bob has already received a TreasureMap, perhaps via a side channel.
     hrac, treasure_map = enacted_federated_policy.hrac(), enacted_federated_policy.treasure_map
-    federated_bob.treasure_maps[treasure_map.public_id()] = treasure_map
 
     # Bob knows of no Ursulas.
     assert len(federated_bob.known_nodes) == 0
 
     # He can't successfully follow the TreasureMap until he learns of a node to ask.
-    unknown, known = federated_bob.peek_at_treasure_map(map_id=treasure_map.public_id())
+    unknown, known = federated_bob.peek_at_treasure_map(treasure_map=treasure_map)
     assert len(known) == 0
 
     # TODO: Show that even with learning loop going, nothing happens here.
@@ -90,8 +89,6 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
 
     # Again, let's assume that he received the TreasureMap via a side channel.
     hrac, treasure_map = enacted_federated_policy.hrac(), enacted_federated_policy.treasure_map
-    map_id = treasure_map.public_id()
-    bob.treasure_maps[map_id] = treasure_map
 
     # Now, let's create a scenario in which Bob knows of only one node.
     assert len(bob.known_nodes) == 0
@@ -100,13 +97,13 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
     assert len(bob.known_nodes) == 1
 
     # This time, when he follows the TreasureMap...
-    unknown_nodes, known_nodes = bob.peek_at_treasure_map(map_id=map_id)
+    unknown_nodes, known_nodes = bob.peek_at_treasure_map(treasure_map=treasure_map)
 
     # Bob already knew about one node; the rest are unknown.
     assert len(unknown_nodes) == len(treasure_map) - 1
 
     # He needs to actually follow the treasure map to get the rest.
-    bob.follow_treasure_map(map_id=map_id)
+    bob.follow_treasure_map(treasure_map=treasure_map)
 
     # The nodes in the learning loop are now his top target, but he's not learning yet.
     assert not bob._learning_task.running
@@ -138,11 +135,9 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
     # We pick up our story with Bob already having followed the treasure map above, ie:
     hrac, treasure_map = enacted_federated_policy.hrac(), enacted_federated_policy.treasure_map
-    map_id = treasure_map.public_id()
-    federated_bob.treasure_maps[map_id] = treasure_map
     federated_bob.start_learning_loop()
 
-    federated_bob.follow_treasure_map(map_id=map_id, block=True, timeout=1)
+    federated_bob.follow_treasure_map(treasure_map=treasure_map, block=True, timeout=1)
 
     assert len(federated_bob.known_nodes) == len(federated_ursulas)
 
@@ -157,7 +152,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
                                  verifying=federated_alice.stamp.as_umbral_pubkey())
     work_orders, _ = federated_bob.work_orders_for_capsules(
         capsule,
-        map_id=map_id,
+        treasure_map=treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
 
@@ -170,7 +165,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     # This time, we'll tell Bob to cache it.
     retained_work_orders, _ = federated_bob.work_orders_for_capsules(
         capsule,
-        map_id=map_id,
+        treasure_map=treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
 
@@ -235,7 +230,7 @@ def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_pol
 
     incomplete_work_orders, complete_work_orders = federated_bob.work_orders_for_capsules(
         last_capsule_on_side_channel,
-        map_id=enacted_federated_policy.treasure_map.public_id(),
+        treasure_map=enacted_federated_policy.treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1,
     )
@@ -282,7 +277,7 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     # The rest of this test will show that if Bob generates another WorkOrder, it's for a *different* Ursula.
     incomplete_work_orders, complete_work_orders = federated_bob.work_orders_for_capsules(
         last_capsule_on_side_channel,
-        map_id=enacted_federated_policy.treasure_map.public_id(),
+        treasure_map=enacted_federated_policy.treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
     id_of_this_new_ursula, new_work_order = list(incomplete_work_orders.items())[0]
@@ -334,7 +329,7 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
 
     new_incomplete_work_orders, _ = federated_bob.work_orders_for_capsules(
         the_message_kit.capsule,
-        map_id=enacted_federated_policy.treasure_map.public_id(),
+        treasure_map=enacted_federated_policy.treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=number_left_to_collect)
     _id_of_yet_another_ursula, new_work_order = list(new_incomplete_work_orders.items())[0]

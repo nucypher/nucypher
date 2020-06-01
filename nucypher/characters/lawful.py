@@ -510,22 +510,12 @@ class Bob(Character):
         self.log = Logger(self.__class__.__name__)
         self.log.info(self.banner)
 
-    def _pick_treasure_map(self, treasure_map=None, map_id=None):
-        if treasure_map is None:
-            if map_id:
-                treasure_map = self.treasure_maps[map_id]
-            else:
-                raise ValueError("You need to pass either treasure_map or map_id.")
-        elif map_id:
-            raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
-        return treasure_map
-
     def get_card(self) -> 'Card':
         from nucypher.policy.identity import Card
         card = Card.from_character(self)
         return card
 
-    def peek_at_treasure_map(self, treasure_map=None, map_id=None):
+    def peek_at_treasure_map(self, treasure_map):
         """
         Take a quick gander at the TreasureMap matching map_id to see which
         nodes are already known to us.
@@ -535,7 +525,6 @@ class Bob(Character):
 
         Return two sets: nodes that are unknown to us, nodes that are known to us.
         """
-        treasure_map = self._pick_treasure_map(treasure_map, map_id)
 
         # The intersection of the map and our known nodes will be the known Ursulas...
         known_treasure_ursulas = treasure_map.destinations.keys() & self.known_nodes.addresses()
@@ -547,13 +536,12 @@ class Bob(Character):
 
     def follow_treasure_map(self,
                             treasure_map=None,
-                            map_id=None,
                             block=False,
                             new_thread=False,
                             timeout=10,
                             allow_missing=0):
         """
-        Follows a known TreasureMap, looking it up by map_id.
+        Follows a known TreasureMap.
 
         Determines which Ursulas are known and which are unknown.
 
@@ -567,8 +555,6 @@ class Bob(Character):
 
         # TODO: Check if nodes are up, declare them phantom if not.  567
         """
-        treasure_map = self._pick_treasure_map(treasure_map, map_id)
-
         unknown_ursulas, known_ursulas = self.peek_at_treasure_map(treasure_map=treasure_map)
 
         if unknown_ursulas:
@@ -679,7 +665,6 @@ class Bob(Character):
     def work_orders_for_capsules(self,
                                  *capsules,
                                  alice_verifying_key: UmbralPublicKey,
-                                 map_id: str = None,
                                  treasure_map: 'TreasureMap' = None,
                                  num_ursulas: int = None,
                                  ):
@@ -770,7 +755,6 @@ class Bob(Character):
         # Part I: Assembling the WorkOrders.
         capsules_to_activate = set(mk.capsule for mk in message_kits)
 
-        map_id = self.construct_map_id(alice_verifying_key, label)
         if treasure_map is not None:
             alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
             compass = self.make_compass_for_alice(alice)
@@ -788,9 +772,11 @@ class Bob(Character):
                 tmap_bytes = treasure_map.encode()
                 treasure_map = _MapClass.from_bytes(b64decode(tmap_bytes))
             treasure_map.orient(compass)
-            _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=treasure_map, block=True)
         else:
-            _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
+            map_id = self.construct_map_id(alice_verifying_key, label)
+            treasure_map = self.treasure_maps[map_id]
+
+        _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=treasure_map, block=True)
 
         for message in message_kits:
 
@@ -826,7 +812,6 @@ class Bob(Character):
             capsule.set_correctness_keys(verifying=alice_verifying_key)
 
             new_work_orders, complete_work_orders = self.work_orders_for_capsules(
-                map_id=map_id,
                 treasure_map=treasure_map,
                 alice_verifying_key=alice_verifying_key,
                 *capsules_to_activate)
