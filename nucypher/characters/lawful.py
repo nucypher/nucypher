@@ -20,7 +20,7 @@ import maya
 import random
 import time
 from base64 import b64decode, b64encode
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from datetime import datetime
 from functools import partial
 from json.decoder import JSONDecodeError
@@ -642,7 +642,7 @@ class Bob(Character):
                 raise KeyError(f"Bob doesn't have the TreasureMap {map_id}; can't generate work orders.")
 
         incomplete_work_orders = OrderedDict()
-        complete_work_orders = OrderedDict()
+        complete_work_orders = defaultdict(lambda: [])
 
         if not treasure_map_to_use:
             raise ValueError(f"Bob doesn't have a TreasureMap to match any of these capsules: {capsules}")
@@ -656,7 +656,7 @@ class Bob(Character):
                 try:
                     precedent_work_order = self._completed_work_orders.most_recent_replete(capsule)[node_id]
                     self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
-                    complete_work_orders[node_id] = precedent_work_order
+                    complete_work_orders[capsule].append(precedent_work_order)
                 except KeyError:
                     # Don't have a precedent completed WorkOrder for this Ursula for this Capsule.
                     # We need to make a new one.
@@ -678,8 +678,9 @@ class Bob(Character):
                 # TODO: Presently, the order here is haphazard .  Do we want to do the complete or incomplete specifically first? NRN
                 break
 
-        if incomplete_work_orders == OrderedDict():
-            self.log.warn("No new WorkOrders created. Try calling this with different parameters.")  # TODO: Clearer instructions.  NRN
+        if len(incomplete_work_orders) == 0:
+            self.log.warn(
+                "No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.  NRN
 
         return incomplete_work_orders, complete_work_orders
 
@@ -779,15 +780,15 @@ class Bob(Character):
             alice_verifying_key=alice_verifying_key,
             *capsules_to_activate)
 
-        self.log.info(f"Found {len(complete_work_orders)} for Capsules ({capsules_to_activate}).")
+        # TODO: enabling this causes `builtins.KeyError: 'Capsule'` in logging.
+        #self.log.info(f"Found {len(complete_work_orders)} for Capsules ({capsules_to_activate}).")
 
         if complete_work_orders:
             if use_precedent_work_orders:
-                for capsule in capsules_to_activate:
-                    for work_order in complete_work_orders.values():
-                        if capsule in work_order.tasks:
-                            cfrag_in_question = work_order.tasks[capsule].cfrag
-                            capsule.attach_cfrag(cfrag_in_question)
+                for capsule, work_orders in complete_work_orders.items():
+                    for work_order in work_orders:
+                        cfrag_in_question = work_order.tasks[capsule].cfrag
+                        capsule.attach_cfrag(cfrag_in_question)
             else:
                 self.log.warn(
                     "Found existing complete WorkOrders, but use_precedent_work_orders is set to False.  To use Bob in 'KMS mode', set retain_cfrags=False as well.")
