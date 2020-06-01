@@ -428,7 +428,7 @@ MULTISIG_SIGNATURE_RECEIVED = "\nSignature received from {recovered_address}:\n"
 
 BID_AMOUNT_PROMPT_WITH_MIN_BID = "Enter bid amount in ETH (at least {minimum_bid_in_eth} ETH)"
 
-BID_INCREASE_AMOUNT_PROMPT = f"Enter the amount in ETH that you want to increase your bid"
+BID_INCREASE_AMOUNT_PROMPT = "Enter the amount in ETH that you want to increase your bid"
 
 EXISTING_BID_AMOUNT_NOTICE = "You have an existing bid of {eth_amount} ETH"
 
@@ -513,7 +513,7 @@ VERIFICATION_ESTIMATES = "Using {gas_limit} gas for {bidders_per_transaction} bi
 
 WHALE_WARNING = "At least {number} bidders got a force refund\n"
 
-BIDDERS_ALREADY_VERIFIED = f"Bidders have already been checked\n"
+BIDDERS_ALREADY_VERIFIED = "Bidders have already been checked\n"
 
 SUCCESSFUL_WORKLOCK_CLAIM = """
 

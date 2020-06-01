@@ -117,7 +117,7 @@ def test_bid_too_soon(click_runner,
                       mock_testerchain,
                       bidding_command):
 
-    a_month_in_seconds = 3600*30
+    a_month_in_seconds = 3600*24*30
 
     # Bidding window is not open yet
     the_past = maya.now().epoch - a_month_in_seconds
@@ -145,7 +145,7 @@ def test_bid_too_late(click_runner,
                       mock_testerchain,
                       bidding_command):
 
-    a_month_in_seconds = 3600*30
+    a_month_in_seconds = 3600*24*30
 
     # Bidding window is closed
     the_future = maya.now().epoch + a_month_in_seconds
