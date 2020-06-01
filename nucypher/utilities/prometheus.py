@@ -26,9 +26,15 @@ from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, W
 from nucypher.blockchain.eth.actors import NucypherTokenActor
 from typing import List, Union, Tuple
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.cli.types import NETWORK_PORT
 
 ContractAgents = Union[StakingEscrowAgent, WorkLockAgent, PolicyManagerAgent]
+
+
+class PrometheusMetricsConfig:
+    def __init__(self, port: int, metrics_prefix: str, listen_address: str):
+        self.port = port
+        self.metrics_prefix = metrics_prefix
+        self.listen_address = listen_address
 
 
 class BaseEventMetricsCollector:
@@ -282,11 +288,13 @@ def build_event_metrics_collectors(ursula, event_collectors_config: Tuple) -> Li
     return event_metrics_collectors
 
 
-def initialize_prometheus_exporter(ursula, listen_address: str, port: NETWORK_PORT, metrics_prefix: str) -> None:
+def initialize_prometheus_exporter(ursula, prometheus_config: PrometheusMetricsConfig) -> None:
     from prometheus_client.twisted import MetricsResource
     from twisted.web.resource import Resource
     from twisted.web.server import Site
     from .json_metrics_export import JSONMetricsResource
+
+    metrics_prefix = prometheus_config.metrics_prefix
 
     node_metrics = {
         "known_nodes_gauge": Gauge(f'{metrics_prefix}_known_nodes', 'Number of currently known nodes'),
@@ -341,4 +349,4 @@ def initialize_prometheus_exporter(ursula, listen_address: str, port: NETWORK_PO
     root.putChild(b'metrics', MetricsResource())
     root.putChild(b'json_metrics', JSONMetricsResource())
     factory = Site(root)
-    reactor.listenTCP(port, factory, interface=listen_address)
+    reactor.listenTCP(prometheus_config.port, factory, interface=prometheus_config.listen_address)

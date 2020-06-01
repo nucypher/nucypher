@@ -76,6 +76,7 @@ from nucypher.network.nodes import NodeSprout, Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
+from nucypher.utilities.prometheus import initialize_prometheus_exporter, PrometheusMetricsConfig
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -917,7 +918,6 @@ class Ursula(Teacher, Character, Worker):
                  timestamp=None,
                  availability_check: bool = True,
                  prune_datastore: bool = True,
-                 metrics_port: int = None,
 
                  # Blockchain
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
@@ -980,9 +980,6 @@ class Ursula(Teacher, Character, Worker):
             self.__pruning_task = None
             self._prune_datastore = prune_datastore
             self._arrangement_pruning_task = LoopingCall(f=self.__prune_arrangements)
-
-            # Prometheus / Metrics
-            self._metrics_port = metrics_port
 
         #
         # Ursula the Decentralized Worker (Self)
@@ -1106,11 +1103,8 @@ class Ursula(Teacher, Character, Worker):
             worker: bool = True,
             pruning: bool = True,
             interactive: bool = False,
-            prometheus: bool = False,
             start_reactor: bool = True,
-            metrics_port: int = None,
-            metrics_prefix: str = 'ursula',
-            metrics_listen_address: str = ''
+            prometheus_config: PrometheusMetricsConfig = None,
             ) -> None:
 
         """Schedule and start select ursula services, then optionally start the reactor."""
@@ -1146,11 +1140,9 @@ class Ursula(Teacher, Character, Worker):
         # Non-order dependant services
         #
 
-        if prometheus:
+        if prometheus_config:
             # TODO: Integrate with Hendrix TLS Deploy?
-            # Local scoped to help prevent import without prometheus installed
-            from nucypher.utilities.metrics import initialize_prometheus_exporter
-            initialize_prometheus_exporter(ursula=self, listen_address=metrics_listen_address, port=metrics_port, metrics_prefix=metrics_prefix)
+            initialize_prometheus_exporter(ursula=self, prometheus_config=prometheus_config)
             if emitter:
                 emitter.message(f"✓ Prometheus Exporter", color='green')
 
