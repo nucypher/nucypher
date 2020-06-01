@@ -36,8 +36,11 @@ from nucypher.cli.literature import (
     CLAIMING_NOT_AVAILABLE,
     COLLECT_ETH_PASSWORD,
     CONFIRM_BID_VERIFICATION,
+    CONFIRM_REQUEST_WORKLOCK_COMPENSATION,
+    CONFIRM_WORKLOCK_CLAIM,
     GENERIC_SELECT_ACCOUNT,
-    SELECTED_ACCOUNT
+    SELECTED_ACCOUNT,
+    WORKLOCK_CLAIM_ADVISORY
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import MOCK_PROVIDER_URI, YES, NO, INSECURE_DEVELOPMENT_PASSWORD
@@ -354,8 +357,9 @@ def test_initial_claim(click_runner,
                        mock_worklock_agent,
                        surrogate_bidder):
 
+    bidder_address = surrogate_bidder.checksum_address
     command = ('claim',
-               '--bidder-address', surrogate_bidder.checksum_address,
+               '--bidder-address', bidder_address,
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
@@ -382,19 +386,27 @@ def test_initial_claim(click_runner,
         return_value=False
     )
 
-    result = click_runner.invoke(worklock, command, input=INSECURE_DEVELOPMENT_PASSWORD, catch_exceptions=False)
+    # Customize mock worklock agent method worklock parameters so position -2 returns lock periods
+    mock_worklock_agent.worklock_parameters.return_value = [0xAA, 0xBB, 30, 0xCC]
+
+    user_input = '\n'.join((INSECURE_DEVELOPMENT_PASSWORD, YES, YES))
+    result = click_runner.invoke(worklock, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    mock_worklock_agent.claim.assert_called_once_with(checksum_address=surrogate_bidder.checksum_address)
+    assert CONFIRM_REQUEST_WORKLOCK_COMPENSATION.format(bidder_address=bidder_address) in result.output
+    assert WORKLOCK_CLAIM_ADVISORY.format(lock_duration=30) in result.output
+    assert CONFIRM_WORKLOCK_CLAIM.format(bidder_address=bidder_address) in result.output
+
+    mock_worklock_agent.claim.assert_called_once_with(checksum_address=bidder_address)
 
     # Bidder
     mock_withdraw_compensation.assert_called_once()
     mock_claim.assert_called_once()
-    assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
+    assert_successful_transaction_echo(bidder_address=bidder_address, cli_output=result.output)
 
     # Transactions
-    mock_worklock_agent.withdraw_compensation.assert_called_with(checksum_address=surrogate_bidder.checksum_address)
-    mock_worklock_agent.claim.assert_called_with(checksum_address=surrogate_bidder.checksum_address)
+    mock_worklock_agent.withdraw_compensation.assert_called_with(checksum_address=bidder_address)
+    mock_worklock_agent.claim.assert_called_with(checksum_address=bidder_address)
 
     # Calls
     expected_calls = (mock_worklock_agent.get_deposited_eth,
