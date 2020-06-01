@@ -19,5 +19,5 @@ import os
 import pytest
 
 
-circleci_only = pytest.mark.skipif(condition=('CIRCLECI' not in os.environ),
-                                   reason='Only run on CircleCI')
+circleci_only = pytest.mark.skipif(condition=('CIRCLECI' not in os.environ), reason='Only run on CircleCI')
+skip_circleci = pytest.mark.skipif(condition=('CIRCLECI' in os.environ), reason='Only run on CircleCI')
