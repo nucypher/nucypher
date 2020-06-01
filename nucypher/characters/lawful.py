@@ -590,7 +590,7 @@ class Bob(Character):
         return unknown_ursulas, known_ursulas, treasure_map.m
 
     def get_treasure_map(self, alice_verifying_key, label):
-        _hrac, map_id = self.construct_hrac_and_map_id(verifying_key=alice_verifying_key, label=label)
+        map_identifier = self.construct_map_id(verifying_key=alice_verifying_key, label=label)
 
         if not self.known_nodes and not self._learning_task.running:
             # Quick sanity check - if we don't know of *any* Ursulas, and we have no
@@ -602,11 +602,6 @@ class Bob(Character):
             if not self.known_nodes:
                 raise self.NotEnoughTeachers("Can't retrieve without knowing about any nodes at all.  Pass a teacher or seed node.")
 
-        # Ugh stupid federated only mode....
-        if not self.federated_only:
-            map_identifier = _hrac.hex()
-        else:
-            map_identifier = map_id
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
                                                                 map_identifier)
 
@@ -628,10 +623,16 @@ class Bob(Character):
         _hrac = keccak_digest(bytes(verifying_key) + self.stamp + label)[:HRAC_LENGTH]
         return _hrac
 
-    def construct_hrac_and_map_id(self, verifying_key, label):
+    def construct_map_id(self, verifying_key, label):
         hrac = self.construct_policy_hrac(verifying_key, label)
-        map_id = keccak_digest(bytes(verifying_key) + hrac).hex()
-        return hrac, map_id
+
+        # Ugh stupid federated only mode....
+        if not self.federated_only:
+            map_id = hrac.hex()
+        else:
+            map_id = keccak_digest(bytes(verifying_key) + hrac).hex()
+
+        return map_id
 
     def get_treasure_map_from_known_ursulas(self, network_middleware, map_identifier, timeout=3):
         """
@@ -769,7 +770,7 @@ class Bob(Character):
         # Part I: Assembling the WorkOrders.
         capsules_to_activate = set(mk.capsule for mk in message_kits)
 
-        hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
+        map_id = self.construct_map_id(alice_verifying_key, label)
         if treasure_map is not None:
             alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
             compass = self.make_compass_for_alice(alice)
