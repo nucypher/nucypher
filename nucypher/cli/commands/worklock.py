@@ -321,11 +321,12 @@ def refund(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     bidder_address = worklock_options.get_bidder_address(emitter, registry)
 
+    bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
+
     if not force:
-        click.confirm(CONFIRM_COLLECT_WORKLOCK_REFUND.format(bidder_Address=bidder_address), abort=True)
+        click.confirm(CONFIRM_COLLECT_WORKLOCK_REFUND.format(bidder_address=bidder_address), abort=True)
     emitter.echo(SUBMITTING_WORKLOCK_REFUND_REQUEST)
 
-    bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
     receipt = bidder.refund_deposit()
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
 

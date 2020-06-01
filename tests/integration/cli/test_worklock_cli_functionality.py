@@ -36,6 +36,7 @@ from nucypher.cli.literature import (
     CLAIMING_NOT_AVAILABLE,
     COLLECT_ETH_PASSWORD,
     CONFIRM_BID_VERIFICATION,
+    CONFIRM_COLLECT_WORKLOCK_REFUND,
     CONFIRM_REQUEST_WORKLOCK_COMPENSATION,
     CONFIRM_WORKLOCK_CLAIM,
     GENERIC_SELECT_ACCOUNT,
@@ -491,22 +492,26 @@ def test_refund(click_runner,
     # Spy on the corresponding CLI function we are testing
     mock_refund = mocker.spy(Bidder, 'refund_deposit')
 
+    bidder_address = surrogate_bidder.checksum_address
     command = ('refund',
-               '--bidder-address', surrogate_bidder.checksum_address,
+               '--bidder-address', bidder_address,
                '--provider', MOCK_PROVIDER_URI,
-               '--network', TEMPORARY_DOMAIN,
-               '--force')
+               '--network', TEMPORARY_DOMAIN)
 
-    result = click_runner.invoke(worklock, command, input=INSECURE_DEVELOPMENT_PASSWORD, catch_exceptions=False)
+    user_input = INSECURE_DEVELOPMENT_PASSWORD + '\n' + YES
+    result = click_runner.invoke(worklock, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
+
+    # Output
+    assert CONFIRM_COLLECT_WORKLOCK_REFUND.format(bidder_address=bidder_address) in result.output
 
     # Bidder
     mock_refund.assert_called_once()
-    assert_successful_transaction_echo(bidder_address=surrogate_bidder.checksum_address, cli_output=result.output)
+    assert_successful_transaction_echo(bidder_address=bidder_address, cli_output=result.output)
 
     # Transactions
     mock_worklock_agent.assert_only_transactions(allowed=[mock_worklock_agent.refund])
-    mock_worklock_agent.refund.assert_called_with(checksum_address=surrogate_bidder.checksum_address)
+    mock_worklock_agent.refund.assert_called_with(checksum_address=bidder_address)
 
 
 @pytest.mark.usefixtures("test_registry_source_manager")
