@@ -19,12 +19,19 @@ try:
     from prometheus_client import Gauge, Enum, Counter, Info, Histogram, Summary
 except ImportError:
     raise ImportError('prometheus_client is not installed - Install it and try again.')
+
+import json
+from typing import List, Union, Tuple
+
+from prometheus_client.core import Timestamp
+from prometheus_client.registry import REGISTRY
+from prometheus_client.utils import floatToGoString
 from twisted.internet import reactor, task
+from twisted.web.resource import Resource
 
 import nucypher
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, WorkLockAgent, PolicyManagerAgent
 from nucypher.blockchain.eth.actors import NucypherTokenActor
-from typing import List, Union, Tuple
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, WorkLockAgent, PolicyManagerAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 
 ContractAgents = Union[StakingEscrowAgent, WorkLockAgent, PolicyManagerAgent]
@@ -35,6 +42,75 @@ class PrometheusMetricsConfig:
         self.port = port
         self.metrics_prefix = metrics_prefix
         self.listen_address = listen_address
+
+
+class MetricsEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Timestamp):
+            return obj.__float__()
+        return json.JSONEncoder.default(self, obj)
+
+
+class JSONMetricsResource(Resource):
+    """
+    Twisted ``Resource`` that serves metrics in JSON.
+    """
+    isLeaf = True
+
+    def __init__(self, registry=REGISTRY):
+        self.registry = registry
+
+    def render_GET(self, request):
+        request.setHeader(b'Content-Type', "text/json")
+        return self.generate_latest_json()
+
+    @staticmethod
+    def get_exemplar(sample, metric):
+        if not sample.exemplar:
+            return {}
+        elif metric.type not in ('histogram', 'gaugehistogram') \
+                or not sample.name.endswith('_bucket'):
+            raise ValueError(
+                "Metric {} has exemplars, but is not a "
+                "histogram bucket".format(metric.name)
+            )
+        return {
+            "labels": sample.exemplar.labels,
+            "value": floatToGoString(sample.exemplar.value),
+            "timestamp": sample.exemplar.timestamp
+        }
+
+    def get_sample(self, sample, metric):
+        return {
+            "sample_name": sample.name,
+            "labels": sample.labels,
+            "value": floatToGoString(sample.value),
+            "timestamp": sample.timestamp,
+            "exemplar": self.get_exemplar(sample, metric)
+        }
+
+    def get_metric(self, metric):
+        return {
+            "samples": [self.get_sample(sample, metric) for sample in metric.samples],
+            "help": metric.documentation,
+            "type": metric.type
+        }
+
+    def generate_latest_json(self):
+        """
+        Returns the metrics from the registry
+        in latest JSON format as a string.
+        """
+        output = {}
+        for metric in self.registry.collect():
+            try:
+                output[metric.name] = self.get_metric(metric)
+            except Exception as exception:
+                exception.args = (exception.args or ('',)) + (metric,)
+                raise
+
+        json_dump = json.dumps(output, cls=MetricsEncoder).encode('utf-8')
+        return json_dump
 
 
 class BaseEventMetricsCollector:
@@ -292,7 +368,6 @@ def initialize_prometheus_exporter(ursula, prometheus_config: PrometheusMetricsC
     from prometheus_client.twisted import MetricsResource
     from twisted.web.resource import Resource
     from twisted.web.server import Site
-    from .json_metrics_export import JSONMetricsResource
 
     metrics_prefix = prometheus_config.metrics_prefix
 
