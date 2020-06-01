@@ -26,11 +26,15 @@ from web3 import Web3
 from nucypher.blockchain.eth.actors import Bidder
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.utils import prettify_eth_amount
+from nucypher.cli.commands import worklock as worklock_command
 from nucypher.cli.commands.worklock import worklock
 from nucypher.cli.literature import (
     BID_AMOUNT_PROMPT_WITH_MIN_BID,
     BID_INCREASE_AMOUNT_PROMPT,
-    CONFIRM_BID_VERIFICATION
+    COLLECT_ETH_PASSWORD,
+    CONFIRM_BID_VERIFICATION,
+    GENERIC_SELECT_ACCOUNT,
+    SELECTED_ACCOUNT
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import MOCK_PROVIDER_URI, YES, NO, INSECURE_DEVELOPMENT_PASSWORD
@@ -57,6 +61,31 @@ def test_status(click_runner, mock_worklock_agent, test_registry_source_manager)
     command = ('status', '--provider', MOCK_PROVIDER_URI, '--network', TEMPORARY_DOMAIN)
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
+
+
+def test_account_selection(click_runner, mocker, mock_testerchain, mock_worklock_agent, test_registry_source_manager):
+    accounts = list(mock_testerchain.client.accounts)
+    index = random.choice(range(len(accounts)))
+    the_chosen_one = accounts[index]
+
+    # I spy
+    mock_select = mocker.spy(worklock_command, 'select_client_account')
+
+    command = ('cancel-bid',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN)
+
+    user_input = '\n'.join((str(index), INSECURE_DEVELOPMENT_PASSWORD, YES))
+    result = click_runner.invoke(worklock, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    # Check call
+    mock_select.assert_called_once()
+
+    # Check output
+    assert GENERIC_SELECT_ACCOUNT in result.output
+    assert SELECTED_ACCOUNT.format(choice=index, chosen_account=the_chosen_one) in result.output
+    assert COLLECT_ETH_PASSWORD.format(checksum_address=the_chosen_one) in result.output
 
 
 @pytest.fixture()

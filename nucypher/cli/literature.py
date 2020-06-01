@@ -250,6 +250,8 @@ NO_ETH_ACCOUNTS = "No ETH accounts were found."
 
 GENERIC_SELECT_ACCOUNT = "Select index of account"
 
+SELECTED_ACCOUNT = "Selected {choice}: {chosen_account}"
+
 CHARACTER_DESTRUCTION = """
 Delete all {name} character files including:
     - Private and Public Keys ({keystore})
