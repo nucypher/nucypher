@@ -1,16 +1,32 @@
-from collections import Counter
+"""
+ This file is part of nucypher.
 
-from eth_utils import ValidationError
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
+import pytest
 from pathlib import Path
 
+from blockchain.eth.sol.compile.config import ALLOWED_PATHS
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from nucypher.blockchain.eth.sol.compile import ALLOWED_PATHS
+
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
-def test_multiversion_contract(mocker):
+def test_deployer_interface_multiversion_contract():
 
     # Prepare compiler
     base_dir = Path(__file__).parent / 'contracts' / 'multiversion'
@@ -32,7 +48,6 @@ def test_multiversion_contract(mocker):
     blockchain_interface.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=origin)
     blockchain_interface.transacting_power.activate()
 
-    nonce_spy = mocker.spy(BlockchainDeployerInterface, 'sign_and_broadcast_transaction')
     # Searching both contract through raw data
     contract_name = "VersionTest"
     requested_version = "v1.2.3"

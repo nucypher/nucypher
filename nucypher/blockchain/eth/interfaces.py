@@ -14,56 +14,52 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+import os
 import threading
-
+import time
 from pathlib import Path
-
-import collections
+from typing import Callable, Union, Tuple
+from urllib.parse import urlparse
 
 import click
-import os
-import pprint
 import requests
-import time
+from blockchain.eth.sol.compile.compile import multiversion_compile
 from constant_sorrow.constants import (
     INSUFFICIENT_ETH,
     NO_BLOCKCHAIN_CONNECTION,
     NO_COMPILATION_PERFORMED,
     NO_PROVIDER_PROCESS,
-    READ_ONLY_INTERFACE,
-    UNKNOWN_TX_STATUS
+    READ_ONLY_INTERFACE
 )
 from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import to_checksum_address
 from twisted.logger import Logger
-from typing import Callable, List, Optional, Tuple, Union
-from urllib.parse import urlparse
 from web3 import HTTPProvider, IPCProvider, Web3, WebsocketProvider, middleware
 from web3.contract import Contract, ContractConstructor, ContractFunction
-from web3.exceptions import TimeExhausted, ValidationError
+from web3.exceptions import ValidationError, TimeExhausted
 from web3.gas_strategies import time_based
 from web3.middleware import geth_poa_middleware
 
+from blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
-    _get_auto_provider,
     _get_HTTP_provider,
-    _get_infura_provider,
     _get_IPC_provider,
+    _get_auto_provider,
+    _get_infura_provider,
     _get_mock_test_provider,
     _get_pyevm_test_provider,
     _get_test_geth_parity_provider,
     _get_websocket_provider
 )
-from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.blockchain.eth.sol.compile import SOLIDITY_SOURCE_ROOT, multiversion_compile
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
 
-Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
+Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]  # TODO: Move to types.py
 
 
 class VersionedContract(Contract):
@@ -86,7 +82,7 @@ class BlockchainInterface:
                       }
 
     process = NO_PROVIDER_PROCESS.bool_value(False)
-    Web3 = Web3
+    Web3 = Web3  # TODO: This is name-shadowing the actual Web3. Is this intentional?
 
     _CONTRACT_FACTORY = VersionedContract
 
@@ -136,7 +132,7 @@ class BlockchainInterface:
 
         @property
         def insufficient_eth(self) -> str:
-            gas = (self.payload.get('gas', 1) * self.payload['gasPrice'])  # FIXME: If gas is not included...
+            gas = (self.payload.get('gas', 1) * self.payload['gasPrice'])  # TODO: If gas is not included...
             cost = gas + self.payload.get('value', 0)
             blockchain = BlockchainInterfaceFactory.get_interface()
             balance = blockchain.client.get_balance(account=self.payload['from'])
@@ -225,7 +221,7 @@ class BlockchainInterface:
         self._provider = provider
         self._provider_process = provider_process
         self.w3 = NO_BLOCKCHAIN_CONNECTION
-        self.client = NO_BLOCKCHAIN_CONNECTION         # type: EthereumClient
+        self.client = NO_BLOCKCHAIN_CONNECTION
         self.transacting_power = READ_ONLY_INTERFACE
         self.is_light = light
         self.gas_strategy = self.get_gas_strategy(gas_strategy)
@@ -283,10 +279,17 @@ class BlockchainInterface:
         self.client.w3.middleware_onion.add(middleware.simple_cache_middleware)
 
     def connect(self):
-        self.log.info(f"Using external Web3 Provider '{self.provider_uri}'")
+
+        # Spawn child process
+        if self._provider_process:
+            self._provider_process.start()
+            provider_uri = self._provider_process.provider_uri(scheme='file')
+        else:
+            provider_uri = self.provider_uri
+            self.log.info(f"Using external Web3 Provider '{self.provider_uri}'")
 
         # Attach Provider
-        self._attach_provider(provider=self._provider, provider_uri=self.provider_uri)
+        self._attach_provider(provider=self._provider, provider_uri=provider_uri)
         self.log.info("Connecting to {}".format(self.provider_uri))
         if self._provider is NO_BLOCKCHAIN_CONNECTION:
             raise self.NoProvider("There are no configured blockchain providers")
@@ -472,7 +475,6 @@ class BlockchainInterface:
         #
 
         with self.build_transaction_lock:
-            time.sleep(1)  # lock   # TODO: Avoids race condition gleaning nonce
             nonce = self.client.w3.eth.getTransactionCount(sender_address, 'pending')
 
         base_payload = {'chainId': int(self.client.chain_id),
@@ -715,7 +717,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
     _CONTRACT_FACTORY = VersionedContract
 
     # Source directories to (recursively) compile
-    SOURCES: List[str] = [
+    SOURCES: Tuple[Path, ...] = [
         SOLIDITY_SOURCE_ROOT
     ]
 
@@ -732,7 +734,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         if compile_now:
             # Execute the compilation if we're recompiling
             # Otherwise read compiled contract data from the registry.
-            compiled_contracts = multiversion_compile(ignore_compiler_version_check=ignore_solidity_check,
+            compiled_contracts = multiversion_compile(compiler_version_check=not ignore_solidity_check,
                                                       solidity_source_dirs=self.SOURCES)
             self._raw_contract_cache = compiled_contracts
         return self.is_connected

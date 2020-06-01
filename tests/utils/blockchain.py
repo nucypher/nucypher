@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import maya
 import os
 from pathlib import Path
 from typing import List, Tuple, Union
@@ -71,49 +72,42 @@ class TesterBlockchain(BlockchainDeployerInterface):
     Blockchain subclass with additional test utility methods and options.
     """
 
-    __test__ = False # prohibit Pytest from picking it up
+    __test__ = False  # prohibit pytest from collecting this object as a test
 
-    _instance = None
-
+    # Solidity
     TEST_CONTRACTS_DIR = Path(tests.__file__).parent / 'contracts' / 'contracts'
-    SOURCES: List[str] = [
-        *BlockchainDeployerInterface.SOURCES,
-        str(TEST_CONTRACTS_DIR.resolve(strict=True))
-    ]
+    SOURCES: Tuple[Path, ...] = (*BlockchainDeployerInterface.SOURCES, TEST_CONTRACTS_DIR)
 
-    GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES,
-                      'free': free_gas_price_strategy}
-
-    _PROVIDER_URI = 'tester://pyevm'
-    _test_account_cache = list()
-
-    _default_test_accounts = NUMBER_OF_ETH_TEST_ACCOUNTS
+    # Web3
+    GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES, 'free': free_gas_price_strategy}
+    PROVIDER_URI = 'tester://pyevm'
 
     # Reserved addresses
     _ETHERBASE = 0
     _ALICE = 1
     _BOB = 2
     _FIRST_STAKER = 5
-    _stakers_range = range(NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS)
     _FIRST_URSULA = _FIRST_STAKER + NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS
-    _ursulas_range = range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
 
-    _default_token_economics = StandardTokenEconomics()
+    # Internal
+    __STAKERS_RANGE = range(NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS)
+    __WORKERS_RANGE = range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
+    __ACCOUNT_CACHE = list()
+
+    # Defaults
+    DEFAULT_ECONOMICS = StandardTokenEconomics()
 
     def __init__(self,
-                 test_accounts=None,
-                 poa=True,
-                 light=False,
-                 eth_airdrop=False,
-                 free_transactions=False,
-                 mock_backend: bool = False,
+                 test_accounts: int = NUMBER_OF_ETH_TEST_ACCOUNTS,
+                 poa: bool = True,
+                 light: bool = False,
+                 eth_airdrop: bool = False,
+                 free_transactions: bool = False,
                  *args, **kwargs):
 
-        if not test_accounts:
-            test_accounts = self._default_test_accounts
         self.free_transactions = free_transactions
 
-        super().__init__(provider_uri=self._PROVIDER_URI,
+        super().__init__(provider_uri=self.PROVIDER_URI,
                          provider_process=None,
                          poa=poa,
                          light=light,
@@ -155,7 +149,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         for _ in range(quantity):
             address = self.provider.ethereum_tester.add_account('0x' + os.urandom(32).hex())
             addresses.append(address)
-            self._test_account_cache.append(address)
+            self.__ACCOUNT_CACHE.append(address)
             self.log.info('Generated new insecure account {}'.format(address))
         return addresses
 
@@ -187,8 +181,8 @@ class TesterBlockchain(BlockchainDeployerInterface):
             raise ValueError("Specify hours, seconds, or periods, not a combination")
 
         if periods:
-            duration = self._default_token_economics.seconds_per_period * periods
-            base = self._default_token_economics.seconds_per_period
+            duration = self.DEFAULT_ECONOMICS.seconds_per_period * periods
+            base = self.DEFAULT_ECONOMICS.seconds_per_period
         elif hours:
             duration = hours * (60*60)
             base = 60 * 60
@@ -206,7 +200,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         delta = maya.timedelta(seconds=end_timestamp-now)
         self.log.info(f"Time traveled {delta} "
-                      f"| period {epoch_to_period(epoch=end_timestamp, seconds_per_period=self._default_token_economics.seconds_per_period)} "
+                      f"| period {epoch_to_period(epoch=end_timestamp, seconds_per_period=self.DEFAULT_ECONOMICS.seconds_per_period)} "
                       f"| epoch {end_timestamp}")
 
     @classmethod
@@ -222,9 +216,9 @@ class TesterBlockchain(BlockchainDeployerInterface):
         testerchain.transacting_power = power
 
         origin = testerchain.client.etherbase
-        deployer = ContractAdministrator(deployer_address=origin, 
-                                         registry=registry, 
-                                         economics=economics or cls._default_token_economics,
+        deployer = ContractAdministrator(deployer_address=origin,
+                                         registry=registry,
+                                         economics=economics or cls.DEFAULT_ECONOMICS,
                                          staking_escrow_test_mode=True)
 
         _receipts = deployer.deploy_network_contracts(interactive=False)
@@ -243,22 +237,22 @@ class TesterBlockchain(BlockchainDeployerInterface):
         return self.client.accounts[self._BOB]
 
     def ursula_account(self, index):
-        if index not in self._ursulas_range:
+        if index not in self.__WORKERS_RANGE:
             raise ValueError(f"Ursula index must be lower than {NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS}")
         return self.client.accounts[index + self._FIRST_URSULA]
 
     def staker_account(self, index):
-        if index not in self._stakers_range:
+        if index not in self.__STAKERS_RANGE:
             raise ValueError(f"Staker index must be lower than {NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS}")
         return self.client.accounts[index + self._FIRST_STAKER]
 
     @property
     def ursulas_accounts(self):
-        return list(self.ursula_account(i) for i in self._ursulas_range)
+        return list(self.ursula_account(i) for i in self.__WORKERS_RANGE)
 
     @property
     def stakers_accounts(self):
-        return list(self.staker_account(i) for i in self._stakers_range)
+        return list(self.staker_account(i) for i in self.__STAKERS_RANGE)
 
     @property
     def unassigned_accounts(self):

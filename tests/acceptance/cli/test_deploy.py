@@ -21,11 +21,16 @@ import os
 import pytest
 
 from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.agents import (AdjudicatorAgent, ContractAgency, NucypherTokenAgent, PolicyManagerAgent,
-                                            StakingEscrowAgent)
+from nucypher.blockchain.eth.agents import (
+    AdjudicatorAgent,
+    ContractAgency,
+    NucypherTokenAgent,
+    PolicyManagerAgent,
+    StakingEscrowAgent
+)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import LocalContractRegistry
-from nucypher.blockchain.eth.sol.compile import SOLIDITY_COMPILER_VERSION
+from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
 from nucypher.cli.commands.deploy import deploy
 from tests.constants import TEST_PROVIDER_URI, YES_ENTER
 
