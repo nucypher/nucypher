@@ -480,6 +480,26 @@ class Alice(Character, BlockchainPolicyAuthor):
         return controller
 
 
+def ensure_correct_sender(message_kit: UmbralMessageKit,
+                          enrico: Optional["Enrico"] = None,
+                          policy_encrypting_key: Optional[UmbralPublicKey] = None):
+    """
+    Make sure that the sender of the message kit is set and corresponds to
+    the given ``enrico``, or create it from the given ``policy_encrypting_key``.
+    """
+    if message_kit.sender:
+        if enrico and message_kit.sender != enrico:
+            raise ValueError
+    elif enrico:
+        message_kit.sender = enrico
+    elif message_kit.sender_verifying_key and policy_encrypting_key:
+        # Well, after all, this is all we *really* need.
+        message_kit.sender = Enrico.from_public_keys(verifying_key=message_kit.sender_verifying_key,
+                                                     policy_encrypting_key=policy_encrypting_key)
+    else:
+        raise TypeError
+
+
 class Bob(Character):
     banner = BOB_BANNER
     _interface_class = BobInterface
@@ -779,35 +799,25 @@ class Bob(Character):
         # Part I: Assembling the WorkOrders.
         capsules_to_activate = set(mk.capsule for mk in message_kits)
 
+        # Normalization
         for message in message_kits:
+            ensure_correct_sender(message,
+                                  enrico=enrico,
+                                  policy_encrypting_key=policy_encrypting_key)
 
-            # Two sanity checks before we get into network activity.
-            # First sanity check: We have some representation of the sender, so that we can later check the signature.
+        # Sanity check: If we're not using attached cfrags, we don't want a Capsule which has them.
+        if not use_attached_cfrags and any(len(message.capsule) > 0 for message in message_kits):
+            raise TypeError(
+                "Not using cached retrievals, but the MessageKit's capsule has attached CFrags. "
+                "In order to retrieve this message, you must set cache=True. "
+                "To use Bob in 'KMS mode', use cache=False the first time you retrieve a message.")
 
-            if message.sender:
-                if enrico and message.sender != enrico:
-                    raise ValueError
-            elif enrico:
-                message.sender = enrico
-            elif message.sender_verifying_key and policy_encrypting_key:
-                # Well, after all, this is all we *really* need.
-                message.sender = Enrico.from_public_keys(verifying_key=message.sender_verifying_key,
-                                                         policy_encrypting_key=policy_encrypting_key)
-            else:
-                raise TypeError
+        # OK, with the sanity checks behind us, we'll proceed to the WorkOrder assembly.
+        # We'll start by following the treasure map, setting the correctness keys, and attaching cfrags from
+        # WorkOrders that we have already completed in the past.
 
-            # Second sanity check: If we're not using attached cfrags, we don't want a Capsule which has them.
-
+        for message in message_kits:
             capsule = message.capsule
-
-            if len(capsule) > 0:
-                if not use_attached_cfrags:
-                    raise TypeError(
-                        "Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  In order to retrieve this message, you must set cache=True.  To use Bob in 'KMS mode', use cache=False the first time you retrieve a message.")
-
-            # OK, with the sanity checks behind us, we'll proceed to the WorkOrder assembly.
-            # We'll start by following the treasure map, setting the correctness keys, and attaching cfrags from
-            # WorkOrders that we have already completed in the past.
 
             capsule.set_correctness_keys(receiving=self.public_keys(DecryptingPower))
             capsule.set_correctness_keys(verifying=alice_verifying_key)
