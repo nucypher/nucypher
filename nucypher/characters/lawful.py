@@ -822,21 +822,23 @@ class Bob(Character):
             capsule.set_correctness_keys(receiving=self.public_keys(DecryptingPower))
             capsule.set_correctness_keys(verifying=alice_verifying_key)
 
-            new_work_orders, complete_work_orders = self.work_orders_for_capsules(
-                treasure_map=treasure_map,
-                alice_verifying_key=alice_verifying_key,
-                *capsules_to_activate)
+        new_work_orders, complete_work_orders = self.work_orders_for_capsules(
+            treasure_map=treasure_map,
+            alice_verifying_key=alice_verifying_key,
+            *capsules_to_activate)
 
-            self.log.debug(f"Found {len(complete_work_orders)} complete WorkOrders for this Capsule ({capsule}).")
+        self.log.info(f"Found {len(complete_work_orders)} for Capsules ({capsules_to_activate}).")
 
-            if complete_work_orders:
-                if use_precedent_work_orders:
+        if complete_work_orders:
+            if use_precedent_work_orders:
+                for capsule in capsules_to_activate:
                     for work_order in complete_work_orders.values():
-                        cfrag_in_question = work_order.tasks[capsule].cfrag
-                        capsule.attach_cfrag(cfrag_in_question)
-                else:
-                    self.log.warn(
-                        "Found existing complete WorkOrders, but use_precedent_work_orders is set to False.  To use Bob in 'KMS mode', set retain_cfrags=False as well.")
+                        if capsule in work_order.tasks:
+                            cfrag_in_question = work_order.tasks[capsule].cfrag
+                            capsule.attach_cfrag(cfrag_in_question)
+            else:
+                self.log.warn(
+                    "Found existing complete WorkOrders, but use_precedent_work_orders is set to False.  To use Bob in 'KMS mode', set retain_cfrags=False as well.")
 
         # Part II: Getting the cleartexts.
         cleartexts = []
