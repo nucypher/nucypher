@@ -7,6 +7,7 @@ import "zeppelin/math/SafeMath.sol";
 
 
 /**
+* @title MultiSig
 * @notice Multi-signature contract with off-chain signing
 */
 contract MultiSig {

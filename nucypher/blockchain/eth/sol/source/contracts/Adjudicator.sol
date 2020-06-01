@@ -11,6 +11,7 @@ import "zeppelin/math/Math.sol";
 
 
 /**
+* @title Adjudicator
 * @notice Supervises stakers' behavior and punishes when something's wrong.
 * @dev |v2.1.2|
 */
