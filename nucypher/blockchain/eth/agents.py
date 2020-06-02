@@ -311,7 +311,7 @@ class StakingEscrowAgent(EthereumContractAgent):
             return ChecksumAddress(to_checksum_address(address.to_bytes(ETH_ADDRESS_BYTE_LENGTH, 'big')))
         typed_stakers = {checksum_address(address): NuNits(locked_tokens) for address, locked_tokens in stakers.items()}
 
-        return NuNits(n_tokens), typed_stakers  # TODO: Does not match return annotation
+        return NuNits(n_tokens), typed_stakers
 
     @contract_api(CONTRACT_CALL)
     def get_all_locked_tokens(self, periods: int, pagination_size: Optional[int] = None) -> NuNits:
@@ -493,7 +493,6 @@ class StakingEscrowAgent(EthereumContractAgent):
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
-    # TODO: Decorate methods like this one (indirect contract call/tx) @contract_api() ?
     @contract_api(TRANSACTION)
     def release_worker(self, staker_address: ChecksumAddress) -> TxReceipt:
         return self.bond_worker(staker_address=staker_address, worker_address=NULL_ADDRESS)
@@ -581,7 +580,7 @@ class StakingEscrowAgent(EthereumContractAgent):
     @contract_api(CONTRACT_CALL)
     def get_restake_unlock_period(self, staker_address: ChecksumAddress) -> Period:
         staker_info: StakerInfo = self.get_staker_info(staker_address)
-        restake_unlock_period: int = int(staker_info[4])  # TODO: #1348 Use constant or enum
+        restake_unlock_period: int = int(staker_info.lock_restake_until_period)
         return Period(restake_unlock_period)
 
     @contract_api(CONTRACT_CALL)
@@ -826,13 +825,6 @@ class PolicyManagerAgent(EthereumContractAgent):
 
     @contract_api(CONTRACT_CALL)
     def fetch_policy_arrangements(self, policy_id: str) -> Iterable[Tuple[ChecksumAddress, int, int]]:
-        """
-        struct ArrangementInfo {
-            address node;
-            uint256 indexOfDowntimePeriods;
-            uint16 lastRefundedPeriod;
-        }
-        """
         record_count = self.contract.functions.getArrangementsLength(policy_id).call()
         for index in range(record_count):
             arrangement = self.contract.functions.getArrangementInfo(policy_id, index).call()
