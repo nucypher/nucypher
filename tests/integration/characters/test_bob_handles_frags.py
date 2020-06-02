@@ -174,7 +174,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     assert work_order.completed is False
 
     # **** RE-ENCRYPTION HAPPENS HERE! ****
-    cfrags = federated_bob.get_reencrypted_cfrags(work_order, retain_cfrags=True)
+    _success, cfrags = federated_bob._reencrypt(work_order, retain_cfrags=True)
 
     # We only gave one Capsule, so we only got one cFrag.
     assert len(cfrags) == 1
@@ -245,7 +245,7 @@ def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_pol
 
     # As such, we will get TypeError if we try to get CFrags again.
     with pytest.raises(TypeError):
-        federated_bob.get_reencrypted_cfrags(new_work_order)
+        federated_bob._reencrypt(new_work_order)
 
 
 def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_federated_policy, federated_alice,
@@ -294,7 +294,7 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     assert new_work_order != saved_work_order
 
     # This WorkOrder has never been completed
-    cfrags = federated_bob.get_reencrypted_cfrags(new_work_order, retain_cfrags=True)
+    _success, cfrags = federated_bob._reencrypt(new_work_order, retain_cfrags=True)
 
     # Again: one Capsule, one cFrag.
     assert len(cfrags) == 1
@@ -334,7 +334,7 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
         num_ursulas=number_left_to_collect)
     _id_of_yet_another_ursula, new_work_order = list(new_incomplete_work_orders.items())[0]
 
-    cfrags = federated_bob.get_reencrypted_cfrags(new_work_order)
+    _success, cfrags = federated_bob._reencrypt(new_work_order)
     cfrag = cfrags[0]
     assert cfrag not in the_message_kit.capsule._attached_cfrags
 
