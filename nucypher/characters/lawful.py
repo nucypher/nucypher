@@ -684,17 +684,6 @@ class Bob(Character):
 
         return incomplete_work_orders, complete_work_orders
 
-    def get_reencrypted_cfrags(self, work_order, retain_cfrags=False):
-        if work_order.completed:
-            raise TypeError("This WorkOrder is already complete; "
-                            "if you want Ursula to perform additional service, make a new WorkOrder.")
-
-        cfrags_and_signatures = self.network_middleware.reencrypt(work_order)
-        cfrags = work_order.complete(cfrags_and_signatures)
-        self._completed_work_orders.save_work_order(work_order, as_replete=retain_cfrags)
-
-        return cfrags
-
     def join_policy(self, label, alice_verifying_key, node_list=None, block=False):
         if node_list:
             self._node_ids_to_learn_about_immediately.update(node_list)
@@ -721,6 +710,72 @@ class Bob(Character):
                 if not use_attached_cfrags:
                     raise TypeError(
                         "Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  In order to retrieve this message, you must set cache=True.  To use Bob in 'KMS mode', use cache=False the first time you retrieve a message.")
+
+    def _filter_work_orders_and_capsules(self, work_orders, capsules, m):
+        remaining_work_orders = []
+        remaining_capsules = set(capsules)
+        for work_order in work_orders.values():
+            for capsule in work_order.tasks:
+                work_order_is_useful = False
+                if len(capsule) >= m:
+                    remaining_capsules.discard(capsule)
+                else:
+                    work_order_is_useful = True
+                    break
+
+            # If all the capsules are now activated, we can stop here.
+            if not remaining_capsules:
+                break
+
+            if not work_order_is_useful:
+                # None of the Capsules for this particular WorkOrder need to be activated.  Move on to the next one.
+                continue
+
+            remaining_work_orders.append(work_order)
+
+        return remaining_work_orders, remaining_capsules
+
+    def _reencrypt(self, work_order, retain_cfrags=False):
+
+        if work_order.completed:
+            raise TypeError(
+                "This WorkOrder is already complete; if you want Ursula to perform additional service, make a new WorkOrder.")
+
+        # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
+        try:
+            # To parallelize
+            cfrags_and_signatures = self.network_middleware.reencrypt(work_order)
+        except NodeSeemsToBeDown as e:
+            # TODO: What to do here?  Ursula isn't supposed to be down.  NRN
+            self.log.info(f"Ursula ({work_order.ursula}) seems to be down while trying to complete WorkOrder: {work_order}")
+            return False, [] # TODO: return a grievance?
+        except self.network_middleware.NotFound:
+            # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
+            # TODO: What's the thing to do here?  Do we want to track these Ursulas in some way in case they're lying?  567
+            self.log.warn(f"Ursula ({work_order.ursula}) claims not to have the KFrag to complete WorkOrder: {work_order}.  Has accessed been revoked?")
+            return False, [] # TODO: return a grievance?
+        except self.network_middleware.UnexpectedResponse:
+            raise # TODO: Handle this
+
+        cfrags = work_order.complete(cfrags_and_signatures)
+
+        # TODO: hopefully GIL will allow this to execute concurrently...
+        # or we'll have to modify tests that rely on it
+        self._completed_work_orders.save_work_order(work_order, as_replete=retain_cfrags)
+
+        the_airing_of_grievances = []
+        for capsule, pre_task in work_order.tasks.items():
+            if not pre_task.cfrag.verify_correctness(capsule):
+                # TODO: WARNING - This block is untested.
+                from nucypher.policy.collections import IndisputableEvidence
+                evidence = IndisputableEvidence(task=pre_task, work_order=work_order)
+                # I got a lot of problems with you people ...
+                the_airing_of_grievances.append(evidence)
+
+        if the_airing_of_grievances:
+            return False, the_airing_of_grievances
+        else:
+            return True, cfrags
 
     def retrieve(self,
                  *message_kits: UmbralMessageKit,
@@ -800,62 +855,34 @@ class Bob(Character):
             # TODO Optimization: Block here (or maybe even later) until map is done being followed (instead of blocking above). #1114
             the_airing_of_grievances = []
 
-            for work_order in new_work_orders.values():
-                for capsule in work_order.tasks:
-                    work_order_is_useful = False
-                    if len(capsule) >= m:
-                        capsules_to_activate.discard(capsule)
-                    else:
-                        work_order_is_useful = True
-                        break
+            remaining_work_orders, capsules_to_activate = self._filter_work_orders_and_capsules(
+                new_work_orders, capsules_to_activate, m)
 
-                # If all the capsules are now activated, we can stop here.
-                if not capsules_to_activate:
-                    break
-
-                if not work_order_is_useful:
-                    # None of the Capsules for this particular WorkOrder need to be activated.  Move on to the next one.
-                    continue
+            # If all the capsules are now activated, we can stop here.
+            if capsules_to_activate:
 
                 # OK, so we're going to need to do some network activity for this retrieval.  Let's make sure we've seeded.
                 if not self.done_seeding:
                     self.learn_from_teacher_node()
 
-                # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
-                try:
-                    self.get_reencrypted_cfrags(work_order, retain_cfrags=retain_cfrags)
-                except NodeSeemsToBeDown as e:
-                    # TODO: What to do here?  Ursula isn't supposed to be down.  NRN
-                    self.log.info(f"Ursula ({work_order.ursula}) seems to be down while trying to complete WorkOrder: {work_order}")
-                    continue
-                except self.network_middleware.NotFound:
-                    # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
-                    # TODO: What's the thing to do here?  Do we want to track these Ursulas in some way in case they're lying?  567
-                    self.log.warn(f"Ursula ({work_order.ursula}) claims not to have the KFrag to complete WorkOrder: {work_order}.  Has accessed been revoked?")
-                    continue
-                except self.network_middleware.UnexpectedResponse:
-                    raise # TODO: Handle this
+                for work_order in remaining_work_orders:
+                    success, result = self._reencrypt(work_order, retain_cfrags)
 
-                for capsule, pre_task in work_order.tasks.items():
-                    try:
-                        capsule.attach_cfrag(pre_task.cfrag)
-                    except UmbralCorrectnessError:
-                        task = work_order.tasks[0]
-                        # TODO: WARNING - This block is untested.
-                        from nucypher.policy.collections import IndisputableEvidence
-                        evidence = IndisputableEvidence(task=task, work_order=work_order)
-                        # I got a lot of problems with you people ...
-                        the_airing_of_grievances.append(evidence)
+                    if not success:
+                        the_airing_of_grievances.extend(result)
+                        continue
 
-                    if len(capsule) >= m:
-                        capsules_to_activate.discard(capsule)
+                    for capsule, pre_task in work_order.tasks.items():
+                        capsule.attach_cfrag(pre_task.cfrag) # already verified, will not fail
+                        if len(capsule) >= m:
+                            capsules_to_activate.discard(capsule)
 
-                # If all the capsules are now activated, we can stop here.
-                if not capsules_to_activate:
-                    break
-            else:
-                raise Ursula.NotEnoughUrsulas(
-                    "Unable to reach m Ursulas.  See the logs for which Ursulas are down or noncompliant.")
+                    # If all the capsules are now activated, we can stop here.
+                    if not capsules_to_activate:
+                        break
+                else:
+                    raise Ursula.NotEnoughUrsulas(
+                        "Unable to reach m Ursulas.  See the logs for which Ursulas are down or noncompliant.")
 
             if the_airing_of_grievances:
                 # ... and now you're gonna hear about it!
