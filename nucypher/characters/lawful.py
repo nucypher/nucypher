@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import contextlib
+from threading import get_ident
 import json
 import maya
 import random
@@ -35,6 +36,7 @@ from cryptography.x509 import Certificate, NameOID, load_pem_x509_certificate
 from eth_utils import to_checksum_address
 from flask import Response, request
 from twisted.internet import reactor, stdio, threads
+from twisted.internet.defer import DeferredList, Deferred, CancelledError
 from twisted.internet.task import LoopingCall
 
 import nucypher
@@ -713,7 +715,7 @@ class Bob(Character):
 
     def _filter_work_orders_and_capsules(self, work_orders, capsules, m):
         remaining_work_orders = []
-        remaining_capsules = set(capsules)
+        remaining_capsules = set(capsule for capsule in capsules if len(capsule) < m)
         for work_order in work_orders.values():
             for capsule in work_order.tasks:
                 work_order_is_useful = False
@@ -735,6 +737,13 @@ class Bob(Character):
 
         return remaining_work_orders, remaining_capsules
 
+
+    class ReencryptError(RuntimeError):
+        pass
+
+    class AvailabilityError(RuntimeError):
+        pass
+
     def _reencrypt(self, work_order, retain_cfrags=False):
 
         if work_order.completed:
@@ -743,17 +752,16 @@ class Bob(Character):
 
         # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
         try:
-            # To parallelize
             cfrags_and_signatures = self.network_middleware.reencrypt(work_order)
         except NodeSeemsToBeDown as e:
             # TODO: What to do here?  Ursula isn't supposed to be down.  NRN
             self.log.info(f"Ursula ({work_order.ursula}) seems to be down while trying to complete WorkOrder: {work_order}")
-            return False, [] # TODO: return a grievance?
+            raise self.AvailabilityError() # TODO: return a grievance?
         except self.network_middleware.NotFound:
             # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
             # TODO: What's the thing to do here?  Do we want to track these Ursulas in some way in case they're lying?  567
             self.log.warn(f"Ursula ({work_order.ursula}) claims not to have the KFrag to complete WorkOrder: {work_order}.  Has accessed been revoked?")
-            return False, [] # TODO: return a grievance?
+            raise self.AvailabilityError() # TODO: return a grievance?
         except self.network_middleware.UnexpectedResponse:
             raise # TODO: Handle this
 
@@ -773,9 +781,9 @@ class Bob(Character):
                 the_airing_of_grievances.append(evidence)
 
         if the_airing_of_grievances:
-            return False, the_airing_of_grievances
-        else:
-            return True, cfrags
+            raise ReencryptError(the_airing_of_grievances)
+
+        return work_order
 
     def retrieve(self,
                  *message_kits: UmbralMessageKit,
@@ -859,17 +867,22 @@ class Bob(Character):
                 new_work_orders, capsules_to_activate, m)
 
             # If all the capsules are now activated, we can stop here.
-            if capsules_to_activate:
-
+            if capsules_to_activate and remaining_work_orders:
                 # OK, so we're going to need to do some network activity for this retrieval.  Let's make sure we've seeded.
                 if not self.done_seeding:
                     self.learn_from_teacher_node()
 
-                for work_order in remaining_work_orders:
-                    success, result = self._reencrypt(work_order, retain_cfrags)
+                workers = [
+                    partial(self._reencrypt, work_order, retain_cfrags)
+                    for work_order in remaining_work_orders]
 
-                    if not success:
-                        the_airing_of_grievances.extend(result)
+                partial_list = ParallelRunner(workers)
+                #successes, failures = partial_list.wait()
+                successes, failures = partial_list.wait_sequential()
+
+                for work_order in successes:
+
+                    if not any(capsule in capsules_to_activate for capsule, pre_task in work_order.tasks.items()):
                         continue
 
                     for capsule, pre_task in work_order.tasks.items():
@@ -877,12 +890,17 @@ class Bob(Character):
                         if len(capsule) >= m:
                             capsules_to_activate.discard(capsule)
 
-                    # If all the capsules are now activated, we can stop here.
-                    if not capsules_to_activate:
-                        break
-                else:
-                    raise Ursula.NotEnoughUrsulas(
-                        "Unable to reach m Ursulas.  See the logs for which Ursulas are down or noncompliant.")
+                for error in failures:
+                    if isinstance(error, self.AvailabilityError):
+                        continue
+                    if isinstance(error, self.ReencryptError) and error.args:
+                        the_airing_of_grievances.extend(error.args[0])
+                    else:
+                        raise error
+
+            if capsules_to_activate:
+                raise Ursula.NotEnoughUrsulas(
+                    "Unable to reach m Ursulas.  See the logs for which Ursulas are down or noncompliant.")
 
             if the_airing_of_grievances:
                 # ... and now you're gonna hear about it!
@@ -891,12 +909,14 @@ class Bob(Character):
                 #  - There maybe enough cfrags to still open the capsule
                 #  - This line is unreachable when NotEnoughUrsulas
 
+            # TODO: what if `verify_from` fails?
             for message in message_kits:
                 delivered_cleartext = self.verify_from(message.sender, message, decrypt=True)
                 cleartexts.append(delivered_cleartext)
         finally:
             if not retain_cfrags:
-                capsule.clear_cfrags()
+                for message in message_kits:
+                    message.capsule.clear_cfrags()
                 for work_order in new_work_orders.values():
                     work_order.sanitize()
 
@@ -979,6 +999,51 @@ class Bob(Character):
             return controller(method_name='retrieve', control_request=request)
 
         return controller
+
+
+def worker_wrapper(worker, pdl, i):
+    try:
+        result = worker()
+        pdl._process_result(result, i, True)
+    except Exception as e:
+        pdl._process_result(e, i, False)
+
+
+class ParallelRunner:
+
+    def __init__(self, workers):
+
+        self._workers = workers
+        self._queue = Queue()
+        self._successes = {}
+        self._failures = {}
+
+    def _process_result(self, result, index, succeeded):
+        if succeeded:
+            self._successes[index] = result
+        else:
+            self._failures[index] = result
+
+        if len(self._successes) + len(self._failures) == len(self._workers):
+            self._queue.put((dict(self._successes), dict(self._failures)))
+
+        return result
+
+    def wait_sequential(self):
+        for i, worker in enumerate(self._workers):
+            worker_wrapper(worker, self, i)
+        successes, failures = self._queue.get()
+        return list(successes.values()), list(failures.values())
+
+
+    def wait(self):
+
+        self._deferred_list = []
+        for i, worker in enumerate(self._workers):
+            self._deferred_list.append(threads.deferToThread(partial(worker_wrapper2, worker, self, i)))
+
+        successes, failures = self._queue.get()
+        return list(successes.values()), list(failures.values())
 
 
 class Ursula(Teacher, Character, Worker):

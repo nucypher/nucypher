@@ -172,7 +172,8 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     assert work_order.completed is False
 
     # **** RE-ENCRYPTION HAPPENS HERE! ****
-    _success, cfrags = federated_bob._reencrypt(work_order, retain_cfrags=True)
+    federated_bob._reencrypt(work_order, retain_cfrags=True)
+    cfrags = [task.cfrag for task in work_order.tasks.values()]
 
     # We only gave one Capsule, so we only got one cFrag.
     assert len(cfrags) == 1
@@ -292,7 +293,8 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     assert new_work_order != saved_work_order
 
     # This WorkOrder has never been completed
-    _success, cfrags = federated_bob._reencrypt(new_work_order, retain_cfrags=True)
+    federated_bob._reencrypt(new_work_order, retain_cfrags=True)
+    cfrags = [task.cfrag for task in new_work_order.tasks.values()]
 
     # Again: one Capsule, one cFrag.
     assert len(cfrags) == 1
@@ -332,7 +334,9 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
         num_ursulas=number_left_to_collect)
     _id_of_yet_another_ursula, new_work_order = list(new_incomplete_work_orders.items())[0]
 
-    _success, cfrags = federated_bob._reencrypt(new_work_order)
+    federated_bob._reencrypt(new_work_order)
+    cfrags = [task.cfrag for task in new_work_order.tasks.values()]
+
     cfrag = cfrags[0]
     assert cfrag not in the_message_kit.capsule._attached_cfrags
 
