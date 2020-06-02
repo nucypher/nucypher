@@ -904,7 +904,7 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         self.__allocation_registry = allocation_registry or PreallocationEscrowAgent.__allocation_registry_class()
         self.__beneficiary = beneficiary
         self.__principal_contract: Contract = NO_CONTRACT_AVAILABLE
-        self.__interface_agent = NO_CONTRACT_AVAILABLE
+        self.__interface_contract = NO_CONTRACT_AVAILABLE
 
         # Sets the above
         self.__read_principal()
@@ -913,9 +913,9 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         super().__init__(contract=self.principal_contract, registry=registry, *args, **kwargs)
 
     def __read_interface(self, registry: BaseContractRegistry) -> None:
-        self.__interface_agent = self.StakingInterfaceAgent(registry=registry)
-        agent = self.__interface_agent._generate_beneficiary_agency(principal_address=self.principal_contract.address)
-        self.__interface_agent = agent
+        self.__interface_contract = self.StakingInterfaceAgent(registry=registry)
+        contract = self.__interface_contract._generate_beneficiary_agency(principal_address=self.principal_contract.address)
+        self.__interface_contract = contract
 
     @validate_checksum_address
     def __fetch_principal_contract(self, contract_address: Optional[ChecksumAddress] = None) -> None:
@@ -949,9 +949,9 @@ class PreallocationEscrowAgent(EthereumContractAgent):
 
     @property  # type: ignore
     def interface_contract(self) -> VersionedContract:
-        if self.__interface_agent is NO_CONTRACT_AVAILABLE:
+        if self.__interface_contract is NO_CONTRACT_AVAILABLE:
             raise RuntimeError("{} not available".format(self.contract_name))
-        return self.__interface_agent
+        return self.__interface_contract
 
     @property  # type: ignore
     def principal_contract(self) -> Contract:
@@ -998,7 +998,7 @@ class PreallocationEscrowAgent(EthereumContractAgent):
 
     @contract_api(TRANSACTION)
     def lock(self, amount: NuNits, periods: PeriodDelta) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_agent.functions.lock(amount, periods)
+        contract_function: ContractFunction = self.__interface_contract.functions.lock(amount, periods)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
@@ -1016,19 +1016,19 @@ class PreallocationEscrowAgent(EthereumContractAgent):
 
     @contract_api(TRANSACTION)
     def deposit_as_staker(self, amount: NuNits, lock_periods: PeriodDelta) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_agent.functions.depositAsStaker(amount, lock_periods)
+        contract_function: ContractFunction = self.__interface_contract.functions.depositAsStaker(amount, lock_periods)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
     @contract_api(TRANSACTION)
     def withdraw_as_staker(self, value: NuNits) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_agent.functions.withdrawAsStaker(value)
+        contract_function: ContractFunction = self.__interface_contract.functions.withdrawAsStaker(value)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
     @contract_api(TRANSACTION)
     def bond_worker(self, worker_address: ChecksumAddress) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_agent.functions.bondWorker(worker_address)
+        contract_function: ContractFunction = self.__interface_contract.functions.bondWorker(worker_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
@@ -1039,19 +1039,19 @@ class PreallocationEscrowAgent(EthereumContractAgent):
 
     @contract_api(TRANSACTION)
     def mint(self) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_agent.functions.mint()
+        contract_function: ContractFunction = self.__interface_contract.functions.mint()
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
     @contract_api(TRANSACTION)
     def collect_policy_fee(self) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_agent.functions.withdrawPolicyFee()
+        contract_function: ContractFunction = self.__interface_contract.functions.withdrawPolicyFee()
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
     @contract_api(TRANSACTION)
     def set_min_fee_rate(self, min_rate: Wei) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_agent.functions.setMinFeeRate(min_rate)
+        contract_function: ContractFunction = self.__interface_contract.functions.setMinFeeRate(min_rate)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
@@ -1061,14 +1061,14 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         Enable automatic restaking for a fixed duration of lock periods.
         If set to True, then all staking rewards will be automatically added to locked stake.
         """
-        contract_function: ContractFunction = self.__interface_agent.functions.setReStake(value)
+        contract_function: ContractFunction = self.__interface_contract.functions.setReStake(value)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         # TODO: Handle ReStakeSet event (see #1193)
         return receipt
 
     @contract_api(TRANSACTION)
     def lock_restaking(self, release_period: Period) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_agent.functions.lockReStake(release_period)
+        contract_function: ContractFunction = self.__interface_contract.functions.lockReStake(release_period)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         # TODO: Handle ReStakeLocked event (see #1193)
         return receipt
@@ -1079,7 +1079,7 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         Enable wind down for stake.
         If set to True, then the stake's duration will decrease each period with `commitToNextPeriod()`.
         """
-        contract_function: ContractFunction = self.__interface_agent.functions.setWindDown(value)
+        contract_function: ContractFunction = self.__interface_contract.functions.setWindDown(value)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         # TODO: Handle WindDownSet event (see #1193)
         return receipt
