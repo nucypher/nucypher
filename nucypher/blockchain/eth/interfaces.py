@@ -576,11 +576,8 @@ class BlockchainInterface:
 
         return receipt
 
-
     def get_blocktime(self):
-        highest_block = self.w3.eth.getBlock('latest')
-        now = highest_block['timestamp']
-        return now
+        return self.client.get_blocktime()
 
     @validate_checksum_address
     def send_transaction(self,

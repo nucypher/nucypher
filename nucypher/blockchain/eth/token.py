@@ -312,7 +312,7 @@ class Stake:
             result = self.unlock_datetime.slang_date()
         else:
             # TODO - #1509 EthAgent?
-            blocktime_epoch = self.staking_agent.blockchain.client.w3.eth.getBlock('latest').timestamp
+            blocktime_epoch = self.staking_agent.blockchain.client.get_blocktime()
             delta = self.unlock_datetime.epoch - blocktime_epoch
             result = delta
         return result
