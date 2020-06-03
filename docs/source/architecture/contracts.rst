@@ -13,7 +13,7 @@ Contract Listing
 * ``Adjudicator`` Manages :doc:`the slashing protocol </architecture/slashing>`
 * ``WorkLock`` Manages token distribution
 * ``Upgradeable`` Base contract for :doc:`upgrading </architecture/upgradeable_proxy_contracts>`
-* ``Dispatcher`` Proxy to other contracts and provides upgrading of the ``StakingEscrow``\ , ``PolicyManager`` and ``Adjudicator`` contracts
+* ``Dispatcher`` Proxy to other contracts and provides upgrading of the ``StakingEscrow``, ``PolicyManager`` and ``Adjudicator`` contracts
 * ``StakingInterface`` Interface for accessing main contracts from a staking contract
 * ``StakingInterfaceRouter`` Router for accessing ``StakingInterface`` contract
 * ``AbstractStakingContract`` Base contract for implementing staker-contract concept
