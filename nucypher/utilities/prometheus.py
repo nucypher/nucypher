@@ -238,7 +238,7 @@ def collect_prometheus_metrics(ursula,
 
         node_metrics["current_period_gauge"].set(staking_agent.get_current_period())
 
-        missing_commitments = staking_agent.get_missing_commitments(staker_address=ursula.checksum_address)  # TODO: lol
+        missing_commitments = staking_agent.get_missing_commitments(checksum_address=ursula.checksum_address)  # TODO: lol
         node_metrics["missing_commitments_gauge"].set(missing_commitments)
 
         decentralized_payload = {'provider': str(ursula.provider_uri),
@@ -260,7 +260,7 @@ def get_staking_event_collectors_config(ursula, metrics_prefix: str) -> Tuple:
             "collector": BaseEventMetricsCollector,
             "name": "activity_confirmed",
             "contract_agent": staking_agent,
-            "event": "ActivityConfirmed",
+            "event": "CommitmentMade",
             "argument_filters": {"staker": ursula.checksum_address},
             "metrics": {"value": Gauge(f'{metrics_prefix}_activity_confirmed_value',
                                        'Activity confirmed with value of locked tokens'),
@@ -271,7 +271,7 @@ def get_staking_event_collectors_config(ursula, metrics_prefix: str) -> Tuple:
             "collector": BaseEventMetricsCollector,
             "name": "mined",
             "contract_agent": staking_agent,
-            "event": "Mined",
+            "event": "Minted",
             "argument_filters": {"staker": ursula.checksum_address},
             "metrics": {"value": Gauge(f'{metrics_prefix}_mined_value', 'Mined value'),
                         "period": Gauge(f'{metrics_prefix}_mined_period', 'Mined period'),
@@ -307,7 +307,7 @@ def get_staking_event_collectors_config(ursula, metrics_prefix: str) -> Tuple:
             "collector": WorkerSetEventMetricsCollector,
             "name": "worker_set",
             "contract_agent": staking_agent,
-            "event": "WorkerSet",
+            "event": "WorkerBonded",
             "argument_filters": {"staker": ursula.checksum_address},
             "metrics": {"startPeriod": Gauge(f'{metrics_prefix}_worker_set_start_period', 'New worker was set'),
                         "block_number": Gauge(f'{metrics_prefix}_worker_set_block_number', 'WorkerSet block number')}

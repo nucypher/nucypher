@@ -377,7 +377,8 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
 
     prometheus_config = None
     if prometheus:
-        prometheus_config = PrometheusMetricsConfig(port=metrics_port, metrics_prefix=metrics_prefix,
+        prometheus_config = PrometheusMetricsConfig(port=metrics_port,
+                                                    metrics_prefix=metrics_prefix,
                                                     listen_address=metrics_listen_address)
 
     return URSULA.run(emitter=emitter,
