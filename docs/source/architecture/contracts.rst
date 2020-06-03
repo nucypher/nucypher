@@ -14,7 +14,9 @@ Contract Listing
 * ``WorkLock`` Manages token distribution
 * ``Upgradeable`` Base contract for :doc:`upgrading </architecture/upgradeable_proxy_contracts>`
 * ``Dispatcher`` Proxy to other contracts and provides upgrading of the ``StakingEscrow``\ , ``PolicyManager`` and ``Adjudicator`` contracts
-* ``PreallocationEscrow`` Locks tokens for some predetermined time. Tokens will be unlocked after the specified time and all tokens can be used as stake in the ``StakingEscrow`` contract
+* ``StakingInterface`` Interface for accessing main contracts from a staking contract
+* ``StakingInterfaceRouter`` Router for accessing ``StakingInterface`` contract
+* ``AbstractStakingContract`` Base contract for implementing staker-contract concept
 
 Deployment Procedure
 --------------------
@@ -34,12 +36,7 @@ For a guide of how to deploy these contracts automatically, see the :doc:`Deploy
 #. Approve tokens transfer to the ``StakingEscrow`` contract. These tokens are future staking rewards
 #. Run the ``initialize(uint256)`` method to initialize the ``StakingEscrow`` contract
 #. Approve tokens transfer for distribution to the ``WorkLock`` contract and call ``tokenDeposit(uint256)`` method
-#. Pre-deposit tokens to the ``PreallocationEscrow``\ :
-
-   * Create new instance of the ``PreallocationEscrow`` contract
-   * Transfer ownership of the instance of the ``PreallocationEscrow`` contract to the user
-   * Approve the transfer of tokens for the ``PreallocationEscrow``
-   * Deposit tokens by the ``initialDeposit(uint256, uint256)`` method
+#. Pre-deposit tokens to the ``StakingEscrow`` using ``batchDeposit(address[], uint256[], uint256[], uint16[])``
 
 Alice's Contract Interaction
 ----------------------------
@@ -86,9 +83,9 @@ Alternately the ``NucypherToken.approveAndCall(address, uint256, bytes)`` method
 The parameters are:
 
 
-* The address of the ``StakingEscrow`` contract
+* The address of the ``Dispatcher`` that targets the ``StakingEscrow`` contract
 * The amount of staked tokens
-* The periods for locking (which are serialized into an array of bytes)
+* The periods for locking (which are serialized into an array of bytes): in python `Web3.toBytes(duration)`, in javascript `web3.utils.hexToBytes(web3.utils.numberToHex(duration))`
 
 When staking tokens, the staker sets the number of periods the tokens will be locked, which must be no less than some minimal locking time (30 periods).
 In order to unlock tokens, the staker must be active during the time of locking (and make a commitment each period).
@@ -132,14 +129,6 @@ Also the staker gets fees for policies deployed.
 Computation of a policy fee happens every time ``StakingEscrow.mint()`` is called by the ``PolicyManager.updateFee(address, uint16)`` method.
 In order to take the fee, the staker needs to call method ``withdraw()`` of the contract ``PolicyManager``.
 The staker can set a minimum fee rate for a policy. For that, the staker should call the ``PolicyManager.setMinFeeRate(uint256)`` method.
-
-NuCypher Partner Ursula Staking
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Some users will have locked but not staked tokens.
-In that case, an instance of the ``PreallocationEscrow`` contract will hold their tokens (method ``PreallocationEscrow.initialDeposit(uint256, uint256)``\ ).
-All tokens will be unlocked after a specified time and the user can retrieve them using the ``PreallocationEscrow.withdrawTokens(uint256)`` method.
-When the user wants to become a staker - they use the ``PreallocationEscrow`` contract as a proxy for the ``StakingEscrow`` and ``PolicyManager`` contracts.
 
 Contracts Versioning
 --------------------
