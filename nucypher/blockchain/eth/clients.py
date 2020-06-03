@@ -405,7 +405,7 @@ class GethClient(EthereumClient):
         return self.w3.geth.admin.peers()
 
     def new_account(self, password: str) -> str:
-        new_account = self.w3.geth.personal.newAccount(password)
+        new_account = self.w3.geth.personal.new_account(password)
         return to_checksum_address(new_account)  # cast and validate
 
     def unlock_account(self, account: str, password: str, duration: int = None):
@@ -424,10 +424,10 @@ class GethClient(EthereumClient):
             debug_message += " with no password."
 
         self.log.debug(debug_message)
-        return self.w3.geth.personal.unlockAccount(account, password, duration)
+        return self.w3.geth.personal.unlock_account(account, password, duration)
 
     def lock_account(self, account):
-        return self.w3.geth.personal.lockAccount(account)
+        return self.w3.geth.personal.lock_account(account)
 
     def sign_transaction(self, transaction_dict: dict) -> bytes:
 
@@ -444,7 +444,7 @@ class GethClient(EthereumClient):
 
     @property
     def wallets(self):
-        return self.w3.manager.request_blocking("personal_listWallets", [])
+        return self.w3.geth.personal.list_wallets()
 
 
 class ParityClient(EthereumClient):
@@ -457,14 +457,14 @@ class ParityClient(EthereumClient):
         return self.w3.manager.request_blocking("parity_netPeers", [])
 
     def new_account(self, password: str) -> str:
-        new_account = self.w3.parity.personal.newAccount(password)
+        new_account = self.w3.parity.personal.new_account(password)
         return to_checksum_address(new_account)  # cast and validate
 
     def unlock_account(self, account, password, duration: int = None) -> bool:
-        return self.w3.parity.personal.unlockAccount(account, password, duration)
+        return self.w3.parity.personal.unlock_account(account, password, duration)
 
     def lock_account(self, account):
-        return self.w3.parity.personal.lockAccount(account)
+        return self.w3.parity.personal.lock_account(account)
 
 
 class GanacheClient(EthereumClient):
