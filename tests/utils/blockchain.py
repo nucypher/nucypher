@@ -276,7 +276,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         return result
 
     def get_block_number(self) -> int:
-        return self.client.w3.eth.blockNumber
+        return self.client.block_number
 
     def read_storage_slot(self, address, slot):
         # https://github.com/ethereum/web3.py/issues/1490
