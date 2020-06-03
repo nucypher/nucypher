@@ -340,11 +340,9 @@ class EthereumClient:
         return self.w3.eth.sign(account, data=message)
 
     def _has_latest_block(self) -> bool:
+        # TODO: Investigate using `web3.middleware.make_stalecheck_middleware` #2060
         # check that our local chain data is up to date
-        return (
-            time.time() -
-            self.w3.eth.getBlock(self.w3.eth.blockNumber)['timestamp']
-        ) < 30
+        return (time.time() - self.w3.eth.getBlock('latest')['timestamp']) < 30
 
     def sync(self, timeout: int = 120, quiet: bool = False):
 
