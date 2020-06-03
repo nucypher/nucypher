@@ -58,6 +58,7 @@ class JSONMetricsResource(Resource):
     isLeaf = True
 
     def __init__(self, registry=REGISTRY):
+        super().__init__()
         self.registry = registry
 
     def render_GET(self, request):
@@ -171,7 +172,8 @@ class RefundEventMetricsCollector(BaseEventMetricsCollector):
             self.contract_agent.get_deposited_eth(self.staker_address))
 
 
-def collect_prometheus_metrics(ursula, event_metrics_collectors: List[BaseEventMetricsCollector],
+def collect_prometheus_metrics(ursula,
+                               event_metrics_collectors: List[BaseEventMetricsCollector],
                                node_metrics: dict) -> None:
     base_payload = {'app_version': nucypher.__version__,
                     'teacher_version': str(ursula.TEACHER_VERSION),
@@ -256,7 +258,9 @@ def get_staking_event_collectors_config(ursula, metrics_prefix: str) -> Tuple:
     event_collectors_config = (
         {
             "collector": BaseEventMetricsCollector,
-            "name": "activity_confirmed", "contract_agent": staking_agent, "event": "ActivityConfirmed",
+            "name": "activity_confirmed",
+            "contract_agent": staking_agent,
+            "event": "ActivityConfirmed",
             "argument_filters": {"staker": ursula.checksum_address},
             "metrics": {"value": Gauge(f'{metrics_prefix}_activity_confirmed_value',
                                        'Activity confirmed with value of locked tokens'),
@@ -265,7 +269,9 @@ def get_staking_event_collectors_config(ursula, metrics_prefix: str) -> Tuple:
         },
         {
             "collector": BaseEventMetricsCollector,
-            "name": "mined", "contract_agent": staking_agent, "event": "Mined",
+            "name": "mined",
+            "contract_agent": staking_agent,
+            "event": "Mined",
             "argument_filters": {"staker": ursula.checksum_address},
             "metrics": {"value": Gauge(f'{metrics_prefix}_mined_value', 'Mined value'),
                         "period": Gauge(f'{metrics_prefix}_mined_period', 'Mined period'),
@@ -273,7 +279,9 @@ def get_staking_event_collectors_config(ursula, metrics_prefix: str) -> Tuple:
         },
         {
             "collector": BaseEventMetricsCollector,
-            "name": "slashed_penalty", "contract_agent": staking_agent, "event": "Slashed",
+            "name": "slashed_penalty",
+            "contract_agent": staking_agent,
+            "event": "Slashed",
             "argument_filters": {"staker": ursula.checksum_address},
             "metrics": {"penalty": Gauge(f'{metrics_prefix}_last_slashed_penalty', 'Penalty for slashing'),
                         "block_number": Gauge(f'{metrics_prefix}_last_slashed_penalty_block_number',
@@ -281,19 +289,25 @@ def get_staking_event_collectors_config(ursula, metrics_prefix: str) -> Tuple:
         },
         {
             "collector": ReStakeEventMetricsCollector,
-            "name": "restake_set", "contract_agent": staking_agent, "event": "ReStakeSet",
+            "name": "restake_set",
+            "contract_agent": staking_agent,
+            "event": "ReStakeSet",
             "argument_filters": {"staker": ursula.checksum_address},
             "metrics": {"reStake": Gauge(f'{metrics_prefix}_restaking', 'Restake set')}
         },
         {
             "collector": WindDownEventMetricsCollector,
-            "name": "wind_down_set", "contract_agent": staking_agent, "event": "WindDownSet",
+            "name": "wind_down_set",
+            "contract_agent": staking_agent,
+            "event": "WindDownSet",
             "argument_filters": {"staker": ursula.checksum_address},
             "metrics": {"windDown": Gauge(f'{metrics_prefix}_wind_down', 'is windDown')}
         },
         {
             "collector": WorkerSetEventMetricsCollector,
-            "name": "worker_set", "contract_agent": staking_agent, "event": "WorkerSet",
+            "name": "worker_set",
+            "contract_agent": staking_agent,
+            "event": "WorkerSet",
             "argument_filters": {"staker": ursula.checksum_address},
             "metrics": {"startPeriod": Gauge(f'{metrics_prefix}_worker_set_start_period', 'New worker was set'),
                         "block_number": Gauge(f'{metrics_prefix}_worker_set_block_number', 'WorkerSet block number')}
@@ -310,26 +324,34 @@ def get_worklock_event_collectors_config(ursula, metrics_prefix: str) -> Tuple:
     event_collectors_config = (
         {
             "collector": BaseEventMetricsCollector,
-            "name": "worklock_deposited", "contract_agent": worklock_agent, "event": "Deposited",
+            "name": "worklock_deposited",
+            "contract_agent": worklock_agent,
+            "event": "Deposited",
             "argument_filters": {"sender": ursula.checksum_address},
             "metrics": {"value": Gauge(f'{metrics_prefix}_worklock_deposited_value', 'Deposited value')}
         },
         {
             "collector": BidEventMetricsCollector,
-            "name": "worklock_bid", "contract_agent": worklock_agent, "event": "Bid",
+            "name": "worklock_bid",
+            "contract_agent": worklock_agent,
+            "event": "Bid",
             "argument_filters": {"sender": ursula.checksum_address},
             "metrics": {"depositedETH": Gauge(f'{metrics_prefix}_worklock_bid_depositedETH', 'Deposited ETH value')}
         },
         {
             "collector": BaseEventMetricsCollector,
-            "name": "worklock_claimed", "contract_agent": worklock_agent, "event": "Claimed",
+            "name": "worklock_claimed",
+            "contract_agent": worklock_agent,
+            "event": "Claimed",
             "argument_filters": {"sender": ursula.checksum_address},
             "metrics": {
                 "claimedTokens": Gauge(f'{metrics_prefix}_worklock_claimed_claimedTokens', 'Claimed tokens value')}
         },
         {
             "collector": RefundEventMetricsCollector,
-            "name": "worklock_refund", "contract_agent": worklock_agent, "event": "Refund",
+            "name": "worklock_refund",
+            "contract_agent": worklock_agent,
+            "event": "Refund",
             "argument_filters": {"sender": ursula.checksum_address},
             "metrics": {
                 "refundETH": Gauge(f'{metrics_prefix}_worklock_refund_refundETH', 'Refunded ETH')
@@ -347,7 +369,9 @@ def get_policy_event_collectors_config(ursula, metrics_prefix: str) -> Tuple:
     event_collectors_config = (
         {
             "collector": BaseEventMetricsCollector,
-            "name": "policy_withdrawn_reward", "contract_agent": policy_manager_agent, "event": "Withdrawn",
+            "name": "policy_withdrawn_reward",
+            "contract_agent": policy_manager_agent,
+            "event": "Withdrawn",
             "argument_filters": {"recipient": ursula.checksum_address},
             "metrics": {"value": Gauge(f'{metrics_prefix}_policy_withdrawn_reward', 'Policy reward')}
         },
@@ -357,10 +381,12 @@ def get_policy_event_collectors_config(ursula, metrics_prefix: str) -> Tuple:
 
 def build_event_metrics_collectors(ursula, event_collectors_config: Tuple) -> List[BaseEventMetricsCollector]:
     event_metrics_collectors = [
-        config["collector"](ursula.checksum_address, ursula.worker_address, config["contract_agent"],
-                            config["event"],
-                            config["argument_filters"], config["metrics"]) for config in event_collectors_config]
-
+        config["collector"](staker_address=ursula.checksum_address,
+                            worker_address=ursula.worker_address,
+                            contract_agent=config["contract_agent"],
+                            event_name=config["event"],
+                            argument_filters=config["argument_filters"],
+                            metrics=config["metrics"]) for config in event_collectors_config]
     return event_metrics_collectors
 
 

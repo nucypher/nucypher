@@ -153,7 +153,7 @@ def test_unlock_nucypher_keyring(mocker,
 
     # Setup
     # Do not test "real" unlocking here, just the plumbing
-    unlock_spy = mocker.patch.object(NucypherKeyring, 'unlock', reeturn_value=True)
+    unlock_spy = mocker.patch.object(NucypherKeyring, 'unlock', return_value=True)
     attach_spy = mocker.spy(CharacterConfiguration, 'attach_keyring')
     mocker.patch.object(CharacterConfiguration,
                         'dev_mode',
