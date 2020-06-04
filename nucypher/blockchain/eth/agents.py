@@ -341,7 +341,7 @@ class StakingEscrowAgent(EthereumContractAgent):
 
         Returns an amount of NuNits.
         """
-        if not at_period:
+        if at_period is None:  # allow 0, vs default
             # Get the current period on-chain by default.
             at_period = self.contract.functions.getCurrentPeriod().call()
         return NuNits(self.contract.functions.lockedPerPeriod(at_period).call())
