@@ -46,8 +46,11 @@ def test_character_help_messages(click_runner, entry_point_name, entry_point):
     assert result.exit_code == 0
     assert f'{entry_point_name}' in result.output, 'Missing or invalid help text was produced.'
     if isinstance(entry_point, click.Group):
-        for sub_command in entry_point.commands:
-            assert f'{sub_command}' in result.output, f'Sub command {sub_command} is missing from help text'
+        for sub_command, config in entry_point.commands.items():
+            if not config.hidden:
+                assert f'{sub_command}' in result.output, f'Sub command {sub_command} is missing from help text'
+            else:
+                assert f'{sub_command}' not in result.output, f'Hidden command {sub_command} in help text'
 
 
 @pytest.mark.parametrize('entry_point_name, entry_point', ([command.name, command] for command in ENTRY_POINTS))
