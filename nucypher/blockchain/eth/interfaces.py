@@ -74,7 +74,7 @@ class BlockchainInterface:
     ethereum contracts with the given web3 provider backend.
     """
 
-    TIMEOUT = 600  # seconds
+    TIMEOUT = 600  # seconds  # TODO: Correlate with the gas strategy - #2070
 
     DEFAULT_GAS_STRATEGY = 'medium'
     GAS_STRATEGIES = {'glacial': time_based.glacial_gas_price_strategy,     # 24h

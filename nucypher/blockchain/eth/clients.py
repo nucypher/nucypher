@@ -42,6 +42,7 @@ from web3 import Web3
 from web3.contract import Contract
 from web3.types import Wei, TxReceipt
 from web3._utils.threads import Timeout
+from web3.exceptions import TimeExhausted, TransactionNotFound
 
 from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
@@ -59,6 +60,7 @@ class Web3ClientConnectionFailed(Web3ClientError):
 
 class Web3ClientUnexpectedVersionString(Web3ClientError):
     pass
+
 
 # TODO: Consider creating a ChainInventory class and/or moving this to a separate module
 
@@ -95,7 +97,6 @@ POA_CHAINS = {  # TODO: This list is incomplete, but it suffices for the moment 
 
 
 class EthereumClient:
-
     is_local = False
 
     GETH = 'Geth'
@@ -106,10 +107,11 @@ class EthereumClient:
     ETHEREUM_TESTER = 'EthereumTester'  # (PyEVM)
     CLEF = 'Clef'  # Signer-only
 
-    PEERING_TIMEOUT = 30        # seconds
+    PEERING_TIMEOUT = 30  # seconds
     SYNC_TIMEOUT_DURATION = 60  # seconds to wait for various blockchain syncing endeavors
-    SYNC_SLEEP_DURATION = 5     # seconds
+    SYNC_SLEEP_DURATION = 5  # seconds
     BLOCK_CONFIRMATIONS_POLLING_TIME = 3  # seconds
+    TRANSACTION_POLLING_TIME = 0.5  # seconds  # TODO: Override this in InfuraClient
 
     class ConnectionNotEstablished(RuntimeError):
         pass
@@ -120,23 +122,25 @@ class EthereumClient:
     class UnknownAccount(ValueError):
         pass
 
-    class NotEnoughConfirmations(RuntimeError):
+    class TransactionBroadcastError(RuntimeError):
         pass
 
-    class ChainReorganizationDetected(RuntimeError):
+    class NotEnoughConfirmations(TransactionBroadcastError):
+        pass
+
+    class TransactionTimeout(TransactionBroadcastError):
+        pass
+
+    class ChainReorganizationDetected(TransactionBroadcastError):
         """Raised when block confirmations logic detects that a TX was lost due to a chain reorganization"""
 
-        error_message = ("Chain re-organization detected: Transaction {our_tx} was reported to be in "
-                         "block number {tx_block_number} with block hash {old_block_hash},"
-                         "but current hash is {new_block_hash}")
+        error_message = ("Chain re-organization detected: Transaction {transaction_hash} was reported to be in "
+                         "block {block_hash}, but it's not there anymore")
 
-        def __init__(self, receipt, block):
+        def __init__(self, receipt):
             self.receipt = receipt
-            self.block = block
-            self.message = self.error_message.format(our_tx=Web3.toHex(receipt['transactionHash']),
-                                                     tx_block_number=Web3.toInt(receipt['blockNumber']),
-                                                     old_block_hash=Web3.toHex(receipt['blockHash']),
-                                                     new_block_hash=Web3.toHex(block['blockHash']))
+            self.message = self.error_message.format(transaction_hash=Web3.toHex(receipt['transactionHash']),
+                                                     block_hash=Web3.toHex(receipt['blockHash']))
             super().__init__(self.message)
 
     def __init__(self,
@@ -280,44 +284,69 @@ class EthereumClient:
     def wait_for_receipt(self,
                          transaction_hash: str,
                          timeout: int,
-                         confirmations: int = 0,
-                         confirmations_timeout: int = None) -> TxReceipt:
-        receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash=transaction_hash, timeout=timeout)
+                         confirmations: int = 0) -> TxReceipt:
+        receipt = None
         if confirmations:
+            with Timeout(seconds=timeout, exception=self.TransactionTimeout) as timeout_context:
+                while not receipt:
+                    try:
+                        receipt = self.block_until_enough_confirmations(transaction_hash=transaction_hash,
+                                                                        timeout=timeout,
+                                                                        confirmations=confirmations)
+                    except (self.ChainReorganizationDetected, TimeExhausted):
+                        timeout_context.sleep(self.BLOCK_CONFIRMATIONS_POLLING_TIME)
+                        continue
+                    except self.NotEnoughConfirmations:
+                        raise  # TODO: What should we do here?
+
+        else:
+            # If not asking for confirmations, just use web3 and assume the returned receipt is final
             try:
-                self._block_until_enough_confirmations(receipt=receipt,
-                                                   confirmations=confirmations,
-                                                   timeout=confirmations_timeout)
-            except self.NotEnoughConfirmations:
-                raise  # TODO: What should we do here?
-            except self.ChainReorganizationDetected:
-                raise  # TODO: Consider starting again, the TX may still be mined
+                receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash=transaction_hash,
+                                                                timeout=timeout,
+                                                                poll_latency=self.TRANSACTION_POLLING_TIME)
+            except TimeExhausted:
+                raise  # TODO: #1504 - Handle transaction timeout
+
         return receipt
 
-    def _block_until_enough_confirmations(self, receipt: dict, confirmations: int, timeout: float):
-        if not timeout:
-            timeout = 2 * AVERAGE_BLOCK_TIME_IN_SECONDS * confirmations
+    def block_until_enough_confirmations(self, transaction_hash: str, timeout: int, confirmations: int) -> dict:
 
-        confirmations_so_far = self.get_confirmations(receipt)
-        with Timeout(seconds=timeout, exception=self.NotEnoughConfirmations) as timeout_context:
-            while confirmations_so_far < confirmations:
-                self.log.info(f"So far, we've received {confirmations_so_far} confirmations. "
-                              f"Waiting for {confirmations - confirmations_so_far} more.")
-                timeout_context.sleep(self.BLOCK_CONFIRMATIONS_POLLING_TIME)
-                confirmations_so_far = self.get_confirmations(receipt)
+        receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash=transaction_hash,
+                                                        timeout=timeout,
+                                                        poll_latency=self.TRANSACTION_POLLING_TIME)
 
-    def get_confirmations(self, receipt: dict) -> int:
-        our_tx = Web3.toHex(receipt['transactionHash'])
+        preliminary_block_hash = Web3.toHex(receipt['blockHash'])
         tx_block_number = Web3.toInt(receipt['blockNumber'])
+        self.log.info(f"Transaction {Web3.toHex(transaction_hash)} is preliminarily included in "
+                      f"block {preliminary_block_hash}")
 
-        # Check that our TX is still in the blockchain (i.e., there has been no chain reorganizations)
-        block_to_check = self.w3.eth.getBlock(block_identifier=tx_block_number, full_transactions=False)
-        if our_tx not in map(Web3.toHex, block_to_check['transactions']):
-            raise self.ChainReorganizationDetected(receipt=receipt, block=block_to_check)
+        confirmations_timeout = 3 * AVERAGE_BLOCK_TIME_IN_SECONDS * confirmations
+        confirmations_so_far = 0
+        with Timeout(seconds=confirmations_timeout, exception=self.NotEnoughConfirmations) as timeout_context:
+            while confirmations_so_far < confirmations:
+                timeout_context.sleep(self.BLOCK_CONFIRMATIONS_POLLING_TIME)
+                self.check_transaction_is_on_chain(receipt=receipt)
+                confirmations_so_far = self.block_number - tx_block_number
+                self.log.info(f"We have {confirmations_so_far} confirmations. "
+                              f"Waiting for {confirmations - confirmations_so_far} more.")
+            return receipt
 
-        latest_block_number = self.block_number
-        confirmations = latest_block_number - tx_block_number
-        return confirmations
+    def check_transaction_is_on_chain(self, receipt: dict) -> bool:
+        transaction_hash = Web3.toHex(receipt['transactionHash'])
+        try:
+            new_receipt = self.w3.eth.getTransactionReceipt(transaction_hash=transaction_hash)
+        except TransactionNotFound:
+            reorg_detected = True
+        else:
+            reorg_detected = receipt['blockHash'] != new_receipt['blockHash']
+
+        if reorg_detected:
+            exception = self.ChainReorganizationDetected(receipt=receipt)
+            self.log.info(exception.message)
+            raise exception
+            # TODO: Consider adding an optional param in this exception to include extra info (e.g. new block)
+        return True
 
     def sign_transaction(self, transaction_dict: dict) -> bytes:
         raise NotImplementedError
@@ -376,7 +405,7 @@ class EthereumClient:
             self.log.info(f"Waiting for {self.chain_name.capitalize()} chain synchronization to begin")
             while not self.syncing:
                 time.sleep(0)
-                check_for_timeout(t=self.SYNC_TIMEOUT_DURATION*2)
+                check_for_timeout(t=self.SYNC_TIMEOUT_DURATION * 2)
 
             while True:
                 syncdata = self.syncing
@@ -471,7 +500,6 @@ class ParityClient(EthereumClient):
 
 
 class GanacheClient(EthereumClient):
-
     is_local = True
 
     def unlock_account(self, *args, **kwargs) -> bool:
@@ -482,7 +510,6 @@ class GanacheClient(EthereumClient):
 
 
 class InfuraClient(EthereumClient):
-
     is_local = False
 
     def unlock_account(self, *args, **kwargs) -> bool:
@@ -493,7 +520,6 @@ class InfuraClient(EthereumClient):
 
 
 class EthereumTesterClient(EthereumClient):
-
     is_local = True
 
     def unlock_account(self, account, password, duration: int = None) -> bool:
@@ -550,7 +576,6 @@ class EthereumTesterClient(EthereumClient):
 
 
 class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
-
     IPC_PROTOCOL = 'http'
     IPC_FILENAME = 'geth.ipc'
     VERBOSITY = 5
@@ -604,7 +629,6 @@ class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
 
 
 class NuCypherGethDevProcess(NuCypherGethProcess):
-
     _CHAIN_NAME = 'poa-development'
 
     def __init__(self, config_root: str = None, *args, **kwargs):
@@ -631,7 +655,6 @@ class NuCypherGethDevProcess(NuCypherGethProcess):
 
 
 class NuCypherGethDevnetProcess(NuCypherGethProcess):
-
     IPC_PROTOCOL = 'file'
     GENESIS_FILENAME = 'testnet_genesis.json'
     GENESIS_SOURCE_FILEPATH = os.path.join(DEPLOY_DIR, GENESIS_FILENAME)
@@ -710,7 +733,6 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
 
 
 class NuCypherGethGoerliProcess(NuCypherGethProcess):
-
     IPC_PROTOCOL = 'file'
     GENESIS_FILENAME = 'testnet_genesis.json'
     GENESIS_SOURCE_FILEPATH = os.path.join(DEPLOY_DIR, GENESIS_FILENAME)
