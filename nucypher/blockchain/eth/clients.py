@@ -111,7 +111,8 @@ class EthereumClient:
     SYNC_TIMEOUT_DURATION = 60  # seconds to wait for various blockchain syncing endeavors
     SYNC_SLEEP_DURATION = 5  # seconds
     BLOCK_CONFIRMATIONS_POLLING_TIME = 3  # seconds
-    TRANSACTION_POLLING_TIME = 0.5  # seconds  # TODO: Override this in InfuraClient
+    TRANSACTION_POLLING_TIME = 0.5  # seconds
+    COOLING_TIME = 5  # seconds
 
     class ConnectionNotEstablished(RuntimeError):
         pass
@@ -287,6 +288,10 @@ class EthereumClient:
                          confirmations: int = 0) -> TxReceipt:
         receipt = None
         if confirmations:
+            # If we're waiting for confirmations, we may as well let pass some time initially to make everything easier
+            time.sleep(self.COOLING_TIME)
+
+            # We'll keep trying to get receipts until there are enough confirmations or the timeout happens
             with Timeout(seconds=timeout, exception=self.TransactionTimeout) as timeout_context:
                 while not receipt:
                     try:
@@ -511,6 +516,7 @@ class GanacheClient(EthereumClient):
 
 class InfuraClient(EthereumClient):
     is_local = False
+    TRANSACTION_POLLING_TIME = 2  # seconds
 
     def unlock_account(self, *args, **kwargs) -> bool:
         return True
