@@ -1,3 +1,4 @@
+# noinspection Mypy
 """
  This file is part of nucypher.
 

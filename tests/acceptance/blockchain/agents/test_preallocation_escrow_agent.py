@@ -76,7 +76,7 @@ def test_preallocation_escrow_agent_represents_beneficiary(agent, agency):
     token_agent, staking_agent, policy_agent = agency
 
     # Name
-    assert agent.registry_contract_name == PreallocationEscrowAgent.registry_contract_name
+    assert agent.contract_name == PreallocationEscrowAgent.contract_name
 
     # Not Equal to StakingEscrow
     assert agent != staking_agent, "PreallocationEscrow Agent is connected to the StakingEscrow's contract"

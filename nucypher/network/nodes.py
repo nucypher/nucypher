@@ -1017,13 +1017,15 @@ class Teacher:
     # Known Nodes
     #
 
-    def seed_node_metadata(self, as_teacher_uri=False):
+    def seed_node_metadata(self, as_teacher_uri=False) -> SeednodeMetadata:
         if as_teacher_uri:
             teacher_uri = f'{self.checksum_address}@{self.rest_server.rest_interface.host}:{self.rest_server.rest_interface.port}'
             return teacher_uri
-        return SeednodeMetadata(self.checksum_address,  # type: str
-                                self.rest_server.rest_interface.host,  # type: str
-                                self.rest_server.rest_interface.port)  # type: int
+        return SeednodeMetadata(
+            self.checksum_address,
+            self.rest_server.rest_interface.host,
+            self.rest_server.rest_interface.port
+        )
 
     def sorted_nodes(self):
         nodes_to_consider = list(self.known_nodes.values()) + [self]

@@ -99,7 +99,7 @@ def test_nucypher_deploy_contracts(click_runner,
 
     token_agent = NucypherTokenAgent(registry=registry)
     assert token_agent.contract_name == registered_name
-    assert token_agent.registry_contract_name == registered_name
+    assert token_agent.contract_name == registered_name
     assert token_agent.contract_address == registered_address
     assert token_agent.contract.version == registered_version
 
@@ -118,7 +118,7 @@ def test_deploy_single_contract(click_runner, tempfile_path):
 
     # Perform the Test
     command = ['contracts',
-               '--contract-name', NucypherTokenAgent.registry_contract_name,
+               '--contract-name', NucypherTokenAgent.contract_name,
                '--registry-infile', tempfile_path,
                '--provider', TEST_PROVIDER_URI,
                '--debug']

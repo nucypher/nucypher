@@ -28,6 +28,8 @@ from datetime import datetime
 from twisted.logger import Logger
 from typing import Callable, Optional, Union
 
+from nucypher.types import ContractReturnValue
+
 ContractInterfaces = Union[
     CONTRACT_CALL,
     TRANSACTION,
@@ -136,7 +138,7 @@ COLLECT_CONTRACT_API = True
 def contract_api(interface: Optional[ContractInterfaces] = UNKNOWN_CONTRACT_INTERFACE) -> Callable:
     """Decorator factory for contract API markers"""
 
-    def decorator(agent_method: Callable) -> Callable:
+    def decorator(agent_method: Callable) -> Callable[..., ContractReturnValue]:
         """
         Marks an agent method as containing contract interactions (transaction or call)
         and validates outbound checksum addresses for EIP-55 compliance.

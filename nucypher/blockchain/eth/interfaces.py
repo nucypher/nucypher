@@ -30,7 +30,7 @@ from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import to_checksum_address
 from twisted.logger import Logger
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, NamedTuple, Tuple, Union
 from urllib.parse import urlparse
 from web3 import HTTPProvider, IPCProvider, Web3, WebsocketProvider, middleware
 from web3.contract import Contract, ContractConstructor, ContractFunction
@@ -625,11 +625,10 @@ class BlockchainInterface:
                              enrollment_version: Union[int, str] = None,
                              proxy_name: str = None,
                              use_proxy_address: bool = True
-                             ) -> Union[VersionedContract, List[tuple]]:
+                             ) -> VersionedContract:
         """
         Instantiate a deployed contract from registry data,
-        and assimilate it with its proxy if it is upgradeable,
-        or return all registered records if use_proxy_address is False.
+        and assimilate it with its proxy if it is upgradeable.
         """
         target_contract_records = registry.search(contract_name=contract_name, contract_version=contract_version)
 
@@ -932,9 +931,10 @@ class BlockchainInterfaceFactory:
     _interfaces = dict()
     _default_interface_class = BlockchainInterface
 
-    CachedInterface = collections.namedtuple('CachedInterface', ['interface',    # type: BlockchainInterface
-                                                                 'sync',         # type: bool
-                                                                 'emitter'])     # type: StdoutEmitter
+    class CachedInterface(NamedTuple):
+        interface: BlockchainInterface
+        sync: bool
+        emitter: StdoutEmitter
 
     class FactoryError(Exception):
         pass

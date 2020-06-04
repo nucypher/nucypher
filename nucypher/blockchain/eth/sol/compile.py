@@ -23,14 +23,14 @@ import itertools
 import os
 import re
 from twisted.logger import Logger
-from typing import List, Set
+from typing import List, NamedTuple, Optional, Set
 
 from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
 
-SourceDirs = collections.namedtuple('SourceDirs', ['root_source_dir',    # type: str
-                                                   'other_source_dirs',  # type: Set[str]
-                                                   ])
-SourceDirs.__new__.__defaults__ = (None,)
+
+class SourceDirs(NamedTuple):
+    root_source_dir: str
+    other_source_dirs: Optional[Set[str]] = None
 
 
 class SolidityCompiler:

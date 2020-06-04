@@ -891,7 +891,7 @@ def events(general_config, staker_options, config_file, event_name):
         individual_allocation=STAKEHOLDER.individual_allocation,
         force=True)
 
-    title = f" {STAKEHOLDER.staking_agent.registry_contract_name} Events ".center(40, "-")
+    title = f" {STAKEHOLDER.staking_agent.contract_name} Events ".center(40, "-")
     emitter.echo(f"\n{title}\n", bold=True, color='green')
     if event_name:
         events = [STAKEHOLDER.staking_agent.contract.events[event_name]]
