@@ -78,6 +78,7 @@ env: lock
 	nucypher --version
 
 install: clean
+	pipenv --rm
     # Development installation
 	pipenv run pip install -e .[dev]
 	# Show installed version and verify entry point
