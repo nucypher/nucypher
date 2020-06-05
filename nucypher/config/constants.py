@@ -16,13 +16,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from collections import namedtuple
-
 import os
-from appdirs import AppDirs
+from collections import namedtuple
 from pathlib import Path
 
+from appdirs import AppDirs
+
 import nucypher
+from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.blockchain.eth import sol
 
 # Environment variables
@@ -41,6 +42,16 @@ DEPLOY_DIR = BASE_DIR / 'deploy'
 SOL_PACKAGE = Path(sol.__file__).parent.resolve()
 CONTRACT_ROOT = SOL_PACKAGE / 'source' / 'contracts'
 
+# Test Filepaths
+try:
+    import tests
+except ImportError:
+    raise DevelopmentInstallationRequired(importable_name='tests')
+else:
+    # TODO: Another way to handle this situation?
+    # __file__ can be None, especially with namespace packages on
+    # Python 3.7 or when using apidoc and sphinx-build.
+    NUCYPHER_TEST_DIR = tests.__file__ or str()
 
 # User Application Filepaths
 APP_DIR = AppDirs(nucypher.__title__, nucypher.__author__)
