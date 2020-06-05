@@ -15,13 +15,12 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import pytest
 from pathlib import Path
 
 from nucypher.blockchain.eth.sol.compile.config import ALLOWED_PATHS
+
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 

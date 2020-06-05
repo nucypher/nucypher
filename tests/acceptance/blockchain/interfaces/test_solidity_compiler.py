@@ -20,6 +20,7 @@ from pathlib import Path
 from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
 from nucypher.blockchain.eth.sol.compile.constants import DEFAULT_VERSION_STRING
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
+from nucypher.blockchain.eth.sol.compile.config import ALLOWED_PATHS
 
 
 def test_nucypher_contract_compiled(testerchain, test_registry):
@@ -43,9 +44,10 @@ def test_multi_source_compilation(testerchain):
 def test_multi_versions():
     base_dir = Path(__file__).parent / "contracts" / "multiversion"
     v1_dir, v2_dir = base_dir / "v1", base_dir / "v2"
+    ALLOWED_PATHS.append(base_dir)
     interfaces = multiversion_compile(solidity_source_dirs=(v1_dir, v2_dir))
-    assert "VersionTest.sol" in interfaces['contracts']
-    contract_data = interfaces['contracts']["VersionTest.sol"]
+    assert "VersionTest" in interfaces
+    contract_data = interfaces["VersionTest"]
     assert len(contract_data) == 2
     assert "v1.2.3" in contract_data
     assert "v1.1.4" in contract_data
