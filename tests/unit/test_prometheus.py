@@ -274,3 +274,7 @@ class TestGenerateJSON(unittest.TestCase):
         123.000456, "exemplar": {}}, {"sample_name": "ts", "labels": {"foo": "f"}, "value": "0.0", "timestamp": 
         123.000000456, "exemplar": {}}], "help": "help", "type": "unknown"}}"""), json.loads(
             self.json_exporter.generate_latest_json()))
+
+
+if __name__ == '__main__':
+    unittest.main()

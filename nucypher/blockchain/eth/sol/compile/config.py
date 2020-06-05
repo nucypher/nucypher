@@ -18,9 +18,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from typing import List, Dict
 
-from blockchain.eth.sol.compile.constants import NUCYPHER_CONTRACTS_DIR, ZEPPELIN_DIR, ARAGON_DIR, ARAGON, ZEPPELIN, \
+from nucypher.blockchain.eth.sol.compile.constants import NUCYPHER_CONTRACTS_DIR, ZEPPELIN_DIR, ARAGON_DIR, ARAGON, ZEPPELIN, \
     SOLIDITY_SOURCE_ROOT, TEST_SOLIDITY_SOURCE_ROOT
-from blockchain.eth.sol.compile.types import CompilerConfiguration
+from nucypher.blockchain.eth.sol.compile.types import CompilerConfiguration
 
 
 """

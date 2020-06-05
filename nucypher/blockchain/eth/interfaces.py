@@ -15,7 +15,10 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
+import collections
 import os
+import pprint
 import threading
 import time
 from pathlib import Path
@@ -31,7 +34,6 @@ from urllib.parse import urlparse
 
 import click
 import requests
-from blockchain.eth.sol.compile.compile import multiversion_compile
 from constant_sorrow.constants import (
     INSUFFICIENT_ETH,
     NO_BLOCKCHAIN_CONNECTION,

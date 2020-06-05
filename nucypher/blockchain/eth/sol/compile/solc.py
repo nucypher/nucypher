@@ -20,11 +20,11 @@ from logging import Logger
 
 from typing import Dict
 
-from blockchain.eth.sol.compile.config import IMPORT_REMAPPING, OPTIMIZER_RUNS, ALLOWED_PATHS
-from blockchain.eth.sol.compile.constants import SOLC_LOGGER
-from blockchain.eth.sol.compile.exceptions import CompilationError
-from blockchain.eth.sol.compile.types import VersionString
-from exceptions import DevelopmentInstallationRequired
+from nucypher.blockchain.eth.sol.compile.config import IMPORT_REMAPPING, OPTIMIZER_RUNS, ALLOWED_PATHS
+from nucypher.blockchain.eth.sol.compile.constants import SOLC_LOGGER
+from nucypher.blockchain.eth.sol.compile.exceptions import CompilationError
+from nucypher.blockchain.eth.sol.compile.types import VersionString
+from nucypher.exceptions import DevelopmentInstallationRequired
 
 
 def __execute(compiler_version: VersionString, input_config: Dict, allowed_paths: str):

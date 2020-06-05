@@ -25,7 +25,7 @@ from pathlib import Path
 import pytest
 from eth_utils import ValidationError
 
-from blockchain.eth.sol.compile.config import ALLOWED_PATHS
+from nucypher.blockchain.eth.sol.compile.config import ALLOWED_PATHS
 from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry

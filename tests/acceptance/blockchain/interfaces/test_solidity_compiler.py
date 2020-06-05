@@ -17,8 +17,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from pathlib import Path
 
-from blockchain.eth.sol.compile.compile import multiversion_compile
-from blockchain.eth.sol.compile.constants import DEFAULT_VERSION_STRING
+from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
+from nucypher.blockchain.eth.sol.compile.constants import DEFAULT_VERSION_STRING
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
 
 

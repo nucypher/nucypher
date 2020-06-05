@@ -21,7 +21,7 @@ try:
     import tests
 except ImportError:
     raise DevelopmentInstallationRequired(importable_name='tests')
-from blockchain.eth.sol.compile.constants import IGNORE_CONTRACT_PREFIXES, SOLC_LOGGER
+from nucypher.blockchain.eth.sol.compile.constants import IGNORE_CONTRACT_PREFIXES, SOLC_LOGGER
 import os
 from pathlib import Path
 from typing import Dict, Iterator, List
