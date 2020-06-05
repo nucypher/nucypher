@@ -14,12 +14,11 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from unittest.mock import PropertyMock
 
 import pytest
 from hexbytes import HexBytes
+from web3.exceptions import TransactionNotFound
 
-from nucypher.blockchain.eth.clients import EthereumClient
 from tests.mock.interfaces import MockEthereumClient
 
 
@@ -30,7 +29,7 @@ def mock_ethereum_client(mocker):
     return mock_client
 
 
-def test_get_confirmations(mocker, mock_ethereum_client):
+def test_check_transaction_is_on_chain(mocker, mock_ethereum_client):
 
     # Mock data
     block_number_of_my_tx = 42
@@ -42,46 +41,31 @@ def test_get_confirmations(mocker, mock_ethereum_client):
         'blockHash': HexBytes('0xBebeCafe')
     }
 
-    our_block = {
-        'number': block_number_of_my_tx,
-        'transactions': [my_tx_hash],
-        'blockHash': HexBytes('0xBebeCafe')
-    }
-
-    the_blockchain = {
-        block_number_of_my_tx: our_block
-    }
-
     # Mocking Web3 and EthereumClient
-    def mock_web3_get_block(block_identifier, full_transactions=False):
-        return the_blockchain[block_identifier]
-
-    def mock_web3_get_block_number():
-        return list(sorted(the_blockchain.keys()))[-1]
-
     web3_mock = mock_ethereum_client.w3
-    web3_mock.eth.getBlock = mocker.Mock(side_effect=mock_web3_get_block)
-    type(web3_mock.eth).blockNumber = PropertyMock(side_effect=mock_web3_get_block_number)  # See docs of PropertyMock
+    web3_mock.eth.getTransactionReceipt = mocker.Mock(return_value=receipt)
 
-    # Test with no chain reorganizations
-    for additional_blocks in range(10):
-        obtained_confirmations = mock_ethereum_client.get_confirmations(receipt=receipt)
-        assert additional_blocks == obtained_confirmations
+    # Test with no chain reorganizations:
 
-        # Mine a new block in this fine chain of ours
-        next_block_number = block_number_of_my_tx + additional_blocks + 1
-        mined_block = {'number': next_block_number, 'transactions': []}
-        the_blockchain[next_block_number] = mined_block
+    # While web3 keeps returning the same receipt that we initially had, all good
+    assert mock_ethereum_client.check_transaction_is_on_chain(receipt=receipt)
 
-    # Wow, there has been a chain reorganization and our beloved TX is gone:
-    we_hate_this_block = {'number': block_number_of_my_tx,
-                          'transactions': [HexBytes('0xDefeca')],
-                          'blockHash': HexBytes('0xCaca')}
-    the_blockchain = {
-        block_number_of_my_tx: we_hate_this_block
+    # Test with chain re-organizations:
+
+    # Let's assume that our TX ends up mined in a different block, and we receive a new receipt
+    new_receipt = {
+        'transactionHash': my_tx_hash,
+        'blockNumber': block_number_of_my_tx,
+        'blockHash': HexBytes('0xBebeCebada')
     }
+    web3_mock.eth.getTransactionReceipt = mocker.Mock(return_value=new_receipt)
 
     exception = mock_ethereum_client.ChainReorganizationDetected
-    message = exception(receipt=receipt, block=we_hate_this_block).message
+    message = exception(receipt=receipt).message
     with pytest.raises(exception, match=message):
-        _ = mock_ethereum_client.get_confirmations(receipt=receipt)
+        _ = mock_ethereum_client.check_transaction_is_on_chain(receipt=receipt)
+
+    # Another example: there has been a chain reorganization and our beloved TX is gone for good:
+    web3_mock.eth.getTransactionReceipt = mocker.Mock(side_effect=TransactionNotFound)
+    with pytest.raises(exception, match=message):
+        _ = mock_ethereum_client.check_transaction_is_on_chain(receipt=receipt)

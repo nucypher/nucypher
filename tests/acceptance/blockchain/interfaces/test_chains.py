@@ -166,7 +166,10 @@ def test_multiversion_contract():
 def test_block_confirmations(testerchain, test_registry):
 
     testerchain.TIMEOUT = 5  # Reduce timeout for tests, for the moment
+    from nucypher.blockchain.eth import constants
+    constants.AVERAGE_BLOCK_TIME_IN_SECONDS = 1
     origin = testerchain.etherbase_account
+    EthereumClient.BLOCK_CONFIRMATIONS_POLLING_TIME = 0.1
 
     # Let's try to deploy a simple contract (ReceiveApprovalMethodMock) with 1 confirmation.
     # Since the testerchain doesn't automine, this fails.
@@ -192,10 +195,6 @@ def test_block_confirmations(testerchain, test_registry):
     tx_receipt = testerchain.send_transaction(contract_function=tx_function,
                                               sender_address=origin,
                                               confirmations=0)
-
-    assert testerchain.client.get_confirmations(tx_receipt) == 0
-    testerchain.w3.eth.web3.testing.mine(1)
-    assert testerchain.client.get_confirmations(tx_receipt) == 1
 
     # # Ok, I admit that the tests so far weren't very exciting, since we cannot directly test confirmations
     # # as new blocks are not mined continuously in our test framework.
