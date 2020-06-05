@@ -253,6 +253,7 @@ def run_apidoc(_):
         'scripts',
         Path('nucypher', 'utilities'),
         Path('nucypher', 'blockchain', 'eth', 'sol'),
+        Path('nucypher', 'blockchain', 'eth', 'economics.py'),
     ]
     for exclusion_item in exclusion_items:
         apidoc_command.append(f'{nucypher_module_dir / exclusion_item}')
