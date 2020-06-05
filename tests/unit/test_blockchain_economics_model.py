@@ -61,7 +61,7 @@ def test_rough_economics():
     assert int(LOG2 / (e.token_halving * 365) * (e.erc20_total_supply - int(e.first_phase_total_supply))) == int(initial_rate)
     assert int(e.reward_supply) == int(e.erc20_total_supply - Decimal(int(1e9)))
 
-    with localcontext() as ctx:
+    with localcontext() as ctx:  # TODO: Needs follow up - why the sudden failure (python 3.8.0)?
         ctx.prec = 18  # Perform a high precision calculation
         # Sanity check for lock_duration_coefficient_1 (k1), issuance_decay_coefficient (d) and lock_duration_coefficient_2 (k2)
         expected = e.lock_duration_coefficient_1 * e.token_halving

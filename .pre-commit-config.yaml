@@ -14,7 +14,7 @@ repos:
         entry: scripts/hooks/run_unit_tests.sh
         language: system
         types: [python]
-        stages: [push]
+        stages: [push]  # required additional setup: pre-commit install && pre-commit install -t pre-push
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.5.0
