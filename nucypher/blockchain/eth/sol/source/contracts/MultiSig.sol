@@ -30,9 +30,7 @@ contract MultiSig {
         _;
     }
 
-    // TODO #1809
-//    receive() external payable {}
-    fallback() external payable {}
+    receive() external payable {}
 
     /**
     * @param _required Number of required signings

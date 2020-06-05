@@ -131,7 +131,19 @@ contract Dispatcher is Upgradeable, ERCProxy {
     function finishUpgrade(address) public override {}
 
     /**
-    * @dev Fallback function send all requests to the target contract
+    * @dev Receive function sends empty request to the target contract
+    */
+    receive() external payable {
+        assert(target.isContract());
+        // execute receive function from target contract using storage of the dispatcher
+        (bool callSuccess,) = target.delegatecall("");
+        if (!callSuccess) {
+            revert();
+        }
+    }
+
+    /**
+    * @dev Fallback function sends all requests to the target contract
     */
     fallback() external payable {
         assert(target.isContract());

@@ -71,15 +71,12 @@ abstract contract AbstractStakingContract {
     */
     function withdrawETH() public virtual;
 
+    receive() external payable {}
+
     /**
     * @dev Function sends all requests to the target contract
     */
-    // TODO #1809
     fallback() external payable {
-        if (msg.data.length == 0) {
-            return;
-        }
-
         require(isFallbackAllowed());
         address target = address(router.target());
         require(target.isContract());
