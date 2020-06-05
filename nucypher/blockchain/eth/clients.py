@@ -326,7 +326,7 @@ class EthereumClient:
         self.log.info(f"Transaction {Web3.toHex(transaction_hash)} is preliminarily included in "
                       f"block {preliminary_block_hash}")
 
-        confirmations_timeout = 3 * AVERAGE_BLOCK_TIME_IN_SECONDS * confirmations
+        confirmations_timeout = self._calculate_confirmations_timeout(confirmations)
         confirmations_so_far = 0
         with Timeout(seconds=confirmations_timeout, exception=self.NotEnoughConfirmations) as timeout_context:
             while confirmations_so_far < confirmations:
@@ -336,6 +336,11 @@ class EthereumClient:
                 self.log.info(f"We have {confirmations_so_far} confirmations. "
                               f"Waiting for {confirmations - confirmations_so_far} more.")
             return receipt
+
+    @staticmethod
+    def _calculate_confirmations_timeout(confirmations):
+        confirmations_timeout = 3 * AVERAGE_BLOCK_TIME_IN_SECONDS * confirmations
+        return confirmations_timeout
 
     def check_transaction_is_on_chain(self, receipt: dict) -> bool:
         transaction_hash = Web3.toHex(receipt['transactionHash'])
