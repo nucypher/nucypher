@@ -217,7 +217,7 @@ class Alice(Character, BlockchainPolicyAuthor):
             policy = FederatedPolicy(alice=self, **payload)
 
         else:
-            # Sample from blockchain via PolicyManager
+            # Sample from nucypher.blockchain.via PolicyManager
             from nucypher.policy.policies import BlockchainPolicy
             payload.update(**policy_params)
             policy = BlockchainPolicy(alice=self, **payload)

@@ -15,7 +15,10 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
+import collections
 import os
+import pprint
 import threading
 import time
 from pathlib import Path
@@ -24,7 +27,6 @@ from urllib.parse import urlparse
 
 import click
 import requests
-from blockchain.eth.sol.compile.compile import multiversion_compile
 from constant_sorrow.constants import (
     INSUFFICIENT_ETH,
     NO_BLOCKCHAIN_CONNECTION,
@@ -35,6 +37,8 @@ from constant_sorrow.constants import (
 from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import to_checksum_address
+from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
+from nucypher.blockchain.eth.sol.compile.constants import SOLIDITY_SOURCE_ROOT
 from twisted.logger import Logger
 from web3 import HTTPProvider, IPCProvider, Web3, WebsocketProvider, middleware
 from web3.contract import Contract, ContractConstructor, ContractFunction
@@ -42,7 +46,7 @@ from web3.exceptions import ValidationError, TimeExhausted
 from web3.gas_strategies import time_based
 from web3.middleware import geth_poa_middleware
 
-from blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (

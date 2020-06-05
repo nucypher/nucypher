@@ -19,7 +19,7 @@ import re
 from hypothesis import given, example, settings
 from hypothesis import strategies
 
-from blockchain.eth.sol.compile.constants import DEVDOC_VERSION_PATTERN, DEFAULT_VERSION_STRING
+from nucypher.blockchain.eth.sol.compile.constants import DEVDOC_VERSION_PATTERN, DEFAULT_VERSION_STRING
 
 
 @example('|v1.2.3|')

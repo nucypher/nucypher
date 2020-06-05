@@ -23,13 +23,13 @@ from typing import Tuple, List, Dict
 from cytoolz.dicttoolz import merge, merge_with
 from pathlib import Path
 
-from blockchain.eth.sol.__conf__ import SOLIDITY_COMPILER_VERSION
-from blockchain.eth.sol.compile.aggregation import merge_contract_outputs
-from blockchain.eth.sol.compile.collect import collect_sources
-from blockchain.eth.sol.compile.config import BASE_COMPILER_CONFIGURATION
-from blockchain.eth.sol.compile.config import ALLOWED_PATHS
-from blockchain.eth.sol.compile.solc import __execute
-from blockchain.eth.sol.compile.types import VersionString, VersionedContractOutputs, CompiledContractOutputs
+from nucypher.blockchain.eth.sol.__conf__ import SOLIDITY_COMPILER_VERSION
+from nucypher.blockchain.eth.sol.compile.aggregation import merge_contract_outputs
+from nucypher.blockchain.eth.sol.compile.collect import collect_sources
+from nucypher.blockchain.eth.sol.compile.config import BASE_COMPILER_CONFIGURATION
+from nucypher.blockchain.eth.sol.compile.config import ALLOWED_PATHS
+from nucypher.blockchain.eth.sol.compile.solc import __execute
+from nucypher.blockchain.eth.sol.compile.types import VersionString, VersionedContractOutputs, CompiledContractOutputs
 
 
 def compile_sources(solidity_source_dir: Path, version_check: bool = True) -> Dict:

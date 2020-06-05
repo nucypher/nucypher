@@ -19,9 +19,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from cytoolz.dicttoolz import merge
 from typing import Dict
 
-from blockchain.eth.sol.compile.constants import DEFAULT_VERSION_STRING, DEVDOC_VERSION_PATTERN, SOLC_LOGGER
-from blockchain.eth.sol.compile.exceptions import CompilationError, ProgrammingError
-from blockchain.eth.sol.compile.types import VersionedContractOutputs, CompiledContractOutputs
+from nucypher.blockchain.eth.sol.compile.constants import DEFAULT_VERSION_STRING, DEVDOC_VERSION_PATTERN, SOLC_LOGGER
+from nucypher.blockchain.eth.sol.compile.exceptions import CompilationError, ProgrammingError
+from nucypher.blockchain.eth.sol.compile.types import VersionedContractOutputs, CompiledContractOutputs
 
 
 def extract_version(compiled_contract_outputs: dict) -> str:

@@ -16,8 +16,9 @@
 """
 
 
-from eth_typing.evm import ChecksumAddress
 from typing import TypeVar, NewType, Tuple, NamedTuple, Union
+
+from eth_typing.evm import ChecksumAddress
 from web3.types import Wei, Timestamp, TxReceipt
 
 NuNits = NewType("NuNits", int)
@@ -30,7 +31,7 @@ ContractReturnValue = TypeVar('ContractReturnValue', bound=Union[TxReceipt, Wei,
 
 
 class ContractParams(Tuple):
-    pass
+    pass  # TODO
 
 
 class WorklockParameters(ContractParams):

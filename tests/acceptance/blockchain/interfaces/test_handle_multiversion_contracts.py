@@ -18,7 +18,7 @@
 import pytest
 from pathlib import Path
 
-from blockchain.eth.sol.compile.config import ALLOWED_PATHS
+from nucypher.blockchain.eth.sol.compile.config import ALLOWED_PATHS
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 
