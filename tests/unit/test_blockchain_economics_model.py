@@ -16,7 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from nucypher.blockchain.economics import LOG2, StandardTokenEconomics
 
@@ -47,22 +47,26 @@ def test_rough_economics():
     assert float(round(e.erc20_total_supply / Decimal(1e9), 2)) == 3.89  # As per economics paper
 
     # Check that we have correct numbers in day 1 of the second phase
-    initial_rate = (e.erc20_total_supply - int(e.first_phase_total_supply)) * (e.lock_duration_coefficient_1 + 365) / \
-                   (e.issuance_decay_coefficient * e.lock_duration_coefficient_2)
+    initial_rate = (e.erc20_total_supply - int(e.first_phase_total_supply)) \
+        * (e.lock_duration_coefficient_1 + 365) \
+        / (e.issuance_decay_coefficient * e.lock_duration_coefficient_2)
     assert int(initial_rate) == int(e.first_phase_max_issuance)
 
-    initial_rate_small = (e.erc20_total_supply - int(e.first_phase_total_supply)) * e.lock_duration_coefficient_1 / \
-                         (e.issuance_decay_coefficient * e.lock_duration_coefficient_2)
+    initial_rate_small = (e.erc20_total_supply - int(e.first_phase_total_supply))\
+        * e.lock_duration_coefficient_1 \
+        / (e.issuance_decay_coefficient * e.lock_duration_coefficient_2)
     assert int(initial_rate_small) == int(initial_rate / 2)
 
     # Sanity check that total and reward supply calculated correctly
     assert int(LOG2 / (e.token_halving * 365) * (e.erc20_total_supply - int(e.first_phase_total_supply))) == int(initial_rate)
     assert int(e.reward_supply) == int(e.erc20_total_supply - Decimal(int(1e9)))
 
-    # Sanity check for lock_duration_coefficient_1 (k1), issuance_decay_coefficient (d) and lock_duration_coefficient_2 (k2)
-    assert e.lock_duration_coefficient_1 * e.token_halving == \
-           e.issuance_decay_coefficient * e.lock_duration_coefficient_2 * LOG2 * e.small_stake_multiplier / 365
-
+    with localcontext() as ctx:
+        ctx.prec = 18  # Perform a high precision calculation
+        # Sanity check for lock_duration_coefficient_1 (k1), issuance_decay_coefficient (d) and lock_duration_coefficient_2 (k2)
+        expected = e.lock_duration_coefficient_1 * e.token_halving
+        result = e.issuance_decay_coefficient * e.lock_duration_coefficient_2 * LOG2 * e.small_stake_multiplier / 365
+        assert expected == result
 
 
 def test_economic_parameter_aliases():
