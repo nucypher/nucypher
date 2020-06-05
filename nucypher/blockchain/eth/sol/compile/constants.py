@@ -16,21 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from logging import Logger
-
 import re
-
-from nucypher.exceptions import DevelopmentInstallationRequired
-
-try:
-    import tests
-except ImportError:
-    raise DevelopmentInstallationRequired(importable_name='tests')
-
+from logging import Logger
 from pathlib import Path
 from typing import Tuple, Pattern
 
-from nucypher.blockchain.eth import sol
+from nucypher.config.constants import NUCYPHER_TEST_DIR
 
 # Logging
 SOLC_LOGGER = Logger("solidity-compilation")
@@ -40,9 +31,11 @@ CONTRACTS = 'contracts'
 ZEPPELIN: str = 'zeppelin'
 ARAGON: str = 'aragon'
 
-# Base Paths
+
+TEST_SOLIDITY_SOURCE_ROOT: Path = Path(NUCYPHER_TEST_DIR).parent / CONTRACTS / CONTRACTS
+
+from nucypher.blockchain.eth import sol
 SOLIDITY_SOURCE_ROOT: Path = Path(sol.__file__).parent / 'source'
-TEST_SOLIDITY_SOURCE_ROOT: Path = Path(tests.__file__).parent / CONTRACTS / CONTRACTS
 
 # Import Remapping
 ZEPPELIN_DIR: Path = SOLIDITY_SOURCE_ROOT / ZEPPELIN
