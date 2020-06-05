@@ -9,6 +9,13 @@ repos:
         entry: ./scripts/hooks/validate_circleci_config.sh
         language: script
 
+      - id: tests
+        name: Run Nucypher Unit Tests
+        entry: scripts/hooks/run_unit_tests.sh
+        language: system
+        types: [python]
+        stages: [push]
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.5.0
     hooks:
