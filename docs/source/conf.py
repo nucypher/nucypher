@@ -224,7 +224,10 @@ def remove_module_license(app, what, name, obj, options, lines):
 
 
 def run_apidoc(_):
+    """# sphinx-apidoc [OPTIONS] -o <OUTPUT_PATH> <MODULE_PATH> [EXCLUDE_PATTERN …]"""
+
     from sphinx.ext import apidoc
+
     source_dir = Path(__file__).parent.resolve()
     nucypher_module_dir = source_dir.parent.parent
 
@@ -239,10 +242,18 @@ def run_apidoc(_):
 
     # ---- exclusion patterns (*must be last to be added*) ----
     # general patterns
-    apidoc_command.append('*conftest*')
+    apidoc_command.extend([
+        '*conftest*',
+    ])
 
     # files/folders relative to `nucypher` project directory (results in required absolute paths)
-    exclusion_items = ['setup.py', 'tests', Path('nucypher', 'utilities'), 'scripts']
+    exclusion_items = [
+        'setup.py',
+        'tests',
+        'scripts',
+        Path('nucypher', 'utilities'),
+        Path('nucypher', 'blockchain', 'eth', 'sol'),
+    ]
     for exclusion_item in exclusion_items:
         apidoc_command.append(f'{nucypher_module_dir / exclusion_item}')
 
