@@ -18,24 +18,19 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import contextlib
 import json
-import random
-
-import maya
 import os
-import pytest
+import random
 import shutil
 import tempfile
-from click.testing import CliRunner
 from datetime import datetime, timedelta
+from typing import Tuple
+
+import maya
+import pytest
+from click.testing import CliRunner
 from eth_utils import to_checksum_address
-from io import StringIO
 from sqlalchemy.engine import create_engine
 from twisted.logger import Logger
-from typing import Tuple
-from umbral import pre
-from umbral.curvebn import CurveBN
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
 from web3 import Web3
 
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
@@ -55,7 +50,7 @@ from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalCont
 from nucypher.blockchain.eth.signers import Web3Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.characters.lawful import Bob, Enrico
+from nucypher.characters.lawful import Enrico
 from nucypher.config.characters import (
     AliceConfiguration,
     BobConfiguration,
@@ -64,10 +59,8 @@ from nucypher.config.characters import (
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
-from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.datastore import datastore
 from nucypher.datastore.db import Base
-from nucypher.policy.collections import IndisputableEvidence, WorkOrder
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import (
     BASE_TEMP_DIR,
@@ -109,9 +102,12 @@ from tests.utils.config import (
 )
 from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
 from tests.utils.policy import generate_random_label
-from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, make_decentralized_ursulas, make_federated_ursulas
-
-test_logger = Logger("test-logger")
+from tests.utils.ursula import (
+    MOCK_URSULA_STARTING_PORT,
+    make_decentralized_ursulas,
+    make_federated_ursulas,
+    _mock_ursula_reencrypts
+)
 
 
 #
@@ -702,53 +698,6 @@ def funded_blockchain(testerchain, agency, token_economics, test_registry):
 # Re-Encryption
 #
 
-def _mock_ursula_reencrypts(ursula, corrupt_cfrag: bool = False):
-    delegating_privkey = UmbralPrivateKey.gen_key()
-    _symmetric_key, capsule = pre._encapsulate(delegating_privkey.get_pubkey())
-    signing_privkey = UmbralPrivateKey.gen_key()
-    signing_pubkey = signing_privkey.get_pubkey()
-    signer = Signer(signing_privkey)
-    priv_key_bob = UmbralPrivateKey.gen_key()
-    pub_key_bob = priv_key_bob.get_pubkey()
-    kfrags = pre.generate_kfrags(delegating_privkey=delegating_privkey,
-                                 signer=signer,
-                                 receiving_pubkey=pub_key_bob,
-                                 threshold=2,
-                                 N=4,
-                                 sign_delegating_key=False,
-                                 sign_receiving_key=False)
-    capsule.set_correctness_keys(delegating_privkey.get_pubkey(), pub_key_bob, signing_pubkey)
-
-    ursula_pubkey = ursula.stamp.as_umbral_pubkey()
-
-    alice_address = canonical_address_from_umbral_key(signing_pubkey)
-    blockhash = bytes(32)
-
-    specification = b''.join((bytes(capsule),
-                              bytes(ursula_pubkey),
-                              bytes(ursula.decentralized_identity_evidence),
-                              alice_address,
-                              blockhash))
-
-    bobs_signer = Signer(priv_key_bob)
-    task_signature = bytes(bobs_signer(specification))
-
-    metadata = bytes(ursula.stamp(task_signature))
-
-    cfrag = pre.reencrypt(kfrags[0], capsule, metadata=metadata)
-
-    if corrupt_cfrag:
-        cfrag.proof.bn_sig = CurveBN.gen_rand(capsule.params.curve)
-
-    cfrag_signature = bytes(ursula.stamp(bytes(cfrag)))
-
-    bob = Bob.from_public_keys(verifying_key=pub_key_bob)
-    task = WorkOrder.PRETask(capsule, task_signature, cfrag, cfrag_signature)
-    work_order = WorkOrder(bob, None, alice_address, [task], None, ursula, blockhash)
-
-    evidence = IndisputableEvidence(task, work_order)
-    return evidence
-
 
 @pytest.fixture(scope='session')
 def mock_ursula_reencrypts():
@@ -869,10 +818,15 @@ def manual_worker(testerchain):
 #
 
 # TODO : Use a pytest Flag to enable/disable this functionality
+test_logger = Logger("test-logger")
+
+
 @pytest.fixture(autouse=True, scope='function')
 def log_in_and_out_of_test(request):
     test_name = request.node.name
     module_name = request.module.__name__
+
+
     test_logger.info(f"Starting {module_name}.py::{test_name}")
     yield
     test_logger.info(f"Finalized {module_name}.py::{test_name}")
