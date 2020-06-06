@@ -18,32 +18,38 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import json
-from os.path import abspath, dirname
-
 import io
+import json
 import os
 import re
-import sys
-import tabulate
 import time
+from os.path import abspath, dirname
+from unittest.mock import Mock
+
+import tabulate
 from twisted.logger import ILogObserver, globalLogPublisher, jsonFileLogObserver
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
-from unittest.mock import Mock
 from zope.interface import provider
 
+from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.blockchain.economics import StandardTokenEconomics
-from nucypher.blockchain.eth.agents import AdjudicatorAgent, NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import (
+    AdjudicatorAgent,
+    NucypherTokenAgent,
+    PolicyManagerAgent,
+    StakingEscrowAgent
+)
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import Logger
 from tests.utils.blockchain import TesterBlockchain
 
-# FIXME: Needed to use a fixture here, but now estimate_gas.py only runs if executed from main directory
-sys.path.insert(0, abspath('tests'))
-from fixtures import _mock_ursula_reencrypts as mock_ursula_reencrypts
+try:
+    from tests.utils.ursula import _mock_ursula_reencrypts as mock_ursula_reencrypts
+except ImportError:
+    raise DevelopmentInstallationRequired(importable_name='tests.utils.ursula')
 
 
 ALGORITHM_SHA256 = 1
@@ -176,7 +182,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
         compiled_contract = testerchain._raw_contract_cache[contract_name]
 
         version = list(compiled_contract).pop()
-        bin_runtime = compiled_contract[version]['bin-runtime']
+        bin_runtime = compiled_contract[version]['evm']['bytecode']['object']
         bin_length_in_bytes = len(bin_runtime) // 2
         percentage = int(100 * bin_length_in_bytes / MAX_SIZE)
         bar = ('*'*(percentage//2)).ljust(50)
