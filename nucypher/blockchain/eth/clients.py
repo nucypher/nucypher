@@ -284,7 +284,7 @@ class EthereumClient:
 
     def wait_for_receipt(self,
                          transaction_hash: str,
-                         timeout: int,
+                         timeout: float,
                          confirmations: int = 0) -> TxReceipt:
         receipt = None
         if confirmations:
@@ -298,11 +298,9 @@ class EthereumClient:
                         receipt = self.block_until_enough_confirmations(transaction_hash=transaction_hash,
                                                                         timeout=timeout,
                                                                         confirmations=confirmations)
-                    except (self.ChainReorganizationDetected, TimeExhausted):
+                    except (self.ChainReorganizationDetected, self.NotEnoughConfirmations, TimeExhausted):
                         timeout_context.sleep(self.BLOCK_CONFIRMATIONS_POLLING_TIME)
                         continue
-                    except self.NotEnoughConfirmations:
-                        raise  # TODO: What should we do here?
 
         else:
             # If not asking for confirmations, just use web3 and assume the returned receipt is final
@@ -315,7 +313,7 @@ class EthereumClient:
 
         return receipt
 
-    def block_until_enough_confirmations(self, transaction_hash: str, timeout: int, confirmations: int) -> dict:
+    def block_until_enough_confirmations(self, transaction_hash: str, timeout: float, confirmations: int) -> dict:
 
         receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash=transaction_hash,
                                                         timeout=timeout,
