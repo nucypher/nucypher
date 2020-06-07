@@ -163,70 +163,28 @@ def test_multiversion_contract():
     assert contract.functions.VERSION().call() == 2
 
 
-def test_block_confirmations(testerchain, test_registry):
-
-    testerchain.TIMEOUT = 5  # Reduce timeout for tests, for the moment
-    from nucypher.blockchain.eth import constants
-    constants.AVERAGE_BLOCK_TIME_IN_SECONDS = 1
+def test_block_confirmations(testerchain, test_registry, mocker):
     origin = testerchain.etherbase_account
+
+    # Mocks and test adjustments
+    testerchain.TIMEOUT = 5  # Reduce timeout for tests, for the moment
+    mocker.patch.object(testerchain.client, '_calculate_confirmations_timeout', return_value=1)
     EthereumClient.BLOCK_CONFIRMATIONS_POLLING_TIME = 0.1
+    EthereumClient.COOLING_TIME = 0
 
     # Let's try to deploy a simple contract (ReceiveApprovalMethodMock) with 1 confirmation.
-    # Since the testerchain doesn't automine, this fails.
-    with pytest.raises(EthereumClient.NotEnoughConfirmations):
-        _ = testerchain.deploy_contract(origin,
-                                        test_registry,
-                                        'ReceiveApprovalMethodMock',
-                                        confirmations=1)
+    # Since the testerchain doesn't mine new blocks automatically, this fails.
+    with pytest.raises(EthereumClient.TransactionTimeout):
+        _ = testerchain.deploy_contract(origin, test_registry, 'ReceiveApprovalMethodMock', confirmations=1)
 
     # Trying again with no confirmation succeeds.
-    contract, _ = testerchain.deploy_contract(origin,
-                                              test_registry,
-                                              'ReceiveApprovalMethodMock')
+    contract, _ = testerchain.deploy_contract(origin, test_registry, 'ReceiveApprovalMethodMock')
 
     # Trying a simple function of the contract with 1 confirmations fails too, for the same reason
     tx_function = contract.functions.receiveApproval(origin, 0, origin, b'')
-    with pytest.raises(EthereumClient.NotEnoughConfirmations):
-        _ = testerchain.send_transaction(contract_function=tx_function,
-                                         sender_address=origin,
-                                         confirmations=1)
+    with pytest.raises(EthereumClient.TransactionTimeout):
+        _ = testerchain.send_transaction(contract_function=tx_function, sender_address=origin, confirmations=1)
 
     # Trying again with no confirmation succeeds.
-    tx_receipt = testerchain.send_transaction(contract_function=tx_function,
-                                              sender_address=origin,
-                                              confirmations=0)
-
-    # # Ok, I admit that the tests so far weren't very exciting, since we cannot directly test confirmations
-    # # as new blocks are not mined continuously in our test framework.
-    # # Let's do something hacky and monkey-patch the method that checks the number of confirmations to
-    # # mine a new block, say, each 5 seconds.
-    #
-    # get_confirmations = testerchain.get_confirmations
-    #
-    # def patched_get_confirmations(self, receipt):
-    #     now = maya.now().second
-    #     elapsed = now - patched_get_confirmations.timestamp
-    #     blocks = elapsed // 5
-    #     if blocks > 0:
-    #         testerchain.w3.eth.web3.testing.mine(blocks)
-    #         patched_get_confirmations.timestamp = now
-    #     return get_confirmations(receipt)
-    #
-    # patched_get_confirmations.timestamp = maya.now().second
-    # testerchain.get_confirmations = types.MethodType(patched_get_confirmations, testerchain)
-    #
-    # # With a timeout of 30, now we can ask for 1 or 2 confirmations...
-    # testerchain.TIMEOUT = 30
-    # _ = testerchain.send_transaction(contract_function=tx_function,
-    #                                  sender_address=origin,
-    #                                  confirmations=1)
-    #
-    # _ = testerchain.send_transaction(contract_function=tx_function,
-    #                                  sender_address=origin,
-    #                                  confirmations=2)
-    #
-    # # ... but not 10, that's too much.
-    # with pytest.raises(testerchain.NotEnoughConfirmations):
-    #     _ = testerchain.send_transaction(contract_function=tx_function,
-    #                                      sender_address=origin,
-    #                                      confirmations=10)
+    receipt = testerchain.send_transaction(contract_function=tx_function, sender_address=origin, confirmations=0)
+    assert receipt['status'] == 1
