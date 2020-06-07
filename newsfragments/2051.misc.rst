@@ -1,0 +1,1 @@
+Reworks internal solidity compiler usage to implement "Standard JSON Compile".
