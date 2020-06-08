@@ -28,8 +28,8 @@ from prometheus_client import (
 )
 from prometheus_client.core import GaugeHistogramMetricFamily, Timestamp
 
-from nucypher.utilities.prometheus import JSONMetricsResource
-from nucypher.utilities.prometheus import PrometheusMetricsConfig
+from nucypher.utilities.prometheus.metrics import JSONMetricsResource
+from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
 
 TEST_PREFIX = 'test_prefix'
 

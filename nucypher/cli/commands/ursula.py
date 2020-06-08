@@ -73,7 +73,7 @@ from nucypher.config.constants import (
 )
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.networking import determine_external_ip_address
-from nucypher.utilities.prometheus import PrometheusMetricsConfig
+from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
 
 
 class UrsulaConfigOptions:

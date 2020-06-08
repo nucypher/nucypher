@@ -76,7 +76,7 @@ from nucypher.network.nodes import NodeSprout, Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
-from nucypher.utilities.prometheus import initialize_prometheus_exporter, PrometheusMetricsConfig
+from nucypher.utilities.prometheus.metrics import initialize_prometheus_exporter, PrometheusMetricsConfig
 
 
 class Alice(Character, BlockchainPolicyAuthor):
