@@ -19,10 +19,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 class NetworksInventory:  # TODO: See #1564
 
     MAINNET = 'mainnet'
-    MIRANDA = 'miranda'
-    FRANCES = 'frances'
-    CASSANDRA = 'cassandra'
-    GEMINI = 'gemini'
     IBEX = 'ibex'
 
     UNKNOWN = 'unknown'  # TODO: Is there a better way to signal an unknown network?
@@ -30,10 +26,6 @@ class NetworksInventory:  # TODO: See #1564
 
     __to_ethereum_chain_id = {
         MAINNET: 1,  # Ethereum Mainnet
-        MIRANDA: 5,  # Goerli
-        FRANCES: 5,  # Goerli
-        CASSANDRA: 5,  # Goerli
-        GEMINI: 5,  # Goerli
         IBEX: 4,  # Rinkeby
     }
 
