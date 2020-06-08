@@ -15,14 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import collections
 import os
 import pprint
 import threading
 import time
 from pathlib import Path
-from typing import Callable, Union, Tuple
+from typing import Callable, Tuple, Union, NamedTuple
 from urllib.parse import urlparse
 
 import click
@@ -32,7 +30,8 @@ from constant_sorrow.constants import (
     NO_BLOCKCHAIN_CONNECTION,
     NO_COMPILATION_PERFORMED,
     NO_PROVIDER_PROCESS,
-    READ_ONLY_INTERFACE
+    READ_ONLY_INTERFACE,
+    UNKNOWN_TX_STATUS
 )
 from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
@@ -46,7 +45,6 @@ from web3.exceptions import ValidationError, TimeExhausted
 from web3.gas_strategies import time_based
 from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
@@ -59,6 +57,7 @@ from nucypher.blockchain.eth.providers import (
     _get_test_geth_parity_provider,
     _get_websocket_provider
 )
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
@@ -913,10 +912,10 @@ class BlockchainInterfaceFactory:
     _interfaces = dict()
     _default_interface_class = BlockchainInterface
 
-    # TODO: Implement a subclass of NamedTuple
-    CachedInterface = collections.namedtuple('CachedInterface', ['interface',    # type: BlockchainInterface
-                                                                 'sync',         # type: bool
-                                                                 'emitter'])     # type: StdoutEmitter
+    class CachedInterface(NamedTuple):
+        interface: BlockchainInterface
+        sync: bool
+        emitter: StdoutEmitter
 
     class FactoryError(Exception):
         pass
