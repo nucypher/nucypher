@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 pragma solidity ^0.6.1;
 
 import "contracts/lib/UmbralDeserializer.sol";
@@ -11,9 +13,9 @@ library ReEncryptionValidator {
     using UmbralDeserializer for bytes;
 
 
-    //////////////////////////////////
+    //------------------------------//
     //   Umbral-specific constants  //
-    //////////////////////////////////
+    //------------------------------//
 
     // See parameter `u` of `UmbralParameters` class in pyUmbral
     // https://github.com/nucypher/pyUmbral/blob/master/umbral/params.py
@@ -22,9 +24,9 @@ library ReEncryptionValidator {
     uint256 public constant UMBRAL_PARAMETER_U_YCOORD = 0x7880ed56962d7c0ae44d6f14bb53b5fe64b31ea44a41d0316f3a598778f0f936;
 
 
-    //////////////////////////////////
+    //------------------------------//
     // SECP256K1-specific constants //
-    //////////////////////////////////
+    //------------------------------//
 
     // Base field order
     uint256 constant FIELD_ORDER = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F;

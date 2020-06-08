@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 pragma solidity ^0.6.5;
 
 
@@ -112,9 +114,7 @@ contract PolicyManagerForStakingContractMock {
         minFeeRate = _minFeeRate;
     }
 
-    // TODO #1809
-//    receive() external payable {}
-    fallback() external payable {}
+    receive() external payable {}
 }
 
 
@@ -193,12 +193,7 @@ contract StakingInterfaceMockV2 {
     address public immutable token = address(1);
     address public immutable escrow = address(1);
 
-    // TODO #1809
-//    receive() external payable {}
-    fallback() external payable {
-        // can only use with ETH
-        require(msg.value > 0);
-    }
+    receive() external payable {}
 
     function firstMethod(uint256) public pure {}
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 pragma solidity ^0.6.1;
 
 
@@ -30,9 +32,7 @@ contract MultiSig {
         _;
     }
 
-    // TODO #1809
-//    receive() external payable {}
-    fallback() external payable {}
+    receive() external payable {}
 
     /**
     * @param _required Number of required signings

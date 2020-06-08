@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 pragma solidity ^0.6.1;
 
 
@@ -19,9 +21,7 @@ contract ReentrancyTest {
         data = _data;
     }
 
-    // TODO #1809
-//    receive() external payable {
-    fallback() external payable {
+    receive() external payable {
         // call no more than maxDepth times
         if (lockCounter >= maxDepth) {
             return;

@@ -561,3 +561,56 @@ def test_selfdestruct(testerchain, deploy_contract):
     testerchain.wait_for_receipt(tx)
     assert 26 == contract_instance.functions.constructorValue().call()
     assert 34 == contract_instance.functions.functionValue().call()
+
+
+@pytest.mark.slow
+def test_receive_fallback(testerchain, deploy_contract):
+    # Deploy first contract
+    no_fallback_lib, _ = deploy_contract('NoFallback')
+    dispatcher, _ = deploy_contract('Dispatcher', no_fallback_lib.address)
+    contract_instance = testerchain.client.get_contract(
+        abi=no_fallback_lib.abi,
+        address=dispatcher.address,
+        ContractFactoryClass=Contract)
+
+    # Can't transfer ETH to this version of contract
+    value = 10000
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = testerchain.client.send_transaction(
+            {'from': testerchain.client.coinbase, 'to': contract_instance.address, 'value': value})
+        testerchain.wait_for_receipt(tx)
+    assert testerchain.client.get_balance(contract_instance.address) == 0
+
+    # Upgrade to other contract
+    receive_lib, _ = deploy_contract('OnlyReceive')
+    tx = dispatcher.functions.upgrade(receive_lib.address).transact()
+    testerchain.wait_for_receipt(tx)
+    contract_instance = testerchain.client.get_contract(
+        abi=receive_lib.abi,
+        address=dispatcher.address,
+        ContractFactoryClass=Contract)
+
+    # Transfer ETH and check which function was executed
+    tx = testerchain.client.send_transaction(
+        {'from': testerchain.client.coinbase, 'to': contract_instance.address, 'value': value})
+    testerchain.wait_for_receipt(tx)
+    assert contract_instance.functions.value().call() == value
+    assert contract_instance.functions.receiveRequests().call() == 1
+    assert testerchain.client.get_balance(contract_instance.address) == value
+
+    # Upgrade to other contract and transfer ETH again
+    receive_fallback_lib, _ = deploy_contract('ReceiveFallback')
+    tx = dispatcher.functions.upgrade(receive_fallback_lib.address).transact()
+    testerchain.wait_for_receipt(tx)
+    contract_instance = testerchain.client.get_contract(
+        abi=receive_fallback_lib.abi,
+        address=dispatcher.address,
+        ContractFactoryClass=Contract)
+
+    tx = testerchain.client.send_transaction(
+        {'from': testerchain.client.coinbase, 'to': contract_instance.address, 'value': value})
+    testerchain.wait_for_receipt(tx)
+    assert contract_instance.functions.receiveRequests().call() == 2
+    assert contract_instance.functions.value().call() == 2 * value
+    assert contract_instance.functions.fallbackRequests().call() == 0
+    assert testerchain.client.get_balance(contract_instance.address) == 2 * value
