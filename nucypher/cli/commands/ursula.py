@@ -20,13 +20,16 @@ import click
 import os
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
+
+from nucypher.cli.actions.configure import forget as forget_nodes
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
 from nucypher.cli.actions.configure import (
     destroy_configuration,
-    handle_missing_configuration_file, get_or_update_configuration
+    handle_missing_configuration_file,
+    get_or_update_configuration
 )
 from nucypher.cli.actions.select import select_client_account, select_config_file, select_network
 from nucypher.cli.commands.deploy import option_gas_strategy
@@ -342,7 +345,7 @@ def forget(general_config, config_options, config_file):
     emitter = setup_emitter(general_config, config_options.worker_address)
     _pre_launch_warnings(emitter, dev=config_options.dev, force=None)
     ursula_config = config_options.create_config(emitter, config_file)
-    forget(emitter, configuration=ursula_config)
+    forget_nodes(emitter, configuration=ursula_config)
 
 
 @ursula.command()
