@@ -439,7 +439,7 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
                                                        staking_escrow_address=escrow_address)
             click.confirm(prompt, abort=True)
 
-            receipts = staking_escrow_deployer.activate()
+            receipts = staking_escrow_deployer.activate(gas_limit=gas, confirmations=confirmations)
             for tx_name, receipt in receipts.items():
                 paint_receipt_summary(emitter=emitter,
                                       receipt=receipt,
