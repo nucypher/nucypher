@@ -16,24 +16,22 @@
 """
 
 import os
-import pytest
+
 from eth_utils import is_checksum_address, to_checksum_address
 
 from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface, \
+from nucypher.blockchain.eth.interfaces import (
+    BlockchainDeployerInterface,
+    BlockchainInterface,
     BlockchainInterfaceFactory
+)
 from nucypher.crypto.api import verify_eip_191
-#
-# NOTE: This module is skipped on CI
-#
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.markers import skip_on_circleci
 
 
+@skip_on_circleci
 def test_geth_EIP_191_client_signature_integration(instant_geth_dev_node):
-
-    # TODO: #1909 Move to decorator
-    if 'CIRCLECI' in os.environ:
-        pytest.skip("Do not run Geth nodes in CI")
 
     # Start a geth process
     blockchain = BlockchainInterface(provider_process=instant_geth_dev_node, poa=True)
@@ -49,25 +47,16 @@ def test_geth_EIP_191_client_signature_integration(instant_geth_dev_node):
     assert is_valid
 
 
+@skip_on_circleci
 def test_geth_create_new_account(instant_geth_dev_node):
-
-    # TODO: #1909 Move to decorator
-    if 'CIRCLECI' in os.environ:
-        pytest.skip("Do not run Geth nodes in CI")
-
     blockchain = BlockchainInterface(provider_process=instant_geth_dev_node, poa=True)
     blockchain.connect()
     new_account = blockchain.client.new_account(password=INSECURE_DEVELOPMENT_PASSWORD)
     assert is_checksum_address(new_account)
 
 
-@pytest.mark.skip(reason="See Issue #1955")
+@skip_on_circleci
 def test_geth_deployment_integration(instant_geth_dev_node, test_registry):
-
-    # TODO: #1909 Move to decorator
-    if 'CIRCLECI' in os.environ:
-        pytest.skip("Do not run Geth nodes in CI")
-
     blockchain = BlockchainDeployerInterface(provider_process=instant_geth_dev_node, poa=True)  # always poa here.
     BlockchainInterfaceFactory.register_interface(interface=blockchain)
 
