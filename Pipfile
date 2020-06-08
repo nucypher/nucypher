@@ -43,7 +43,8 @@ pytest-xdist = "*"
 pytest-twisted = "*"
 pytest-cov = "*"
 pytest-mock = "*"
-# Quality Tools
+# Tools
+hypothesis = "*"
 pre-commit = "*"
 pyflakes = "*"
 bandit = "*"

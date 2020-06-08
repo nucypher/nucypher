@@ -47,3 +47,5 @@ finnegans-wake.txt
 docs/build
 docs/source/modules.rst
 docs/source/api/
+
+tests/unit/.hypothesis/
