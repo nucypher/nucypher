@@ -27,10 +27,10 @@ from nucypher.blockchain.eth.interfaces import (
 )
 from nucypher.crypto.api import verify_eip_191
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
-from tests.markers import skip_circleci
+from tests.markers import skip_on_circleci
 
 
-@skip_circleci
+@skip_on_circleci
 def test_geth_EIP_191_client_signature_integration(instant_geth_dev_node):
 
     # Start a geth process
@@ -47,7 +47,7 @@ def test_geth_EIP_191_client_signature_integration(instant_geth_dev_node):
     assert is_valid
 
 
-@skip_circleci
+@skip_on_circleci
 def test_geth_create_new_account(instant_geth_dev_node):
     blockchain = BlockchainInterface(provider_process=instant_geth_dev_node, poa=True)
     blockchain.connect()
@@ -55,7 +55,7 @@ def test_geth_create_new_account(instant_geth_dev_node):
     assert is_checksum_address(new_account)
 
 
-@skip_circleci
+@skip_on_circleci
 def test_geth_deployment_integration(instant_geth_dev_node, test_registry):
     blockchain = BlockchainDeployerInterface(provider_process=instant_geth_dev_node, poa=True)  # always poa here.
     BlockchainInterfaceFactory.register_interface(interface=blockchain)
