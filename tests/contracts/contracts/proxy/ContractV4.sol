@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 pragma solidity ^0.6.1;
 
 
@@ -14,22 +16,22 @@ import "contracts/proxy/Upgradeable.sol";
 contract ContractV4 is Upgradeable {
 
     // slot allocation costs nothing
-    /// uint256 public storageValue;
+    // uint256 public storageValue;
     uint256 reservedSlot4;
-    /// string public dynamicallySizedValue;
+    // string public dynamicallySizedValue;
     uint256 reservedSlot5;
-    /// uint256[] public arrayValues;
+    // uint256[] public arrayValues;
     uint256 reservedSlot6;
-    /// mapping (uint256 => uint256) public mappingValues;
+    // mapping (uint256 => uint256) public mappingValues;
     uint256 reservedSlot7;
-    /// uint256[] public mappingIndices;
+    // uint256[] public mappingIndices;
     uint256 reservedSlot8;
 
     struct Structure1 {
         uint256 value;
         uint256[] arrayValues;
     }
-    /// Structure1[] public arrayStructures;
+    // Structure1[] public arrayStructures;
     uint256 reservedSlot9;
 
     struct Structure2 {
@@ -37,12 +39,12 @@ contract ContractV4 is Upgradeable {
         uint256[] arrayValues;
         uint256 valueToCheck;
     }
-    /// mapping (uint256 => Structure2) public mappingStructures;
+    // mapping (uint256 => Structure2) public mappingStructures;
     uint256 reservedSlot10;
-    /// uint256 public mappingStructuresLength;
+    // uint256 public mappingStructuresLength;
     uint256 reservedSlot11;
 
-    /// uint256 public storageValueToCheck;
+    // uint256 public storageValueToCheck;
     uint256 reservedSlot12;
     uint256 public anotherStorageValue;
 

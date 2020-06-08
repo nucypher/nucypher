@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 pragma solidity ^0.6.1;
 
 
@@ -37,7 +39,9 @@ abstract contract Upgradeable is Ownable {
     */
     uint256 stubSlot;
 
-    /** Constants for `isUpgrade` field **/
+    /**
+    * @dev Constants for `isUpgrade` field
+    */
     uint8 constant UPGRADE_FALSE = 1;
     uint8 constant UPGRADE_TRUE = 2;
 
