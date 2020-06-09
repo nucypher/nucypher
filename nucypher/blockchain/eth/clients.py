@@ -25,6 +25,7 @@ from constant_sorrow.constants import NOT_RUNNING, UNKNOWN_DEVELOPMENT_CHAIN_ID
 from cytoolz.dicttoolz import dissoc
 from eth_account import Account
 from eth_account.messages import encode_defunct
+from eth_typing import HexStr
 from eth_typing.evm import BlockNumber, ChecksumAddress
 from eth_utils import to_canonical_address, to_checksum_address
 from geth import LoggingMixin
@@ -113,6 +114,7 @@ class EthereumClient:
     BLOCK_CONFIRMATIONS_POLLING_TIME = 3  # seconds
     TRANSACTION_POLLING_TIME = 0.5  # seconds
     COOLING_TIME = 5  # seconds
+    STALECHECK_ALLOWABLE_DELAY = 30  # seconds
 
     class ConnectionNotEstablished(RuntimeError):
         pass
@@ -286,7 +288,7 @@ class EthereumClient:
                          transaction_hash: str,
                          timeout: float,
                          confirmations: int = 0) -> TxReceipt:
-        receipt = None
+        receipt: TxReceipt = None
         if confirmations:
             # If we're waiting for confirmations, we may as well let pass some time initially to make everything easier
             time.sleep(self.COOLING_TIME)
@@ -315,9 +317,9 @@ class EthereumClient:
 
     def block_until_enough_confirmations(self, transaction_hash: str, timeout: float, confirmations: int) -> dict:
 
-        receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash=transaction_hash,
-                                                        timeout=timeout,
-                                                        poll_latency=self.TRANSACTION_POLLING_TIME)
+        receipt: TxReceipt = self.w3.eth.waitForTransactionReceipt(transaction_hash=transaction_hash,
+                                                                   timeout=timeout,
+                                                                   poll_latency=self.TRANSACTION_POLLING_TIME)
 
         preliminary_block_hash = Web3.toHex(receipt['blockHash'])
         tx_block_number = Web3.toInt(receipt['blockNumber'])
@@ -340,7 +342,7 @@ class EthereumClient:
         confirmations_timeout = 3 * AVERAGE_BLOCK_TIME_IN_SECONDS * confirmations
         return confirmations_timeout
 
-    def check_transaction_is_on_chain(self, receipt: dict) -> bool:
+    def check_transaction_is_on_chain(self, receipt: TxReceipt) -> bool:
         transaction_hash = Web3.toHex(receipt['transactionHash'])
         try:
             new_receipt = self.w3.eth.getTransactionReceipt(transaction_hash=transaction_hash)
@@ -384,7 +386,7 @@ class EthereumClient:
     def _has_latest_block(self) -> bool:
         # TODO: Investigate using `web3.middleware.make_stalecheck_middleware` #2060
         # check that our local chain data is up to date
-        return (time.time() - self.get_blocktime()) < 30
+        return (time.time() - self.get_blocktime()) < self.STALECHECK_ALLOWABLE_DELAY
 
     def sync(self, timeout: int = 120, quiet: bool = False):
 
