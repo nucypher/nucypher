@@ -76,7 +76,7 @@ from nucypher.network.nodes import NodeSprout, Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
-from nucypher.utilities.prometheus.metrics import initialize_prometheus_exporter, PrometheusMetricsConfig
+from nucypher.utilities.prometheus.metrics import start_prometheus_exporter, PrometheusMetricsConfig
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -1142,7 +1142,7 @@ class Ursula(Teacher, Character, Worker):
 
         if prometheus_config:
             # TODO: Integrate with Hendrix TLS Deploy?
-            initialize_prometheus_exporter(ursula=self, prometheus_config=prometheus_config)
+            start_prometheus_exporter(ursula=self, prometheus_config=prometheus_config)
             if emitter:
                 emitter.message(f"✓ Prometheus Exporter", color='green')
 

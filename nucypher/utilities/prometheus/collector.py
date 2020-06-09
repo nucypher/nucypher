@@ -14,6 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from prometheus_client.metrics import MetricWrapperBase
 
 try:
     from prometheus_client import Gauge, Enum, Counter, Info, Histogram, Summary
@@ -29,9 +30,9 @@ from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, S
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 
-from prometheus_client.registry import CollectorRegistry, REGISTRY
+from prometheus_client.registry import CollectorRegistry
 
-from typing import Dict, Union
+from typing import Dict, List, Union
 
 ContractAgents = Union[StakingEscrowAgent, WorkLockAgent, PolicyManagerAgent]
 
@@ -44,7 +45,7 @@ class MetricsCollector(ABC):
         """Raised when the Collector was not initialized before being used."""
 
     @abstractmethod
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry = REGISTRY) -> None:
+    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         return NotImplemented
 
     @abstractmethod
@@ -72,7 +73,7 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
         super().__init__()
         self.ursula = ursula
 
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry = REGISTRY) -> None:
+    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         self.metrics = {
             "host_info": Info(f'{metrics_prefix}_host_info', 'Description of info', registry=registry),
             "learning_status": Enum(f'{metrics_prefix}_node_discovery', 'Learning loop status',
@@ -123,7 +124,7 @@ class BlockchainMetricsCollector(BaseMetricsCollector):
         super().__init__()
         self.provider_uri = provider_uri
 
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry = REGISTRY) -> None:
+    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         self.metrics = {
             "current_eth_block_number": Gauge(f'{metrics_prefix}_current_eth_block_number',
                                               'Current Ethereum block',
@@ -141,7 +142,7 @@ class StakerMetricsCollector(BaseMetricsCollector):
         self.staker_address = staker_address
         self.contract_registry = contract_registry
 
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry = REGISTRY) -> None:
+    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         self.metrics = {
             "current_period_gauge": Gauge(f'{metrics_prefix}_current_period', 'Current period', registry=registry),
             "eth_balance_gauge": Gauge(f'{metrics_prefix}_staker_eth_balance', 'Ethereum balance', registry=registry),
@@ -194,7 +195,7 @@ class WorkerMetricsCollector(BaseMetricsCollector):
         self.worker_address = worker_address
         self.contract_registry = contract_registry
 
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry = REGISTRY) -> None:
+    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         self.metrics = {
             "worker_eth_balance_gauge": Gauge(f'{metrics_prefix}_worker_eth_balance',
                                               'Worker Ethereum balance',
@@ -216,7 +217,7 @@ class WorkLockMetricsCollector(BaseMetricsCollector):
         self.staker_address = staker_address
         self.contract_registry = contract_registry
 
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry = REGISTRY) -> None:
+    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         self.metrics = {
             "available_refund_gauge": Gauge(f'{metrics_prefix}_available_refund',
                                             'Available refund',
@@ -259,11 +260,12 @@ class EventMetricsCollector(BaseMetricsCollector):
                                                                                     argument_filters=argument_filters)
         self.event_args_config = event_args_config
 
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry = REGISTRY) -> None:
+    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         self.metrics = dict()
         for arg_name in self.event_args_config:
             metric_class, metric_name, metric_doc = self.event_args_config[arg_name]
-            self.metrics[self._get_arg_metric_key(arg_name)] = metric_class(metric_name, metric_doc, registry=registry)
+            metric_key = self._get_arg_metric_key(arg_name)
+            self.metrics[metric_key] = metric_class(metric_name, metric_doc, registry=registry)
 
     def _collect_internal(self) -> None:
         events = self.event_filter.get_new_entries()
@@ -272,10 +274,11 @@ class EventMetricsCollector(BaseMetricsCollector):
 
     def _event_occurred(self, event) -> None:
         for arg_name in self.event_args_config:
+            metric_key = self._get_arg_metric_key(arg_name)
             if arg_name == "block_number":
-                self.metrics[self._get_arg_metric_key("block_number")].set(event["blockNumber"])
+                self.metrics[metric_key].set(event["blockNumber"])
                 continue
-            self.metrics[self._get_arg_metric_key(arg_name)].set(event['args'][arg_name])
+            self.metrics[metric_key].set(event['args'][arg_name])
 
     def _get_arg_metric_key(self, arg_name: str):
         return f'{self.event_name}_{arg_name}'
@@ -286,7 +289,7 @@ class ReStakeEventMetricsCollector(EventMetricsCollector):
         super().__init__(event_name=event_name, *args, **kwargs)
         self.staker_address = staker_address
 
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry = REGISTRY) -> None:
+    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         super().initialize(metrics_prefix=metrics_prefix, registry=registry)
 
         metric_key = self._get_arg_metric_key("reStake")
@@ -298,7 +301,7 @@ class WindDownEventMetricsCollector(EventMetricsCollector):
         super().__init__(event_name=event_name, *args, **kwargs)
         self.staker_address = staker_address
 
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry = REGISTRY) -> None:
+    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         super().initialize(metrics_prefix=metrics_prefix, registry=registry)
 
         metric_key = self._get_arg_metric_key("windDown")
@@ -307,8 +310,7 @@ class WindDownEventMetricsCollector(EventMetricsCollector):
 
 class WorkerBondedEventMetricsCollector(EventMetricsCollector):
     def __init__(self,
-                 staker_address:
-                 ChecksumAddress,
+                 staker_address: ChecksumAddress,
                  worker_address: ChecksumAddress,
                  event_name: str = 'WorkerBonded',
                  *args,
@@ -317,11 +319,15 @@ class WorkerBondedEventMetricsCollector(EventMetricsCollector):
         self.staker_address = staker_address
         self.worker_address = worker_address
 
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry = REGISTRY) -> None:
+    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         super().initialize(metrics_prefix=metrics_prefix, registry=registry)
         self.metrics["current_worker_is_me_gauge"] = Gauge(f'{metrics_prefix}_current_worker_is_me',
                                                            'Current worker is me',
                                                            registry=registry)
+
+        # set initial value
+        self.metrics["current_worker_is_me_gauge"].set(
+            self.contract_agent.get_worker_from_staker(self.staker_address) == self.worker_address)
 
     def _event_occurred(self, event) -> None:
         super()._event_occurred(event)
@@ -329,40 +335,56 @@ class WorkerBondedEventMetricsCollector(EventMetricsCollector):
             self.contract_agent.get_worker_from_staker(self.staker_address) == self.worker_address)
 
 
-class BidEventMetricsCollector(EventMetricsCollector):
-    def __init__(self, staker_address: ChecksumAddress, event_name: str = 'Bid', *args, **kwargs):
-        super().__init__(event_name=event_name, *args, **kwargs)
-        self.staker_address = staker_address
+class BidRefundCompositeEventMetricsCollector(MetricsCollector):
+    COMMON_METRIC_KEY = "worklock_deposited_eth_gauge"
 
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry = REGISTRY) -> None:
-        super().initialize(metrics_prefix=metrics_prefix, registry=registry)
+    class BidRefundCommonCollector(EventMetricsCollector):
+        def __init__(self, staker_address: ChecksumAddress, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.staker_address = staker_address
 
-        if "worklock_deposited_eth_gauge" not in self.metrics:
-            # TODO Gross and needs to be linked with RefundEventMetricsCollector somehow
-            self.metrics["worklock_deposited_eth_gauge"] = Gauge(f'{metrics_prefix}_worklock_current_deposited_eth',
-                                                                 'Worklock deposited ETH',
-                                                                 registry=registry)
+        def add_common_metric(self, metric: MetricWrapperBase):
+            self.metrics[BidRefundCompositeEventMetricsCollector.COMMON_METRIC_KEY] = metric
 
-    def _event_occurred(self, event) -> None:
-        super()._event_occurred(event)
-        self.metrics["worklock_deposited_eth_gauge"].set(
-            self.contract_agent.get_deposited_eth(self.staker_address))
+        def _event_occurred(self, event) -> None:
+            super()._event_occurred(event)
+            self.metrics[BidRefundCompositeEventMetricsCollector.COMMON_METRIC_KEY].set(
+                self.contract_agent.get_deposited_eth(self.staker_address))
 
+    def __init__(self, staker_address: ChecksumAddress, contract_registry: BaseContractRegistry, metrics_prefix: str):
+        # Bid/Refund (Modify the same metric)
+        worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=contract_registry)
 
-class RefundEventMetricsCollector(EventMetricsCollector):
-    def __init__(self, staker_address: ChecksumAddress, event_name: str = 'Refund', *args, **kwargs):
-        super().__init__(event_name=event_name, *args, **kwargs)
-        self.staker_address = staker_address
+        self.collectors: List[BidRefundCompositeEventMetricsCollector.BidRefundCommonCollector] = [
+            # Bid Events
+            self.BidRefundCommonCollector(
+                event_name='Bid',
+                event_args_config={
+                    "depositedETH": (Gauge, f'{metrics_prefix}_worklock_bid_depositedETH', 'Deposited ETH value')
+                },
+                argument_filters={"sender": staker_address},
+                staker_address=staker_address,
+                contract_agent=worklock_agent),
+            # Refund Events
+            self.BidRefundCommonCollector(
+                event_name='Refund',
+                event_args_config={
+                    "refundETH": (Gauge, f'{metrics_prefix}_worklock_refund_refundETH', 'Refunded ETH')
+                },
+                argument_filters={"sender": staker_address},
+                staker_address=staker_address,
+                contract_agent=worklock_agent)
+        ]
 
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry = REGISTRY) -> None:
-        super().initialize(metrics_prefix=metrics_prefix, registry=registry)
-        if "worklock_deposited_eth_gauge" not in self.metrics:
-            # TODO Gross and needs to be linked with BidEventMetricsCollector somehow
-            self.metrics["worklock_deposited_eth_gauge"] = Gauge(f'{metrics_prefix}_worklock_current_deposited_eth',
-                                                                 'Worklock deposited ETH',
-                                                                 registry=registry)
+    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
+        common_gauge = Gauge(f'{metrics_prefix}_worklock_current_deposited_eth',
+                             'Worklock deposited ETH',
+                             registry=registry)
+        for collector in self.collectors:
+            collector.initialize(metrics_prefix, registry)
+            # manually add common gauge to both collectors' dictionary of metrics
+            collector.add_common_metric(common_gauge)
 
-    def _event_occurred(self, event) -> None:
-        super()._event_occurred(event)
-        self.metrics["worklock_deposited_eth_gauge"].set(
-            self.contract_agent.get_deposited_eth(self.staker_address))
+    def collect(self) -> None:
+        for collector in self.collectors:
+            collector.collect()

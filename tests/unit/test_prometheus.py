@@ -42,13 +42,28 @@ TEST_PREFIX = 'test_prefix'
 
 def test_prometheus_metrics_config():
     listen_address = '111.111.111.111'
-    prometheus_config = PrometheusMetricsConfig(port=2020,
+    port = 2020
+    prometheus_config = PrometheusMetricsConfig(port=port,
                                                 metrics_prefix=TEST_PREFIX,
                                                 listen_address=listen_address)
 
     assert prometheus_config.port == 2020
     assert prometheus_config.metrics_prefix == TEST_PREFIX
-    assert listen_address == listen_address
+    assert prometheus_config.listen_address == listen_address
+
+    # defaults
+    assert prometheus_config.collection_interval == 10
+    assert not prometheus_config.start_now
+
+    # non-defaults
+    collection_interval = 5
+    prometheus_config = PrometheusMetricsConfig(port=port,
+                                                metrics_prefix=TEST_PREFIX,
+                                                listen_address=listen_address,
+                                                collection_interval=collection_interval,
+                                                start_now=True)
+    assert prometheus_config.collection_interval == collection_interval
+    assert prometheus_config.start_now
 
 
 class TestGenerateJSON(unittest.TestCase):

@@ -31,15 +31,13 @@ from nucypher.utilities.prometheus.collector import (
     ReStakeEventMetricsCollector,
     WindDownEventMetricsCollector,
     WorkerBondedEventMetricsCollector,
-    RefundEventMetricsCollector,
-    BidEventMetricsCollector
-)
+    BidRefundCompositeEventMetricsCollector)
 
 import json
 from typing import List
 
 from prometheus_client.core import Timestamp
-from prometheus_client.registry import REGISTRY
+from prometheus_client.registry import CollectorRegistry, REGISTRY
 from prometheus_client.utils import floatToGoString
 from twisted.internet import reactor, task
 from twisted.web.resource import Resource
@@ -48,10 +46,17 @@ from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, W
 
 
 class PrometheusMetricsConfig:
-    def __init__(self, port: int, metrics_prefix: str, listen_address: str):
+    def __init__(self,
+                 port: int,
+                 metrics_prefix: str,
+                 listen_address: str,
+                 collection_interval: int = 10,
+                 start_now: bool = False):
         self.port = port
         self.metrics_prefix = metrics_prefix
         self.listen_address = listen_address
+        self.collection_interval = collection_interval
+        self.start_now = start_now
 
 
 class MetricsEncoder(json.JSONEncoder):
@@ -128,16 +133,17 @@ def collect_prometheus_metrics(metrics_collectors: List[MetricsCollector]) -> No
         collector.collect()
 
 
-def initialize_prometheus_exporter(ursula, prometheus_config: PrometheusMetricsConfig) -> None:
+def start_prometheus_exporter(ursula: 'Ursula',
+                              prometheus_config: PrometheusMetricsConfig,
+                              registry: CollectorRegistry = REGISTRY) -> None:
     from prometheus_client.twisted import MetricsResource
     from twisted.web.resource import Resource
     from twisted.web.server import Site
 
-    metrics_prefix = prometheus_config.metrics_prefix
-    metrics_collectors = create_metrics_collectors(ursula, metrics_prefix)
-    # initalized collectors
+    metrics_collectors = create_metrics_collectors(ursula, prometheus_config.metrics_prefix)
+    # initialize collectors
     for collector in metrics_collectors:
-        collector.initialize(metrics_prefix=metrics_prefix, registry=ursula.registry)
+        collector.initialize(metrics_prefix=prometheus_config.metrics_prefix, registry=registry)
 
     # TODO: was never used
     # "requests_counter": Counter(f'{metrics_prefix}_http_failures', 'HTTP Failures', ['method', 'endpoint']),
@@ -145,11 +151,12 @@ def initialize_prometheus_exporter(ursula, prometheus_config: PrometheusMetricsC
     # Scheduling
     metrics_task = task.LoopingCall(collect_prometheus_metrics,
                                     metrics_collectors=metrics_collectors)
-    metrics_task.start(interval=10, now=False)  # TODO: make configurable
+    metrics_task.start(interval=prometheus_config.collection_interval,
+                       now=prometheus_config.start_now)
 
     # WSGI Service
     root = Resource()
-    root.putChild(b'prometheus', MetricsResource())
+    root.putChild(b'metrics', MetricsResource())
     root.putChild(b'json_metrics', JSONMetricsResource())
     factory = Site(root)
     reactor.listenTCP(prometheus_config.port, factory, interface=prometheus_config.listen_address)
@@ -178,7 +185,7 @@ def create_metrics_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[Met
         # Events
         #
 
-        # StakingAgent Events
+        # Staking Events
         staking_events_collectors = create_staking_events_metric_collectors(ursula=ursula,
                                                                             metrics_prefix=metrics_prefix)
         collectors.extend(staking_events_collectors)
@@ -206,8 +213,8 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
         event_args_config={
             "value": (Gauge,
                       f'{metrics_prefix}_activity_confirmed_value',
-                      'Activity confirmed with value of locked tokens'),
-            "period": (Gauge, f'{metrics_prefix}_activity_confirmed_period', 'Activity confirmed period')
+                      'CommitmentMade to next period with value of locked tokens'),
+            "period": (Gauge, f'{metrics_prefix}_activity_confirmed_period', 'Commitment made for period')
         },
         argument_filters={'staker': ursula.checksum_address},
         contract_agent=staking_agent))
@@ -216,9 +223,9 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
     collectors.append(EventMetricsCollector(
         event_name='Minted',
         event_args_config={
-            "value": (Gauge, f'{metrics_prefix}_mined_value', 'Mined value'),
-            "period": (Gauge, f'{metrics_prefix}_mined_period', 'Mined period'),
-            "block_number": (Gauge, f'{metrics_prefix}_mined_block_number', 'Mined block number')
+            "value": (Gauge, f'{metrics_prefix}_mined_value', 'Minted value'),
+            "period": (Gauge, f'{metrics_prefix}_mined_period', 'Minted period'),
+            "block_number": (Gauge, f'{metrics_prefix}_mined_block_number', 'Minted block number')
         },
         argument_filters={'staker': ursula.checksum_address},
         contract_agent=staking_agent))
@@ -256,8 +263,8 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
     # WorkerBonded
     collectors.append(WorkerBondedEventMetricsCollector(
         event_args_config={
-            "startPeriod": (Gauge, f'{metrics_prefix}_worker_set_start_period', 'New worker was set'),
-            "block_number": (Gauge, f'{metrics_prefix}_worker_set_block_number', 'WorkerSet block number')
+            "startPeriod": (Gauge, f'{metrics_prefix}_worker_set_start_period', 'New worker was bonded'),
+            "block_number": (Gauge, f'{metrics_prefix}_worker_set_block_number', 'WorkerBonded block number')
         },
         argument_filters={'staker': ursula.checksum_address},
         staker_address=ursula.checksum_address,
@@ -289,22 +296,11 @@ def create_worklock_events_metric_collectors(ursula: 'Ursula', metrics_prefix: s
         argument_filters={"sender": ursula.checksum_address},
         contract_agent=worklock_agent))
 
-    # Bid/Refund (Modfy Same metric)
-    collectors.append(BidEventMetricsCollector(
-        event_args_config={
-            "depositedETH": (Gauge, f'{metrics_prefix}_worklock_bid_depositedETH', 'Deposited ETH value')
-        },
-        argument_filters={"sender": ursula.checksum_address},
+    # Bid/Refund (Modify a common metric)
+    collectors.append(BidRefundCompositeEventMetricsCollector(
         staker_address=ursula.checksum_address,
-        contract_agent=worklock_agent))
-
-    collectors.append(RefundEventMetricsCollector(
-        event_args_config={
-            "depositedETH": (Gauge, f'{metrics_prefix}_worklock_bid_depositedETH', 'Deposited ETH value')
-        },
-        argument_filters={"sender": ursula.checksum_address},
-        staker_address=ursula.checksum_address,
-        contract_agent=worklock_agent))
+        contract_registry=ursula.registry,
+        metrics_prefix=metrics_prefix))
 
     return collectors
 
