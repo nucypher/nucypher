@@ -727,57 +727,32 @@ class StakingEscrowAgent(EthereumContractAgent):
             staker_address: ChecksumAddress = self.contract.functions.stakers(index).call()
             yield staker_address
 
-    @contract_api(CONTRACT_CALL)
     def sample(self,
                quantity: int,
                duration: int,
                pagination_size: Optional[int] = None
                ) -> List[ChecksumAddress]:
-        """
-        Select n random Stakers, according to their stake distribution.
-        The returned addresses are shuffled.
+        reservoir = self.get_stakers_reservoir(duration=duration, pagination_size=pagination_size)
+        return reservoir.draw(quantity)
 
-        See full diagram here: https://github.com/nucypher/kms-whitepaper/blob/master/pdf/miners-ruler.pdf
+    @contract_api(CONTRACT_CALL)
+    def get_stakers_reservoir(self,
+                              duration: int,
+                              without: Iterable[ChecksumAddress] = [],
+                              pagination_size: Optional[int] = None) -> 'StakersReservoir':
+        n_tokens, stakers_map = self.get_all_active_stakers(periods=duration,
+                                                     pagination_size=pagination_size)
 
-        This method implements the Probability Proportional to Size (PPS) sampling algorithm.
-        In few words, the algorithm places in a line all active stakes that have locked tokens for
-        at least `duration` periods; a staker is selected if an input point is within its stake.
-        For example:
+        self.log.debug(f"Got {len(stakers_map)} stakers with {n_tokens} total tokens")
 
-        ```
-        Stakes: |----- S0 ----|--------- S1 ---------|-- S2 --|---- S3 ---|-S4-|----- S5 -----|
-        Points: ....R0.......................R1..................R2...............R3...........
-        ```
+        for address in without:
+            del stakers_map[address]
 
-        In this case, Stakers 0, 1, 3 and 5 will be selected.
-
-        Only stakers which made a commitment to the current period (in the previous period) are used.
-        """
-
-        n_tokens, stakers_map = self.get_all_active_stakers(periods=duration, pagination_size=pagination_size)
-
-        # TODO: can be implemented as an iterator if necessary, where the user can
-        # sample addresses one by one without calling get_all_active_stakers() repeatedly.
-
-        if n_tokens == 0:
+        # TODO: or is it enough to just make sure the number of remaining stakers is non-zero?
+        if sum(stakers_map.values()) == 0:
             raise self.NotEnoughStakers('There are no locked tokens for duration {}.'.format(duration))
 
-        if quantity > len(stakers_map):
-            raise self.NotEnoughStakers(f'Cannot sample {quantity} out of {len(stakers)} total stakers')
-
-        addresses = list(stakers_map.keys())
-        tokens = list(stakers_map.values())
-        sampler = WeightedSampler(addresses, tokens)
-
-        system_random = random.SystemRandom()
-        sampled_addresses = sampler.sample_no_replacement(system_random, quantity)
-
-        # Randomize the output to avoid the largest stakers always being the first in the list
-        system_random.shuffle(sampled_addresses) # inplace
-
-        self.log.debug(f"Sampled {len(addresses)} stakers: {list(sampled_addresses)}")
-
-        return sampled_addresses
+        return StakersReservoir(stakers_map)
 
     @contract_api(CONTRACT_CALL)
     def get_completed_work(self, bidder_address: ChecksumAddress) -> Work:
@@ -1657,7 +1632,10 @@ class WeightedSampler:
         (does not mutate the object and only applies to the current invocation of the method).
         """
 
-        if quantity > len(self.totals):
+        if quantity == 0:
+            return []
+
+        if quantity > len(self):
             raise ValueError("Cannot sample more than the total amount of elements without replacement")
 
         totals = self.totals.copy()
@@ -1676,3 +1654,27 @@ class WeightedSampler:
                 totals[j] -= weight
 
         return samples
+
+    def __len__(self):
+        return len(self.totals)
+
+
+class StakersReservoir:
+
+    def __init__(self, stakers_map):
+        addresses = list(stakers_map.keys())
+        tokens = list(stakers_map.values())
+        self._sampler = WeightedSampler(addresses, tokens)
+        self._rng = random.SystemRandom()
+
+    def __len__(self):
+        return len(self._sampler)
+
+    def draw(self, quantity):
+        if quantity > len(self):
+            raise StakingEscrowAgent.NotEnoughStakers(f'Cannot sample {quantity} out of {len(self)} total stakers')
+
+        return self._sampler.sample_no_replacement(self._rng, quantity)
+
+    def draw_at_most(self, quantity):
+        return self.draw(min(quantity, len(self)))

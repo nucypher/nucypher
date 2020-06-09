@@ -292,13 +292,13 @@ def test_lock_restaking(agency, testerchain, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     current_period = staking_agent.get_current_period()
     terminal_period = current_period + 2
-    
+
     assert staking_agent.is_restaking(staker_account)
     assert not staking_agent.is_restaking_locked(staker_account)
     receipt = staking_agent.lock_restaking(staker_account, release_period=terminal_period)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert staking_agent.is_restaking_locked(staker_account)
-    
+
     testerchain.time_travel(periods=2)  # Wait for re-staking lock to be released.
     assert not staking_agent.is_restaking_locked(staker_account)
 

@@ -44,7 +44,8 @@ from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     PreallocationEscrowAgent,
     StakingEscrowAgent,
-    WorkLockAgent
+    WorkLockAgent,
+    StakersReservoir,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import (
@@ -1545,16 +1546,11 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         payload = {**blockchain_payload, **policy_end_time}
         return payload
 
-    def recruit(self, quantity: int, **options) -> List[str]:
+    def get_stakers_reservoir(self, **options) -> StakersReservoir:
         """
-        Uses sampling logic to gather stakers from the blockchain and
-        caches the resulting node ethereum addresses.
-
-        :param quantity: Number of ursulas to sample from the blockchain.
-
+        Get a sampler object containing the currently registered stakers.
         """
-        staker_addresses = self.staking_agent.sample(quantity=quantity, **options)
-        return staker_addresses
+        return self.staking_agent.get_stakers_reservoir(**options)
 
     def create_policy(self, *args, **kwargs):
         """

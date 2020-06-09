@@ -117,7 +117,8 @@ def test_sampling_distribution(testerchain, token, deploy_contract, token_econom
     sampled, failed = 0, 0
     while sampled < SAMPLES:
         try:
-            addresses = set(staking_agent.sample(quantity=quantity, duration=1))
+            reservoir = staking_agent.get_stakers_reservoir(duration=1)
+            addresses = set(reservoir.draw(quantity))
             addresses.discard(NULL_ADDRESS)
         except staking_agent.NotEnoughStakers:
             failed += 1
