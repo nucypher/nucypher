@@ -14,17 +14,27 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from nucypher.utilities.prometheus.collector import MetricsCollector, UrsulaInfoMetricsCollector, \
-    BlockchainMetricsCollector, StakerMetricsCollector, WorkerMetricsCollector, WorkLockMetricsCollector, \
-    EventMetricsCollector, ReStakeEventMetricsCollector, WindDownEventMetricsCollector, \
-    WorkerBondedEventMetricsCollector, RefundEventMetricsCollector, BidEventMetricsCollector
 
 try:
     from prometheus_client import Gauge, Enum, Counter, Info, Histogram, Summary
 except ImportError:
     raise ImportError('prometheus_client is not installed - Install it and try again.')
 
-from nucypher.characters.lawful import Ursula
+from nucypher.utilities.prometheus.collector import (
+    MetricsCollector,
+    UrsulaInfoMetricsCollector,
+    BlockchainMetricsCollector,
+    StakerMetricsCollector,
+    WorkerMetricsCollector,
+    WorkLockMetricsCollector,
+    EventMetricsCollector,
+    ReStakeEventMetricsCollector,
+    WindDownEventMetricsCollector,
+    WorkerBondedEventMetricsCollector,
+    RefundEventMetricsCollector,
+    BidEventMetricsCollector
+)
+
 import json
 from typing import List, Dict
 
@@ -147,7 +157,7 @@ def initialize_prometheus_exporter(ursula, prometheus_config: PrometheusMetricsC
     reactor.listenTCP(prometheus_config.port, factory, interface=prometheus_config.listen_address)
 
 
-def create_metrics_collectors(ursula: Ursula, metrics_prefix: str) -> List[MetricsCollector]:
+def create_metrics_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[MetricsCollector]:
     collectors: List[MetricsCollector] = [UrsulaInfoMetricsCollector(ursula=ursula)]
 
     if not ursula.federated_only:
@@ -188,7 +198,7 @@ def create_metrics_collectors(ursula: Ursula, metrics_prefix: str) -> List[Metri
     return collectors
 
 
-def create_staking_events_metric_collectors(ursula: Ursula, metrics_prefix: str) -> List[MetricsCollector]:
+def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[MetricsCollector]:
     collectors: List[MetricsCollector] = []
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=ursula.registry)
 
@@ -255,7 +265,7 @@ def create_staking_events_metric_collectors(ursula: Ursula, metrics_prefix: str)
     return collectors
 
 
-def create_worklock_events_metric_collectors(ursula: Ursula, metrics_prefix: str) -> List[MetricsCollector]:
+def create_worklock_events_metric_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[MetricsCollector]:
     collectors: List[MetricsCollector] = []
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=ursula.registry)
 
@@ -297,7 +307,7 @@ def create_worklock_events_metric_collectors(ursula: Ursula, metrics_prefix: str
     return collectors
 
 
-def create_policy_events_metric_collectors(ursula: Ursula, metrics_prefix: str) -> List[MetricsCollector]:
+def create_policy_events_metric_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[MetricsCollector]:
     collectors: List[MetricsCollector] = []
     policy_manager_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=ursula.registry)
 

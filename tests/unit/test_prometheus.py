@@ -23,8 +23,14 @@ import time
 import unittest
 
 from prometheus_client import (
-    CollectorRegistry, Counter, Enum,
-    Gauge, Histogram, Info, Metric, Summary,
+    CollectorRegistry,
+    Counter,
+    Enum,
+    Gauge,
+    Histogram,
+    Info,
+    Metric,
+    Summary
 )
 from prometheus_client.core import GaugeHistogramMetricFamily, Timestamp
 
