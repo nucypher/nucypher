@@ -55,10 +55,10 @@ class MetricsCollector(ABC):
 
 class BaseMetricsCollector(MetricsCollector):
     def __init__(self):
-        self.metrics = None
+        self.metrics: Dict = None
 
     def collect(self) -> None:
-        if not self.metrics:
+        if self.metrics is None:
             raise self.CollectorNotInitialized
 
         self._collect_internal()
