@@ -330,7 +330,7 @@ def config(general_config, config_file, full_config_options):
     emitter = setup_emitter(general_config)
     if not config_file:
         config_file = select_config_file(emitter=emitter,
-                                         checksum_address=full_config_options.pay_with,
+                                         checksum_address=full_config_options.config_options.pay_with,
                                          config_class=AliceConfiguration)
     updates = full_config_options.get_updates()
     get_or_update_configuration(emitter=emitter,
