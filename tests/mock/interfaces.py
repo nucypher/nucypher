@@ -20,6 +20,7 @@ from contextlib import contextmanager
 
 from typing import Union
 
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (BaseContractRegistry, CanonicalRegistrySource,
@@ -77,3 +78,9 @@ class MockBlockchain(TesterBlockchain):
 
     def __init__(self):
         super().__init__(mock_backend=True)
+
+
+class MockEthereumClient(EthereumClient):
+
+    def __init__(self, w3):
+        super().__init__(w3, None, None, None, None)

@@ -441,8 +441,8 @@ def _make_testerchain(mock_backend: bool = False) -> TesterBlockchain:
     if mock_backend:
         testerchain = MockBlockchain()
     else:
-        testerchain = TesterBlockchain(eth_airdrop=not mock_backend,
-                                       free_transactions=True)
+        testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True)
+
     return testerchain
 
 
@@ -475,7 +475,6 @@ def testerchain(_testerchain) -> TesterBlockchain:
             eth_amount = Web3().fromWei(spent, 'ether')
             testerchain.log.info("Airdropped {} ETH {} -> {}".format(eth_amount, tx['from'], tx['to']))
 
-    # if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=TEST_PROVIDER_URI):
     BlockchainInterfaceFactory.register_interface(interface=testerchain, force=True)
     # Mock TransactingPower Consumption (Deployer)
     testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,

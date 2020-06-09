@@ -25,6 +25,7 @@ from constant_sorrow.constants import NOT_RUNNING, UNKNOWN_DEVELOPMENT_CHAIN_ID
 from cytoolz.dicttoolz import dissoc
 from eth_account import Account
 from eth_account.messages import encode_defunct
+from eth_typing import HexStr
 from eth_typing.evm import BlockNumber, ChecksumAddress
 from eth_utils import to_canonical_address, to_checksum_address
 from geth import LoggingMixin
@@ -41,7 +42,10 @@ from typing import Union
 from web3 import Web3
 from web3.contract import Contract
 from web3.types import Wei, TxReceipt
+from web3._utils.threads import Timeout
+from web3.exceptions import TimeExhausted, TransactionNotFound
 
+from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
 
 UNKNOWN_DEVELOPMENT_CHAIN_ID.bool_value(True)
@@ -58,7 +62,9 @@ class Web3ClientConnectionFailed(Web3ClientError):
 class Web3ClientUnexpectedVersionString(Web3ClientError):
     pass
 
+
 # TODO: Consider creating a ChainInventory class and/or moving this to a separate module
+
 
 PUBLIC_CHAINS = {0: "Olympic",
                  1: "Mainnet",
@@ -92,7 +98,6 @@ POA_CHAINS = {  # TODO: This list is incomplete, but it suffices for the moment 
 
 
 class EthereumClient:
-
     is_local = False
 
     GETH = 'Geth'
@@ -103,9 +108,13 @@ class EthereumClient:
     ETHEREUM_TESTER = 'EthereumTester'  # (PyEVM)
     CLEF = 'Clef'  # Signer-only
 
-    PEERING_TIMEOUT = 30        # seconds
+    PEERING_TIMEOUT = 30  # seconds
     SYNC_TIMEOUT_DURATION = 60  # seconds to wait for various blockchain syncing endeavors
-    SYNC_SLEEP_DURATION = 5     # seconds
+    SYNC_SLEEP_DURATION = 5  # seconds
+    BLOCK_CONFIRMATIONS_POLLING_TIME = 3  # seconds
+    TRANSACTION_POLLING_TIME = 0.5  # seconds
+    COOLING_TIME = 5  # seconds
+    STALECHECK_ALLOWABLE_DELAY = 30  # seconds
 
     class ConnectionNotEstablished(RuntimeError):
         pass
@@ -115,6 +124,27 @@ class EthereumClient:
 
     class UnknownAccount(ValueError):
         pass
+
+    class TransactionBroadcastError(RuntimeError):
+        pass
+
+    class NotEnoughConfirmations(TransactionBroadcastError):
+        pass
+
+    class TransactionTimeout(TransactionBroadcastError):
+        pass
+
+    class ChainReorganizationDetected(TransactionBroadcastError):
+        """Raised when block confirmations logic detects that a TX was lost due to a chain reorganization"""
+
+        error_message = ("Chain re-organization detected: Transaction {transaction_hash} was reported to be in "
+                         "block {block_hash}, but it's not there anymore")
+
+        def __init__(self, receipt):
+            self.receipt = receipt
+            self.message = self.error_message.format(transaction_hash=Web3.toHex(receipt['transactionHash']),
+                                                     block_hash=Web3.toHex(receipt['blockHash']))
+            super().__init__(self.message)
 
     def __init__(self,
                  w3,
@@ -254,14 +284,84 @@ class EthereumClient:
     def coinbase(self) -> ChecksumAddress:
         return self.w3.eth.coinbase
 
-    def wait_for_receipt(self, transaction_hash: str, timeout: int) -> TxReceipt:
-        receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash=transaction_hash, timeout=timeout)
+    def wait_for_receipt(self,
+                         transaction_hash: str,
+                         timeout: float,
+                         confirmations: int = 0) -> TxReceipt:
+        receipt: TxReceipt = None
+        if confirmations:
+            # If we're waiting for confirmations, we may as well let pass some time initially to make everything easier
+            time.sleep(self.COOLING_TIME)
+
+            # We'll keep trying to get receipts until there are enough confirmations or the timeout happens
+            with Timeout(seconds=timeout, exception=self.TransactionTimeout) as timeout_context:
+                while not receipt:
+                    try:
+                        receipt = self.block_until_enough_confirmations(transaction_hash=transaction_hash,
+                                                                        timeout=timeout,
+                                                                        confirmations=confirmations)
+                    except (self.ChainReorganizationDetected, self.NotEnoughConfirmations, TimeExhausted):
+                        timeout_context.sleep(self.BLOCK_CONFIRMATIONS_POLLING_TIME)
+                        continue
+
+        else:
+            # If not asking for confirmations, just use web3 and assume the returned receipt is final
+            try:
+                receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash=transaction_hash,
+                                                                timeout=timeout,
+                                                                poll_latency=self.TRANSACTION_POLLING_TIME)
+            except TimeExhausted:
+                raise  # TODO: #1504 - Handle transaction timeout
+
         return receipt
+
+    def block_until_enough_confirmations(self, transaction_hash: str, timeout: float, confirmations: int) -> dict:
+
+        receipt: TxReceipt = self.w3.eth.waitForTransactionReceipt(transaction_hash=transaction_hash,
+                                                                   timeout=timeout,
+                                                                   poll_latency=self.TRANSACTION_POLLING_TIME)
+
+        preliminary_block_hash = Web3.toHex(receipt['blockHash'])
+        tx_block_number = Web3.toInt(receipt['blockNumber'])
+        self.log.info(f"Transaction {Web3.toHex(transaction_hash)} is preliminarily included in "
+                      f"block {preliminary_block_hash}")
+
+        confirmations_timeout = self._calculate_confirmations_timeout(confirmations)
+        confirmations_so_far = 0
+        with Timeout(seconds=confirmations_timeout, exception=self.NotEnoughConfirmations) as timeout_context:
+            while confirmations_so_far < confirmations:
+                timeout_context.sleep(self.BLOCK_CONFIRMATIONS_POLLING_TIME)
+                self.check_transaction_is_on_chain(receipt=receipt)
+                confirmations_so_far = self.block_number - tx_block_number
+                self.log.info(f"We have {confirmations_so_far} confirmations. "
+                              f"Waiting for {confirmations - confirmations_so_far} more.")
+            return receipt
+
+    @staticmethod
+    def _calculate_confirmations_timeout(confirmations):
+        confirmations_timeout = 3 * AVERAGE_BLOCK_TIME_IN_SECONDS * confirmations
+        return confirmations_timeout
+
+    def check_transaction_is_on_chain(self, receipt: TxReceipt) -> bool:
+        transaction_hash = Web3.toHex(receipt['transactionHash'])
+        try:
+            new_receipt = self.w3.eth.getTransactionReceipt(transaction_hash=transaction_hash)
+        except TransactionNotFound:
+            reorg_detected = True
+        else:
+            reorg_detected = receipt['blockHash'] != new_receipt['blockHash']
+
+        if reorg_detected:
+            exception = self.ChainReorganizationDetected(receipt=receipt)
+            self.log.info(exception.message)
+            raise exception
+            # TODO: Consider adding an optional param in this exception to include extra info (e.g. new block)
+        return True
 
     def sign_transaction(self, transaction_dict: dict) -> bytes:
         raise NotImplementedError
 
-    def get_transaction(self, transaction_hash) -> str:
+    def get_transaction(self, transaction_hash) -> dict:
         return self.w3.eth.getTransaction(transaction_hash=transaction_hash)
 
     def send_transaction(self, transaction_dict: dict) -> str:
@@ -278,12 +378,15 @@ class EthereumClient:
         """
         return self.w3.eth.sign(account, data=message)
 
+    def get_blocktime(self):
+        highest_block = self.w3.eth.getBlock('latest')
+        now = highest_block['timestamp']
+        return now
+
     def _has_latest_block(self) -> bool:
+        # TODO: Investigate using `web3.middleware.make_stalecheck_middleware` #2060
         # check that our local chain data is up to date
-        return (
-            time.time() -
-            self.w3.eth.getBlock(self.w3.eth.blockNumber)['timestamp']
-        ) < 30
+        return (time.time() - self.get_blocktime()) < self.STALECHECK_ALLOWABLE_DELAY
 
     def sync(self, timeout: int = 120, quiet: bool = False):
 
@@ -312,7 +415,7 @@ class EthereumClient:
             self.log.info(f"Waiting for {self.chain_name.capitalize()} chain synchronization to begin")
             while not self.syncing:
                 time.sleep(0)
-                check_for_timeout(t=self.SYNC_TIMEOUT_DURATION*2)
+                check_for_timeout(t=self.SYNC_TIMEOUT_DURATION * 2)
 
             while True:
                 syncdata = self.syncing
@@ -344,7 +447,7 @@ class GethClient(EthereumClient):
         return self.w3.geth.admin.peers()
 
     def new_account(self, password: str) -> str:
-        new_account = self.w3.geth.personal.newAccount(password)
+        new_account = self.w3.geth.personal.new_account(password)
         return to_checksum_address(new_account)  # cast and validate
 
     def unlock_account(self, account: str, password: str, duration: int = None):
@@ -363,10 +466,10 @@ class GethClient(EthereumClient):
             debug_message += " with no password."
 
         self.log.debug(debug_message)
-        return self.w3.geth.personal.unlockAccount(account, password, duration)
+        return self.w3.geth.personal.unlock_account(account, password, duration)
 
     def lock_account(self, account):
-        return self.w3.geth.personal.lockAccount(account)
+        return self.w3.geth.personal.lock_account(account)
 
     def sign_transaction(self, transaction_dict: dict) -> bytes:
 
@@ -383,7 +486,7 @@ class GethClient(EthereumClient):
 
     @property
     def wallets(self):
-        return self.w3.manager.request_blocking("personal_listWallets", [])
+        return self.w3.geth.personal.list_wallets()
 
 
 class ParityClient(EthereumClient):
@@ -396,18 +499,17 @@ class ParityClient(EthereumClient):
         return self.w3.manager.request_blocking("parity_netPeers", [])
 
     def new_account(self, password: str) -> str:
-        new_account = self.w3.parity.personal.newAccount(password)
+        new_account = self.w3.parity.personal.new_account(password)
         return to_checksum_address(new_account)  # cast and validate
 
     def unlock_account(self, account, password, duration: int = None) -> bool:
-        return self.w3.parity.personal.unlockAccount(account, password, duration)
+        return self.w3.parity.personal.unlock_account(account, password, duration)
 
     def lock_account(self, account):
-        return self.w3.parity.personal.lockAccount(account)
+        return self.w3.parity.personal.lock_account(account)
 
 
 class GanacheClient(EthereumClient):
-
     is_local = True
 
     def unlock_account(self, *args, **kwargs) -> bool:
@@ -418,8 +520,8 @@ class GanacheClient(EthereumClient):
 
 
 class InfuraClient(EthereumClient):
-
     is_local = False
+    TRANSACTION_POLLING_TIME = 2  # seconds
 
     def unlock_account(self, *args, **kwargs) -> bool:
         return True
@@ -429,7 +531,6 @@ class InfuraClient(EthereumClient):
 
 
 class EthereumTesterClient(EthereumClient):
-
     is_local = True
 
     def unlock_account(self, account, password, duration: int = None) -> bool:
@@ -486,7 +587,6 @@ class EthereumTesterClient(EthereumClient):
 
 
 class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
-
     IPC_PROTOCOL = 'http'
     IPC_FILENAME = 'geth.ipc'
     VERBOSITY = 5
@@ -540,7 +640,6 @@ class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
 
 
 class NuCypherGethDevProcess(NuCypherGethProcess):
-
     _CHAIN_NAME = 'poa-development'
 
     def __init__(self, config_root: str = None, *args, **kwargs):
@@ -567,7 +666,6 @@ class NuCypherGethDevProcess(NuCypherGethProcess):
 
 
 class NuCypherGethDevnetProcess(NuCypherGethProcess):
-
     IPC_PROTOCOL = 'file'
     GENESIS_FILENAME = 'testnet_genesis.json'
     GENESIS_SOURCE_FILEPATH = os.path.join(DEPLOY_DIR, GENESIS_FILENAME)
@@ -646,7 +744,6 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
 
 
 class NuCypherGethGoerliProcess(NuCypherGethProcess):
-
     IPC_PROTOCOL = 'file'
     GENESIS_FILENAME = 'testnet_genesis.json'
     GENESIS_SOURCE_FILEPATH = os.path.join(DEPLOY_DIR, GENESIS_FILENAME)

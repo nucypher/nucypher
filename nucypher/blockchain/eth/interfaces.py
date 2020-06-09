@@ -19,13 +19,18 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import collections
 
 import click
-import maya
 import os
 import pprint
 import requests
 import time
-from constant_sorrow.constants import (INSUFFICIENT_ETH, NO_BLOCKCHAIN_CONNECTION, NO_COMPILATION_PERFORMED,
-                                       NO_PROVIDER_PROCESS, READ_ONLY_INTERFACE, UNKNOWN_TX_STATUS)
+from constant_sorrow.constants import (
+    INSUFFICIENT_ETH,
+    NO_BLOCKCHAIN_CONNECTION,
+    NO_COMPILATION_PERFORMED,
+    NO_PROVIDER_PROCESS,
+    READ_ONLY_INTERFACE,
+    UNKNOWN_TX_STATUS
+)
 from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import to_checksum_address
@@ -40,9 +45,16 @@ from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.providers import (_get_HTTP_provider, _get_IPC_provider, _get_auto_provider,
-                                               _get_infura_provider, _get_mock_test_provider, _get_pyevm_test_provider,
-                                               _get_test_geth_parity_provider, _get_websocket_provider)
+from nucypher.blockchain.eth.providers import (
+    _get_auto_provider,
+    _get_HTTP_provider,
+    _get_infura_provider,
+    _get_IPC_provider,
+    _get_mock_test_provider,
+    _get_pyevm_test_provider,
+    _get_test_geth_parity_provider,
+    _get_websocket_provider
+)
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
@@ -62,7 +74,7 @@ class BlockchainInterface:
     ethereum contracts with the given web3 provider backend.
     """
 
-    TIMEOUT = 600  # seconds
+    TIMEOUT = 600  # seconds  # TODO: Correlate with the gas strategy - #2070
 
     DEFAULT_GAS_STRATEGY = 'medium'
     GAS_STRATEGIES = {'glacial': time_based.glacial_gas_price_strategy,     # 24h
@@ -89,9 +101,6 @@ class BlockchainInterface:
         pass
 
     class UnknownContract(InterfaceError):
-        pass
-
-    class NotEnoughConfirmations(InterfaceError):
         pass
 
     REASONS = {
@@ -143,7 +152,7 @@ class BlockchainInterface:
                  gas_strategy: Union[str, Callable] = DEFAULT_GAS_STRATEGY):
 
         """
-        A blockchain "network interface"; The circumflex wraps entirely around the bounds of
+        A blockchain "network interface"; the circumflex wraps entirely around the bounds of
         contract operations including compilation, deployment, and execution.
 
         TODO: #1502 - Move to API docs.
@@ -537,8 +546,8 @@ class BlockchainInterface:
         # Receipt
         #
 
-        try:
-            receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT)
+        try:  # TODO: Handle block confirmation exceptions
+            receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT, confirmations=confirmations)
         except TimeExhausted:
             # TODO: #1504 - Handle transaction timeout
             raise
@@ -550,13 +559,13 @@ class BlockchainInterface:
         #
 
         # Primary check
-        deployment_status = receipt.get('status', UNKNOWN_TX_STATUS)
-        if deployment_status == 0:
+        transaction_status = receipt.get('status', UNKNOWN_TX_STATUS)
+        if transaction_status == 0:
             failure = f"Transaction transmitted, but receipt returned status code 0. " \
                       f"Full receipt: \n {pprint.pformat(receipt, indent=2)}"
             raise self.InterfaceError(failure)
 
-        if deployment_status is UNKNOWN_TX_STATUS:
+        if transaction_status is UNKNOWN_TX_STATUS:
             self.log.info(f"Unknown transaction status for {txhash} (receipt did not contain a status field)")
 
             # Secondary check
@@ -565,33 +574,10 @@ class BlockchainInterface:
                 raise self.InterfaceError(f"Transaction consumed 100% of transaction gas."
                                           f"Full receipt: \n {pprint.pformat(receipt, indent=2)}")
 
-        # Block confirmations
-        if confirmations:
-            start = maya.now()
-            confirmations_so_far = self.get_confirmations(receipt)
-            while confirmations_so_far < confirmations:
-                self.log.info(f"So far, we've received {confirmations_so_far} confirmations. "
-                              f"Waiting for {confirmations - confirmations_so_far} more.")
-                time.sleep(3)
-                confirmations_so_far = self.get_confirmations(receipt)
-                if (maya.now() - start).seconds > self.TIMEOUT:
-                    raise self.NotEnoughConfirmations
-
         return receipt
 
-    def get_confirmations(self, receipt: dict) -> int:
-        tx_block_number = receipt.get('blockNumber')
-        latest_block_number = self.w3.eth.blockNumber
-        confirmations = latest_block_number - tx_block_number
-        if confirmations < 0:
-            raise ValueError(f"Can't get number of confirmations for transaction {receipt['transactionHash'].hex()}, "
-                             f"as it seems to come from {-confirmations} blocks in the future...")
-        return confirmations
-
     def get_blocktime(self):
-        highest_block = self.w3.eth.getBlock('latest')
-        now = highest_block['timestamp']
-        return now
+        return self.client.get_blocktime()
 
     @validate_checksum_address
     def send_transaction(self,

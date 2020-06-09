@@ -136,7 +136,7 @@ def events(general_config, registry_options, contract_name, from_block, to_block
     if from_block is None:
         # Sketch of logic for getting the approximate block height of current period start,
         # so by default, this command only shows events of the current period
-        last_block = blockchain.client.w3.eth.blockNumber
+        last_block = blockchain.client.block_number
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
         current_period = staking_agent.get_current_period()
         current_period_start = datetime_at_period(period=current_period,
