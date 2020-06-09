@@ -129,15 +129,6 @@ workflows:
               only: master
           requires:
             - test_build
-      - test_deploy:
-          context: "NuCypher PyPI"
-          requires:
-            - test_build
-          filters:
-            tags:
-              only: /v[0-9]+.*/
-            branches:
-              ignore: /.*/
       - publish_docker_experimental:
           context: "NuCypher Docker"
           requires:
@@ -150,7 +141,6 @@ workflows:
       - request_publication_approval:
           type: approval
           requires:
-            - test_deploy
             - build_docker
           filters:
             tags:
@@ -324,15 +314,6 @@ workflows:
               only: master
           requires:
             - test_build
-      - test_deploy:
-          context: "NuCypher PyPI"
-          requires:
-            - test_build
-          filters:
-            tags:
-              only: /v[0-9]+.*/
-            branches:
-              ignore: /.*/
 
 
 python_36_base: &python_36_base
@@ -740,40 +721,6 @@ jobs:
           key: v1-{{ .Branch }}-{{ epoch }}
           paths:
             - ~/docker/nucypher.tar
-
-  test_deploy:
-    <<: *python_37_base
-    steps:
-      - checkout
-      - run:
-          name: Install Twine
-          command: pip3 install --user twine
-      - run:
-          name: Verify git tag == __version__ (Test Deploy)
-          command: python setup.py verify
-      - run:
-          name: Initialize .pypirc (Test Deploy)
-          command: |
-            echo -e "[distutils]" >> ~/.pypirc
-            echo -e "index-servers = " >> ~/.pypirc
-            echo -e "    pypi" >> ~/.pypirc
-            echo -e "    testpypi" >> ~/.pypirc
-            echo -e "" >> ~/.pypirc
-            echo -e "[testpypi]" >> ~/.pypirc
-            echo -e "repository: https://test.pypi.org/legacy/" >> ~/.pypirc
-            echo -e "username: $TEST_PYPI_USERNAME" >> ~/.pypirc
-            echo -e "password: $TEST_PYPI_PASSWORD" >> ~/.pypirc
-      - run:
-          name: Build Python Wheel (Test Deploy)
-          command: make dist
-      - run:
-          name: upload to TestPyPI
-          command: python3 -m twine upload --repository testpypi dist/* --verbose
-      - run:
-          name: pip install from TestPyPI
-          command: |
-            pip3 install --user --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple nucypher --verbose
-            python3 -c "import nucypher; print(nucypher.__version__)"
 
   publish_pypi:
     <<: *python_37_base
