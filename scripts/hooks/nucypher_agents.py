@@ -50,7 +50,7 @@ except IndexError:
 try:
     network = sys.argv[1]
 except IndexError:
-    network = "gemini"
+    network = "ibex"
 
 
 BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri,
