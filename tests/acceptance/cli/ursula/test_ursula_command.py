@@ -74,10 +74,28 @@ def test_ursula_command_help(protocol, ursula):
     with capture_output() as (out, err):
         protocol.lineReceived(line=b'bananas')
 
+    commands = protocol.commands
+    hidden_commands = ['?', 'commit_next']
+    commands = list(set(commands) - set(hidden_commands))
+
     # Ensure all commands are in the help text
     result = out.getvalue()
-    for command in protocol.commands:
+    assert "Invalid input" in result
+    for command in commands:
         assert command in result, '{} is missing from help text'.format(command)
+    for command in hidden_commands:
+        assert command not in result, f'Hidden command {command} in help text'
+
+    # Try again with valid 'help' command
+    with capture_output() as (out, err):
+        protocol.lineReceived(line=b'help')
+
+    result = out.getvalue()
+    assert "Invalid input" not in result
+    for command in commands:
+        assert command in result, '{} is missing from help text'.format(command)
+    for command in hidden_commands:
+        assert command not in result, f'Hidden command {command} in help text'
 
     # Blank lines are OK!
     with capture_output() as (out, err):

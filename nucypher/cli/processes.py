@@ -59,8 +59,7 @@ class UrsulaCommandProtocol(LineReceiver):
             # 'stakes': self.paintStakes,  # TODO
 
             # Blockchain Control
-            # TODO #1970
-            'commit_next': self.commit_to_next_period,
+            'commit_next': self.commit_to_next_period,  # hidden
 
             # Learning Control
             'cycle_teacher': self.cycle_teacher,
@@ -82,7 +81,7 @@ class UrsulaCommandProtocol(LineReceiver):
         """
         self.emitter.echo("\nUrsula Command Help\n===================\n")
         for command, func in self.__commands.items():
-            if '?' not in command:
+            if command not in ('?', 'commit_next'):
                 try:
                     self.emitter.echo(f'{command}\n{"-"*len(command)}\n{func.__doc__.lstrip()}')
                 except AttributeError:
@@ -142,7 +141,8 @@ class UrsulaCommandProtocol(LineReceiver):
         # Print
         except KeyError:
             if line:  # allow for empty string
-                self.emitter.echo("Invalid input. Options are {}".format(', '.join(self.__commands.keys())))
+                self.emitter.echo("Invalid input")
+                self.__commands["?"]()
 
         else:
             self.__history.append(raw_line)

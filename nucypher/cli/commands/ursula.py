@@ -415,11 +415,10 @@ def config(general_config, config_options, config_file):
                                 updates=updates)
 
 
-@ursula.command(name='commit-next')
+@ursula.command(name='commit-next', hidden=True)
 @group_character_options
 @option_config_file
 @group_general_config
-# TODO make available only for debug purposes #1970
 def commit_to_next_period(general_config, character_options, config_file):
     """Manually make a commitment to the next period."""
 
