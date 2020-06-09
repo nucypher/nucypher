@@ -36,7 +36,7 @@ from nucypher.utilities.prometheus.collector import (
 )
 
 import json
-from typing import List, Dict
+from typing import List
 
 from prometheus_client.core import Timestamp
 from prometheus_client.registry import REGISTRY
@@ -123,9 +123,9 @@ class JSONMetricsResource(Resource):
         return json_dump
 
 
-def collect_prometheus_metrics(metrics_collectors: List[MetricsCollector], node_metrics: Dict) -> None:
+def collect_prometheus_metrics(metrics_collectors: List[MetricsCollector]) -> None:
     for collector in metrics_collectors:
-        collector.collect(node_metrics)
+        collector.collect()
 
 
 def initialize_prometheus_exporter(ursula, prometheus_config: PrometheusMetricsConfig) -> None:
@@ -136,17 +136,15 @@ def initialize_prometheus_exporter(ursula, prometheus_config: PrometheusMetricsC
     metrics_prefix = prometheus_config.metrics_prefix
     metrics_collectors = create_metrics_collectors(ursula, metrics_prefix)
     # initalized collectors
-    node_metrics = {}
     for collector in metrics_collectors:
-        node_metrics.update(collector.initialize(metrics_prefix=metrics_prefix, registry=ursula.registry))
+        collector.initialize(metrics_prefix=metrics_prefix, registry=ursula.registry)
 
     # TODO: was never used
     # "requests_counter": Counter(f'{metrics_prefix}_http_failures', 'HTTP Failures', ['method', 'endpoint']),
 
     # Scheduling
     metrics_task = task.LoopingCall(collect_prometheus_metrics,
-                                    metrics_collectors=metrics_collectors,
-                                    node_metrics=node_metrics)
+                                    metrics_collectors=metrics_collectors)
     metrics_task.start(interval=10, now=False)  # TODO: make configurable
 
     # WSGI Service
@@ -206,7 +204,9 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
     collectors.append(EventMetricsCollector(
         event_name='CommitmentMade',
         event_args_config={
-            "value": (Gauge, f'{metrics_prefix}_activity_confirmed_value', 'Activity confirmed with value of locked tokens'),
+            "value": (Gauge,
+                      f'{metrics_prefix}_activity_confirmed_value',
+                      'Activity confirmed with value of locked tokens'),
             "period": (Gauge, f'{metrics_prefix}_activity_confirmed_period', 'Activity confirmed period')
         },
         argument_filters={'staker': ursula.checksum_address},
@@ -228,7 +228,9 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
         event_name='Slashed',
         event_args_config={
             "penalty": (Gauge, f'{metrics_prefix}_last_slashed_penalty', 'Penalty for slashing'),
-            "block_number": (Gauge, f'{metrics_prefix}_last_slashed_penalty_block_number', 'Slashed penalty block number')
+            "block_number": (Gauge,
+                             f'{metrics_prefix}_last_slashed_penalty_block_number',
+                             'Slashed penalty block number')
         },
         argument_filters={'staker': ursula.checksum_address},
         contract_agent=staking_agent))
