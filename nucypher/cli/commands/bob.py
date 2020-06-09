@@ -73,7 +73,7 @@ class BobConfigOptions:
 
         self.provider_uri = provider_uri
         self.signer_uri = signer_uri
-        self.gas_strategy = gas_strategy,
+        self.gas_strategy = gas_strategy
         self.domains = {network} if network else None
         self.registry_filepath = registry_filepath
         self.checksum_address = checksum_address
