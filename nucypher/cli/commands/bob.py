@@ -116,6 +116,7 @@ class BobConfigOptions:
         checksum_address = self.checksum_address
         if not checksum_address and not self.federated_only:
             checksum_address = select_client_account(emitter=emitter,
+                                                     signer_uri=self.signer_uri,
                                                      provider_uri=self.provider_uri)  # TODO: See #1888
 
         return BobConfiguration.generate(

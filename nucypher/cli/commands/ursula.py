@@ -174,13 +174,17 @@ class UrsulaConfigOptions:
 
     def generate_config(self, emitter, config_root, force):
 
-        assert not self.dev  # TODO: Raise instead
+        if self.dev:
+            raise RuntimeError('Persistent configurations cannot be created in development mode.')
 
         worker_address = self.worker_address
         if (not worker_address) and not self.federated_only:
             if not worker_address:
                 prompt = "Select worker account"
-                worker_address = select_client_account(emitter=emitter, prompt=prompt, provider_uri=self.provider_uri, signer_uri=self.signer_uri)
+                worker_address = select_client_account(emitter=emitter,
+                                                       prompt=prompt,
+                                                       provider_uri=self.provider_uri,
+                                                       signer_uri=self.signer_uri)
 
         rest_host = self.rest_host
         if not rest_host:
@@ -258,8 +262,11 @@ class UrsulaCharacterOptions:
 
     def create_character(self, emitter, config_file, json_ipc, load_seednodes=True):
 
+        # TODO: embed compatibility layer?
         ursula_config = self.config_options.create_config(emitter, config_file)
         is_clef = ClefSigner.is_valid_clef_uri(self.config_options.signer_uri)
+
+        # TODO: Oh
         client_password = None
         if not ursula_config.federated_only:
             if not self.config_options.dev and not json_ipc and not is_clef:
