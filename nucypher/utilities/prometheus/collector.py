@@ -38,6 +38,7 @@ ContractAgents = Union[StakingEscrowAgent, WorkLockAgent, PolicyManagerAgent]
 
 
 class MetricsCollector(ABC):
+    """Metrics Collector Interface."""
     class CollectorError(Exception):
         pass
 
@@ -46,14 +47,17 @@ class MetricsCollector(ABC):
 
     @abstractmethod
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
+        """Initialize metrics collector."""
         return NotImplemented
 
     @abstractmethod
     def collect(self) -> None:
+        """Collect relevant metrics."""
         return NotImplemented
 
 
 class BaseMetricsCollector(MetricsCollector):
+    """Base metrics collector that checks whether collector was initialized before used."""
     def __init__(self):
         self.metrics: Dict = None
 
@@ -65,10 +69,12 @@ class BaseMetricsCollector(MetricsCollector):
 
     @abstractmethod
     def _collect_internal(self):
+        # created so that super().collect() doesn't have be called by all subclasses of BaseMetricsCollector
         return NotImplemented
 
 
 class UrsulaInfoMetricsCollector(BaseMetricsCollector):
+    """Collector for Ursula specific metrics."""
     def __init__(self, ursula: 'Ursula'):
         super().__init__()
         self.ursula = ursula
@@ -120,6 +126,7 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
 
 
 class BlockchainMetricsCollector(BaseMetricsCollector):
+    """Collector for Blockchain specific metrics."""
     def __init__(self, provider_uri: str):
         super().__init__()
         self.provider_uri = provider_uri
@@ -137,6 +144,7 @@ class BlockchainMetricsCollector(BaseMetricsCollector):
 
 
 class StakerMetricsCollector(BaseMetricsCollector):
+    """Collector for Staker specific metrics."""
     def __init__(self, staker_address: ChecksumAddress, contract_registry: BaseContractRegistry):
         super().__init__()
         self.staker_address = staker_address
@@ -190,6 +198,7 @@ class StakerMetricsCollector(BaseMetricsCollector):
 
 
 class WorkerMetricsCollector(BaseMetricsCollector):
+    """Collector for Worker specific metrics."""
     def __init__(self, worker_address: ChecksumAddress, contract_registry: BaseContractRegistry):
         super().__init__()
         self.worker_address = worker_address
@@ -212,6 +221,7 @@ class WorkerMetricsCollector(BaseMetricsCollector):
 
 
 class WorkLockMetricsCollector(BaseMetricsCollector):
+    """Collector for WorkLock specific metrics."""
     def __init__(self, staker_address: ChecksumAddress, contract_registry: BaseContractRegistry):
         super().__init__()
         self.staker_address = staker_address
@@ -248,6 +258,7 @@ class WorkLockMetricsCollector(BaseMetricsCollector):
 
 
 class EventMetricsCollector(BaseMetricsCollector):
+    """General collector for emitted events."""
     def __init__(self,
                  event_name: str,
                  event_args_config: Dict[str, tuple],
@@ -285,6 +296,7 @@ class EventMetricsCollector(BaseMetricsCollector):
 
 
 class ReStakeEventMetricsCollector(EventMetricsCollector):
+    """Collector for RestakeSet event."""
     def __init__(self, staker_address: ChecksumAddress, event_name: str = 'ReStakeSet', *args, **kwargs):
         super().__init__(event_name=event_name, *args, **kwargs)
         self.staker_address = staker_address
@@ -297,6 +309,7 @@ class ReStakeEventMetricsCollector(EventMetricsCollector):
 
 
 class WindDownEventMetricsCollector(EventMetricsCollector):
+    """Collector for WindDownSet event."""
     def __init__(self, staker_address: ChecksumAddress, event_name: str = 'WindDownSet', *args, **kwargs):
         super().__init__(event_name=event_name, *args, **kwargs)
         self.staker_address = staker_address
@@ -309,6 +322,7 @@ class WindDownEventMetricsCollector(EventMetricsCollector):
 
 
 class WorkerBondedEventMetricsCollector(EventMetricsCollector):
+    """Collector for WorkerBonded event."""
     def __init__(self,
                  staker_address: ChecksumAddress,
                  worker_address: ChecksumAddress,
@@ -336,9 +350,13 @@ class WorkerBondedEventMetricsCollector(EventMetricsCollector):
 
 
 class BidRefundCompositeEventMetricsCollector(MetricsCollector):
+    """Collector for both Bid and Refund WorkLock events."""
+    # both Bid and Refund events additionally update the same metric of how much eth us deposited by the staker
+    # so they are combined into one collector
     COMMON_METRIC_KEY = "worklock_deposited_eth_gauge"
 
     class BidRefundCommonCollector(EventMetricsCollector):
+        # Configurable and generalized event metric collector applicable to both Bid and Refund events
         def __init__(self, staker_address: ChecksumAddress, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.staker_address = staker_address

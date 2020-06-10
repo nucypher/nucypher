@@ -46,6 +46,7 @@ from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, W
 
 
 class PrometheusMetricsConfig:
+    """Prometheus configuration."""
     def __init__(self,
                  port: int,
                  metrics_prefix: str,
@@ -136,6 +137,7 @@ def collect_prometheus_metrics(metrics_collectors: List[MetricsCollector]) -> No
 def start_prometheus_exporter(ursula: 'Ursula',
                               prometheus_config: PrometheusMetricsConfig,
                               registry: CollectorRegistry = REGISTRY) -> None:
+    """Configure, collect, and serve prometheus metrics."""
     from prometheus_client.twisted import MetricsResource
     from twisted.web.resource import Resource
     from twisted.web.server import Site
@@ -163,6 +165,7 @@ def start_prometheus_exporter(ursula: 'Ursula',
 
 
 def create_metrics_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[MetricsCollector]:
+    """Create collectors used to obtain metrics."""
     collectors: List[MetricsCollector] = [UrsulaInfoMetricsCollector(ursula=ursula)]
 
     if not ursula.federated_only:
@@ -204,6 +207,7 @@ def create_metrics_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[Met
 
 
 def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[MetricsCollector]:
+    """Create collectors for staking-related events."""
     collectors: List[MetricsCollector] = []
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=ursula.registry)
 
@@ -275,6 +279,7 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
 
 
 def create_worklock_events_metric_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[MetricsCollector]:
+    """Create collectors for worklock-related events."""
     collectors: List[MetricsCollector] = []
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=ursula.registry)
 
@@ -306,6 +311,7 @@ def create_worklock_events_metric_collectors(ursula: 'Ursula', metrics_prefix: s
 
 
 def create_policy_events_metric_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[MetricsCollector]:
+    """Create collectors for policy-related events."""
     collectors: List[MetricsCollector] = []
     policy_manager_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=ursula.registry)
 
