@@ -47,7 +47,7 @@ def select_test_port() -> int:
         open_socket.bind(('localhost', 0))
         port = open_socket.getsockname()[1]
 
-        if port == UrsulaConfiguration.DEFAULT_REST_PORT:
+        if port == UrsulaConfiguration.DEFAULT_REST_PORT or port > 64000:
             return select_test_port()
 
         open_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
