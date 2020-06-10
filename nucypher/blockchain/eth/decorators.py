@@ -22,7 +22,8 @@ from constant_sorrow.constants import (
     CONTRACT_ATTRIBUTE,
     CONTRACT_CALL,
     TRANSACTION,
-    UNKNOWN_CONTRACT_INTERFACE
+    UNKNOWN_CONTRACT_INTERFACE,
+    NO_BLOCKCHAIN_CONNECTION
 )
 from datetime import datetime
 from twisted.logger import Logger
@@ -80,7 +81,7 @@ def validate_checksum_address(func: Callable) -> Callable:
 
             signature = inspect.signature(func)
             parameter_is_optional = signature.parameters[parameter_name].default is None
-            if parameter_is_optional and checksum_address is None:
+            if parameter_is_optional and checksum_address is None or checksum_address is NO_BLOCKCHAIN_CONNECTION:
                 continue
 
             address_is_valid = eth_utils.is_checksum_address(checksum_address)
