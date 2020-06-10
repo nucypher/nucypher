@@ -80,6 +80,7 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_federated_poli
                                                       enacted_federated_policy.label)
 
     # Bob finds out about one Ursula (in the real world, a seed node)
+    # TODO: Real seed-node logic here?
     bob.remember_node(list(federated_ursulas)[0])
 
     # ...and then learns about the rest of the network.
@@ -97,7 +98,8 @@ def test_treasure_map_is_legit(enacted_federated_policy):
     Sure, the TreasureMap can get to Bob, but we also need to know that each Ursula in the TreasureMap is on the network.
     """
     for ursula_address, _node_id in enacted_federated_policy.treasure_map:
-        assert ursula_address in enacted_federated_policy.bob.known_nodes.addresses()
+        if ursula_address not in enacted_federated_policy.bob.known_nodes.addresses():
+            pytest.fail(f"Bob didn't know about {ursula_address}")
 
 
 def test_alice_does_not_update_with_old_ursula_info(federated_alice, federated_ursulas):
