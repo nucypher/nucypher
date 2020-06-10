@@ -88,13 +88,9 @@ def make_cli_character(character_config,
     #
 
     # Produce Character
-    try:
-        CHARACTER = character_config(known_nodes=teacher_nodes,
-                                     network_middleware=character_config.network_middleware,
-                                     **config_args)
-    except (CryptoError, ValueError):
-        raise character_config.keyring.AuthenticationFailed(f"Failed to unlock nucypher keyring. "
-                                                            "Are you sure you provided the correct password?")
+    CHARACTER = character_config(known_nodes=teacher_nodes,
+                                 network_middleware=character_config.network_middleware,
+                                 **config_args)
 
     #
     # Post-Init
