@@ -637,11 +637,7 @@ class Learner:
         """
         self._learning_round += 1
 
-        try:
-            current_teacher = self.current_teacher_node()
-        except self.NotEnoughTeachers as e:
-            self.log.warn("Can't learn right now: {}".format(e.args[0]))
-            return
+        current_teacher = self.current_teacher_node()  # Will raise if there's no available teacher.
 
         if Teacher in self.__class__.__bases__:
             announce_nodes = [self]
