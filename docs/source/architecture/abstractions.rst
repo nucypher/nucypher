@@ -4,7 +4,7 @@ Abstraction Layers
 +-----------+--------------------+--------------------+---------------------+--------------------+-------------------+-----------------+-------------------+-----------------------+-----------------+
 | Contract  | NucypherToken      | StakingEscrow      | StakingEscrow       | PolicyManager      | Adjudicator       | -               | WorkLock          | *                     | *               |
 +===========+====================+====================+=====================+====================+===================+=================+===================+=======================+=================+
-| Agent     | NucypherTokenAgent | StakingEscrowAgent | StkaingEscrowAgent  | PolicyManagerAgent | AdjudicatorAagent | -               | WorkLockAgent     | *                     | *               |
+| Agent     | NucypherTokenAgent | StakingEscrowAgent | StakingEscrowAgent  | PolicyManagerAgent | AdjudicatorAagent | -               | WorkLockAgent     | *                     | *               |
 +-----------+--------------------+--------------------+---------------------+--------------------+-------------------+-----------------+-------------------+-----------------------+-----------------+
 | Actor     | NucypherTokenActor | Worker             | Staker(Stakeholder) | PolicyAuthor       | Challenger        | -               | Bidder            | ContractAdministrator | ^               |
 +-----------+--------------------+--------------------+---------------------+--------------------+-------------------+-----------------+-------------------+-----------------------+-----------------+
