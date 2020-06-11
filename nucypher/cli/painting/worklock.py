@@ -65,6 +65,8 @@ def paint_worklock_status(emitter, registry: BaseContractRegistry):
     # Refund
     refund_multiple = worklock_agent.boosting_refund / worklock_agent.slowing_refund
 
+    emitter.echo(f"\nWorkLock ({worklock_agent.contract_address})", bold=True, color='green')
+
     payload = f"""
 Time
 ══════════════════════════════════════════════════════
