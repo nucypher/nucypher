@@ -55,7 +55,7 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(federated_alic
     """
 
     treasure_map_index = bytes.fromhex(enacted_federated_policy.treasure_map.public_id())
-    treasure_map_as_set_on_network = list(federated_ursulas)[0].treasure_maps[treasure_map_index]
+    treasure_map_as_set_on_network = federated_bob.matching_nodes_among(federated_ursulas)[0].treasure_maps[treasure_map_index]
 
     hrac_by_bob = federated_bob.construct_policy_hrac(federated_alice.stamp, enacted_federated_policy.label)
     assert enacted_federated_policy.hrac() == hrac_by_bob
