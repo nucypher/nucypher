@@ -721,12 +721,14 @@ contract StakingEscrow is Issuer, IERC900History {
     * @param _value Amount of tokens which will be locked
     */
     function depositAndIncrease(uint256 _index, uint256 _value) external onlyStaker {
+        require(_index < MAX_SUB_STAKES);
         deposit(msg.sender, msg.sender, _index, _value, 0);
     }
 
     /**
     * @notice Deposit tokens
-    * @dev Specify either index and zero periods or non-existent index and real value for periods, not both
+    * @dev Specify either index and zero periods (for an existing sub-stake)
+    * or index >= MAX_SUB_STAKES and real value for periods (for a new sub-stake), not both
     * @param _staker Staker
     * @param _payer Owner of tokens
     * @param _index Index of the sub stake
@@ -771,12 +773,14 @@ contract StakingEscrow is Issuer, IERC900History {
     * @param _value Amount of tokens which will be locked
     */
     function lockAndIncrease(uint256 _index, uint256 _value) external onlyStaker {
+        require(_index < MAX_SUB_STAKES);
         lock(msg.sender, _index, _value, 0);
     }
 
     /**
     * @notice Lock some tokens as a stake
-    * @dev Specify either index and zero periods or non-existent index and real value for periods, not both
+    * @dev Specify either index and zero periods (for an existing sub-stake)
+    * or index >= MAX_SUB_STAKES and real value for periods (for a new sub-stake), not both
     * @param _staker Staker
     * @param _index Index of the sub stake
     * @param _value Amount of tokens which will be locked
