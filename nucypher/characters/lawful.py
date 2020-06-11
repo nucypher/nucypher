@@ -870,7 +870,7 @@ class Bob(Character):
 
     def matching_nodes_among(self,
                              nodes: FleetSensor,
-                             no_less_than=7):
+                             no_less_than=7):  # Somewhat arbitrary floor here.
         # Look for nodes whose checksum address has the second character of Bob's encrypting key in the first
         # few characters.
         # Think of it as a cheap knockoff hamming distance.
@@ -886,12 +886,13 @@ class Bob(Character):
         search_boundary = 2
         target_nodes = []
         target_hex_match = self.public_keys(DecryptingPower).hex()[1]
-        while len(target_nodes) < no_less_than:  # Arbitrary floor.  Is 8 good?
+        while len(target_nodes) < no_less_than:
             target_nodes = []
             search_boundary += 2
 
-            if search_boundary > 42:
+            if search_boundary > 42:  # We've searched the entire string and can't match any.  TODO: Portable learning is a nice idea here.
                 raise self.NotEnoughNodes
+
             # TODO: 1995 all throughout here (we might not (need to) know the checksum address yet; canonical will do.)
             # This might be a performance issue above a few thousand nodes.
             target_nodes = [node for node in nodes if target_hex_match in node.checksum_address[2:search_boundary]]
