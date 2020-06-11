@@ -163,9 +163,8 @@ def connect_to_blockchain(emitter: StdoutEmitter,
                                                             light=light,
                                                             sync=False,
                                                             emitter=emitter)
-        blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
         emitter.echo(message=CONNECTING_TO_BLOCKCHAIN)
-        blockchain.connect()
+        blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
         return blockchain
     except Exception as e:
         if debug:
