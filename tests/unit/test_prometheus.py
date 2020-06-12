@@ -95,11 +95,14 @@ class TestGenerateJSON(unittest.TestCase):
                          json.loads(self.json_exporter.generate_latest_json()))
 
     def test_counter_name_unit_append(self):
-        c = Counter('requests', 'Request counter', unit="total", registry=self.registry)
+        # TODO review with original submitter - it seems that 'total' is a keyword for prometheus
+        #  so the unit value used shouldn't be `total`.
+        c = Counter('requests', 'Request counter', unit="value", registry=self.registry)
         c.inc()
-        self.assertEqual(json.loads("""{"requests_total": {"samples": [{"sample_name": "requests_total", "labels": {
-        }, "value": "1.0", "timestamp": null, "exemplar": {}}, {"sample_name": "requests_created", "labels": {}, 
-        "value": "123.456", "timestamp": null, "exemplar": {}}], "help": "Request counter", "type": "counter"}}"""),
+        self.assertEqual(json.loads("""{"requests_value": {"samples": [{"sample_name": "requests_value_total", 
+        "labels": {}, "value": "1.0", "timestamp": null, "exemplar": {}}, {"sample_name": "requests_value_created", 
+        "labels": {}, "value": "123.456", "timestamp": null, "exemplar": {}}], "help": "Request counter", "type": 
+        "counter"}}"""),
                          json.loads(self.json_exporter.generate_latest_json()))
 
     def test_counter_total(self):
