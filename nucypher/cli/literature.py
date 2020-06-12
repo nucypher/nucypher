@@ -430,11 +430,11 @@ BID_AMOUNT_PROMPT_WITH_MIN_BID = "Enter bid amount in ETH (at least {minimum_bid
 
 BID_INCREASE_AMOUNT_PROMPT = "Enter the amount in ETH that you want to increase your bid"
 
-EXISTING_BID_AMOUNT_NOTICE = "You have an existing bid of {eth_amount} ETH"
+EXISTING_BID_AMOUNT_NOTICE = "⚠️ You have an existing bid of {eth_amount} ETH"
 
 WORKLOCK_AGREEMENT = """
-* WorkLock Participant Notice *
--------------------------------
+⚠️ WorkLock Participant Notice ⚠️
+---------------------------------
 
 - By participating in NuCypher's WorkLock you are committing to operating a staking
   NuCypher node after the bidding window closes.
@@ -460,14 +460,14 @@ WORKLOCK_AGREEMENT = """
 
 Accept WorkLock terms and node operator obligation?"""  # TODO: Show a special message for first bidder, since there's no refund rate yet?
 
-BIDDING_WINDOW_CLOSED = "You can't bid, the bidding window is closed."
+BIDDING_WINDOW_CLOSED = "❌ You can't bid, the bidding window is closed."
 
-CANCELLATION_WINDOW_CLOSED = "You can't cancel your bid. The cancellation window is closed."
+CANCELLATION_WINDOW_CLOSED = "❌ You can't cancel your bid. The cancellation window is closed."
 
-SUCCESSFUL_BID_CANCELLATION = "Bid canceled\n"
+SUCCESSFUL_BID_CANCELLATION = "✅ Bid canceled\n"
 
 WORKLOCK_ADDITIONAL_COMPENSATION_AVAILABLE = """
-Note that WorkLock did not use your entire bid due to a maximum claim limit.
+⚠️ Note that WorkLock did not use your entire bid due to a maximum claim limit.
 Therefore, an unspent amount of {amount} is available for refund.
 """
 
@@ -480,14 +480,14 @@ Would you like to proceed?
 
 REQUESTING_WORKLOCK_COMPENSATION = "Requesting refund of unspent bid amount..."
 
-CLAIMING_NOT_AVAILABLE = "You can't claim tokens yet. Claiming is not currently available."
+CLAIMING_NOT_AVAILABLE = "❌ You can't claim tokens yet. Claiming is not currently available."
 
-CLAIM_ALREADY_PLACED = "Claim was already placed for {bidder_address}"
+CLAIM_ALREADY_PLACED = "⚠️ Claim was already placed for {bidder_address}"
 
 AVAILABLE_CLAIM_NOTICE = "\nYou have an available claim of {tokens} 🎉 \n"
 
 WORKLOCK_CLAIM_ADVISORY = """
-Note: Claiming WorkLock NU tokens will initialize a new stake to be locked for {lock_duration} periods.
+⚠️ Note: Claiming WorkLock NU tokens will initialize a new stake to be locked for {lock_duration} periods.
 """
 
 CONFIRM_WORKLOCK_CLAIM = "Continue WorkLock claim for bidder {bidder_address}?"
@@ -517,7 +517,7 @@ BIDDERS_ALREADY_VERIFIED = "Bidders have already been checked\n"
 
 SUCCESSFUL_WORKLOCK_CLAIM = """
 
-Successfully claimed WorkLock tokens for {bidder_address}.
+✅ Successfully claimed WorkLock tokens for {bidder_address}.
 
 You can check that the stake was created correctly by running:
 
@@ -526,7 +526,7 @@ You can check that the stake was created correctly by running:
 Next Steps for WorkLock Winners
 ===============================
 
-Congratulations! You're officially a Staker in the NuCypher network.
+Congratulations! 🎉 You're officially a Staker in the NuCypher network.
 
 See the official NuCypher documentation for a comprehensive guide on next steps!
 
