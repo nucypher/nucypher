@@ -57,7 +57,12 @@ class MetricsCollector(ABC):
 
 
 class BaseMetricsCollector(MetricsCollector):
-    """Base metrics collector that checks whether collector was initialized before used."""
+    """
+    Base metrics collector that checks whether collector was initialized before used.
+
+    Subclasses should initialize the self.metrics member in their initialize() method since the
+    self.metrics member is used to determine whether initialize was called, and if not an exception is raised.
+    """
     def __init__(self):
         self.metrics: Dict = None
 
@@ -69,7 +74,12 @@ class BaseMetricsCollector(MetricsCollector):
 
     @abstractmethod
     def _collect_internal(self):
-        # created so that super().collect() doesn't have be called by all subclasses of BaseMetricsCollector
+        """
+        Called by collect() - subclasses should override this method instead of collect() to ensure that the
+        initialization check is always performed.
+        """
+        # created so that the initialization check does not have to be specified by all subclasses of
+        # BaseMetricsCollector; instead it is performed automatically by collect()
         return NotImplemented
 
 
@@ -350,13 +360,16 @@ class WorkerBondedEventMetricsCollector(EventMetricsCollector):
 
 
 class BidRefundCompositeEventMetricsCollector(MetricsCollector):
-    """Collector for both Bid and Refund WorkLock events."""
-    # both Bid and Refund events additionally update the same metric of how much eth us deposited by the staker
-    # so they are combined into one collector
+    """
+    Collector for both Bid and Refund WorkLock events.
+
+    Both Bid and Refund events additionally update the same metric of how much eth is deposited by the staker
+    so they are combined into one overall collector.
+    """
     COMMON_METRIC_KEY = "worklock_deposited_eth_gauge"
 
     class BidRefundCommonCollector(EventMetricsCollector):
-        # Configurable and generalized event metric collector applicable to both Bid and Refund events
+        """Configurable and generalized event metric collector applicable to both Bid and Refund events."""
         def __init__(self, staker_address: ChecksumAddress, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.staker_address = staker_address
