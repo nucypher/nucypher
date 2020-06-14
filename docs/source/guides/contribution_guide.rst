@@ -211,39 +211,23 @@ Issuing a New Release
 
 .. note::
 
-  ``bumpversion`` is a non-standard dependency that can be installed by running ``pip install -e .[deployment]`` or ``pip install bumpversion``.
+  This process uses ``towncrier`` and ``bumpversion``, which can be installed by running ``pip install -e .[deploy]`` or ``pip install towncrier bumpversion``.
 
 .. important::
 
    Ensure your local tree is based on ``master`` and has no uncommitted changes.
 
-1. Increment the desired version part (options are ``major``, ``minor``, ``patch``, ``stage``, ``devnum``), for example:
+1. Decide what part of the version to bump.
+The version string follows the format ``{major}.{minor}.{patch}-{stage}.{devnum}``,
+so the options are ``major``, ``minor``, ``patch``, ``stage``, or ``devnum``.
+We usually issue new releases increasing the ``devnum`` version.
+
+2. Use the ``make release`` script, specifying the version increment with the ``bump`` parameter.
+For example, for a new ``devnum`` release, we would do:
 
 .. code:: bash
 
-  (nucypher)$ bumpversion devnum
+  (nucypher)$ make release bump=devnum
 
-3. Ensure you have the intended history and incremented version tag:
-
-.. code:: bash
-
-   (nucypher)$ git log
-
-4. Push the resulting tagged commit to the originating remote by tag and branch to ensure they remain synchronized.
-
-.. code:: bash
-
-   (nucypher)$ git push origin master && git push origin <TAG>
-
-5. Open a pull request with the resulting history in order to update ``master``.
-Label the pull request as "Release Candidate" and wait for all checks to pass.
-
-6. Push the tag directly upstream by its name to trigger the publication webhooks on CircleCI:
-
-.. code:: bash
-
-   (nucypher)$ git push upstream <TAG>
-
-7. Monitor the triggered deployment build on CircleCI for manual approval.
-
-8. Merge the pull request
+3. The previous step triggers the publication webhooks on CircleCI.
+Monitor the triggered deployment build for manual approval.
