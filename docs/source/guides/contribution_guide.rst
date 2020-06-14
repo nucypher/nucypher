@@ -212,6 +212,7 @@ Issuing a New Release
 .. note::
 
   This process uses ``towncrier`` and ``bumpversion``, which can be installed by running ``pip install -e .[deploy]`` or ``pip install towncrier bumpversion``.
+  Also note that it requires you have git commit signing properly configured.
 
 .. important::
 
