@@ -1,23 +1,69 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 from __future__ import unicode_literals
 
+import json
 import sys
 import time
-import json
+import unittest
 
 from prometheus_client import (
-    CollectorRegistry, Counter, Enum,
-    Gauge, Histogram, Info, Metric, Summary,
+    CollectorRegistry,
+    Counter,
+    Enum,
+    Gauge,
+    Histogram,
+    Info,
+    Metric,
+    Summary
 )
-
-from nucypher.utilities.json_metrics_export import JSONMetricsResource
-
 from prometheus_client.core import GaugeHistogramMetricFamily, Timestamp
 
-if sys.version_info < (2, 7):
-    # We need the skip decorators from unittest2 on Python 2.6.
-    import unittest2 as unittest
-else:
-    import unittest
+from nucypher.utilities.prometheus.metrics import JSONMetricsResource
+from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
+
+TEST_PREFIX = 'test_prefix'
+
+
+def test_prometheus_metrics_config():
+    listen_address = '111.111.111.111'
+    port = 2020
+    prometheus_config = PrometheusMetricsConfig(port=port,
+                                                metrics_prefix=TEST_PREFIX,
+                                                listen_address=listen_address)
+
+    assert prometheus_config.port == 2020
+    assert prometheus_config.metrics_prefix == TEST_PREFIX
+    assert prometheus_config.listen_address == listen_address
+
+    # defaults
+    assert prometheus_config.collection_interval == 10
+    assert not prometheus_config.start_now
+
+    # non-defaults
+    collection_interval = 5
+    prometheus_config = PrometheusMetricsConfig(port=port,
+                                                metrics_prefix=TEST_PREFIX,
+                                                listen_address=listen_address,
+                                                collection_interval=collection_interval,
+                                                start_now=True)
+    assert prometheus_config.collection_interval == collection_interval
+    assert prometheus_config.start_now
 
 
 class TestGenerateJSON(unittest.TestCase):
@@ -49,11 +95,14 @@ class TestGenerateJSON(unittest.TestCase):
                          json.loads(self.json_exporter.generate_latest_json()))
 
     def test_counter_name_unit_append(self):
-        c = Counter('requests', 'Request counter', unit="total", registry=self.registry)
+        # TODO review with original submitter - it seems that 'total' is a keyword for prometheus
+        #  so the unit value used shouldn't be `total`.
+        c = Counter('requests', 'Request counter', unit="value", registry=self.registry)
         c.inc()
-        self.assertEqual(json.loads("""{"requests_total": {"samples": [{"sample_name": "requests_total", "labels": {
-        }, "value": "1.0", "timestamp": null, "exemplar": {}}, {"sample_name": "requests_created", "labels": {}, 
-        "value": "123.456", "timestamp": null, "exemplar": {}}], "help": "Request counter", "type": "counter"}}"""),
+        self.assertEqual(json.loads("""{"requests_value": {"samples": [{"sample_name": "requests_value_total", 
+        "labels": {}, "value": "1.0", "timestamp": null, "exemplar": {}}, {"sample_name": "requests_value_created", 
+        "labels": {}, "value": "123.456", "timestamp": null, "exemplar": {}}], "help": "Request counter", "type": 
+        "counter"}}"""),
                          json.loads(self.json_exporter.generate_latest_json()))
 
     def test_counter_total(self):
@@ -187,7 +236,3 @@ class TestGenerateJSON(unittest.TestCase):
         123.000456, "exemplar": {}}, {"sample_name": "ts", "labels": {"foo": "f"}, "value": "0.0", "timestamp": 
         123.000000456, "exemplar": {}}], "help": "help", "type": "unknown"}}"""), json.loads(
             self.json_exporter.generate_latest_json()))
-
-
-if __name__ == '__main__':
-    unittest.main()

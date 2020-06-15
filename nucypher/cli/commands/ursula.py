@@ -73,6 +73,7 @@ from nucypher.config.constants import (
 )
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.networking import determine_external_ip_address
+from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
 
 
 class UrsulaConfigOptions:
@@ -381,13 +382,16 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
                                                                config_file=config_file,
                                                                json_ipc=general_config.json_ipc)
 
+    prometheus_config = None
+    if prometheus:
+        prometheus_config = PrometheusMetricsConfig(port=metrics_port,
+                                                    metrics_prefix=metrics_prefix,
+                                                    listen_address=metrics_listen_address)
+
     return URSULA.run(emitter=emitter,
                       start_reactor=not dry_run,
                       interactive=interactive,
-                      prometheus=prometheus,
-                      metrics_listen_address=metrics_listen_address,
-                      metrics_port=metrics_port,
-                      metrics_prefix=metrics_prefix)
+                      prometheus_config=prometheus_config)
 
 
 @ursula.command(name='save-metadata')
