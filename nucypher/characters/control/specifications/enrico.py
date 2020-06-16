@@ -18,23 +18,32 @@
 import click
 
 from nucypher.characters.control.specifications import fields
-from nucypher.characters.control.specifications.base import BaseSchema
 from nucypher.cli import options
+from nucypher.cli.types import EXISTING_READABLE_FILE
+from nucypher.characters.control.specifications.base import BaseSchema
 
 
 class EncryptMessage(BaseSchema):
 
     # input
     message = fields.Cleartext(
-        required=True, load_only=True,
+        required=False,
+        load_only=False,
         click=click.option('--message', help="A unicode message to encrypt for a policy")
     )
 
-    policy_encrypting_key = fields.Key(
+    filepath = fields.String(
         required=False,
         load_only=True,
-        click=options.option_policy_encrypting_key())
+        click=click.option('--file', help="Filepath to plaintext file to encrypt", type=EXISTING_READABLE_FILE)
+    )
+
+    policy_encrypting_key = fields.Key(
+        required=True,
+        load_only=True,
+        click=options.option_policy_encrypting_key()
+    )
 
     # output
     message_kit = fields.UmbralMessageKit(dump_only=True)
-    signature = fields.String(dump_only=True) # maybe we need a signature field?
+    signature = fields.String(dump_only=True)  # maybe we need a signature field?

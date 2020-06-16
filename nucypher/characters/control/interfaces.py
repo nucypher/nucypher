@@ -138,7 +138,7 @@ class AliceInterface(CharacterPublicInterface):
         if len(failed_revocations) > 0:
             for node_id, attempt in failed_revocations.items():
                 revocation, fail_reason = attempt
-                if fail_reason == NotFound:
+                if fail_reason == NotFound:  # FIXME
                     del (failed_revocations[node_id])
         if len(failed_revocations) <= (policy.n - policy.treasure_map.m + 1):
             del (self.character.active_policies[policy_id])
@@ -241,11 +241,12 @@ class BobInterface(CharacterPublicInterface):
 class EnricoInterface(CharacterPublicInterface):
 
     @attach_schema(enrico.EncryptMessage)
-    def encrypt_message(self, message: str):
+    def encrypt_message(self, plaintext: Union[str, bytes]):
         """
         Character control endpoint for encrypting data for a policy and
         receiving the messagekit (and signature) to give to Bob.
         """
-        message_kit, signature = self.character.encrypt_message(bytes(message, encoding='utf-8'))
+        plaintext = bytes(plaintext, encoding='utf-8')
+        message_kit, signature = self.character.encrypt_message(plaintext=plaintext)
         response_data = {'message_kit': message_kit, 'signature': signature}
         return response_data

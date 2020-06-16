@@ -59,11 +59,18 @@ def run(general_config, policy_encrypting_key, dry_run, http_port):
 @enrico.command()
 @EnricoInterface.connect_cli('encrypt_message')
 @group_general_config
-def encrypt(general_config, policy_encrypting_key, message):
+def encrypt(general_config, policy_encrypting_key, message, file):
     """Encrypt a message under a given policy public key."""
     emitter = setup_emitter(general_config=general_config, banner=policy_encrypting_key)
     ENRICO = _create_enrico(emitter, policy_encrypting_key)
-    encryption_request = {'message': message}
+    if not (bool(message) ^ bool(file)):
+        emitter.error(f'Pass either --message or --file. Got {message}, {file}.')
+        raise click.Abort
+    plaintext = message
+    if file:
+        with open(file, 'rb') as plaintext_file:
+            plaintext = plaintext_file.read()
+    encryption_request = {'message': plaintext}
     response = ENRICO.controller.encrypt_message(request=encryption_request)
     return response
 
