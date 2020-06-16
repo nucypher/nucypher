@@ -71,25 +71,29 @@ def mock_token_agent(mock_testerchain, token_economics, mock_contract_agency):
 @pytest.fixture(scope='function', autouse=True)
 def mock_staking_agent(mock_testerchain, token_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(StakingEscrowAgent)
-    return mock_agent
+    yield mock_agent
+    mock_agent.reset()
 
 
 @pytest.fixture(scope='function', autouse=True)
 def mock_adjudicator_agent(mock_testerchain, token_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(AdjudicatorAgent)
-    return mock_agent
+    yield mock_agent
+    mock_agent.reset()
 
 
 @pytest.fixture(scope='function', autouse=True)
 def mock_policy_manager_agent(mock_testerchain, token_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(PolicyManagerAgent)
-    return mock_agent
+    yield mock_agent
+    mock_agent.reset()
 
 
 @pytest.fixture(scope='function', autouse=True)
 def mock_multisig_agent(mock_testerchain, token_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(MultiSigAgent)
-    return mock_agent
+    yield mock_agent
+    mock_agent.reset()
 
 
 @pytest.fixture(scope='function', autouse=True)
