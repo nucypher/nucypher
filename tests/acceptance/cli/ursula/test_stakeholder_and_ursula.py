@@ -27,6 +27,7 @@ from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.lawful import Enrico, Ursula
+from nucypher.cli.literature import SUCCESSFUL_MINTING
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -347,6 +348,19 @@ def test_stake_restake(click_runner,
     assert staker.is_restaking
     assert "Successfully enabled" in result.output
 
+    # Disable again
+    disable_args = ('stake', 'restake',
+                    '--disable',
+                    '--config-file', stakeholder_configuration_file_location,
+                    '--staking-address', manual_staker,
+                    '--force')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 disable_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+
 
 def test_stake_winddown(click_runner,
                         manual_staker,
@@ -562,7 +576,7 @@ def test_collect_rewards_integration(click_runner,
     assert result.exit_code == 0
 
     # The staker has withdrawn her staking rewards
-    assert staker.token_agent.get_balance(address=staker_address) >= balance_before_collecting
+    assert staker.token_agent.get_balance(address=staker_address) > balance_before_collecting
 
 
 def test_stake_unbond_worker(click_runner,
@@ -629,3 +643,29 @@ def test_set_min_rate(click_runner,
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     assert f"{min_rate} wei" in result.output
+
+
+def test_mint(click_runner,
+              manual_staker,
+              testerchain,
+              agency_local_registry,
+              stakeholder_configuration_file_location):
+
+    testerchain.time_travel(periods=2)
+    staker = Staker(is_me=True, checksum_address=manual_staker, registry=agency_local_registry)
+    assert staker.mintable_periods() > 0
+    owned_tokens = staker.owned_tokens()
+
+    restake_args = ('stake', 'mint',
+                    '--config-file', stakeholder_configuration_file_location,
+                    '--staking-address', manual_staker,
+                    '--force')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 restake_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+    assert staker.owned_tokens() > owned_tokens
+    assert staker.mintable_periods() == 0
+    assert SUCCESSFUL_MINTING in result.output

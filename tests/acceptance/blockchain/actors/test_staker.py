@@ -123,10 +123,6 @@ def test_staker_collects_staking_reward(testerchain,
                                         ursula_decentralized_test_config):
     token_agent, staking_agent, policy_agent = agency
 
-    # Capture the current token balance of the staker
-    initial_balance = staker.token_balance
-    assert token_agent.get_balance(staker.checksum_address) == initial_balance
-
     mock_transacting_power_activation(account=staker.checksum_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),  # Lock the minimum amount of tokens
@@ -143,22 +139,36 @@ def test_staker_collects_staking_reward(testerchain,
                                         commit_to_next_period=False,
                                         registry=test_registry).pop()
 
-    # ...wait out the lock period...
-    for _ in range(token_economics.minimum_locked_periods):
-        testerchain.time_travel(periods=1)
+    # ...mint few tokens...
+    for _ in range(2):
         ursula.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
         ursula.commit_to_next_period()
+        testerchain.time_travel(periods=1)
+
+    # Check mintable periods
+    assert staker.mintable_periods() == 1
+    ursula.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
+    ursula.commit_to_next_period()
 
     # ...wait more...
+    assert staker.mintable_periods() == 0
     testerchain.time_travel(periods=2)
+    assert staker.mintable_periods() == 2
 
     mock_transacting_power_activation(account=staker.checksum_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    # Profit!
-    staker.collect_staking_reward()
+    # Capture the current token balance of the staker
+    initial_balance = staker.token_balance
+    assert token_agent.get_balance(staker.checksum_address) == initial_balance
 
-    final_balance = token_agent.get_balance(staker.checksum_address)
-    assert final_balance > initial_balance
+    # Profit!
+    staked = staker.non_withdrawable_stake()
+    owned = staker.owned_tokens()
+    staker.collect_staking_reward()
+    assert staker.owned_tokens() == staked
+
+    final_balance = staker.token_balance
+    assert final_balance == initial_balance + owned - staked
 
 
 def test_staker_manages_winding_down(testerchain,

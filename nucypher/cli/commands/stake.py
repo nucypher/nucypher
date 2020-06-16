@@ -66,7 +66,8 @@ from nucypher.cli.literature import (
     SUCCESSFUL_SET_MIN_POLICY_RATE,
     SUCCESSFUL_STAKE_DIVIDE,
     SUCCESSFUL_STAKE_PROLONG,
-    SUCCESSFUL_WORKER_BONDING
+    SUCCESSFUL_WORKER_BONDING, NO_MINTABLE_PERIODS, STILL_LOCKED_TOKENS, CONFIRM_MINTING, SUCCESSFUL_MINTING,
+    CONFIRM_COLLECTING_WITHOUT_MINTING, NO_TOKENS_TO_WITHDRAW, NO_FEE_TO_WITHDRAW
 )
 from nucypher.cli.options import (
     group_options,
@@ -575,10 +576,9 @@ def restake(general_config, transacting_staker_options, config_file, enable, loc
 @group_transacting_staker_options
 @option_config_file
 @click.option('--enable/--disable', help="Used to enable and disable winding down", is_flag=True, default=True)
-@click.option('--lock-until', help="Period to release re-staking lock", type=click.IntRange(min=0))
 @option_force
 @group_general_config
-def winddown(general_config, transacting_staker_options, config_file, enable, lock_until, force):
+def winddown(general_config, transacting_staker_options, config_file, enable, force):
     """Manage winding down with --enable or --disable."""
 
     # Setup
@@ -811,7 +811,15 @@ def collect_reward(general_config,
     if staking_reward:
         # Note: Sending staking / inflation rewards to another account is not allowed.
         reward_amount = NU.from_nunits(STAKEHOLDER.calculate_staking_reward())
+        if reward_amount == 0:
+            emitter.echo(NO_TOKENS_TO_WITHDRAW, color='red')
+            raise click.Abort
+
         emitter.echo(message=COLLECTING_TOKEN_REWARD.format(reward_amount=reward_amount))
+
+        if not force and STAKEHOLDER.non_withdrawable_stake() == 0 and STAKEHOLDER.mintable_periods() > 0:
+            click.confirm(CONFIRM_COLLECTING_WITHOUT_MINTING, abort=True)
+
         staking_receipt = STAKEHOLDER.collect_staking_reward()
         paint_receipt_summary(receipt=staking_receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
@@ -819,7 +827,11 @@ def collect_reward(general_config,
 
     if policy_fee:
         fee_amount = Web3.fromWei(STAKEHOLDER.calculate_policy_fee(), 'ether')
-        emitter.echo(message=COLLECTING_ETH_FEE.format(fee_amount=fee_amount))
+        if fee_amount == 0:
+            emitter.echo(NO_FEE_TO_WITHDRAW, color='red')
+            raise click.Abort
+
+        emitter.echo(message=COLLECTING_ETH_FEE.format(reward_amount=fee_amount))
         policy_receipt = STAKEHOLDER.collect_policy_fee(collector_address=withdraw_address)
         paint_receipt_summary(receipt=policy_receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
@@ -948,3 +960,48 @@ def set_min_rate(general_config, transacting_staker_options, config_file, force,
                           receipt=receipt,
                           chain_name=blockchain.client.chain_name,
                           transaction_type='set_min_rate')
+
+
+@stake.command()
+@group_transacting_staker_options
+@option_config_file
+@option_force
+@group_general_config
+def mint(general_config, transacting_staker_options, config_file, force):
+    """Mint last portion of reward"""
+
+    # Setup
+    emitter = setup_emitter(general_config)
+    STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
+    blockchain = transacting_staker_options.get_blockchain()
+
+    client_account, staking_address = select_client_account_for_staking(
+        emitter=emitter,
+        stakeholder=STAKEHOLDER,
+        staking_address=transacting_staker_options.staker_options.staking_address,
+        individual_allocation=STAKEHOLDER.individual_allocation,
+        force=force)
+
+    # Authenticate
+    password = transacting_staker_options.get_password(blockchain, client_account)
+    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+
+    # Nothing to mint
+    mintable_periods = STAKEHOLDER.mintable_periods()
+    if mintable_periods == 0:
+        emitter.echo(NO_MINTABLE_PERIODS, color='red')
+        raise click.Abort
+
+    # Still locked token
+    if STAKEHOLDER.non_withdrawable_stake() > 0:
+        emitter.echo(STILL_LOCKED_TOKENS, color='yellow')
+
+    if not force:
+        click.confirm(CONFIRM_MINTING.format(mintable_periods=mintable_periods), abort=True)
+    receipt = STAKEHOLDER.mint()
+    emitter.echo(SUCCESSFUL_MINTING, color='green', verbosity=1)
+
+    paint_receipt_summary(receipt=receipt,
+                          emitter=emitter,
+                          chain_name=blockchain.client.chain_name,
+                          transaction_type='mint')

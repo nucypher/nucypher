@@ -348,7 +348,9 @@ class StakingEscrowAgent(EthereumContractAgent):
 
     @contract_api(CONTRACT_CALL)
     def get_staker_info(self, staker_address: ChecksumAddress) -> StakerInfo:
-        return StakerInfo(*self.contract.functions.stakerInfo(staker_address).call())
+        # remove reserved fields
+        info: list = self.contract.functions.stakerInfo(staker_address).call()
+        return StakerInfo(*info[0:9])
 
     @contract_api(CONTRACT_CALL)
     def get_locked_tokens(self, staker_address: ChecksumAddress, periods: int = 0) -> NuNits:
@@ -473,6 +475,18 @@ class StakingEscrowAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(CONTRACT_CALL)
+    def get_current_committed_period(self, staker_address: ChecksumAddress) -> Period:
+        staker_info: StakerInfo = self.get_staker_info(staker_address)
+        period: int = staker_info.current_committed_period
+        return Period(period)
+
+    @contract_api(CONTRACT_CALL)
+    def get_next_committed_period(self, staker_address: ChecksumAddress) -> Period:
+        staker_info: StakerInfo = self.get_staker_info(staker_address)
+        period: int = staker_info.next_committed_period
+        return Period(period)
+
+    @contract_api(CONTRACT_CALL)
     def get_last_committed_period(self, staker_address: ChecksumAddress) -> Period:
         period: int = self.contract.functions.getLastCommittedPeriod(staker_address).call()
         return Period(period)
@@ -518,11 +532,15 @@ class StakingEscrowAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(CONTRACT_CALL)
-    def calculate_staking_reward(self, staker_address: ChecksumAddress) -> NuNits:
-        token_amount: NuNits = self.owned_tokens(staker_address)
+    def non_withdrawable_stake(self, staker_address: ChecksumAddress) -> NuNits:
         staked_amount: int = max(self.contract.functions.getLockedTokens(staker_address, 0).call(),
                                  self.contract.functions.getLockedTokens(staker_address, 1).call())
-        reward_amount: int = token_amount - staked_amount
+        return NuNits(staked_amount)
+
+    @contract_api(CONTRACT_CALL)
+    def calculate_staking_reward(self, staker_address: ChecksumAddress) -> NuNits:
+        token_amount: NuNits = self.owned_tokens(staker_address)
+        reward_amount: int = token_amount - self.non_withdrawable_stake(staker_address)
         return NuNits(reward_amount)
 
     @contract_api(TRANSACTION)

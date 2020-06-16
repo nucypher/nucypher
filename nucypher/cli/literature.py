@@ -103,6 +103,22 @@ See https://docs.nucypher.com/en/latest/guides/staking_guide.html
 """
 
 #
+# Minting
+#
+
+NO_MINTABLE_PERIODS = "No periods that can be rewarded."
+
+STILL_LOCKED_TOKENS = """
+WARNING: Some amount of tokens still locked. 
+It is *recommended* to run worker node until all tokens will be unlocked
+and only after that call `mint`.
+"""
+
+CONFIRM_MINTING = "Confirm mint tokens for {mintable_periods} previous periods?"
+
+SUCCESSFUL_MINTING = 'Reward successfully minted'
+
+#
 # Wind Down
 #
 
@@ -222,10 +238,20 @@ SUCCESSFUL_STAKE_PROLONG = 'Successfully Prolonged Stake'
 
 COLLECTING_TOKEN_REWARD = 'Collecting {reward_amount} from staking rewards...'
 
+CONFIRM_COLLECTING_WITHOUT_MINTING = """
+There will still be a period to reward after withdrawing this portion of NU. 
+It is *recommended* to call `mint` before.
+
+Continue?
+"""
+
 COLLECTING_ETH_FEE = 'Collecting {fee_amount} ETH from policy fees...'
 
 COLLECTING_PREALLOCATION_REWARD = 'Collecting {unlocked_tokens} from PreallocationEscrow contract {staking_address}...'
 
+NO_TOKENS_TO_WITHDRAW = "No tokens that can be withdrawn."
+
+NO_FEE_TO_WITHDRAW = "No policy fee that can be withdrawn."
 
 #
 # Configuration

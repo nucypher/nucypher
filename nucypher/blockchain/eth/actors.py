@@ -79,6 +79,7 @@ from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nicknames import nickname_from_seed
+from nucypher.types import NuNits, Period
 
 
 class BaseActor:
@@ -853,6 +854,14 @@ class Staker(NucypherTokenActor):
         self.stakes.refresh()
         return bool(self.stakes)
 
+    def owned_tokens(self) -> NU:
+        """
+        Returns all tokens that belong to staker_address, including locked, unlocked and rewards.
+        """
+        raw_value = self.staking_agent.owned_tokens(staker_address=self.checksum_address)
+        value = NU.from_nunits(raw_value)
+        return value
+
     def locked_tokens(self, periods: int = 0) -> NU:
         """Returns the amount of tokens this staker has locked for a given duration in periods."""
         self.stakes.refresh()
@@ -1085,6 +1094,29 @@ class Staker(NucypherTokenActor):
     def disable_winding_down(self) -> dict:
         receipt = self._set_winding_down(value=False)
         return receipt
+
+    def non_withdrawable_stake(self) -> NU:
+        staked_amount: NuNits = self.staking_agent.non_withdrawable_stake(staker_address=self.checksum_address)
+        return NU.from_nunits(staked_amount)
+
+    def mintable_periods(self) -> int:
+        """
+        Returns number of periods that can be rewarded in the current period. Value in range [0, 2]
+        """
+        current_period: Period = self.staking_agent.get_current_period()
+        previous_period: int = current_period - 1
+        current_committed_period: Period = self.staking_agent.get_current_committed_period(staker_address=self.checksum_address)
+        next_committed_period: Period = self.staking_agent.get_next_committed_period(staker_address=self.checksum_address)
+
+        mintable_periods: int = 0
+        for committed_period in (current_committed_period, next_committed_period):
+            if committed_period == 0:
+                continue
+            if committed_period <= previous_period:
+                mintable_periods += 1
+
+        return mintable_periods
+
 
     #
     # Bonding with Worker
