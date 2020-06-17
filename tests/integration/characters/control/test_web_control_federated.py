@@ -230,7 +230,6 @@ def test_bob_web_character_control_retrieve_again(bob_web_controller_test_client
 def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test_client, encrypt_control_request):
     method_name, params = encrypt_control_request
     endpoint = f'/{method_name}'
-
     response = enrico_web_controller_test_client.post(endpoint, data=json.dumps(params))
     assert response.status_code == 200
 
@@ -245,7 +244,7 @@ def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test
     response = enrico_web_controller_test_client.post('/encrypt_message', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
-    del(params['plaintext'])
+    del(params['message'])
     response = enrico_web_controller_test_client.post('/encrypt_message', data=params)
     assert response.status_code == 400
 

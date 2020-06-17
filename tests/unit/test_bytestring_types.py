@@ -65,7 +65,7 @@ def test_message_kit_serialization_via_enrico(enacted_federated_policy, federate
     plaintext_bytes = bytes(message, encoding='utf-8')
 
     # Create
-    message_kit, signature = enrico.encrypt_message(message=plaintext_bytes)
+    message_kit, signature = enrico.encrypt_message(plaintext=plaintext_bytes)
 
     # Serialize
     message_kit_bytes = message_kit.to_bytes()

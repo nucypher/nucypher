@@ -52,13 +52,13 @@ class EncryptMessage(BaseSchema):
         we output one of them as the "plaintext" arg to enrico.encrypt_message
         """
 
-        if data['message'] and data['filepath']:
+        if data.get('message') and data.get('filepath'):
             raise exceptions.InvalidArgumentCombo("choose either a message or a filepath but not both.")
 
         if data.get('message'):
-            data = bytes(data.get('message'), encoding='utf-8')
+            data = bytes(data['message'], encoding='utf-8')
         else:
-            data = data.get('filepath')
+            data = data['filepath']
 
         return {"plaintext": data}
 

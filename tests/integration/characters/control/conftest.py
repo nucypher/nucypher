@@ -144,6 +144,6 @@ def retrieve_control_request(federated_bob, enacted_federated_policy, capsule_si
 def encrypt_control_request():
     method_name = 'encrypt_message'
     params = {
-        'plaintext': b64encode(b"The admiration I had for your work has completely evaporated!").decode(),
+        'message': b64encode(b"The admiration I had for your work has completely evaporated!").decode(),
     }
     return method_name, params

@@ -17,11 +17,12 @@ COPY ./nucypher/blockchain/eth/sol/__conf__.py /install/nucypher/blockchain/eth/
 COPY scripts/installation/install_solc.py /install/scripts/installation/
 COPY dev-requirements.txt /install
 COPY requirements.txt /install
+COPY docs-requirements.txt /install
 COPY dev/docker/scripts/install/entrypoint.sh /install
 
 # install reqs and solc
 RUN pip install --upgrade pip
-RUN pip3 install -r /install/dev-requirements.txt --src /usr/local/src
+RUN pip3 install .[dev] --src /usr/local/src
 RUN pip3 install ipdb
 
 # puts the nucypher executable in bin path
