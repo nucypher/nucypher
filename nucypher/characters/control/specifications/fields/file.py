@@ -15,11 +15,19 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from nucypher.characters.control.specifications.fields.key import *
-from nucypher.characters.control.specifications.fields.treasuremap import *
-from nucypher.characters.control.specifications.fields.messagekit import *
-from nucypher.characters.control.specifications.fields.datetime import *
-from nucypher.characters.control.specifications.fields.label import *
-from nucypher.characters.control.specifications.fields.cleartext import *
-from nucypher.characters.control.specifications.fields.misc import *
-from nucypher.characters.control.specifications.fields.file import *
+import os
+from marshmallow import fields
+
+from nucypher.characters.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
+from nucypher.characters.control.specifications.fields.base import BaseField
+
+
+class FileField(BaseField, fields.String):
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        with open(value, 'r') as plaintext_file:
+            plaintext = plaintext_file.read()
+        return plaintext
+
+    def _validate(self, value):
+        return os.path.exists(value) and os.path.isfile(value)

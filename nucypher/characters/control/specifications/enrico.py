@@ -16,8 +16,9 @@
 """
 
 import click
+from marshmallow import post_load
 
-from nucypher.characters.control.specifications import fields
+from nucypher.characters.control.specifications import fields, exceptions
 from nucypher.cli import options
 from nucypher.cli.types import EXISTING_READABLE_FILE
 from nucypher.characters.control.specifications.base import BaseSchema
@@ -27,22 +28,35 @@ class EncryptMessage(BaseSchema):
 
     # input
     message = fields.Cleartext(
-        required=False,
         load_only=False,
+        allow_none=True,
         click=click.option('--message', help="A unicode message to encrypt for a policy")
     )
 
-    filepath = fields.String(
-        required=False,
+    filepath = fields.FileField(
         load_only=True,
+        allow_none=True,
         click=click.option('--file', help="Filepath to plaintext file to encrypt", type=EXISTING_READABLE_FILE)
     )
 
     policy_encrypting_key = fields.Key(
-        required=True,
+        required=False,
         load_only=True,
         click=options.option_policy_encrypting_key()
     )
+
+    @post_load()
+    def format_method_arguments(self, data, **kwargs):
+        """
+        input can be through either the file input or a raw message,
+        we output one of them as the "plaintext" arg to enrico.encrypt_message
+        """
+
+        if data['message'] and data['filepath']:
+            raise exceptions.InvalidArgumentCombo("choose either a message or a filepath but not both.")
+
+        return {"plaintext": data.get('message') or data.get('filepath')}
+
 
     # output
     message_kit = fields.UmbralMessageKit(dump_only=True)

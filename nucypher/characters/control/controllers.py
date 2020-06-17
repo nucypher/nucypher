@@ -60,7 +60,6 @@ class CharacterControllerBase(ABC):
         method = getattr(self.interface, action, None)
         serializer = method._schema
         params = serializer.load(request) # input validation will occur here.
-
         response = method(**params)  # < ---- INLET
 
         response_data = serializer.dump(response)

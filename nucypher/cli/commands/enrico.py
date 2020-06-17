@@ -66,11 +66,8 @@ def encrypt(general_config, policy_encrypting_key, message, file):
     if not (bool(message) ^ bool(file)):
         emitter.error(f'Pass either --message or --file. Got {message}, {file}.')
         raise click.Abort
-    plaintext = message
-    if file:
-        with open(file, 'rb') as plaintext_file:
-            plaintext = plaintext_file.read()
-    encryption_request = {'message': plaintext}
+
+    encryption_request = {'policy_encrypting_key': policy_encrypting_key, 'message': message, 'filepath': file}
     response = ENRICO.controller.encrypt_message(request=encryption_request)
     return response
 

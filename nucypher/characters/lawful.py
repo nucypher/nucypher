@@ -1550,9 +1550,9 @@ class Enrico(Character):
         self.log = Logger(f'{self.__class__.__name__}-{bytes(self.public_keys(SigningPower)).hex()[:6]}')
         self.log.info(self.banner.format(policy_encrypting_key))
 
-    def encrypt_message(self, message: bytes) -> Tuple[UmbralMessageKit, Signature]:
+    def encrypt_message(self, plaintext: bytes) -> Tuple[UmbralMessageKit, Signature]:
         message_kit, signature = encrypt_and_sign(self.policy_pubkey,
-                                                  plaintext=message,
+                                                  plaintext=plaintext,
                                                   signer=self.stamp)
         message_kit.policy_pubkey = self.policy_pubkey  # TODO: We can probably do better here.  NRN
         return message_kit, signature
