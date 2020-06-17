@@ -141,7 +141,8 @@ class CLIController(CharacterControlServer):
     def handle_request(self, method_name, request):
         start = maya.now()
         response = self._perform_action(action=method_name, request=request)
-        return self.emitter.ipc(response=response, request_id=start.epoch, duration=maya.now() - start)
+        self.emitter.ipc(response=response, request_id=start.epoch, duration=maya.now() - start)
+        return response
 
 
 class JSONRPCController(CharacterControlServer):

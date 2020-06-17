@@ -792,15 +792,15 @@ class Bob(Character):
                     self.get_reencrypted_cfrags(work_order, retain_cfrags=retain_cfrags)
                 except NodeSeemsToBeDown as e:
                     # TODO: What to do here?  Ursula isn't supposed to be down.  NRN
-                    self.log.info(
-                        f"Ursula ({work_order.ursula}) seems to be down while trying to complete WorkOrder: {work_order}")
+                    self.log.info(f"Ursula ({work_order.ursula}) seems to be down while trying to complete WorkOrder: {work_order}")
                     continue
                 except self.network_middleware.NotFound:
                     # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
                     # TODO: What's the thing to do here?  Do we want to track these Ursulas in some way in case they're lying?  567
-                    self.log.warn(
-                        f"Ursula ({work_order.ursula}) claims not to have the KFrag to complete WorkOrder: {work_order}.  Has accessed been revoked?")
+                    self.log.warn(f"Ursula ({work_order.ursula}) claims not to have the KFrag to complete WorkOrder: {work_order}.  Has accessed been revoked?")
                     continue
+                except self.network_middleware.UnexpectedResponse:
+                    raise # TODO: Handle this
 
                 for capsule, pre_task in work_order.tasks.items():
                     try:
