@@ -39,11 +39,9 @@ def get_fields(interface, method_name):
 
 
 def validate_json_rpc_response_data(response, method_name, interface):
-
-    required_output_fileds = get_fields(interface, method_name)[-1]
-
+    required_output_fields = get_fields(interface, method_name)[-1]
     assert 'jsonrpc' in response.data
-    for output_field in required_output_fileds:
+    for output_field in required_output_fields:
         assert output_field in response.content
     return True
 

@@ -29,7 +29,7 @@ The NuCypher network does not store or handle an application's data; instead - i
 Management of encrypted secrets and public keys tends to be highly domain-specific - The surrounding architecture
 will vary greatly depending on the throughput, sensitivity, and sharing cadence of application secrets.
 In all cases, NuCypher must be integrated with a storage and transport layer in order to function properly.
-Along with the transport of ciphertexts, a nucypher application also needs to include channels for Alice and Bob 
+Along with the transport of ciphertexts, a nucypher application also needs to include channels for Alice and Bob
 to discover each other's public keys, and provide policy encrypting information to Bob and Enrico.
 
 Side Channel Application Data
@@ -93,7 +93,7 @@ Connecting Nucypher to an Ethereum Provider
 Ursula: Untrusted Re-Encryption Proxies
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-When initializing an ``Alice``\ , ``Bob``\ , or ``Ursula``\ , an initial "Stranger-\ ``Ursula``\ " is needed to perform 
+When initializing an ``Alice``\ , ``Bob``\ , or ``Ursula``\ , an initial "Stranger-\ ``Ursula``\ " is needed to perform
 the role of a ``Teacher``\ , or "seednode":
 
 .. code-block:: python
@@ -151,7 +151,7 @@ Create a NuCypher Keyring
    alice.start_learning_loop(now=True)
 
 
-Alice needs to know about Bob in order to grant access by acquiring Bob's public key's through 
+Alice needs to know about Bob in order to grant access by acquiring Bob's public key's through
 the application side channel:
 
 .. code-block:: python
@@ -201,7 +201,7 @@ Encrypt
    from nucypher.characters.lawful import Enrico
 
    enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
-   ciphertext, signature = enrico.encrypt_message(message=b'Peace at dawn.')
+   ciphertext, signature = enrico.encrypt_message(plaintext=b'Peace at dawn.')
 
 
 The ciphertext can then be sent to Bob via the application side channel.

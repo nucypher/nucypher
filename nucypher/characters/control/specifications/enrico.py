@@ -28,7 +28,7 @@ class EncryptMessage(BaseSchema):
 
     # input
     message = fields.Cleartext(
-        load_only=False,
+        load_only=True,
         allow_none=True,
         click=click.option('--message', help="A unicode message to encrypt for a policy")
     )
