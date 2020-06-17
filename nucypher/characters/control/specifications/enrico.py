@@ -55,7 +55,12 @@ class EncryptMessage(BaseSchema):
         if data['message'] and data['filepath']:
             raise exceptions.InvalidArgumentCombo("choose either a message or a filepath but not both.")
 
-        return {"plaintext": data.get('message') or data.get('filepath')}
+        if data.get('message'):
+            data = bytes(data.get('message'), encoding='utf-8')
+        else:
+            data = data.get('filepath')
+
+        return {"plaintext": data}
 
 
     # output
