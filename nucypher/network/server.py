@@ -319,7 +319,7 @@ def make_rest_app(
                 policy_arrangement = datastore.get_policy_arrangement(
                     id_as_hex.encode(), session=session)
                 alice_pubkey = UmbralPublicKey.from_bytes(
-                    policy_arrangement.alice_verifying_key.key_data)
+                    policy_arrangement.alice_verifying_key)
 
                 # Check that the request is the same for the provided revocation
                 if id_as_hex != revocation.arrangement_id.hex():
@@ -355,8 +355,7 @@ def make_rest_app(
 
         # Get Work Order
         from nucypher.policy.collections import WorkOrder  # Avoid circular import
-        alice_verifying_key_bytes = arrangement.alice_verifying_key.key_data
-        alice_verifying_key = UmbralPublicKey.from_bytes(alice_verifying_key_bytes)
+        alice_verifying_key = UmbralPublicKey.from_bytes(arrangement.alice_verifying_key)
         alice_address = canonical_address_from_umbral_key(alice_verifying_key)
         work_order_payload = request.data
         work_order = WorkOrder.from_rest_payload(arrangement_id=arrangement_id,

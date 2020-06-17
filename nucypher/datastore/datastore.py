@@ -19,15 +19,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import maya
 from bytestring_splitter import BytestringSplitter
 from datetime import datetime
-from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import sessionmaker
 from typing import List
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
 from nucypher.crypto.signing import Signature
 from nucypher.crypto.utils import fingerprint_from_key
-from nucypher.datastore.db.models import Key, PolicyArrangement, Workorder
+from nucypher.datastore.db.base import DatastoreRecord, RecordField
+from nucypher.datastore.db.models import PolicyArrangement, Workorder
 
 
 class NotFound(Exception):
@@ -65,57 +64,6 @@ class Datastore:
             raise
 
     #
-    # Keys
-    #
-
-    def add_key(self,
-                key: UmbralPublicKey,
-                is_signing: bool = True,
-                session=None
-                ) -> Key:
-        """
-        :param key: Keypair object to store in the keystore.
-
-        :return: The newly added key object.
-        """
-        session = session or self._session_on_init_thread
-        fingerprint = fingerprint_from_key(key)
-        key_data = bytes(key)
-        new_key = Key(fingerprint, key_data, is_signing)
-
-        session.add(new_key)
-        self.__commit(session=session)
-        return new_key
-
-    def get_key(self, fingerprint: bytes, session=None) -> UmbralPublicKey:
-        """
-        Returns a key from the Datastore.
-
-        :param fingerprint: Fingerprint, in bytes, of key to return
-
-        :return: Keypair of the returned key.
-        """
-        session = session or self._session_on_init_thread
-
-        key = session.query(Key).filter_by(fingerprint=fingerprint).first()
-        if not key:
-            raise NotFound("No key with fingerprint {} found.".format(fingerprint))
-
-        pubkey = UmbralPublicKey.from_bytes(key.key_data)
-        return pubkey
-
-    def del_key(self, fingerprint: bytes, session=None):
-        """
-        Deletes a key from the Datastore.
-
-        :param fingerprint: Fingerprint of key to delete
-        """
-        session = session or self._session_on_init_thread
-
-        session.query(Key).filter_by(fingerprint=fingerprint).delete()
-        self.__commit(session=session)
-
-    #
     # Arrangements
     #
 
@@ -134,15 +82,11 @@ class Datastore:
         """
         session = session or self._session_on_init_thread
 
-        alice_key_instance = session.query(Key).filter_by(key_data=bytes(alice_verifying_key)).first()
-        if not alice_key_instance:
-            alice_key_instance = Key.from_umbral_key(alice_verifying_key, is_signing=True)
-
         new_policy_arrangement = PolicyArrangement(
             expiration=expiration,
             id=arrangement_id,
             kfrag=kfrag,
-            alice_verifying_key=alice_key_instance,
+            alice_verifying_key=bytes(alice_verifying_key),
             alice_signature=None,
             # bob_verifying_key.id  # TODO: Is this needed?
         )
@@ -180,7 +124,7 @@ class Datastore:
         if policy_arrangement is None:
             raise NotFound("Can't attach a kfrag to non-existent Arrangement {}".format(id_as_hex))
 
-        if policy_arrangement.alice_verifying_key.key_data != alice.stamp:
+        if policy_arrangement.alice_verifying_key != alice.stamp:
             raise alice.SuspiciousActivity
 
         policy_arrangement.kfrag = bytes(kfrag)
@@ -225,13 +169,7 @@ class Datastore:
         """
         session = session or self._session_on_init_thread
 
-        # Get or Create Bob Verifying Key
-        fingerprint = fingerprint_from_key(bob_verifying_key)
-        key = session.query(Key).filter_by(fingerprint=fingerprint).first()
-        if not key:
-            key = self.add_key(key=bob_verifying_key)
-
-        new_workorder = Workorder(bob_verifying_key_id=key.id,
+        new_workorder = Workorder(bob_verifying_key=bytes(bob_verifying_key),
                                   bob_signature=bob_signature,
                                   arrangement_id=arrangement_id)
 
@@ -254,16 +192,13 @@ class Datastore:
             workorders = query.all()  # Return all records
 
         else:
-
             # Return arrangement records
             if arrangement_id:
                 workorders = query.filter_by(arrangement_id=arrangement_id)
 
             # Return records for Bob
             else:
-                fingerprint = fingerprint_from_key(bob_verifying_key)
-                key = session.query(Key).filter_by(fingerprint=fingerprint).first()
-                workorders = query.filter_by(bob_verifying_key_id=key.id)
+                workorders = query.filter_by(bob_verifying_key=bob_verifying_key)
 
             if not workorders:
                 raise NotFound

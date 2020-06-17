@@ -65,7 +65,6 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.datastore import datastore
-from nucypher.datastore.db import Base
 from nucypher.policy.collections import IndisputableEvidence, WorkOrder
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
@@ -134,12 +133,12 @@ def temp_dir_path():
     temp_dir.cleanup()
 
 
-@pytest.fixture(scope="module")
-def test_datastore():
-    engine = create_engine('sqlite:///:memory:')
-    Base.metadata.create_all(engine)
-    test_datastore = datastore.Datastore(engine)
-    yield test_datastore
+#@pytest.fixture(scope="module")
+#def test_datastore():
+#    engine = create_engine('sqlite:///:memory:')
+#    Base.metadata.create_all(engine)
+#    test_datastore = datastore.Datastore(engine)
+#    yield test_datastore
 
 
 @pytest.fixture(scope='function')

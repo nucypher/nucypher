@@ -14,64 +14,104 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import lmdb
+import maya
+import msgpack
 import pytest
+import tempfile
 from datetime import datetime
 
 from nucypher.datastore import datastore, keypairs
+from nucypher.datastore.base import DatastoreRecord, RecordField
+from nucypher.datastore.models import PolicyArrangement, Workorder
 
 
-@pytest.mark.usefixtures('testerchain')
-def test_key_sqlite_datastore(test_datastore, federated_bob):
+def test_datastore_record_read():
+    class TestRecord(DatastoreRecord):
+        _test = RecordField(bytes)
+        _test_date = RecordField(datetime,
+                encode=lambda val: datetime.isoformat(val).encode(),
+                decode=lambda val: datetime.fromisoformat(val.decode()))
 
-    # Test add pubkey
-    test_datastore.add_key(federated_bob.stamp, is_signing=True)
+    db_env = lmdb.open(tempfile.mkdtemp())
+    with db_env.begin() as db_tx:
+        # Check the default attrs.
+        test_rec = TestRecord(db_tx, 'testing', writeable=False)
+        assert test_rec._record_id == 'testing'
+        assert test_rec._DatastoreRecord__db_tx == db_tx
+        assert test_rec._DatastoreRecord__writeable == False
+        assert test_rec._DatastoreRecord__storagekey == 'TestRecord:{record_field}:{record_id}'
 
-    # Test get pubkey
-    query_key = test_datastore.get_key(federated_bob.stamp.fingerprint())
-    assert bytes(federated_bob.stamp) == bytes(query_key)
+        # Reading an attr with no RecordField should error
+        with pytest.raises(TypeError):
+            should_error = test_rec.nonexistant_field
 
-    # Test del pubkey
-    test_datastore.del_key(federated_bob.stamp.fingerprint())
-    with pytest.raises(datastore.NotFound):
-        del_key = test_datastore.get_key(federated_bob.stamp.fingerprint())
+        # Reading when no records exist errors
+        with pytest.raises(AttributeError):
+            should_error = test_rec.test
 
-
-def test_policy_arrangement_sqlite_datastore(test_datastore):
-    alice_keypair_sig = keypairs.SigningKeypair(generate_keys_if_needed=True)
-
-    arrangement_id = b'test'
-
-    # Test add PolicyArrangement
-    new_arrangement = test_datastore.add_policy_arrangement(
-            datetime.utcnow(), b'test', arrangement_id, alice_verifying_key=alice_keypair_sig.pubkey,
-            alice_signature=b'test'
-    )
-
-    # Test get PolicyArrangement
-    query_arrangement = test_datastore.get_policy_arrangement(arrangement_id)
-    assert new_arrangement == query_arrangement
-
-    # Test del PolicyArrangement
-    test_datastore.del_policy_arrangement(arrangement_id)
-    with pytest.raises(datastore.NotFound):
-        del_key = test_datastore.get_policy_arrangement(arrangement_id)
+        # The record is not writeable
+        with pytest.raises(TypeError):
+            test_rec.test = b'should error'
 
 
-def test_workorder_sqlite_datastore(test_datastore):
-    bob_keypair_sig1 = keypairs.SigningKeypair(generate_keys_if_needed=True)
-    bob_keypair_sig2 = keypairs.SigningKeypair(generate_keys_if_needed=True)
+def test_datastore_record_write():
+    class TestRecord(DatastoreRecord):
+        _test = RecordField(bytes)
+        _test_date = RecordField(datetime,
+                encode=lambda val: datetime.isoformat(val).encode(),
+                decode=lambda val: datetime.fromisoformat(val.decode()))
 
-    arrangement_id = b'test'
+    # Test writing
+    db_env = lmdb.open(tempfile.mkdtemp())
+    with db_env.begin(write=True) as db_tx:
+        test_rec = TestRecord(db_tx, 'testing', writeable=True)
+        assert test_rec._DatastoreRecord__writeable == True
 
-    # Test add workorder
-    new_workorder1 = test_datastore.save_workorder(bob_keypair_sig1.pubkey, b'test0', arrangement_id)
-    new_workorder2 = test_datastore.save_workorder(bob_keypair_sig2.pubkey, b'test1', arrangement_id)
+        # Write an invalid serialization of `test` and test retrieving it is
+        # a TypeError
+        db_tx.put(b'TestRecord:test:testing', msgpack.packb(1234))
+        with pytest.raises(TypeError):
+            should_error = test_rec.test
 
-    # Test get workorder
-    query_workorders = test_datastore.get_workorders(arrangement_id)
-    assert {new_workorder1, new_workorder2}.issubset(query_workorders)
+        # Writing an invalid serialization of a field is a `TypeError`
+        with pytest.raises(TypeError):
+            test_rec.test = 1234
 
-    # Test del workorder
-    deleted = test_datastore.del_workorders(arrangement_id)
-    assert deleted > 0
-    assert len(test_datastore.get_workorders(arrangement_id)) == 0
+        # Test writing a valid field and getting it.
+        test_rec.test = b'good write'
+        assert test_rec.test == b'good write'
+        # TODO: Mock a `DBWriteError`
+
+
+# def test_datastore_policy_arrangement_model():
+#     arrangement_id = b'test'
+#     expiration = maya.now()
+#     alice_verifying_key = keypairs.SigningKeypair(generate_keys_if_needed=True).pubkey
+# 
+#     # TODO: Leaving out KFrag for now since I don't have an easy way to grab one.
+#     test_record = PolicyArrangement(arrangement_id=arrangement_id,
+#                                     expiration=expiration,
+#                                     alice_verifying_key=alice_verifying_key)
+# 
+#     assert test_record.arrangement_id == arrangement_id
+#     assert test_record.expiration == expiration
+#     assert alice_verifying_key == alice_verifying_key
+#     assert test_record == PolicyArrangement.from_bytes(test_record.to_bytes())
+# 
+# 
+# def test_datastore_workorder_model():
+#     bob_keypair = keypairs.SigningKeypair(generate_keys_if_needed=True)
+# 
+#     arrangement_id = b'test'
+#     bob_verifying_key = bob_keypair.pubkey
+#     bob_signature = bob_keypair.sign(b'test')
+# 
+#     test_record = Workorder(arrangement_id=arrangement_id,
+#                             bob_verifying_key=bob_verifying_key,
+#                             bob_signature=bob_signature)
+# 
+#     assert test_record.arrangement_id == arrangement_id
+#     assert test_record.bob_verifying_key == bob_verifying_key
+#     assert test_record.bob_signature == bob_signature
+#     assert test_record == Workorder.from_bytes(test_record.to_bytes())
