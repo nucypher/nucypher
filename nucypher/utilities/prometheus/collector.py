@@ -18,7 +18,7 @@
 try:
     from prometheus_client import Gauge, Enum, Counter, Info, Histogram, Summary
 except ImportError:
-    raise ImportError('prometheus_client is not installed - Install it and try again.')
+    raise ImportError('"prometheus_client" must be installed - run "pip install nucypher[ursula]" and try again.')
 
 from abc import ABC, abstractmethod
 from eth_typing.evm import ChecksumAddress
