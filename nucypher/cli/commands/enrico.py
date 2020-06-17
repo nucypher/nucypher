@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import click
+import ipfshttpclient
 from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.control.interfaces import EnricoInterface
@@ -58,8 +59,9 @@ def run(general_config, policy_encrypting_key, dry_run, http_port):
 
 @enrico.command()
 @EnricoInterface.connect_cli('encrypt_message')
+@click.option('--ipfs', help="Upload the encrypted message to IPFS at the specified gateway URI")
 @group_general_config
-def encrypt(general_config, policy_encrypting_key, message, file):
+def encrypt(general_config, policy_encrypting_key, message, file, ipfs):
     """Encrypt a message under a given policy public key."""
 
     # Setup
@@ -72,6 +74,14 @@ def encrypt(general_config, policy_encrypting_key, message, file):
     # Encryption Request
     encryption_request = {'policy_encrypting_key': policy_encrypting_key, 'message': message, 'filepath': file}
     response = ENRICO.controller.encrypt_message(request=encryption_request)
+
+    # Handle Ciphertext
+    # TODO: This might be crossing the bridge of being application code
+    if ipfs:
+        emitter.message(f"Connecting to IPFS Gateway {ipfs}")
+        ipfs_client = ipfshttpclient.connect(ipfs)
+        cid = ipfs_client.add_str(response['message_kit'])
+        emitter.message(f"Uploaded message kit to IPFS (CID {cid})", color='green')
     return response
 
 
