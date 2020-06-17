@@ -245,7 +245,7 @@ def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test
     response = enrico_web_controller_test_client.post('/encrypt_message', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
-    del(params['message'])
+    del(params['plaintext'])
     response = enrico_web_controller_test_client.post('/encrypt_message', data=params)
     assert response.status_code == 400
 
