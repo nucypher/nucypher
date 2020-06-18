@@ -44,7 +44,7 @@ from nucypher.cli.literature import (
     GENERIC_SELECT_ACCOUNT,
     SELECTED_ACCOUNT,
     WORKLOCK_CLAIM_ADVISORY, NO_TOKENS_TO_WITHDRAW, COLLECTING_TOKEN_REWARD, CONFIRM_COLLECTING_WITHOUT_MINTING,
-    NO_FEE_TO_WITHDRAW, COLLECTING_ETH_REWARD, NO_MINTABLE_PERIODS, STILL_LOCKED_TOKENS, CONFIRM_MINTING
+    NO_FEE_TO_WITHDRAW, COLLECTING_ETH_FEE, NO_MINTABLE_PERIODS, STILL_LOCKED_TOKENS, CONFIRM_MINTING
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.types import NuNits
@@ -245,7 +245,7 @@ def test_collecting_token_reward(click_runner, surrogate_staker, mock_policy_man
     user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(stake, collection_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
-    assert COLLECTING_ETH_REWARD.format(reward_amount=fee_amount_eth) in result.output
+    assert COLLECTING_ETH_FEE.format(fee_amount=fee_amount_eth) in result.output
 
     mock_policy_manager_agent.get_fee_amount.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
     mock_policy_manager_agent.collect_policy_fee.assert_called_once()

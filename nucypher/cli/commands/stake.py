@@ -831,7 +831,7 @@ def collect_reward(general_config,
             emitter.echo(NO_FEE_TO_WITHDRAW, color='red')
             raise click.Abort
 
-        emitter.echo(message=COLLECTING_ETH_FEE.format(reward_amount=fee_amount))
+        emitter.echo(message=COLLECTING_ETH_FEE.format(fee_amount=fee_amount))
         policy_receipt = STAKEHOLDER.collect_policy_fee(collector_address=withdraw_address)
         paint_receipt_summary(receipt=policy_receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,

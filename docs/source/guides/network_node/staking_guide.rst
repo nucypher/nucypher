@@ -477,6 +477,9 @@ that.
 Note that you will need to confirm two transactions if you collect both types of
 staking compensation if you use a hardware wallet.
 
+.. note:: If you want to withdraw all tokens when all of them are unlocked - 
+          make sure to call ``nucypher stake mint`` before that to obtain last reward too
+
 Staking using a preallocation contract
 ---------------------------------------
 
