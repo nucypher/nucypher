@@ -14,12 +14,11 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from prometheus_client.metrics import MetricWrapperBase
 
 try:
     from prometheus_client import Gauge, Enum, Counter, Info, Histogram, Summary
 except ImportError:
-    raise ImportError('prometheus_client is not installed - Install it and try again.')
+    raise ImportError('"prometheus_client" must be installed - run "pip install nucypher[ursula]" and try again.')
 
 from abc import ABC, abstractmethod
 from eth_typing.evm import ChecksumAddress
@@ -30,6 +29,7 @@ from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, S
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 
+from prometheus_client.metrics import MetricWrapperBase
 from prometheus_client.registry import CollectorRegistry
 
 from typing import Dict, List, Union
