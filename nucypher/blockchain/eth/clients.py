@@ -428,6 +428,9 @@ class EthereumClient:
 
         return True
 
+    def parse_transaction_data(self, transaction):
+        return transaction.data
+
 
 class GethClient(EthereumClient):
 
@@ -528,6 +531,9 @@ class InfuraClient(EthereumClient):
 
     def sync(self, *args, **kwargs) -> bool:
         return True
+
+    def parse_transaction_data(self, transaction):
+        return transaction.input
 
 
 class EthereumTesterClient(EthereumClient):
