@@ -33,7 +33,7 @@ class UmbralSignature(BaseField, fields.Field):
         if isinstance(value, bytes):
             return value
         try:
-            return b64decode(value)
+            return Signature.from_bytes(b64decode(value))
         except InvalidNativeDataTypes as e:
             raise InvalidInputData(f"Could not parse {self.name}: {e}")
 

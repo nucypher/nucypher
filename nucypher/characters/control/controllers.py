@@ -138,7 +138,7 @@ class CLIController(CharacterControlServer):
     def test_client(self):
         return
 
-    def handle_request(self, method_name, request):
+    def handle_request(self, method_name, request) -> dict:
         start = maya.now()
         response = self._perform_action(action=method_name, request=request)
         self.emitter.ipc(response=response, request_id=start.epoch, duration=maya.now() - start)
