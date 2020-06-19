@@ -19,28 +19,23 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import re
 from logging import Logger
 from pathlib import Path
-from typing import Tuple, Pattern
+from typing import Tuple, Pattern, NamedTuple, List
 
 from nucypher.config.constants import NUCYPHER_TEST_DIR
+
+
+
 
 # Logging
 SOLC_LOGGER = Logger("solidity-compilation")
 
 # Vocabulary
 CONTRACTS = 'contracts'
-ZEPPELIN: str = 'zeppelin'
-ARAGON: str = 'aragon'
-
 
 TEST_SOLIDITY_SOURCE_ROOT: Path = Path(NUCYPHER_TEST_DIR).parent / CONTRACTS / CONTRACTS
 
 from nucypher.blockchain.eth import sol
 SOLIDITY_SOURCE_ROOT: Path = Path(sol.__file__).parent / 'source'
-
-# Import Remapping
-ZEPPELIN_DIR: Path = SOLIDITY_SOURCE_ROOT / ZEPPELIN
-ARAGON_DIR: Path = SOLIDITY_SOURCE_ROOT / ARAGON
-NUCYPHER_CONTRACTS_DIR: Path = SOLIDITY_SOURCE_ROOT / 'contracts'
 
 # Do not compile contracts containing...
 IGNORE_CONTRACT_PREFIXES: Tuple[str, ...] = (
@@ -50,19 +45,4 @@ IGNORE_CONTRACT_PREFIXES: Tuple[str, ...] = (
 
 DEFAULT_VERSION_STRING: str = 'v0.0.0'  # for both compiler and devdoc versions (must fully match regex pattern below)
 
-
-# RE pattern for matching solidity source compile version specification in devdoc details.
-DEVDOC_VERSION_PATTERN: Pattern = re.compile(r"""
-\A            # Anchor must be first
-\|            # Anchored pipe literal at beginning of version definition
-(             # Start Inner capture group
-v             # Capture version starting from symbol v
-\d+           # At least one digit of major version
-\.            # Digits splitter
-\d+           # At least one digit of minor version
-\.            # Digits splitter
-\d+           # At least one digit of patch
-)             # End of capturing
-\|            # Anchored end of version definition | 
-\Z            # Anchor must be the end of the match
-""", re.VERBOSE)
+# TODO: Move closer to usage

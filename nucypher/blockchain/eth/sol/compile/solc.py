@@ -20,14 +20,14 @@ from logging import Logger
 
 from typing import Dict
 
-from nucypher.blockchain.eth.sol.compile.config import IMPORT_REMAPPING, OPTIMIZER_RUNS, ALLOWED_PATHS
+from nucypher.blockchain.eth.sol.compile.config import OPTIMIZER_RUNS
 from nucypher.blockchain.eth.sol.compile.constants import SOLC_LOGGER
 from nucypher.blockchain.eth.sol.compile.exceptions import CompilationError
 from nucypher.blockchain.eth.sol.compile.types import VersionString
 from nucypher.exceptions import DevelopmentInstallationRequired
 
 
-def __execute(compiler_version: VersionString, input_config: Dict, allowed_paths: str):
+def __execute(compiler_version: VersionString, input_config: Dict, base_path: str):
     """Executes the solcx command and underlying solc wrapper"""
     log = Logger('execute-solcx')
 
@@ -40,11 +40,11 @@ def __execute(compiler_version: VersionString, input_config: Dict, allowed_paths
 
     # Prepare Solc Command
     solc_binary_path: str = get_executable(version=compiler_version)
-    SOLC_LOGGER.info(f"Compiling with import remappings {' '.join(IMPORT_REMAPPING)} and allowed paths {ALLOWED_PATHS}")
+    SOLC_LOGGER.info(f"Compiling with base path")  # TODO: Add base path
 
     # Execute Compilation
     try:
-        compiler_output = compile_standard(input_data=input_config, allow_paths=allowed_paths)
+        compiler_output = compile_standard(input_data=input_config, base_path=base_path)
     except FileNotFoundError:
         raise CompilationError("The solidity compiler is not at the specified path. "
                                "Check that the file exists and is executable.")

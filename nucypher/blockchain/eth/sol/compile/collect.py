@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.exceptions import DevelopmentInstallationRequired
 try:
     import tests
@@ -34,20 +35,22 @@ def source_filter(filename: str) -> bool:
     return is_solidity_file and not contains_ignored_prefix
 
 
-def collect_sources(source_dir: Path) -> Dict[str, Dict[str, List[str]]]:
+def collect_sources(source_bundle: SourceBundle) -> Dict[str, Dict[str, List[str]]]:
     """
     Returns a compiler-ready mapping of solidity source files in source_dir (recursive)
     Walks source_dir top-down to the bottom filepath of each subdirectory recursively
     and filtrates by __source_filter, setting values into `source_paths`.
     """
     source_paths: Dict[str, Dict[str, List[str]]] = dict()
-    source_walker: Iterator = os.walk(top=str(source_dir), topdown=True)
-    # Collect single directory
-    for root, dirs, files in source_walker:
-        # Collect files in source dir
-        for filename in filter(source_filter, files):
-            path = Path(root) / filename
-            source_paths[filename] = dict(urls=[str(path.resolve(strict=True))])
-            SOLC_LOGGER.debug(f"Collecting solidity source {path}")
-    SOLC_LOGGER.info(f"Collected {len(source_paths)} solidity source files at {source_dir}")
+    for source_dir in source_bundle.source_dirs:
+        source_walker: Iterator = list(os.walk(top=str(source_dir.resolve(strict=True)), topdown=True))  # TODO: Remove list caster
+        # Collect single directory
+        for root, dirs, files in source_walker:
+            # Collect files in source dir
+            mapped_path = str(root).replace(str(source_bundle), '')
+            for filename in filter(source_filter, files):
+                path = Path(root) / filename
+                source_paths[filename] = dict(urls=[mapped_path])
+                SOLC_LOGGER.debug(f"Collecting solidity source {path}")
+        SOLC_LOGGER.info(f"Collected {len(source_paths)} solidity source files at {source_bundle}")
     return source_paths

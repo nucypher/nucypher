@@ -14,9 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
-from typing import Dict, List, Union, NewType
+from pathlib import Path
+from typing import Dict, List, Union, NewType, NamedTuple, Tuple, Optional
 
 
 class ABI(Dict):
@@ -42,3 +41,8 @@ class CompilerConfiguration(Dict):
     language: str
     sources: Dict[str, Dict[str, str]]
     settings: Dict
+
+
+class SourceBundle(NamedTuple):
+    source_dirs: Tuple[Path]
+    import_root: Optional[Path] = None
