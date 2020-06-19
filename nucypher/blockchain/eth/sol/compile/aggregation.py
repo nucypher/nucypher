@@ -16,12 +16,32 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from cytoolz.dicttoolz import merge
+import re
+from re import Pattern
 from typing import Dict
 
-from nucypher.blockchain.eth.sol.compile.constants import DEFAULT_VERSION_STRING, DEVDOC_VERSION_PATTERN, SOLC_LOGGER
+from cytoolz.dicttoolz import merge
+
+from nucypher.blockchain.eth.sol.compile.constants import DEFAULT_VERSION_STRING, SOLC_LOGGER
 from nucypher.blockchain.eth.sol.compile.exceptions import CompilationError, ProgrammingError
 from nucypher.blockchain.eth.sol.compile.types import VersionedContractOutputs, CompiledContractOutputs
+
+# RE pattern for matching solidity source compile version specification in devdoc details.
+DEVDOC_VERSION_PATTERN: Pattern = re.compile(r"""
+\A            # Anchor must be first
+\|            # Anchored pipe literal at beginning of version definition
+(             # Start Inner capture group
+v             # Capture version starting from symbol v
+\d+           # At least one digit of major version
+\.            # Digits splitter
+\d+           # At least one digit of minor version
+\.            # Digits splitter
+\d+           # At least one digit of patch
+)             # End of capturing
+\|            # Anchored end of version definition | 
+\Z            # Anchor must be the end of the match
+""", re.VERBOSE)
+
 
 
 def extract_version(compiled_contract_outputs: dict) -> str:
@@ -91,7 +111,7 @@ def validate_merge(existing_version: CompiledContractOutputs,
 
 
 def merge_contract_sources(*compiled_sources):
-    return merge(*compiled_sources)  # TODO: Handle file-lecel output aggregation
+    return merge(*compiled_sources)  # TODO: Handle file-level output aggregation
 
 
 def merge_contract_outputs(*compiled_versions) -> VersionedContractOutputs:

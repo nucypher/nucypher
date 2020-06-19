@@ -18,8 +18,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from typing import List, Dict
 
-from nucypher.blockchain.eth.sol.compile.constants import NUCYPHER_CONTRACTS_DIR, ZEPPELIN_DIR, ARAGON_DIR, ARAGON, ZEPPELIN, \
-    SOLIDITY_SOURCE_ROOT, TEST_SOLIDITY_SOURCE_ROOT
 from nucypher.blockchain.eth.sol.compile.types import CompilerConfiguration
 
 
@@ -33,23 +31,15 @@ WARNING: Do not change these values unless you know what you are doing.
 """
 
 
+# Debug
+# -----
 # How to treat revert (and require) reason strings.
 # "default", "strip", "debug" and "verboseDebug".
 # "default" does not inject compiler-generated revert strings and keeps user-supplied ones.
 # "strip" removes all revert strings (if possible, i.e. if literals are used) keeping side-effects
 # "debug" injects strings for compiler-generated internal reverts, implemented for ABI encoders V1 and V2 for now.
 # "verboseDebug" even appends further information to user-supplied revert strings (not yet implemented)
-DEBUG = 'default'
-
-# Hardcoded for added sanity.
-# New top-level contract source directories must be listed here.
-# Paths can be commented out to prevent default permission.
-# In tests, this list can be mutated to temporarily allow compilation
-# of source files that are typically not permitted.
-ALLOWED_PATHS = [
-    SOLIDITY_SOURCE_ROOT,
-    TEST_SOLIDITY_SOURCE_ROOT
-]
+# DEBUG = 'default'
 
 # Source code language. Currently supported are "Solidity" and "Yul".
 LANGUAGE: str = 'Solidity'
@@ -59,7 +49,7 @@ EVM_VERSION: str = 'berlin'
 
 # File level compiler outputs (needs empty string as contract name):
 FILE_OUTPUTS: List[str] = [
-    # 'ast'        # AST of all source files  # TODO: Handle AST for static analysis
+    'ast'          # AST of all source files
     # 'legacyAST'  # legacy AST of all source files
 ]
 
@@ -88,10 +78,8 @@ CONTRACT_OUTPUTS: List[str] = [
     # 'ewasm.wasm',                   # eWASM binary format (not supported at the moment)
 ]
 
-
-# Optional
-# Switch optimizer components on or off in detail.
-# The "enabled" switch above provides two defaults which can be tweaked here.
+# Optimizer Details - Switch optimizer components on or off in detail.
+# The "enabled" switch above provides two defaults which can be tweaked here (yul, and ...).
 OPTIMIZER_DETAILS = dict(
     peephole=True,            # The peephole optimizer is always on if no details are given (switch it off here).
     jumpdestRemover=True,     # The unused jumpdest remover is always on if no details are given (switch it off here).
@@ -103,7 +91,7 @@ OPTIMIZER_DETAILS = dict(
     # The new Yul optimizer. Mostly operates on the code of ABIEncoderV2 and inline assembly.
     # It is activated together with the global optimizer setting and can be deactivated here.
     # Before Solidity 0.6.0 it had to be activated through this switch.  Also see 'yulDetails options'.
-    yul=False
+    yul=True
 )
 
 # Optimize for how many times you intend to run the code.
@@ -117,19 +105,14 @@ OPTIMIZER_SETTINGS = dict(
     # details=OPTIMIZER_DETAILS  # Optional - If "details" is given, "enabled" can be omitted.
 )
 
-IMPORT_REMAPPING: List[str] = [
-    f"contracts={NUCYPHER_CONTRACTS_DIR.resolve()}",
-    f"{ZEPPELIN}={ZEPPELIN_DIR.resolve()}",
-    f"{ARAGON}={ARAGON_DIR.resolve()}",
-]
-
+# Complete compiler settings
 COMPILER_SETTINGS: Dict = dict(
-    remappings=IMPORT_REMAPPING,
     optimizer=OPTIMIZER_SETTINGS,
     evmVersion=EVM_VERSION,
     outputSelection={"*": {"*": CONTRACT_OUTPUTS, "": FILE_OUTPUTS}}  # all contacts(*), all files("")
 )
 
+# Base configuration for programmatic usage
 BASE_COMPILER_CONFIGURATION = CompilerConfiguration(
     language=LANGUAGE,
     settings=COMPILER_SETTINGS,

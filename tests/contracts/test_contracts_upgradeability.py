@@ -93,13 +93,13 @@ def deploy_earliest_contract(blockchain_interface: BlockchainDeployerInterface,
         pass  # Skip errors related to initialization
 
 
-@pytest.mark.skip('GH 403')  # FIXME
+# FIXME: Needs Completion
 def test_upgradeability(temp_dir_path, token_economics):
     # Prepare remote source for compilation
     download_github_dir(GITHUB_SOURCE_LINK, temp_dir_path)
 
     # Prepare the blockchain
-    provider_uri = 'tester://pyevm/2'
+    provider_uri = 'tester://pyevm/2'  # TODO: Testerchain caching Issues
     try:
         blockchain_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
                                                            gas_strategy=free_gas_price_strategy)
@@ -143,6 +143,6 @@ def test_upgradeability(temp_dir_path, token_economics):
             adjudicator_deployer.upgrade(contract_version="latest", confirmations=0)
 
     finally:
-        # Unregister interface
+        # Unregister interface  # TODO: Move to method?
         with contextlib.suppress(KeyError):
             del BlockchainInterfaceFactory._interfaces[provider_uri]

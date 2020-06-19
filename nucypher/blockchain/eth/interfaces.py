@@ -19,7 +19,6 @@ import os
 import pprint
 import threading
 import time
-from pathlib import Path
 from typing import Callable, Tuple, Union, NamedTuple
 from urllib.parse import urlparse
 
@@ -808,9 +807,10 @@ class BlockchainDeployerInterface(BlockchainInterface):
     TIMEOUT = 600  # seconds
     _CONTRACT_FACTORY = VersionedContract
 
+    # TODO: Make more func - use as a parameter
     # Source directories to (recursively) compile
-    SOURCES: Tuple[Path, ...] = [
-        SOLIDITY_SOURCE_ROOT
+    SOURCES: Tuple[SourceBundle, ...] = [
+        SourceBundle(source_dirs=(SOLIDITY_SOURCE_ROOT, ), import_root=SOLIDITY_SOURCE_ROOT)
     ]
 
     _raw_contract_cache = NO_COMPILATION_PERFORMED
@@ -821,13 +821,14 @@ class BlockchainDeployerInterface(BlockchainInterface):
     class DeploymentFailed(RuntimeError):
         pass
 
+
     def connect(self, compile_now: bool = True, ignore_solidity_check: bool = False) -> bool:
         super().connect()
         if compile_now:
             # Execute the compilation if we're recompiling
             # Otherwise read compiled contract data from the registry.
-            compiled_contracts = multiversion_compile(compiler_version_check=not ignore_solidity_check,
-                                                      solidity_source_dirs=self.SOURCES)
+            check = not ignore_solidity_check
+            compiled_contracts = multiversion_compile(source_bundles=self.SOURCES, compiler_version_check=check)
             self._raw_contract_cache = compiled_contracts
         return self.is_connected
 
