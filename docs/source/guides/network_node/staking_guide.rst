@@ -186,32 +186,39 @@ the commitment period.
 
 .. code:: bash
 
+
     (nucypher)$ nucypher stake create --hw-wallet
 
-    Select staking account [0]: 0
-    Enter stake value in NU [15000]: 15000
-    Enter stake duration (30 periods minimum): 30
+        Account
+    --  ------------------------------------------
+     0  0x63e478bc474eBb6c31568ff131cCd95C24bfD552
+     1  0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
+     2  0x45D33d1Ff0A7E696556f36DE697E5C92C2CCcFaE
+    Select index of staking account [0]: 1
+    Selected 1: 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
+    Enter stake value in NU (15000 NU - 30000 NU) [30000]: 30000
+    Enter stake duration (30 - 47103) [365]: 30
 
-    ============================== STAGED STAKE ==============================
+    ══════════════════════════════ STAGED STAKE ══════════════════════════════
 
-    Staking address: 0xbb01c4fE50f91eF73c5dD6eD89f38D55A6b1EdCA
-    ~ Chain      -> ID # <CHAIN ID>
-    ~ Value      -> 15000 NU (1.50E+22 NuNits)
+    Staking address: 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
+    ~ Chain  	-> ID # <CHAIN_ID>
+    ~ Value  	-> 30000 NU (30000000000000000000000 NuNits)
     ~ Duration   -> 30 Days (30 Periods)
-    ~ Enactment  -> 2019-08-19 09:51:16.704875+00:00 (period #18127)
-    ~ Expiration -> 2019-09-18 09:51:16.705113+00:00 (period #18157)
+    ~ Enactment  -> Jun 19 20:00 EDT (period #18433)
+    ~ Expiration -> Jul 19 20:00 EDT (period #18463)
 
-    =========================================================================
+    ═════════════════════════════════════════════════════════════════════════
 
     * Ursula Node Operator Notice *
     -------------------------------
 
-    By agreeing to stake 15000 NU (15000000000000000000000 NuNits):
+    By agreeing to stake 30000 NU (30000000000000000000000 NuNits):
 
     - Staked tokens will be locked for the stake duration.
 
     - You are obligated to maintain a networked and available Ursula-Worker node
-      bonded to the staker address 0xbb01c4fE50f91eF73c5dD6eD89f38D55A6b1EdCA for the duration
+      bonded to the staker address 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f for the duration
       of the stake(s) (30 periods).
 
     - Agree to allow NuCypher network users to carry out uninterrupted re-encryption
@@ -221,19 +228,12 @@ the commitment period.
     will result in the loss of staked tokens as described in the NuCypher slashing protocol.
 
     Keeping your Ursula node online during the staking period and successfully
-    producing correct re-encryption work orders will earn fees
-    paid out in ETH on-demand and retroactively.
+    producing correct re-encryption work orders will result in rewards
+    paid out in ethers retro-actively and on-demand.
 
     Accept ursula node operator obligation? [y/N]: y
     Publish staged stake to the blockchain? [y/N]: y
 
-    Stake initialization transaction was successful.
-
-    Transaction details:
-    OK | deposit stake | 0xe05babab52d00157d0c6e95b7c5165a95adc0ee7ff64ca4d89807805f0ef0fcf (229181 gas)
-    Block #16 | 0xbf8252bc84831c26fc91a2272047e394ec0356af515d785d4a179596e722d836
-
-    StakingEscrow address: 0xDe09E74d4888Bc4e65F589e8c13Bce9F71DdF4c7
 
 If you used a hardware wallet, you will need to confirm two transactions here.
 
@@ -247,15 +247,25 @@ Once you have created one or more stakes, you can view all active stake for conn
 
     (nucypher)$ nucypher stake list
 
-    ======================================= Active Stakes =========================================
+    Network <NETWORK> ═════════════════════════════════════════
+    Staker 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f ════
+    Worker NO_WORKER_BONDED ════
+    --------------  -----------------------------------
+    Status      	Never Made a Commitment (New Stake)
+    Restaking   	Yes (Unlocked)
+    Winding Down	No
+    Unclaimed Fees  0 ETH
+    Min fee rate	0 ETH
+    --------------  -----------------------------------
+    ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╕
+    │   Idx │ Value    │   Remaining │ Enactment   │ Termination   │
+    ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╡
+    │ 	0   │ 30000 NU │      	  31 │ Jun 19 2020 │ Jul 19 2020   │
+    ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╛
 
-    | ~ | Staker | Worker | # | Value    | Duration     | Enactment
-    |   | ------ | ------ | - | -------- | ------------ | -----------------------------------------
-    | 0 | 0xbb01 | 0xdead | 0 | 15000 NU | 41 periods . | Aug 04 12:15:16 CEST - Sep 13 12:15:16 CEST
-    | 1 | 0xbb02 | 0xbeef | 1 | 15000 NU | 30 periods . | Aug 20 12:15:16 CEST - Sep 18 12:15:16 CEST
-    | 2 | 0xbb03 | 0x0000 | 0 | 30000 NU | 30 periods . | Aug 09 12:15:16 CEST - Sep 9 12:15:16 CEST
 
-If the Worker in the list is shown as ``0x0000``, it means that you haven't yet
+
+If the Worker in the list is shown as ``NO_WORKER_BONDED``, it means that you haven't yet
 bonded a Worker node to your Staker, so you still have to do it!
 
 .. _bond-worker:
@@ -268,25 +278,22 @@ There is a 1:1 relationship between the roles: A Staker may have multiple Stakes
 
 .. note:: The Worker cannot be changed for a minimum of 2 periods once bonded.
 
-.. note:: Stakers without a worker bonded will be highlighted in yellow (sometimes called "Unbonded" or "Headless").
+.. note:: Stakers without a worker bonded will be highlighted in red.
 
 .. code:: bash
 
     (nucypher)$ nucypher stake bond-worker --hw-wallet
 
-    ======================================= Active Stakes =========================================
+            Account
+    --  ------------------------------------------
+     0  0x63e478bc474eBb6c31568ff131cCd95C24bfD552
+     1  0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
+     2  0x45D33d1Ff0A7E696556f36DE697E5C92C2CCcFaE
+    Select index of staking account [0]: 1
+    Selected 1: 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
+    Enter worker address: 0x45D33d1Ff0A7E696556f36DE697E5C92C2CCcFaE
+    Commit to bonding worker 0x45D33d1Ff0A7E696556f36DE697E5C92C2CCcFaE to staker 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f for a minimum of 2 periods? [y/N]: y
 
-    | ~ | Staker | Worker | # | Value    | Duration     | Enactment
-    |   | ------ | ------ | - | -------- | ------------ | -----------------------------------------
-    | 0 | 0xbb01 | 0xdead | 0 | 15000 NU | 41 periods . | Aug 04 12:15:16 CEST - Sep 13 12:15:16 CEST
-    | 1 | 0xbb02 | 0xbeef | 1 | 15000 NU | 30 periods . | Aug 20 12:15:16 CEST - Sep 18 12:15:16 CEST
-    | 2 | 0xbb03 | 0x0000 | 0 | 30000 NU | 30 periods . | Aug 09 12:15:16 CEST - Sep 9 12:15:16 CEST
-
-    Select Stake: 2
-    Enter Worker Address: 0xbeefc4fE50f91eF73c5dD6eD89f38D55A6b1EdCA
-    Worker 0xbb04c4fE50f91eF73c5dD6eD89f38D55A6b1EdCA successfully bonded to staker 0xbb03...
-
-    OK!
 
 .. note:: The worker's address must be EIP-55 checksum valid, however, geth shows addresses in the normalized format.
           You can convert the normalized address to checksum format in geth console:
@@ -295,9 +302,10 @@ There is a 1:1 relationship between the roles: A Staker may have multiple Stakes
 
     $ geth attach ~/.ethereum/geth.ipc
     > eth.accounts
-    ["0x287a817426dd1ae78ea23e9918e2273b6733a43d", "0xc080708026a3a280894365efd51bb64521c45147"]
-    > web3.toChecksumAddress(eth.accounts[0])
-    "0x287A817426DD1AE78ea23e9918e2273b6733a43D"
+    ["0x63e478bc474ebb6c31568ff131ccd95c24bfd552", "0x270b3f8af5ba2b79ea3bd6a6efc7ecab056d3e3f", "0x45d33d1ff0a7e696556f36de697e5c92c2cccfae"]
+    > web3.toChecksumAddress(eth.accounts[2])
+    "0x45D33d1Ff0A7E696556f36DE697E5C92C2CCcFaE"
+
 
 After this step, you're finished with the Staker, and you can proceed to :ref:`ursula-config-guide`.
 
