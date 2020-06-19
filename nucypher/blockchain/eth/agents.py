@@ -807,7 +807,8 @@ class PolicyManagerAgent(EthereumContractAgent):
         _receipt = self.blockchain.client.wait_for_receipt(txhash, timeout=timeout)
         transaction = self.blockchain.client.w3.eth.getTransaction(txhash)
         try:
-            _signature, parameters = self.contract.decode_function_input(self.blockchain.client.parse_transaction_data(transaction))
+            _signature, parameters = self.contract.decode_function_input(
+                self.blockchain.client.parse_transaction_data(transaction))
         except AttributeError:
             raise RuntimeError(f"Eth Client incompatibility issue: {self.blockchain.client} could not extract data from {transaction}")
         return parameters['_nodes']

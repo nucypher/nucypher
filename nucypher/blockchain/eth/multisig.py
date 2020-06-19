@@ -43,7 +43,7 @@ class Proposal:
         proposal_elements = dict(trustee_address=trustee_address,
                                  target_address=transaction['to'],
                                  value=transaction['value'],
-                                 data=Web3.toBytes(hexstr=transaction['data']),
+                                 data=Web3.toBytes(hexstr=transaction['data']), # TODO: should use a blockchain client to get correct data
                                  nonce=multisig_agent.nonce)
 
         digest = multisig_agent.get_unsigned_transaction_hash(**proposal_elements)
