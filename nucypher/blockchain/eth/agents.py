@@ -237,7 +237,7 @@ class StakingEscrowAgent(EthereumContractAgent):
     def get_staker_population(self) -> int:
         """Returns the number of stakers on the blockchain"""
         return self.contract.functions.getStakersLength().call()
-    
+
     @contract_api(CONTRACT_CALL)
     def get_current_period(self) -> Period:
         """Returns the current period"""
@@ -321,7 +321,7 @@ class StakingEscrowAgent(EthereumContractAgent):
     #
     # StakingEscrow Contract API
     #
-    
+
     @contract_api(CONTRACT_CALL)
     def get_global_locked_tokens(self, at_period: Optional[Period] = None) -> NuNits:
         """
@@ -435,7 +435,7 @@ class StakingEscrowAgent(EthereumContractAgent):
                       dry_run: bool = False,
                       gas_limit: Optional[Wei] = None
                       ) -> Union[TxReceipt, Wei]:
-        
+
         min_gas_batch_deposit: Wei = Wei(250_000)  # TODO: move elsewhere?
         if gas_limit and gas_limit < min_gas_batch_deposit:
             raise ValueError(f"{gas_limit} is not enough gas for any batch deposit")
@@ -618,7 +618,7 @@ class StakingEscrowAgent(EthereumContractAgent):
     @contract_api(CONTRACT_CALL)
     def staking_parameters(self) -> StakingEscrowParameters:
         parameter_signatures = (
-            
+
             # Period
             'secondsPerPeriod',  # Seconds in single period
 
@@ -806,7 +806,11 @@ class PolicyManagerAgent(EthereumContractAgent):
         # TODO: Won't it be great when this is impossible?  #1274
         _receipt = self.blockchain.client.wait_for_receipt(txhash, timeout=timeout)
         transaction = self.blockchain.client.w3.eth.getTransaction(txhash)
-        _signature, parameters = self.contract.decode_function_input(transaction.data)
+        try:
+            _signature, parameters = self.contract.decode_function_input(
+                self.blockchain.client.parse_transaction_data(transaction))
+        except AttributeError:
+            raise RuntimeError(f"Eth Client incompatibility issue: {self.blockchain.client} could not extract data from {transaction}")
         return parameters['_nodes']
 
     @contract_api(TRANSACTION)
@@ -1229,7 +1233,7 @@ class WorkLockAgent(EthereumContractAgent):
     def check_claim(self, checksum_address: ChecksumAddress) -> bool:
         has_claimed: bool = bool(self.contract.functions.workInfo(checksum_address).call()[2])
         return has_claimed
-    
+
     #
     # Internal
     #

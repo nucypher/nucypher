@@ -172,7 +172,7 @@ def test_manual_proxy_retargeting(testerchain, test_registry, token_economics):
                                     just_build_transaction=True)
 
     assert transaction['to'] == proxy_deployer.contract.address
-    upgrade_function, _params = proxy_deployer.contract.decode_function_input(transaction['data'])
+    upgrade_function, _params = proxy_deployer.contract.decode_function_input(transaction['data']) # TODO: this only tests for ethtester
     assert upgrade_function.fn_name == proxy_deployer.contract.functions.upgrade.fn_name
 
     # Retarget, for real

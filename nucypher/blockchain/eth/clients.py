@@ -428,6 +428,9 @@ class EthereumClient:
 
         return True
 
+    def parse_transaction_data(self, transaction):
+        return transaction.input
+
 
 class GethClient(EthereumClient):
 
@@ -584,6 +587,9 @@ class EthereumTesterClient(EthereumClient):
         signable_message = encode_defunct(primitive=message)
         signature_and_stuff = Account.sign_message(signable_message=signable_message, private_key=signing_key)
         return signature_and_stuff['signature']
+
+    def parse_transaction_data(self, transaction):
+        return transaction.data  # TODO: See https://github.com/ethereum/eth-tester/issues/173
 
 
 class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
