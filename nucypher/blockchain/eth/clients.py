@@ -429,7 +429,7 @@ class EthereumClient:
         return True
 
     def parse_transaction_data(self, transaction):
-        return transaction.data
+        return transaction.input
 
 
 class GethClient(EthereumClient):
@@ -532,9 +532,6 @@ class InfuraClient(EthereumClient):
     def sync(self, *args, **kwargs) -> bool:
         return True
 
-    def parse_transaction_data(self, transaction):
-        return transaction.input
-
 
 class EthereumTesterClient(EthereumClient):
     is_local = True
@@ -590,6 +587,9 @@ class EthereumTesterClient(EthereumClient):
         signable_message = encode_defunct(primitive=message)
         signature_and_stuff = Account.sign_message(signable_message=signable_message, private_key=signing_key)
         return signature_and_stuff['signature']
+
+    def parse_transaction_data(self, transaction):
+        return transaction.data
 
 
 class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
