@@ -26,7 +26,7 @@ class FileField(BaseField, fields.String):
 
     def _deserialize(self, value, attr, data, **kwargs):
         with open(value, 'rb') as plaintext_file:
-            plaintext = plaintext_file.read()
+            plaintext = plaintext_file.read()  # TODO: #2106 Handle large files
         return plaintext
 
     def _validate(self, value):

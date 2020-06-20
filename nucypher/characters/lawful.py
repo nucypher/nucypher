@@ -1551,6 +1551,7 @@ class Enrico(Character):
         self.log.info(self.banner.format(policy_encrypting_key))
 
     def encrypt_message(self, plaintext: bytes) -> Tuple[UmbralMessageKit, Signature]:
+        # TODO: #2107 Rename to "encrypt"
         message_kit, signature = encrypt_and_sign(self.policy_pubkey,
                                                   plaintext=plaintext,
                                                   signer=self.stamp)

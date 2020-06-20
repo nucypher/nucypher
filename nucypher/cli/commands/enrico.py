@@ -72,7 +72,7 @@ def encrypt(general_config, policy_encrypting_key, message, file, ipfs):
         raise click.Abort
 
     # Encryption Request
-    encryption_request = {'policy_encrypting_key': policy_encrypting_key, 'message': message, 'filepath': file}
+    encryption_request = {'policy_encrypting_key': policy_encrypting_key, 'message': message, 'file': file}
     response = ENRICO.controller.encrypt_message(request=encryption_request)
 
     # Handle Ciphertext

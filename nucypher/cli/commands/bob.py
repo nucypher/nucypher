@@ -310,6 +310,7 @@ def retrieve(general_config,
         raise click.BadArgumentUsage(f'{required_fields} are required flags to retrieve')
 
     if ipfs:
+        # TODO: #2108
         emitter.message(f"Connecting to IPFS Gateway {ipfs}")
         ipfs_client = ipfshttpclient.connect(ipfs)
         cid = message_kit  # Understand the message kit value as an IPFS hash.

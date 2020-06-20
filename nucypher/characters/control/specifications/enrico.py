@@ -33,7 +33,7 @@ class EncryptMessage(BaseSchema):
         click=click.option('--message', help="A unicode message to encrypt for a policy")
     )
 
-    filepath = fields.FileField(
+    file = fields.FileField(
         load_only=True,
         allow_none=True,
         click=click.option('--file', help="Filepath to plaintext file to encrypt", type=EXISTING_READABLE_FILE)
@@ -52,13 +52,13 @@ class EncryptMessage(BaseSchema):
         we output one of them as the "plaintext" arg to enrico.encrypt_message
         """
 
-        if data.get('message') and data.get('filepath'):
+        if data.get('message') and data.get('file'):
             raise exceptions.InvalidArgumentCombo("choose either a message or a filepath but not both.")
 
         if data.get('message'):
             data = bytes(data['message'], encoding='utf-8')
         else:
-            data = data['filepath']
+            data = data['file']
 
         return {"plaintext": data}
 
