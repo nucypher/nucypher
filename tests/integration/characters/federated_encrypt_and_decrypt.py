@@ -107,7 +107,7 @@ def test_alice_can_decrypt(federated_alice):
     enrico = Enrico(policy_encrypting_key=policy_pubkey)
 
     message = b"boring test message"
-    message_kit, signature = enrico.encrypt_message(message=message)
+    message_kit, signature = enrico.encrypt_message(plaintext=message)
 
     # Interesting thing: if Alice wants to decrypt, she needs to provide the label directly.
     cleartext = federated_alice.verify_from(stranger=enrico,

@@ -16,25 +16,52 @@
 """
 
 import click
+from marshmallow import post_load
 
-from nucypher.characters.control.specifications import fields
-from nucypher.characters.control.specifications.base import BaseSchema
+from nucypher.characters.control.specifications import fields, exceptions
 from nucypher.cli import options
+from nucypher.cli.types import EXISTING_READABLE_FILE
+from nucypher.characters.control.specifications.base import BaseSchema
 
 
 class EncryptMessage(BaseSchema):
 
     # input
     message = fields.Cleartext(
-        required=True, load_only=True,
+        load_only=True,
+        allow_none=True,
         click=click.option('--message', help="A unicode message to encrypt for a policy")
+    )
+
+    file = fields.FileField(
+        load_only=True,
+        allow_none=True,
+        click=click.option('--file', help="Filepath to plaintext file to encrypt", type=EXISTING_READABLE_FILE)
     )
 
     policy_encrypting_key = fields.Key(
         required=False,
         load_only=True,
-        click=options.option_policy_encrypting_key())
+        click=options.option_policy_encrypting_key()
+    )
+
+    @post_load()
+    def format_method_arguments(self, data, **kwargs):
+        """
+        input can be through either the file input or a raw message,
+        we output one of them as the "plaintext" arg to enrico.encrypt_message
+        """
+
+        if data.get('message') and data.get('file'):
+            raise exceptions.InvalidArgumentCombo("choose either a message or a filepath but not both.")
+
+        if data.get('message'):
+            data = bytes(data['message'], encoding='utf-8')
+        else:
+            data = data['file']
+
+        return {"plaintext": data}
 
     # output
     message_kit = fields.UmbralMessageKit(dump_only=True)
-    signature = fields.String(dump_only=True) # maybe we need a signature field?
+    signature = fields.UmbralSignature(dump_only=True)

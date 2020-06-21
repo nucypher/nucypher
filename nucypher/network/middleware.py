@@ -235,10 +235,13 @@ class RestMiddleware:
     def send_work_order_payload_to_ursula(self, work_order):
         payload = work_order.payload()
         id_as_hex = work_order.arrangement_id.hex()
-        return self.client.post(
+        response = self.client.post(
             node_or_sprout=work_order.ursula,
             path=f"kFrag/{id_as_hex}/reencrypt",
-            data=payload, timeout=2)
+            data=payload,
+            timeout=2
+        )
+        return response
 
     def check_rest_availability(self, initiator, responder):
         response = self.client.post(node_or_sprout=responder,

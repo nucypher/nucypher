@@ -24,6 +24,7 @@ from nucypher.characters.control.specifications import alice, bob, enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.utils import construct_policy_id
+from nucypher.datastore.datastore import NotFound
 
 
 def attach_schema(schema):
@@ -241,11 +242,11 @@ class BobInterface(CharacterPublicInterface):
 class EnricoInterface(CharacterPublicInterface):
 
     @attach_schema(enrico.EncryptMessage)
-    def encrypt_message(self, message: str):
+    def encrypt_message(self, plaintext: Union[str, bytes]):
         """
         Character control endpoint for encrypting data for a policy and
         receiving the messagekit (and signature) to give to Bob.
         """
-        message_kit, signature = self.character.encrypt_message(bytes(message, encoding='utf-8'))
+        message_kit, signature = self.character.encrypt_message(plaintext=plaintext)
         response_data = {'message_kit': message_kit, 'signature': signature}
         return response_data

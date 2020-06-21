@@ -36,9 +36,12 @@ from nucypher.utilities.prometheus.collector import (
 import json
 from typing import List
 
-from prometheus_client.core import Timestamp
-from prometheus_client.registry import CollectorRegistry, REGISTRY
-from prometheus_client.utils import floatToGoString
+try:
+    from prometheus_client.core import Timestamp
+    from prometheus_client.registry import CollectorRegistry, REGISTRY
+    from prometheus_client.utils import floatToGoString
+except ImportError:
+    raise DevelopmentInstallationRequired(importable_name='prometheus_client')
 from twisted.internet import reactor, task
 from twisted.web.resource import Resource
 

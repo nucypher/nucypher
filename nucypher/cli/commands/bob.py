@@ -14,8 +14,10 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import base64
 
 import click
+import ipfshttpclient
 
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import BobInterface
@@ -286,13 +288,15 @@ def public_keys(general_config, character_options, config_file):
 @option_config_file
 @BobInterface.connect_cli('retrieve')
 @group_general_config
+@click.option('--ipfs', help="Download an encrypted message from IPFS at the specified gateway URI")
 def retrieve(general_config,
              character_options,
              config_file,
              label,
              policy_encrypting_key,
              alice_verifying_key,
-             message_kit):
+             message_kit,
+             ipfs):
     """Obtain plaintext from encrypted data, if access was granted."""
 
     # Setup
@@ -304,6 +308,15 @@ def retrieve(general_config,
         input_specification, output_specification = BOB.control.get_specifications(interface_name='retrieve')
         required_fields = ', '.join(input_specification)
         raise click.BadArgumentUsage(f'{required_fields} are required flags to retrieve')
+
+    if ipfs:
+        # TODO: #2108
+        emitter.message(f"Connecting to IPFS Gateway {ipfs}")
+        ipfs_client = ipfshttpclient.connect(ipfs)
+        cid = message_kit  # Understand the message kit value as an IPFS hash.
+        raw_message_kit = ipfs_client.cat(cid)  # cat the contents at the hash reference
+        emitter.message(f"Downloaded message kit from IPFS (CID {cid})", color='green')
+        message_kit = raw_message_kit.decode()  # cast to utf-8
 
     # Request
     bob_request_data = {

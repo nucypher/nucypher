@@ -60,7 +60,6 @@ class CharacterControllerBase(ABC):
         method = getattr(self.interface, action, None)
         serializer = method._schema
         params = serializer.load(request) # input validation will occur here.
-
         response = method(**params)  # < ---- INLET
 
         response_data = serializer.dump(response)
@@ -139,10 +138,11 @@ class CLIController(CharacterControlServer):
     def test_client(self):
         return
 
-    def handle_request(self, method_name, request):
+    def handle_request(self, method_name, request) -> dict:
         start = maya.now()
         response = self._perform_action(action=method_name, request=request)
-        return self.emitter.ipc(response=response, request_id=start.epoch, duration=maya.now() - start)
+        self.emitter.ipc(response=response, request_id=start.epoch, duration=maya.now() - start)
+        return response
 
 
 class JSONRPCController(CharacterControlServer):
