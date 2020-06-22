@@ -16,6 +16,7 @@
 """
 
 from pathlib import Path
+from typing import Tuple
 
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
@@ -27,14 +28,14 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 def test_deployer_interface_multiversion_contract():
 
     # Prepare compiler
-    base_dir = Path(__file__).parent / 'contracts' / 'multiversion'
+    base_dir = Path(__file__).parent / 'test_contracts' / 'multiversion'
     v1_dir, v2_dir = Path(base_dir / 'v1'), Path(base_dir / 'v2')
-    source_dirs = v1_dir, v2_dir
 
     # I am a contract administrator and I an compiling a new updated version of an existing contract...
     # Represents "Manually hardcoding" a new source directory on BlockchainDeployerInterface.SOURCES.
-    BlockchainDeployerInterface.SOURCES = (
-        SourceBundle(source_dirs=source_dirs, import_root=base_dir),
+    BlockchainDeployerInterface.SOURCES: Tuple[SourceBundle, ...] = (
+        SourceBundle(source_dirs=(v1_dir, )),
+        SourceBundle(source_dirs=(v2_dir, )),
     )
 
     # Prepare chain

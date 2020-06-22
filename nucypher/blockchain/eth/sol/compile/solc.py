@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.sol.compile.types import VersionString
 from nucypher.exceptions import DevelopmentInstallationRequired
 
 
-def __execute(compiler_version: VersionString, input_config: Dict, base_path: str):
+def __execute(compiler_version: VersionString, input_config: Dict, allowed_paths: str, base_path: str = None):
     """Executes the solcx command and underlying solc wrapper"""
     log = Logger('execute-solcx')
 
@@ -44,7 +44,7 @@ def __execute(compiler_version: VersionString, input_config: Dict, base_path: st
 
     # Execute Compilation
     try:
-        compiler_output = compile_standard(input_data=input_config, base_path=base_path)
+        compiler_output = compile_standard(input_data=input_config, allow_paths=allowed_paths, base_path=base_path)
     except FileNotFoundError:
         raise CompilationError("The solidity compiler is not at the specified path. "
                                "Check that the file exists and is executable.")

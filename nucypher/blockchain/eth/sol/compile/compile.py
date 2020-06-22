@@ -41,7 +41,13 @@ def compile_sources(source_bundle: SourceBundle, version_check: bool = True) -> 
     solc_configuration = merge(BASE_COMPILER_CONFIGURATION, dict(sources=sources))  # do not mutate
     ignore_version_check: bool = not version_check
     version: VersionString = VersionString(SOLIDITY_COMPILER_VERSION) if ignore_version_check else None
-    compiler_output = __execute(compiler_version=version, input_config=solc_configuration, base_path=str(source_bundle.import_root))
+    base_path = str(source_bundle.import_root) if source_bundle.import_root else None
+    allowed_paths = ', '.join(set(str(s.parent) for s in source_bundle.source_dirs))
+
+    compiler_output = __execute(compiler_version=version,
+                                input_config=solc_configuration,
+                                base_path=base_path,
+                                allowed_paths=allowed_paths)
     return compiler_output
 
 
@@ -52,5 +58,5 @@ def multiversion_compile(source_bundles: Tuple[SourceBundle, ...], compiler_vers
         compile_result = compile_sources(source_bundle=bundle, version_check=compiler_version_check)
         raw_compiler_results.append(compile_result['contracts'])
     raw_compiled_contracts = itertools.chain.from_iterable(output.values() for output in raw_compiler_results)
-    versioned_contract_outputs = merge_with(merge_contract_outputs, *raw_compiled_contracts)
-    return VersionedContractOutputs(versioned_contract_outputs)
+    versioned_contract_outputs = VersionedContractOutputs(merge_with(merge_contract_outputs, *raw_compiled_contracts))
+    return versioned_contract_outputs
