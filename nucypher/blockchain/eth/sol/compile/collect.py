@@ -47,10 +47,9 @@ def collect_sources(source_bundle: SourceBundle) -> Dict[str, Dict[str, List[str
         # Collect single directory
         for root, dirs, files in source_walker:
             # Collect files in source dir
-            mapped_path = str(root).replace(str(source_bundle), '')
             for filename in filter(source_filter, files):
                 path = Path(root) / filename
-                source_paths[filename] = dict(urls=[mapped_path])
+                source_paths[filename] = dict(urls=[str(path.resolve(strict=True))])
                 SOLC_LOGGER.debug(f"Collecting solidity source {path}")
         SOLC_LOGGER.info(f"Collected {len(source_paths)} solidity source files at {source_bundle}")
     return source_paths
