@@ -202,8 +202,8 @@ the commitment period.
     ══════════════════════════════ STAGED STAKE ══════════════════════════════
 
     Staking address: 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
-    ~ Chain  	-> ID # <CHAIN_ID>
-    ~ Value  	-> 30000 NU (30000000000000000000000 NuNits)
+    ~ Chain      -> ID # <CHAIN_ID>
+    ~ Value      -> 30000 NU (30000000000000000000000 NuNits)
     ~ Duration   -> 30 Days (30 Periods)
     ~ Enactment  -> Jun 19 20:00 EDT (period #18433)
     ~ Expiration -> Jul 19 20:00 EDT (period #18463)
@@ -247,23 +247,21 @@ Once you have created one or more stakes, you can view all active stake for conn
 
     (nucypher)$ nucypher stake list
 
-    Network <NETWORK> ═════════════════════════════════════════
+    Network <NETWORK_NAME> ═══════════════════════════════
     Staker 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f ════
     Worker NO_WORKER_BONDED ════
     --------------  -----------------------------------
-    Status      	Never Made a Commitment (New Stake)
-    Restaking   	Yes (Unlocked)
-    Winding Down	No
+    Status          Never Made a Commitment (New Stake)
+    Restaking       Yes (Unlocked)
+    Winding Down    No
     Unclaimed Fees  0 ETH
-    Min fee rate	0 ETH
+    Min fee rate    0 ETH
     --------------  -----------------------------------
     ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╕
     │   Idx │ Value    │   Remaining │ Enactment   │ Termination   │
     ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╡
     │ 	0   │ 30000 NU │      	  31 │ Jun 19 2020 │ Jul 19 2020   │
     ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╛
-
-
 
 If the Worker in the list is shown as ``NO_WORKER_BONDED``, it means that you haven't yet
 bonded a Worker node to your Staker, so you still have to do it!
@@ -394,42 +392,54 @@ To divide an existing stake:
 
     (nucypher)$ nucypher stake divide --hw-wallet
 
-    Select Stake: 2
-    Enter target value (must be less than or equal to 30000 NU): 15000
-    Enter number of periods to extend: 1
+    Select Stake: 0
+    Enter target value (15000 NU - 16437.841006996376688377 NU): 15000
+    Enter number of periods to extend: 20
 
-    ============================== ORIGINAL STAKE ============================
+    ══════════════════════════════ ORIGINAL STAKE ════════════════════════════
 
-    Staking address: 0xbb0300106378096883ca067B198d9d98112760e7
-    ~ Original Stake: | - | 0xbb03 | 0xbb04 | 0 | 30000 NU | 39 periods . | Aug 09 12:29:44 CEST - Sep 16 12:29:44 CEST
+    Staking address: 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
+    ~ Original Stake: | - | 0x270b | 0x45D3 | 0 | 31437.841006996376688377 NU | 33 periods . | Jun 19 20:00 EDT - Jul 22 20:00 EDT
 
 
-    ============================== STAGED STAKE ==============================
+    ══════════════════════════════ STAGED STAKE ══════════════════════════════
 
-    Staking address: 0xbb0300106378096883ca067B198d9d98112760e7
-    ~ Chain      -> ID # <CHAIN ID>
-    ~ Value      -> 15000 NU (1.50E+22 NuNits)
-    ~ Duration   -> 39 Days (39 Periods)
-    ~ Enactment  -> 2019-08-09 10:29:49.844348+00:00 (period #18117)
-    ~ Expiration -> 2019-09-17 10:29:49.844612+00:00 (period #18156)
+    Staking address: 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
+    ~ Chain      -> ID # 4 | Rinkeby
+    ~ Value      -> 15000 NU (15000000000000000000000 NuNits)
+    ~ Duration   -> 53 Days (53 Periods)
+    ~ Enactment  -> Jun 19 20:00 EDT (period #18433)
+    ~ Expiration -> Aug 11 20:00 EDT (period #18486)
 
-    =========================================================================
-    Is this correct? [y/N]: y
-    Enter password to unlock account 0xbb0300106378096883ca067B198d9d98112760e7:
-
+    ═════════════════════════════════════════════════════════════════════════
+    Publish stake division to the blockchain? [y/N]: y
+    Enter password to unlock account 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f:
+    Confirm transaction DIVIDESTAKE on hardware wallet... (76058 gwei @ 1000000000)
+    Broadcasting DIVIDESTAKE Transaction (76058 gwei @ 1000000000)...
     Successfully divided stake
-    OK | 0xfa30927f05967b9a752402db9faecf146c46eda0740bd3d67b9e86dd908b6572 (85128 gas)
-    Block #1146153 | 0x2f87bccff86bf48d18f8ab0f54e30236bce6ca5ea9f85f3165c7389f2ea44e45
-    See https://etherscan.io/tx/0xfa30927f05967b9a752402db9faecf146c46eda0740bd3d67b9e86dd908b6572
+    OK | 0x74ddd647de6eaca7ef0c485706ef526001d959a3c2eaa98699e087a7d259d08b (75349 gas)
+    Block #6711982 | 0xd1c6d6df257ecd05632550565edb709ae577066a60ca433bc4d23de5fb332009
+     See https://rinkeby.etherscan.io/tx/0x74ddd647de6eaca7ef0c485706ef526001d959a3c2eaa98699e087a7d259d08b
 
-    ======================================= Active Stakes =========================================
 
-    | ~ | Staker | Worker | # | Value    | Duration     | Enactment
-    |   | ------ | ------ | - | -------- | ------------ | -----------------------------------------
-    | 0 | 0xbb01 | 0xbb02 | 0 | 15000 NU | 41 periods . | Aug 04 12:29:44 CEST - Sep 13 12:29:44 CEST
-    | 1 | 0xbb01 | 0xbb02 | 1 | 15000 NU | 30 periods . | Aug 20 12:29:44 CEST - Sep 18 12:29:44 CEST
-    | 2 | 0xbb03 | 0xbb04 | 0 | 15000 NU | 39 periods . | Aug 09 12:30:38 CEST - Sep 16 12:30:38 CEST
-    | 3 | 0xbb03 | 0xbb04 | 1 | 15000 NU | 40 periods . | Aug 09 12:30:38 CEST - Sep 17 12:30:38 CEST
+    Network <NETWORK_NAME> ═══════════════════════════════
+    Staker 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f ════
+    Worker 0x45D33d1Ff0A7E696556f36DE697E5C92C2CCcFaE ════
+    --------------  ----------------
+    Status          Committed #18436
+    Restaking       Yes (Unlocked)
+    Winding Down    No
+    Unclaimed Fees  0 ETH
+    Min fee rate    0 ETH
+    --------------  ----------------
+    ╒═══════╤═════════════════════════════╤═════════════╤═════════════╤═══════════════╕
+    │   Idx │ Value                   	  │   Remaining │ Enactment   │ Termination   │
+    ╞═══════╪═════════════════════════════╪═════════════╪═════════════╪═══════════════╡
+    │ 	0   │ 16437.841006996376688377 NU │         31  │ Jun 19 2020 │ Jul 22 2020   │
+    ├───────┼─────────────────────────────┼─────────────┼─────────────┼───────────────┤
+    │ 	1   │ 15000 NU                	  │         51  │ Jun 19 2020 │ Aug 11 2020   │
+    ╘═══════╧═════════════════════════════╧═════════════╧═════════════╧═══════════════╛
+
 
 
 Collect rewards earned by the staker
