@@ -1180,10 +1180,10 @@ class Ursula(Teacher, Character, Worker):
             if emitter:
                 emitter.message(f"✓ Database pruning", color='green')
 
-        if learning:
-            self.start_learning_loop(now=self._start_learning_now)
-            if emitter:
-                emitter.message(f"✓ Node Discovery ({','.join(self.learning_domains)})", color='green')
+        # if learning:
+        #     self.start_learning_loop(now=self._start_learning_now)
+        #     if emitter:
+        #         emitter.message(f"✓ Node Discovery ({','.join(self.learning_domains)})", color='green')
 
         if self._availability_check and availability:
             self._availability_tracker.start(now=False)  # wait...

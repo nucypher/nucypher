@@ -354,19 +354,26 @@ class Learner:
         elif now:
             self.log.info("Starting Learning Loop NOW.")
 
-            if self.lonely:
-                self.done_seeding = True
-                self.read_nodes_from_storage()
+            # if self.lonely:
+            #     self.done_seeding = True
+            #     self.read_nodes_from_storage()
+            #
+            # else:
+            #     self.load_seednodes()
+            try:
+                self.learn_from_teacher_node()
+            except self.NotEnoughTeachers:
+                if self.lonely:
+                    assert False
+                else:
+                    assert False
 
-            else:
-                self.load_seednodes()
-
-            self.learn_from_teacher_node()
             self.learning_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY)
             self.learning_deferred.addErrback(self.handle_learning_errors)
             return self.learning_deferred
         else:
             self.log.info("Starting Learning Loop.")
+            self.cycle_teacher_node()
 
             learning_deferreds = list()
             if not self.lonely:
