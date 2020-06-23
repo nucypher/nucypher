@@ -35,6 +35,7 @@ class NucypherMiddlewareClient:
     library = requests
     timeout = 1.2
 
+
     def __init__(self, registry=None, *args, **kwargs):
         self.registry = registry
 
@@ -142,6 +143,10 @@ class RestMiddleware:
     log = Logger()
 
     _client_class = NucypherMiddlewareClient
+
+    TEACHER_NODES = {
+        'ibex': ('https://ibex.nucypher.network:9151',),
+    }
 
     class UnexpectedResponse(Exception):
         def __init__(self, message, status, *args, **kwargs):
