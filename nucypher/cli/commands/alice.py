@@ -52,7 +52,8 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_registry_filepath,
     option_signer_uri,
-    option_teacher_uri, option_lonely
+    option_teacher_uri,
+    option_lonely
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.processes import get_geth_provider_process
