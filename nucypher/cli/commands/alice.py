@@ -91,7 +91,6 @@ class AliceConfigOptions:
                  middleware: RestMiddleware,
                  gas_strategy: str,
                  signer_uri: str,
-                 lonely: bool,
                  ):
 
         if federated_only and geth:
@@ -117,7 +116,6 @@ class AliceConfigOptions:
         self.discovery_port = discovery_port
         self.registry_filepath = registry_filepath
         self.middleware = middleware
-        self.lonely = lonely
 
     def create_config(self, emitter, config_file):
 
