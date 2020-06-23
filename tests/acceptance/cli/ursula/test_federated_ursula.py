@@ -149,7 +149,7 @@ def test_run_federated_ursula_from_config_file(custom_filepath, click_runner):
     # CLI Output
     assert result.exit_code == 0
     assert 'Federated' in result.output, 'WARNING: Federated ursula is not running in federated mode'
-    assert 'Connecting' in result.output
+    # assert 'Connecting' in result.output
     assert 'Running' in result.output
     assert "'help' or '?'" in result.output
 
