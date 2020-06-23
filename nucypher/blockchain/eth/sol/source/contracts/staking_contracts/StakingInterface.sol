@@ -72,14 +72,17 @@ contract BaseStakingInterface {
 /**
 * @notice Interface for accessing main contracts from a staking contract
 * @dev All methods must be stateless because this code will be executed by delegatecall call, use immutable fields.
-* @dev |v1.4.2|
+* @dev |v1.5.2|
 */
 contract StakingInterface is BaseStakingInterface {
 
     event DepositedAsStaker(address indexed sender, uint256 value, uint16 periods);
     event WithdrawnAsStaker(address indexed sender, uint256 value);
-    event Locked(address indexed sender, uint256 value, uint16 periods);
+    event DepositedAndIncreased(address indexed sender, uint256 index, uint256 value);
+    event LockedAndCreated(address indexed sender, uint256 value, uint16 periods);
+    event LockedAndIncreased(address indexed sender, uint256 index, uint256 value);
     event Divided(address indexed sender, uint256 index, uint256 newValue, uint16 periods);
+    event Merged(address indexed sender, uint256 index1, uint256 index2);
     event Minted(address indexed sender);
     event PolicyFeeWithdrawn(address indexed sender, uint256 value);
     event MinFeeRateSet(address indexed sender, uint256 value);
@@ -146,8 +149,20 @@ contract StakingInterface is BaseStakingInterface {
     function depositAsStaker(uint256 _value, uint16 _periods) public onlyDelegateCall {
         require(token.balanceOf(address(this)) >= _value);
         token.approve(address(escrow), _value);
-        escrow.deposit(_value, _periods);
+        escrow.deposit(address(this), _value, _periods);
         emit DepositedAsStaker(msg.sender, _value, _periods);
+    }
+
+    /**
+    * @notice Deposit tokens to the staking escrow
+    * @param _index Index of the sub-stake
+    * @param _value Amount of tokens which will be locked
+    */
+    function depositAndIncrease(uint256 _index, uint256 _value) public onlyDelegateCall {
+        require(token.balanceOf(address(this)) >= _value);
+        token.approve(address(escrow), _value);
+        escrow.depositAndIncrease(_index, _value);
+        emit DepositedAndIncreased(msg.sender, _index, _value);
     }
 
     /**
@@ -160,13 +175,23 @@ contract StakingInterface is BaseStakingInterface {
     }
 
     /**
-    * @notice Lock some tokens or increase lock in the staking escrow
+    * @notice Lock some tokens in the staking escrow
     * @param _value Amount of tokens which should lock
     * @param _periods Amount of periods during which tokens will be locked
     */
-    function lock(uint256 _value, uint16 _periods) public onlyDelegateCall {
-        escrow.lock(_value, _periods);
-        emit Locked(msg.sender, _value, _periods);
+    function lockAndCreate(uint256 _value, uint16 _periods) public onlyDelegateCall {
+        escrow.lockAndCreate(_value, _periods);
+        emit LockedAndCreated(msg.sender, _value, _periods);
+    }
+
+    /**
+    * @notice Lock some tokens in the staking escrow
+    * @param _index Index of the sub-stake
+    * @param _value Amount of tokens which will be locked
+    */
+    function lockAndIncrease(uint256 _index, uint256 _value) public onlyDelegateCall {
+        escrow.lockAndIncrease(_index, _value);
+        emit LockedAndIncreased(msg.sender, _index, _value);
     }
 
     /**
@@ -175,15 +200,19 @@ contract StakingInterface is BaseStakingInterface {
     * @param _newValue New stake value
     * @param _periods Amount of periods for extending stake
     */
-    function divideStake(
-        uint256 _index,
-        uint256 _newValue,
-        uint16 _periods
-    )
-        public onlyDelegateCall
-    {
+    function divideStake(uint256 _index, uint256 _newValue, uint16 _periods) public onlyDelegateCall {
         escrow.divideStake(_index, _newValue, _periods);
         emit Divided(msg.sender, _index, _newValue, _periods);
+    }
+
+    /**
+    * @notice Merge two sub-stakes into one
+    * @param _index1 Index of the first sub-stake
+    * @param _index2 Index of the second sub-stake
+    */
+    function mergeStake(uint256 _index1, uint256 _index2) public onlyDelegateCall {
+        escrow.mergeStake(_index1, _index2);
+        emit Merged(msg.sender, _index1, _index2);
     }
 
     /**

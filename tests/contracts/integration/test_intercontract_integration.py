@@ -73,7 +73,7 @@ def token(token_economics, deploy_contract):
 def escrow_bare(testerchain, token, token_economics, deploy_contract):
     # Creator deploys the escrow
     contract, _ = deploy_contract(
-        'StakingEscrow', token.address, *token_economics.staking_deployment_parameters, True
+        'EnhancedStakingEscrow', token.address, *token_economics.staking_deployment_parameters, True
     )
     return contract
 
@@ -584,7 +584,7 @@ def test_staking(testerchain,
 
     # And can't lock because nothing to lock
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.lock(500, 2).transact({'from': staker1})
+        tx = escrow.functions.lockAndCreate(500, 2).transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
     # Check that nothing is locked
@@ -594,12 +594,12 @@ def test_staking(testerchain,
 
     # Staker can't deposit and lock too low value
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.deposit(1, 1).transact({'from': staker1})
+        tx = escrow.functions.deposit(staker1, 1, 1).transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
     # And can't deposit and lock too high value
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.deposit(2001, 1).transact({'from': staker1})
+        tx = escrow.functions.deposit(staker1, 2001, 1).transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
 
     # Can't make a commitment before initialization
@@ -629,7 +629,7 @@ def test_staking(testerchain,
     testerchain.wait_for_receipt(tx)
 
     # Staker transfers some tokens to the escrow and lock them
-    tx = escrow.functions.deposit(1000, 10).transact({'from': staker1})
+    tx = escrow.functions.deposit(staker1, 1000, 10).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.bondWorker(staker1).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)

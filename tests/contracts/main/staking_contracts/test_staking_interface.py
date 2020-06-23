@@ -103,10 +103,19 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
 
     # Owner can't use the staking interface directly
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = staking_interface.functions.lock(100, 1).transact({'from': owner})
+        tx = staking_interface.functions.depositAndIncrease(1, 100).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.lockAndCreate(100, 1).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.lockAndIncrease(1, 100).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = staking_interface.functions.divideStake(1, 100, 1).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.mergeStake(3, 4).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = staking_interface.functions.mint().transact({'from': owner})
@@ -130,7 +139,9 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
         tx = staking_interface.functions.setWindDown(True).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
 
-    locks = staking_contract_interface.events.Locked.createFilter(fromBlock='latest')
+    deposits_existing = staking_contract_interface.events.DepositedAndIncreased.createFilter(fromBlock='latest')
+    locks_new = staking_contract_interface.events.LockedAndCreated.createFilter(fromBlock='latest')
+    locks_existing = staking_contract_interface.events.LockedAndIncreased.createFilter(fromBlock='latest')
     divides = staking_contract_interface.events.Divided.createFilter(fromBlock='latest')
     mints = staking_contract_interface.events.Minted.createFilter(fromBlock='latest')
     staker_withdraws = staking_contract_interface.events.WithdrawnAsStaker.createFilter(fromBlock='latest')
@@ -139,23 +150,39 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     worker_logs = staking_contract_interface.events.WorkerBonded.createFilter(fromBlock='latest')
     prolong_logs = staking_contract_interface.events.Prolonged.createFilter(fromBlock='latest')
     wind_down_logs = staking_contract_interface.events.WindDownSet.createFilter(fromBlock='latest')
+    merge_logs = staking_contract_interface.events.Merged.createFilter(fromBlock='latest')
 
     # Use stakers methods through the preallocation escrow
-    tx = staking_contract_interface.functions.lock(100, 1).transact({'from': owner})
+    tx = staking_contract_interface.functions.depositAndIncrease(2, 100).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
-    assert 1500 == escrow.functions.value().call()
+    stake += 100
+    assert token.functions.balanceOf(staking_contract.address).call() == value - stake
+    assert token.functions.balanceOf(escrow.address).call() == 10000 + stake
+    assert 1600 == escrow.functions.value().call()
     assert 1600 == escrow.functions.lockedValue().call()
+    assert 5 == escrow.functions.periods().call()
+    assert 2 == escrow.functions.index().call()
+    tx = staking_contract_interface.functions.lockAndCreate(100, 1).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert 1600 == escrow.functions.value().call()
+    assert 1700 == escrow.functions.lockedValue().call()
     assert 6 == escrow.functions.periods().call()
+    tx = staking_contract_interface.functions.lockAndIncrease(1, 100).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert 1600 == escrow.functions.value().call()
+    assert 1800 == escrow.functions.lockedValue().call()
+    assert 6 == escrow.functions.periods().call()
+    assert 1 == escrow.functions.index().call()
     tx = staking_contract_interface.functions.divideStake(1, 100, 1).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
-    assert 1500 == escrow.functions.value().call()
-    assert 1700 == escrow.functions.lockedValue().call()
+    assert 1600 == escrow.functions.value().call()
+    assert 1900 == escrow.functions.lockedValue().call()
     assert 1 == escrow.functions.index().call()
     assert 7 == escrow.functions.periods().call()
     tx = staking_contract_interface.functions.mint().transact({'from': owner})
     testerchain.wait_for_receipt(tx)
-    assert 2500 == escrow.functions.value().call()
-    tx = staking_contract_interface.functions.withdrawAsStaker(1500).transact({'from': owner})
+    assert 2600 == escrow.functions.value().call()
+    tx = staking_contract_interface.functions.withdrawAsStaker(1600).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
     assert 1000 == escrow.functions.value().call()
     assert 10000 == token.functions.balanceOf(escrow.address).call()
@@ -169,6 +196,9 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     testerchain.wait_for_receipt(tx)
     assert 2 == escrow.functions.index().call()
     assert 9 == escrow.functions.periods().call()
+    tx = staking_contract_interface.functions.mergeStake(3, 4).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert 7 == escrow.functions.index().call()
 
     # Test re-stake methods
     tx = staking_contract_interface.functions.setReStake(True).transact({'from': owner})
@@ -188,12 +218,26 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.windDown().call()
 
-    events = locks.get_all_entries()
+    events = deposits_existing.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['sender']
+    assert 100 == event_args['value']
+    assert 2 == event_args['index']
+
+    events = locks_new.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
     assert owner == event_args['sender']
     assert 100 == event_args['value']
     assert 1 == event_args['periods']
+
+    events = locks_existing.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['sender']
+    assert 100 == event_args['value']
+    assert 1 == event_args['index']
 
     events = divides.get_all_entries()
     assert 1 == len(events)
@@ -212,7 +256,7 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     assert 2 == len(events)
     event_args = events[0]['args']
     assert owner == event_args['sender']
-    assert 1500 == event_args['value']
+    assert 1600 == event_args['value']
     event_args = events[1]['args']
     assert owner == event_args['sender']
     assert 1000 == event_args['value']
@@ -241,6 +285,13 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     assert owner == event_args['sender']
     assert 2 == event_args['index']
     assert 2 == event_args['periods']
+
+    events = merge_logs.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['sender']
+    assert 3 == event_args['index1']
+    assert 4 == event_args['index2']
 
     events = wind_down_logs.get_all_entries()
     assert 1 == len(events)

@@ -6,6 +6,62 @@ pragma solidity ^0.6.5;
 import "contracts/StakingEscrow.sol";
 import "contracts/NuCypherToken.sol";
 
+/**
+* @notice Enhanced version of StakingEscrow to use in tests
+*/
+contract EnhancedStakingEscrow is StakingEscrow {
+
+    constructor(
+        NuCypherToken _token,
+        uint32 _hoursPerPeriod,
+        uint256 _issuanceDecayCoefficient,
+        uint256 _lockDurationCoefficient1,
+        uint256 _lockDurationCoefficient2,
+        uint16 _maximumRewardedPeriods,
+        uint256 _firstPhaseTotalSupply,
+        uint256 _firstPhaseMaxIssuance,
+        uint16 _minLockedPeriods,
+        uint256 _minAllowableLockedTokens,
+        uint256 _maxAllowableLockedTokens,
+        uint16 _minWorkerPeriods,
+        bool _isTestContract
+    )
+        public
+        StakingEscrow(
+            _token,
+            _hoursPerPeriod,
+            _issuanceDecayCoefficient,
+            _lockDurationCoefficient1,
+            _lockDurationCoefficient2,
+            _maximumRewardedPeriods,
+            _firstPhaseTotalSupply,
+            _firstPhaseMaxIssuance,
+            _minLockedPeriods,
+            _minAllowableLockedTokens,
+            _maxAllowableLockedTokens,
+            _minWorkerPeriods,
+            _isTestContract
+        )
+    {
+    }
+
+    /**
+    * @notice Get the value of locked tokens for a staker in a previous period
+    * @dev Information may be incorrect for rewarded or not committed surpassed period
+    * @param _staker Staker
+    * @param _periods Amount of periods that will be subtracted from the current period
+    */
+    function getLockedTokensInPast(address _staker, uint16 _periods)
+        external view returns (uint256 lockedValue)
+    {
+        StakerInfo storage info = stakerInfo[_staker];
+        uint16 currentPeriod = getCurrentPeriod();
+        uint16 previousPeriod = currentPeriod.sub16(_periods);
+        return getLockedTokens(info, currentPeriod, previousPeriod);
+    }
+
+}
+
 
 /**
 * @notice Upgrade to this contract must lead to fail
@@ -188,7 +244,7 @@ contract Intermediary {
 
     function deposit(uint256 _value, uint16 _periods) external {
         token.approve(address(escrow), _value);
-        escrow.deposit(_value, _periods);
+        escrow.deposit(address(this), _value, _periods);
     }
 
     function commitToNextPeriod() external {
