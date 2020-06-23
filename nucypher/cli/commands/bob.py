@@ -73,7 +73,6 @@ class BobConfigOptions:
                  federated_only: bool,
                  gas_strategy: str,
                  signer_uri: str,
-                 lonely: bool,
                  ):
 
         self.provider_uri = provider_uri
@@ -86,7 +85,6 @@ class BobConfigOptions:
         self.dev = dev
         self.middleware = middleware
         self.federated_only = federated_only
-        self.lonely = lonely
 
     def create_config(self, emitter: StdoutEmitter, config_file: str) -> BobConfiguration:
         if self.dev:
@@ -182,8 +180,7 @@ class BobCharacterOptions:
                                   emitter=emitter,
                                   unlock_keyring=not self.config_options.dev,
                                   teacher_uri=self.teacher_uri,
-                                  min_stake=self.min_stake,
-                                  lonely=self.config_options.lonely)
+                                  min_stake=self.min_stake)
 
 
 group_character_options = group_options(
