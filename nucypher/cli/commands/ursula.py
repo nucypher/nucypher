@@ -294,7 +294,6 @@ class UrsulaCharacterOptions:
 group_character_options = group_options(
     UrsulaCharacterOptions,
     config_options=group_config_options,
-    lonely=click.option('--lonely', help="Do not connect to seednodes", is_flag=True),
     teacher_uri=option_teacher_uri,
     min_stake=option_min_stake
 )
