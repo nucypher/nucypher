@@ -29,8 +29,9 @@ from bytestring_splitter import (
     BytestringKwargifier
 )
 from constant_sorrow.constants import (
-    ALICE_CARD_FLAG,
-    BOB_CARD_FLAG
+    ALICE_CARD,
+    BOB_CARD,
+    URSULA_CARD
 )
 from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED
 from constant_sorrow.constants import NOT_SIGNED
@@ -39,6 +40,7 @@ from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
 from hexbytes.main import HexBytes
 from pathlib import Path
+from typing import Dict
 from typing import List, Union
 from typing import Optional, Tuple, Callable, Type
 from umbral.config import default_params
@@ -54,7 +56,12 @@ from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.crypto.signing import InvalidSignature, Signature, signature_splitter, SignatureStamp
+from nucypher.crypto.signing import (
+    InvalidSignature,
+    Signature,
+    signature_splitter,
+    SignatureStamp
+)
 from nucypher.crypto.splitters import capsule_splitter, key_splitter
 from nucypher.crypto.splitters import cfrag_splitter
 from nucypher.crypto.utils import (
@@ -293,7 +300,6 @@ class SignedTreasureMap(TreasureMap):
 
 class Card:
     """"
-    # TODO: Finish this docstring
     A simple serializable representation of a character's public materials.
     """
 
@@ -304,14 +310,18 @@ class Card:
     )
 
     __FLAGS = {
-        bytes(ALICE_CARD_FLAG): Alice,
-        bytes(BOB_CARD_FLAG): Bob
+        bytes(ALICE_CARD): Alice,
+        bytes(BOB_CARD): Bob,
+        # bytes(URSULA_CARD): Ursula  # TODO: Consider an Ursula card
     }
     __FILE_EXTENSION = 'card'
     CARD_DIR = Path(DEFAULT_CONFIG_ROOT) / 'cards'
 
+    class UnknownCard(Exception):
+        """raised when a card cannot be found in storage"""
+
     def __init__(self,
-                 character_flag: Union[ALICE_CARD_FLAG, BOB_CARD_FLAG],
+                 character_flag: Union[ALICE_CARD, BOB_CARD, URSULA_CARD],
                  verifying_key: UmbralPublicKey,
                  encrypting_key: Optional[UmbralPublicKey] = None,
                  card_dir: Path = CARD_DIR):
@@ -331,7 +341,24 @@ class Card:
         return r
 
     def __eq__(self, other) -> bool:
+        if not isinstance(other, self.__class__):
+            raise TypeError(f'Cannot compare {self.__class__.__name__} and {other}')
         return self.checksum == other.checksum
+
+    def __validate(self) -> bool:
+        # TODO: Validate umbral keys?
+        return True
+
+    @staticmethod
+    def __hash(payload: bytes) -> HexBytes:
+        blake = hashlib.blake2b()
+        blake.update(payload)
+        digest = blake.digest().hex()
+        return HexBytes(digest)
+
+    #
+    # Serializers
+    #
 
     def __bytes__(self) -> bytes:
         self.__validate()
@@ -342,31 +369,68 @@ class Card:
             card_bytes += bytes(self.__encrypting_key)
         return card_bytes
 
+    def __hex__(self) -> str:
+        return self.to_hex()
+
     @classmethod
-    def from_bytes(cls, data: bytes) -> 'Card':
-        return BytestringKwargifier(cls, **cls._specification)(data)
+    def from_bytes(cls, card_bytes: bytes) -> 'Card':
+        return BytestringKwargifier(cls, **cls._specification)(card_bytes)
 
-    @staticmethod
-    def _sign(self, signing_power: SigningPower) -> bytes:
-        return signing_power.sign(self(bytes))  # TODO: Sign/verify
+    @classmethod
+    def from_hex(cls, hexdata: str):
+        return cls.from_bytes(bytes.fromhex(hexdata))
 
-    def __validate(self) -> bool:
-        result = all((
-            # TODO: Validate umbral keys
-            True,
-            True
-        ))
-        return result
+    def to_hex(self) -> str:
+        return bytes(self).hex()
 
-    @staticmethod
-    def __hash(payload: bytes) -> HexBytes:
-        blake = hashlib.blake2b()
-        blake.update(payload)
-        digest = blake.digest().hex()
-        return HexBytes(digest)
+    @classmethod
+    def from_base64(cls, b64data: str):
+        return cls.from_bytes(base64.urlsafe_b64decode(b64data))
+
+    def to_base64(self) -> str:
+        return base64.urlsafe_b64encode(bytes(self)).decode()
+
+    def to_qr_code(self):
+        import qrcode
+        from qrcode.main import QRCode
+        qr = QRCode(
+            version=1,
+            box_size=1,
+            border=4,  # min spec is 4
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+        )
+        qr.add_data(bytes(self))
+        qr.print_ascii()
+
+    @classmethod
+    def from_dict(cls, card: Dict):
+        instance = cls(verifying_key=card['verifying_key'],
+                       encrypting_key=card['encrypting_key'],
+                       character_flag=card['character'])
+        return instance
+
+    def to_dict(self) -> Dict:
+        payload = dict(
+            verifying_key=self.verifying_key,
+            encrypting_key=self.encrypting_key,
+            character=self.__character_flag
+        )
+        return payload
+
+    @classmethod
+    def from_character(cls, character: Type[Character]) -> 'Card':
+        for flag, character_class in cls.__FLAGS.items():
+            if character_class is character.__class__:
+                break
+        else:
+            raise ValueError('Unknown character flag')
+        instance = cls(verifying_key=character.public_keys(power_up_class=SigningPower),
+                       encrypting_key=character.public_keys(power_up_class=DecryptingPower),
+                       character_flag=flag)
+        return instance
 
     #
-    # Public API
+    # Card API
     #
 
     @property
@@ -386,7 +450,7 @@ class Card:
         return list(self._specification.keys())
 
     #
-    # Storage
+    # Card Storage API
     #
 
     @property
@@ -411,55 +475,13 @@ class Card:
              ) -> 'Card':
         filename = f'{checksum}.{cls.__FILE_EXTENSION}'
         filepath = card_dir / filename
-        with open(str(filepath), 'rb') as file:
-            card_bytes = decoder(file.read())
+        try:
+            with open(str(filepath), 'rb') as file:
+                card_bytes = decoder(file.read())
+        except FileNotFoundError:
+            raise cls.UnknownCard
         instance = cls.from_bytes(card_bytes)
         return instance
-
-    #
-    # Helpers
-    #
-
-    @classmethod
-    def from_character(cls, character: Type[Character]) -> 'Card':
-        for flag, character_class in cls.__FLAGS.items():
-            if character_class is character.__class__:
-                break
-        else:
-            raise ValueError('Unknown character flag')
-        instance = cls(verifying_key=character.public_keys(power_up_class=SigningPower),
-                       encrypting_key=character.public_keys(power_up_class=DecryptingPower),
-                       character_flag=flag)
-        return instance
-
-    @classmethod
-    def from_hex(cls, hexdata: str):
-        return cls.from_bytes(bytes.fromhex(hexdata))
-
-    def to_hex(self) -> str:
-        return bytes(self).hex()
-
-    def __hex__(self) -> str:
-        return self.to_hex()
-
-    def to_base64(self) -> str:
-        return base64.urlsafe_b64encode(bytes(self)).decode()
-
-    @classmethod
-    def from_base64(cls, b64data: str):
-        return cls.from_bytes(base64.urlsafe_b64decode(b64data))
-
-    def to_qr_code(self):
-        import qrcode
-        from qrcode.main import QRCode
-        qr = QRCode(
-            version=1,
-            box_size=1,
-            border=4,  # min spec is 4
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-        )
-        qr.add_data(bytes(self))
-        qr.print_ascii()
 
 
 class PolicyCredential:
