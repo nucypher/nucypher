@@ -110,7 +110,8 @@ from tests.utils.config import (
 )
 from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
 from tests.utils.policy import generate_random_label
-from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, make_decentralized_ursulas, make_federated_ursulas
+from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, make_decentralized_ursulas, make_federated_ursulas, \
+    MOCK_KNOWN_URSULAS_CACHE
 
 test_logger = Logger("test-logger")
 
@@ -358,7 +359,6 @@ def blockchain_alice(alice_blockchain_test_config, testerchain):
 @pytest.fixture(scope="module")
 def federated_bob(bob_federated_test_config):
     bob = bob_federated_test_config.produce()
-    _d = bob.start_learning_loop()
     return bob
 
 
@@ -373,6 +373,9 @@ def federated_ursulas(ursula_federated_test_config):
     _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
                                       quantity=NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
     yield _ursulas
+
+    for ursula in _ursulas:
+        del MOCK_KNOWN_URSULAS_CACHE[ursula.rest_interface.port]
 
 
 #
