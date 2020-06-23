@@ -602,7 +602,7 @@ class Bob(Character):
             for node in nodes_with_map:
                 try:
                     response = network_middleware.get_treasure_map_from_node(node=node, map_id=map_id)
-                except (NodeSeemsToBeDown, self.NotEnoughNodes):
+                except (*NodeSeemsToBeDown, self.NotEnoughNodes):
                     continue
                 except network_middleware.NotFound:
                     self.log.info(f"Node {node} claimed not to have TreasureMap {map_id}")
