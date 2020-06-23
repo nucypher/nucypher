@@ -25,6 +25,7 @@ from twisted.internet.threads import deferToThread
 
 from nucypher.characters.lawful import Ursula
 from tests.utils.middleware import SluggishLargeFleetMiddleware
+from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
 from umbral.keys import UmbralPublicKey
 from tests.mock.performance_mocks import (
     NotAPublicKey,
@@ -68,8 +69,10 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     # A quick setup so that the bytes casting of Ursulas (on what in the real world will be the remote node)
     # doesn't take up all the time.
     _teacher = highperf_mocked_alice.current_teacher_node()
-    _teacher_known_nodes_bytestring = _teacher.bytestring_of_known_nodes()
-    _teacher.bytestring_of_known_nodes = lambda *args, ** kwargs: _teacher_known_nodes_bytestring  # TODO: Formalize this?  #1537
+    actual_ursula = MOCK_KNOWN_URSULAS_CACHE[_teacher.rest_interface.port]
+
+    _teacher_known_nodes_bytestring = actual_ursula.bytestring_of_known_nodes()
+    actual_ursula.bytestring_of_known_nodes = lambda *args, ** kwargs: _teacher_known_nodes_bytestring  # TODO: Formalize this?  #1537
 
 
     with mock_cert_storage, mock_cert_loading, mock_verify_node, mock_message_verification, mock_metadata_validation:
