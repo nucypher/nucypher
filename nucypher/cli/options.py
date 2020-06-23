@@ -20,7 +20,6 @@ from collections import namedtuple
 import click
 import functools
 import os
-from twisted.python.log import Logger
 
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
 from nucypher.cli.types import (
@@ -29,6 +28,7 @@ from nucypher.cli.types import (
     NETWORK_PORT,
     WEI
 )
+from nucypher.utilities.logging import Logger
 
 # Alphabetical
 
@@ -51,6 +51,7 @@ option_min_stake = click.option('--min-stake', help="The minimum stake the teach
 option_n = click.option('--n', help="N-Total KFrags", type=click.INT)
 option_poa = click.option('--poa/--disable-poa', help="Inject POA middleware", is_flag=True, default=None)
 option_registry_filepath = click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+option_signer_uri = click.option('--signer', 'signer_uri', '-S', default=None, type=str)
 option_staking_address = click.option('--staking-address', help="Address of a NuCypher staker", type=EIP55_CHECKSUM_ADDRESS)
 option_teacher_uri = click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 _option_middleware = click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True)
@@ -191,7 +192,7 @@ def process_middleware(mock_networking) -> tuple:
     try:
         from tests.utils.middleware import MockRestMiddleware
     except ImportError:
-        # It's okay to to not crash here despite not having the tests package available.
+        # It's okay to not crash here despite not having the tests package available.
         logger = Logger("CLI-Middleware-Optional-Handler")
         logger.info('--mock-networking flag is unavailable without dev install.')
     if mock_networking:
@@ -204,6 +205,5 @@ def process_middleware(mock_networking) -> tuple:
 
 option_middleware = wrap_option(
     process_middleware,
-    mock_networking=click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True),
-    )
-option_signer_uri = click.option('--signer', 'signer_uri', '-S', default=None, type=str)
+    mock_networking=_option_middleware,
+)
