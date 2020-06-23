@@ -181,6 +181,11 @@ class Alice(Character, BlockchainPolicyAuthor):
         self.active_policies = dict()
         self.revocation_kits = dict()
 
+    def get_card(self) -> 'Card':
+        from nucypher.policy.collections import Card
+        card = Card.from_character(self)
+        return card
+
     def add_active_policy(self, active_policy):
         """
         Adds a Policy object that is active on the NuCypher network to Alice's

@@ -450,8 +450,14 @@ class Card:
         return cls.from_bytes(base64.urlsafe_b64decode(b64data))
 
     def to_qr_code(self):
+        import qrcode
         from qrcode.main import QRCode
-        qr = QRCode()
+        qr = QRCode(
+            version=1,
+            box_size=1,
+            border=4,  # min spec is 4
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+        )
         qr.add_data(bytes(self))
         qr.print_ascii()
 
