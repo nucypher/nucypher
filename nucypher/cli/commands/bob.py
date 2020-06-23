@@ -47,7 +47,8 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_registry_filepath,
     option_signer_uri,
-    option_teacher_uri
+    option_teacher_uri,
+    option_lonely
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.utils import make_cli_character, setup_emitter
@@ -71,7 +72,9 @@ class BobConfigOptions:
                  middleware: RestMiddleware,
                  federated_only: bool,
                  gas_strategy: str,
-                 signer_uri: str):
+                 signer_uri: str,
+                 lonely: bool,
+                 ):
 
         self.provider_uri = provider_uri
         self.signer_uri = signer_uri
@@ -83,6 +86,7 @@ class BobConfigOptions:
         self.dev = dev
         self.middleware = middleware
         self.federated_only = federated_only
+        self.lonely = lonely
 
     def create_config(self, emitter: StdoutEmitter, config_file: str) -> BobConfiguration:
         if self.dev:
@@ -158,7 +162,8 @@ group_config_options = group_options(
     discovery_port=option_discovery_port(),
     dev=option_dev,
     middleware=option_middleware,
-    federated_only=option_federated_only
+    federated_only=option_federated_only,
+    lonely=option_lonely,
 )
 
 
@@ -177,7 +182,8 @@ class BobCharacterOptions:
                                   emitter=emitter,
                                   unlock_keyring=not self.config_options.dev,
                                   teacher_uri=self.teacher_uri,
-                                  min_stake=self.min_stake)
+                                  min_stake=self.min_stake,
+                                  lonely=self.config_options.lonely)
 
 
 group_character_options = group_options(
