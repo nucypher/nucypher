@@ -33,8 +33,6 @@ from nucypher.cli.literature import (
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.nodes import Teacher
-from nucypher.network.teachers import TEACHER_NODES
 
 
 def load_static_nodes(domains: Set[str], filepath: Optional[str] = None) -> Dict[str, 'Ursula']:
@@ -118,7 +116,7 @@ def load_seednodes(emitter,
         except NodeSeemsToBeDown:
             emitter.message(UNREADABLE_SEEDNODE_ADVISORY.format(uri=uri))
             continue
-        except Teacher.NotStaking:
+        except Ursula.NotStaking:
             emitter.message(SEEDNODE_NOT_STAKING_WARNING.format(uri=uri))
             continue
         teacher_nodes.append(teacher_node)
