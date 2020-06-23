@@ -6,7 +6,7 @@ workflows:
   test_build_deploy:
     jobs:
       - install_geth:
-          geth_build_filename: 'geth-linux-amd64-1.9.15-0f77f34b'
+          geth_build_filename: 'geth-alltools-linux-amd64-1.9.15-0f77f34b'
           filters:
             tags:
               only: /.*/
@@ -180,7 +180,7 @@ workflows:
                 - master
     jobs:
       - install_geth:
-          geth_build_filename: 'geth-linux-amd64-1.9.15-0f77f34b'
+          geth_build_filename: 'geth-alltools-linux-amd64-1.9.15-0f77f34b'
           filters:
             tags:
               only: /.*/
