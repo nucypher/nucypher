@@ -891,6 +891,7 @@ class Bob(Character):
             search_boundary += 2
 
             if search_boundary > 42:  # We've searched the entire string and can't match any.  TODO: Portable learning is a nice idea here.
+                # TODO: This fails in tests once in a great while because there aren't matching nodes among the few test nodes.  Not sure what to do.
                 raise self.NotEnoughNodes
 
             # TODO: 1995 all throughout here (we might not (need to) know the checksum address yet; canonical will do.)
