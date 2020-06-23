@@ -46,6 +46,7 @@ option_force = click.option('--force', help="Don't ask for confirmation", is_fla
 option_geth = click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 option_hw_wallet = click.option('--hw-wallet/--no-hw-wallet')
 option_light = click.option('--light', help="Indicate that node is light", is_flag=True, default=None)
+option_lonely = click.option('--lonely', help="Do not connect to seednodes", is_flag=True)
 option_m = click.option('--m', help="M-Threshold KFrags", type=click.INT)
 option_min_stake = click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 option_n = click.option('--n', help="N-Total KFrags", type=click.INT)

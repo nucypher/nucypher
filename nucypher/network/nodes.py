@@ -227,7 +227,8 @@ class Learner:
         self._seed_nodes = seed_nodes or []
         self.unresponsive_seed_nodes = set()
 
-        if self.start_learning_now:
+        if self.start_learning_now and not self.lonely:
+            self.load_seednodes()
             self.start_learning_loop(now=self.learn_on_same_thread)
 
     @property
