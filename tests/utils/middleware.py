@@ -89,6 +89,12 @@ class MockRestMiddleware(RestMiddleware):
     class NotEnoughMockUrsulas(Ursula.NotEnoughUrsulas):
         pass
 
+    class TEACHER_NODES:
+
+        @classmethod
+        def get(_cls, item, default):
+            return tuple(u.rest_url() for u in MOCK_KNOWN_URSULAS_CACHE.values())
+
     def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2,
                         current_attempt: int = 0):
         ursula = self.client._get_ursula_by_port(port)
