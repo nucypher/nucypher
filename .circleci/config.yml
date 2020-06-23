@@ -6,6 +6,7 @@ workflows:
   test_build_deploy:
     jobs:
       - install_geth:
+          geth_build_filename: 'geth-linux-amd64-1.9.15-0f77f34b'
           filters:
             tags:
               only: /.*/
@@ -179,6 +180,7 @@ workflows:
                 - master
     jobs:
       - install_geth:
+          geth_build_filename: 'geth-linux-amd64-1.9.15-0f77f34b'
           filters:
             tags:
               only: /.*/
@@ -831,17 +833,20 @@ jobs:
     working_directory: ~/nucypher
     <<: *python_37_base
     parallelism: 1
+    parameters:
+      geth_build_filename:
+        description: "Name of geth release file, from https://geth.ethereum.org/downloads/"
+        type: string
     steps:
     - checkout
     - restore_cache:
-        key: geth-cache-v1
+        key: geth-cache-v1-<< parameters.geth_build_filename >>
     - run:
         name: Download geth, if it's not installed
         command: |
-          GETH_BUILD_NAME='geth-alltools-linux-amd64-1.9.13-cbc4ac26'
-          GETH_URL="https://gethstore.blob.core.windows.net/builds/$GETH_BUILD_NAME.tar.gz"
+          GETH_URL="https://gethstore.blob.core.windows.net/builds/<< parameters.geth_build_filename >>.tar.gz"
           cd ~
-          [ -d "geth" ] || curl -o g.tar.gz $GETH_URL && tar -xzf g.tar.gz && mv $GETH_BUILD_NAME geth
+          [ -d "geth" ] || curl -o g.tar.gz $GETH_URL && tar -xzf g.tar.gz && mv << parameters.geth_build_filename >> geth
           geth/geth version
           mkdir -p ~/keystore
           cp ~/nucypher/tests/circleci/0xa11ce.json ~/keystore
@@ -849,7 +854,7 @@ jobs:
           sleep 30
         when: always
     - save_cache:
-        key: geth-cache-v1
+        key: geth-cache-v1-<< parameters.geth_build_filename >>
         paths:
           - "/home/circleci/geth"
     - store_artifacts:
