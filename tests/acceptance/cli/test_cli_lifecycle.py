@@ -213,6 +213,7 @@ def _cli_lifecycle(click_runner,
     bob_configuration_file_location = os.path.join(bob_config_root, BobConfiguration.generate_filename())
     bob_view_args = ('bob', 'public-keys',
                      '--json-ipc',
+                     '--mock-networking',  # TODO: It's absurd for this public-keys command to connect at all.  1710
                      '--config-file', bob_configuration_file_location)
 
     bob_view_result = click_runner.invoke(nucypher_cli, bob_view_args, catch_exceptions=False, env=envvars)
@@ -226,7 +227,7 @@ def _cli_lifecycle(click_runner,
     side_channel.save_bob_public_keys(bob_public_keys)
 
     """
-    Scene 3: Alice derives a policy keypair, and saves it's public key to a sidechannel.
+    Scene 3: Alice derives a policy keypair, and saves its public key to a sidechannel.
     """
 
     random_label = random_policy_label.decode()  # Unicode string

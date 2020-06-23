@@ -238,12 +238,28 @@ class Learner:
     def load_seednodes(self, read_storage: bool = True, retry_attempts: int = 3):
         """
         Engage known nodes from storages and pre-fetch hardcoded seednode certificates for node learning.
+
+        TODO: Dehydrate this with nucypher.utilities.seednodes.load_seednodes
         """
         if self.done_seeding:
             self.log.debug("Already done seeding; won't try again.")
             return
-
+        from nucypher.utilities.seednodes import aggregate_seednode_uris  # TODO: Ugh.
+        # teacher_uris = aggregate_seednode_uris(domains=self.learning_domains)
+        canonical_sage_uris = self.network_middleware.TEACHER_NODES.get(tuple(self.learning_domains)[0], ())  # TODO: Are we done with multiple domains?
+        # TODO: Is this better as a sprout?
         from nucypher.characters.lawful import Ursula
+        ############################
+        for uri in canonical_sage_uris:
+            # Not catching any errors here; we want to fail fast if there are bad hardcoded teachers.
+            # This is essentially an __active-fire__ if it's anything but a fleeting one-off.
+            sage_node = Ursula.from_teacher_uri(teacher_uri=uri,
+                                                   min_stake=0,  # TODO: Where to get this?
+                                                   federated_only=self.federated_only,
+                                                   network_middleware=self.network_middleware,
+                                                   registry=self.registry)
+            self.remember_node(sage_node)
+        ################
         for seednode_metadata in self._seed_nodes:
 
             self.log.debug(
@@ -275,7 +291,7 @@ class Learner:
     def read_nodes_from_storage(self) -> None:
         stored_nodes = self.node_storage.all(federated_only=self.federated_only)  # TODO: #466
         for node in stored_nodes:
-            self.remember_node(node)
+            self.remember_node(node)  # TODO: Validity status 1866
 
     def remember_node(self,
                       node,
