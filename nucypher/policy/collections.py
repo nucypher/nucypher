@@ -15,38 +15,55 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import json
 from collections import OrderedDict
-from typing import Optional, Tuple
 
+import base64
+import hashlib
 import maya
-from cryptography.hazmat.backends.openssl import backend
-from cryptography.hazmat.primitives import hashes
-from eth_utils import to_canonical_address, to_checksum_address
-
+import os
 from bytestring_splitter import (
     BytestringKwargifier,
     BytestringSplitter,
     BytestringSplittingError,
     VariableLengthBytestring
 )
+from constant_sorrow.constants import (
+    ALICE_CARD_FLAG,
+    BOB_CARD_FLAG
+)
 from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED
 from constant_sorrow.constants import NOT_SIGNED
-from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH, ETH_HASH_BYTE_LENGTH
-from nucypher.characters.lawful import Bob, Character
-from nucypher.crypto.api import encrypt_and_sign, keccak_digest, verify_eip_191
-from nucypher.crypto.constants import HRAC_LENGTH
-from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.signing import InvalidSignature, Signature, signature_splitter
-from nucypher.crypto.splitters import capsule_splitter, cfrag_splitter, key_splitter
-from nucypher.crypto.utils import (canonical_address_from_umbral_key,
-                                   get_coordinates_as_bytes,
-                                   get_signature_recovery_value)
-from nucypher.network.middleware import RestMiddleware
+from cryptography.hazmat.backends.openssl import backend
+from cryptography.hazmat.primitives import hashes
+from eth_utils import to_canonical_address, to_checksum_address
+from hexbytes.main import HexBytes
+from pathlib import Path
+from typing import Optional, Tuple, Callable, Type
 from umbral.config import default_params
 from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPublicKey
 from umbral.pre import Capsule
+
+from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH, ETH_HASH_BYTE_LENGTH
+from nucypher.characters.lawful import Bob, Character, Alice
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.crypto.api import encrypt_and_sign, keccak_digest
+from nucypher.crypto.api import verify_eip_191
+from nucypher.crypto.constants import HRAC_LENGTH
+from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
+from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.powers import DecryptingPower
+from nucypher.crypto.signing import InvalidSignature, Signature, signature_splitter, SignatureStamp
+from nucypher.crypto.splitters import capsule_splitter, key_splitter
+from nucypher.crypto.splitters import cfrag_splitter
+from nucypher.crypto.utils import (
+    canonical_address_from_umbral_key,
+    get_coordinates_as_bytes,
+    get_signature_recovery_value
+)
+from nucypher.network.middleware import RestMiddleware
 
 
 class TreasureMap:
@@ -275,6 +292,118 @@ class SignedTreasureMap(TreasureMap):
         return self._blockchain_signature + super().__bytes__()
 
 
+class Card:
+    """"
+    # TODO: Finish this docstring
+    A simple serializable representation of a character's public materials.
+    """
+
+    __FLAGS = {
+        Alice: ALICE_CARD_FLAG,
+        Bob: BOB_CARD_FLAG
+    }
+    __FILE_EXTENSION = 'card'
+    CARD_DIR = Path(DEFAULT_CONFIG_ROOT) / 'cards'
+
+    def __init__(self,
+                 character_class: Type[Character],
+                 verifying_key: UmbralPublicKey,
+                 encrypting_key: Optional[UmbralPublicKey] = None,
+                 card_dir: Path = CARD_DIR):
+        self.card_dir = card_dir
+        if not self.card_dir.exists():
+            os.mkdir(str(self.card_dir))
+        self.verifying_key = verifying_key    # signing public key
+        self.encrypting_key = encrypting_key  # public key
+        self.__character_class = character_class
+        self.__validate()
+
+    def __repr__(self) -> str:
+        name = f'{self.__character_class.__name__}'
+        short_key = bytes(self.verifying_key).hex()[:6]
+        r = f'{self.__class__.__name__}({name}:{short_key}:{self.checksum.hex()[:6]})'
+        return r
+
+    def __bytes__(self) -> bytes:
+        self.__validate()
+        card_bytes = bytes()
+        card_bytes += bytes(self.__FLAGS[self.__character_class])
+        card_bytes += bytes(self.verifying_key)
+        if self.encrypting_key:
+            card_bytes += bytes(self.encrypting_key)
+        return card_bytes
+
+    def __eq__(self, other) -> bool:
+        return self.checksum == other.checksum
+
+    def __validate(self) -> bool:
+        result = all((
+            # TODO: Validate umbral keys
+            True,
+            True
+        ))
+        return result
+
+    @property
+    def checksum(self) -> HexBytes:
+        blake = hashlib.blake2b()
+        blake.update(bytes(self))
+        digest = blake.digest().hex()
+        return HexBytes(digest)
+
+    @classmethod
+    def from_bytes(cls, card_bytes: bytes) -> 'Card':
+        character_flag, payload = card_bytes[:8], card_bytes[8:]
+        for character_class, flag in cls.__FLAGS.items():
+            if flag == character_flag:
+                break
+        else:
+            raise ValueError('Unknown character flag')
+        if len(card_bytes) > PUBLIC_KEY_LENGTH:
+            i = PUBLIC_KEY_LENGTH  # mini-split!
+            verifying_key_bytes, encrypting_key_bytes = payload[:i], payload[i:]
+        else:
+            verifying_key_bytes = payload
+        instance = cls(verifying_key=UmbralPublicKey.from_bytes(verifying_key_bytes),
+                       encrypting_key=UmbralPublicKey.from_bytes(encrypting_key_bytes),
+                       character_class=character_class)
+        return instance
+
+    @classmethod
+    def from_bob(cls, bob: Bob) -> 'Card':
+        instance = cls(verifying_key=bob.stamp,
+                       encrypting_key=bob.public_keys(DecryptingPower),
+                       character_class=Bob)
+        return instance
+
+    @property
+    def is_saved(self) -> bool:
+        filename = f'{self.checksum.hex()}.{self.__FILE_EXTENSION}'
+        filepath = self.card_dir / filename
+        exists = filepath.exists()
+        return exists
+
+    def save(self, encoder: Callable = base64.b64encode) -> Path:
+        filename = f'{self.checksum.hex()}.{self.__FILE_EXTENSION}'
+        filepath = self.card_dir / filename
+        with open(str(filepath), 'w') as file:
+            file.write(encoder(bytes(self)))
+        return Path(filepath)
+
+    @classmethod
+    def load(cls,
+             checksum: str,
+             card_dir: Path = CARD_DIR,
+             decoder: Callable = base64.b64decode
+             ) -> 'Card':
+        filename = f'{checksum}.{cls.__FILE_EXTENSION}'
+        filepath = card_dir / filename
+        with open(str(filepath), 'rb') as file:
+            card_bytes = decoder(file.read())
+        instance = cls.from_bytes(card_bytes=card_bytes)
+        return instance
+
+
 class PolicyCredential:
     """
     A portable structure that contains information necessary for Alice or Bob
@@ -310,7 +439,6 @@ class PolicyCredential:
         """
         Deserializes the PolicyCredential from JSON.
         """
-        from nucypher.characters.lawful import Ursula
 
         cred_json = json.loads(data)
 
