@@ -54,7 +54,7 @@ all_configurations = tuple(configurations + blockchain_only_configurations)
 @pytest.mark.parametrize("character,configuration", characters_and_configurations)
 def test_federated_development_character_configurations(character, configuration):
 
-    config = configuration(dev_mode=True, federated_only=True, domains={TEMPORARY_DOMAIN})
+    config = configuration(dev_mode=True, federated_only=True, lonely=True, domains={TEMPORARY_DOMAIN})
     assert config.is_me is True
     assert config.dev_mode is True
     assert config.keyring == NO_KEYRING_ATTACHED
