@@ -74,8 +74,8 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
               known_nodes=a_couple_of_ursulas,
               )
 
-    # Bob only knows a couple of Ursulas initially
-    assert len(bob.known_nodes) == 2
+    # Bob has only connected to 2 nodes.
+    assert sum(node.verified_node for node in bob.known_nodes) == 2
 
     # Alice creates a policy granting access to Bob
     # Just for fun, let's assume she distributes KFrags among Ursulas unknown to Bob
