@@ -73,15 +73,16 @@ def make_cli_character(character_config,
                                 password=get_nucypher_password(confirm=False))
 
     # Handle Teachers
+    # TODO: Is this still relevant?  Is it better to DRY this up by doing it later?
     teacher_nodes = list()
-    if load_preferred_teachers:
-        teacher_nodes = load_seednodes(emitter,
-                                       teacher_uris=[teacher_uri] if teacher_uri else None,
-                                       min_stake=min_stake,
-                                       federated_only=character_config.federated_only,
-                                       network_domains=character_config.domains,
-                                       network_middleware=character_config.network_middleware,
-                                       registry=character_config.registry)
+    # if load_preferred_teachers:
+    #     teacher_nodes = load_seednodes(emitter,
+    #                                    teacher_uris=[teacher_uri] if teacher_uri else None,
+    #                                    min_stake=min_stake,
+    #                                    federated_only=character_config.federated_only,
+    #                                    network_domains=character_config.domains,
+    #                                    network_middleware=character_config.network_middleware,
+    #                                    registry=character_config.registry)
 
     #
     # Character Init
