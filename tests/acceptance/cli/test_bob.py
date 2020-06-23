@@ -88,7 +88,7 @@ def test_initialize_bob_with_custom_configuration_root(custom_filepath, click_ru
 
 def test_bob_control_starts_with_preexisting_configuration(click_runner, custom_filepath):
     custom_config_filepath = os.path.join(custom_filepath, BobConfiguration.generate_filename())
-    init_args = ('bob', 'run', '--dry-run', '--config-file', custom_config_filepath)
+    init_args = ('bob', 'run', '--dry-run', '--lonely', '--config-file', custom_config_filepath)
     result = click_runner.invoke(nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0, result.exception
     assert "Bob Verifying Key" in result.output
@@ -107,7 +107,7 @@ def test_bob_view_with_preexisting_configuration(click_runner, custom_filepath):
 
 
 def test_bob_public_keys(click_runner):
-    derive_key_args = ('bob', 'public-keys', '--dev')
+    derive_key_args = ('bob', 'public-keys', '--lonely', '--dev')
     result = click_runner.invoke(nucypher_cli, derive_key_args, catch_exceptions=False)
     assert result.exit_code == 0
     assert "bob_encrypting_key" in result.output
