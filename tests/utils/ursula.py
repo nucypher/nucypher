@@ -164,4 +164,4 @@ def start_pytest_ursula_services(ursula: Ursula) -> Certificate:
 
 
 MOCK_KNOWN_URSULAS_CACHE = dict()
-MOCK_URSULA_STARTING_PORT = select_test_port()
+MOCK_URSULA_STARTING_PORT = 51000  # select_test_port()
