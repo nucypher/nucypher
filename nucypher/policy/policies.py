@@ -14,30 +14,30 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
+from collections import OrderedDict
+
 import datetime
 import math
-import time
-import random
-from abc import ABC, abstractmethod
-from collections import OrderedDict, deque
-from queue import Queue, Empty
-from typing import Callable
-from typing import Generator, List, Set
-
 import maya
+import random
+import time
+from abc import ABC, abstractmethod
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG
+from queue import Queue, Empty
 from twisted._threads import AlreadyQuit
 from twisted.internet import reactor
 from twisted.internet.defer import ensureDeferred, Deferred
 from twisted.python.threadpool import ThreadPool
-
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG
+from typing import Callable
 from typing import Generator, List, Set, Optional
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
-from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import PolicyManagerAgent
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.api import keccak_digest, secure_random
 from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
@@ -47,8 +47,6 @@ from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import Logger
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
 
 
 class Arrangement:
@@ -441,13 +439,15 @@ class Policy(ABC):
         policy unless `with_treasure_map` is False.
         """
         from nucypher.policy.collections import PolicyCredential
-
         treasure_map = self.treasure_map
         if not with_treasure_map:
             treasure_map = None
-
-        return PolicyCredential(self.alice.stamp, self.label, self.expiration,
-                                self.public_key, treasure_map)
+        credential = PolicyCredential(alice_verifying_key=self.alice.stamp,
+                                      label=self.label,
+                                      expiration=self.expiration,
+                                      policy_pubkey=self.public_key,
+                                      treasure_map=treasure_map)
+        return credential
 
     def __assign_kfrags(self) -> Generator[Arrangement, None, None]:
 
@@ -612,7 +612,6 @@ class Policy(ABC):
 
 class FederatedPolicy(Policy):
     _arrangement_class = Arrangement
-    from nucypher.policy.collections import TreasureMap as _treasure_map_class  # TODO: Circular Import
 
     def make_arrangements(self, *args, **kwargs) -> None:
         try:
@@ -648,7 +647,6 @@ class BlockchainPolicy(Policy):
     A collection of n BlockchainArrangements representing a single Policy
     """
     _arrangement_class = BlockchainArrangement
-    from nucypher.policy.collections import SignedTreasureMap as _treasure_map_class  # TODO: Circular Import
 
     class NoSuchPolicy(Exception):
         pass

@@ -306,7 +306,8 @@ class Card:
     _specification = dict(
         character_flag=(bytes, 8),
         verifying_key=(bytes, 33),
-        encrypting_key=(bytes, 33)
+        encrypting_key=(bytes, 33),
+        nickname=VariableLengthBytestring
     )
 
     __FLAGS = {
@@ -324,7 +325,8 @@ class Card:
                  character_flag: Union[ALICE_CARD, BOB_CARD, URSULA_CARD],
                  verifying_key: UmbralPublicKey,
                  encrypting_key: Optional[UmbralPublicKey] = None,
-                 card_dir: Path = CARD_DIR):
+                 card_dir: Path = CARD_DIR,
+                 nickname: bytes = None):
         self.card_dir = card_dir
         if not self.card_dir.exists():
             os.mkdir(str(self.card_dir))
@@ -332,25 +334,26 @@ class Card:
         self.__encrypting_key = encrypting_key  # public key
         self.__character_flag = character_flag
         self.__character_class = self.__FLAGS[character_flag]
+        self.__nickname = nickname
         self.__validate()
 
     def __repr__(self) -> str:
-        name = f'{self.__character_class.__name__}'
+        name = self.nickname or f'{self.__character_class.__name__}'
         short_key = bytes(self.__verifying_key).hex()[:6]
-        r = f'{self.__class__.__name__}({name}:{short_key}:{self.checksum.hex()[:6]})'
+        r = f'{self.__class__.__name__}({name}:{short_key}:{self.id.hex()[:6]})'
         return r
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, self.__class__):
             raise TypeError(f'Cannot compare {self.__class__.__name__} and {other}')
-        return self.checksum == other.checksum
+        return self.id == other.id
 
     def __validate(self) -> bool:
         # TODO: Validate umbral keys?
         return True
 
     @staticmethod
-    def __hash(payload: bytes) -> HexBytes:
+    def __checksum(payload: bytes) -> HexBytes:
         blake = hashlib.blake2b()
         blake.update(payload)
         digest = blake.digest().hex()
@@ -361,16 +364,21 @@ class Card:
     #
 
     def __bytes__(self) -> bytes:
-        self.__validate()
+        payload = self.__to_bytes()
+        if self.nickname:
+            payload += VariableLengthBytestring(self.__nickname)
+        return payload
+
+    def __hex__(self) -> str:
+        return self.to_hex()
+
+    def __to_bytes(self) -> bytes:
         card_bytes = bytes()
         card_bytes += bytes(self.__character_flag)
         card_bytes += bytes(self.__verifying_key)
         if self.__encrypting_key:
             card_bytes += bytes(self.__encrypting_key)
         return card_bytes
-
-    def __hex__(self) -> str:
-        return self.to_hex()
 
     @classmethod
     def from_bytes(cls, card_bytes: bytes) -> 'Card':
@@ -442,12 +450,20 @@ class Card:
         return self.__encrypting_key
 
     @property
-    def checksum(self) -> HexBytes:
-        return self.__hash(bytes(self))
+    def id(self) -> HexBytes:
+        return self.__checksum(self.__to_bytes())
 
     @property
-    def fields(self) -> List[str]:
-        return list(self._specification.keys())
+    def nickname(self) -> str:
+        if self.__nickname:
+            return self.__nickname.decode()
+
+    def set_nickname(self, nickname: str) -> None:
+        self.__nickname = nickname.encode()
+
+    @nickname.setter
+    def nickname(self, nickname: str):
+        self.set_nickname(nickname)
 
     #
     # Card Storage API
@@ -455,13 +471,13 @@ class Card:
 
     @property
     def is_saved(self) -> bool:
-        filename = f'{self.checksum.hex()}.{self.__FILE_EXTENSION}'
+        filename = f'{self.id.hex()}.{self.__FILE_EXTENSION}'
         filepath = self.card_dir / filename
         exists = filepath.exists()
         return exists
 
     def save(self, encoder: Callable = base64.b64encode) -> Path:
-        filename = f'{self.checksum.hex()}.{self.__FILE_EXTENSION}'
+        filename = f'{self.id.hex()}.{self.__FILE_EXTENSION}'
         filepath = self.card_dir / filename
         with open(str(filepath), 'w') as file:
             file.write(encoder(bytes(self)))
