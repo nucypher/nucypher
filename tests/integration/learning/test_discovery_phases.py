@@ -66,14 +66,13 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     # TODO: Consider changing this - #1449
     assert VerificationTracker.node_verifications == 1
 
-    # A quick setup so that the bytes casting of Ursulas (on what in the real world will be the remote node)
-    # doesn't take up all the time.
     _teacher = highperf_mocked_alice.current_teacher_node()
     actual_ursula = MOCK_KNOWN_URSULAS_CACHE[_teacher.rest_interface.port]
 
+    # A quick setup so that the bytes casting of Ursulas (on what in the real world will be the remote node)
+    # doesn't take up all the time.
     _teacher_known_nodes_bytestring = actual_ursula.bytestring_of_known_nodes()
     actual_ursula.bytestring_of_known_nodes = lambda *args, ** kwargs: _teacher_known_nodes_bytestring  # TODO: Formalize this?  #1537
-
 
     with mock_cert_storage, mock_cert_loading, mock_verify_node, mock_message_verification, mock_metadata_validation:
         with mock_pubkey_from_bytes(), mock_stamp_call, mock_signature_bytes:
@@ -92,7 +91,6 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
 _POLICY_PRESERVER = []
 
 
-@pytest.mark.parametrize('fleet_of_highperf_mocked_ursulas', [1000], indirect=True)
 def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
                                             highperf_mocked_alice,
                                             highperf_mocked_bob):
@@ -124,7 +122,6 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
 
 
 @pytest_twisted.inlineCallbacks
-@pytest.mark.parametrize('fleet_of_highperf_mocked_ursulas', [1000], indirect=True)
 def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
                                      highperf_mocked_alice,
                                      highperf_mocked_bob):
