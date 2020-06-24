@@ -182,7 +182,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         self.revocation_kits = dict()
 
     def get_card(self) -> 'Card':
-        from nucypher.policy.collections import Card
+        from nucypher.policy.identity import Card
         card = Card.from_character(self)
         return card
 
@@ -515,7 +515,7 @@ class Bob(Character):
         return treasure_map
 
     def get_card(self) -> 'Card':
-        from nucypher.policy.collections import Card
+        from nucypher.policy.identity import Card
         card = Card.from_character(self)
         return card
 

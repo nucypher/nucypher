@@ -438,7 +438,7 @@ class Policy(ABC):
         Alice or Bob. By default, it will include the treasure_map for the
         policy unless `with_treasure_map` is False.
         """
-        from nucypher.policy.collections import PolicyCredential
+        from nucypher.policy.identity import PolicyCredential
         treasure_map = self.treasure_map
         if not with_treasure_map:
             treasure_map = None
