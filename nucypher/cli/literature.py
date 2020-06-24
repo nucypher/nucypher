@@ -222,7 +222,7 @@ SUCCESSFUL_STAKE_PROLONG = 'Successfully Prolonged Stake'
 
 COLLECTING_TOKEN_REWARD = 'Collecting {reward_amount} from staking rewards...'
 
-COLLECTING_ETH_REWARD = 'Collecting {reward_amount} ETH from policy rewards...'
+COLLECTING_ETH_FEE = 'Collecting {fee_amount} ETH from policy fees...'
 
 COLLECTING_PREALLOCATION_REWARD = 'Collecting {unlocked_tokens} from PreallocationEscrow contract {staking_address}...'
 

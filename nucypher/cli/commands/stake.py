@@ -41,7 +41,7 @@ from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
     BONDING_DETAILS,
     BONDING_RELEASE_INFO,
-    COLLECTING_ETH_REWARD,
+    COLLECTING_ETH_FEE,
     COLLECTING_PREALLOCATION_REWARD,
     COLLECTING_TOKEN_REWARD,
     CONFIRM_BROADCAST_CREATE_STAKE,
@@ -819,7 +819,7 @@ def collect_reward(general_config,
 
     if policy_fee:
         fee_amount = Web3.fromWei(STAKEHOLDER.calculate_policy_fee(), 'ether')
-        emitter.echo(message=COLLECTING_ETH_REWARD.format(reward_amount=fee_amount))
+        emitter.echo(message=COLLECTING_ETH_FEE.format(fee_amount=fee_amount))
         policy_receipt = STAKEHOLDER.collect_policy_fee(collector_address=withdraw_address)
         paint_receipt_summary(receipt=policy_receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
