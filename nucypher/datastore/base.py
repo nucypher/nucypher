@@ -43,6 +43,7 @@ class DatastoreRecord:
                  record_id: Union[int, str],
                  writeable: bool = False) -> None:
         self._record_id = record_id
+        self._fields = [field[1:] for field in type(self).__dict__ if type(type(self).__dict__[field]) == RecordField]
         self.__db_tx = db_tx
         self.__writeable = writeable
 
@@ -67,6 +68,7 @@ class DatastoreRecord:
         """
         # When writeable is None (meaning, it hasn't been __init__ yet), then
         # we allow any attribute to be set on the instance.
+        # HOT LAVA -- causes a recursion if this check isn't present.
         if self.__writeable is None:
             super().__setattr__(attr, value)
 
@@ -94,6 +96,7 @@ class DatastoreRecord:
         its `RecordField.field_type`, then this method will raise a `TypeError`.
         """
         # Handle __getattr__ look ups for private fields
+        # HOT LAVA -- causes a recursion if this check isn't present.
         if attr.startswith('_'):
             return super().__getattr__(attr)
 

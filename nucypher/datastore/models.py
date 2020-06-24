@@ -23,23 +23,23 @@ from nucypher.datastore.base import DatastoreRecord, RecordField
 
 
 class PolicyArrangement(DatastoreRecord):
-    arrangement_id = RecordField(bytes)
-    expiration = RecordField(MayaDT,
+    _arrangement_id = RecordField(bytes)
+    _expiration = RecordField(MayaDT,
                 encode=lambda maya_date: maya_date.iso8601().encode(),
                 decode=lambda maya_bytes: MayaDT.from_iso8601(maya_bytes.decode()))
-    kfrag = RecordField(KFrag,
+    _kfrag = RecordField(KFrag,
                 encode=lambda kfrag: kfrag.to_bytes(),
                 decode=KFrag.from_bytes)
-    alice_verifying_key = RecordField(UmbralPublicKey,
+    _alice_verifying_key = RecordField(UmbralPublicKey,
                 encode=bytes,
                 decode=UmbralPublicKey.from_bytes)
 
 
 class Workorder(DatastoreRecord):
-    arrangement_id = RecordField(bytes)
-    bob_verifying_key = RecordField(UmbralPublicKey,
+    _arrangement_id = RecordField(bytes)
+    _bob_verifying_key = RecordField(UmbralPublicKey,
                 encode=bytes,
                 decode=UmbralPublicKey.from_bytes)
-    bob_signature = RecordField(Signature,
+    _bob_signature = RecordField(Signature,
                 encode=bytes,
                 decode=Signature.from_bytes)
