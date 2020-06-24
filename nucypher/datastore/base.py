@@ -26,9 +26,29 @@ class DBWriteError(Exception):
 
 
 class RecordField(NamedTuple):
+    """
+    A `RecordField` represents a field as part of a record in the datastore.
+
+    The field is given a type via `field_type`. Additionally, a `RecordField`
+    has three optional parameters: `encode`, `decode`, and `query_filter`.
+
+    The `field_type` is the Python type that the field should be when being
+    accessed from the datastore.
+
+    The optional `encode` is any callable that takes the field value (as a
+    `field_type`) as an argument and returns it as `bytes`. This should always
+    be implemented if the `field_type` is not a natively msgpack'able type.
+    Care should be taken to ensure that the encoded data can be decoded and
+    usable in _another_ language other than Python to ensure future
+    interoperability.
+
+    The optional `decode` is any callable that takes the unpack'd encoded
+    field value and returns the `field_type`. If you implement `encode`, you
+    will probably always want to provide a `decode`.
+    """
     field_type: Any
-    encode: Optional[Callable] = lambda field: field
-    decode: Optional[Callable] = lambda field: field
+    encode: Optional[Callable[[Any], bytes]] = lambda field: field
+    decode: Optional[Callable[[bytes], Any]] = lambda field: field
 
 
 class DatastoreRecord:
@@ -142,3 +162,27 @@ class DatastoreRecord:
         except AttributeError:
             raise TypeError(f'No valid RecordField found on {self} for {attr}.')
         return record_field
+
+    def __eq__(self, other):
+        """
+        WARNING: Records are only considered unique per their record IDs in this method.
+        In some cases (Workorder vs PolicyArrangement), these records may have
+        the same IDs. This comparison is useful when iterating over the 
+        datastore _as a subset of record type_ (as we do in queries), but not
+        useful when comparing two records of different type.
+        """
+        # We want to be able to compare this record to other IDs for the
+        # set operation in the query without instantiating a whole record.
+        if type(other) in (int, str):
+            return self._record_id == other
+        return self._record_id == other._record_id
+
+    def __hash__(self):
+        """
+        WARNING: Records are only considered unique per their record IDs in this method.
+        In some cases (Workorder vs PolicyArrangement), these records may have
+        the same IDs. This comparison is useful when iterating over the 
+        datastore _as a subset of record type_ (as we do in queries), but not
+        useful when comparing two records of different type.
+        """
+        return hash(self._record_id)
