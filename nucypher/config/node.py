@@ -69,6 +69,14 @@ class CharacterConfiguration(BaseConfiguration):
     # Gas
     DEFAULT_GAS_STRATEGY = 'fast'
 
+    _CONFIG_FIELDS = ('config_root',
+                      'poa',
+                      'light',
+                      'provider_uri',
+                      'registry_filepath',
+                      'gas_strategy',
+                      'signer_uri')
+
     def __init__(self,
 
                  # Base
@@ -334,14 +342,7 @@ class CharacterConfiguration(BaseConfiguration):
         Warning: This method allows mutation and may result in an inconsistent configuration.
         """
         merged_parameters = {**self.static_payload(), **self.dynamic_payload, **overrides}
-        non_init_params = ('config_root',
-                           'poa',
-                           'light',
-                           'provider_uri',
-                           'registry_filepath',
-                           'gas_strategy',
-                           'signer_uri')
-        character_init_params = filter(lambda t: t[0] not in non_init_params, merged_parameters.items())
+        character_init_params = filter(lambda t: t[0] not in self._CONFIG_FIELDS, merged_parameters.items())
         return dict(character_init_params)
 
     def produce(self, **overrides) -> CHARACTER_CLASS:
