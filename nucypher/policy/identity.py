@@ -17,22 +17,23 @@
 
 import base64
 import json
-
-import hashlib
-
-import os
 from pathlib import Path
 from typing import Union, Optional, Dict, Type, Callable
 
+import constant_sorrow
+import hashlib
+import os
+from bytestring_splitter import VariableLengthBytestring, BytestringKwargifier
 from hexbytes.main import HexBytes
-from maya import __init__
 from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
 
 from nucypher.characters.base import Character
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.policy.collections import TreasureMap
+from constant_sorrow.constants import ALICE, BOB, NO_SIGNATURE
 
 
 class Card:
@@ -42,35 +43,49 @@ class Card:
 
     _specification = dict(
         character_flag=(bytes, 8),
-        verifying_key=(bytes, 33),
-        encrypting_key=(bytes, 33),
-        nickname=VariableLengthBytestring
+        verifying_key=(UmbralPublicKey, 33),
+        encrypting_key=(UmbralPublicKey, 33),
+        signature=(Signature, 64),
+        nickname=(bytes, VariableLengthBytestring)
     )
 
     __FLAGS = {
-        bytes(ALICE_CARD): Alice,
-        bytes(BOB_CARD): Bob,
-        # bytes(URSULA_CARD): Ursula  # TODO: Consider an Ursula card
+        bytes(ALICE): Alice,
+        bytes(BOB): Bob,
     }
+
+    __MAX_NICKNAME_SIZE = 10
+    __BASE_PAYLOAD_SIZE = sum(length[1] for length in _specification.values() if isinstance(length[1], int))
+    __MAX_CARD_LENGTH = __BASE_PAYLOAD_SIZE + __MAX_NICKNAME_SIZE
     __FILE_EXTENSION = 'card'
     CARD_DIR = Path(DEFAULT_CONFIG_ROOT) / 'cards'
 
+    class InvalidCard(Exception):
+        """Raised when an invalid, corrupted, or otherwise unsable card is encountered"""
+
     class UnknownCard(Exception):
-        """raised when a card cannot be found in storage"""
+        """Raised when a card cannot be found in storage"""
+
+    class UnsignedCard(Exception):
+        """Raised when a card serialization cannot be handled due to the lack of a signature"""
 
     def __init__(self,
-                 character_flag: Union[ALICE_CARD, BOB_CARD, URSULA_CARD],
+                 character_flag: Union[ALICE, BOB],
                  verifying_key: UmbralPublicKey,
                  encrypting_key: Optional[UmbralPublicKey] = None,
+                 signature=NO_SIGNATURE,
                  card_dir: Path = CARD_DIR,
                  nickname: bytes = None):
+
         self.card_dir = card_dir
-        if not self.card_dir.exists():
-            os.mkdir(str(self.card_dir))
+        try:
+            self.__character_class = self.__FLAGS[bytes(character_flag)]
+        except KeyError:
+            raise ValueError(f'Unsupported card type {str(character_flag)}')
+        self.__character_flag = character_flag
         self.__verifying_key = verifying_key    # signing public key
         self.__encrypting_key = encrypting_key  # public key
-        self.__character_flag = character_flag
-        self.__character_class = self.__FLAGS[character_flag]
+        self.__signature = signature
         self.__nickname = nickname
         self.__validate()
 
@@ -86,11 +101,14 @@ class Card:
         return self.id == other.id
 
     def __validate(self) -> bool:
-        # TODO: Validate umbral keys?
+        if self.__nickname and (len(self.__nickname) > self.__MAX_NICKNAME_SIZE):
+            raise self.InvalidCard(f'Nickname exceeds maximum length')
+        if self.__signature is not NO_SIGNATURE:
+            self.__signature.verify(verifying_key=self.__verifying_key, message=self.__payload)
         return True
 
     @staticmethod
-    def __checksum(payload: bytes) -> HexBytes:
+    def __hash(payload: bytes) -> HexBytes:
         blake = hashlib.blake2b()
         blake.update(payload)
         digest = blake.digest().hex()
@@ -101,7 +119,10 @@ class Card:
     #
 
     def __bytes__(self) -> bytes:
-        payload = self.__to_bytes()
+        if self.__signature is NO_SIGNATURE:
+            raise self.UnsignedCard
+        payload = self.__payload
+        payload += bytes(self.__signature)
         if self.nickname:
             payload += VariableLengthBytestring(self.__nickname)
         return payload
@@ -109,16 +130,20 @@ class Card:
     def __hex__(self) -> str:
         return self.to_hex()
 
-    def __to_bytes(self) -> bytes:
-        card_bytes = bytes()
-        card_bytes += bytes(self.__character_flag)
-        card_bytes += bytes(self.__verifying_key)
-        if self.__encrypting_key:
-            card_bytes += bytes(self.__encrypting_key)
+    @property
+    def __payload(self) -> bytes:
+        elements = (
+            self.__character_flag,
+            self.__verifying_key,
+            self.__encrypting_key,
+        )
+        card_bytes = b''.join(bytes(e) for e in elements)
         return card_bytes
 
     @classmethod
     def from_bytes(cls, card_bytes: bytes) -> 'Card':
+        if len(card_bytes) > cls.__MAX_CARD_LENGTH:
+            raise cls.InvalidCard(f'Card exceeds maximum size. Verify the card filepath and contents.')
         return BytestringKwargifier(cls, **cls._specification)(card_bytes)
 
     @classmethod
@@ -163,15 +188,12 @@ class Card:
         return payload
 
     @classmethod
-    def from_character(cls, character: Type[Character]) -> 'Card':
-        for flag, character_class in cls.__FLAGS.items():
-            if character_class is character.__class__:
-                break
-        else:
-            raise ValueError('Unknown character flag')
+    def from_character(cls, character: Character) -> 'Card':
+        flag = getattr(constant_sorrow.constants, character.__class__.__name__.upper())
         instance = cls(verifying_key=character.public_keys(power_up_class=SigningPower),
                        encrypting_key=character.public_keys(power_up_class=DecryptingPower),
                        character_flag=flag)
+        instance.sign(signing_power=character._crypto_power.power_ups(SigningPower))
         return instance
 
     #
@@ -188,7 +210,7 @@ class Card:
 
     @property
     def id(self) -> HexBytes:
-        return self.__checksum(self.__to_bytes())
+        return self.__hash(self.__payload)
 
     @property
     def nickname(self) -> str:
@@ -196,11 +218,20 @@ class Card:
             return self.__nickname.decode()
 
     def set_nickname(self, nickname: str) -> None:
+        if len(nickname.encode()) > self.__MAX_NICKNAME_SIZE:
+            raise ValueError(f'New nickname exceeds maximum size ({self.__MAX_NICKNAME_SIZE} bytes)')
         self.__nickname = nickname.encode()
 
     @nickname.setter
-    def nickname(self, nickname: str):
+    def nickname(self, nickname: str) -> None:
         self.set_nickname(nickname)
+
+    def sign(self, signing_power: SigningPower) -> None:
+        if signing_power.public_key() != self.__verifying_key:
+            raise ValueError(f'Cannot sign card for another verifying key')
+        if self.__signature is not NO_SIGNATURE:
+            raise RuntimeError(f'Card already signed')
+        self.__signature = signing_power.sign(self.__payload)
 
     #
     # Card Storage API
@@ -214,6 +245,8 @@ class Card:
         return exists
 
     def save(self, encoder: Callable = base64.b64encode) -> Path:
+        if not self.card_dir.exists():
+            os.mkdir(str(self.card_dir))
         filename = f'{self.id.hex()}.{self.__FILE_EXTENSION}'
         filepath = self.card_dir / filename
         with open(str(filepath), 'w') as file:
