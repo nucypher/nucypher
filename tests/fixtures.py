@@ -100,7 +100,7 @@ from tests.mock.performance_mocks import (
     mock_remember_node,
     mock_rest_app_creation,
     mock_secret_source,
-    mock_verify_node
+    mock_verify_node, _determine_good_serials
 )
 from tests.utils.blockchain import TesterBlockchain, token_airdrop
 from tests.utils.config import (
@@ -927,6 +927,7 @@ def mock_transacting_power_activation(testerchain):
 
 @pytest.fixture(scope="module")
 def fleet_of_highperf_mocked_ursulas(ursula_federated_test_config, request):
+    # good_serials = _determine_good_serials(10000, 50000)
     try:
         quantity = request.param
     except AttributeError:
