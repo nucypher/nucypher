@@ -100,6 +100,7 @@ def test_state_is_recorded_after_learning(federated_ursulas, ursula_federated_te
 
     some_ursula_in_the_fleet = list(federated_ursulas)[0]
     lonely_learner.remember_node(some_ursula_in_the_fleet)
+    assert len(lonely_learner.known_nodes.states) == 1  # Saved a fleet state when we remembered this node.
 
     # The rest of the fucking owl.
     lonely_learner.learn_from_teacher_node()
@@ -107,5 +108,5 @@ def test_state_is_recorded_after_learning(federated_ursulas, ursula_federated_te
     states = list(lonely_learner.known_nodes.states.values())
     assert len(states) == 2
 
-    assert len(states[0].nodes) == 2  # This and one other.
-    assert len(states[1].nodes) == len(federated_ursulas) + 1  # Again, accounting for this Learner.
+    assert len(states[0].nodes) == 2  # The first fleet state is just us and the one about whom we learned.
+    assert len(states[1].nodes) == len(federated_ursulas) + 2  # When we ran learn_from_teacher_node, we also loaded the rest of the fleet.
