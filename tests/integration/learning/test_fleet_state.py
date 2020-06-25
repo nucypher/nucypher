@@ -23,21 +23,6 @@ from hendrix.utils.test_utils import crosstownTaskListDecoratorFactory
 from tests.utils.ursula import make_federated_ursulas
 
 
-def test_learning_from_node_with_no_known_nodes(ursula_federated_test_config):
-    lonely_ursula_maker = partial(make_federated_ursulas,
-                                  ursula_config=ursula_federated_test_config,
-                                  quantity=1,
-                                  know_each_other=False)
-    lonely_teacher = lonely_ursula_maker().pop()
-    lonely_learner = lonely_ursula_maker(known_nodes=[lonely_teacher]).pop()
-
-    learning_callers = []
-    crosstown_traffic.decorator = crosstownTaskListDecoratorFactory(learning_callers)
-
-    result = lonely_learner.learn_from_teacher_node()
-    assert result is NO_KNOWN_NODES
-
-
 def test_all_nodes_have_same_fleet_state(federated_ursulas):
     checksums = [u.known_nodes.checksum for u in federated_ursulas]
     assert len(set(checksums)) == 1  # There is only 1 unique value.
