@@ -234,7 +234,7 @@ class Learner:
     def known_nodes(self):
         return self.__known_nodes
 
-    def load_seednodes(self, read_storage: bool = True, retry_attempts: int = 3):
+    def load_seednodes(self, read_storage: bool = True):
         """
         Engage known nodes from storages and pre-fetch hardcoded seednode certificates for node learning.
 
@@ -284,9 +284,6 @@ class Learner:
         if read_storage is True:
             self.read_nodes_from_storage()
 
-        if not self.known_nodes:
-            self.log.warn("No seednodes were available after {} attempts".format(retry_attempts))
-            # TODO: Need some actual logic here for situation with no seed nodes (ie, maybe try again much later)  567
 
     def read_nodes_from_storage(self) -> None:
         stored_nodes = self.node_storage.all(federated_only=self.federated_only)  # TODO: #466
