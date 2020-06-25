@@ -128,7 +128,7 @@ def paint_bidder_status(emitter, bidder):
 
     message = f"""
 WorkLock Participant {bidder.checksum_address}
-====================================================="""
+══════════════════════════════════════════════════════"""
 
     if bidder.has_claimed:
         message += f"""

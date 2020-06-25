@@ -97,7 +97,7 @@ NO_STAKES_FOUND = "No stakes found."
 
 POST_STAKING_ADVICE = """
 View your stakes by running 'nucypher stake list'
-or set your Ursula worker node address by running 'nucypher stake set-worker'.
+or set your Ursula worker node address by running 'nucypher stake bond-worker'.
 
 See https://docs.nucypher.com/en/latest/guides/staking_guide.html
 """
@@ -222,7 +222,7 @@ SUCCESSFUL_STAKE_PROLONG = 'Successfully Prolonged Stake'
 
 COLLECTING_TOKEN_REWARD = 'Collecting {reward_amount} from staking rewards...'
 
-COLLECTING_ETH_REWARD = 'Collecting {reward_amount} ETH from policy rewards...'
+COLLECTING_ETH_FEE = 'Collecting {fee_amount} ETH from policy fees...'
 
 COLLECTING_PREALLOCATION_REWARD = 'Collecting {unlocked_tokens} from PreallocationEscrow contract {staking_address}...'
 
@@ -532,7 +532,7 @@ See the official NuCypher documentation for a comprehensive guide on next steps!
 
 As a first step, you need to bond a worker to your stake by running:
 
-  nucypher stake set-worker --worker-address <WORKER ADDRESS>
+  nucypher stake bond-worker --worker-address <WORKER ADDRESS>
 
 """
 

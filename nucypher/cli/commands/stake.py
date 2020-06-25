@@ -41,7 +41,7 @@ from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
     BONDING_DETAILS,
     BONDING_RELEASE_INFO,
-    COLLECTING_ETH_REWARD,
+    COLLECTING_ETH_FEE,
     COLLECTING_PREALLOCATION_REWARD,
     COLLECTING_TOKEN_REWARD,
     CONFIRM_BROADCAST_CREATE_STAKE,
@@ -661,7 +661,7 @@ def divide(general_config, transacting_staker_options, config_file, force, value
     if not value:
         min_allowed_locked = NU.from_nunits(STAKEHOLDER.economics.minimum_allowed_locked)
         max_divide_value = max(min_allowed_locked, current_stake.value - min_allowed_locked)
-        prompt = PROMPT_STAKE_DIVIDE_VALUE.format(minimm=min_allowed_locked, maximum=str(max_divide_value))
+        prompt = PROMPT_STAKE_DIVIDE_VALUE.format(minimum=min_allowed_locked, maximum=str(max_divide_value))
         value = click.prompt(prompt, type=stake_value_range)
     value = NU(value, 'NU')
 
@@ -819,7 +819,7 @@ def collect_reward(general_config,
 
     if policy_fee:
         fee_amount = Web3.fromWei(STAKEHOLDER.calculate_policy_fee(), 'ether')
-        emitter.echo(message=COLLECTING_ETH_REWARD.format(reward_amount=fee_amount))
+        emitter.echo(message=COLLECTING_ETH_FEE.format(fee_amount=fee_amount))
         policy_receipt = STAKEHOLDER.collect_policy_fee(collector_address=withdraw_address)
         paint_receipt_summary(receipt=policy_receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,

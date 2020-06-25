@@ -186,10 +186,16 @@ parameters to the ``nucypher ursula run`` command:
 * ``--prometheus`` - a boolean flag to enable the prometheus endpoint
 * ``--metrics-port <PORT>`` - the HTTP port to run the prometheus endpoint on
 
-The corresponding endpoint, ``http://<node_ip>:<METRICS PORT>``, can be used as a Prometheus data source for
+The corresponding endpoint, ``http://<node_ip>:<METRICS PORT>/metrics``, can be used as a Prometheus data source for
 monitoring including the creation of alert criteria.
+
+Prometheus is **not** installed by default and must be explicitly installed:
+
+.. code:: bash
+
+     (nucypher)$ pip install nucypher[ursula]
 
 
 .. note::
 
-    The Ursula Status Page and Prometheus Endpoint are areas of active development.
+    Both the Ursula Status Page and Prometheus Endpoint are areas of active development.
