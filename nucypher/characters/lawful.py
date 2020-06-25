@@ -891,7 +891,7 @@ class Bob(Character):
             search_boundary += 2
 
             if search_boundary > 42:  # We've searched the entire string and can't match any.  TODO: Portable learning is a nice idea here.
-                # TODO: This fails in tests once in a great while because there aren't matching nodes among the few test nodes.  Not sure what to do.
+                # TODO: This fails in tests once in a while because there aren't matching nodes among the few test nodes.  Not sure what to do.
                 raise self.NotEnoughNodes
 
             # TODO: 1995 all throughout here (we might not (need to) know the checksum address yet; canonical will do.)
@@ -1347,7 +1347,7 @@ class Ursula(Teacher, Character, Worker):
                                                        network_middleware=network_middleware,
                                                        registry=registry)
 
-            except NodeSeemsToBeDown:
+            except NodeSeemsToBeDown as e:
                 log = Logger(cls.__name__)
                 log.warn(
                     "Can't connect to seed node (attempt {}).  Will retry in {} seconds.".format(attempt, interval))
