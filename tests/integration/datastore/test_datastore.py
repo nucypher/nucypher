@@ -25,20 +25,19 @@ from nucypher.datastore import datastore, keypairs
 from nucypher.datastore.base import DatastoreRecord, RecordField
 from nucypher.datastore.models import PolicyArrangement, Workorder
 
+class TestRecord(DatastoreRecord):
+    _test = RecordField(bytes)
+    _test_date = RecordField(datetime,
+            encode=lambda val: datetime.isoformat(val).encode(),
+            decode=lambda val: datetime.fromisoformat(val.decode()))
 
-def test_datastore():
-    class TestRecord(DatastoreRecord):
-        _test = RecordField(bytes)
-        _test_date = RecordField(datetime,
-                encode=lambda val: datetime.isoformat(val).encode(),
-                decode=lambda val: datetime.fromisoformat(val.decode()))
 
+def test_datastore_describe():
     temp_path = tempfile.mkdtemp()
     storage = datastore.Datastore(temp_path)
     assert storage.LMDB_MAP_SIZE == 1_000_000_000_000
     assert storage.db_path == temp_path
     assert storage._Datastore__db_env.path() == temp_path
-
 
     #
     # Tests for `Datastore.describe`
@@ -153,11 +152,10 @@ def test_datastore():
     with storage.describe(TestRecord, 'new_id') as new_test_record:
         assert new_test_record.test == b'now it exists :)'
 
+def test_datastore_query_by():
+    temp_path = tempfile.mkdtemp()
+    storage = datastore.Datastore(temp_path)
 
-    #
-    # Tests for `Datastore.query`
-    #
-    
     # Make two test record classes
     class FooRecord(DatastoreRecord):
         _foo = RecordField(bytes)
@@ -254,18 +252,11 @@ def test_datastore():
             assert len(records) == 'this never gets executed'
 
 def test_datastore_record_read():
-    class TestRecord(DatastoreRecord):
-        _test = RecordField(bytes)
-        _test_date = RecordField(datetime,
-                encode=lambda val: datetime.isoformat(val).encode(),
-                decode=lambda val: datetime.fromisoformat(val.decode()))
-
     db_env = lmdb.open(tempfile.mkdtemp())
     with db_env.begin() as db_tx:
         # Check the default attrs.
         test_rec = TestRecord(db_tx, 'testing', writeable=False)
         assert test_rec._record_id == 'testing'
-        assert test_rec._fields == ['test', 'test_date']
         assert test_rec._DatastoreRecord__db_tx == db_tx
         assert test_rec._DatastoreRecord__writeable == False
         assert test_rec._DatastoreRecord__storagekey == 'TestRecord:{record_field}:{record_id}'
@@ -284,12 +275,6 @@ def test_datastore_record_read():
 
 
 def test_datastore_record_write():
-    class TestRecord(DatastoreRecord):
-        _test = RecordField(bytes)
-        _test_date = RecordField(datetime,
-                encode=lambda val: datetime.isoformat(val).encode(),
-                decode=lambda val: datetime.fromisoformat(val.decode()))
-
     # Test writing
     db_env = lmdb.open(tempfile.mkdtemp())
     with db_env.begin(write=True) as db_tx:
@@ -305,6 +290,11 @@ def test_datastore_record_write():
         # Writing an invalid serialization of a field is a `TypeError`
         with pytest.raises(TypeError):
             test_rec.test = 1234
+
+        # Test deleting a field
+        test_rec.test = None
+        with pytest.raises(AttributeError):
+            should_error = test_rec.test
 
         # Test writing a valid field and getting it.
         test_rec.test = b'good write'
@@ -343,6 +333,14 @@ def test_datastore_policy_arrangement_model():
         assert policy_arrangement.arrangement_id == bytes.fromhex(arrangement_id_hex)
         assert policy_arrangement.expiration == expiration
         assert policy_arrangement.alice_verifying_key == alice_verifying_key
+
+    # Now let's `delete` it
+    with storage.describe(PolicyArrangement, arrangement_id_hex, writeable=True) as policy_arrangement:
+        policy_arrangement.delete()
+
+        # Should be deleted now.
+        with pytest.raises(AttributeError):
+            should_error = policy_arrangement.arrangement_id
  
  
 def test_datastore_workorder_model():
@@ -354,15 +352,24 @@ def test_datastore_workorder_model():
     bob_verifying_key = bob_keypair.pubkey
     bob_signature = bob_keypair.sign(b'test')
  
+    # Test create
     with storage.describe(Workorder, arrangement_id_hex, writeable=True) as work_order:
         work_order.arrangement_id = bytes.fromhex(arrangement_id_hex)
         work_order.bob_verifying_key = bob_verifying_key
         work_order.bob_signature = bob_signature
- 
+
     with storage.describe(Workorder, arrangement_id_hex) as work_order:
         assert work_order.arrangement_id == bytes.fromhex(arrangement_id_hex)
         assert work_order.bob_verifying_key == bob_verifying_key
         assert work_order.bob_signature == bob_signature
+
+    # Test delete
+    with storage.describe(Workorder, arrangement_id_hex, writeable=True) as work_order:
+        work_order.delete()
+
+        # Should be deleted now.
+        with pytest.raises(AttributeError):
+            should_error = work_order.arrangement_id
 
 
 def test_key_tuple():
