@@ -242,15 +242,14 @@ class Learner:
         """
         if self.done_seeding:
             raise RuntimeError("Already finished seeding.  Why try again?  Is this a thread safety problem?")
-        from nucypher.utilities.seednodes import aggregate_seednode_uris  # TODO: Ugh.
-        # teacher_uris = aggregate_seednode_uris(domains=self.learning_domains)
+
         canonical_sage_uris = self.network_middleware.TEACHER_NODES.get(tuple(self.learning_domains)[0], ())  # TODO: Are we done with multiple domains?
-        # TODO: Is this better as a sprout?
-        from nucypher.characters.lawful import Ursula
-        ############################
+
+        discovered = []
+
         for uri in canonical_sage_uris:
             try:
-                sage_node = Ursula.from_teacher_uri(teacher_uri=uri,
+                sage_node = self.node_class.from_teacher_uri(teacher_uri=uri,
                                                        min_stake=0,  # TODO: Where to get this?
                                                        federated_only=self.federated_only,
                                                        network_middleware=self.network_middleware,
@@ -258,8 +257,9 @@ class Learner:
             except NodeSeemsToBeDown:
                 self.unresponsive_seed_nodes.add(uri)
             else:
-                self.remember_node(sage_node)
-        ################
+                new_node = self.remember_node(sage_node, record_fleet_state=False)
+                discovered.append(new_node)
+
         for seednode_metadata in self._seed_nodes:
 
             self.log.debug(
@@ -267,14 +267,15 @@ class Learner:
                                                 seednode_metadata.rest_host,
                                                 seednode_metadata.rest_port))
 
-            seed_node = Ursula.from_seednode_metadata(seednode_metadata=seednode_metadata,
+            seed_node = self.node_class.from_seednode_metadata(seednode_metadata=seednode_metadata,
                                                       network_middleware=self.network_middleware,
                                                       federated_only=self.federated_only)  # TODO: 466
             if seed_node is False:
                 self.unresponsive_seed_nodes.add(seednode_metadata)
             else:
                 self.unresponsive_seed_nodes.discard(seednode_metadata)
-                self.remember_node(seed_node)
+                new_node = self.remember_node(seed_node, record_fleet_state=False)
+                discovered.append(new_node)
 
         if not self.unresponsive_seed_nodes:
             self.log.info("Finished learning about all seednodes.")
@@ -282,13 +283,24 @@ class Learner:
         self.done_seeding = True
 
         if read_storage is True:
-            self.read_nodes_from_storage()
+            nodes_restored_from_storage = self.read_nodes_from_storage()
+
+        discovered.extend(nodes_restored_from_storage)
+
+        if discovered:
+            self.known_nodes.record_fleet_state()
 
 
     def read_nodes_from_storage(self) -> None:
         stored_nodes = self.node_storage.all(federated_only=self.federated_only)  # TODO: #466
+
+        restored_from_disk = []
+
         for node in stored_nodes:
-            self.remember_node(node)  # TODO: Validity status 1866
+            restored_node = self.remember_node(node, record_fleet_state=False)  # TODO: Validity status 1866
+            restored_from_disk.append(restored_node)
+
+        return restored_from_disk
 
     def remember_node(self,
                       node,
