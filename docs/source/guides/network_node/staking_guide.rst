@@ -454,29 +454,20 @@ policy fees using the ``--withdraw-address <ETH_ADDRESS>`` flag.
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake collect-reward --staking-reward --policy-fee --staking-address 0x287A817426DD1AE78ea23e9918e2273b6733a43D --hw-wallet
+    (nucypher)$ nucypher stake collect-reward --staking-reward --policy-fee --staking-address 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f --hw-wallet
+    Collecting 228.340621510864128225 NU from staking rewards...
+    Confirm transaction WITHDRAW on hardware wallet... (500000 gwei @ 1000000000)
+    Broadcasting WITHDRAW Transaction (500000 gwei @ 1000000000)...
+    OK | 0x1c59af9353b016080fef9e93ddd03fde4260b6c282880db7b15fc0d4f28b2d34 (124491 gas)
+    Block #6728952 | 0xdadfef1767eb5bdc4bb4ad469a5f7aded44a87799dd2ee0edd6b6147951dbd3f
+     See https://rinkeby.etherscan.io/tx/0x1c59af9353b016080fef9e93ddd03fde4260b6c282880db7b15fc0d4f28b2d34
 
-     ____    __            __
-    /\  _`\ /\ \__        /\ \
-    \ \,\L\_\ \ ,_\    __ \ \ \/'\      __   _ __
-     \/_\__ \\ \ \/  /'__`\\ \ , <    /'__`\/\`'__\
-       /\ \L\ \ \ \_/\ \L\.\\ \ \\`\ /\  __/\ \ \/
-       \ `\____\ \__\ \__/.\_\ \_\ \_\ \____\\ \_\
-        \/_____/\/__/\/__/\/_/\/_/\/_/\/____/ \/_/
-
-    The Holder of Stakes.
-
-    Collecting 12.345 NU from staking rewards...
-
-    OK | 0xb0625030224e228198faa3ed65d43f93247cf6067aeb62264db6f31b5bf411fa (55062 gas)
-    Block #1245170 | 0x63e4da39056873adaf869674db4002e016c80466f38256a4c251516a0e25e547
-     See https://etherscan.io/tx/0xb0625030224e228198faa3ed65d43f93247cf6067aeb62264db6f31b5bf411fa
-
-    Collecting 0.978 ETH from policy fees...
-
-    OK | 0xe6d555be43263702b74727ce29dc4bcd6e32019159ccb15120791dfda0975372 (25070 gas)
-    Block #1245171 | 0x0d8180a69213c240e2bf2045179976d5f18de56a82f17a9d59db54756b6604e4
-     See https://etherscan.io/tx/0xe6d555be43263702b74727ce29dc4bcd6e32019159ccb15120791dfda0975372
+    Collecting 1.0004E-13 ETH from policy fees...
+    Confirm transaction WITHDRAW on hardware wallet... (42070 gwei @ 1000000000)
+    Broadcasting WITHDRAW Transaction (42070 gwei @ 1000000000)...
+    OK | 0xba2afb864c24d783c5185429706c77a39e9053570de892a351dd86f7719fe58b (41656 gas)
+    Block #6728953 | 0x1238f61e8adf8bf42e022f5182b692aca5ec5bf45c70871156ca540055daaa94
+     See https://rinkeby.etherscan.io/tx/0xba2afb864c24d783c5185429706c77a39e9053570de892a351dd86f7719fe58b
 
 You can run ``nucypher stake accounts`` to verify that your staking compensation
 is indeed in your wallet. Use your favorite Ethereum wallet (MyCrypto or Metamask
