@@ -189,6 +189,7 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
         assert len(successful_responses) == len(nodes_we_expect_to_have_the_map)
 
         # Before Treasure Island (1741), this process took about 3 minutes.
-
-        assert initial_blocking_duration.total_seconds() < 1.8
-        assert complete_distribution_time.total_seconds() < 4.5
+        # On CI, we expect these times to be even less.  (Around 1 and 3.5 seconds, respectively)
+        # But with debuggers and other processes running on laptops, we give a little leeway.
+        assert initial_blocking_duration.total_seconds() < 3
+        assert complete_distribution_time.total_seconds() < 10
