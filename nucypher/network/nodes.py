@@ -228,7 +228,6 @@ class Learner:
         self.unresponsive_seed_nodes = set()
 
         if self.start_learning_now and not self.lonely:
-            self.load_seednodes()
             self.start_learning_loop(now=self.learn_on_same_thread)
 
     @property
@@ -242,8 +241,7 @@ class Learner:
         TODO: Dehydrate this with nucypher.utilities.seednodes.load_seednodes
         """
         if self.done_seeding:
-            self.log.debug("Already done seeding; won't try again.")
-            return
+            raise RuntimeError("Already finished seeding.  Why try again?  Is this a thread safety problem?")
         from nucypher.utilities.seednodes import aggregate_seednode_uris  # TODO: Ugh.
         # teacher_uris = aggregate_seednode_uris(domains=self.learning_domains)
         canonical_sage_uris = self.network_middleware.TEACHER_NODES.get(tuple(self.learning_domains)[0], ())  # TODO: Are we done with multiple domains?
@@ -251,14 +249,16 @@ class Learner:
         from nucypher.characters.lawful import Ursula
         ############################
         for uri in canonical_sage_uris:
-            # Not catching any errors here; we want to fail fast if there are bad hardcoded teachers.
-            # This is essentially an __active-fire__ if it's anything but a fleeting one-off.
-            sage_node = Ursula.from_teacher_uri(teacher_uri=uri,
-                                                   min_stake=0,  # TODO: Where to get this?
-                                                   federated_only=self.federated_only,
-                                                   network_middleware=self.network_middleware,
-                                                   registry=self.registry)
-            self.remember_node(sage_node)
+            try:
+                sage_node = Ursula.from_teacher_uri(teacher_uri=uri,
+                                                       min_stake=0,  # TODO: Where to get this?
+                                                       federated_only=self.federated_only,
+                                                       network_middleware=self.network_middleware,
+                                                       registry=self.registry)
+            except NodeSeemsToBeDown:
+                self.unresponsive_seed_nodes.add(uri)
+            else:
+                self.remember_node(sage_node)
         ################
         for seednode_metadata in self._seed_nodes:
 
@@ -369,20 +369,7 @@ class Learner:
             return False
         elif now:
             self.log.info("Starting Learning Loop NOW.")
-
-            # if self.lonely:
-            #     self.done_seeding = True
-            #     self.read_nodes_from_storage()
-            #
-            # else:
-            #     self.load_seednodes()
-            try:
-                self.learn_from_teacher_node()
-            except self.NotEnoughTeachers:
-                if self.lonely:
-                    assert False
-                else:
-                    assert False
+            self.learn_from_teacher_node()
 
             self.learning_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY)
             self.learning_deferred.addErrback(self.handle_learning_errors)
@@ -392,10 +379,6 @@ class Learner:
             self.cycle_teacher_node()
 
             learning_deferreds = list()
-            if not self.lonely:
-                seeder_deferred = deferToThread(self.load_seednodes)
-                seeder_deferred.addErrback(self.handle_learning_errors)
-                learning_deferreds.append(seeder_deferred)
 
             learner_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
             learner_deferred.addErrback(self.handle_learning_errors)
@@ -441,12 +424,8 @@ class Learner:
         self.teacher_nodes.extend(nodes_we_know_about)
 
     def cycle_teacher_node(self):
-        # To ensure that all the best teachers are available, first let's make sure
-        # that we have connected to all the seed nodes.
-        if self.unresponsive_seed_nodes and not self.lonely:
-            self.log.info("Still have unresponsive seed nodes; trying again to connect.")
-            self.load_seednodes()  # Ideally, this is async and singular.
-
+        if not self.done_seeding:
+            self.load_seednodes()
         if not self.teacher_nodes:
             self.select_teacher_nodes()
         try:
@@ -525,7 +504,6 @@ class Learner:
             if elapsed > timeout:
                 if len(self.known_nodes) >= number_of_nodes_to_know:  # Last chance!
                     continue
-
                 if not self._learning_task.running:
                     raise RuntimeError("Learning loop is not running.  Start it with start_learning().")
                 elif not reactor.running and not learn_on_this_thread:
