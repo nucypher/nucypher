@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.exceptions import DevelopmentInstallationRequired
 try:
@@ -25,7 +24,7 @@ except ImportError:
 from nucypher.blockchain.eth.sol.compile.constants import IGNORE_CONTRACT_PREFIXES, SOLC_LOGGER
 import os
 from pathlib import Path
-from typing import Dict, Iterator, List
+from typing import Dict, Iterator
 
 
 def source_filter(filename: str) -> bool:
@@ -35,21 +34,22 @@ def source_filter(filename: str) -> bool:
     return is_solidity_file and not contains_ignored_prefix
 
 
-def collect_sources(source_bundle: SourceBundle) -> Dict[str, Dict[str, List[str]]]:
+def collect_sources(source_bundle: SourceBundle) -> Dict[str, Path]:
     """
-    Returns a compiler-ready mapping of solidity source files in source_dir (recursive)
-    Walks source_dir top-down to the bottom filepath of each subdirectory recursively
-    and filtrates by __source_filter, setting values into `source_paths`.
+    Combines sources bundle paths. Walks source_dir top-down to the bottom filepath of
+    each subdirectory recursively nd filtrates by __source_filter, setting values into `source_paths`.
     """
-    source_paths: Dict[str, Dict[str, List[str]]] = dict()
-    for source_dir in source_bundle.source_dirs:
-        source_walker: Iterator = list(os.walk(top=str(source_dir.resolve(strict=True)), topdown=True))  # TODO: Remove list caster
-        # Collect single directory
-        for root, dirs, files in source_walker:
-            # Collect files in source dir
-            for filename in filter(source_filter, files):
+    source_paths = dict()
+    combined_paths = (source_bundle.base_path, *source_bundle.other_paths)
+    for source_dir in combined_paths:
+        source_walker: Iterator = os.walk(top=source_dir, topdown=True)
+        for root, dirs, files in source_walker:            # Collect single directory
+            for filename in filter(source_filter, files):  # Collect files in source dir
                 path = Path(root) / filename
-                source_paths[filename] = dict(urls=[str(path.resolve(strict=True))])
+                if filename in source_paths:
+                    raise RuntimeError(f'"{filename}" source is already collected. Verify source bundle filepaths.'
+                                       f' Existing {source_paths[filename]}; Duplicate {path}.')
+                source_paths[filename] = path
                 SOLC_LOGGER.debug(f"Collecting solidity source {path}")
         SOLC_LOGGER.info(f"Collected {len(source_paths)} solidity source files at {source_bundle}")
     return source_paths

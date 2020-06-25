@@ -34,19 +34,35 @@ from nucypher.blockchain.eth.sol.compile.types import (
     SourceBundle
 )
 
+CompilerSources = Dict[str, Dict[str, List[str]]]
+
+
+def prepare_configuration(sources: Dict[str, Path], base_path: Path) -> CompilerSources:
+    input_sources = dict()
+    for source_name, path in sources.items():
+        source_url = str(path.resolve(strict=True))  # require source path existence
+        source_url = source_url.replace(str(base_path), '')  # TODO: this is bananas
+        configured_path = dict(urls=[source_url])
+        input_sources[source_name] = configured_path
+    return input_sources
+
 
 def compile_sources(source_bundle: SourceBundle, version_check: bool = True) -> Dict:
     """Compiled solidity contracts for a single source directory"""
     sources = collect_sources(source_bundle=source_bundle)
-    solc_configuration = merge(BASE_COMPILER_CONFIGURATION, dict(sources=sources))  # do not mutate
+    source_config = prepare_configuration(sources=sources, base_path=source_bundle.base_path)
+
+    solc_configuration = merge(BASE_COMPILER_CONFIGURATION, dict(sources=source_config))  # does not mutate.
     ignore_version_check: bool = not version_check
     version: VersionString = VersionString(SOLIDITY_COMPILER_VERSION) if ignore_version_check else None
-    base_path = str(source_bundle.import_root) if source_bundle.import_root else None
-    allowed_paths = ', '.join(set(str(s.parent) for s in source_bundle.source_dirs))
+
+    allowed_paths = None  # TODO: Cleanup
+    if source_bundle.other_paths:
+        allowed_paths = ', '.join(set(str(s.parent) for s in source_bundle.other_paths))
 
     compiler_output = __execute(compiler_version=version,
                                 input_config=solc_configuration,
-                                base_path=base_path,
+                                base_path=str(source_bundle.base_path),
                                 allowed_paths=allowed_paths)
     return compiler_output
 
