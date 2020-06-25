@@ -31,11 +31,12 @@ def test_deployer_interface_multiversion_contract():
     base_dir = Path(__file__).parent / 'test_contracts' / 'multiversion'
     v1_dir, v2_dir = Path(base_dir / 'v1'), Path(base_dir / 'v2')
 
+    # TODO: Check type of sources
     # I am a contract administrator and I an compiling a new updated version of an existing contract...
     # Represents "Manually hardcoding" a new source directory on BlockchainDeployerInterface.SOURCES.
-    BlockchainDeployerInterface.SOURCES: Tuple[SourceBundle, ...] = (
-        SourceBundle(source_dirs=(v1_dir, )),
-        SourceBundle(source_dirs=(v2_dir, )),
+    BlockchainDeployerInterface.SOURCES = (
+        SourceBundle(base_path=v1_dir),
+        SourceBundle(base_path=v2_dir)
     )
 
     # Prepare chain

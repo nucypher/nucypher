@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from logging import Logger
 
-from typing import Dict
+from typing import Dict, Optional
 
 from nucypher.blockchain.eth.sol.compile.config import OPTIMIZER_RUNS
 from nucypher.blockchain.eth.sol.compile.constants import SOLC_LOGGER
@@ -27,7 +27,10 @@ from nucypher.blockchain.eth.sol.compile.types import VersionString
 from nucypher.exceptions import DevelopmentInstallationRequired
 
 
-def __execute(compiler_version: VersionString, input_config: Dict, allowed_paths: str, base_path: str = None):
+def __execute(compiler_version: VersionString,
+              input_config: Dict,
+              allowed_paths: Optional[str] = None,
+              base_path: str = None):
     """Executes the solcx command and underlying solc wrapper"""
     log = Logger('execute-solcx')
 
@@ -44,7 +47,7 @@ def __execute(compiler_version: VersionString, input_config: Dict, allowed_paths
 
     # Execute Compilation
     try:
-        compiler_output = compile_standard(input_data=input_config, allow_paths=allowed_paths, base_path=base_path)
+        compiler_output = compile_standard(input_data=input_config, base_path=base_path)
     except FileNotFoundError:
         raise CompilationError("The solidity compiler is not at the specified path. "
                                "Check that the file exists and is executable.")

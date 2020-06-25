@@ -44,5 +44,5 @@ class CompilerConfiguration(Dict):
 
 
 class SourceBundle(NamedTuple):
-    source_dirs: Tuple[Path]
-    import_root: Optional[Path] = None
+    base_path: Path
+    other_paths: Tuple[Path, ...] = tuple()
