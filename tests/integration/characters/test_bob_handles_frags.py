@@ -199,9 +199,8 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     else:
         raise RuntimeError("We've lost track of the Ursula that has the WorkOrder. Can't really proceed.")
 
-    kfrag_bytes = ursula.datastore.get_policy_arrangement(
-        work_order.arrangement_id.hex().encode()).kfrag
-    the_kfrag = KFrag.from_bytes(kfrag_bytes)
+    with ursula.datastore.describe(PolicyArrangement, work_order.arrangement_id.hex()) as policy_arrangement:
+        the_kfrag = policy_arrangement.kfrag
     the_correct_cfrag = pre.reencrypt(the_kfrag, capsule)
 
     # The first CFRAG_LENGTH_WITHOUT_PROOF bytes (ie, the cfrag proper, not the proof material), are the same:

@@ -22,7 +22,7 @@ from typing import Any, Callable, List, NamedTuple, Optional, Union
 
 from bytestring_splitter import BytestringSplitter
 from nucypher.crypto.signing import Signature
-from nucypher.datastore.base import DatastoreRecord, RecordField
+from nucypher.datastore.base import DatastoreRecord, DBWriteError, RecordField
 from nucypher.datastore.models import PolicyArrangement, Workorder
 
 
@@ -112,7 +112,7 @@ class Datastore:
             with self.__db_env.begin(write=writeable) as datastore_tx:
                 record = record_type(datastore_tx, record_id, writeable=writeable)
                 yield record
-        except (AttributeError, TypeError) as tx_err:
+        except (AttributeError, TypeError, DBWriteError) as tx_err:
             # Handle `RecordNotFound` cases when `writeable` is `False`.
             if not writeable and isinstance(tx_err, AttributeError):
                 raise RecordNotFound(tx_err)
@@ -212,6 +212,11 @@ class Datastore:
             # We begin the context manager try/finally block
             try:
                 yield list(valid_records)
+            except (AttributeError, TypeError, DBWriteError) as tx_err:
+                # Handle `RecordNotFound` cases when `writeable` is `False`.
+                if not writeable and isinstance(tx_err, AttributeError):
+                    raise RecordNotFound(tx_err)
+                raise DatastoreTransactionError(f'An error was encountered during the transaction (no data was written): {tx_err}')
             finally:
                 # TODO: What do we do?
                 pass

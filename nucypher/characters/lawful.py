@@ -66,8 +66,9 @@ from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, DelegatingPower, PowerUpError, SigningPower, TransactingPower
 from nucypher.crypto.signing import InvalidSignature
+from nucypher.datastore.datastore import DatastoreTransactionError
 from nucypher.datastore.keypairs import HostingKeypair
-from nucypher.datastore.threading import ThreadedSession
+from nucypher.datastore.models import PolicyArrangement
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
@@ -1085,10 +1086,16 @@ class Ursula(Teacher, Character, Worker):
 
     def __prune_arrangements(self) -> None:
         """Deletes all expired arrangements and kfrags in the datastore."""
-        now = datetime.fromtimestamp(self._arrangement_pruning_task.clock.seconds())
+        now = maya.MayaDT.from_datetime(datetime.fromtimestamp(self._arrangement_pruning_task.clock.seconds()))
         try:
-            result = self.datastore.del_expired_policy_arrangements(now=now)
-        except OperationalError:
+            with self.datastore.query_by(PolicyArrangement,
+                                         filter_field='expiration',
+                                         filter_func=lambda expiration: expiration <= now,
+                                         writeable=True) as expired_polices:
+                for policy in expired_policies:
+                    policy.delete()
+                result = len(expired_policies)
+        except DatastoreTransactionError:
             self.log.warn(f"Failed to prune policy arrangements; DB session rolled back.")
         else:
             if result > 0:
@@ -1496,13 +1503,13 @@ class Ursula(Teacher, Character, Worker):
     # Work Orders & Re-Encryption
     #
 
-    def work_orders(self, bob=None) -> List['WorkOrder']:
-        with ThreadedSession(self.datastore.engine):
-            if not bob:  # All
-                return self.datastore.get_workorders()
-            else:  # Filter
-                work_orders_from_bob = self.datastore.get_workorders(bob_verifying_key=bytes(bob.stamp))
-                return work_orders_from_bob
+    #def work_orders(self, bob=None) -> List['WorkOrder']:
+    #    with ThreadedSession(self.datastore.engine):
+    #        if not bob:  # All
+    #            return self.datastore.get_workorders()
+    #        else:  # Filter
+    #            work_orders_from_bob = self.datastore.get_workorders(bob_verifying_key=bytes(bob.stamp))
+    #            return work_orders_from_bob
 
     def _reencrypt(self, kfrag: KFrag, work_order: 'WorkOrder', alice_verifying_key: UmbralPublicKey):
 

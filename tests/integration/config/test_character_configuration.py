@@ -83,7 +83,7 @@ def test_federated_development_character_configurations(character, configuration
     # Node Storage
     assert configuration.TEMP_CONFIGURATION_DIR_PREFIX in thing_one.keyring_root
     assert isinstance(thing_one.node_storage, ForgetfulNodeStorage)
-    assert thing_one.node_storage._name == ":memory:"
+    assert ':memory:' in thing_one.node_storage._name
 
     # All development characters are unique
     _characters = [thing_one, thing_two]
@@ -156,11 +156,11 @@ def test_ursula_development_configuration(federated_only=True):
     # A Temporary Ursula
     port = ursula_one.rest_information()[0].port
     assert port == UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT
-    assert tempfile.gettempdir() in ursula_one.datastore.engine.url.database
+    assert tempfile.gettempdir() in ursula_one.datastore.db_path
     assert ursula_one.certificate_filepath is CERTIFICATE_NOT_SAVED
     assert UrsulaConfiguration.TEMP_CONFIGURATION_DIR_PREFIX in ursula_one.keyring_root
     assert isinstance(ursula_one.node_storage, ForgetfulNodeStorage)
-    assert ursula_one.node_storage._name == ":memory:"
+    assert ':memory:' in ursula_one.node_storage._name
 
     # Alternate way to produce a character with a direct call
     ursula_two = config.produce()

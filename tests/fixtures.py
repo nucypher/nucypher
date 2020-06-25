@@ -133,12 +133,10 @@ def temp_dir_path():
     temp_dir.cleanup()
 
 
-#@pytest.fixture(scope="module")
-#def test_datastore():
-#    engine = create_engine('sqlite:///:memory:')
-#    Base.metadata.create_all(engine)
-#    test_datastore = datastore.Datastore(engine)
-#    yield test_datastore
+@pytest.fixture(scope="module")
+def test_datastore():
+    test_datastore = datastore.Datastore(tempfile.mkdtemp())
+    yield test_datastore
 
 
 @pytest.fixture(scope='function')
