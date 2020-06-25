@@ -533,6 +533,11 @@ class StakingEscrowAgent(EthereumContractAgent):
 
     @contract_api(CONTRACT_CALL)
     def non_withdrawable_stake(self, staker_address: ChecksumAddress) -> NuNits:
+        """
+        Returns token amount that can not be withdrawn.
+        Opposite method for `calculate_staking_reward`.
+        Uses maximum of locked tokens in the current and next periods.
+        """
         staked_amount: int = max(self.contract.functions.getLockedTokens(staker_address, 0).call(),
                                  self.contract.functions.getLockedTokens(staker_address, 1).call())
         return NuNits(staked_amount)

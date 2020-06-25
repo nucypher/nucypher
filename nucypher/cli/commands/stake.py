@@ -817,7 +817,8 @@ def collect_reward(general_config,
 
         emitter.echo(message=COLLECTING_TOKEN_REWARD.format(reward_amount=reward_amount))
 
-        if not force and STAKEHOLDER.non_withdrawable_stake() == 0 and STAKEHOLDER.mintable_periods() > 0:
+        withdrawing_last_portion = STAKEHOLDER.non_withdrawable_stake() == 0
+        if not force and withdrawing_last_portion and STAKEHOLDER.mintable_periods() > 0:
             click.confirm(CONFIRM_COLLECTING_WITHOUT_MINTING, abort=True)
 
         staking_receipt = STAKEHOLDER.collect_staking_reward()

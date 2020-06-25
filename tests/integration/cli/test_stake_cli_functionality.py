@@ -112,35 +112,6 @@ def test_collecting_token_reward(click_runner, surrogate_staker, mock_staking_ag
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_collecting_token_reward(click_runner, surrogate_staker, mock_staking_agent, mocker):
-    mock_mintable_periods = mocker.spy(Staker, 'mintable_periods')
-
-    # Collect some reward
-    reward = NU(1, 'NU')
-    staked = NU(100, 'NU')
-    mock_staking_agent.calculate_staking_reward.return_value = reward.to_nunits()
-    mock_staking_agent.non_withdrawable_stake.return_value = staked.to_nunits()
-
-    collection_args = ('collect-reward',
-                       '--no-policy-fee',
-                       '--staking-reward',
-                       '--provider', MOCK_PROVIDER_URI,
-                       '--network', TEMPORARY_DOMAIN,
-                       '--staking-address', surrogate_staker.checksum_address)
-
-    user_input = INSECURE_DEVELOPMENT_PASSWORD
-    result = click_runner.invoke(stake, collection_args, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
-    assert COLLECTING_TOKEN_REWARD.format(reward_amount=reward) in result.output
-
-    mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
-    mock_staking_agent.collect_staking_reward.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
-    mock_staking_agent.non_withdrawable_stake.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
-    mock_mintable_periods.assert_not_called()
-    mock_staking_agent.assert_only_transactions([mock_staking_agent.collect_staking_reward])
-
-
-@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_collecting_whole_reward_with_warning(click_runner, surrogate_staker, mock_staking_agent, mocker):
     mock_mintable_periods = mocker.spy(Staker, 'mintable_periods')
 
@@ -231,7 +202,7 @@ def test_no_policy_fee(click_runner, surrogate_staker, mock_policy_manager_agent
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_collecting_token_reward(click_runner, surrogate_staker, mock_policy_manager_agent):
+def test_collecting_fee(click_runner, surrogate_staker, mock_policy_manager_agent):
     fee_amount_eth = 11
     mock_policy_manager_agent.get_fee_amount.return_value = Web3.toWei(fee_amount_eth, 'ether')
 

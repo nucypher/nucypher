@@ -106,7 +106,7 @@ See https://docs.nucypher.com/en/latest/guides/staking_guide.html
 # Minting
 #
 
-NO_MINTABLE_PERIODS = "No periods that can be rewarded."
+NO_MINTABLE_PERIODS = "There are no periods that can be rewarded."
 
 STILL_LOCKED_TOKENS = """
 WARNING: Some amount of tokens still locked. 

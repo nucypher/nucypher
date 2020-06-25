@@ -856,7 +856,7 @@ class Staker(NucypherTokenActor):
 
     def owned_tokens(self) -> NU:
         """
-        Returns all tokens that belong to staker_address, including locked, unlocked and rewards.
+        Returns all tokens that belong to the staker, including locked, unlocked and rewards.
         """
         raw_value = self.staking_agent.owned_tokens(staker_address=self.checksum_address)
         value = NU.from_nunits(raw_value)
@@ -1109,11 +1109,10 @@ class Staker(NucypherTokenActor):
         next_committed_period: Period = self.staking_agent.get_next_committed_period(staker_address=self.checksum_address)
 
         mintable_periods: int = 0
-        for committed_period in (current_committed_period, next_committed_period):
-            if committed_period == 0:
-                continue
-            if committed_period <= previous_period:
-                mintable_periods += 1
+        if 0 < current_committed_period <= previous_period:
+            mintable_periods += 1
+        if 0 < next_committed_period <= previous_period:
+            mintable_periods += 1
 
         return mintable_periods
 

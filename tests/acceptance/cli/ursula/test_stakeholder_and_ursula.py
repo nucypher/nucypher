@@ -656,13 +656,13 @@ def test_mint(click_runner,
     assert staker.mintable_periods() > 0
     owned_tokens = staker.owned_tokens()
 
-    restake_args = ('stake', 'mint',
-                    '--config-file', stakeholder_configuration_file_location,
-                    '--staking-address', manual_staker,
-                    '--force')
+    mint_args = ('stake', 'mint',
+                 '--config-file', stakeholder_configuration_file_location,
+                 '--staking-address', manual_staker,
+                 '--force')
 
     result = click_runner.invoke(nucypher_cli,
-                                 restake_args,
+                                 mint_args,
                                  input=INSECURE_DEVELOPMENT_PASSWORD,
                                  catch_exceptions=False)
     assert result.exit_code == 0
