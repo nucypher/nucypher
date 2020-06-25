@@ -27,7 +27,9 @@ def test_proper_seed_node_instantiation(ursula_federated_test_config):
     lonely_ursula_maker = partial(make_federated_ursulas,
                                   ursula_config=ursula_federated_test_config,
                                   quantity=1,
-                                  know_each_other=False)
+                                  know_each_other=False,
+                                  lonely=True,
+                                  domains=["useless domain"])
 
     firstula = lonely_ursula_maker().pop()
     firstula_as_seed_node = firstula.seed_node_metadata()
