@@ -23,6 +23,7 @@ from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
 from flask import Response
 
 from nucypher.characters.lawful import Ursula
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.network.middleware import NucypherMiddlewareClient, RestMiddleware
 from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
 
@@ -93,7 +94,11 @@ class MockRestMiddleware(RestMiddleware):
 
         @classmethod
         def get(_cls, item, default):
-            return tuple(u.rest_url() for u in MOCK_KNOWN_URSULAS_CACHE.values())
+            if item is TEMPORARY_DOMAIN:
+                nodes = tuple(u.rest_url() for u in MOCK_KNOWN_URSULAS_CACHE.values())
+            else:
+                nodes = tuple()
+            return nodes
 
     def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2,
                         current_attempt: int = 0):
