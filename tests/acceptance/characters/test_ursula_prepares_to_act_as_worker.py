@@ -29,6 +29,7 @@ from tests.utils.middleware import NodeIsDownMiddleware
 from tests.utils.ursula import make_decentralized_ursulas
 
 
+@pytest.mark.usefixtures("blockchain_ursulas")
 def test_stakers_bond_to_ursulas(testerchain, test_registry, stakers, ursula_decentralized_test_config):
     ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                          stakers_addresses=testerchain.stakers_accounts,

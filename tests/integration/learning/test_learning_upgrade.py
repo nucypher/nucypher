@@ -28,8 +28,7 @@ from tests.utils.middleware import MockRestMiddleware
 
 
 def test_emit_warning_upon_new_version(lonely_ursula_maker, caplog):
-    nodes = lonely_ursula_maker(quantity=3)
-    teacher, learner, new_node = nodes
+    teacher, learner, new_node = lonely_ursula_maker(quantity=3)
 
     learner.remember_node(teacher)
     teacher.remember_node(learner)
