@@ -39,7 +39,7 @@ def test_one_node_stores_a_bunch_of_others(federated_ursulas, lonely_ursula_make
         newcomer.start_learning_loop()
         start = maya.now()
         # Loop until the_chosen_seednode is in storage.
-        while the_chosen_seednode not in newcomer.node_storage.all(federated_only=True):
+        while the_chosen_seednode.checksum_address not in [u.checksum_address for u in newcomer.node_storage.all(federated_only=True)]:
             passed = maya.now() - start
             if passed.seconds > 2:
                 pytest.fail("Didn't find the seed node.")
