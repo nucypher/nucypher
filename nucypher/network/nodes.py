@@ -36,7 +36,7 @@ from bytestring_splitter import BytestringSplitter, BytestringSplittingError, Pa
     VariableLengthBytestring
 from constant_sorrow import constant_or_bytes
 from constant_sorrow.constants import (CERTIFICATE_NOT_SAVED, FLEET_STATES_MATCH, NEVER_SEEN, NOT_SIGNED,
-                                       NO_KNOWN_NODES, NO_STORAGE_AVAILIBLE, UNKNOWN_FLEET_STATE)
+                                       NO_KNOWN_NODES, NO_STORAGE_AVAILIBLE, UNKNOWN_FLEET_STATE, UNKNOWN_VERSION)
 from nucypher.acumen.nicknames import nickname_from_seed
 from nucypher.acumen.perception import FleetSensor, icon_from_checksum
 from nucypher.blockchain.economics import EconomicsFactory
@@ -249,7 +249,7 @@ class Learner:
 
         for uri in canonical_sage_uris:
             try:
-                sage_node = self.node_class.from_teacher_uri(teacher_uri=uri,
+                maybe_sage_node = self.node_class.from_teacher_uri(teacher_uri=uri,
                                                        min_stake=0,  # TODO: Where to get this?
                                                        federated_only=self.federated_only,
                                                        network_middleware=self.network_middleware,
@@ -257,8 +257,11 @@ class Learner:
             except NodeSeemsToBeDown:
                 self.unresponsive_seed_nodes.add(uri)
             else:
-                new_node = self.remember_node(sage_node, record_fleet_state=False)
-                discovered.append(new_node)
+                if maybe_sage_node is UNKNOWN_VERSION:
+                    continue
+                else:
+                    new_node = self.remember_node(maybe_sage_node, record_fleet_state=False)
+                    discovered.append(new_node)
 
         for seednode_metadata in self._seed_nodes:
 
