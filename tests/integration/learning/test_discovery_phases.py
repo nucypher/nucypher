@@ -24,6 +24,9 @@ from umbral.keys import UmbralPublicKey
 from unittest.mock import patch
 
 from nucypher.characters.lawful import Ursula
+from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
+from umbral.keys import UmbralPublicKey
+from nucypher.datastore.base import RecordField
 from tests.mock.performance_mocks import (
     NotAPublicKey,
     NotARestApp,
@@ -84,8 +87,15 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
 
 
 @pytest.mark.parametrize('fleet_of_highperf_mocked_ursulas', [100], indirect=True)
-def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas, highperf_mocked_alice,
-                                            highperf_mocked_bob):
+def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
+                                            highperf_mocked_alice,
+                                            highperf_mocked_bob,
+                                            mock_lmdb_env):
+    # Patch the Datastore PolicyArrangement model with the highperf
+    # NotAPublicKey
+    not_public_key_record_field = RecordField(NotAPublicKey, encode=bytes,
+                                              decode=NotAPublicKey.from_bytes)
+
     _umbral_pubkey_from_bytes = UmbralPublicKey.from_bytes
 
     def actual_random_key_instead(*args, **kwargs):
@@ -105,12 +115,14 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas, hi
             with patch('umbral.keys.UmbralPublicKey.__eq__', lambda *args, **kwargs: True):
                 with patch('umbral.keys.UmbralPublicKey.from_bytes',
                            new=actual_random_key_instead):
-                    with mock_cert_loading, mock_metadata_validation, mock_message_verification:
-                        with mock_secret_source():
-                            policy = highperf_mocked_alice.grant(
-                                highperf_mocked_bob, b"any label", m=20, n=30,
-                                expiration=maya.when('next week'),
-                                publish_treasure_map=False)
+                    with patch("nucypher.datastore.models.PolicyArrangement._alice_verifying_key",
+                               new=not_public_key_record_field):
+                        with mock_cert_loading, mock_metadata_validation, mock_message_verification:
+                            with mock_secret_source():
+                                policy = highperf_mocked_alice.grant(
+                                    highperf_mocked_bob, b"any label", m=20, n=30,
+                                    expiration=maya.when('next week'),
+                                    publish_treasure_map=False)
     # TODO: Make some assertions about policy.
     total_verified = sum(node.verified_node for node in highperf_mocked_alice.known_nodes)
     assert total_verified == 30

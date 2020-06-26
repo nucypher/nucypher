@@ -118,10 +118,10 @@ class Datastore:
                 raise RecordNotFound(tx_err)
             raise DatastoreTransactionError(f'An error was encountered during the transaction (no data was written): {tx_err}')
         finally:
-            # Set the `writeable` instance variable to `False` so that writes
-            # cannot be attempted on the leftover reference. This isn't really
-            # possible because the `datastore_tx` is no longer usable, but
-            # we set this to ensure some degree of safety.
+            # We write to the __dict__ to avoid calling the `__setattr__`.
+            # This prevents attempts from modifying the record while being
+            # no longer usable for added safety rather than throwing attempts
+            # at lmdb's API.
             record.__dict__['_DatastoreRecord__writeable'] = False
 
     @contextmanager
@@ -208,9 +208,9 @@ class Datastore:
             # If after the iteration we have no records, we raise `RecordNotFound`
             if len(valid_records) == 0:
                 raise RecordNotFound(f"No records exist for the key from the specified query parameters: '{query_key}'")
-
             # We begin the context manager try/finally block
             try:
+                # At last, we yield the queried records
                 yield list(valid_records)
             except (AttributeError, TypeError, DBWriteError) as tx_err:
                 # Handle `RecordNotFound` cases when `writeable` is `False`.
@@ -218,5 +218,5 @@ class Datastore:
                     raise RecordNotFound(tx_err)
                 raise DatastoreTransactionError(f'An error was encountered during the transaction (no data was written): {tx_err}')
             finally:
-                # TODO: What do we do?
-                pass
+                for record in valid_records:
+                    record.__dict__['_DatastoreRecord__writeable'] = False

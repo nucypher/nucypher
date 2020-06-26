@@ -108,13 +108,6 @@ class TestInMemoryNodeStorage(BaseTestNodeStorageBackends):
     storage_backend.initialize()
 
 
-class TestInMemorySQLiteNodeStorage(BaseTestNodeStorageBackends):
-    storage_backend = SQLiteForgetfulNodeStorage(db_filepath=':memory:',
-                                                 character_class=BaseTestNodeStorageBackends.character_class,
-                                                 federated_only=BaseTestNodeStorageBackends.federated_only)
-    storage_backend.initialize()
-
-
 class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
     storage_backend = TemporaryFileBasedNodeStorage(character_class=BaseTestNodeStorageBackends.character_class,
                                                     federated_only=BaseTestNodeStorageBackends.federated_only)

@@ -25,6 +25,7 @@ from umbral.kfrags import KFrag
 from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.datastore.models import PolicyArrangement
 from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
 
 

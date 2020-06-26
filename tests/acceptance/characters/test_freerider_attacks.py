@@ -20,7 +20,7 @@ import maya
 import pytest
 
 from nucypher.characters.unlawful import Amonia
-from nucypher.datastore.db.models import PolicyArrangement
+from nucypher.datastore.models import PolicyArrangement
 
 
 def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bob, agency, testerchain):
@@ -44,7 +44,8 @@ def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bo
     for ursula in blockchain_ursulas:
         # Reset the Ursula for the next test.
         ursula.suspicious_activities_witnessed['freeriders'] = []
-        ursula.datastore._session_on_init_thread.query(PolicyArrangement).delete()
+        with ursula.datastore.query_by(PolicyArrangement, writeable=True) as arrangements:
+            [arrangement.delete() for arrangement in arrangements]
 
 
 def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, blockchain_alice, blockchain_bob, agency,
@@ -67,8 +68,7 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, block
 
     for ursula in blockchain_ursulas:
         # Even though the grant executed without error...
-        all_arrangements = ursula.datastore._session_on_init_thread.query(PolicyArrangement).all()
-        if all_arrangements:
+        with ursula.datastore.query_by(PolicyArrangement, writeable=True) as all_arrangements:
             arrangement = all_arrangements[0]  # ...and Ursula did save the Arrangement after considering it...
             assert arrangement.kfrag is None  # ...Ursula did *not* save a KFrag and will not service this Policy.
 
@@ -79,7 +79,7 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, block
 
             # Reset the Ursula for the next test.
             ursula.suspicious_activities_witnessed['freeriders'] = []
-            ursula.datastore._session_on_init_thread.query(PolicyArrangement).delete()
+            [arrangement.delete() for arrangement in all_arrangements]
 
 
 def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchain_bob, blockchain_ursulas,

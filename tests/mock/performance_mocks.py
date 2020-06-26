@@ -15,6 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import tempfile
 from contextlib import contextmanager
 
 from umbral.config import default_params
@@ -499,7 +500,7 @@ class NotARestApp:
 
     def actual_rest_app(self):
         if self._actual_rest_app is None:
-            self._actual_rest_app, _datastore = make_rest_app(db_filepath="no datastore",
+            self._actual_rest_app, _datastore = make_rest_app(db_filepath=tempfile.mkdtemp(),
                                                              this_node=self.this_node,
                                                              serving_domains=(None,))
             _new_view_functions = self._ViewFunctions(self._actual_rest_app.view_functions)

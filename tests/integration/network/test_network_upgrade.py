@@ -23,6 +23,7 @@ from cryptography.hazmat.primitives import serialization
 from twisted.internet import threads
 
 from nucypher.characters.lawful import Ursula
+from nucypher.datastore.models import PolicyArrangement
 from tests.utils.ursula import make_federated_ursulas
 
 
@@ -33,8 +34,7 @@ def test_alice_enacts_policies_in_policy_group_via_rest(enacted_federated_policy
     """
     arrangement = list(enacted_federated_policy._accepted_arrangements)[0]
     ursula = arrangement.ursula
-    policy_arrangement = ursula.datastore.get_policy_arrangement(arrangement.id.hex().encode())
-    with ursula.datastore(PolicyArrangement, arrangement.id.hex()) as policy_arrangement:
+    with ursula.datastore.describe(PolicyArrangement, arrangement.id.hex()) as policy_arrangement:
         the_kfrag = policy_arrangement.kfrag
     assert bool(the_kfrag)  # TODO: This can be a more poignant assertion.
 

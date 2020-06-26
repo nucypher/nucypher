@@ -200,7 +200,7 @@ def test_datastore_query_by():
             assert len(records) == 'this never gets executed cause it raises'
 
     # Queries without writeable are read only
-    with pytest.raises(TypeError):
+    with pytest.raises(datastore.DatastoreTransactionError):
         with storage.query_by(FooRecord) as records:
             records[0].foo = b'this should error'
 

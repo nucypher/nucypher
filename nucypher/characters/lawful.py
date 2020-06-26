@@ -35,7 +35,6 @@ from eth_utils import to_checksum_address
 from flask import Response, request
 from functools import partial
 from json.decoder import JSONDecodeError
-from sqlalchemy.exc import OperationalError
 from twisted.internet import reactor, stdio, threads
 from twisted.internet.task import LoopingCall
 from typing import Dict, Iterable, List, Set, Tuple, Union

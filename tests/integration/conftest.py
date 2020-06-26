@@ -19,6 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 import os
 import pytest
+from contextlib import contextmanager
 from eth_account import Account
 from eth_account.account import Account
 
@@ -52,6 +53,70 @@ from tests.utils.config import (
     make_ursula_test_configuration
 )
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
+
+
+class MockLMDBEnv:
+    """
+    This mocks some very basic functionality of LMDB by using a dict.
+    We can patch the `lmdb.open` call to the `open` classmethod below.
+    This allows us to use a temporary in-memory datastore that follows the
+    exact same logic as the rest of the datastore.
+    We use this primarily because lmdb will use up a lot of virtual memory
+    if we run many different instances of lmdb environments eventually leading
+    to a `lmdb.MemoryError` when trying to open up more. This is a solution.
+    """
+    def __init__(self):
+        self.write = False
+        self.storage = dict()
+        self.curr_key = None
+
+    @classmethod
+    def open(cls, *args, **kwargs):
+        return cls()
+
+    @contextmanager
+    def begin(self, write=False):
+        try:
+            self.write = write
+            yield self
+        finally:
+            self.write = False
+
+    def get(self, key: bytes):
+        return self.storage.get(key, None)
+
+    def put(self, key: bytes, value: bytes, overwrite=False):
+        if self.write:
+            if not overwrite and key in self.storage:
+                return False
+            self.storage[key] = value
+            return True
+        return False
+
+    def cursor(self):
+        return self
+
+    def set_range(self, key: bytes):
+        if key in self.storage:
+            self.curr_key = key
+            return True
+        return False
+
+    def key(self):
+        return self.curr_key
+
+    def iternext(self, keys=True, values=True):
+        if keys and values:
+            return self.storage.items()
+        elif keys:
+            return self.storage.keys()
+        elif values:
+            return self.storage.values()
+
+
+@pytest.fixture(scope='function')
+def mock_lmdb_env(monkeypatch):
+    monkeypatch.setattr("lmdb.open", MockLMDBEnv.open)
 
 
 @pytest.fixture(scope='function', autouse=True)

@@ -14,8 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
 import pytest
+import tempfile
 from constant_sorrow.constants import FEDERATED_ADDRESS
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
@@ -77,4 +77,4 @@ def test_characters_use_keyring(tmpdir):
     Alice(federated_only=True, start_learning_now=False, keyring=keyring)
     Bob(federated_only=True, start_learning_now=False, keyring=keyring)
     Ursula(federated_only=True, start_learning_now=False, keyring=keyring,
-           rest_host='127.0.0.1', rest_port=12345)
+           rest_host='127.0.0.1', rest_port=12345, db_filepath=tempfile.mkdtemp())
