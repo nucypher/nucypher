@@ -44,20 +44,21 @@ class Card:
         character_flag=(bytes, 8),
         verifying_key=(UmbralPublicKey, 33),
         encrypting_key=(UmbralPublicKey, 33),
-        signature=(Signature, 64),
-        nickname=(bytes, VariableLengthBytestring)
+        nickname=(bytes, VariableLengthBytestring),
     )
 
-    __FLAGS = {
+    __CARD_TYPES = {
         bytes(ALICE): Alice,
         bytes(BOB): Bob,
     }
 
+    __ID_LENGTH = 20  # TODO: Review this size
     __MAX_NICKNAME_SIZE = 10
     __BASE_PAYLOAD_SIZE = sum(length[1] for length in _specification.values() if isinstance(length[1], int))
     __MAX_CARD_LENGTH = __BASE_PAYLOAD_SIZE + __MAX_NICKNAME_SIZE
     __FILE_EXTENSION = 'card'
     CARD_DIR = Path(DEFAULT_CONFIG_ROOT) / 'cards'
+    NO_SIGNATURE.bool_value(False)
 
     class InvalidCard(Exception):
         """Raised when an invalid, corrupted, or otherwise unsable card is encountered"""
@@ -70,23 +71,31 @@ class Card:
 
     def __init__(self,
                  character_flag: Union[ALICE, BOB],
-                 verifying_key: UmbralPublicKey,
-                 encrypting_key: Optional[UmbralPublicKey] = None,
-                 signature=NO_SIGNATURE,
+                 verifying_key: Union[UmbralPublicKey, bytes],
+                 encrypting_key: Optional[Union[UmbralPublicKey, bytes]] = None,
                  card_dir: Path = CARD_DIR,
-                 nickname: bytes = None):
+                 nickname: Optional[Union[bytes, str]] = None):
 
-        self.card_dir = card_dir
         try:
-            self.__character_class = self.__FLAGS[bytes(character_flag)]
+            self.__character_class = self.__CARD_TYPES[bytes(character_flag)]
         except KeyError:
             raise ValueError(f'Unsupported card type {str(character_flag)}')
         self.__character_flag = character_flag
+
+        if isinstance(verifying_key, bytes):
+            verifying_key = UmbralPublicKey.from_bytes(verifying_key)
         self.__verifying_key = verifying_key    # signing public key
+
+        if isinstance(encrypting_key, bytes):
+            encrypting_key = UmbralPublicKey.from_bytes(encrypting_key)
         self.__encrypting_key = encrypting_key  # public key
-        self.__signature = signature
+
+        if isinstance(nickname, str):
+            nickname = nickname.encode()
         self.__nickname = nickname
+
         self.__validate()
+        self.card_dir = card_dir
 
     def __repr__(self) -> str:
         name = self.nickname or f'{self.__character_class.__name__}'
@@ -102,26 +111,23 @@ class Card:
     def __validate(self) -> bool:
         if self.__nickname and (len(self.__nickname) > self.__MAX_NICKNAME_SIZE):
             raise self.InvalidCard(f'Nickname exceeds maximum length')
-        if self.__signature is not NO_SIGNATURE:
-            self.__signature.verify(verifying_key=self.__verifying_key, message=self.__payload)
         return True
 
-    @staticmethod
-    def __hash(payload: bytes) -> HexBytes:
+    @classmethod
+    def __hash(cls, payload: bytes) -> HexBytes:
         blake = hashlib.blake2b()
         blake.update(payload)
         digest = blake.digest().hex()
-        return HexBytes(digest)
+        truncated_digest = digest[:cls.__ID_LENGTH]
+        return HexBytes(truncated_digest)
 
     #
     # Serializers
     #
 
     def __bytes__(self) -> bytes:
-        if self.__signature is NO_SIGNATURE:
-            raise self.UnsignedCard
+        self.__validate()
         payload = self.__payload
-        payload += bytes(self.__signature)
         if self.nickname:
             payload += VariableLengthBytestring(self.__nickname)
         return payload
@@ -136,8 +142,8 @@ class Card:
             self.__verifying_key,
             self.__encrypting_key,
         )
-        card_bytes = b''.join(bytes(e) for e in elements)
-        return card_bytes
+        payload = b''.join(bytes(e) for e in elements)
+        return payload
 
     @classmethod
     def from_bytes(cls, card_bytes: bytes) -> 'Card':
@@ -173,31 +179,45 @@ class Card:
 
     @classmethod
     def from_dict(cls, card: Dict):
-        instance = cls(verifying_key=card['verifying_key'],
+        instance = cls(nickname=card.get('nickname'),
+                       verifying_key=card['verifying_key'],
                        encrypting_key=card['encrypting_key'],
                        character_flag=card['character'])
         return instance
 
     def to_dict(self) -> Dict:
         payload = dict(
+            nickname=self.__nickname,
             verifying_key=self.verifying_key,
             encrypting_key=self.encrypting_key,
             character=self.__character_flag
         )
         return payload
 
+    def to_json(self, as_string: bool = True) -> Union[dict, str]:
+        payload = dict(
+            nickname=self.__nickname.decode(),
+            verifying_key=bytes(self.verifying_key).hex(),
+            encrypting_key=bytes(self.encrypting_key).hex(),
+            character=bytes(self.__character_flag).hex()
+        )
+        if as_string:
+            payload = json.dumps(payload)
+        return payload
+
     @classmethod
-    def from_character(cls, character: Character) -> 'Card':
+    def from_character(cls, character: Character, nickname: Optional[str] = None) -> 'Card':
         flag = getattr(constant_sorrow.constants, character.__class__.__name__.upper())
         instance = cls(verifying_key=character.public_keys(power_up_class=SigningPower),
                        encrypting_key=character.public_keys(power_up_class=DecryptingPower),
-                       character_flag=flag)
-        instance.sign(signing_power=character._crypto_power.power_ups(SigningPower))
+                       character_flag=flag,
+                       nickname=nickname)
         return instance
 
     #
     # Card API
     #
+
 
     @property
     def verifying_key(self) -> UmbralPublicKey:
@@ -225,13 +245,6 @@ class Card:
     def nickname(self, nickname: str) -> None:
         self.set_nickname(nickname)
 
-    def sign(self, signing_power: SigningPower) -> None:
-        if signing_power.public_key() != self.__verifying_key:
-            raise ValueError(f'Cannot sign card for another verifying key')
-        if self.__signature is not NO_SIGNATURE:
-            raise RuntimeError(f'Card already signed')
-        self.__signature = signing_power.sign(self.__payload)
-
     #
     # Card Storage API
     #
@@ -248,7 +261,7 @@ class Card:
             os.mkdir(str(self.card_dir))
         filename = f'{self.id.hex()}.{self.__FILE_EXTENSION}'
         filepath = self.card_dir / filename
-        with open(str(filepath), 'w') as file:
+        with open(str(filepath), 'wb') as file:
             file.write(encoder(bytes(self)))
         return Path(filepath)
 

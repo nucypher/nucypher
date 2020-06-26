@@ -18,6 +18,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import os
 import subprocess
 import sys
@@ -27,10 +29,10 @@ from setuptools.command.develop import develop
 from setuptools.command.install import install
 from typing import Dict
 
+
 #
 # Metadata
 #
-
 
 PACKAGE_NAME = 'nucypher'
 BASE_DIR = Path(__file__).parent
@@ -89,10 +91,10 @@ class PostDevelopCommand(develop):
         develop.run(self)
         subprocess.call(f"scripts/installation/install_solc.py")
 
+
 #
 #  Requirements
 #
-
 
 def read_requirements(path):
     with open(os.path.join(BASE_DIR, path)) as f:
@@ -115,18 +117,21 @@ DEPLOY_REQUIRES = [
 ]
 
 URSULA_REQUIRES = ['prometheus_client', 'sentry-sdk']  # TODO: Consider renaming to 'monitor', etc.
+ALICE_REQUIRES = ['qrcode']
+BOB_REQUIRES = ['qrcode']
 
 EXTRAS = {
 
     # Admin
     'docs': DOCS_REQUIRE,
-    'dev': DEV_REQUIRES + DOCS_REQUIRE + URSULA_REQUIRES,
+    'dev': DEV_REQUIRES + DOCS_REQUIRE + URSULA_REQUIRES + ALICE_REQUIRES,
     'benchmark': DEV_REQUIRES + BENCHMARK_REQUIRES,
     'deploy': DOCS_REQUIRE + DEPLOY_REQUIRES,
 
     # User
-    'ursula': URSULA_REQUIRES
-
+    'ursula': URSULA_REQUIRES,
+    'alice': ALICE_REQUIRES,
+    'bob': BOB_REQUIRES
 }
 
 
