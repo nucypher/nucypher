@@ -15,27 +15,22 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import contextlib
 import json
-import random
-
-import maya
 import os
-import pytest
+import random
 import shutil
 import tempfile
-from click.testing import CliRunner
 from datetime import datetime, timedelta
+from functools import partial
+from typing import Tuple
+
+import maya
+import pytest
+from click.testing import CliRunner
 from eth_utils import to_checksum_address
-from io import StringIO
 from sqlalchemy.engine import create_engine
 from twisted.logger import Logger
-from typing import Tuple
-from umbral import pre
-from umbral.curvebn import CurveBN
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
 from web3 import Web3
 
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
@@ -100,7 +95,7 @@ from tests.mock.performance_mocks import (
     mock_remember_node,
     mock_rest_app_creation,
     mock_secret_source,
-    mock_verify_node, _determine_good_serials
+    mock_verify_node
 )
 from tests.utils.blockchain import TesterBlockchain, token_airdrop
 from tests.utils.config import (
@@ -112,6 +107,10 @@ from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLarg
 from tests.utils.policy import generate_random_label
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, make_decentralized_ursulas, make_federated_ursulas, \
     MOCK_KNOWN_URSULAS_CACHE
+from umbral import pre
+from umbral.curvebn import CurveBN
+from umbral.keys import UmbralPrivateKey
+from umbral.signing import Signer
 
 test_logger = Logger("test-logger")
 
@@ -257,7 +256,7 @@ def idle_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, token_
     random_label = generate_random_label()
     days = token_economics.minimum_locked_periods // 2
     now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
-    expiration = maya.MayaDT(now).add(days=days-1)
+    expiration = maya.MayaDT(now).add(days=days - 1)
     n = 3
     m = 2
     policy = blockchain_alice.create_policy(blockchain_bob,
@@ -370,12 +369,38 @@ def blockchain_bob(bob_blockchain_test_config, testerchain):
 
 @pytest.fixture(scope="module")
 def federated_ursulas(ursula_federated_test_config):
+    if MOCK_KNOWN_URSULAS_CACHE:
+        raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
     _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
                                       quantity=NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
+    _ports_to_remove = [ursula.rest_interface.port for ursula in _ursulas]
     yield _ursulas
 
-    for ursula in _ursulas:
-        del MOCK_KNOWN_URSULAS_CACHE[ursula.rest_interface.port]
+    for port in _ports_to_remove:
+        del MOCK_KNOWN_URSULAS_CACHE[port]
+
+
+@pytest.fixture(scope="function")
+def lonely_ursula_maker(ursula_federated_test_config):
+    class _PartialUrsulaMaker:
+        _partial = partial(make_federated_ursulas,
+                         ursula_config=ursula_federated_test_config,
+                         know_each_other=False,
+                         )
+        _made = []
+
+        def __call__(self, *args, **kwargs):
+            ursula = self._partial(*args, **kwargs)
+            self._made.extend(ursula)
+            return ursula
+
+        def clean(self):
+            for ursula in self._made:
+                del MOCK_KNOWN_URSULAS_CACHE[ursula.rest_interface.port]
+    _maker = _PartialUrsulaMaker()
+    yield _maker
+    _maker.clean()
+
 
 
 #
