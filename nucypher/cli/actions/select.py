@@ -17,11 +17,12 @@
 
 
 import glob
+import os
+from typing import Callable
+from typing import Optional, Tuple, Type
 
 import click
-import os
 from tabulate import tabulate
-from typing import Optional, Tuple, Type
 from web3.main import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder, Staker, Wallet
@@ -47,7 +48,7 @@ from nucypher.cli.literature import (
 from nucypher.cli.painting.staking import paint_stakes
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ADDRESS
 from nucypher.config.node import CharacterConfiguration
-from typing import Callable
+from nucypher.policy.identity import Card
 
 
 def select_stake(staker: Staker,
@@ -289,3 +290,7 @@ def select_config_file(emitter: StdoutEmitter,
         config_file = config_files[0]
 
     return config_file
+
+
+def select_card(emitter, card_id: str = None) -> Card:
+    pass

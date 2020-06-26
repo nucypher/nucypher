@@ -21,6 +21,7 @@ import maya
 import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 from datetime import timedelta
+from nucypher.cli.painting.policies import paint_cards, paint_single_card
 from web3.main import Web3
 
 from nucypher.blockchain.eth.signers.software import ClefSigner
@@ -33,7 +34,11 @@ from nucypher.cli.actions.configure import (
     get_or_update_configuration
 )
 from nucypher.cli.actions.confirm import confirm_staged_grant
-from nucypher.cli.actions.select import select_client_account, select_config_file
+from nucypher.cli.actions.select import (
+    select_client_account,
+    select_config_file,
+    select_card
+)
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
@@ -61,13 +66,14 @@ from nucypher.cli.options import (
     option_teacher_uri,
     option_lonely
 )
+from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.help import (
-    paint_new_installation_help,
     paint_probationary_period_disclaimer,
     enforce_probationary_period
 )
 from nucypher.cli.processes import get_geth_provider_process
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, GWEI
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
+from nucypher.cli.types import GWEI
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import (
@@ -76,6 +82,7 @@ from nucypher.config.constants import (
 )
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.network.middleware import RestMiddleware
+from nucypher.policy.identity import Card
 
 option_bob_verifying_key = click.option(
     '--bob-verifying-key',
@@ -565,3 +572,79 @@ def decrypt(general_config, label, message_kit, character_options, config_file):
     request_data = {'label': label, 'message_kit': message_kit}
     response = ALICE.controller.decrypt(request=request_data)
     return response
+
+
+@alice.command()
+@option_force
+@group_general_config
+@click.option('--list', 'list_contacts', is_flag=True, default=None)
+@click.option('--create', is_flag=True, default=None)
+@click.option('--id', 'card_id', type=click.STRING, required=False)
+@click.option('--delete', is_flag=True, default=None)
+@click.option('--import', 'import_filepath', type=EXISTING_READABLE_FILE)
+@click.option('--type', 'character_flag', type=click.STRING, required=False)
+@click.option('--verifying-key', type=click.STRING, required=False)
+@click.option('--encrypting-key', type=click.STRING, required=False)
+@click.option('--nickname', type=click.STRING, required=False)
+def contacts(general_config, list_contacts, create, card_id, delete, import_filepath,
+             force, character_flag, verifying_key, encrypting_key, nickname):
+    """Manage stored character cards."""
+
+    # Setup
+    emitter = setup_emitter(general_config)
+    card_filepaths = os.listdir(Card.CARD_DIR)
+    if not card_filepaths:
+        emitter.error('No cards found.')
+
+    if list_contacts:
+        cards = list()
+        for filename in card_filepaths:
+            card_id, ext = filename.split('.')
+            card = Card.load(checksum=card_id)
+            cards.append(card)
+        paint_cards(emitter=emitter, cards=cards)
+        return
+
+    elif create:
+        if not all((character_flag, verifying_key, encrypting_key)) and force:
+            emitter.error(f'--verifying-key, --encrypting-key, and --type are required with --force enabled.')
+        if not force and not nickname:
+            nickname = click.prompt('Enter Card Nickname')
+        if not character_flag:
+            from constant_sorrow.constants import ALICE, BOB
+            choice = click.prompt('Enter Card Type - (A)lice or (B)ob', type=click.Choice(['a', 'b'], case_sensitive=False))
+            flags = {'a': ALICE, 'b': BOB}
+            character_flag = flags[choice]
+        if not verifying_key:
+            verifying_key = click.prompt('Enter Verifying Key', type=click.STRING)
+        verifying_key = bytes.fromhex(verifying_key)  # TODO: Move / Validate
+        if not encrypting_key:
+            encrypting_key = click.prompt('Enter Encrypting Key', type=click.STRING)
+        encrypting_key = bytes.fromhex(encrypting_key)  # TODO: Move / Validate
+
+        new_card = Card(character_flag=character_flag,
+                        verifying_key=verifying_key,
+                        encrypting_key=encrypting_key,
+                        nickname=nickname)
+        new_card.save()
+        emitter.message(f'Saved new card {new_card}', color='green')
+        paint_single_card(emitter=emitter, card=new_card)
+        return
+
+    elif delete:
+        card = select_card(emitter=emitter, card_id=card_id)
+        if not force:
+            click.confirm(f'Are you sure you want to delete {card}?', abort=True)
+        card.delete()
+        return
+
+    elif card_id:
+        card = select_card(emitter=emitter, card_id=card_id)
+        paint_single_card(emitter=emitter, card=card)
+        return
+
+    elif import_filepath:
+        return
+
+    else:
+        return
