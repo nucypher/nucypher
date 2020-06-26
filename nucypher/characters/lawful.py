@@ -65,7 +65,7 @@ from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, DelegatingPower, PowerUpError, SigningPower, TransactingPower
 from nucypher.crypto.signing import InvalidSignature
-from nucypher.datastore.datastore import DatastoreTransactionError
+from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
 from nucypher.datastore.keypairs import HostingKeypair
 from nucypher.datastore.models import PolicyArrangement
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -1090,10 +1090,12 @@ class Ursula(Teacher, Character, Worker):
             with self.datastore.query_by(PolicyArrangement,
                                          filter_field='expiration',
                                          filter_func=lambda expiration: expiration <= now,
-                                         writeable=True) as expired_polices:
+                                         writeable=True) as expired_policies:
                 for policy in expired_policies:
                     policy.delete()
                 result = len(expired_policies)
+        except RecordNotFound:
+            self.log.debug("No expired policy arrangements found.")
         except DatastoreTransactionError:
             self.log.warn(f"Failed to prune policy arrangements; DB session rolled back.")
         else:

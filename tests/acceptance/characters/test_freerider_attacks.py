@@ -106,10 +106,10 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchai
     # Same exact set of assertions as the last test:
     for ursula in blockchain_ursulas:
         # Even though the grant executed without error...
-        all_arrangements = ursula.datastore._session_on_init_thread.query(PolicyArrangement).all()
-        if all_arrangements:
-            arrangement = all_arrangements[0]  # ...and Ursula did save the Arrangement after considering it...
-            assert arrangement.kfrag is None  # ...Ursula did *not* save a KFrag and will not service this Policy.
+        with ursula.datastore.query_by(PolicyArrangement, writeable=True) as all_arrangements:
+            arrangement = all_arrangements[0] # ...and Ursula did save the Arrangement after considering it...
+            with pytest.raises(AttributeError):
+                should_error = arrangement.kfrag # ...Ursula did *not* save a KFrag and will not service this Policy.
 
             # Additionally, Ursula logged Amonia as a freerider:
             freeriders = ursula.suspicious_activities_witnessed['freeriders']
@@ -118,4 +118,4 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchai
 
             # Reset the Ursula for the next test.
             ursula.suspicious_activities_witnessed['freeriders'] = []
-            ursula.datastore._session_on_init_thread.query(PolicyArrangement).delete()
+            [arrangement.delete() for arrangement in all_arrangements]

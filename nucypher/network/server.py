@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import binascii
 import os
+import uuid
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH, NO_BLOCKCHAIN_CONNECTION, NO_KNOWN_NODES
@@ -35,7 +36,7 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.utils import canonical_address_from_umbral_key
-from nucypher.datastore.datastore import RecordNotFound
+from nucypher.datastore.datastore import RecordNotFound, DatastoreTransactionError
 from nucypher.datastore.keypairs import HostingKeypair
 from nucypher.datastore.models import PolicyArrangement, Workorder
 from nucypher.network import LEARNING_LOOP_VERSION
@@ -296,16 +297,17 @@ def make_rest_app(
 
         revocation = Revocation.from_bytes(request.data)
         log.info("Received revocation: {} -- for arrangement {}".format(bytes(revocation).hex(), id_as_hex))
+
+        # Check that the request is the same for the provided revocation
+        if not id_as_hex == revocation.arrangement_id.hex():
+            log.debug("Couldn't identify an arrangement with id {}".format(id_as_hex))
+            return Response(status_code=400)
+
         try:
             with datastore.describe(PolicyArrangement, id_as_hex, writeable=True) as policy_arrangement:
-                # Check that the request is the same for the provided revocation
-                if not id_as_hex == revocation.arrangement_id.hex():
-                    log.debug("Couldn't identify an arrangement with id {}".format(id_as_hex))
-                    return Response(status_code=400)
-                # Verify the Notice was signed by Alice
-                elif revocation.verify_signature(policy_arrangement.alice_verifying_key):
+                if revocation.verify_signature(policy_arrangement.alice_verifying_key):
                     policy_arrangement.delete()
-        except (RecordNotFound, InvalidSignature) as e:
+        except (DatastoreTransactionError, InvalidSignature) as e:
             log.debug("Exception attempting to revoke: {}".format(e))
             return Response(response='KFrag not found or revocation signature is invalid.', status=404)
         else:
@@ -345,7 +347,8 @@ def make_rest_app(
                                         alice_verifying_key=alice_verifying_key)
 
         # Now, Ursula saves this workorder to her database...
-        with datastore.describe(Workorder, work_order.arrangement_id.hex(), writeable=True) as new_workorder:
+        # Note: we give the work order a random ID to store it under.
+        with datastore.describe(Workorder, str(uuid.uuid4()), writeable=True) as new_workorder:
             new_workorder.arrangement_id = work_order.arrangement_id
             new_workorder.bob_verifying_key = work_order.bob.stamp.as_umbral_pubkey()
             new_workorder.bob_signature = work_order.receipt_signature

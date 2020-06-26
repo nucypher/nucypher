@@ -138,7 +138,7 @@ class Datastore:
         specified by the optional arg `filter_field` (see below) for the given
         `record_type` iff the `filter_field` has been provided.
         If no `filter_field` has been provided, then the `filter_func` will
-        receive a _read-only_ `DatastoreRecord`.
+        receive a _readonly_ `DatastoreRecord`.
 
         An optional `filter_field` can be provided as a `str` to perform a
         query on a specific field for a `record_type`. This will cause the
@@ -190,8 +190,26 @@ class Datastore:
                         field = getattr(record(writeable=False), filter_field)
                     except (TypeError, AttributeError):
                         continue
-                    else:
-                        if not filter_func(field):
+
+                    record = partial(record_type, datastore_tx, curr_key.record_id)
+                    # We pass the field to the filter_func if `filter_field` and
+                    # `filter_func` are both provided. In the event that the
+                    # given `filter_field` doesn't exist for the record or the
+                    # `filter_func` returns `False`, we call `continue`.
+                    if filter_field and filter_func:
+                        try:
+                            field = getattr(record(writeable=False), filter_field)
+                        except (TypeError, AttributeError):
+                            continue
+                        else:
+                            if not filter_func(field):
+                                continue
+
+                    # If only a filter_func is given, we pass a readonly record to it.
+                    # Likewise to the above, if `filter_func` returns `False`, we
+                    # call `continue`.
+                    elif filter_func:
+                        if not filter_func(record(writeable=False)):
                             continue
 
                 # If only a filter_func is given, we pass a read-only record to it.
