@@ -20,18 +20,14 @@ import pytest
 import pytest_twisted as pt
 from twisted.internet.threads import deferToThread
 
-from tests.utils.ursula import make_federated_ursulas
-
 
 @pt.inlineCallbacks
-def test_one_node_stores_a_bunch_of_others(federated_ursulas, ursula_federated_test_config):
+def test_one_node_stores_a_bunch_of_others(federated_ursulas, lonely_ursula_maker):
     the_chosen_seednode = list(federated_ursulas)[2]  # ...neo?
     seed_node = the_chosen_seednode.seed_node_metadata()
 
-    newcomer = make_federated_ursulas(
-        ursula_config=ursula_federated_test_config,
+    newcomer = lonely_ursula_maker(
         quantity=1,
-        know_each_other=False,
         save_metadata=True,
         seed_nodes=[seed_node]).pop()
 

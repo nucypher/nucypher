@@ -23,17 +23,11 @@ from nucypher.network.middleware import RestMiddleware
 from tests.utils.ursula import make_federated_ursulas
 
 
-def test_proper_seed_node_instantiation(ursula_federated_test_config):
-    lonely_ursula_maker = partial(make_federated_ursulas,
-                                  ursula_config=ursula_federated_test_config,
-                                  quantity=1,
-                                  know_each_other=False,
-                                  lonely=True,
-                                  domains=["useless domain"])
-
-    firstula = lonely_ursula_maker().pop()
+def test_proper_seed_node_instantiation(lonely_ursula_maker):
+    _lonely_ursula_maker = partial(lonely_ursula_maker, quantity=1)
+    firstula = _lonely_ursula_maker().pop()
     firstula_as_seed_node = firstula.seed_node_metadata()
-    any_other_ursula = lonely_ursula_maker(seed_nodes=[firstula_as_seed_node]).pop()
+    any_other_ursula = _lonely_ursula_maker(seed_nodes=[firstula_as_seed_node], domains=["useless domain"]).pop()
 
     assert not any_other_ursula.known_nodes
     any_other_ursula.start_learning_loop(now=True)
@@ -41,11 +35,7 @@ def test_proper_seed_node_instantiation(ursula_federated_test_config):
 
 
 @pt.inlineCallbacks
-def test_get_cert_from_running_seed_node(ursula_federated_test_config):
-    lonely_ursula_maker = partial(make_federated_ursulas,
-                                  ursula_config=ursula_federated_test_config,
-                                  quantity=1,
-                                  know_each_other=False)
+def test_get_cert_from_running_seed_node(lonely_ursula_maker):
 
     firstula = lonely_ursula_maker().pop()
     node_deployer = firstula.get_deployer()
