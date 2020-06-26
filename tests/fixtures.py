@@ -190,6 +190,8 @@ def ursula_decentralized_test_config(test_registry):
                                             rest_port=MOCK_URSULA_STARTING_PORT)
     yield config
     config.cleanup()
+    for k in list(MOCK_KNOWN_URSULAS_CACHE.keys()):
+        del MOCK_KNOWN_URSULAS_CACHE[k]
 
 
 @pytest.fixture(scope="module")
@@ -678,10 +680,11 @@ def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
         for ursula_to_learn_about in _ursulas:
             ursula_to_teach.remember_node(ursula_to_learn_about)
 
+    _ports_to_remove = [ursula.rest_interface.port for ursula in _ursulas]
     yield _ursulas
 
-    for ursula in _ursulas:
-        del MOCK_KNOWN_URSULAS_CACHE[ursula.rest_interface.port]
+    for port in _ports_to_remove:
+        del MOCK_KNOWN_URSULAS_CACHE[port]
 
 
 @pytest.fixture(scope="module")
