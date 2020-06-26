@@ -17,22 +17,26 @@
 
 from typing import List
 
+from tabulate import tabulate
+
 from nucypher.policy.identity import Card
 
 
-def paint_single_card(emitter, card: Card) -> None:
-    card_dict = card.to_json(as_string=False)
-    emitter.echo('*'*30)
-    emitter.message(f'{card}')
-    for field, value in card_dict.items():
-        emitter.echo(f'{field} ... {value}')
-    emitter.echo('*'*30)
+def paint_single_card(emitter, card: Card, qrcode: bool = False) -> None:
+    emitter.echo('*'*90)
+    emitter.message(f'{card.nickname.capitalize() or str(card.character.__name__)}\'s Card ({card.id.hex()})')
+    emitter.echo(f'Encrypting Key - {card.encrypting_key.hex()}')
+    emitter.echo(f'Verifying Key - {card.verifying_key.hex()}')
+    if qrcode:
+        card.to_qr_code()
+    emitter.echo('*'*90)
 
 
-def paint_cards(emitter, cards: List[Card]) -> None:
-    for card in cards:
-        paint_single_card(emitter=emitter, card=card)
-    # card_dict = card.to_dict()
-    # headers = [field for field in Card._specification]
-    # rows = [[n] for n in NetworksInventory.NETWORKS]
-    # emitter.echo(tabulate(rows, headers=headers, showindex='always'))
+def paint_cards(emitter, cards: List[Card], as_table: bool = True) -> None:
+    if as_table:
+        headers = [field for field in Card._specification]
+        rows = [card.to_dict() for card in cards]
+        emitter.echo(tabulate(rows, headers=headers, showindex='always'))
+    else:
+        for card in cards:
+            paint_single_card(emitter=emitter, card=card)

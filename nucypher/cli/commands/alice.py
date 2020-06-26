@@ -581,13 +581,14 @@ def decrypt(general_config, label, message_kit, character_options, config_file):
 @click.option('--create', is_flag=True, default=None)
 @click.option('--id', 'card_id', type=click.STRING, required=False)
 @click.option('--delete', is_flag=True, default=None)
+@click.option('--qrcode', is_flag=True, default=None)
 @click.option('--import', 'import_filepath', type=EXISTING_READABLE_FILE)
 @click.option('--type', 'character_flag', type=click.STRING, required=False)
 @click.option('--verifying-key', type=click.STRING, required=False)
 @click.option('--encrypting-key', type=click.STRING, required=False)
 @click.option('--nickname', type=click.STRING, required=False)
 def contacts(general_config, list_contacts, create, card_id, delete, import_filepath,
-             force, character_flag, verifying_key, encrypting_key, nickname):
+             force, character_flag, verifying_key, encrypting_key, nickname, qrcode):
     """Manage stored character cards."""
 
     # Setup
@@ -640,7 +641,7 @@ def contacts(general_config, list_contacts, create, card_id, delete, import_file
 
     elif card_id:
         card = select_card(emitter=emitter, card_id=card_id)
-        paint_single_card(emitter=emitter, card=card)
+        paint_single_card(emitter=emitter, card=card, qrcode=qrcode)
         return
 
     elif import_filepath:

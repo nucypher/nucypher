@@ -293,4 +293,18 @@ def select_config_file(emitter: StdoutEmitter,
 
 
 def select_card(emitter, card_id: str = None) -> Card:
-    pass
+    if card_id:
+        for filename in os.listdir(Card.CARD_DIR):
+            if card_id in filename:
+                break
+        else:
+            raise ValueError(f'Unknown Card ID or Nickname "{card_id}"')
+        try:
+            int(card_id, 16)
+        except ValueError:
+            name, _extension = filename.split('.')
+            nickname, card_id = name.split(':')
+    else:
+        cards = {}  # TODO
+    card = Card.load(checksum=card_id, nickname=nickname)
+    return card

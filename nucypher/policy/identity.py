@@ -121,6 +121,10 @@ class Card:
         truncated_digest = digest[:cls.__ID_LENGTH]
         return HexBytes(truncated_digest)
 
+    @property
+    def character(self):
+        return self.__CARD_TYPES[self.__character_flag]
+
     #
     # Serializers
     #
@@ -256,22 +260,38 @@ class Card:
         exists = filepath.exists()
         return exists
 
-    def save(self, encoder: Callable = base64.b64encode) -> Path:
+    def save(self, encoder: Callable = base64.b64encode, overwrite: bool = False) -> Path:
         if not self.card_dir.exists():
             os.mkdir(str(self.card_dir))
-        filename = f'{self.id.hex()}.{self.__FILE_EXTENSION}'
+        filename = f'{self.nickname+":" if self.__nickname else str()}{self.id.hex()}.{self.__FILE_EXTENSION}'
         filepath = self.card_dir / filename
+        if filepath.exists() and not overwrite:
+            raise FileExistsError('Card exists. Pass overwrite=True to allow this operation.')
         with open(str(filepath), 'wb') as file:
             file.write(encoder(bytes(self)))
         return Path(filepath)
 
     @classmethod
     def load(cls,
-             checksum: str,
+             checksum: str = None,
+             nickname: str = None,
              card_dir: Path = CARD_DIR,
              decoder: Callable = base64.b64decode
              ) -> 'Card':
-        filename = f'{checksum}.{cls.__FILE_EXTENSION}'
+        if nickname:
+            for filename in os.listdir(Card.CARD_DIR):
+                if nickname.casefold() in filename.casefold():
+                    break
+            else:
+                raise ValueError(f'Unknown card nickname "{nickname}"')
+            name, _extension = filename.split('.')  # TODO: glob or regex?
+            parsed_nickname, parsed_checksum = name.split(':')
+            if parsed_nickname != nickname:
+                raise ValueError('Nickname matches another')
+        elif checksum:
+            filename = f'{checksum}.{cls.__FILE_EXTENSION}'
+        else:
+            raise ValueError  # TODO
         filepath = card_dir / filename
         try:
             with open(str(filepath), 'rb') as file:
