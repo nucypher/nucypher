@@ -34,9 +34,8 @@ def paint_single_card(emitter, card: Card, qrcode: bool = False) -> None:
 
 def paint_cards(emitter, cards: List[Card], as_table: bool = True) -> None:
     if as_table:
-        headers = [field for field in Card._specification]
-        rows = [card.to_dict() for card in cards]
-        emitter.echo(tabulate(rows, headers=headers, showindex='always'))
+        rows = [card.to_json(as_string=False) for card in cards]
+        emitter.echo(tabulate(rows, headers='keys', showindex='always'))
     else:
         for card in cards:
             paint_single_card(emitter=emitter, card=card)

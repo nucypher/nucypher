@@ -603,7 +603,7 @@ def contacts(general_config, list_contacts, create, card_id, delete, import_file
             card_id, ext = filename.split('.')
             card = Card.load(checksum=card_id)
             cards.append(card)
-        paint_cards(emitter=emitter, cards=cards)
+        paint_cards(emitter=emitter, cards=cards, as_table=True)
         return
 
     elif create:
