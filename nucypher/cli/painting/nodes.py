@@ -18,6 +18,8 @@ import maya
 from constant_sorrow.constants import NO_KNOWN_NODES
 
 from nucypher.config.constants import SEEDNODES
+from nucypher.datastore.datastore import RecordNotFound
+from nucypher.datastore.models import Workorder
 
 
 def build_fleet_state_status(ursula) -> str:
@@ -54,6 +56,12 @@ def paint_node_status(emitter, ursula, start_time):
     # Build FleetState status line
     fleet_state = build_fleet_state_status(ursula=ursula)
 
+    try:
+        with ursula.datastore.query_by(Workorder) as work_orders:
+            num_work_orders = len(work_orders)
+    except RecordNotFound:
+        num_work_orders = 0
+
     stats = ['⇀URSULA {}↽'.format(ursula.nickname_icon),
              '{}'.format(ursula),
              'Uptime .............. {}'.format(maya.now() - start_time),
@@ -65,7 +73,7 @@ def paint_node_status(emitter, ursula, start_time):
              'Rest Interface ...... {}'.format(ursula.rest_url()),
              'Node Storage Type ... {}'.format(ursula.node_storage._name.capitalize()),
              'Known Nodes ......... {}'.format(len(ursula.known_nodes)),
-             'Work Orders ......... {}'.format(len(ursula.work_orders())),
+             'Work Orders ......... {}'.format(num_work_orders),
              teacher]
 
     if not ursula.federated_only:

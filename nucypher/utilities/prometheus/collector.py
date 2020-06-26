@@ -28,6 +28,8 @@ from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, StakingEscrowAgent, WorkLockAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.datastore.datastore import RecordNotFound
+from nucypher.datastore.models import Workorder
 
 from prometheus_client.metrics import MetricWrapperBase
 from prometheus_client.registry import CollectorRegistry
@@ -117,7 +119,11 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
 
         self.metrics["learning_status"].state('running' if self.ursula._learning_task.running else 'stopped')
         self.metrics["known_nodes_gauge"].set(len(self.ursula.known_nodes))
-        self.metrics["work_orders_gauge"].set(len(self.ursula.work_orders()))
+        try:
+            with self.ursula.datastore.query_by(Workorder) as work_orders:
+                self.metrics["work_orders_gauge"].set(len(work_orders))
+        except RecordNotFound:
+            self.metrics["work_orders_gauge"].set(0)
 
         if not self.ursula.federated_only:
             staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.ursula.registry)

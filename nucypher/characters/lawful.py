@@ -1499,16 +1499,8 @@ class Ursula(Teacher, Character, Worker):
         return constants.BYTESTRING_IS_URSULA_IFACE_INFO + bytes(self)
 
     #
-    # Work Orders & Re-Encryption
+    # Re-Encryption
     #
-
-    #def work_orders(self, bob=None) -> List['WorkOrder']:
-    #    with ThreadedSession(self.datastore.engine):
-    #        if not bob:  # All
-    #            return self.datastore.get_workorders()
-    #        else:  # Filter
-    #            work_orders_from_bob = self.datastore.get_workorders(bob_verifying_key=bytes(bob.stamp))
-    #            return work_orders_from_bob
 
     def _reencrypt(self, kfrag: KFrag, work_order: 'WorkOrder', alice_verifying_key: UmbralPublicKey):
 
