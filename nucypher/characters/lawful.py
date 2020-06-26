@@ -32,7 +32,7 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from bytestring_splitter import BytestringKwargifier, BytestringSplitter, BytestringSplittingError, \
     VariableLengthBytestring
 from constant_sorrow import constants
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE, UNKNOWN_VERSION
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -1434,7 +1434,8 @@ class Ursula(Teacher, Character, Worker):
     def from_bytes(cls,
                    ursula_as_bytes: bytes,
                    version: int = INCLUDED_IN_BYTESTRING,
-                   registry: BaseContractRegistry = None,
+                   registry: BaseContractRegistry = None,  # TODO: Why is this here?  It's not being used.
+                   fail_fast=False,
                    ) -> 'Ursula':
 
         if version is INCLUDED_IN_BYTESTRING:
@@ -1456,11 +1457,21 @@ class Ursula(Teacher, Character, Worker):
                 message = cls.unknown_version_message.format(display_name, version, cls.LEARNER_VERSION)
             except BytestringSplittingError:
                 message = cls.really_unknown_version_message.format(version, cls.LEARNER_VERSION)
-            raise cls.IsFromTheFuture(message)
-
-        # Version stuff checked out.  Moving on.
-        node_sprout = cls.internal_splitter(payload, partial=True)
-        return node_sprout
+                if fail_fast:
+                    raise cls.IsFromTheFuture(message)
+                else:
+                    cls.log.warn(message)
+                    return UNKNOWN_VERSION
+            else:
+                if fail_fast:
+                    raise cls.IsFromTheFuture(message)
+                else:
+                    cls.log.warn(message)
+                    return UNKNOWN_VERSION
+        else:
+            # Version stuff checked out.  Moving on.
+            node_sprout = cls.internal_splitter(payload, partial=True)
+            return node_sprout
 
     @classmethod
     def from_processed_bytes(cls, **processed_objects):
@@ -1505,11 +1516,21 @@ class Ursula(Teacher, Character, Worker):
                 sprout = cls.from_bytes(node_bytes,
                                         version=version,
                                         registry=registry)
+                if sprout is UNKNOWN_VERSION:
+                    continue
+            except BytestringSplittingError:
+                message = cls.really_unknown_version_message.format(version, cls.LEARNER_VERSION)
+                if fail_fast:
+                    raise cls.IsFromTheFuture(message)
+                else:
+                    cls.log.warn(message)
+                    continue
             except Ursula.IsFromTheFuture as e:
                 if fail_fast:
                     raise
                 else:
                     cls.log.warn(e.args[0])
+                    continue
             else:
                 sprouts.append(sprout)
         return sprouts
