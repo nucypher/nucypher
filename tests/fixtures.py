@@ -408,7 +408,6 @@ def lonely_ursula_maker(ursula_federated_test_config):
 #
 
 def make_token_economics(blockchain):
-
     # Get current blocktime
     now = blockchain.w3.eth.getBlock(block_identifier='latest').timestamp
 
@@ -424,7 +423,7 @@ def make_token_economics(blockchain):
     economics = StandardTokenEconomics(
         worklock_boosting_refund_rate=200,
         worklock_commitment_duration=60,  # periods
-        worklock_supply=10*BaseEconomics._default_maximum_allowed_locked,
+        worklock_supply=10 * BaseEconomics._default_maximum_allowed_locked,
         bidding_start_date=bidding_start_date,
         bidding_end_date=bidding_end_date,
         cancellation_end_date=cancellation_end_date,
@@ -562,11 +561,11 @@ def _make_agency(testerchain,
                                          registry=test_registry)
     worklock_deployer.deploy()
 
-    token_agent = token_deployer.make_agent()                           # 1 Token
-    staking_agent = staking_escrow_deployer.make_agent()                # 2 Staking Escrow
-    policy_agent = policy_manager_deployer.make_agent()                 # 3 Policy Agent
-    _adjudicator_agent = adjudicator_deployer.make_agent()              # 4 Adjudicator
-    _worklock_agent = worklock_deployer.make_agent()                    # 5 Worklock
+    token_agent = token_deployer.make_agent()  # 1 Token
+    staking_agent = staking_escrow_deployer.make_agent()  # 2 Staking Escrow
+    policy_agent = policy_manager_deployer.make_agent()  # 3 Policy Agent
+    _adjudicator_agent = adjudicator_deployer.make_agent()  # 4 Adjudicator
+    _worklock_agent = worklock_deployer.make_agent()  # 5 Worklock
 
     # Set additional parameters
     minimum, default, maximum = FEE_RATE_RANGE
@@ -664,6 +663,8 @@ def stakers(testerchain, agency, token_economics, test_registry):
 
 @pytest.fixture(scope="module")
 def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
+    if MOCK_KNOWN_URSULAS_CACHE:
+        raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
     _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                           stakers_addresses=testerchain.stakers_accounts,
                                           workers_addresses=testerchain.ursulas_accounts,
@@ -678,6 +679,9 @@ def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
             ursula_to_teach.remember_node(ursula_to_learn_about)
 
     yield _ursulas
+
+    for ursula in _ursulas:
+        del MOCK_KNOWN_URSULAS_CACHE[ursula.rest_interface.port]
 
 
 @pytest.fixture(scope="module")
@@ -872,7 +876,8 @@ def manual_staker(testerchain, agency):
     address = '0xaaa23A5c74aBA6ca5E7c09337d5317A7C4563075'
     if address not in testerchain.client.accounts:
         staker_private_key = '13378db1c2af06933000504838afc2d52efa383206454deefb1836f8f4cd86f8'
-        address = testerchain.provider.ethereum_tester.add_account(staker_private_key, password=INSECURE_DEVELOPMENT_PASSWORD)
+        address = testerchain.provider.ethereum_tester.add_account(staker_private_key,
+                                                                   password=INSECURE_DEVELOPMENT_PASSWORD)
 
     tx = {'to': address,
           'from': testerchain.etherbase_account,
@@ -968,6 +973,9 @@ def fleet_of_highperf_mocked_ursulas(ursula_federated_test_config, request):
                     ursula.known_nodes.checksum = b"This is a fleet state checksum..".hex()
     yield _ursulas
 
+    for ursula in _ursulas:
+        del MOCK_KNOWN_URSULAS_CACHE[ursula.rest_interface.port]
+
 
 @pytest.fixture(scope="module")
 def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas):
@@ -1002,6 +1010,7 @@ def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
     yield bob
     bob._learning_task.stop()
     return bob
+
 
 #
 # CLI
