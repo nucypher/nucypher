@@ -59,6 +59,7 @@ def select_stake(stakeholder: StakeHolder,
 
     # Precondition: Active Stakes
     if staker_address:
+        # FIXME: get_staker does not mutate stakeholder so stakeholder.get_staker().stakes may differ from stakeholder.sorted_stakes
         staker = stakeholder.get_staker(checksum_address=staker_address)
         stakes = staker.stakes
     else:
@@ -153,7 +154,7 @@ def select_client_account(emitter,
         row = [account]
         if show_staking:
             staker = Staker(is_me=True, checksum_address=account, registry=registry)
-            staker.stakes.refresh()
+            staker.refresh_stakes()
             is_staking = 'Yes' if bool(staker.stakes) else 'No'
             row.append(is_staking)
         if show_eth_balance:
@@ -207,6 +208,7 @@ def select_client_account_for_staking(emitter: StdoutEmitter,
                                                    network=stakeholder.network,
                                                    wallet=stakeholder.wallet)
             staking_address = client_account
+    stakeholder.set_staker(client_account)
 
     return client_account, staking_address
 

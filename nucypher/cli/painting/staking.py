@@ -192,7 +192,7 @@ def paint_staking_accounts(emitter, wallet, registry):
         nu = str(NU.from_nunits(wallet.token_balance(account, registry)))
 
         staker = Staker(is_me=True, checksum_address=account, registry=registry)
-        staker.stakes.refresh()
+        staker.refresh_stakes()
         is_staking = 'Yes' if bool(staker.stakes) else 'No'
         rows.append((is_staking, account, eth, nu))
     headers = ('Staking', 'Account', 'ETH', 'NU')

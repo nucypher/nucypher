@@ -182,7 +182,7 @@ def test_stake_prolong(click_runner,
                     '--force')
 
     staker = Staker(is_me=True, checksum_address=manual_staker, registry=agency_local_registry)
-    staker.stakes.refresh()
+    staker.refresh_stakes()
     stake = staker.stakes[0]
     old_termination = stake.final_locked_period
 
@@ -423,7 +423,7 @@ def test_collect_rewards_integration(click_runner,
     worker_address = manual_worker
 
     staker = Staker(is_me=True, checksum_address=staker_address, registry=agency_local_registry)
-    staker.stakes.refresh()
+    staker.refresh_stakes()
 
     # The staker is staking.
     assert staker.is_staking

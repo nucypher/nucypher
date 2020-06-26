@@ -364,8 +364,6 @@ def bond_worker(general_config, transacting_staker_options, config_file, force, 
 
     # TODO: Check preconditions (e.g., minWorkerPeriods, already in use, etc)
 
-    password = transacting_staker_options.get_password(blockchain, client_account)
-
     # TODO: Double-check dates
     # Calculate release datetime
     current_period = STAKEHOLDER.staking_agent.get_current_period()
@@ -382,7 +380,8 @@ def bond_worker(general_config, transacting_staker_options, config_file, force, 
                       f"worker {worker_address} to staker {staking_address} "
                       f"for a minimum of {STAKEHOLDER.economics.minimum_worker_periods} periods?", abort=True)
 
-    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+    password = transacting_staker_options.get_password(blockchain, client_account)
+    STAKEHOLDER.assimilate(password=password)
     receipt = STAKEHOLDER.bond_worker(worker_address=worker_address)
 
     # Report Success
@@ -421,8 +420,9 @@ def unbond_worker(general_config, transacting_staker_options, config_file, force
 
     # TODO: Check preconditions (e.g., minWorkerPeriods)
     worker_address = STAKEHOLDER.staking_agent.get_worker_from_staker(staking_address)
+
     password = transacting_staker_options.get_password(blockchain, client_account)
-    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+    STAKEHOLDER.assimilate(password=password)
     receipt = STAKEHOLDER.unbond_worker()
 
     # TODO: Double-check dates
@@ -511,6 +511,7 @@ def create(general_config, transacting_staker_options, config_file, force, value
 
     # Authenticate
     password = transacting_staker_options.get_password(blockchain, client_account)
+    STAKEHOLDER.assimilate(password=password)
 
     # Consistency check to prevent the above agreement from going stale.
     last_second_current_period = STAKEHOLDER.staking_agent.get_current_period()
@@ -518,9 +519,7 @@ def create(general_config, transacting_staker_options, config_file, force, value
         emitter.echo(PERIOD_ADVANCED_WARNING, color='red')
         raise click.Abort
 
-    # Authenticate and Execute
-    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
-
+    # Execute
     new_stake = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods)
     paint_staking_confirmation(emitter=emitter, staker=STAKEHOLDER, new_stake=new_stake)
 
@@ -547,25 +546,36 @@ def restake(general_config, transacting_staker_options, config_file, enable, loc
         individual_allocation=STAKEHOLDER.individual_allocation,
         force=force)
 
-    # Authenticate
-    password = transacting_staker_options.get_password(blockchain, client_account)
-    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
-
     # Inner Exclusive Switch
     if lock_until:
         if not force:
             confirm_enable_restaking_lock(emitter, staking_address=staking_address, release_period=lock_until)
+
+        # Authenticate and Execute
+        password = transacting_staker_options.get_password(blockchain, client_account)
+        STAKEHOLDER.assimilate(password=password)
+
         receipt = STAKEHOLDER.enable_restaking_lock(release_period=lock_until)
         emitter.echo(SUCCESSFUL_ENABLE_RESTAKE_LOCK.format(staking_address=staking_address, lock_until=lock_until),
                      color='green', verbosity=1)
     elif enable:
         if not force:
             confirm_enable_restaking(emitter, staking_address=staking_address)
+
+        # Authenticate and Execute
+        password = transacting_staker_options.get_password(blockchain, client_account)
+        STAKEHOLDER.assimilate(password=password)
+
         receipt = STAKEHOLDER.enable_restaking()
         emitter.echo(SUCCESSFUL_ENABLE_RESTAKING.format(staking_address=staking_address), color='green', verbosity=1)
     else:
         if not force:
             click.confirm(CONFIRM_DISABLE_RESTAKING.format(staking_address=staking_address), abort=True)
+
+        # Authenticate and Execute
+        password = transacting_staker_options.get_password(blockchain, client_account)
+        STAKEHOLDER.assimilate(password=password)
+
         receipt = STAKEHOLDER.disable_restaking()
         emitter.echo(SUCCESSFUL_DISABLE_RESTAKING.format(staking_address=staking_address), color='green', verbosity=1)
 
@@ -593,19 +603,25 @@ def winddown(general_config, transacting_staker_options, config_file, enable, fo
         individual_allocation=STAKEHOLDER.individual_allocation,
         force=force)
 
-    # Authenticate
-    password = transacting_staker_options.get_password(blockchain, client_account)
-    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
-
     # Inner Exclusive Switch
     if enable:
         if not force:
             confirm_enable_winding_down(emitter, staking_address=staking_address)
+
+        # Authenticate and Execute
+        password = transacting_staker_options.get_password(blockchain, client_account)
+        STAKEHOLDER.assimilate(password=password)
+
         receipt = STAKEHOLDER.enable_winding_down()
         emitter.echo(SUCCESSFUL_ENABLE_WIND_DOWN.format(staking_address=staking_address), color='green', verbosity=1)
     else:
         if not force:
             click.confirm(CONFIRM_DISABLE_WIND_DOWN.format(staking_address=staking_address), abort=True)
+
+        # Authenticate and Execute
+        password = transacting_staker_options.get_password(blockchain, client_account)
+        STAKEHOLDER.assimilate(password=password)
+
         receipt = STAKEHOLDER.disable_winding_down()
         emitter.echo(SUCCESSFUL_DISABLE_WIND_DOWN.format(staking_address=staking_address), color='green', verbosity=1)
 
@@ -643,9 +659,6 @@ def divide(general_config, transacting_staker_options, config_file, force, value
     stake_value_range = click.FloatRange(min=NU.from_nunits(min_locked).to_tokens(), clamp=False)
 
     if transacting_staker_options.staker_options.staking_address and index is not None:  # 0 is valid.
-        STAKEHOLDER.stakes = StakeList(registry=STAKEHOLDER.registry,
-                                       checksum_address=transacting_staker_options.staker_options.staking_address)
-        STAKEHOLDER.stakes.refresh()
         current_stake = STAKEHOLDER.stakes[index]
     else:
         current_stake = select_stake(stakeholder=STAKEHOLDER,
@@ -684,15 +697,15 @@ def divide(general_config, transacting_staker_options, config_file, force, value
 
     # Authenticate
     password = transacting_staker_options.get_password(blockchain, client_account)
+    STAKEHOLDER.assimilate(password=password)
 
     # Consistency check to prevent the above agreement from going stale.
     last_second_current_period = STAKEHOLDER.staking_agent.get_current_period()
     if action_period != last_second_current_period:
-        emitter.echo(PERIOD_ADVANCED_WARNING, red='red')
+        emitter.echo(PERIOD_ADVANCED_WARNING, color='red')
         raise click.Abort
 
     # Execute
-    STAKEHOLDER.assimilate(checksum_address=current_stake.staker_address, password=password)
     modified_stake, new_stake = STAKEHOLDER.divide_stake(stake_index=current_stake.index,
                                                          target_value=value,
                                                          additional_periods=extension)
@@ -732,9 +745,6 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
 
     # Handle stake update and selection
     if transacting_staker_options.staker_options.staking_address and index is not None:  # 0 is valid.
-        STAKEHOLDER.stakes = StakeList(registry=STAKEHOLDER.registry,
-                                       checksum_address=transacting_staker_options.staker_options.staking_address)
-        STAKEHOLDER.stakes.refresh()
         current_stake = STAKEHOLDER.stakes[index]
     else:
         current_stake = select_stake(stakeholder=STAKEHOLDER, emitter=emitter)
@@ -755,16 +765,18 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
                                     type=duration_extension_range)
     if not force:
         click.confirm(CONFIRM_PROLONG.format(lock_periods=lock_periods), abort=True)
+
+    # Authenticate
     password = transacting_staker_options.get_password(blockchain, client_account)
+    STAKEHOLDER.assimilate(password=password)
 
     # Non-interactive: Consistency check to prevent the above agreement from going stale.
     last_second_current_period = STAKEHOLDER.staking_agent.get_current_period()
     if action_period != last_second_current_period:
-        emitter.echo(PERIOD_ADVANCED_WARNING, red='red')
+        emitter.echo(PERIOD_ADVANCED_WARNING, color='red')
         raise click.Abort
 
-    # Authenticate and Execute
-    STAKEHOLDER.assimilate(checksum_address=current_stake.staker_address, password=password)
+    # Execute
     receipt = STAKEHOLDER.prolong_stake(stake_index=current_stake.index, additional_periods=lock_periods)
 
     # Report
@@ -805,9 +817,8 @@ def collect_reward(general_config,
         individual_allocation=STAKEHOLDER.individual_allocation,
         force=force)
 
-    password = transacting_staker_options.get_password(blockchain, client_account)
+    password = None
 
-    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
     if staking_reward:
         # Note: Sending staking / inflation rewards to another account is not allowed.
         reward_amount = NU.from_nunits(STAKEHOLDER.calculate_staking_reward())
@@ -821,6 +832,10 @@ def collect_reward(general_config,
         if not force and withdrawing_last_portion and STAKEHOLDER.mintable_periods() > 0:
             click.confirm(CONFIRM_COLLECTING_WITHOUT_MINTING, abort=True)
 
+        # Authenticate and Execute
+        password = transacting_staker_options.get_password(blockchain, client_account)
+        STAKEHOLDER.assimilate(password=password)
+
         staking_receipt = STAKEHOLDER.collect_staking_reward()
         paint_receipt_summary(receipt=staking_receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
@@ -833,6 +848,12 @@ def collect_reward(general_config,
             raise click.Abort
 
         emitter.echo(message=COLLECTING_ETH_FEE.format(fee_amount=fee_amount))
+
+        if password is None:
+            # Authenticate and Execute
+            password = transacting_staker_options.get_password(blockchain, client_account)
+            STAKEHOLDER.assimilate(password=password)
+
         policy_receipt = STAKEHOLDER.collect_policy_fee(collector_address=withdraw_address)
         paint_receipt_summary(receipt=policy_receipt,
                               chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
@@ -895,7 +916,6 @@ def events(general_config, staker_options, config_file, event_name):
     # Setup
     emitter = setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
-    blockchain = staker_options.get_blockchain()
 
     _client_account, staking_address = select_client_account_for_staking(
         emitter=emitter,
@@ -948,10 +968,10 @@ def set_min_rate(general_config, transacting_staker_options, config_file, force,
         paint_min_rate(emitter, STAKEHOLDER.registry, STAKEHOLDER.policy_agent, staking_address)
         # TODO check range
         min_rate = click.prompt(PROMPT_STAKER_MIN_POLICY_RATE, type=WEI)
-    password = transacting_staker_options.get_password(blockchain, client_account)
     if not force:
         click.confirm(CONFIRM_NEW_MIN_POLICY_RATE.format(min_rate=min_rate), abort=True)
-    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+    password = transacting_staker_options.get_password(blockchain, client_account)
+    STAKEHOLDER.assimilate(password=password)
     receipt = STAKEHOLDER.set_min_fee_rate(min_rate=min_rate)
 
     # Report Success
@@ -983,10 +1003,6 @@ def mint(general_config, transacting_staker_options, config_file, force):
         individual_allocation=STAKEHOLDER.individual_allocation,
         force=force)
 
-    # Authenticate
-    password = transacting_staker_options.get_password(blockchain, client_account)
-    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
-
     # Nothing to mint
     mintable_periods = STAKEHOLDER.mintable_periods()
     if mintable_periods == 0:
@@ -999,6 +1015,10 @@ def mint(general_config, transacting_staker_options, config_file, force):
 
     if not force:
         click.confirm(CONFIRM_MINTING.format(mintable_periods=mintable_periods), abort=True)
+
+    # Authenticate
+    password = transacting_staker_options.get_password(blockchain, client_account)
+    STAKEHOLDER.assimilate(password=password)
     receipt = STAKEHOLDER.mint()
     emitter.echo(SUCCESSFUL_MINTING, color='green', verbosity=1)
 
