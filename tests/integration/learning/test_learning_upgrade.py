@@ -15,23 +15,20 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import os
 from collections import namedtuple
 
-import os
-from bytestring_splitter import VariableLengthBytestring
 from eth_utils.address import to_checksum_address
 from twisted.logger import LogLevel, globalLogPublisher
 
+from bytestring_splitter import VariableLengthBytestring
 from nucypher.acumen.nicknames import nickname_from_seed
 from nucypher.characters.base import Character
 from tests.utils.middleware import MockRestMiddleware
-from tests.utils.ursula import make_federated_ursulas
 
 
-def test_emit_warning_upon_new_version(ursula_federated_test_config, caplog):
-    nodes = make_federated_ursulas(ursula_config=ursula_federated_test_config,
-                                   quantity=3,
-                                   know_each_other=False)
+def test_emit_warning_upon_new_version(lonely_ursula_maker, caplog):
+    nodes = lonely_ursula_maker(quantity=3)
     teacher, learner, new_node = nodes
 
     learner.remember_node(teacher)
@@ -47,10 +44,20 @@ def test_emit_warning_upon_new_version(ursula_federated_test_config, caplog):
             warnings.append(event)
 
     globalLogPublisher.addObserver(warning_trapper)
-    learner.learn_from_teacher_node()
 
+
+    # First we'll get a warning, because we're loading a seednode with a version from the future.
+    learner.load_seednodes()
     assert len(warnings) == 1
     assert warnings[0]['log_format'] == learner.unknown_version_message.format(new_node,
+                                                                               new_node.TEACHER_VERSION,
+                                                                               learner.LEARNER_VERSION)
+
+    # We don't use the above seednode as a teacher, but when our teacher tries to tell us about it, we get another of the same warning.
+    learner.learn_from_teacher_node()
+
+    assert len(warnings) == 2
+    assert warnings[1]['log_format'] == learner.unknown_version_message.format(new_node,
                                                                                new_node.TEACHER_VERSION,
                                                                                learner.LEARNER_VERSION)
 
@@ -76,8 +83,8 @@ def test_emit_warning_upon_new_version(ursula_federated_test_config, caplog):
     accidental_nickname = nickname_from_seed(accidental_checksum)[0]
     accidental_node_repr = Character._display_name_template.format("Ursula", accidental_nickname, accidental_checksum)
 
-    assert len(warnings) == 2
-    assert warnings[1]['log_format'] == learner.unknown_version_message.format(accidental_node_repr,
+    assert len(warnings) == 3
+    assert warnings[2]['log_format'] == learner.unknown_version_message.format(accidental_node_repr,
                                                                                future_version,
                                                                                learner.LEARNER_VERSION)
 
@@ -91,9 +98,9 @@ def test_emit_warning_upon_new_version(ursula_federated_test_config, caplog):
     learner._current_teacher_node = teacher
     learner.learn_from_teacher_node()
 
-    assert len(warnings) == 3
+    assert len(warnings) == 4
     # ...so this time we get a "really unknown version message"
-    assert warnings[2]['log_format'] == learner.really_unknown_version_message.format(future_version,
+    assert warnings[3]['log_format'] == learner.really_unknown_version_message.format(future_version,
                                                                                       learner.LEARNER_VERSION)
 
     globalLogPublisher.removeObserver(warning_trapper)

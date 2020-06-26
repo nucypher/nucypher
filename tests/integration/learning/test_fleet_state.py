@@ -56,11 +56,7 @@ def test_nodes_with_equal_fleet_state_do_not_send_anew(federated_ursulas):
     assert result is FLEET_STATES_MATCH
 
 
-def test_old_state_is_preserved(federated_ursulas, ursula_federated_test_config):
-    lonely_ursula_maker = partial(make_federated_ursulas,
-                                  ursula_config=ursula_federated_test_config,
-                                  quantity=1,
-                                  know_each_other=False)
+def test_old_state_is_preserved(federated_ursulas, lonely_ursula_maker):
     lonely_learner = lonely_ursula_maker().pop()
 
     # This Ursula doesn't know about any nodes.
@@ -84,16 +80,13 @@ def test_old_state_is_preserved(federated_ursulas, ursula_federated_test_config)
     assert lonely_learner.known_nodes.states[checksum_after_learning_two].nodes == proper_second_state
 
 
-def test_state_is_recorded_after_learning(federated_ursulas, ursula_federated_test_config):
+def test_state_is_recorded_after_learning(federated_ursulas, lonely_ursula_maker):
     """
     Similar to above, but this time we show that the Learner records a new state only once after learning
     about a bunch of nodes.
     """
-    lonely_ursula_maker = partial(make_federated_ursulas,
-                                  ursula_config=ursula_federated_test_config,
-                                  quantity=1,
-                                  know_each_other=False)
-    lonely_learner = lonely_ursula_maker().pop()
+    _lonely_ursula_maker = partial(lonely_ursula_maker, quantity=1)
+    lonely_learner = _lonely_ursula_maker().pop()
 
     # This Ursula doesn't know about any nodes.
     assert len(lonely_learner.known_nodes) == 0
@@ -108,5 +101,5 @@ def test_state_is_recorded_after_learning(federated_ursulas, ursula_federated_te
     states = list(lonely_learner.known_nodes.states.values())
     assert len(states) == 2
 
-    assert len(states[0].nodes) == 2  # The first fleet state is just us and the one about whom we learned.
-    assert len(states[1].nodes) == len(federated_ursulas) + 2  # When we ran learn_from_teacher_node, we also loaded the rest of the fleet.
+    assert len(states[0].nodes) == 2  # The first fleet state is just us and the one about whom we learned, which is part of the fleet.
+    assert len(states[1].nodes) == len(federated_ursulas) + 1  # When we ran learn_from_teacher_node, we also loaded the rest of the fleet.
