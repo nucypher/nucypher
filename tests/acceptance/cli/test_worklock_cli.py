@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import random
+import tempfile
 
 import pytest
 from eth_utils import to_wei
@@ -230,7 +231,8 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
                     checksum_address=bidder,
                     worker_address=worker_address,
                     rest_host=MOCK_IP_ADDRESS,
-                    rest_port=select_test_port())
+                    rest_port=select_test_port(),
+                    db_filepath=tempfile.mkdtemp())
 
     # Ensure there is work to do
     remaining_work = worklock_agent.get_remaining_work(checksum_address=bidder)

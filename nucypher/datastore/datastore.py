@@ -108,21 +108,18 @@ class Datastore:
             # If the ID can be converted to an int, we do it.
             record_id = int(record_id)
 
-        try:
-            with self.__db_env.begin(write=writeable) as datastore_tx:
-                record = record_type(datastore_tx, record_id, writeable=writeable)
+        with self.__db_env.begin(write=writeable) as datastore_tx:
+            record = record_type(datastore_tx, record_id, writeable=writeable)
+            try:
                 yield record
-        except (AttributeError, TypeError, DBWriteError) as tx_err:
-            # Handle `RecordNotFound` cases when `writeable` is `False`.
-            if not writeable and isinstance(tx_err, AttributeError):
-                raise RecordNotFound(tx_err)
-            raise DatastoreTransactionError(f'An error was encountered during the transaction (no data was written): {tx_err}')
-        finally:
-            # We write to the __dict__ to avoid calling the `__setattr__`.
-            # This prevents attempts from modifying the record while being
-            # no longer usable for added safety rather than throwing attempts
-            # at lmdb's API.
-            record.__dict__['_DatastoreRecord__writeable'] = False
+            except (AttributeError, TypeError, DBWriteError) as tx_err:
+                # Handle `RecordNotFound` cases when `writeable` is `False`.
+                if not writeable and isinstance(tx_err, AttributeError):
+                    raise RecordNotFound(tx_err)
+                raise DatastoreTransactionError(f'An error was encountered during the transaction (no data was written): {tx_err}')
+            finally:
+                # Now we ensure that the record is not writeable
+                record.__dict__['_DatastoreRecord__writeable'] = False
 
     @contextmanager
     def query_by(self,
