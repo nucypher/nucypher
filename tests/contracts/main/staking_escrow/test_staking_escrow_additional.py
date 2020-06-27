@@ -96,7 +96,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
 
     tx = token.functions.approve(contract.address, token_economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = contract.functions.initialize(token_economics.erc20_reward_supply).transact({'from': creator})
+    tx = contract.functions.initialize(token_economics.erc20_reward_supply, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = token.functions.transfer(staker, 1000).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -220,7 +220,7 @@ def test_flags(testerchain, token, escrow_contract):
     snapshots_log = escrow.events.SnapshotSet.createFilter(fromBlock='latest')
 
     # Give Escrow tokens for reward and initialize contract
-    tx = escrow.functions.initialize(0).transact({'from': creator})
+    tx = escrow.functions.initialize(0, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Check flag defaults
@@ -295,7 +295,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     reward = 10 ** 9
     tx = token.functions.approve(escrow.address, reward).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.initialize(reward).transact({'from': creator})
+    tx = escrow.functions.initialize(reward, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Set re-stake parameter even before initialization
@@ -567,7 +567,7 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
     worker_log = escrow.events.WorkerBonded.createFilter(fromBlock='latest')
 
     # Initialize escrow contract
-    tx = escrow.functions.initialize(0).transact({'from': creator})
+    tx = escrow.functions.initialize(0, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Deploy intermediary contracts
@@ -811,7 +811,7 @@ def test_measure_work(testerchain, token, escrow_contract, deploy_contract):
     reward = 10 ** 9
     tx = token.functions.approve(escrow.address, int(NU(reward, 'NuNit'))).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.initialize(reward).transact({'from': creator})
+    tx = escrow.functions.initialize(reward, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Deploy WorkLock mock
@@ -906,7 +906,7 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     # Give Escrow tokens for reward and initialize contract
     tx = token.functions.approve(escrow.address, token_economics.reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.initialize(token_economics.reward_supply).transact({'from': creator})
+    tx = escrow.functions.initialize(token_economics.reward_supply, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Only staker can set wind-down parameter
@@ -1370,7 +1370,7 @@ def test_snapshots(testerchain, token, escrow_contract):
     reward = 10 ** 9
     tx = token.functions.approve(escrow.address, reward).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.initialize(reward).transact({'from': creator})
+    tx = escrow.functions.initialize(reward, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # First commitment doesn't affect balance

@@ -649,7 +649,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         # 4 - Initialize the StakingEscrow contract
         if emitter:
             emitter.message(f"\nNext Transaction: {self.contract_name} Initialization", color='blue', bold=True)
-        init_function = self._contract.functions.initialize(self.economics.erc20_reward_supply)
+        init_function = self._contract.functions.initialize(self.economics.erc20_reward_supply, self.deployer_address)
         init_receipt = self.blockchain.send_transaction(contract_function=init_function,
                                                         sender_address=self.deployer_address,
                                                         confirmations=confirmations,

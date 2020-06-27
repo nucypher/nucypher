@@ -86,9 +86,16 @@ def test_issuer(testerchain, token, deploy_contract):
 
     # Only owner can initialize
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = issuer.functions.initialize(0).transact({'from': staker})
+        tx = issuer.functions.initialize(0, staker).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
-    tx = issuer.functions.initialize(economics.erc20_reward_supply).transact({'from': creator})
+
+    # Only owner can initialize
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = issuer.functions.initialize(economics.erc20_reward_supply, staker).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
+    # Initialization requires amount and funding address
+    tx = issuer.functions.initialize(economics.erc20_reward_supply, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     events = events.get_all_entries()
@@ -98,7 +105,7 @@ def test_issuer(testerchain, token, deploy_contract):
 
     # Can't initialize second time
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = issuer.functions.initialize(0).transact({'from': creator})
+        tx = issuer.functions.initialize(0, creator).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     # First phase
@@ -211,7 +218,7 @@ def test_issuance_first_phase(testerchain, token, deploy_contract):
     # Give staker tokens for reward and initialize contract
     tx = token.functions.approve(issuer.address, economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = issuer.functions.initialize(economics.erc20_reward_supply).transact({'from': creator})
+    tx = issuer.functions.initialize(economics.erc20_reward_supply, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     reward = issuer.functions.getReservedReward().call()
 
@@ -315,7 +322,7 @@ def test_issuance_second_phase(testerchain, token, deploy_contract):
     # Give staker tokens for reward and initialize contract
     tx = token.functions.approve(issuer.address, economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = issuer.functions.initialize(economics.erc20_reward_supply).transact({'from': creator})
+    tx = issuer.functions.initialize(economics.erc20_reward_supply, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     reward = issuer.functions.getReservedReward().call()
 
@@ -422,7 +429,7 @@ def test_upgrading(testerchain, token, deploy_contract):
     # Give tokens for reward and initialize contract
     tx = token.functions.approve(contract.address, 10000).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = contract.functions.initialize(10000).transact({'from': creator})
+    tx = contract.functions.initialize(10000, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Upgrade to the second version, check new and old values of variables

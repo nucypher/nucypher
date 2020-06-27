@@ -79,7 +79,7 @@ def test_sampling_distribution(testerchain, token, deploy_contract, token_econom
     tx = token.functions.approve(staking_escrow_contract.address, 10 ** 9).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
-    tx = staking_escrow_contract.functions.initialize(10 ** 9).transact({'from': creator})
+    tx = staking_escrow_contract.functions.initialize(10 ** 9, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     stakers = testerchain.stakers_accounts

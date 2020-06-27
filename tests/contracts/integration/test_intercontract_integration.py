@@ -619,7 +619,7 @@ def test_staking(testerchain,
     tx = token.functions.approve(escrow.address, token_economics.erc20_reward_supply) \
         .buildTransaction({'from': multisig.address, 'gasPrice': 0})
     execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
-    tx = escrow.functions.initialize(token_economics.erc20_reward_supply) \
+    tx = escrow.functions.initialize(token_economics.erc20_reward_supply, multisig.address) \
         .buildTransaction({'from': multisig.address, 'gasPrice': 0})
     execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
     pytest.escrow_supply += token_economics.erc20_reward_supply

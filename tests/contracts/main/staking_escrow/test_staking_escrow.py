@@ -124,7 +124,7 @@ def test_staking(testerchain, token, escrow_contract):
         testerchain.wait_for_receipt(tx)
 
     # Initialize Escrow contract
-    tx = escrow.functions.initialize(0).transact({'from': creator})
+    tx = escrow.functions.initialize(0, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Ursula(2) stakes tokens also
@@ -561,7 +561,7 @@ def test_increase_lock(testerchain, token, escrow_contract, token_economics):
     commitments_log = escrow.events.CommitmentMade.createFilter(fromBlock='latest')
 
     # Initialize Escrow contract
-    tx = escrow.functions.initialize(0).transact({'from': creator})
+    tx = escrow.functions.initialize(0, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Can't use depositAndIncrease without active sub-stakes
@@ -814,7 +814,7 @@ def test_merge(testerchain, token, escrow_contract, token_economics):
     merge_log = escrow.events.Merged.createFilter(fromBlock='latest')
 
     # Initialize Escrow contract
-    tx = escrow.functions.initialize(0).transact({'from': creator})
+    tx = escrow.functions.initialize(0, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Can merge only two active sub-stakes
@@ -1047,7 +1047,7 @@ def test_max_sub_stakes(testerchain, token, escrow_contract):
     staker = testerchain.client.accounts[1]
 
     # Initialize Escrow contract
-    tx = escrow.functions.initialize(0).transact({'from': creator})
+    tx = escrow.functions.initialize(0, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Prepare before deposit
@@ -1115,7 +1115,7 @@ def test_allowable_locked_tokens(testerchain, token_economics, token, escrow_con
     creator, staker1, staker2, staker3, *everyone_else = testerchain.client.accounts
 
     # Initialize Escrow contract
-    tx = escrow.functions.initialize(0).transact({'from': creator})
+    tx = escrow.functions.initialize(0, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Prepare before deposit
@@ -1357,7 +1357,7 @@ def test_batch_deposit(testerchain, token, escrow_contract, deploy_contract):
         testerchain.wait_for_receipt(tx)
 
     # Initialize Escrow contract
-    tx = escrow.functions.initialize(0).transact({'from': creator})
+    tx = escrow.functions.initialize(0, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Deposit tokens for multiple stakers

@@ -54,7 +54,7 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     # Give Escrow tokens for reward and initialize contract
     tx = token.functions.approve(escrow.address, token_economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.initialize(token_economics.erc20_reward_supply).transact({'from': creator})
+    tx = escrow.functions.initialize(token_economics.erc20_reward_supply, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Give Staker and Staker(2) some coins
@@ -431,7 +431,7 @@ def test_slashing(testerchain, token, escrow_contract, token_economics, deploy_c
     # Give Escrow tokens for reward and initialize contract
     tx = token.functions.approve(escrow.address, token_economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.initialize(token_economics.erc20_reward_supply).transact({'from': creator})
+    tx = escrow.functions.initialize(token_economics.erc20_reward_supply, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Give Ursula deposit some tokens
