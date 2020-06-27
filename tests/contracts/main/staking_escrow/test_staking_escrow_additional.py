@@ -1267,13 +1267,6 @@ def test_snapshots(testerchain, token, escrow_contract):
 
     snapshot_log = escrow.events.SnapshotSet.createFilter(fromBlock='latest')
 
-    # Give Escrow tokens for reward and initialize contract
-    reward = 10 ** 9
-    tx = token.functions.approve(escrow.address, reward).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.initialize(reward).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-
     expected_staker1_balance = TestSnapshot()
     expected_staker2_balance = TestSnapshot()
     expected_global_balance = TestSnapshot()
@@ -1281,7 +1274,7 @@ def test_snapshots(testerchain, token, escrow_contract):
     assert expected_staker2_balance == get_staker_history_from_storage(staker2)
     assert expected_global_balance == get_global_history_from_storage()
 
-    # Set snapshot parameter even before initialization. Disabling snapshots always creates a new snapshot with value 0
+    # Set snapshot parameter even before depositing. Disabling snapshots always creates a new snapshot with value 0
     assert staker_has_snapshots_enabled(staker1)
     tx = escrow.functions.setSnapshots(False).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
@@ -1372,7 +1365,15 @@ def test_snapshots(testerchain, token, escrow_contract):
     assert 0 == escrow.functions.totalStakedForAt(staker1, now - 1).call()
     assert 0 == escrow.functions.totalStakedAt(now - 1).call()
 
-    # First making a commitment doesn't affect balance
+    #
+    # Give Escrow tokens for reward and initialize contract
+    reward = 10 ** 9
+    tx = token.functions.approve(escrow.address, reward).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.initialize(reward).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    # First commitment doesn't affect balance
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     assert expected_staker1_balance == get_staker_history_from_storage(staker1)
@@ -1417,7 +1418,7 @@ def test_snapshots(testerchain, token, escrow_contract):
 
     # A SECOND STAKER APPEARS:
 
-    # Disable snapshots even before initialization. This creates a new snapshot with value 0
+    # Disable snapshots even before deposit. This creates a new snapshot with value 0
     assert staker_has_snapshots_enabled(staker2)
     tx = escrow.functions.setSnapshots(False).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
