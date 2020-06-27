@@ -69,10 +69,9 @@ class MockContractAgent:
         r = f'Mock{self.agent_class.__name__}(id={id(self)})'
         return r
 
-    @classmethod
-    def __setup_mock(cls, agent_class: Type[Agent]) -> None:
+    def __setup_mock(self, agent_class: Type[Agent]) -> None:
 
-        api_methods: Iterable[Callable] = list(cls.__collect_contract_api(agent_class=agent_class))
+        api_methods: Iterable[Callable] = list(self.__collect_contract_api(agent_class=agent_class))
         mock_methods, mock_properties = list(), dict()
 
         for agent_interface in api_methods:
@@ -86,8 +85,8 @@ class MockContractAgent:
                 real_method = agent_interface
 
             # Get
-            interface = getattr(real_method, cls.__COLLECTION_MARKER)
-            default_return = cls.__DEFAULTS.get(interface)
+            interface = getattr(real_method, self.__COLLECTION_MARKER)
+            default_return = self.__DEFAULTS.get(interface)
 
             # TODO: #2022 Special handling of PropertyMocks?
             # # Setup
@@ -98,19 +97,18 @@ class MockContractAgent:
             mock = Mock(return_value=default_return)
 
             # Mark
-            setattr(mock, cls.__COLLECTION_MARKER, interface)
+            setattr(mock, self.__COLLECTION_MARKER, interface)
             mock_methods.append(mock)
 
             # Bind
-            setattr(cls, real_method.__name__, mock)
+            setattr(self, real_method.__name__, mock)
 
-        cls._MOCK_METHODS = mock_methods
-        cls._REAL_METHODS = api_methods
+        self._MOCK_METHODS = mock_methods
+        self._REAL_METHODS = api_methods
 
-    @classmethod
-    def __get_interface_calls(cls, interface: Enum) -> List[Callable]:
+    def __get_interface_calls(self, interface: Enum) -> List[Callable]:
         predicate = lambda method: bool(method.contract_api == interface)
-        interface_calls = list(filter(predicate, cls._MOCK_METHODS))
+        interface_calls = list(filter(predicate, self._MOCK_METHODS))
         return interface_calls
 
     @classmethod

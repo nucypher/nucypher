@@ -154,6 +154,11 @@ Q: How/Where can I acquire NU tokens?
 
 NU tokens can be acquired via the "*WorkLock*" mechanism developed by NuCypher - more information is available in our `original blog post <https://blog.nucypher.com/the-worklock/>`_ and :ref:`worklock-guide`.
 
+Q: When/Why does a node operator need to use ``mint`` command?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The period following stake termination or later, but before withdrawing escrowed tokens. Each node on the NuCypher network sends daily transactions signalling continued commitment to providing service, and to calculation of NU rewards for prior periods ("minting"). At the final day/period of a stake, automatic minting will stop and intervention is required to complete the final minting calculation by calling ``mint`` manually.
+
 Q: What are the recommended specifications for running a nucypher node?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

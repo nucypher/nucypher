@@ -91,7 +91,7 @@ class StakerInfo(NamedTuple):
     completed_work: NuNits
     worker_start_period: Period
     worker: ChecksumAddress
-    flags: int
-    downtime: Tuple[Downtime, ...]
-    substake_info: Tuple[RawSubStakeInfo, ...]
-    history: Tuple[int, ...]
+    flags: bytes
+    # downtime: Tuple[Downtime, ...]
+    # substake_info: Tuple[RawSubStakeInfo, ...]
+    # history: Tuple[NuNits, ...]

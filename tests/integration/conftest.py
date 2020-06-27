@@ -35,7 +35,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import KeystoreSigner
-from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.characters import UrsulaConfiguration, StakeHolderConfiguration
 from tests.constants import (
     KEYFILE_NAME_TEMPLATE,
     MOCK_KEYSTORE_PATH,
@@ -71,25 +71,29 @@ def mock_token_agent(mock_testerchain, token_economics, mock_contract_agency):
 @pytest.fixture(scope='function', autouse=True)
 def mock_staking_agent(mock_testerchain, token_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(StakingEscrowAgent)
-    return mock_agent
+    yield mock_agent
+    mock_agent.reset()
 
 
 @pytest.fixture(scope='function', autouse=True)
 def mock_adjudicator_agent(mock_testerchain, token_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(AdjudicatorAgent)
-    return mock_agent
+    yield mock_agent
+    mock_agent.reset()
 
 
 @pytest.fixture(scope='function', autouse=True)
 def mock_policy_manager_agent(mock_testerchain, token_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(PolicyManagerAgent)
-    return mock_agent
+    yield mock_agent
+    mock_agent.reset()
 
 
 @pytest.fixture(scope='function', autouse=True)
 def mock_multisig_agent(mock_testerchain, token_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(MultiSigAgent)
-    return mock_agent
+    yield mock_agent
+    mock_agent.reset()
 
 
 @pytest.fixture(scope='function', autouse=True)
@@ -234,6 +238,17 @@ def patch_keystore(mock_accounts, monkeypatch, mocker):
     monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keystore', successful_mock_keyfile_reader)
     yield
     monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keystore')
+
+
+@pytest.fixture(scope='function')
+def patch_stakeholder_configuration(mock_accounts, monkeypatch):
+
+    def mock_read_configuration_file(filepath: str) -> dict:
+        return dict()
+
+    monkeypatch.setattr(StakeHolderConfiguration, '_read_configuration_file', mock_read_configuration_file)
+    yield
+    monkeypatch.delattr(StakeHolderConfiguration, '_read_configuration_file')
 
 
 @pytest.fixture(scope='function')

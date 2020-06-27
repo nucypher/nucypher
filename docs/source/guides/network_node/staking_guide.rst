@@ -61,8 +61,6 @@ All staking-related operations done by Staker are performed through the ``nucyph
 +----------------------+-------------------------------------------------------------------------------+
 |  ``accounts``        | Show ETH and NU balances for stakeholder's accounts                           |
 +----------------------+-------------------------------------------------------------------------------+
-|  ``sync``            | Synchronize stake data with on-chain information                              |
-+----------------------+-------------------------------------------------------------------------------+
 |  ``bond-worker``     | Bond a worker to a staker                                                     |
 +----------------------+-------------------------------------------------------------------------------+
 |  ``unbond-worker``   | Unbond worker currently bonded to a staker                                    |
@@ -76,6 +74,8 @@ All staking-related operations done by Staker are performed through the ``nucyph
 |  ``prolong``         | Prolong an existing stake's duration                                          |
 +----------------------+-------------------------------------------------------------------------------+
 |  ``winddown``        | Manage winding down of stakes                                                 |
++----------------------+-------------------------------------------------------------------------------+
+|  ``mint``            | Mint last portion of reward                                                   |
 +----------------------+-------------------------------------------------------------------------------+
 
 **Stake Command Options**
@@ -476,6 +476,9 @@ that.
 
 Note that you will need to confirm two transactions if you collect both types of
 staking compensation if you use a hardware wallet.
+
+.. note:: If you want to withdraw all tokens when all of them are unlocked - 
+          make sure to call ``nucypher stake mint`` first to ensure the last reward is included
 
 Staking using a preallocation contract
 ---------------------------------------

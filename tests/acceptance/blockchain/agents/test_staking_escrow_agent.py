@@ -23,6 +23,7 @@ from eth_utils.address import is_address, to_checksum_address
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.types import StakerInfo
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
@@ -190,6 +191,17 @@ def test_commit_to_next_period(agency, testerchain, mock_transacting_power_activ
     assert receipt['logs'][0]['address'] == staking_agent.contract_address
 
 
+@pytest.mark.slow()
+def test_get_staker_info(agency, testerchain):
+    _token_agent, staking_agent, _policy_agent = agency
+
+    staker_account, worker_account, *other = testerchain.unassigned_accounts
+
+    info: StakerInfo = staking_agent.get_staker_info(staker_address=staker_account)
+    assert info.value > 0
+    assert info.worker == worker_account
+
+
 @pytest.mark.skip('To be implemented')
 def test_divide_stake(agency, token_economics):
     token_agent, staking_agent, policy_agent = agency
@@ -299,13 +311,16 @@ def test_collect_staking_reward(agency, testerchain, mock_transacting_power_acti
     _receipt = staking_agent.mint(staker_address=staker_account)
 
     old_balance = token_agent.get_balance(address=staker_account)
+    owned_tokens = staking_agent.owned_tokens(staker_address=staker_account)
+    staked = staking_agent.non_withdrawable_stake(staker_address=staker_account)
 
     receipt = staking_agent.collect_staking_reward(staker_address=staker_account)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][-1]['address'] == staking_agent.contract_address
 
     new_balance = token_agent.get_balance(address=staker_account)  # not the shoes
-    assert new_balance > old_balance
+    assert new_balance == old_balance + owned_tokens - staked
+    assert staking_agent.owned_tokens(staker_address=staker_account) == staked
 
 
 @pytest.mark.slow()
