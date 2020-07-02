@@ -57,9 +57,9 @@ The following is an example output of the ``status`` command (hypothetical value
     Time
     ══════════════════════════════════════════════════════
 
-    Contribution (Closed)
+    Escrow (Closed)
     ------------------------------------------------------
-    Claims Available ...... Yes
+    Allocations Available ...... Yes
     Start Date ............ 2020-03-25 00:00:00+00:00
     End Date .............. 2020-03-31 23:59:59+00:00
     Duration .............. 6 days, 23:59:59
@@ -78,16 +78,16 @@ The following is an example output of the ``status`` command (hypothetical value
     Participation
     ------------------------------------------------------
     Lot Size .............. 280000000 NU
-    Min. Allowed Bid ...... 15 ETH
+    Min. Allowed Escrow ...... 15 ETH
     Participants .......... 1000
     ETH Supply ............ 50000 ETH
     ETH Pool .............. 50000 ETH
 
-    Base (minimum bid)
+    Base (minimum escrow)
     ------------------------------------------------------
     Base Deposit Rate ..... 1000 NU per base ETH
 
-    Bonus (surplus over minimum bid)
+    Bonus (surplus over minimum escrow)
     ------------------------------------------------------
     Bonus ETH Supply ...... 35000 ETH
     Bonus Lot Size ........ 265000000 NU
@@ -105,44 +105,44 @@ The following is an example output of the ``status`` command (hypothetical value
 For the less obvious values in the output, here are some definitions:
 
     - Lot Size
-        NU tokens to be distributed by WorkLock
+        NU to be allocated by WorkLock
     - ETH Supply
-        Sum of all ETH bids that have been placed
+        Sum of all ETH escrows that have been placed
     - ETH Pool
         Current ETH balance of WorkLock that accounts for refunded ETH for work performed i.e. `ETH Supply` - `Refunds for Work`
     - Refund Rate Multiple
-        Indicates how quickly your ETH is unlocked relative to the deposit rate e.g. a value of ``4`` means that you get your ETH refunded 4x faster than the rate used when you received NU
+        Indicates how quickly your ETH is unlocked relative to the deposit rate e.g. a value of ``4`` means that you get your ETH refunded 4x faster than the rate used when you were allocated NU
     - Base Deposit Rate
-        Amount of NU to be received per base ETH in WorkLock
+        Amount of NU to be allocated per base ETH in WorkLock
     - Bonus ETH Supply
-        Sum of all bonus ETH bids that have been placed i.e. sum of all ETH above minimum bid
+        Sum of all bonus ETH escrows that have been placed i.e. sum of all ETH above minimum escrow
     - Bonus Lot Size
-        Amount of NU tokens tokens that are available to be distributed based on the bonus part of bids
+        Amount of NU that is available to be allocated based on the bonus part of escrows
     - Bonus Deposit Rate
-        Amount of NU to be received per bonus ETH in WorkLock
+        Amount of NU to be allocated per bonus ETH in WorkLock
     - Bonus Refund Rate
         Units of work to unlock 1 bonus ETH
     - Base Refund Rate
         Units of work to unlock 1 base ETH
 
 
-If you want to see specific information about your current bid, you can specify your bidder address with the ``--bidder-address`` flag:
+If you want to see specific information about your current escrow, you can specify your participant address with the ``--participant-address`` flag:
 
 .. code::
 
-    (nucypher)$ nucypher worklock status --bidder-address <YOUR BIDDER ADDRESS> --network <NETWORK> --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock status --participant-address <YOUR PARTICIPANT ADDRESS> --network <NETWORK> --provider <YOUR PROVIDER URI>
 
-The following output is an example of what is included when ``--bidder-address`` is used
+The following output is an example of what is included when ``--participant-address`` is used
 
 .. code::
 
-    WorkLock Participant <BIDDER ADDRESS>
+    WorkLock Participant <PARTICIPANT ADDRESS>
     =====================================================
-    Tokens Claimed? ...... No
-    Total Bid ............ 22 ETH
+    NU Claimed? ...... No
+    Total Escrow ............ 22 ETH
         Base ETH ......... 15 ETH
         Bonus ETH ........ 7 ETH
-    Tokens Allocated ..... 68000 NU
+    NU Allocated ..... 68000 NU
 
     Completed Work ....... 0
     Available Refund ..... 0 ETH
@@ -150,13 +150,13 @@ The following output is an example of what is included when ``--bidder-address``
     Refunded Work ........ 0
     Remaining Work ....... <REMAINING WORK>
 
-Alternatively, when the allocated tokens have been claimed, the following is an example of the output
+Alternatively, when the NU has been allocated, the following is an example of the output
 
 .. code::
 
-    WorkLock Participant <BIDDER ADDRESS>
+    WorkLock Participant <PARTICIPANT ADDRESS>
     =====================================================
-    Tokens Claimed? ...... Yes
+    NU Claimed? ...... Yes
     Locked ETH ........... 22 ETH
 
     Completed Work ....... 0
@@ -167,66 +167,66 @@ Alternatively, when the allocated tokens have been claimed, the following is an 
 
 where,
 
-    - Total Bid
-        WorkLock Bid
+    - Total Escrow
+        WorkLock Escrow
     - Base ETH
-        Minimum required bid
+        Minimum required escrow
     - Bonus ETH
-        Surplus over minimum bid
-    - Tokens Allocated
-        Allocation of NU tokens
+        Surplus over minimum escrow
+    - NU Allocated
+        Allocation of NU
     - Locked ETH
         Remaining ETH to be unlocked via completion of work
-    - Tokens Claimed
-        Whether the allocation of NU tokens have been claimed or not
+    - NU Allocated
+        Whether the allocation of NU tokens has been allocated or not
     - Completed Work
-        Work already completed by the bidder
+        Work already completed by the participant
     - Available Refund
         ETH portion available to be refunded due to completed work
     - Refunded Work
         Work that has been completed and already refunded
     - Remaining Work
-        Pending amount of work required before all of the participant's ETH locked will be refunded
+        Pending amount of work required before all of the participant's escrowed ETH will be refunded
 
 
-Place a bid
------------
+Place an escrow
+---------------
 
-You can place a bid to WorkLock by running:
-
-.. code::
-
-    (nucypher)$ nucypher worklock bid --network <NETWORK> --provider <YOUR PROVIDER URI>
-
-
-Recall that there's a minimum bid amount needed to participate in WorkLock.
-
-
-Cancel a bid
-------------
-
-You can cancel a bid to WorkLock by running:
+You can place an escrow to WorkLock by running:
 
 .. code::
 
-    (nucypher)$ nucypher worklock cancel-bid --network <NETWORK> --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock escrow --network <NETWORK> --provider <YOUR PROVIDER URI>
+
+
+Recall that there's a minimum escrow amount needed to participate in WorkLock.
+
+
+Cancel an escrow
+----------------
+
+You can cancel an escrow to WorkLock by running:
+
+.. code::
+
+    (nucypher)$ nucypher worklock cancel-escrow --network <NETWORK> --provider <YOUR PROVIDER URI>
 
 
 Claim your stake
 ----------------
 
-Once the claiming window is open, you can claim your tokens as a stake in NuCypher:
+Once the allocation window is open, you can claim your NU as a stake in NuCypher:
 
 .. code::
 
     (nucypher)$ nucypher worklock claim --network <NETWORK> --provider <YOUR PROVIDER URI>
 
 
-Once claimed, you can check that the stake was created successfully by running:
+Once allocated, you can check that the stake was created successfully by running:
 
 .. code::
 
-    (nucypher)$ nucypher status stakers --staking-address <YOUR BIDDER ADDRESS> --network {network} --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher status stakers --staking-address <YOUR PARTICIPANT ADDRESS> --network {network} --provider <YOUR PROVIDER URI>
     
 
 Check remaining work
@@ -242,7 +242,7 @@ If you have a stake created from WorkLock, you can check how much work is pendin
 Refund locked ETH
 -----------------
 
-If you've committed some work, you are able to refund proportional part of ETH you've had bid in WorkLock contract:
+If you've committed some work, you are able to refund proportional part of ETH you've escrowed in the WorkLock contract:
 
 .. code::
 
