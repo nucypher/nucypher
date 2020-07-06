@@ -611,6 +611,7 @@ class BlockchainInterface:
         # Broadcast
         #
 
+        time.sleep(1)  # TODO: Avoids race condition from invalid/resused nonce.
         emitter.message(f'Broadcasting {transaction_name} Transaction ({cost} ETH @ {price_gwei} gwei)...',
                         color='yellow')
         try:
