@@ -40,10 +40,9 @@ CompilerSources = Dict[str, Dict[str, List[str]]]
 def prepare_configuration(sources: Dict[str, Path], base_path: Path) -> CompilerSources:
     input_sources = dict()
     for source_name, path in sources.items():
-        source_url = str(path.resolve(strict=True))  # require source path existence
-        source_url = source_url.replace(str(base_path), '')  # TODO: this is bananas
-        configured_path = dict(urls=[source_url])
-        input_sources[source_name] = configured_path
+        source_url = path.resolve(strict=True)  # require source path existence
+        mapped_url = source_url.relative_to(base_path)
+        input_sources[source_name] = dict(urls=[str(mapped_url)])
     return input_sources
 
 
