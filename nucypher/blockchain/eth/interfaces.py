@@ -541,6 +541,7 @@ class BlockchainInterface:
         # Broadcast
         #
 
+        time.sleep(1)  # TODO: Avoids race condition from invalid/resused nonce.
         emitter.message(f'Broadcasting {transaction_name} Transaction ({cost} gwei @ {price})...', color='yellow')
         try:
             txhash = self.client.send_raw_transaction(signed_raw_transaction)  # <--- BROADCAST
