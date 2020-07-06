@@ -44,5 +44,3 @@ IGNORE_CONTRACT_PREFIXES: Tuple[str, ...] = (
 )
 
 DEFAULT_VERSION_STRING: str = 'v0.0.0'  # for both compiler and devdoc versions (must fully match regex pattern below)
-
-# TODO: Move closer to usage
