@@ -371,6 +371,20 @@ def make_rest_app(
         except _MapClass.InvalidSignature:
             log.info("Bad TreasureMap HRAC Signature; not storing {}".format(treasure_map_id))
             return Response("This TreasureMap's HRAC is not properly signed.", status=401)
+
+        treasure_map_index = bytes.fromhex(treasure_map_id)
+
+        # First let's see if we already have this map.
+
+        try:
+            previously_saved_map = this_node.treasure_maps[treasure_map_index]
+        except KeyError:
+            pass # We don't have the map.  We'll validate and perhaps save it.
+        else:
+            if previously_saved_map == treasure_map:
+                return Response("Already have this map.", status=303)
+                # Otherwise, if it's a different map with the same ID, we move on to validation.
+
         if treasure_map.public_id() == treasure_map_id:
             do_store = True
         else:
@@ -383,9 +397,6 @@ def make_rest_app(
 
         if do_store:
             log.info("{} storing TreasureMap {}".format(this_node, treasure_map_id))
-
-            # TODO 341 - what if we already have this TreasureMap?
-            treasure_map_index = bytes.fromhex(treasure_map_id)
             this_node.treasure_maps[treasure_map_index] = treasure_map
             return Response(bytes(treasure_map), status=202)
         else:
