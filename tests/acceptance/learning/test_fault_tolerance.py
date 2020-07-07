@@ -16,14 +16,12 @@
 """
 
 import pytest
-from constant_sorrow.constants import NOT_SIGNED
 from twisted.logger import LogLevel, globalLogPublisher
 
-from nucypher.crypto.powers import TransactingPower
-from nucypher.acumen.nicknames import nickname_from_seed
+from constant_sorrow.constants import NOT_SIGNED
 from nucypher.acumen.perception import FleetSensor
+from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
-from nucypher.network.nodes import FleetStateTracker, Learner
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import make_ursula_for_staker
 
@@ -72,6 +70,7 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
     mocker.patch.object(lonely_blockchain_learner, 'verify_from', side_effect=Learner.InvalidSignature)
     lonely_blockchain_learner.learn_from_teacher_node(eager=True)
     assert len(lonely_blockchain_learner.suspicious_activities_witnessed['vladimirs']) == 1
+
 
 @pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075
 def test_invalid_workers_tolerance(testerchain,
@@ -155,7 +154,6 @@ def test_invalid_workers_tolerance(testerchain,
     # If we force, on-chain verification, the worker is of course not verified
     with pytest.raises(worker.NotStaking):
         worker.verify_node(force=True, network_middleware=MockRestMiddleware(), certificate_filepath="quietorl")
-
 
     # Let's learn from this invalid node
     lonely_blockchain_learner._current_teacher_node = worker
