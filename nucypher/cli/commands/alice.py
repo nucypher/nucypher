@@ -448,6 +448,7 @@ def derive_policy_pubkey(general_config, label, character_options, config_file):
 @group_character_options
 @option_force
 @click.option('--bob', type=click.STRING)
+@option_force
 def grant(general_config,
           bob,
           bob_encrypting_key,
@@ -463,18 +464,12 @@ def grant(general_config,
     """Create and enact an access policy for some Bob. """
 
     if bob and any((bob_encrypting_key, bob_verifying_key)):
-        raise click.BadOptionUsage()
+        message = '--bob canot be used with --bob-encrypting-key or --bob-veryfying key'
+        raise click.BadOptionUsage(option_name='--bob', message=message)
 
     # Setup
     emitter = setup_emitter(general_config)
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
-
-    # Grantee validation
-    if bob:
-        card = Card.load(identifier=bob)
-        bob_verifying_key = card.verifying_key
-        bob_encrypting_key = card.encrypting_key
-        emitter.message(f'Loaded card from storage {card.id}')
 
     # Policy validation
     if ALICE.federated_only:
@@ -483,6 +478,19 @@ def grant(general_config,
             raise click.BadOptionUsage(option_name="--value, --rate", message=message)
     elif bool(value) and bool(rate):
         raise click.BadOptionUsage(option_name="--rate", message="Can't use --value if using --rate")
+
+    # Grantee validation
+    if bob:
+        card = Card.load(identifier=bob)
+        bob_verifying_key = card.verifying_key.hex()
+        bob_encrypting_key = card.encrypting_key.hex()
+        emitter.message(f'Loaded card from storage\n'
+                        f'*{card.nickname or card.id.hex()}*\n'
+                        f'Encrypting Key | {card.encrypting_key.hex()}\n'
+                        f'Verifying Key  | {card.verifying_key.hex()}',
+                        color='green')
+        if not force:
+            click.confirm('Is this the correct grantee (Bob)?', abort=True)
 
     # Interactive collection follows:
     # TODO: Extricate to support modules

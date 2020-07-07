@@ -127,6 +127,10 @@ class Alice(Character, BlockchainPolicyAuthor):
                  rate: int = None,
                  duration_periods: int = None,
 
+                 # Policy Storage
+                 store_policy_credentials: bool = None,
+                 store_character_cards: bool = None,
+
                  # Middleware
                  timeout: int = 10,  # seconds  # TODO: configure  NRN
                  network_middleware: RestMiddleware = None,
@@ -180,6 +184,8 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         self.active_policies = dict()
         self.revocation_kits = dict()
+        self.store_policy_credentials = store_policy_credentials
+        self.store_character_cards = store_character_cards
 
     def get_card(self) -> 'Card':
         from nucypher.policy.identity import Card

@@ -41,7 +41,7 @@ def lookup(card_identifier, card_nickname, qrcode):
     """"Manage character cards"""
     emitter = StdoutEmitter()
     if card_nickname and card_identifier:
-        
+
         raise click.Abort
     card = select_card(emitter=emitter, card_identifier=card_identifier or card_nickname)
     paint_single_card(emitter=emitter, card=card, qrcode=qrcode)
