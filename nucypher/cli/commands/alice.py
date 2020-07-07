@@ -91,6 +91,7 @@ class AliceConfigOptions:
                  middleware: RestMiddleware,
                  gas_strategy: str,
                  signer_uri: str,
+                 lonely: bool,
                  ):
 
         if federated_only and geth:
@@ -116,6 +117,7 @@ class AliceConfigOptions:
         self.discovery_port = discovery_port
         self.registry_filepath = registry_filepath
         self.middleware = middleware
+        self.lonely = lonely
 
     def create_config(self, emitter, config_file):
 
@@ -136,7 +138,9 @@ class AliceConfigOptions:
                 provider_uri=self.provider_uri,
                 signer_uri=self.signer_uri,
                 gas_strategy=self.gas_strategy,
-                federated_only=True)
+                federated_only=True,
+                lonely=self.lonely
+            )
 
         else:
             try:
@@ -152,7 +156,9 @@ class AliceConfigOptions:
                     filepath=config_file,
                     rest_port=self.discovery_port,
                     checksum_address=self.pay_with,
-                    registry_filepath=self.registry_filepath)
+                    registry_filepath=self.registry_filepath,
+                    lonely=self.lonely
+                )
             except FileNotFoundError:
                 return handle_missing_configuration_file(
                     character_config_class=AliceConfiguration,
