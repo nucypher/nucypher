@@ -14,63 +14,83 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from typing import Callable, List
 
 import click
 import pytest
 
 from nucypher.blockchain.eth.actors import StakeHolder
-from nucypher.blockchain.eth.token import NU, Stake
-from nucypher.blockchain.eth.utils import epoch_to_period
+from nucypher.blockchain.eth.token import Stake
 from nucypher.cli.actions.select import select_stake
-from nucypher.cli.literature import NO_STAKES_FOUND, ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE
+from nucypher.cli.literature import NO_STAKES_FOUND, ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE, NO_DIVISIBLE_STAKES
 from nucypher.cli.painting.staking import STAKER_TABLE_COLUMNS, STAKE_TABLE_COLUMNS
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.types import SubStakeInfo
 
 
-SELECTION = 0
+def make_sub_stakes(current_period, token_economics, sub_stakes_functions: List[Callable]) -> List[SubStakeInfo]:
+    sub_stakes = []
+    for function in sub_stakes_functions:
+        sub_stakes.extend(function(current_period, token_economics))
+    return sub_stakes
 
 
-@pytest.fixture()
-def non_divisible_stakes(mock_testerchain, token_economics):
-    stakes = [(1, 2, 3)]
+def empty_sub_stakes(_current_period, _token_economics) -> List[SubStakeInfo]:
+    return []
+
+
+def unlocked_sub_stakes(current_period, token_economics) -> List[SubStakeInfo]:
+    stakes = [SubStakeInfo(first_period=1,
+                           last_period=current_period - 1,
+                           locked_value=token_economics.minimum_allowed_locked),
+              SubStakeInfo(first_period=current_period - 3,
+                           last_period=current_period - 2,
+                           locked_value=2 * token_economics.minimum_allowed_locked + 1)]
+    return stakes
+
+
+def not_editable_sub_stakes(current_period, token_economics) -> List[SubStakeInfo]:
+    stakes = [SubStakeInfo(first_period=1,
+                           last_period=current_period,
+                           locked_value=token_economics.minimum_allowed_locked),
+              SubStakeInfo(first_period=current_period - 3,
+                           last_period=current_period,
+                           locked_value=2 * token_economics.minimum_allowed_locked + 1)]
+    return stakes
+
+
+def non_divisible_sub_stakes(current_period, token_economics) -> List[SubStakeInfo]:
+    stakes = [SubStakeInfo(first_period=1,
+                           last_period=current_period + 1,
+                           locked_value=token_economics.minimum_allowed_locked),
+              SubStakeInfo(first_period=current_period - 3,
+                           last_period=current_period + 2,
+                           locked_value=2 * token_economics.minimum_allowed_locked - 1),
+              SubStakeInfo(first_period=current_period - 1,
+                           last_period=current_period + 2,
+                           locked_value=token_economics.minimum_allowed_locked + 1)]
+    return stakes
+
+
+def divisible_sub_stakes(current_period, token_economics) -> List[SubStakeInfo]:
+    stakes = [SubStakeInfo(first_period=1,
+                           last_period=current_period + 1,
+                           locked_value=2 * token_economics.minimum_allowed_locked),
+              SubStakeInfo(first_period=current_period - 3,
+                           last_period=current_period + 2,
+                           locked_value=2 * token_economics.minimum_allowed_locked + 1)]
     return stakes
 
 
 @pytest.fixture()
-def divisible_stakes(mock_testerchain, token_economics):
-    nu = (token_economics.minimum_allowed_locked * 2) + 1
-    seconds_per_period = token_economics.seconds_per_period
-    current_period = epoch_to_period(mock_testerchain.get_blocktime(), seconds_per_period=seconds_per_period)
-    final_period = current_period + (token_economics.minimum_locked_periods * 3)
-    divisible_stakes = [(current_period, final_period, nu)]
-    return divisible_stakes
+def current_period(mock_staking_agent):
+    current_period = 10
+    return current_period
 
 
 @pytest.fixture()
-def stakeholder_with_no_divisible_stakes(mock_testerchain,
-                                         token_economics,
-                                         mock_staking_agent,
-                                         test_registry,
-                                         non_divisible_stakes):
-    mock_staking_agent.get_all_stakes.return_value = non_divisible_stakes
-    stakeholder = StakeHolder(registry=test_registry)
-    account = mock_testerchain.etherbase_account
-    stakeholder.assimilate(checksum_address=account, password=INSECURE_DEVELOPMENT_PASSWORD)
-    return stakeholder
-
-
-@pytest.fixture()
-def stakeholder_with_divisible_stakes(mock_testerchain,
-                                      token_economics,
-                                      mock_staking_agent,
-                                      test_registry,
-                                      divisible_stakes):
-
-    mock_staking_agent.get_all_stakes.return_value = divisible_stakes
-    stakeholder = StakeHolder(registry=test_registry)
-    account = mock_testerchain.etherbase_account
-    stakeholder.assimilate(checksum_address=account, password=INSECURE_DEVELOPMENT_PASSWORD)
-    return stakeholder
+def stakeholder(current_period, mock_staking_agent, test_registry):
+    mock_staking_agent.get_current_period.return_value = current_period
+    return StakeHolder(registry=test_registry)
 
 
 def assert_stake_table_painted(output: str) -> None:
@@ -83,50 +103,72 @@ def assert_stake_table_not_painted(output: str) -> None:
         assert column_name not in output
 
 
-def test_handle_select_stake_with_no_stakes(test_emitter,
-                                            token_economics,
-                                            mock_staking_agent,
-                                            test_registry,
-                                            mock_testerchain,
-                                            mock_stdin, # used to assert user hasn't been prompted
-                                            capsys):
+@pytest.mark.parametrize('sub_stakes_functions', [
+    [empty_sub_stakes],
+    [unlocked_sub_stakes],
+    [not_editable_sub_stakes],
+    [unlocked_sub_stakes, not_editable_sub_stakes]
+])
+def test_handle_selection_with_with_no_editable_stakes(test_emitter,
+                                                       stakeholder,
+                                                       mock_staking_agent,
+                                                       mock_testerchain,
+                                                       mock_stdin,  # used to assert user hasn't been prompted
+                                                       capsys,
+                                                       current_period,
+                                                       token_economics,
+                                                       sub_stakes_functions):
+    mock_stakes = make_sub_stakes(current_period, token_economics, sub_stakes_functions)
 
-    # Setup
-    mock_stakes = []
     mock_staking_agent.get_all_stakes.return_value = mock_stakes
-    stakeholder = StakeHolder(registry=test_registry)
+    staker = mock_testerchain.unassigned_accounts[0]
+    stakeholder.set_staker(staker)
 
     # Test
     with pytest.raises(click.Abort):
-        select_stake(emitter=test_emitter, stakeholder=stakeholder)
+        select_stake(emitter=test_emitter, stakeholder=stakeholder, staker_address=staker)
 
     # Examine
     captured = capsys.readouterr()
     assert NO_STAKES_FOUND in captured.out
     assert_stake_table_not_painted(output=captured.out)
+    assert mock_stdin.empty()
 
 
-def test_select_non_divisible_stake(test_emitter,
-                                    token_economics,
-                                    mock_staking_agent,
-                                    test_registry,
-                                    mock_testerchain,
-                                    mock_stdin,
-                                    capsys,
-                                    non_divisible_stakes,
-                                    stakeholder_with_no_divisible_stakes):
+@pytest.mark.parametrize('sub_stakes_functions', [
+    [non_divisible_sub_stakes],
+    [divisible_sub_stakes],
+    [unlocked_sub_stakes, non_divisible_sub_stakes],
+    [not_editable_sub_stakes, non_divisible_sub_stakes],
+    [unlocked_sub_stakes, divisible_sub_stakes],
+    [not_editable_sub_stakes, divisible_sub_stakes],
+    [not_editable_sub_stakes, non_divisible_sub_stakes, unlocked_sub_stakes, divisible_sub_stakes]
+])
+def test_select_editable_stake(test_emitter,
+                               stakeholder,
+                               mock_staking_agent,
+                               mock_testerchain,
+                               mock_stdin,  # used to assert user hasn't been prompted
+                               capsys,
+                               current_period,
+                               token_economics,
+                               sub_stakes_functions):
+    mock_stakes = make_sub_stakes(current_period, token_economics, sub_stakes_functions)
 
-    expected_stake = Stake.from_stake_info(stake_info=non_divisible_stakes[0],
+    mock_staking_agent.get_all_stakes.return_value = mock_stakes
+    staker = mock_testerchain.unassigned_accounts[0]
+    stakeholder.set_staker(staker)
+
+    selection = len(mock_stakes) - 1
+    expected_stake = Stake.from_stake_info(stake_info=mock_stakes[selection],
                                            staking_agent=mock_staking_agent,   # stakinator
-                                           index=0,
-                                           checksum_address=stakeholder_with_no_divisible_stakes.checksum_address,
+                                           index=selection,
+                                           checksum_address=stakeholder.checksum_address,
                                            economics=token_economics)
 
     # User's selection
-    mock_stdin.line(str(SELECTION))
-    selected_stake = select_stake(emitter=test_emitter,
-                                  divisible=False,
-                                  stakeholder=stakeholder_with_no_divisible_stakes)
+    mock_stdin.line(str(selection))
+    selected_stake = select_stake(emitter=test_emitter, stakeholder=stakeholder, staker_address=staker)
 
     # Check stake accuracy
     assert isinstance(selected_stake, Stake)
@@ -141,57 +183,71 @@ def test_select_non_divisible_stake(test_emitter,
 
 
 def test_handle_selection_with_no_divisible_stakes(test_emitter,
-                                                   token_economics,
+                                                   stakeholder,
                                                    mock_staking_agent,
-                                                   test_registry,
                                                    mock_testerchain,
-                                                   mock_stdin, # used to assert the user hasn't been prompted
+                                                   mock_stdin,  # used to assert user hasn't been prompted
                                                    capsys,
-                                                   non_divisible_stakes):
+                                                   current_period,
+                                                   token_economics):
 
     # Setup
-    mock_staking_agent.get_all_stakes.return_value = non_divisible_stakes
+    mock_stakes = make_sub_stakes(current_period, token_economics, [non_divisible_sub_stakes])
 
-    stakeholder = StakeHolder(registry=test_registry)
-    stakeholder.assimilate(checksum_address=mock_testerchain.etherbase_account,
-                           password=INSECURE_DEVELOPMENT_PASSWORD)
+    mock_staking_agent.get_all_stakes.return_value = mock_stakes
+    staker = mock_testerchain.unassigned_accounts[0]
+    stakeholder.set_staker(staker)
 
     # FAILURE: Divisible only with no divisible stakes on chain
     with pytest.raises(click.Abort):
-        select_stake(emitter=test_emitter,
-                     divisible=True,
-                     stakeholder=stakeholder)
+        select_stake(emitter=test_emitter, divisible=True, stakeholder=stakeholder, staker_address=staker)
 
     # Divisible warning was displayed, but having
     # no divisible stakes cases an expected failure
     captured = capsys.readouterr()
     assert NO_STAKES_FOUND not in captured.out
     assert ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE in captured.out
+    assert NO_DIVISIBLE_STAKES in captured.out
     assert_stake_table_not_painted(output=captured.out)
+    assert mock_stdin.empty()
 
 
+@pytest.mark.parametrize('sub_stakes_functions', [
+    [divisible_sub_stakes],
+    [unlocked_sub_stakes, divisible_sub_stakes],
+    [not_editable_sub_stakes, divisible_sub_stakes],
+    [non_divisible_sub_stakes, divisible_sub_stakes],
+    [not_editable_sub_stakes, non_divisible_sub_stakes, unlocked_sub_stakes, divisible_sub_stakes]
+])
 def test_select_divisible_stake(test_emitter,
-                                token_economics,
+                                stakeholder,
                                 mock_staking_agent,
-                                test_registry,
                                 mock_testerchain,
-                                mock_stdin,
+                                mock_stdin,  # used to assert user hasn't been prompted
                                 capsys,
-                                divisible_stakes,
-                                stakeholder_with_divisible_stakes):
+                                current_period,
+                                token_economics,
+                                sub_stakes_functions):
+    # Setup
+    mock_stakes = make_sub_stakes(current_period, token_economics, sub_stakes_functions)
 
-    expected_stake = Stake.from_stake_info(stake_info=divisible_stakes[0],
-                                           staking_agent=mock_staking_agent,  # stakinator
-                                           index=0,
-                                           checksum_address=stakeholder_with_divisible_stakes.checksum_address,
+    mock_staking_agent.get_all_stakes.return_value = mock_stakes
+    staker = mock_testerchain.unassigned_accounts[0]
+    stakeholder.set_staker(staker)
+
+    selection = len(mock_stakes) - 1
+    expected_stake = Stake.from_stake_info(stake_info=mock_stakes[selection],
+                                           staking_agent=mock_staking_agent,   # stakinator
+                                           index=selection,
+                                           checksum_address=stakeholder.checksum_address,
                                            economics=token_economics)
 
     # SUCCESS: Display all divisible-only stakes and make a selection
-    mock_stdin.line(str(SELECTION))
-
+    mock_stdin.line(str(selection))
     selected_stake = select_stake(emitter=test_emitter,
-                                  divisible=True,
-                                  stakeholder=stakeholder_with_divisible_stakes)
+                                  stakeholder=stakeholder,
+                                  staker_address=staker,
+                                  divisible=True)
 
     assert isinstance(selected_stake, Stake)
     assert selected_stake == expected_stake
