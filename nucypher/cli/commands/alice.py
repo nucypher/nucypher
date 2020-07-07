@@ -21,7 +21,6 @@ import maya
 import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 from datetime import timedelta
-from nucypher.cli.painting.policies import paint_cards, paint_single_card
 from web3.main import Web3
 
 from nucypher.blockchain.eth.signers.software import ClefSigner
@@ -36,8 +35,7 @@ from nucypher.cli.actions.configure import (
 from nucypher.cli.actions.confirm import confirm_staged_grant
 from nucypher.cli.actions.select import (
     select_client_account,
-    select_config_file,
-    select_card
+    select_config_file
 )
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
@@ -72,7 +70,7 @@ from nucypher.cli.painting.help import (
     enforce_probationary_period
 )
 from nucypher.cli.processes import get_geth_provider_process
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 from nucypher.cli.types import GWEI
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import AliceConfiguration
@@ -449,7 +447,9 @@ def derive_policy_pubkey(general_config, label, character_options, config_file):
 @group_general_config
 @group_character_options
 @option_force
+@click.option('--bob', type=click.STRING)
 def grant(general_config,
+          bob,
           bob_encrypting_key,
           bob_verifying_key,
           label,
@@ -462,11 +462,21 @@ def grant(general_config,
           force):
     """Create and enact an access policy for some Bob. """
 
+    if bob and any((bob_encrypting_key, bob_verifying_key)):
+        raise click.BadOptionUsage()
+
     # Setup
     emitter = setup_emitter(general_config)
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
 
-    # Input validation
+    # Grantee validation
+    if bob:
+        card = Card.load(identifier=bob)
+        bob_verifying_key = card.verifying_key
+        bob_encrypting_key = card.encrypting_key
+        emitter.message(f'Loaded card from storage {card.id}')
+
+    # Policy validation
     if ALICE.federated_only:
         if any((value, rate)):
             message = "Can't use --value or --rate with a federated Alice."

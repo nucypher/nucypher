@@ -52,11 +52,12 @@ class Card:
         bytes(BOB): Bob,
     }
 
-    __ID_LENGTH = 20  # TODO: Review this size
+    __ID_LENGTH = 20  # TODO: Review this size (bytes of hex len?)
     __MAX_NICKNAME_SIZE = 10
     __BASE_PAYLOAD_SIZE = sum(length[1] for length in _specification.values() if isinstance(length[1], int))
     __MAX_CARD_LENGTH = __BASE_PAYLOAD_SIZE + __MAX_NICKNAME_SIZE
     __FILE_EXTENSION = 'card'
+    __DELIMITER = ':'
     CARD_DIR = Path(DEFAULT_CONFIG_ROOT) / 'cards'
     NO_SIGNATURE.bool_value(False)
 
@@ -254,45 +255,65 @@ class Card:
     #
 
     @property
-    def is_saved(self) -> bool:
-        filename = f'{self.id.hex()}.{self.__FILE_EXTENSION}'
+    def filepath(self) -> Path:
+        identifier = f'{self.nickname}{self.__DELIMITER}' if self.__nickname else self.id.hex()
+        filename = f'{identifier}.{self.__FILE_EXTENSION}'
         filepath = self.card_dir / filename
-        exists = filepath.exists()
+        return filepath
+
+    @property
+    def is_saved(self) -> bool:
+        exists = self.filepath.exists()
         return exists
 
     def save(self, encoder: Callable = base64.b64encode, overwrite: bool = False) -> Path:
         if not self.card_dir.exists():
             os.mkdir(str(self.card_dir))
-        filename = f'{self.nickname+":" if self.__nickname else str()}{self.id.hex()}.{self.__FILE_EXTENSION}'
-        filepath = self.card_dir / filename
-        if filepath.exists() and not overwrite:
+        if self.is_saved and not overwrite:
             raise FileExistsError('Card exists. Pass overwrite=True to allow this operation.')
-        with open(str(filepath), 'wb') as file:
+        with open(str(self.filepath), 'wb') as file:
             file.write(encoder(bytes(self)))
-        return Path(filepath)
+        return Path(self.filepath)
 
     @classmethod
-    def load(cls,
-             checksum: str = None,
-             nickname: str = None,
-             card_dir: Path = CARD_DIR,
-             decoder: Callable = base64.b64decode
-             ) -> 'Card':
-        if nickname:
+    def lookup(cls, identifier: str, card_dir: Optional[Path] = None) -> Path:
+        """Resolve a card ID or nickname into a Path object"""
+        if not card_dir:
+            card_dir = cls.CARD_DIR
+        try:
+            int(identifier, 16)  # Is this hex?
+        except ValueError:
+            try:
+                nickname, checksum = identifier.split(cls.__DELIMITER)
+            except ValueError:
+                nickname = identifier
             for filename in os.listdir(Card.CARD_DIR):
                 if nickname.casefold() in filename.casefold():
                     break
             else:
                 raise ValueError(f'Unknown card nickname "{nickname}"')
             name, _extension = filename.split('.')  # TODO: glob or regex?
-            parsed_nickname, parsed_checksum = name.split(':')
+            parsed_nickname, parsed_checksum = name.split(cls.__DELIMITER)
             if parsed_nickname != nickname:
                 raise ValueError('Nickname matches another')
-        elif checksum:
-            filename = f'{checksum}.{cls.__FILE_EXTENSION}'
         else:
-            raise ValueError  # TODO
+            checksum = identifier
+            filename = f'{checksum}.{cls.__FILE_EXTENSION}'
         filepath = card_dir / filename
+        return filepath
+
+    @classmethod
+    def load(cls,
+             filepath: Optional[Path] = None,
+             identifier: str = None,
+             card_dir: Path = CARD_DIR,
+             decoder: Callable = base64.b64decode
+             ) -> 'Card':
+
+        if filepath and identifier:
+            raise ValueError(f'Pass either filepath or identifier, not both.')
+        if not filepath:
+            filepath = cls.lookup(identifier=identifier, card_dir=card_dir)
         try:
             with open(str(filepath), 'rb') as file:
                 card_bytes = decoder(file.read())
@@ -300,6 +321,9 @@ class Card:
             raise cls.UnknownCard
         instance = cls.from_bytes(card_bytes)
         return instance
+
+    def delete(self) -> None:
+        os.remove(str(self.filepath))
 
 
 class PolicyCredential:

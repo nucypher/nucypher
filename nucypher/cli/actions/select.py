@@ -45,6 +45,7 @@ from nucypher.cli.literature import (
     SELECT_STAKING_ACCOUNT_INDEX,
     SELECTED_ACCOUNT
 )
+from nucypher.cli.painting.policies import paint_cards
 from nucypher.cli.painting.staking import paint_stakes
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ADDRESS
 from nucypher.config.node import CharacterConfiguration
@@ -292,19 +293,16 @@ def select_config_file(emitter: StdoutEmitter,
     return config_file
 
 
-def select_card(emitter, card_id: str = None) -> Card:
-    if card_id:
+def select_card(emitter, card_identifier: str = None, nickname: str = None) -> Card:
+    if not card_identifier and not nickname:
+        cards = []
         for filename in os.listdir(Card.CARD_DIR):
-            if card_id in filename:
-                break
-        else:
-            raise ValueError(f'Unknown Card ID or Nickname "{card_id}"')
-        try:
-            int(card_id, 16)
-        except ValueError:
-            name, _extension = filename.split('.')
-            nickname, card_id = name.split(':')
+            filepath = Card.CARD_DIR / filename
+            card = Card.load(filepath=filepath)
+            cards.append(card)
+        paint_cards(emitter=emitter, cards=cards, as_table=True)
+        selection = click.prompt('Select card', type=click.IntRange(0, len(cards)-1))
+        card = cards[selection]
     else:
-        cards = {}  # TODO
-    card = Card.load(checksum=card_id, nickname=nickname)
+        card = Card.load(identifier=card_identifier or nickname)
     return card

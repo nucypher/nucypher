@@ -34,12 +34,16 @@ def contacts():
 
 
 @contacts.command()
-@click.option('--id', 'card_id', type=click.STRING, required=False)
+@click.option('--id', 'card_identifier', type=click.STRING, required=False)
+@click.option('--name', 'card_nickname', type=click.STRING, required=False)
 @click.option('--qrcode', is_flag=True, default=None)
-def lookup(card_id, qrcode):
+def lookup(card_identifier, card_nickname, qrcode):
     """"Manage character cards"""
     emitter = StdoutEmitter()
-    card = select_card(emitter=emitter, card_id=card_id)
+    if card_nickname and card_identifier:
+        
+        raise click.Abort
+    card = select_card(emitter=emitter, card_identifier=card_identifier or card_nickname)
     paint_single_card(emitter=emitter, card=card, qrcode=qrcode)
 
 
@@ -52,7 +56,7 @@ def all():
     cards = list()
     for filename in card_filepaths:
         card_id, ext = filename.split('.')
-        card = Card.load(checksum=card_id)
+        card = Card.load(identifier=card_id)
         cards.append(card)
     paint_cards(emitter=emitter, cards=cards, as_table=True)
 
