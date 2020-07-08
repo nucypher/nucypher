@@ -9,7 +9,7 @@ Overview
 
 `WorkLock` is a novel, permissionless network node setup mechanism, developed at NuCypher, which requires participants
 to temporarily stake ETH and operate NuCypher network threshold cryptography nodes in order to be allocated NU, the native
-cryptocurrency of the NuCypher network that enables node operation.
+token of the NuCypher network that enables node operation.
 
 The NuCypher team designed the WorkLock to onboard threshold cryptography nodes to the live NuCypher network using a process that selects participants
 who are most likely to strengthen the network by committing to staking and running nodes.
@@ -23,18 +23,18 @@ At the end of this cancellation period, the allocation period opens and stake-lo
 the limited purpose of running threshold cryptography nodes on the live NuCypher network.
 Stake-locked NU will be allocated at network launch according to the following principles:
 
- - All of the NU held by WorkLock will be allocate to network nodes in non-transferable stakes designed to enable node operation.
+ - All of the NU held by WorkLock will be allocated to network nodes in non-transferable stakes designed to enable node operation.
  - All ETH escrows must be greater than or equal to the minimum allowed escrow.
  - For each escrow, the surplus above the minimum allowed escrow is called the `bonus`; all escrows are composed of a `base` escrow (fixed minimum) and a `bonus` escrow (variable amount).
- - Each participant will receive at least the minimum amount of staked NU needed to operation a network node.
+ - Each participant will receive at least the minimum amount of staked NU needed to operate a network node.
  - Once all participants have been allocated the minimum amount of NU, each participant with a `bonus` will be allocated a portion of the remaining NU,
    allocated pro rata across all participants, taking into consideration only their bonus ETH amounts.
  - If the resulting NU allocated to a participant is above the maximum allowed NU needed to operate a network node, then such a participant has their escrow partially refunded until the corresponding amount of NU is within the allowed limits for node operation.
 
 Finally, if WorkLock participants use that stake-locked NU to run a node and provide threshold cryptography services on the live network for a minimum of six months,
 the NU will subsequently unlock and their temporarily escrowed ETH will be returned in full.
-(Participants that fail to successfully run a NuCypher network node for six months of the live network will not receive NU and their ETH will remain escrowed in the
-WorkLock contract.)
+Participants that fail to successfully run a NuCypher network node for six months of the live network will not receive NU and their ETH will remain escrowed in the
+WorkLock contract.
 
 
 Hypothetical Escrow Scenarios
