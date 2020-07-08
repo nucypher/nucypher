@@ -68,7 +68,7 @@ def test_bid(click_runner, testerchain, agency_local_registry, token_economics, 
     # Wait until biding window starts
     testerchain.time_travel(seconds=90)
 
-    base_command = ('bid',
+    base_command = ('escrow',
                     '--registry-filepath', agency_local_registry.filepath,
                     '--provider', TEST_PROVIDER_URI,
                     '--network', TEMPORARY_DOMAIN,
@@ -81,7 +81,7 @@ def test_bid(click_runner, testerchain, agency_local_registry, token_economics, 
         pre_bid_balance = testerchain.client.get_balance(bidder)
         assert pre_bid_balance > to_wei(bid_eth_value, 'ether')
 
-        command = (*base_command, '--bidder-address', bidder, '--value', bid_eth_value)
+        command = (*base_command, '--participant-address', bidder, '--value', bid_eth_value)
         user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + 'Y\n'
         result = click_runner.invoke(worklock, command, input=user_input, catch_exceptions=False)
         assert result.exit_code == 0
@@ -101,8 +101,8 @@ def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_econ
     bidder = bidders[-1]
     agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
 
-    command = ('cancel-bid',
-               '--bidder-address', bidder,
+    command = ('cancel-escrow',
+               '--participant-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
@@ -117,8 +117,8 @@ def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_econ
     testerchain.time_travel(seconds=token_economics.bidding_duration + 2)
 
     bidder = bidders[-2]
-    command = ('cancel-bid',
-               '--bidder-address', bidder,
+    command = ('cancel-escrow',
+               '--participant-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
@@ -141,7 +141,7 @@ def test_enable_claiming(click_runner, testerchain, agency_local_registry, token
     assert not agent.bidders_checked()
 
     command = ('enable-claiming',
-               '--bidder-address', bidder,
+               '--participant-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
                '--force',
@@ -160,7 +160,7 @@ def test_claim(click_runner, testerchain, agency_local_registry, token_economics
 
     bidder = testerchain.client.accounts[2]
     command = ('claim',
-               '--bidder-address', bidder,
+               '--participant-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
@@ -173,7 +173,7 @@ def test_claim(click_runner, testerchain, agency_local_registry, token_economics
     whale = testerchain.client.accounts[0]
     assert agent.get_available_compensation(checksum_address=whale) > 0
     command = ('claim',
-               '--bidder-address', whale,
+               '--participant-address', whale,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
@@ -196,7 +196,7 @@ def test_remaining_work(click_runner, testerchain, agency_local_registry, token_
     assert remaining_work > 0
 
     command = ('remaining-work',
-               '--bidder-address', bidder,
+               '--participant-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
@@ -243,7 +243,7 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
         testerchain.time_travel(periods=1)
 
     command = ('refund',
-               '--bidder-address', bidder,
+               '--participant-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
@@ -263,7 +263,7 @@ def test_participant_status(click_runner, testerchain, agency_local_registry, to
 
     command = ('status',
                '--registry-filepath', agency_local_registry.filepath,
-               '--bidder-address', bidder.checksum_address,
+               '--participant-address', bidder.checksum_address,
                '--provider', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 

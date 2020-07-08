@@ -76,8 +76,8 @@ from nucypher.cli.painting.worklock import (
 from nucypher.cli.types import DecimalRange, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
 
-option_bidder_address = click.option('--bidder-address',
-                                     help="Bidder's checksum address.",
+option_bidder_address = click.option('--participant-address',
+                                     help="Participants's checksum address.",
                                      type=EIP55_CHECKSUM_ADDRESS)
 
 
@@ -86,13 +86,13 @@ class WorkLockOptions:
     __option_name__ = 'worklock_options'
 
     def __init__(self,
-                 bidder_address: str,
+                 participant_address: str,
                  signer_uri: str,
                  provider_uri: str,
                  registry_filepath: str,
                  network: str):
 
-        self.bidder_address = bidder_address
+        self.bidder_address = participant_address
         self.signer_uri = signer_uri
         self.provider_uri = provider_uri
         self.registry_filepath = registry_filepath
@@ -140,7 +140,7 @@ class WorkLockOptions:
 
 group_worklock_options = group_options(
     WorkLockOptions,
-    bidder_address=option_bidder_address,
+    participant_address=option_bidder_address,
     signer_uri=option_signer_uri,
     provider_uri=option_provider_uri(required=True, default=os.environ.get(NUCYPHER_ENVVAR_PROVIDER_URI)),
     network=option_network(required=True),
@@ -150,7 +150,7 @@ group_worklock_options = group_options(
 
 @click.group()
 def worklock():
-    """Participate in NuCypher's WorkLock to obtain NU tokens"""
+    """Participate in NuCypher's WorkLock to obtain a NU stake"""
 
 
 @worklock.command()
@@ -170,13 +170,13 @@ def status(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions
 @group_worklock_options
 @option_force
 @option_hw_wallet
-@click.option('--value', help="ETH value of bid", type=DecimalRange(min=0))
-def bid(general_config: GroupGeneralConfig,
-        worklock_options: WorkLockOptions,
-        force: bool,
-        hw_wallet: bool,
-        value: Decimal):
-    """Place a bid, or increase an existing bid"""
+@click.option('--value', help="ETH value to escrow", type=DecimalRange(min=0))
+def escrow(general_config: GroupGeneralConfig,
+           worklock_options: WorkLockOptions,
+           force: bool,
+           hw_wallet: bool,
+           value: Decimal):
+    """Create an ETH escrow, or increase an existing escrow"""
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
     now = maya.now().epoch
@@ -233,8 +233,8 @@ def bid(general_config: GroupGeneralConfig,
 @group_worklock_options
 @option_force
 @option_hw_wallet
-def cancel_bid(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions, force: bool, hw_wallet: bool):
-    """Cancel your bid and receive your ETH back"""
+def cancel_escrow(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions, force: bool, hw_wallet: bool):
+    """Cancel your escrow and receive your ETH back"""
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
     now = maya.now().epoch
@@ -260,7 +260,7 @@ def cancel_bid(general_config: GroupGeneralConfig, worklock_options: WorkLockOpt
 @group_worklock_options
 @group_general_config
 def claim(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions, force: bool, hw_wallet: bool):
-    """Claim tokens for your bid, and start staking them"""
+    """Claim tokens for your escrow, and start staking them"""
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
     if not worklock_agent.is_claiming_available():
@@ -305,7 +305,7 @@ def claim(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions,
 @group_worklock_options
 @group_general_config
 def remaining_work(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions):
-    """Check how much work is pending until you can get all your locked ETH back"""
+    """Check how much work is pending until you can get all your escrowed ETH back"""
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     bidder_address = worklock_options.get_bidder_address(emitter, registry)
     bidder = worklock_options.create_transactionless_bidder(registry=registry)
@@ -344,7 +344,7 @@ def enable_claiming(general_config: GroupGeneralConfig,
                     force: bool,
                     hw_wallet: bool,
                     gas_limit: int):
-    """Ensure correctness of bidding and enable claiming"""
+    """Ensure correctness of WorkLock participants and enable allocation"""
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     bidder_address = worklock_options.get_bidder_address(emitter, registry)
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
