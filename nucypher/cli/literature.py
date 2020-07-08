@@ -452,105 +452,102 @@ MULTISIG_SIGNATURE_RECEIVED = "\nSignature received from {recovered_address}:\n"
 # Worklock
 #
 
-BID_AMOUNT_PROMPT_WITH_MIN_BID = "Enter bid amount in ETH (at least {minimum_bid_in_eth} ETH)"
+BID_AMOUNT_PROMPT_WITH_MIN_BID = "Enter escrow amount in ETH (at least {minimum_bid_in_eth} ETH)"
 
-BID_INCREASE_AMOUNT_PROMPT = "Enter the amount in ETH that you want to increase your bid"
+BID_INCREASE_AMOUNT_PROMPT = "Enter the amount in ETH that you want to increase your escrow"
 
-EXISTING_BID_AMOUNT_NOTICE = "⚠️ You have an existing bid of {eth_amount} ETH"
+EXISTING_BID_AMOUNT_NOTICE = "⚠️ You have an existing escrow of {eth_amount} ETH"
 
 WORKLOCK_AGREEMENT = """
 ⚠️ WorkLock Participant Notice ⚠️
 ---------------------------------
 
 - By participating in NuCypher's WorkLock you are committing to operating a staking
-  NuCypher node after the bidding window closes.
+  NuCypher node once the allocation period opens.
 
-- WorkLock token rewards are claimed in the form of a stake and will be locked for
-  the stake duration.
-
-- WorkLock ETH deposits will be available for refund at a rate of {refund_rate} 
+- WorkLock allocation is provided in the form of a stake and will be locked for
+  the stake duration ({duration} periods). During this time, 
+  you are obligated to maintain a networked and available
+  NuCypher node bonded to the staker address {bidder_address}.
+  
+- ETH in escrow will be available for refund at a rate of {refund_rate} 
   per confirmed period. This rate may vary until {end_date}.
 
-- Once claiming WorkLock tokens, you are obligated to maintain a networked and available
-  Ursula-Worker node bonded to the staker address {bidder_address}
-  for the duration of the stake(s) ({duration} periods).
-
-- Allow NuCypher network users to carry out uninterrupted re-encryption work orders
-  at-will without interference. Failure to keep your node online, or violation of
-  re-encryption work orders will result in the loss of staked tokens as described
+- You agree to allow NuCypher network users to carry out uninterrupted work orders
+  at will without interference. Failure to keep your node online, or violation of
+  work orders will result in the loss of staked tokens as described
   in the NuCypher slashing protocol.
 
-- Keeping your Ursula node online during the staking period and correctly servicing
-  re-encryption work orders will result in rewards paid out in ethers retro-actively
+- Correctly servicing work orders will result in rewards paid out in ethers retro-actively
   and on-demand.
 
 Accept WorkLock terms and node operator obligation?"""  # TODO: Show a special message for first bidder, since there's no refund rate yet?
 
-BIDDING_WINDOW_CLOSED = "❌ You can't bid, the bidding window is closed."
+BIDDING_WINDOW_CLOSED = "❌ You can't escrow, the escrow period is closed."
 
-CANCELLATION_WINDOW_CLOSED = "❌ You can't cancel your bid. The cancellation window is closed."
+CANCELLATION_WINDOW_CLOSED = "❌ You can't cancel your escrow. The cancellation period is closed."
 
-SUCCESSFUL_BID_CANCELLATION = "✅ Bid canceled\n"
+SUCCESSFUL_BID_CANCELLATION = "✅ Escrow canceled\n"
 
 WORKLOCK_ADDITIONAL_COMPENSATION_AVAILABLE = """
-⚠️ Note that WorkLock did not use your entire bid due to a maximum claim limit.
+⚠️ Note that WorkLock did not use your entire escrow due to a maximum allocation limit.
 Therefore, an unspent amount of {amount} is available for refund.
 """
 
 CONFIRM_REQUEST_WORKLOCK_COMPENSATION = """
-Before claiming your NU tokens for {bidder_address},
-you will need to be refunded your unspent bid amount.
+Before requesting the NU allocation for {bidder_address},
+you will need to be refunded your unspent escrow amount.
  
 Would you like to proceed?
 """
 
-REQUESTING_WORKLOCK_COMPENSATION = "Requesting refund of unspent bid amount..."
+REQUESTING_WORKLOCK_COMPENSATION = "Requesting refund of unspent escrow amount..."
 
-CLAIMING_NOT_AVAILABLE = "❌ You can't claim tokens yet. Claiming is not currently available."
+CLAIMING_NOT_AVAILABLE = "❌ You can't request a NU allocation yet. Allocations are not currently available."
 
-CLAIM_ALREADY_PLACED = "⚠️ Claim was already placed for {bidder_address}"
+CLAIM_ALREADY_PLACED = "⚠️ An allocation was already assigned to {bidder_address}"
 
-AVAILABLE_CLAIM_NOTICE = "\nYou have an available claim of {tokens} 🎉 \n"
+AVAILABLE_CLAIM_NOTICE = "\nYou have an available allocation of {tokens} 🎉 \n"
 
 WORKLOCK_CLAIM_ADVISORY = """
-⚠️ Note: Claiming WorkLock NU tokens will initialize a new stake to be locked for {lock_duration} periods.
+⚠️ Note: Allocating WorkLock NU will initialize a new stake to be locked for {lock_duration} periods.
 """
 
-CONFIRM_WORKLOCK_CLAIM = "Continue WorkLock claim for bidder {bidder_address}?"
+CONFIRM_WORKLOCK_CLAIM = "Continue WorkLock allocation for participant {bidder_address}?"
 
-SUBMITTING_WORKLOCK_CLAIM = "Submitting Claim..."
+SUBMITTING_WORKLOCK_CLAIM = "Submitting allocation request..."
 
-CONFIRM_COLLECT_WORKLOCK_REFUND = "Collect ETH refund for bidder {bidder_address}?"
+CONFIRM_COLLECT_WORKLOCK_REFUND = "Collect ETH refund for participant {bidder_address}?"
 
 SUBMITTING_WORKLOCK_REFUND_REQUEST = "Submitting WorkLock refund request..."
 
 PROMPT_BID_VERIFY_GAS_LIMIT = "Enter gas limit per each verification transaction (at least {min_gas})"
 
-COMPLETED_BID_VERIFICATION = "Bidding has been checked\n"
+COMPLETED_BID_VERIFICATION = "Escrow amounts have been checked\n"
 
-BIDS_VALID_NO_FORCE_REFUND_INDICATED = "All bids are correct, force refund is not needed\n"
+BIDS_VALID_NO_FORCE_REFUND_INDICATED = "All escrows are correct, force refund is not needed\n"
 
 CONFIRM_BID_VERIFICATION = """
-Confirm verification of bidding from {bidder_address} using {gas_limit} gas 
-for {bidders_per_transaction} bidders per each transaction?
+Confirm verification of escrow from {bidder_address} using {gas_limit} gas 
+for {bidders_per_transaction} participants per each transaction?
 """
 
-VERIFICATION_ESTIMATES = "Using {gas_limit} gas for {bidders_per_transaction} bidders per each transaction\n"
+VERIFICATION_ESTIMATES = "Using {gas_limit} gas for {bidders_per_transaction} participants per each transaction\n"
 
-WHALE_WARNING = "At least {number} bidders got a force refund\n"
+WHALE_WARNING = "At least {number} participants got a force refund\n"
 
-BIDDERS_ALREADY_VERIFIED = "Bidders have already been checked\n"
+BIDDERS_ALREADY_VERIFIED = "All escrow amounts have already been checked\n"
 
 SUCCESSFUL_WORKLOCK_CLAIM = """
 
-✅ Successfully claimed WorkLock tokens for {bidder_address}.
+✅ Successfully allocated WorkLock NU for {bidder_address}.
 
 You can check that the stake was created correctly by running:
 
   nucypher status stakers --staking-address {bidder_address} --network {network} --provider {provider_uri}
 
-Next Steps for WorkLock Winners
-===============================
+Next Steps for WorkLock Participants
+====================================
 
 Congratulations! 🎉 You're officially a Staker in the NuCypher network.
 

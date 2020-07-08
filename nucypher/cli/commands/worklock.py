@@ -207,21 +207,22 @@ def bid(general_config: GroupGeneralConfig,
     if not force:
         if not existing_bid_amount:
             paint_bidding_notice(emitter=emitter, bidder=bidder)
-            click.confirm(f"Place WorkLock bid of {prettify_eth_amount(value)}?", abort=True)
+            click.confirm(f"Place WorkLock escrow of {prettify_eth_amount(value)}?", abort=True)
         else:
-            click.confirm(f"Increase current bid ({prettify_eth_amount(existing_bid_amount)}) "
+            click.confirm(f"Increase current escrow ({prettify_eth_amount(existing_bid_amount)}) "
                           f"by {prettify_eth_amount(value)}?", abort=True)
 
     receipt = bidder.place_bid(value=value)
-    emitter.message("Publishing WorkLock Bid...")
+    emitter.message("Publishing WorkLock Escrow...")
 
     maximum = NU.from_nunits(bidder.economics.maximum_allowed_locked)
     available_claim = NU.from_nunits(bidder.available_claim)
-    message = f'\nCurrent bid: {prettify_eth_amount(bidder.get_deposited_eth)} | Claim: {available_claim}\n'
+    message = f'\nCurrent escrow: {prettify_eth_amount(bidder.get_deposited_eth)} | Allocation: {available_claim}\n'
     if available_claim > maximum:
-        message += f"\nThis claim is currently above the allowed max ({maximum}), " \
-                   f"so the bid may be partially refunded.\n"
-    message += f'Note that available claim value may fluctuate until bidding closes and claims are finalized.\n'
+        message += f"\nThis allocation is currently above the allowed max ({maximum}), " \
+                   f"so the escrow may be partially refunded.\n"
+    message += f'Note that the available allocation value may fluctuate until the escrow period closes and ' \
+               f'allocations are finalized.\n'
     emitter.echo(message, color='yellow')
 
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
@@ -246,7 +247,7 @@ def cancel_bid(general_config: GroupGeneralConfig, worklock_options: WorkLockOpt
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
     if not force:
         value = bidder.get_deposited_eth
-        click.confirm(f"Confirm bid cancellation of {prettify_eth_amount(value)} for {bidder_address}?", abort=True)
+        click.confirm(f"Confirm escrow cancellation of {prettify_eth_amount(value)} for {bidder_address}?", abort=True)
     receipt = bidder.cancel_bid()
     emitter.echo(SUCCESSFUL_BID_CANCELLATION, color='green')
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
@@ -350,12 +351,12 @@ def enable_claiming(general_config: GroupGeneralConfig,
 
     whales = bidder.get_whales()
     if whales:
-        headers = ("Bidders that require correction", "Current bid bonus")
+        headers = ("Participants that require correction", "Current bonus")
         columns = (whales.keys(), map(prettify_eth_amount, whales.values()))
         emitter.echo(tabulate.tabulate(dict(zip(headers, columns)), headers=headers, floatfmt="fancy_grid"))
 
         if not force:
-            click.confirm(f"Confirm force refund to at least {len(whales)} bidders using {bidder_address}?", abort=True)
+            click.confirm(f"Confirm force refund to at least {len(whales)} participants using {bidder_address}?", abort=True)
 
         force_refund_receipt = bidder.force_refund()
         emitter.echo(WHALE_WARNING.format(number=len(whales)), color='green')
