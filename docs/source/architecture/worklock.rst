@@ -33,7 +33,7 @@ Stake-locked NU will be allocated at network launch according to the following p
 
 Finally, if WorkLock participants use that stake-locked NU to run a node and provide threshold cryptography services on the live network for a minimum of six months,
 the NU will subsequently unlock and their temporarily escrowed ETH will be returned in full.
-Participants that fail to successfully run a NuCypher network node for six months of the live network will not receive NU and their ETH will remain escrowed in the
+Participants that fail to successfully run a NuCypher network node for six months of the live network will not receive stake-rewarded NU and their ETH will remain escrowed in the
 WorkLock contract.
 
 

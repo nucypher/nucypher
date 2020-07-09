@@ -59,7 +59,7 @@ The following is an example output of the ``status`` command (hypothetical value
 
     Escrow (Closed)
     ------------------------------------------------------
-    Allocations Available ...... Yes
+    Allocations Available . Yes
     Start Date ............ 2020-03-25 00:00:00+00:00
     End Date .............. 2020-03-31 23:59:59+00:00
     Duration .............. 6 days, 23:59:59
@@ -78,7 +78,7 @@ The following is an example output of the ``status`` command (hypothetical value
     Participation
     ------------------------------------------------------
     Lot Size .............. 280000000 NU
-    Min. Allowed Escrow ...... 15 ETH
+    Min. Allowed Escrow ... 15 ETH
     Participants .......... 1000
     ETH Supply ............ 50000 ETH
     ETH Pool .............. 50000 ETH
@@ -138,11 +138,11 @@ The following output is an example of what is included when ``--participant-addr
 
     WorkLock Participant <PARTICIPANT ADDRESS>
     =====================================================
-    NU Claimed? ...... No
-    Total Escrow ............ 22 ETH
+    NU Claimed? .......... No
+    Total Escrow ......... 22 ETH
         Base ETH ......... 15 ETH
         Bonus ETH ........ 7 ETH
-    NU Allocated ..... 68000 NU
+    NU Allocated ......... 68000 NU
 
     Completed Work ....... 0
     Available Refund ..... 0 ETH
@@ -156,7 +156,7 @@ Alternatively, when the NU has been allocated, the following is an example of th
 
     WorkLock Participant <PARTICIPANT ADDRESS>
     =====================================================
-    NU Claimed? ...... Yes
+    NU Claimed? .......... Yes
     Locked ETH ........... 22 ETH
 
     Completed Work ....... 0
@@ -177,7 +177,7 @@ where,
         Allocation of NU
     - Locked ETH
         Remaining ETH to be unlocked via completion of work
-    - NU Allocated
+    - NU Claimed
         Whether the allocation of NU tokens has been allocated or not
     - Completed Work
         Work already completed by the participant

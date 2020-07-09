@@ -77,7 +77,7 @@ from nucypher.cli.types import DecimalRange, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
 
 option_bidder_address = click.option('--participant-address',
-                                     help="Participants's checksum address.",
+                                     help="Participant's checksum address.",
                                      type=EIP55_CHECKSUM_ADDRESS)
 
 
