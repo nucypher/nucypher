@@ -14,13 +14,13 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from typing import List
 
 import tabulate
 from web3.main import Web3
 
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
-from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import datetime_at_period, prettify_eth_amount
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import POST_STAKING_ADVICE
@@ -30,10 +30,9 @@ STAKE_TABLE_COLUMNS = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination')
 STAKER_TABLE_COLUMNS = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees', 'Min fee rate')
 
 
-def paint_stakes(emitter: StdoutEmitter,
-                 stakeholder: 'StakeHolder',
-                 paint_inactive: bool = False,
-                 staker_address: str = None) -> None:
+def paint_all_stakes(emitter: StdoutEmitter,
+                     stakeholder: 'StakeHolder',
+                     paint_unlocked: bool = False) -> None:
 
     stakers = stakeholder.get_stakers()
     if not stakers:
@@ -46,52 +45,57 @@ def paint_stakes(emitter: StdoutEmitter,
             # TODO: Something with non-staking accounts?
             continue
 
-        # Filter Target
-        if staker_address and staker.checksum_address != staker_address:
-            continue
-
-        stakes = sorted(staker.stakes, key=lambda s: s.address_index_ordering_key)
-        active_stakes = filter(lambda s: s.is_active, stakes)
-        if not active_stakes:
-            emitter.echo(f"There are no active stakes\n")
-
-        fees = staker.policy_agent.get_fee_amount(staker.checksum_address)
-        pretty_fees = prettify_eth_amount(fees)
-        last_committed = staker.staking_agent.get_last_committed_period(staker.checksum_address)
-        missing = staker.missing_commitments
-        min_fee_rate = prettify_eth_amount(staker.min_fee_rate)
-
-        if missing == -1:
-            missing_info = "Never Made a Commitment (New Stake)"
-        else:
-            missing_info = f'Missing {missing} commitments{"s" if missing > 1 else ""}' if missing else f'Committed #{last_committed}'
-
-        staker_data = [missing_info,
-                       f'{"Yes" if staker.is_restaking else "No"} ({"Locked" if staker.restaking_lock_enabled else "Unlocked"})',
-                       "Yes" if bool(staker.is_winding_down) else "No",
-                       pretty_fees,
-                       min_fee_rate]
-
-        line_width = 54
-        if staker.registry.source:  # TODO: #1580 - Registry source might be Falsy in tests.
-            network_snippet = f"\nNetwork {staker.registry.source.network.capitalize()} "
-            snippet_with_line = network_snippet + '═'*(line_width-len(network_snippet)+1)
-            emitter.echo(snippet_with_line, bold=True)
-        emitter.echo(f"Staker {staker.checksum_address} ════", bold=True, color='red' if missing else 'green')
-        emitter.echo(f"Worker {staker.worker_address} ════")
-        emitter.echo(tabulate.tabulate(zip(STAKER_TABLE_COLUMNS, staker_data), floatfmt="fancy_grid"))
-
-        rows = list()
-        for index, stake in enumerate(stakes):
-            if not stake.is_active and not paint_inactive:
-                # This stake is inactive.
-                continue
-            rows.append(list(stake.describe().values()))
+        paint_stakes(emitter=emitter, staker=staker, paint_unlocked=paint_unlocked)
         total_stakers += 1
-        emitter.echo(tabulate.tabulate(rows, headers=STAKE_TABLE_COLUMNS, tablefmt="fancy_grid"))  # newline
 
     if not total_stakers:
         emitter.echo("No Stakes found", color='red')
+
+
+def paint_stakes(emitter: StdoutEmitter,
+                 staker: 'Staker',
+                 stakes: List[Stake] = None,
+                 paint_unlocked: bool = False) -> None:
+
+    stakes = stakes or staker.sorted_stakes()
+
+    fees = staker.policy_agent.get_fee_amount(staker.checksum_address)
+    pretty_fees = prettify_eth_amount(fees)
+    last_committed = staker.staking_agent.get_last_committed_period(staker.checksum_address)
+    missing = staker.missing_commitments
+    min_fee_rate = prettify_eth_amount(staker.min_fee_rate)
+
+    if missing == -1:
+        missing_info = "Never Made a Commitment (New Stake)"
+    else:
+        missing_info = f'Missing {missing} commitments{"s" if missing > 1 else ""}' if missing else f'Committed #{last_committed}'
+
+    staker_data = [missing_info,
+                   f'{"Yes" if staker.is_restaking else "No"} ({"Locked" if staker.restaking_lock_enabled else "Unlocked"})',
+                   "Yes" if bool(staker.is_winding_down) else "No",
+                   pretty_fees,
+                   min_fee_rate]
+
+    line_width = 54
+    if staker.registry.source:  # TODO: #1580 - Registry source might be Falsy in tests.
+        network_snippet = f"\nNetwork {staker.registry.source.network.capitalize()} "
+        snippet_with_line = network_snippet + '═'*(line_width-len(network_snippet)+1)
+        emitter.echo(snippet_with_line, bold=True)
+    emitter.echo(f"Staker {staker.checksum_address} ════", bold=True, color='red' if missing else 'green')
+    emitter.echo(f"Worker {staker.worker_address} ════")
+    emitter.echo(tabulate.tabulate(zip(STAKER_TABLE_COLUMNS, staker_data), floatfmt="fancy_grid"))
+
+    rows = list()
+    for index, stake in enumerate(stakes):
+        if stake.status().is_child(Stake.Status.UNLOCKED) and not paint_unlocked:
+            # This stake is unlocked.
+            continue
+        rows.append(list(stake.describe().values()))
+
+    if not rows:
+        emitter.echo(f"There are no locked stakes\n")
+
+    emitter.echo(tabulate.tabulate(rows, headers=STAKE_TABLE_COLUMNS, tablefmt="fancy_grid"))  # newline
 
 
 def prettify_stake(stake, index: int = None) -> str:
@@ -103,7 +107,6 @@ def prettify_stake(stake, index: int = None) -> str:
 
     pretty = f'| {index if index is not None else "-"} ' \
              f'| {stake.staker_address[:6]} ' \
-             f'| {stake.worker_address[:6]} ' \
              f'| {stake.index} ' \
              f'| {str(stake.value)} ' \
              f'| {pretty_periods} ' \

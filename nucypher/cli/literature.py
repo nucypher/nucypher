@@ -216,8 +216,6 @@ SUCCESSFUL_SET_MIN_POLICY_RATE = "\nMinimum fee rate {min_rate} successfully set
 
 ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE = "NOTE: Showing divisible stakes only"
 
-NO_DIVISIBLE_STAKES = "No divisible stakes found."
-
 CONFIRM_BROADCAST_STAKE_DIVIDE = "Publish stake division to the blockchain?"
 
 PROMPT_STAKE_EXTEND_VALUE = "Enter number of periods to extend"

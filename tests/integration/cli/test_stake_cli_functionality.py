@@ -30,6 +30,7 @@ from nucypher.cli.literature import (
     PROMPT_STAKE_EXTEND_VALUE, CONFIRM_BROADCAST_STAKE_DIVIDE, SUCCESSFUL_STAKE_DIVIDE
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.types import SubStakeInfo
 from tests.constants import MOCK_PROVIDER_URI, YES, INSECURE_DEVELOPMENT_PASSWORD
 
 
@@ -49,7 +50,8 @@ def surrogate_stakes(mock_staking_agent, token_economics, surrogate_staker):
     duration = token_economics.minimum_locked_periods + 1
     final_period = current_period + duration
     # TODO: Add non divisible, non editable and inactive sub-stakes
-    stakes = [(current_period - 1, final_period - 1, nu), (current_period + 1, final_period, nu)]
+    stakes = [SubStakeInfo(current_period - 1, final_period - 1, nu),
+              SubStakeInfo(current_period + 1, final_period, nu)]
 
     mock_staking_agent.get_current_period.return_value = current_period
 
@@ -74,7 +76,7 @@ def test_stakeholder_configuration(test_emitter, test_registry, mock_testerchain
                                                           network=TEMPORARY_DOMAIN,
                                                           signer_uri=None)
 
-    mock_staking_agent.get_all_stakes.return_value = [(1, 2, 3)]
+    mock_staking_agent.get_all_stakes.return_value = [SubStakeInfo(1, 2, 3)]
     force = False
     selected_index = 0
     selected_account = mock_testerchain.client.accounts[selected_index]
@@ -449,7 +451,7 @@ def test_divide_interactive(click_runner,
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     selected_index = 0
-    sub_stake_index = 1
+    sub_stake_index = len(surrogate_stakes) - 1
     lock_periods = 10
     min_allowed_locked = token_economics.minimum_allowed_locked
     target_value = min_allowed_locked
@@ -496,7 +498,7 @@ def test_divide_non_interactive(click_runner,
                                 mock_testerchain):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
-    sub_stake_index = 1
+    sub_stake_index = len(surrogate_stakes) - 1
     lock_periods = 10
     min_allowed_locked = token_economics.minimum_allowed_locked
     target_value = min_allowed_locked

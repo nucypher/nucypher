@@ -113,3 +113,4 @@ def test_stake_integration(stakers):
     published_stake_info = list(blockchain_stakes)[0]
     assert stake_info == published_stake_info
     assert stake_info == stake.to_stake_info()
+    assert stake.status() == Stake.Status.DIVISIBLE

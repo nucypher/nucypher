@@ -24,7 +24,7 @@ from nucypher.blockchain.eth.events import EventRecord
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
 from nucypher.blockchain.eth.signers import ClefSigner
-from nucypher.blockchain.eth.token import NU, StakeList
+from nucypher.blockchain.eth.token import NU, StakeList, Stake
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.configure import get_or_update_configuration, handle_missing_configuration_file
@@ -89,7 +89,7 @@ from nucypher.cli.painting.staking import (
     paint_staged_stake_division,
     paint_stakes,
     paint_staking_accounts,
-    paint_staking_confirmation
+    paint_staking_confirmation, paint_all_stakes
 )
 from nucypher.cli.painting.status import paint_preallocation_status
 from nucypher.cli.painting.transactions import paint_receipt_summary
@@ -315,13 +315,13 @@ def config(general_config, config_file, config_options):
 @stake.command('list')
 @group_staker_options
 @option_config_file
-@click.option('--all', help="List all stakes, including inactive", is_flag=True)
+@click.option('--all', help="List all stakes, including unlocked", is_flag=True)
 @group_general_config
 def list_stakes(general_config, staker_options, config_file, all):
     """List active stakes for current stakeholder."""
     emitter = setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
-    paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER, paint_inactive=all)
+    paint_all_stakes(emitter=emitter, stakeholder=STAKEHOLDER, paint_unlocked=all)
 
 
 @stake.command()
@@ -658,13 +658,10 @@ def divide(general_config, transacting_staker_options, config_file, force, value
     min_locked = economics.minimum_allowed_locked
     stake_value_range = click.FloatRange(min=NU.from_nunits(min_locked).to_tokens(), clamp=False)
 
-    if transacting_staker_options.staker_options.staking_address and index is not None:  # 0 is valid.
+    if index is not None:  # 0 is valid.
         current_stake = STAKEHOLDER.stakes[index]
     else:
-        current_stake = select_stake(stakeholder=STAKEHOLDER,
-                                     emitter=emitter,
-                                     divisible=True,
-                                     staker_address=client_account)
+        current_stake = select_stake(staker=STAKEHOLDER, emitter=emitter, stakes_status=Stake.Status.DIVISIBLE)
 
     #
     # Stage Stake
@@ -715,7 +712,7 @@ def divide(general_config, transacting_staker_options, config_file, force, value
                           chain_name=blockchain.client.chain_name)
 
     # Show the resulting stake list
-    paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER)
+    paint_stakes(emitter=emitter, staker=STAKEHOLDER)
 
 
 @stake.command()
@@ -744,10 +741,10 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
         force=force)
 
     # Handle stake update and selection
-    if transacting_staker_options.staker_options.staking_address and index is not None:  # 0 is valid.
+    if index is not None:  # 0 is valid.
         current_stake = STAKEHOLDER.stakes[index]
     else:
-        current_stake = select_stake(stakeholder=STAKEHOLDER, emitter=emitter)
+        current_stake = select_stake(staker=STAKEHOLDER, emitter=emitter)
 
     #
     # Prolong
@@ -782,7 +779,7 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
     # Report
     emitter.echo(SUCCESSFUL_STAKE_PROLONG, color='green', verbosity=1)
     paint_receipt_summary(emitter=emitter, receipt=receipt, chain_name=blockchain.client.chain_name)
-    paint_stakes(emitter=emitter, stakeholder=STAKEHOLDER)
+    paint_stakes(emitter=emitter, staker=STAKEHOLDER)
 
 
 @stake.command('collect-reward')

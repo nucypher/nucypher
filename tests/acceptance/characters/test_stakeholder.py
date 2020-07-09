@@ -63,7 +63,7 @@ def test_initialize_stake_with_existing_account(testerchain,
                                                 token_economics,
                                                 test_registry):
 
-    assert len(software_stakeholder.all_stakes) == 0
+    assert len(software_stakeholder.stakes) == 0
 
     # No Stakes
     with pytest.raises(IndexError):
@@ -83,7 +83,7 @@ def test_initialize_stake_with_existing_account(testerchain,
     testerchain.time_travel(periods=1)
 
     # Ensure the stakeholder is tracking the new staker and stake.
-    assert len(software_stakeholder.all_stakes) == 1
+    assert len(software_stakeholder.stakes) == 1
 
     # Ensure common stake perspective between stakeholder and stake
     assert stake.value == stake_value

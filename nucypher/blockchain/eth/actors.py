@@ -875,31 +875,20 @@ class Staker(NucypherTokenActor):
         """The total number of staked tokens, i.e., tokens locked in the current period."""
         return self.locked_tokens(periods=0)
 
-    @property
-    def active_stakes(self) -> Iterable[Stake]:
-        """Returns active stakes for this staker."""
-        stakes = (stake for stake in self.stakes if stake.is_active)
+    def stakes_filtered_by_status(self, parent_status: Stake.Status) -> Iterable[Stake]:
+        """Returns stakes for this staker which have specified or child status."""
+
+        # Read once from chain and reuse these values
+        staker_info = self.staking_agent.get_staker_info(self.checksum_address)  # TODO related to #1514
+        current_period = self.staking_agent.get_current_period()                 # TODO #1514 this is online only.
+
+        stakes = (stake for stake in self.stakes if stake.status(staker_info, current_period).is_child(parent_status))
         return stakes
 
-    @property
-    def sorted_stakes(self) -> List[Stake]:
-        """Returns a list of active stakes sorted by account wallet index."""
-        stakes = sorted(self.active_stakes, key=lambda s: s.address_index_ordering_key)
-        return stakes
-
-    def __filter_divisible_stakes(self, stake: Stake) -> bool:
-        """
-        Helper function for use as a filtration predicate when determining
-        what constitutes a divisible stake amongst a given iterable of stakes.
-        """
-        min_divisible_stake_value = self.economics.minimum_allowed_locked * 2
-        result = stake.value >= min_divisible_stake_value
-        return result
-
-    @property
-    def divisible_stakes(self) -> List[Stake]:
-        """chop chop"""
-        stakes = list(filter(self.__filter_divisible_stakes, self.stakes))
+    def sorted_stakes(self, parent_status: Stake.Status = None) -> List[Stake]:
+        """Returns a list of filtered stakes sorted by account wallet index."""
+        filtered_stakes = self.stakes_filtered_by_status(parent_status) if parent_status is not None else self.stakes
+        stakes = sorted(filtered_stakes, key=lambda s: s.address_index_ordering_key)
         return stakes
 
     @only_me
@@ -1683,15 +1672,6 @@ class StakeHolder(Staker):
 
         account = self.checksum_address if not self.individual_allocation else self.beneficiary_address
         self.wallet.activate_account(checksum_address=account, password=password)
-
-    @property
-    def all_stakes(self) -> list:
-        stakes = list()
-        for account in self.wallet.accounts:
-            more_stakes = StakeList(registry=self.registry, checksum_address=account)
-            more_stakes.refresh()
-            stakes.extend(more_stakes)
-        return stakes
 
     @validate_checksum_address
     def get_staker(self, checksum_address: str):
