@@ -64,7 +64,7 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(federated_alic
     assert map_id_by_bob == treasure_map_as_set_on_network.public_id()
 
 
-def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_federated_policy, federated_ursulas):
+def test_bob_can_retrieve_the_treasure_map_and_decrypt_it(enacted_federated_policy, federated_ursulas):
     """
     Above, we showed that the TreasureMap saved on the network is the correct one for Bob.  Here, we show
     that Bob can retrieve it with only the information about which he is privy pursuant to the PolicyGroup.
