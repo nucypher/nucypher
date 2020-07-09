@@ -1663,7 +1663,7 @@ class StakeHolder(Staker):
         else:
             new_form = self.checksum_address
 
-        self.log.info(f"Resistance is futile - Assimilating Staker {original_form} -> {new_form}.")
+        self.log.info(f"Setting Staker from {original_form} to {new_form}.")
 
     @validate_checksum_address
     def assimilate(self, checksum_address: str = None, password: str = None) -> None:

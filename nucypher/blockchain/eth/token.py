@@ -270,6 +270,15 @@ class Stake:
     #
 
     def status(self, staker_info: StakerInfo = None, current_period: Period = None) -> Status:
+        """
+        Returns status of sub-stake:
+        UNLOCKED - final period in the past
+        INACTIVE - UNLOCKED and sub-stake will not be included in any future calculations
+        LOCKED - sub-stake is still locked and final period is current period
+        EDITABLE - LOCKED and final period greater than current
+        DIVISIBLE - EDITABLE and locked value is greater than two times the minimum allowed locked
+        """
+
         if self._status:
             return self._status
 
@@ -527,7 +536,7 @@ class Stake:
         self.sync()
         status = self.status()
         if not status.is_child(Stake.Status.EDITABLE):
-            raise self.StakingError(f'Cannot divide a not editable stake. '
+            raise self.StakingError(f'Cannot prolong a non-editable stake. '
                                     f'Selected stake expired {self.unlock_datetime}.')
         receipt = self.staking_agent.prolong_stake(staker_address=self.staker_address,
                                                    stake_index=self.index,
