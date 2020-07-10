@@ -276,6 +276,8 @@ class Learner:
                                                       federated_only=self.federated_only)  # TODO: 466
             if seed_node is False:
                 self.unresponsive_seed_nodes.add(seednode_metadata)
+            elif seed_node is UNKNOWN_VERSION:
+                continue  # TODO: Bucket this?  We already emitted a warning.
             else:
                 self.unresponsive_seed_nodes.discard(seednode_metadata)
                 new_node = self.remember_node(seed_node, record_fleet_state=False)
