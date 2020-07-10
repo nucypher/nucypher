@@ -760,30 +760,31 @@ class Learner:
                 self.log.info(f"Verification Failed - "
                               f"Cannot establish connection to {sprout}.")
 
-            except sprout.StampNotSigned:
-                self.log.warn(f'Verification Failed - '
-                              f'{sprout} stamp is unsigned.')
-
-            except sprout.NotStaking:
-                self.log.warn(f'Verification Failed - '
-                              f'{sprout} has no active stakes in the current period '
-                              f'({self.staking_agent.get_current_period()}')
-
-            except sprout.InvalidWorkerSignature:
-                self.log.warn(f'Verification Failed - '
-                              f'{sprout} has an invalid wallet signature for {sprout.decentralized_identity_evidence}')
-
-            except sprout.UnbondedWorker:
-                self.log.warn(f'Verification Failed - '
-                              f'{sprout} is not bonded to a Staker.')
-
-            except sprout.Invalidsprout:
-                self.log.warn(sprout.invalid_metadata_message.format(sprout))
-
-            except sprout.SuspiciousActivity:
-                message = f"Suspicious Activity: Discovered sprout with bad signature: {sprout}." \
-                          f"Propagated by: {current_teacher}"
-                self.log.warn(message)
+            # TODO: This whole section is weird; sprouts down have any of these things.
+            # except sprout.StampNotSigned:
+            #     self.log.warn(f'Verification Failed - '
+            #                   f'{sprout} stamp is unsigned.')
+            #
+            # except sprout.NotStaking:
+            #     self.log.warn(f'Verification Failed - '
+            #                   f'{sprout} has no active stakes in the current period '
+            #                   f'({self.staking_agent.get_current_period()}')
+            #
+            # except sprout.InvalidWorkerSignature:
+            #     self.log.warn(f'Verification Failed - '
+            #                   f'{sprout} has an invalid wallet signature for {sprout.decentralized_identity_evidence}')
+            #
+            # except sprout.UnbondedWorker:
+            #     self.log.warn(f'Verification Failed - '
+            #                   f'{sprout} is not bonded to a Staker.')
+            #
+            # # except sprout.Invalidsprout:
+            # #     self.log.warn(sprout.invalid_metadata_message.format(sprout))
+            #
+            # except sprout.SuspiciousActivity:
+            #     message = f"Suspicious Activity: Discovered sprout with bad signature: {sprout}." \
+            #               f"Propagated by: {current_teacher}"
+            #     self.log.warn(message)
 
 
         # Is cycling happening in the right order?
