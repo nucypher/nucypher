@@ -58,7 +58,7 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
             raise RuntimeError(
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
 
-    def parse_node_or_host_and_port(self, node, host, port):
+    def parse_node_or_host_and_port(self, node=None, host=None, port=None):
         if node:
             if any((host, port)):
                 raise ValueError("Don't pass host and port if you are passing the node.")
