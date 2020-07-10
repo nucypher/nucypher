@@ -543,3 +543,6 @@ class Character(Learner):
 
         self.controller = controller
         return controller
+
+    def disenchant(self):
+        Learner.stop_learning_loop(self)
