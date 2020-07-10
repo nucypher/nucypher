@@ -28,14 +28,18 @@ from tests.utils.middleware import MockRestMiddleware
 
 
 def test_emit_warning_upon_new_version(lonely_ursula_maker, caplog):
-    teacher, learner, new_node = lonely_ursula_maker(quantity=3)
+    seed_node, teacher, new_node = lonely_ursula_maker(quantity=3,
+                                                       domains={"no hardcodes"},
+                                                       know_each_other=True)
+    learner, _bystander = lonely_ursula_maker(quantity=2, domains={"no hardcodes"})
 
+    learner.learning_domains = {"no hardcodes"}
     learner.remember_node(teacher)
     teacher.remember_node(learner)
     teacher.remember_node(new_node)
 
-    new_node.TEACHER_VERSION = learner.LEARNER_VERSION + 1
-
+    learner._seed_nodes = [seed_node.seed_node_metadata()]
+    seed_node.TEACHER_VERSION = learner.LEARNER_VERSION + 1
     warnings = []
 
     def warning_trapper(event):
@@ -44,20 +48,19 @@ def test_emit_warning_upon_new_version(lonely_ursula_maker, caplog):
 
     globalLogPublisher.addObserver(warning_trapper)
 
-
     # First we'll get a warning, because we're loading a seednode with a version from the future.
     learner.load_seednodes()
     assert len(warnings) == 1
-    assert warnings[0]['log_format'] == learner.unknown_version_message.format(new_node,
-                                                                               new_node.TEACHER_VERSION,
+    assert warnings[0]['log_format'] == learner.unknown_version_message.format(seed_node,
+                                                                               seed_node.TEACHER_VERSION,
                                                                                learner.LEARNER_VERSION)
 
     # We don't use the above seednode as a teacher, but when our teacher tries to tell us about it, we get another of the same warning.
     learner.learn_from_teacher_node()
 
     assert len(warnings) == 2
-    assert warnings[1]['log_format'] == learner.unknown_version_message.format(new_node,
-                                                                               new_node.TEACHER_VERSION,
+    assert warnings[1]['log_format'] == learner.unknown_version_message.format(seed_node,
+                                                                               seed_node.TEACHER_VERSION,
                                                                                learner.LEARNER_VERSION)
 
     # Now let's go a little further: make the version totally unrecognizable.
