@@ -211,7 +211,7 @@ def bob_blockchain_test_config(blockchain_ursulas, testerchain, test_registry):
                                          provider_uri=TEST_PROVIDER_URI,
                                          test_registry=test_registry,
                                          checksum_address=testerchain.bob_account,
-                                         known_nodes=blockchain_ursulas)
+                                         )
     yield config
     config.cleanup()
 
