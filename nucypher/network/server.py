@@ -38,7 +38,8 @@ from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.datastore.datastore import Datastore, RecordNotFound, DatastoreTransactionError
-from nucypher.datastore.models import PolicyArrangement, Workorder
+from nucypher.datastore.keypairs import HostingKeypair
+from nucypher.datastore.models import PolicyArrangement, TreasureMap, Workorder
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
@@ -335,19 +336,14 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
     def provide_treasure_map(treasure_map_id):
         headers = {'Content-Type': 'application/octet-stream'}
 
-        treasure_map_index = bytes.fromhex(treasure_map_id)
-
         try:
-
-            treasure_map = this_node.treasure_maps[treasure_map_index]
-            response = Response(bytes(treasure_map), headers=headers)
-            log.info("{} providing TreasureMap {}".format(this_node.nickname, treasure_map_id))
-
-        except KeyError:
+            with datastore.describe(TreasureMap, treasure_map_id) as stored_treasure_map:
+                response = Response(stored_treasure_map.treasure_map, headers=headers)
+                log.info("{} providing TreasureMap {}".format(this_node.nickname, treasure_map_id))
+        except RecordNotFound:
             log.info("{} doesn't have requested TreasureMap {}".format(this_node.stamp, treasure_map_id))
             response = Response("No Treasure Map with ID {}".format(treasure_map_id),
                                 status=404, headers=headers)
-
         return response
 
     @rest_app.route('/treasure_map/<treasure_map_id>', methods=['POST'])
@@ -358,42 +354,46 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
         else:
             from nucypher.policy.collections import TreasureMap as _MapClass
 
+        # Okay, so we've received a TreasureMap to store. We begin verifying
+        # the treasure map by first validating the request and the received
+        # treasure map itself.
         try:
-            treasure_map = _MapClass.from_bytes(bytes_representation=request.data, verify=True)
+            # Step 1: First, we verify the signature of the received treasure map.
+            # This step also deserializes the treasure map iff it's signed correctly.
+            received_treasure_map = _MapClass.from_bytes(bytes_representation=request.data, verify=True)
         except _MapClass.InvalidSignature:
             log.info("Bad TreasureMap HRAC Signature; not storing {}".format(treasure_map_id))
             return Response("This TreasureMap's HRAC is not properly signed.", status=401)
 
-        treasure_map_index = bytes.fromhex(treasure_map_id)
-
-        # First let's see if we already have this map.
-
-        try:
-            previously_saved_map = this_node.treasure_maps[treasure_map_index]
-        except KeyError:
-            pass # We don't have the map.  We'll validate and perhaps save it.
-        else:
-            if previously_saved_map == treasure_map:
-                return Response("Already have this map.", status=303)
-                # Otherwise, if it's a different map with the same ID, we move on to validation.
-
-        if treasure_map.public_id() == treasure_map_id:
-            do_store = True
-        else:
+        # Step 2: Next, we check that the received treasure map ID matches the request ID.
+        if not received_treasure_map.public_id() == treasure_map_id:
             return Response("Can't save a TreasureMap with this ID from you.", status=409)
 
-        if do_store and not this_node.federated_only:
-            alice_checksum_address = this_node.policy_agent.contract.functions.getPolicyOwner(
-                treasure_map._hrac[:16]).call()
-            do_store = treasure_map.verify_blockchain_signature(checksum_address=alice_checksum_address)
+        # Okie dokie, looks like the request is valid. Let's continue with
+        # further verification and datastore operations!
+        try:
+            # Step 3: Check if we already have the treasure map in our datastore.
+            with datastore.describe(TreasureMap, treasure_map_id) as stored_treasure_map:
+                if _MapClass.from_bytes(stored_treasure_map.treasure_map) == received_treasure_map:
+                    return Response("Already have this map.", status=303)
+        except RecordNotFound:
+            # This appears to be a new treasure map that we don't have!
+            pass
 
-        if do_store:
+        # Step 4: If the node is decentralized, we check that the received
+        # treasure map is actually from Alice via the blockchain.
+        if not this_node.federated_only:
+            alice_checksum_address = this_node.policy_agent.contract.functions.getPolicyOwner(
+                received_treasure_map._hrac[:16]).call()
+            if not received_treasure_map.verify_blockchain_signature(checksum_address=alice_checksum_address):
+                log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
+                return Response("This TreasureMap doesn't match a paid Policy.", status=402)
+
+        # Step 5: Finally, we store our treasure map!
+        with datastore.describe(TreasureMap, treasure_map_id, writeable=True) as new_treasure_map:
+            new_treasure_map.treasure_map = bytes(received_treasure_map)
             log.info("{} storing TreasureMap {}".format(this_node, treasure_map_id))
-            this_node.treasure_maps[treasure_map_index] = treasure_map
-            return Response(bytes(treasure_map), status=202)
-        else:
-            log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
-            return Response("This TreasureMap doesn't match a paid Policy.", status=402)
+            return Response("Treasure map stored!", status=201)
 
     @rest_app.route('/status/', methods=['GET'])
     def status():
