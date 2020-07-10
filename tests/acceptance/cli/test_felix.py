@@ -66,7 +66,6 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
                  '--registry-filepath', str(agency_local_registry.filepath),
                  '--checksum-address', testerchain.client.accounts[0],
                  '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
-                 '--network', TEMPORARY_DOMAIN,
                  '--provider', TEST_PROVIDER_URI)
     _original_read_function = LocalContractRegistry.read
 
