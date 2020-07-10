@@ -243,25 +243,26 @@ class Learner:
         if self.done_seeding:
             raise RuntimeError("Already finished seeding.  Why try again?  Is this a thread safety problem?")
 
-        canonical_sage_uris = self.network_middleware.TEACHER_NODES.get(tuple(self.learning_domains)[0], ())  # TODO: Are we done with multiple domains?
-
         discovered = []
 
-        for uri in canonical_sage_uris:
-            try:
-                maybe_sage_node = self.node_class.from_teacher_uri(teacher_uri=uri,
-                                                       min_stake=0,  # TODO: Where to get this?
-                                                       federated_only=self.federated_only,
-                                                       network_middleware=self.network_middleware,
-                                                       registry=self.registry)
-            except NodeSeemsToBeDown:
-                self.unresponsive_seed_nodes.add(uri)
-            else:
-                if maybe_sage_node is UNKNOWN_VERSION:
-                    continue
+        if self.learning_domains:
+            canonical_sage_uris = self.network_middleware.TEACHER_NODES.get(tuple(self.learning_domains)[0], ())  # TODO: Are we done with multiple domains?
+
+            for uri in canonical_sage_uris:
+                try:
+                    maybe_sage_node = self.node_class.from_teacher_uri(teacher_uri=uri,
+                                                           min_stake=0,  # TODO: Where to get this?
+                                                           federated_only=self.federated_only,
+                                                           network_middleware=self.network_middleware,
+                                                           registry=self.registry)
+                except NodeSeemsToBeDown:
+                    self.unresponsive_seed_nodes.add(uri)
                 else:
-                    new_node = self.remember_node(maybe_sage_node, record_fleet_state=False)
-                    discovered.append(new_node)
+                    if maybe_sage_node is UNKNOWN_VERSION:
+                        continue
+                    else:
+                        new_node = self.remember_node(maybe_sage_node, record_fleet_state=False)
+                        discovered.append(new_node)
 
         for seednode_metadata in self._seed_nodes:
 
