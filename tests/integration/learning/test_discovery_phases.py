@@ -128,6 +128,18 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
     """
     Large-scale map placement with a middleware that simulates network latency.
     """
+    # The nodes who match the map distribution criteria.
+    nodes_we_expect_to_have_the_map = highperf_mocked_bob.matching_nodes_among(highperf_mocked_alice.known_nodes)
+
+
+    preparation_started = datetime.now()
+    for node in nodes_we_expect_to_have_the_map:
+        node.mature()
+    maturation_time = datetime.now() - preparation_started
+
+    # # # Loop through and instantiate actual rest apps so as not to pollute the time measurement (doesn't happen in real world).
+    for node in nodes_we_expect_to_have_the_map:
+        highperf_mocked_alice.network_middleware.client.parse_node_or_host_and_port(node)  # Causes rest app to be made (happens JIT in other testS)
 
     highperf_mocked_alice.network_middleware = SluggishLargeFleetMiddleware()
 
@@ -136,9 +148,6 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
     started = datetime.now()
 
     with patch('umbral.keys.UmbralPublicKey.__eq__', lambda *args, **kwargs: True), mock_metadata_validation:
-        # The nodes who match the map distribution criteria.
-        nodes_we_expect_to_have_the_map = highperf_mocked_bob.matching_nodes_among(highperf_mocked_alice.known_nodes)
-
         # returns instantly.
         policy.publish_treasure_map(network_middleware=highperf_mocked_alice.network_middleware)
 
@@ -193,3 +202,7 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
         # But with debuggers and other processes running on laptops, we give a little leeway.
         assert initial_blocking_duration.total_seconds() < 3
         assert complete_distribution_time.total_seconds() < 10
+
+        # Takes about .8 on jMyles' laptop; still the bulk of init time.
+        # Assuming this is 10 percent of the fleet, that's another 8 second savings for first policy enactment.
+        assert maturation_time.total_seconds() < 2
