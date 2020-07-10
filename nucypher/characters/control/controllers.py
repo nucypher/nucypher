@@ -63,6 +63,7 @@ class CharacterControllerBase(ABC):
         response = method(**params)  # < ---- INLET
 
         response_data = serializer.dump(response)
+        self.stop_character()
         return response_data
 
 
@@ -143,6 +144,9 @@ class CLIController(CharacterControlServer):
         response = self._perform_action(action=method_name, request=request)
         self.emitter.ipc(response=response, request_id=start.epoch, duration=maya.now() - start)
         return response
+
+    def stop_character(self):
+        self.interface.character.disenchant()
 
 
 class JSONRPCController(CharacterControlServer):
