@@ -93,9 +93,9 @@ class MockRestMiddleware(RestMiddleware):
     class TEACHER_NODES:
 
         @classmethod
-        def get(_cls, item, default):
+        def get(_cls, item, _default):
             if item is TEMPORARY_DOMAIN:
-                nodes = tuple(u.rest_url() for u in MOCK_KNOWN_URSULAS_CACHE.values())
+                nodes = tuple(u.rest_url() for u in MOCK_KNOWN_URSULAS_CACHE.values())[0:2]
             else:
                 nodes = tuple()
             return nodes
