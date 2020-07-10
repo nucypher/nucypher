@@ -236,7 +236,7 @@ class Learner:
     def known_nodes(self):
         return self.__known_nodes
 
-    def load_seednodes(self, read_storage: bool = True):
+    def load_seednodes(self, read_storage: bool = True, record_fleet_state=False):
         """
         Engage known nodes from storages and pre-fetch hardcoded seednode certificates for node learning.
 
@@ -293,8 +293,10 @@ class Learner:
 
         discovered.extend(nodes_restored_from_storage)
 
-        if discovered:
+        if discovered and record_fleet_state:
             self.known_nodes.record_fleet_state()
+
+        return discovered
 
 
     def read_nodes_from_storage(self) -> None:
@@ -391,7 +393,6 @@ class Learner:
             return self.learning_deferred
         else:
             self.log.info("Starting Learning Loop.")
-            self.cycle_teacher_node()
 
             learning_deferreds = list()
 
@@ -438,8 +439,6 @@ class Learner:
         self.teacher_nodes.extend(nodes_we_know_about)
 
     def cycle_teacher_node(self):
-        if not self.done_seeding:
-            self.load_seednodes()
         if not self.teacher_nodes:
             self.select_teacher_nodes()
         try:
@@ -651,6 +650,12 @@ class Learner:
 
         TODO: Does this (and related methods) belong on FleetSensor for portability?
         """
+        remembered = []
+
+        if not self.done_seeding:
+            remembered_seednodes = self.load_seednodes(record_fleet_state=False)
+            remembered.extend(remembered_seednodes)
+
         self._learning_round += 1
 
         current_teacher = self.current_teacher_node()  # Will raise if there's no available teacher.
@@ -742,7 +747,7 @@ class Learner:
         # somewhere more performant, like mature() or verify_node().
 
         sprouts = self.node_class.batch_from_bytes(node_payload)
-        remembered = []
+
         for sprout in sprouts:
             fail_fast = True  # TODO  NRN
             try:
