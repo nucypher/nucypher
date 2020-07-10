@@ -145,6 +145,11 @@ class Felix(Character, NucypherTokenActor):
         r = f'{class_name}(checksum_address={self.checksum_address}, db_filepath={self.db_filepath})'
         return r
 
+    def start_learning_loop(self, now=False):
+        """
+        Felix needs to not even be a Learner, but since it is at the moment, it certainly needs not to learn.
+        """
+
     def make_web_app(self):
         from flask import request
         from flask_sqlalchemy import SQLAlchemy
