@@ -116,6 +116,9 @@ class CharacterControlServer(CharacterControllerBase):
             if hasattr(method, '_schema')
         }
 
+    def stop_character(self):
+        self.interface.character.disenchant()
+
     @abstractmethod
     def make_control_transport(self):
         return NotImplemented
@@ -144,9 +147,6 @@ class CLIController(CharacterControlServer):
         response = self._perform_action(action=method_name, request=request)
         self.emitter.ipc(response=response, request_id=start.epoch, duration=maya.now() - start)
         return response
-
-    def stop_character(self):
-        self.interface.character.disenchant()
 
 
 class JSONRPCController(CharacterControlServer):
