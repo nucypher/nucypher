@@ -62,9 +62,8 @@ NUCYPHER_SENTRY_ENDPOINT = f"https://{NUCYPHER_SENTRY_PUBLIC_KEY}@sentry.io/{NUC
 # Web
 CLI_ROOT = NUCYPHER_PACKAGE / 'network' / 'templates'
 TEMPLATES_DIR = CLI_ROOT / 'templates'
-TEMPLATES_DIR = os.path.join(abspath(dirname(cli.__file__)), 'templates')
 STATICS_DIR = os.getenv('NUCYPHER_STATICS_DIR') or os.path.join(
-     abspath(dirname(cli.__file__)), 'statics')
+     os.path.abspath(os.path.dirname(__file__)), 'statics')
 MAX_UPLOAD_CONTENT_LENGTH = 1024 * 50
 
 # Dev Mode

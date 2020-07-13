@@ -32,7 +32,6 @@ from nucypher.characters.control.specifications.exceptions import SpecificationE
 from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.exceptions import DevelopmentInstallationRequired
-from nucypher.utilities.controllers import JSONRPCTestClient
 from nucypher.network.protocols import HendrixDeployWithStatics, get_statics
 
 

@@ -44,7 +44,6 @@ from nucypher.characters.base import Character
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH, TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower, TransactingPower
 from nucypher.datastore.threading import ThreadedSession
-from nucypher.network.nodes import FleetStateTracker
 from nucypher.network.server import NonTLSHost
 
 class Felix(Character, NucypherTokenActor, NonTLSHost):
