@@ -17,7 +17,6 @@ from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORAR
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, TEST_PROVIDER_URI
-from tests.utils.ursula import start_pytest_ursula_services
 
 PLAINTEXT = "I'm bereaved, not a sap!"
 

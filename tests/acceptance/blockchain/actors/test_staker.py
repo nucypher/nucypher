@@ -21,6 +21,7 @@ from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.token import NU, Stake
+from nucypher.crypto.powers import TransactingPower
 from tests.constants import FEE_RATE_RANGE, INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.ursula import make_decentralized_ursulas
 
@@ -146,7 +147,8 @@ def test_staker_collects_staking_reward(testerchain,
     # ...wait out the lock period...
     for _ in range(token_economics.minimum_locked_periods):
         testerchain.time_travel(periods=1)
-        ursula.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
+        transacting_power = ursula._crypto_power.power_ups(TransactingPower)
+        transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
         ursula.commit_to_next_period()
 
     # ...wait more...
