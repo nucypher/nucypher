@@ -1624,7 +1624,7 @@ class Enrico(Character):
 
         # Encrico never uses the blockchain, hence federated_only)
         kwargs['federated_only'] = True
-        kwargs['known_node_class'] = Ursula
+        kwargs['known_node_class'] = None
         super().__init__(*args, **kwargs)
 
         if controller:
@@ -1657,6 +1657,11 @@ class Enrico(Character):
         if not self._policy_pubkey:
             raise TypeError("This Enrico doesn't know which policy encrypting key he used.  Oh well.")
         return self._policy_pubkey
+
+    def _set_known_node_class(self, *args, **kwargs):
+        """
+        Enrico doesn't init nodes, so it doesn't care what class they are.
+        """
 
     def make_web_controller(drone_enrico, crash_on_error: bool = False):
 
