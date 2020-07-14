@@ -29,7 +29,6 @@ from tests.utils.solidity import get_array_data_location, get_mapping_entry_loca
 LOCK_RE_STAKE_UNTIL_PERIOD_FIELD = 4
 
 
-@pytest.mark.slow
 def test_upgrading(testerchain, token, token_economics, deploy_contract):
     creator = testerchain.client.accounts[0]
     staker = testerchain.client.accounts[1]
@@ -208,7 +207,6 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     assert creator == event_args['sender']
 
 
-@pytest.mark.slow
 def test_flags(testerchain, token, escrow_contract):
     escrow = escrow_contract(100, disable_reward=True)
     creator = testerchain.client.accounts[0]
@@ -281,7 +279,6 @@ def test_flags(testerchain, token, escrow_contract):
     assert not event_args['snapshotsEnabled']
 
 
-@pytest.mark.slow
 def test_re_stake(testerchain, token, escrow_contract):
     escrow = escrow_contract(10000)
     creator = testerchain.client.accounts[0]
@@ -558,7 +555,6 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
 
 
-@pytest.mark.slow
 def test_worker(testerchain, token, escrow_contract, deploy_contract):
     escrow = escrow_contract(10000, disable_reward=True)
     creator, staker1, staker2, ursula3, worker1, worker2, worker3, *everyone_else = \
@@ -801,7 +797,6 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
         testerchain.wait_for_receipt(tx)
 
 
-@pytest.mark.slow
 def test_measure_work(testerchain, token, escrow_contract, deploy_contract):
     escrow = escrow_contract(10000)
     creator, staker, *everyone_else = testerchain.w3.eth.accounts
@@ -895,7 +890,6 @@ def test_measure_work(testerchain, token, escrow_contract, deploy_contract):
     assert escrow.functions.getCompletedWork(staker).call() == work_done
 
 
-@pytest.mark.slow
 def test_wind_down(testerchain, token, escrow_contract, token_economics):
     escrow = escrow_contract(token_economics.maximum_allowed_locked)
     creator = testerchain.client.accounts[0]
@@ -1168,7 +1162,6 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     check_last_period()
 
 
-@pytest.mark.slow
 def test_snapshots(testerchain, token, escrow_contract):
 
     # HELPER FUNCTIONS #

@@ -38,7 +38,7 @@ values = (0x000000000000000000000000,
           0xffff00000000000000000001)
 
 
-@pytest.mark.slow
+
 @pytest.mark.parametrize('block_number, value', itertools.product(timestamps, values))
 def test_snapshot(testerchain, snapshot, block_number, value):
 

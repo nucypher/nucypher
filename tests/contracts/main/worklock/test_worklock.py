@@ -87,7 +87,6 @@ def do_bids(testerchain, worklock, bidders, amount):
         testerchain.wait_for_receipt(tx)
 
 
-@pytest.mark.slow
 def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, worklock_factory):
     creator, staker1, staker2, staker3, staker4, *everyone_else = testerchain.w3.eth.accounts
     gas_to_save_state = 30000
@@ -676,7 +675,6 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
         testerchain.wait_for_receipt(tx)
 
 
-@pytest.mark.slow
 def test_reentrancy(testerchain, token_economics, deploy_contract, escrow, worklock_factory):
     # Deploy WorkLock
     boosting_refund = 100
@@ -769,7 +767,6 @@ def test_reentrancy(testerchain, token_economics, deploy_contract, escrow, workl
     assert len(refund_log.get_all_entries()) == 0
 
 
-@pytest.mark.slow
 def test_verifying_correctness(testerchain, token_economics, escrow, deploy_contract, worklock_factory):
     creator, bidder1, bidder2, bidder3, *everyone_else = testerchain.w3.eth.accounts
     gas_to_save_state = 30000
@@ -888,7 +885,6 @@ def test_verifying_correctness(testerchain, token_economics, escrow, deploy_cont
     assert event_args['endIndex'] == 3
 
 
-@pytest.mark.slow
 def test_force_refund(testerchain, token_economics, deploy_contract, worklock_factory, token):
     creator, *bidders = testerchain.w3.eth.accounts
     boosting_refund = 100
@@ -1176,7 +1172,6 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     assert event_args['sender'] == bidder1
 
 
-@pytest.mark.slow
 def test_shutdown(testerchain, token_economics, deploy_contract, worklock_factory, token):
     creator, bidder, *everyone_else = testerchain.w3.eth.accounts
     boosting_refund = 100

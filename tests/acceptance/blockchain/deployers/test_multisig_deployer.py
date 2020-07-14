@@ -22,7 +22,6 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.deployers import MultiSigDeployer
 
 
-@pytest.mark.slow()
 def test_multisig_deployer_and_agent(testerchain,
                                      deployment_progress,
                                      test_registry):

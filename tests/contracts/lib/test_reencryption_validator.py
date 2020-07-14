@@ -34,14 +34,12 @@ def reencryption_validator(testerchain, deploy_contract):
     return contract
 
 
-@pytest.mark.slow
 def test_extended_keccak_to_bn(testerchain, reencryption_validator):
     test_data = os.urandom(40)
     h = hash_to_curvebn(test_data, params=default_params(), hash_class=ExtendedKeccak)
     assert int(h) == reencryption_validator.functions.extendedKeccakToBN(test_data).call()
 
 
-@pytest.mark.slow
 def test_ec_point_operations(testerchain, reencryption_validator):
     valid_point = Point.gen_rand()
     x, y = valid_point.to_affine()
@@ -119,7 +117,6 @@ def test_umbral_constants(testerchain, reencryption_validator):
     assert (secp256k1_field_order - 1) // 2 == reencryption_validator.functions.MINUS_ONE_HALF().call()
 
 
-@pytest.mark.slow
 def test_compute_proof_challenge_scalar(testerchain, reencryption_validator, mock_ursula_reencrypts, mocker):
     ursula_privkey = UmbralPrivateKey.gen_key()
     ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
@@ -137,7 +134,6 @@ def test_compute_proof_challenge_scalar(testerchain, reencryption_validator, moc
     assert proof_challenge_scalar == computeProofChallengeScalar(capsule_bytes, cfrag_bytes).call()
 
 
-@pytest.mark.slow
 def test_validate_cfrag(testerchain, reencryption_validator, mock_ursula_reencrypts, mocker):
     ursula_privkey = UmbralPrivateKey.gen_key()
     ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,

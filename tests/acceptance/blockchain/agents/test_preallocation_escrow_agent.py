@@ -115,7 +115,6 @@ def test_read_timestamp(agent):
     assert now < end_locktime, '{} is not in the future!'.format(end_locktime.slang_date())
 
 
-@pytest.mark.slow()
 def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_value, token_economics,
                                         mock_transacting_power_activation):
     token_agent, staking_agent, policy_agent = agency

@@ -37,7 +37,6 @@ number_of_periods = 10
 value = rate * number_of_periods
 
 
-@pytest.mark.slow
 def test_fee(testerchain, escrow, policy_manager):
     creator, policy_sponsor, bad_node, node1, node2, node3, *everyone_else = testerchain.client.accounts
     node_balance = testerchain.client.get_balance(node1)
@@ -159,7 +158,6 @@ def test_fee(testerchain, escrow, policy_manager):
     assert len(warn_log.get_all_entries()) == 0
 
 
-@pytest.mark.slow
 def test_refund(testerchain, escrow, policy_manager):
     creator, policy_creator, bad_node, node1, node2, node3, policy_owner, *everyone_else = testerchain.client.accounts
 
@@ -542,7 +540,6 @@ def test_refund(testerchain, escrow, policy_manager):
     assert len(warn_log.get_all_entries()) == 0
 
 
-@pytest.mark.slow
 def test_reentrancy(testerchain, escrow, policy_manager, deploy_contract):
     withdraw_log = policy_manager.events.Withdrawn.createFilter(fromBlock='latest')
     arrangement_revoked_log = policy_manager.events.ArrangementRevoked.createFilter(fromBlock='latest')

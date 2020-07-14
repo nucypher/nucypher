@@ -93,7 +93,6 @@ def deploy_earliest_contract(blockchain_interface: BlockchainDeployerInterface,
         pass  # Skip errors related to initialization
 
 
-@pytest.mark.slow
 def test_upgradeability(temp_dir_path, token_economics):
     # Prepare remote source for compilation
     download_github_dir(GITHUB_SOURCE_LINK, temp_dir_path)

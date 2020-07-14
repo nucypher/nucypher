@@ -78,7 +78,7 @@ Optionally, to run the full, slow, verbose test suite run:
 
 .. code:: bash
 
-  (nucypher)$ pytest --runslow -s
+  (nucypher)$ pytest
 
 
 Making a Commit

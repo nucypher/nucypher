@@ -39,7 +39,6 @@ def mock_ursula(testerchain, account, mocker):
     return ursula
 
 
-@pytest.mark.slow()
 def test_adjudicator_slashes(agency,
                              testerchain,
                              mock_ursula_reencrypts,

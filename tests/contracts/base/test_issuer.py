@@ -32,7 +32,6 @@ def token(testerchain, deploy_contract):
     return token
 
 
-@pytest.mark.slow
 def test_issuer(testerchain, token, deploy_contract):
     economics = BaseEconomics(initial_supply=INITIAL_SUPPLY,
                               first_phase_supply=INITIAL_SUPPLY + 1000,
@@ -191,7 +190,6 @@ def test_issuer(testerchain, token, deploy_contract):
     assert balance - reward == token.functions.balanceOf(issuer.address).call()
 
 
-@pytest.mark.slow
 def test_issuance_first_phase(testerchain, token, deploy_contract):
     """
     Checks stable issuance in the first phase
@@ -293,7 +291,6 @@ def test_issuance_first_phase(testerchain, token, deploy_contract):
     assert reward - one_period == issuer.functions.getReservedReward().call()
 
 
-@pytest.mark.slow
 def test_issuance_second_phase(testerchain, token, deploy_contract):
     """
     Check for decreasing of issuance after minting in the second phase.
@@ -388,7 +385,6 @@ def test_issuance_second_phase(testerchain, token, deploy_contract):
     assert reward + one_period + 2 * minted_amount == issuer.functions.getReservedReward().call()
 
 
-@pytest.mark.slow
 def test_upgrading(testerchain, token, deploy_contract):
     creator = testerchain.client.accounts[0]
 

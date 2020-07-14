@@ -23,7 +23,6 @@ from nucypher.blockchain.eth.deployers import (AdjudicatorDeployer, BaseContract
                                                PolicyManagerDeployer, StakingEscrowDeployer)
 
 
-@pytest.mark.slow()
 def test_deploy_ethereum_contracts(testerchain,
                                    deployment_progress,
                                    test_registry):

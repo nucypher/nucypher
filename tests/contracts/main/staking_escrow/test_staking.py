@@ -23,7 +23,6 @@ from web3.contract import Contract
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
 
-@pytest.mark.slow
 def test_minting(testerchain, token, escrow_contract, token_economics):
 
     escrow = escrow_contract(1500)
@@ -414,7 +413,6 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     assert 4 == escrow.functions.findIndexOfPastDowntime(staker2, current_period + 100).call()
 
 
-@pytest.mark.slow
 def test_slashing(testerchain, token, escrow_contract, token_economics, deploy_contract):
     escrow = escrow_contract(1500)
     adjudicator, _ = deploy_contract(

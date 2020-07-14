@@ -42,7 +42,6 @@ def preallocation_escrow_interface(testerchain, staking_interface, preallocation
         ContractFactoryClass=Contract)
 
 
-@pytest.mark.slow
 def test_escrow(testerchain, token, preallocation_escrow, preallocation_escrow_interface, escrow):
     creator = testerchain.client.accounts[0]
     owner = testerchain.client.accounts[1]
@@ -174,7 +173,6 @@ def test_escrow(testerchain, token, preallocation_escrow, preallocation_escrow_i
     assert event_args['value'] == 900
 
 
-@pytest.mark.slow
 def test_withdraw_eth(testerchain, preallocation_escrow):
     owner = testerchain.client.accounts[1]
     log = preallocation_escrow.events.ETHWithdrawn.createFilter(fromBlock='latest')
@@ -202,7 +200,6 @@ def test_withdraw_eth(testerchain, preallocation_escrow):
         testerchain.wait_for_receipt(tx)
 
 
-@pytest.mark.slow
 def test_receive_approval(testerchain, token, preallocation_escrow, escrow):
     creator = testerchain.client.accounts[0]
     deposits = preallocation_escrow.events.TokensDeposited.createFilter(fromBlock='latest')
@@ -223,7 +220,6 @@ def test_receive_approval(testerchain, token, preallocation_escrow, escrow):
     assert event_args['duration'] == duration
 
 
-@pytest.mark.slow
 def test_reentrancy(testerchain, preallocation_escrow, deploy_contract):
     owner = testerchain.client.accounts[1]
 
