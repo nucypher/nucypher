@@ -57,6 +57,20 @@ class DatastoreKey(NamedTuple):
         return cls(*key_parts)
 
     def compare_key(self, key_bytestring: bytes) -> bool:
+        """
+        This method compares a key to another key given a key's bytestring.
+        Usually, the `key_bytestring` will be a _query key_, and the `self`
+        key will be a key in the `Datastore`.
+
+        The logic below offers precedence when performing matches on a query.
+        We _prefer_ the `other_key` over `self`.
+        As such, if `other_key` doesn't specify a key attr (it will be None),
+        we will take the key attr conferred by `self`.
+
+        Specifically, this allows us to match _partial keys to specific keys_,
+        where the `Datastore` will _always_ return specific keys, but queries
+        will almost always be partial keys.
+        """
         other_key = DatastoreKey.from_bytestring(key_bytestring)
         return self.record_type == (other_key.record_type or self.record_type) and \
                self.record_field == (other_key.record_field or self.record_field) and \
