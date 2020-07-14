@@ -32,6 +32,7 @@ from nucypher.cli.literature import (
     GENERIC_SELECT_ACCOUNT,
     )
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.types import SubStakeInfo
 from tests.constants import MOCK_PROVIDER_URI, MOCK_SIGNER_URI, NUMBER_OF_ETH_TEST_ACCOUNTS
 
 
@@ -156,8 +157,8 @@ def test_select_client_account_valid_sources(mocker,
         (1, True, True, True, []),
         (5, True, True, True, []),
         (NUMBER_OF_ETH_TEST_ACCOUNTS-1, True, True, True, []),
-        (4, True, True, True, [(1, 2, 3)]),
-        (7, True, True, True, [(1, 2, 3), (1, 2, 3)]),
+        (4, True, True, True, [SubStakeInfo(1, 2, 3)]),
+        (7, True, True, True, [SubStakeInfo(1, 2, 3), SubStakeInfo(1, 2, 3)]),
         (0, False, True, True, []),
         (0, False, False, True, []),
         (0, False, False, False, []),

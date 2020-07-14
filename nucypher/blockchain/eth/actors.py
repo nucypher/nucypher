@@ -834,6 +834,9 @@ class Staker(NucypherTokenActor):
         # Check stakes
         self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
 
+    def refresh_stakes(self):
+        self.stakes.refresh()
+
     @property
     def is_contract(self) -> bool:
         return self.preallocation_escrow_agent is not None
@@ -851,7 +854,6 @@ class Staker(NucypherTokenActor):
     @property
     def is_staking(self) -> bool:
         """Checks if this Staker currently has active stakes / locked tokens."""
-        self.stakes.refresh()
         return bool(self.stakes)
 
     def owned_tokens(self) -> NU:
@@ -864,7 +866,6 @@ class Staker(NucypherTokenActor):
 
     def locked_tokens(self, periods: int = 0) -> NU:
         """Returns the amount of tokens this staker has locked for a given duration in periods."""
-        self.stakes.refresh()
         raw_value = self.staking_agent.get_locked_tokens(staker_address=self.checksum_address, periods=periods)
         value = NU.from_nunits(raw_value)
         return value
@@ -874,31 +875,20 @@ class Staker(NucypherTokenActor):
         """The total number of staked tokens, i.e., tokens locked in the current period."""
         return self.locked_tokens(periods=0)
 
-    @property
-    def active_stakes(self) -> Iterable[Stake]:
-        """Returns active stakes for this staker."""
-        stakes = (stake for stake in self.stakes if stake.is_active)
+    def stakes_filtered_by_status(self, parent_status: Stake.Status) -> Iterable[Stake]:
+        """Returns stakes for this staker which have specified or child status."""
+
+        # Read once from chain and reuse these values
+        staker_info = self.staking_agent.get_staker_info(self.checksum_address)  # TODO related to #1514
+        current_period = self.staking_agent.get_current_period()                 # TODO #1514 this is online only.
+
+        stakes = (stake for stake in self.stakes if stake.status(staker_info, current_period).is_child(parent_status))
         return stakes
 
-    @property
-    def sorted_stakes(self) -> List[Stake]:
-        """Returns a list of active stakes sorted by account wallet index."""
-        stakes = sorted(self.active_stakes, key=lambda s: s.address_index_ordering_key)
-        return stakes
-
-    def __filter_divisible_stakes(self, stake: Stake) -> bool:
-        """
-        Helper function for use as a filtration predicate when determining
-        what constitutes a divisible stake amongst a given iterable of stakes.
-        """
-        min_divisible_stake_value = self.economics.minimum_allowed_locked * 2
-        result = stake.value >= min_divisible_stake_value
-        return result
-
-    @property
-    def divisible_stakes(self) -> List[Stake]:
-        """chop chop"""
-        stakes = list(filter(self.__filter_divisible_stakes, self.stakes))
+    def sorted_stakes(self, parent_status: Stake.Status = None) -> List[Stake]:
+        """Returns a list of filtered stakes sorted by account wallet index."""
+        filtered_stakes = self.stakes_filtered_by_status(parent_status) if parent_status is not None else self.stakes
+        stakes = sorted(filtered_stakes, key=lambda s: s.address_index_ordering_key)
         return stakes
 
     @only_me
@@ -937,7 +927,7 @@ class Staker(NucypherTokenActor):
                                                          additional_periods=additional_periods)
 
         # Update staking cache element
-        self.stakes.refresh()
+        self.refresh_stakes()
 
         return modified_stake, new_stake
 
@@ -981,7 +971,7 @@ class Staker(NucypherTokenActor):
                                            lock_periods=lock_periods)
 
         # Update staking cache element
-        self.stakes.refresh()
+        self.refresh_stakes()
 
         return new_stake
 
@@ -1018,7 +1008,7 @@ class Staker(NucypherTokenActor):
         stake = current_stake.prolong(additional_periods=additional_periods)
 
         # Update staking cache element
-        self.stakes.refresh()
+        self.refresh_stakes()
         return stake
 
     def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
@@ -1611,22 +1601,19 @@ class StakeHolder(Staker):
 
     banner = STAKEHOLDER_BANNER
 
-
     #
     # StakeHolder
     #
-
     def __init__(self,
                  is_me: bool = True,
                  initial_address: str = None,
                  checksum_addresses: set = None,
                  signer: Signer = None,
-                 password: str = None,
                  *args, **kwargs):
 
         self.staking_interface_agent = None
 
-        super().__init__(is_me=is_me, checksum_address=initial_address, *args, **kwargs)
+        super().__init__(is_me=is_me, *args, **kwargs)
         self.log = Logger(f"stakeholder")
 
         # Wallet
@@ -1638,10 +1625,15 @@ class StakeHolder(Staker):
                 message = f"Account {initial_address} is not known by this Ethereum client. Is it a HW account? " \
                           f"If so, make sure that your device is plugged in and you use the --hw-wallet flag."
                 raise Wallet.UnknownAccount(message)
-            self.assimilate(checksum_address=initial_address, password=password)
+            self.set_staker(checksum_address=initial_address)
 
     @validate_checksum_address
-    def assimilate(self, checksum_address: str, password: str = None) -> None:
+    def set_staker(self, checksum_address: str) -> None:
+
+        # Check if staker is already set
+        if self.checksum_address == checksum_address:
+            return
+
         if self.is_contract:
             original_form = f"{self.beneficiary_address[0:8]} (contract {self.checksum_address[0:8]})"
         else:
@@ -1662,33 +1654,31 @@ class StakeHolder(Staker):
             self.beneficiary_address = None
             self.preallocation_escrow_agent = None
 
-        self.wallet.activate_account(checksum_address=checksum_address, password=password)
         self.checksum_address = staking_address
         self.stakes = StakeList(registry=self.registry, checksum_address=staking_address)
-        self.stakes.refresh()
+        self.refresh_stakes()
 
         if self.is_contract:
             new_form = f"{self.beneficiary_address[0:8]} (contract {self.checksum_address[0:8]})"
         else:
             new_form = self.checksum_address
 
-        self.log.info(f"Resistance is futile - Assimilating Staker {original_form} -> {new_form}.")
+        self.log.info(f"Setting Staker from {original_form} to {new_form}.")
 
-    @property
-    def all_stakes(self) -> list:
-        stakes = list()
-        for account in self.wallet.accounts:
-            more_stakes = StakeList(registry=self.registry, checksum_address=account)
-            more_stakes.refresh()
-            stakes.extend(more_stakes)
-        return stakes
+    @validate_checksum_address
+    def assimilate(self, checksum_address: str = None, password: str = None) -> None:
+        if checksum_address:
+            self.set_staker(checksum_address=checksum_address)
+
+        account = self.checksum_address if not self.individual_allocation else self.beneficiary_address
+        self.wallet.activate_account(checksum_address=account, password=password)
 
     @validate_checksum_address
     def get_staker(self, checksum_address: str):
         if checksum_address not in self.wallet.accounts:
             raise ValueError(f"{checksum_address} is not a known client account.")
         staker = Staker(is_me=True, checksum_address=checksum_address, registry=self.registry)
-        staker.stakes.refresh()
+        staker.refresh_stakes()
         return staker
 
     def get_stakers(self) -> List[Staker]:

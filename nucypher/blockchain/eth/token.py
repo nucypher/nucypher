@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from _pydecimal import Decimal
 from collections import UserList
+from enum import Enum
 
 import maya
 from constant_sorrow.constants import (EMPTY_STAKING_SLOT, NEW_STAKE, NOT_STAKING, NO_STAKING_RECEIPT,
@@ -30,6 +31,7 @@ from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
+from nucypher.types import SubStakeInfo, NuNits, StakerInfo, Period
 
 
 class NU:
@@ -93,9 +95,9 @@ class NU:
         """Returns a decimal value of NU"""
         return currency.from_wei(self.__value, unit='ether')
 
-    def to_nunits(self) -> int:
+    def to_nunits(self) -> NuNits:
         """Returns an int value in NuNit"""
-        return int(self.__value)
+        return NuNits(self.__value)
 
     def __eq__(self, other) -> bool:
         return int(self) == int(other)
@@ -159,6 +161,24 @@ class Stake:
     class StakingError(Exception):
         """Raised when a staking operation cannot be executed due to failure."""
 
+    class Status(Enum):
+        """
+        Sub-stake status.
+        """
+        INACTIVE = 1   # Unlocked inactive
+        UNLOCKED = 2   # Unlocked active
+        LOCKED = 3     # Locked but not editable
+        EDITABLE = 4   # Editable
+        DIVISIBLE = 5  # Editable and divisible
+
+        def is_child(self, other: 'Status') -> bool:
+            if other == self.INACTIVE:
+                return self == self.INACTIVE
+            elif other == self.UNLOCKED:
+                return self.value <= self.UNLOCKED.value
+            else:
+                return self.value >= other.value
+
     @validate_checksum_address
     def __init__(self,
                  staking_agent: StakingEscrowAgent,
@@ -174,7 +194,6 @@ class Stake:
 
         # Ownership
         self.staker_address = checksum_address
-        self.worker_address = UNKNOWN_WORKER_STATUS
 
         # Stake Metadata
         self.index = index
@@ -210,6 +229,7 @@ class Stake:
             self.validate()
 
         self.receipt = NO_STAKING_RECEIPT
+        self._status = None
 
     def __repr__(self) -> str:
         r = f'Stake(' \
@@ -249,43 +269,65 @@ class Stake:
     # Metadata
     #
 
-    @property
-    def is_expired(self) -> bool:
-        current_period = self.staking_agent.get_current_period()  # TODO #1514 this is online only.
-        return bool(current_period > self.final_locked_period)
+    def status(self, staker_info: StakerInfo = None, current_period: Period = None) -> Status:
+        """
+        Returns status of sub-stake:
+        UNLOCKED - final period in the past
+        INACTIVE - UNLOCKED and sub-stake will not be included in any future calculations
+        LOCKED - sub-stake is still locked and final period is current period
+        EDITABLE - LOCKED and final period greater than current
+        DIVISIBLE - EDITABLE and locked value is greater than two times the minimum allowed locked
+        """
 
-    @property
-    def is_active(self) -> bool:
-        return not self.is_expired
+        if self._status:
+            return self._status
+
+        staker_info = staker_info or self.staking_agent.get_staker_info(self.staker_address) # TODO related to #1514
+        current_period = current_period or self.staking_agent.get_current_period()  # TODO #1514 this is online only.
+
+        if self.final_locked_period < current_period:
+            if (staker_info.current_committed_period == 0 or
+                staker_info.current_committed_period > self.final_locked_period) and \
+                (staker_info.next_committed_period == 0 or
+                 staker_info.next_committed_period > self.final_locked_period):
+                self._status = Stake.Status.INACTIVE
+            else:
+                self._status = Stake.Status.UNLOCKED
+        elif self.final_locked_period == current_period:
+            self._status = Stake.Status.LOCKED
+        elif self.value < 2 * self.economics.minimum_allowed_locked:
+            self._status = Stake.Status.EDITABLE
+        else:
+            self._status = Stake.Status.DIVISIBLE
+
+        return self._status
 
     @classmethod
     @validate_checksum_address
     def from_stake_info(cls,
                         checksum_address: str,
                         index: int,
-                        stake_info: Tuple[int, int, int],
+                        stake_info: SubStakeInfo,
                         economics,
                         *args, **kwargs
                         ) -> 'Stake':
 
         """Reads staking values as they exist on the blockchain"""
-        first_locked_period, final_locked_period, value = stake_info
 
         instance = cls(checksum_address=checksum_address,
                        index=index,
-                       first_locked_period=first_locked_period,
-                       final_locked_period=final_locked_period,
-                       value=NU(value, 'NuNit'),
+                       first_locked_period=stake_info.first_period,
+                       final_locked_period=stake_info.last_period,
+                       value=NU(stake_info.locked_value, 'NuNit'),
                        economics=economics,
                        validate_now=False,
                        *args, **kwargs)
 
-        instance.worker_address = instance.staking_agent.get_worker_from_staker(staker_address=checksum_address)
         return instance
 
-    def to_stake_info(self) -> Tuple[int, int, int]:
+    def to_stake_info(self) -> SubStakeInfo:
         """Returns a tuple representing the blockchain record of a stake"""
-        return self.first_locked_period, self.final_locked_period, int(self.value)
+        return SubStakeInfo(self.first_locked_period, self.final_locked_period, self.value.to_nunits())
 
     #
     # Duration
@@ -383,14 +425,13 @@ class Stake:
         stake_info = self.staking_agent.get_substake_info(staker_address=self.staker_address,
                                                           stake_index=self.index)  # < -- Read from blockchain
 
-        first_period, last_period, locked_value = stake_info
-        if not self.first_locked_period == first_period:
+        if not self.first_locked_period == stake_info.first_period:
             raise self.StakingError("Inconsistent staking cache.  Make sure your node is synced and try again.")
 
         # Mutate the instance with the on-chain values
-        self.final_locked_period = last_period
-        self.value = NU.from_nunits(locked_value)
-        self.worker_address = self.staking_agent.get_worker_from_staker(staker_address=self.staker_address)
+        self.final_locked_period = stake_info.last_period
+        self.value = NU.from_nunits(stake_info.locked_value)
+        self._status = None
 
     def divide(self, target_value: NU, additional_periods: int = None) -> Tuple['Stake', 'Stake']:
         """
@@ -404,8 +445,10 @@ class Stake:
         self.sync()
 
         # Ensure selected stake is active
-        if self.is_expired:
-            raise self.StakingError(f'Cannot divide an expired stake. Selected stake expired {self.unlock_datetime}.')
+        status = self.status()
+        if not status.is_child(Stake.Status.DIVISIBLE):
+            raise self.StakingError(f'Cannot divide an non-divisible stake. '
+                                    f'Selected stake expired {self.unlock_datetime} and has value {self.value}.')
 
         if target_value >= self.value:
             raise self.StakingError(f"Cannot divide stake; Target value ({target_value}) must be less "
@@ -491,8 +534,10 @@ class Stake:
 
     def prolong(self, additional_periods: int):
         self.sync()
-        if self.is_expired:
-            raise self.StakingError(f'Cannot divide an expired stake. Selected stake expired {self.unlock_datetime}.')
+        status = self.status()
+        if not status.is_child(Stake.Status.EDITABLE):
+            raise self.StakingError(f'Cannot prolong a non-editable stake. '
+                                    f'Selected stake expired {self.unlock_datetime}.')
         receipt = self.staking_agent.prolong_stake(staker_address=self.staker_address,
                                                    stake_index=self.index,
                                                    periods=additional_periods)

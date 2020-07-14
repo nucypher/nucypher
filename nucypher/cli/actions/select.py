@@ -35,7 +35,6 @@ from nucypher.cli.literature import (
     GENERIC_SELECT_ACCOUNT,
     IS_THIS_CORRECT,
     NO_CONFIGURATIONS_ON_DISK,
-    NO_DIVISIBLE_STAKES,
     NO_ETH_ACCOUNTS,
     NO_STAKES_FOUND,
     ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE,
@@ -50,37 +49,27 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKE
 from nucypher.config.node import CharacterConfiguration
 
 
-def select_stake(stakeholder: StakeHolder,
+def select_stake(staker: Staker,
                  emitter: StdoutEmitter,
-                 divisible: bool = False,
-                 staker_address: str = None
+                 stakes_status: Stake.Status = Stake.Status.EDITABLE
                  ) -> Stake:
     """Interactively select a stake or abort if there are no eligible stakes."""
 
-    # Precondition: Active Stakes
-    if staker_address:
-        staker = stakeholder.get_staker(checksum_address=staker_address)
-        stakes = staker.stakes
-    else:
-        stakes = stakeholder.all_stakes
+    if stakes_status.is_child(Stake.Status.DIVISIBLE):
+        emitter.echo(ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE, color='yellow')
+
+    # Filter stakes by status
+    stakes = staker.sorted_stakes(parent_status=stakes_status)
     if not stakes:
         emitter.echo(NO_STAKES_FOUND, color='red')
         raise click.Abort
 
-    # Precondition: Divisible Stakes
-    stakes = stakeholder.sorted_stakes
-    if divisible:
-        emitter.echo(ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE, color='yellow')
-        stakes = stakeholder.divisible_stakes
-        if not stakes:
-            emitter.echo(NO_DIVISIBLE_STAKES, color='red')
-            raise click.Abort
-
     # Interactive Selection
-    enumerated_stakes = dict(enumerate(stakes))
-    paint_stakes(stakeholder=stakeholder, emitter=emitter, staker_address=staker_address)
-    choice = click.prompt(SELECT_STAKE, type=click.IntRange(min=0, max=len(enumerated_stakes)-1))
-    chosen_stake = enumerated_stakes[choice]
+    paint_stakes(staker=staker, emitter=emitter, stakes=stakes)
+    indexed_stakes = {stake.index: stake for stake in stakes}
+    indices = [str(index) for index in indexed_stakes.keys()]
+    choice = click.prompt(SELECT_STAKE, type=click.Choice(indices))
+    chosen_stake = indexed_stakes[int(choice)]
     return chosen_stake
 
 
@@ -153,7 +142,7 @@ def select_client_account(emitter,
         row = [account]
         if show_staking:
             staker = Staker(is_me=True, checksum_address=account, registry=registry)
-            staker.stakes.refresh()
+            staker.refresh_stakes()
             is_staking = 'Yes' if bool(staker.stakes) else 'No'
             row.append(is_staking)
         if show_eth_balance:
@@ -207,6 +196,7 @@ def select_client_account_for_staking(emitter: StdoutEmitter,
                                                    network=stakeholder.network,
                                                    wallet=stakeholder.wallet)
             staking_address = client_account
+    stakeholder.set_staker(client_account)
 
     return client_account, staking_address
 
