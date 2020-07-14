@@ -325,7 +325,8 @@ class CommitmentMadeEventMetricsCollector(EventMetricsCollector):
             # however, 'staker' and 'period' filters should help reduce load
             initial_event_filter = self.contract_agent.contract.events[self.event_name].createFilter(
                 fromBlock=0, argument_filters=arg_filters)
-            events = initial_event_filter.get_new_entries()
+            events = initial_event_filter.get_all_entries()
+            # we expect only one event to be returned due to period filter
             for event in events:
                 self._event_occurred(event)
 
