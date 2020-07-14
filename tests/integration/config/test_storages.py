@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 
 from nucypher.characters.lawful import Ursula
-from nucypher.config.storages import (ForgetfulNodeStorage, NodeStorage, SQLiteForgetfulNodeStorage,
+from nucypher.config.storages import (ForgetfulNodeStorage, NodeStorage,
                                       TemporaryFileBasedNodeStorage)
 from tests.constants import (
     MOCK_URSULA_DB_FILEPATH)

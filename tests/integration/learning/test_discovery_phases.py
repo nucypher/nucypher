@@ -89,8 +89,7 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
 @pytest.mark.parametrize('fleet_of_highperf_mocked_ursulas', [100], indirect=True)
 def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
                                             highperf_mocked_alice,
-                                            highperf_mocked_bob,
-                                            mock_lmdb_env):
+                                            highperf_mocked_bob):
     # Patch the Datastore PolicyArrangement model with the highperf
     # NotAPublicKey
     not_public_key_record_field = RecordField(NotAPublicKey, encode=bytes,
