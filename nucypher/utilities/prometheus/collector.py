@@ -305,10 +305,35 @@ class EventMetricsCollector(BaseMetricsCollector):
         return f'{self.event_name}_{arg_name}'
 
 
+class CommitmentMadeEventMetricsCollector(EventMetricsCollector):
+    """Collector for CommitmentMade event."""
+    def __init__(self, staker_address: ChecksumAddress, event_name: str = 'CommitmentMade', *args, **kwargs):
+        super().__init__(event_name=event_name, argument_filters={'staker': staker_address}, *args, **kwargs)
+        self.staker_address = staker_address
+
+    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
+        super().initialize(metrics_prefix=metrics_prefix, registry=registry)
+
+        missing_commitments = self.contract_agent.get_missing_commitments(checksum_address=self.staker_address)
+        if missing_commitments == 0:
+            # has either already committed to this period or the next period
+
+            # use local event filter for initial data
+            last_committed_period = self.contract_agent.get_last_committed_period(staker_address=self.staker_address)
+            arg_filters = {'staker': self.staker_address, 'period': last_committed_period}
+            # check from the beginning - difficult to determine blocknumber for previous period
+            # however, 'staker' and 'period' filters should help reduce load
+            initial_event_filter = self.contract_agent.contract.events[self.event_name].createFilter(
+                fromBlock=0, argument_filters=arg_filters)
+            events = initial_event_filter.get_new_entries()
+            for event in events:
+                self._event_occurred(event)
+
+
 class ReStakeEventMetricsCollector(EventMetricsCollector):
     """Collector for RestakeSet event."""
     def __init__(self, staker_address: ChecksumAddress, event_name: str = 'ReStakeSet', *args, **kwargs):
-        super().__init__(event_name=event_name, *args, **kwargs)
+        super().__init__(event_name=event_name, argument_filters={'staker': staker_address}, *args, **kwargs)
         self.staker_address = staker_address
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
@@ -321,7 +346,7 @@ class ReStakeEventMetricsCollector(EventMetricsCollector):
 class WindDownEventMetricsCollector(EventMetricsCollector):
     """Collector for WindDownSet event."""
     def __init__(self, staker_address: ChecksumAddress, event_name: str = 'WindDownSet', *args, **kwargs):
-        super().__init__(event_name=event_name, *args, **kwargs)
+        super().__init__(event_name=event_name, argument_filters={'staker': staker_address}, *args, **kwargs)
         self.staker_address = staker_address
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
@@ -339,7 +364,7 @@ class WorkerBondedEventMetricsCollector(EventMetricsCollector):
                  event_name: str = 'WorkerBonded',
                  *args,
                  **kwargs):
-        super().__init__(event_name=event_name, *args, **kwargs)
+        super().__init__(event_name=event_name, argument_filters={'staker': staker_address}, *args, **kwargs)
         self.staker_address = staker_address
         self.worker_address = worker_address
 
