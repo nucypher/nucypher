@@ -107,13 +107,10 @@ class Character(Learner):
         if hasattr(self, '_interface_class'):  # TODO: have argument about meaning of 'lawful'
             #                                         and whether maybe only Lawful characters have an interface
             self.interface = self._interface_class(character=self)
+
+
         if is_me:
-            if not known_node_class:
-                # Once in a while, in tests or demos, we init a plain Character who doesn't already know about its node class.
-                from nucypher.characters.lawful import Ursula
-                known_node_class = Ursula
-            # If we're federated only, we assume that all other nodes in our domain are as well.
-            known_node_class.set_federated_mode(federated_only)
+            self._set_known_node_class(known_node_class, federated_only)
         else:
             # What an awful hack.  The last convulsions of #466.
             # TODO: Anything else.
@@ -339,6 +336,14 @@ class Character(Learner):
             crypto_power.consume_power_up(power_up(public_key=umbral_key))
 
         return cls(is_me=False, crypto_power=crypto_power, *args, **kwargs)
+
+    def _set_known_node_class(self, known_node_class, federated_only):
+        if not known_node_class:
+            # Once in a while, in tests or demos, we init a plain Character who doesn't already know about its node class.
+            from nucypher.characters.lawful import Ursula
+            known_node_class = Ursula
+        # If we're federated only, we assume that all other nodes in our domain are as well.
+        known_node_class.set_federated_mode(federated_only)
 
     def store_metadata(self, filepath: str) -> str:
         """
