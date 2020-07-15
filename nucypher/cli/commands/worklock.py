@@ -76,8 +76,8 @@ from nucypher.cli.painting.worklock import (
 from nucypher.cli.types import DecimalRange, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
 
-option_bidder_address = click.option('--bidder-address',
-                                     help="Bidder's checksum address.",
+option_bidder_address = click.option('--participant-address',
+                                     help="Participant's checksum address.",
                                      type=EIP55_CHECKSUM_ADDRESS)
 
 
@@ -86,13 +86,13 @@ class WorkLockOptions:
     __option_name__ = 'worklock_options'
 
     def __init__(self,
-                 bidder_address: str,
+                 participant_address: str,
                  signer_uri: str,
                  provider_uri: str,
                  registry_filepath: str,
                  network: str):
 
-        self.bidder_address = bidder_address
+        self.bidder_address = participant_address
         self.signer_uri = signer_uri
         self.provider_uri = provider_uri
         self.registry_filepath = registry_filepath
@@ -140,7 +140,7 @@ class WorkLockOptions:
 
 group_worklock_options = group_options(
     WorkLockOptions,
-    bidder_address=option_bidder_address,
+    participant_address=option_bidder_address,
     signer_uri=option_signer_uri,
     provider_uri=option_provider_uri(required=True, default=os.environ.get(NUCYPHER_ENVVAR_PROVIDER_URI)),
     network=option_network(required=True),
@@ -150,7 +150,7 @@ group_worklock_options = group_options(
 
 @click.group()
 def worklock():
-    """Participate in NuCypher's WorkLock to obtain NU tokens"""
+    """Participate in NuCypher's WorkLock to obtain a NU stake"""
 
 
 @worklock.command()
@@ -170,13 +170,13 @@ def status(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions
 @group_worklock_options
 @option_force
 @option_hw_wallet
-@click.option('--value', help="ETH value of bid", type=DecimalRange(min=0))
-def bid(general_config: GroupGeneralConfig,
-        worklock_options: WorkLockOptions,
-        force: bool,
-        hw_wallet: bool,
-        value: Decimal):
-    """Place a bid, or increase an existing bid"""
+@click.option('--value', help="ETH value to escrow", type=DecimalRange(min=0))
+def escrow(general_config: GroupGeneralConfig,
+           worklock_options: WorkLockOptions,
+           force: bool,
+           hw_wallet: bool,
+           value: Decimal):
+    """Create an ETH escrow, or increase an existing escrow"""
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
     now = maya.now().epoch
@@ -207,21 +207,22 @@ def bid(general_config: GroupGeneralConfig,
     if not force:
         if not existing_bid_amount:
             paint_bidding_notice(emitter=emitter, bidder=bidder)
-            click.confirm(f"Place WorkLock bid of {prettify_eth_amount(value)}?", abort=True)
+            click.confirm(f"Place WorkLock escrow of {prettify_eth_amount(value)}?", abort=True)
         else:
-            click.confirm(f"Increase current bid ({prettify_eth_amount(existing_bid_amount)}) "
+            click.confirm(f"Increase current escrow ({prettify_eth_amount(existing_bid_amount)}) "
                           f"by {prettify_eth_amount(value)}?", abort=True)
 
     receipt = bidder.place_bid(value=value)
-    emitter.message("Publishing WorkLock Bid...")
+    emitter.message("Publishing WorkLock Escrow...")
 
     maximum = NU.from_nunits(bidder.economics.maximum_allowed_locked)
     available_claim = NU.from_nunits(bidder.available_claim)
-    message = f'\nCurrent bid: {prettify_eth_amount(bidder.get_deposited_eth)} | Claim: {available_claim}\n'
+    message = f'\nCurrent escrow: {prettify_eth_amount(bidder.get_deposited_eth)} | Allocation: {available_claim}\n'
     if available_claim > maximum:
-        message += f"\nThis claim is currently above the allowed max ({maximum}), " \
-                   f"so the bid may be partially refunded.\n"
-    message += f'Note that available claim value may fluctuate until bidding closes and claims are finalized.\n'
+        message += f"\nThis allocation is currently above the allowed max ({maximum}), " \
+                   f"so the escrow may be partially refunded.\n"
+    message += f'Note that the available allocation value may fluctuate until the escrow period closes and ' \
+               f'allocations are finalized.\n'
     emitter.echo(message, color='yellow')
 
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
@@ -232,8 +233,8 @@ def bid(general_config: GroupGeneralConfig,
 @group_worklock_options
 @option_force
 @option_hw_wallet
-def cancel_bid(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions, force: bool, hw_wallet: bool):
-    """Cancel your bid and receive your ETH back"""
+def cancel_escrow(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions, force: bool, hw_wallet: bool):
+    """Cancel your escrow and receive your ETH back"""
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
     now = maya.now().epoch
@@ -246,7 +247,7 @@ def cancel_bid(general_config: GroupGeneralConfig, worklock_options: WorkLockOpt
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
     if not force:
         value = bidder.get_deposited_eth
-        click.confirm(f"Confirm bid cancellation of {prettify_eth_amount(value)} for {bidder_address}?", abort=True)
+        click.confirm(f"Confirm escrow cancellation of {prettify_eth_amount(value)} for {bidder_address}?", abort=True)
     receipt = bidder.cancel_bid()
     emitter.echo(SUCCESSFUL_BID_CANCELLATION, color='green')
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=bidder.staking_agent.blockchain.client.chain_name)
@@ -259,7 +260,7 @@ def cancel_bid(general_config: GroupGeneralConfig, worklock_options: WorkLockOpt
 @group_worklock_options
 @group_general_config
 def claim(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions, force: bool, hw_wallet: bool):
-    """Claim tokens for your bid, and start staking them"""
+    """Claim tokens for your escrow, and start staking them"""
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)  # type: WorkLockAgent
     if not worklock_agent.is_claiming_available():
@@ -304,7 +305,7 @@ def claim(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions,
 @group_worklock_options
 @group_general_config
 def remaining_work(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions):
-    """Check how much work is pending until you can get all your locked ETH back"""
+    """Check how much work is pending until you can get all your escrowed ETH back"""
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     bidder_address = worklock_options.get_bidder_address(emitter, registry)
     bidder = worklock_options.create_transactionless_bidder(registry=registry)
@@ -343,19 +344,19 @@ def enable_claiming(general_config: GroupGeneralConfig,
                     force: bool,
                     hw_wallet: bool,
                     gas_limit: int):
-    """Ensure correctness of bidding and enable claiming"""
+    """Ensure correctness of WorkLock participants and enable allocation"""
     emitter, registry, blockchain = worklock_options.setup(general_config=general_config)
     bidder_address = worklock_options.get_bidder_address(emitter, registry)
     bidder = worklock_options.create_bidder(registry=registry, hw_wallet=hw_wallet)
 
     whales = bidder.get_whales()
     if whales:
-        headers = ("Bidders that require correction", "Current bid bonus")
+        headers = ("Participants that require correction", "Current bonus")
         columns = (whales.keys(), map(prettify_eth_amount, whales.values()))
         emitter.echo(tabulate.tabulate(dict(zip(headers, columns)), headers=headers, floatfmt="fancy_grid"))
 
         if not force:
-            click.confirm(f"Confirm force refund to at least {len(whales)} bidders using {bidder_address}?", abort=True)
+            click.confirm(f"Confirm force refund to at least {len(whales)} participants using {bidder_address}?", abort=True)
 
         force_refund_receipt = bidder.force_refund()
         emitter.echo(WHALE_WARNING.format(number=len(whales)), color='green')

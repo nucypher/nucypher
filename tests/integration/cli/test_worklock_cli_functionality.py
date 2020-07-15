@@ -78,7 +78,7 @@ def test_account_selection(click_runner, mocker, mock_testerchain, mock_worklock
     # I spy
     mock_select = mocker.spy(worklock_command, 'select_client_account')
 
-    command = ('cancel-bid',
+    command = ('cancel-escrow',
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
@@ -99,8 +99,8 @@ def test_account_selection(click_runner, mocker, mock_testerchain, mock_worklock
 def bidding_command(token_economics, surrogate_bidder):
     minimum = token_economics.worklock_min_allowed_bid
     bid_value = random.randint(minimum, minimum*100)
-    command = ('bid',
-               '--bidder-address', surrogate_bidder.checksum_address,
+    command = ('escrow',
+               '--participant-address', surrogate_bidder.checksum_address,
                '--value', bid_value,
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
@@ -193,8 +193,8 @@ def test_valid_bid(click_runner,
     )
     mocker.patch.object(Bidder, 'get_deposited_eth', new_callable=PropertyMock, side_effect=deposited_eth_sequence)
 
-    command = ('bid',
-               '--bidder-address', surrogate_bidder.checksum_address,
+    command = ('escrow',
+               '--participant-address', surrogate_bidder.checksum_address,
                '--value', bid_value_in_eth,
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
@@ -234,8 +234,8 @@ def test_cancel_bid(click_runner,
     # Spy on the corresponding CLI function we are testing
     mock_cancel = mocker.spy(Bidder, 'cancel_bid')
 
-    command = ('cancel-bid',
-               '--bidder-address', surrogate_bidder.checksum_address,
+    command = ('cancel-escrow',
+               '--participant-address', surrogate_bidder.checksum_address,
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--force')
@@ -301,7 +301,7 @@ def test_enable_claiming(click_runner,
     mock_worklock_agent.estimate_verifying_correctness.side_effect = [3, 6]
 
     command = ('enable-claiming',
-               '--bidder-address', surrogate_bidder.checksum_address,
+               '--participant-address', surrogate_bidder.checksum_address,
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
@@ -360,7 +360,7 @@ def test_initial_claim(click_runner,
 
     bidder_address = surrogate_bidder.checksum_address
     command = ('claim',
-               '--bidder-address', bidder_address,
+               '--participant-address', bidder_address,
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
@@ -437,7 +437,7 @@ def test_already_claimed(click_runner,
     )
 
     command = ('claim',
-               '--bidder-address', surrogate_bidder.checksum_address,
+               '--participant-address', surrogate_bidder.checksum_address,
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--force')
@@ -468,7 +468,7 @@ def test_remaining_work(click_runner,
                                               return_value=remaining_work)
 
     command = ('remaining-work',
-               '--bidder-address', surrogate_bidder.checksum_address,
+               '--participant-address', surrogate_bidder.checksum_address,
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
@@ -494,7 +494,7 @@ def test_refund(click_runner,
 
     bidder_address = surrogate_bidder.checksum_address
     command = ('refund',
-               '--bidder-address', bidder_address,
+               '--participant-address', bidder_address,
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
@@ -519,7 +519,7 @@ def test_participant_status(click_runner,
                             mock_worklock_agent,
                             surrogate_bidder):
     command = ('status',
-               '--bidder-address', surrogate_bidder.checksum_address,
+               '--participant-address', surrogate_bidder.checksum_address,
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
@@ -571,8 +571,8 @@ def test_interactive_new_bid(click_runner,
     )
     mocker.patch.object(Bidder, 'get_deposited_eth', new_callable=PropertyMock, side_effect=deposited_eth_sequence)
 
-    command = ('bid',
-               '--bidder-address', surrogate_bidder.checksum_address,
+    command = ('escrow',
+               '--participant-address', surrogate_bidder.checksum_address,
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,)
 
@@ -621,8 +621,8 @@ def test_interactive_increase_bid(click_runner,
     )
     mocker.patch.object(Bidder, 'get_deposited_eth', new_callable=PropertyMock, side_effect=deposited_eth_sequence)
 
-    command = ('bid',
-               '--bidder-address', surrogate_bidder.checksum_address,
+    command = ('escrow',
+               '--participant-address', surrogate_bidder.checksum_address,
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,)
 
