@@ -1047,9 +1047,11 @@ class Ursula(Teacher, Character, Worker):
 
             # Prepare a TransactingPower from worker node's transacting keys
             _transacting_power = TransactingPower(account=worker_address,
-                                                      password=client_password,
-                                                      signer=self.signer,
-                                                      cache=True)
+                                                  password=client_password,
+                                                  signer=self.signer,
+                                                  cache=True)
+
+            self.transacting_power = _transacting_power
             self._crypto_power.consume_power_up(_transacting_power)
             self._set_checksum_address(checksum_address)
 

@@ -1382,7 +1382,7 @@ class Worker(NucypherTokenActor):
                 self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
                 self.stakes.refresh()
                 self.work_tracker = work_tracker or WorkTracker(worker=self)
-                self.work_tracker.start(act_now=False)
+                self.work_tracker.start(act_now=start_working_now)
 
     def block_until_ready(self, poll_rate: int = None, timeout: int = None):
         """
