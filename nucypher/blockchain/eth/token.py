@@ -14,20 +14,21 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
 from _pydecimal import Decimal
 from collections import UserList
 from enum import Enum
 
 import maya
-from constant_sorrow.constants import (EMPTY_STAKING_SLOT, NEW_STAKE, NOT_STAKING, NO_STAKING_RECEIPT,
-                                       UNKNOWN_WORKER_STATUS)
+import time
+from constant_sorrow.constants import (EMPTY_STAKING_SLOT, NEW_STAKE, NOT_STAKING)
 from eth_utils import currency, is_checksum_address
 from twisted.internet import reactor, task
 from typing import Callable, Dict, Union
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.types import SubStakeInfo, NuNits, StakerInfo, Period
@@ -528,25 +529,35 @@ class WorkTracker:
     CLOCK = reactor
     REFRESH_RATE = 60 * 15  # Fifteen minutes
 
+    __DEFAULT_RETRY_ATTEMPTS = 3
+    __DEFAULT_RETRY_RATE = 60  # seconds
+
     def __init__(self,
                  worker,
                  refresh_rate: int = None,
+                 retry_attempts: int = __DEFAULT_RETRY_ATTEMPTS,
+                 retry_rate: int = __DEFAULT_RETRY_RATE,
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.log = Logger('stake-tracker')
+
         self.worker = worker
         self.staking_agent = self.worker.staking_agent
+        self.retry_attempts = retry_attempts
+        self.retry_rate = retry_rate
 
         self._refresh_rate = refresh_rate or self.REFRESH_RATE
         self._tracking_task = task.LoopingCall(self._do_work)
         self._tracking_task.clock = self.CLOCK
+        self._abort_on_error = True
 
         self.__requirement = None
         self.__current_period = None
         self.__start_time = NOT_STAKING
         self.__uptime_period = NOT_STAKING
-        self._abort_on_error = True
+        self.__success = 0  # attempts
+        self.__fail = 0
 
     @property
     def current_period(self):
@@ -596,6 +607,10 @@ class WorkTracker:
             self.log.warn('Unhandled error during work tracking: {failure.getTraceback()!r}',
                           failure=failure)
 
+    @property
+    def attempts(self) -> Tuple[int, int]:
+        return self.__success, self.__fail
+
     def __check_work_requirement(self) -> bool:
         # TODO: Check for stake expiration and exit
         if self.__requirement is None:
@@ -608,7 +623,25 @@ class WorkTracker:
             raise ValueError(f"'requirement' must be a callable.")
         return r
 
-    def _do_work(self) -> None:
+    def __make_commitment(self) -> bool:
+        transacting_power = self.worker.transacting_power
+        attempt = 0
+        while attempt < self.retry_attempts:
+            try:
+                with transacting_power:
+                    self.worker.commit_to_next_period()  # < --- blockchain WRITE
+                break
+            except (BlockchainInterface.TransactionFailed, EthereumClient.Web3ClientError) as error:
+                self.__fail += 1
+                self.log.debug(f'COMMITMENT FAILURE REASON - {str(error)}')
+                time.sleep(self.retry_rate)
+                attempt += 1
+        else:
+            return False
+        self.__success += 1
+        return True
+
+    def _do_work(self) -> Union[bool, None]:
         # TODO: #1515 Shut down at end of terminal stake
 
         # Update on-chain status
@@ -633,11 +666,10 @@ class WorkTracker:
             # TODO: Follow-up actions for downtime
             return
 
-        # Make a Commitment
-        self.log.info("Made a commitment to period {}".format(self.current_period))
-        transacting_power = self.worker.transacting_power
-        with transacting_power:
-            self.worker.commit_to_next_period(fire_and_forget=True)  # < --- blockchain WRITE | Do not wait for receipt
+        success = self.__make_commitment()  # <-- WRITE
+        if success:
+            self.log.info("COMMITMENT MADE - Period {}".format(self.current_period))
+        return success
 
 
 class StakeList(UserList):

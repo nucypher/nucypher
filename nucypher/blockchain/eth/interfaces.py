@@ -16,14 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import click
 import os
 import pprint
-import time
-from typing import Callable, NamedTuple, Tuple, Union, Optional
-from urllib.parse import urlparse
-
-import click
 import requests
+import time
 from constant_sorrow.constants import (
     INSUFFICIENT_ETH,
     NO_BLOCKCHAIN_CONNECTION,
@@ -36,6 +33,8 @@ from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from hexbytes.main import HexBytes
+from typing import Callable, NamedTuple, Tuple, Union, Optional
+from urllib.parse import urlparse
 from web3 import Web3, middleware
 from web3.contract import Contract, ContractConstructor, ContractFunction
 from web3.exceptions import TimeExhausted, ValidationError
@@ -113,11 +112,12 @@ class BlockchainInterface:
         def __init__(self,
                      message: str,
                      transaction_dict: dict,
-                     contract_function: Union[ContractFunction, ContractConstructor],
+                     contract_function: Union[ContractFunction, ContractConstructor, str],
                      *args):
 
             self.base_message = message
-            self.name = get_transaction_name(contract_function=contract_function)
+            if not isinstance(contract_function, str):
+                self.name = get_transaction_name(contract_function=contract_function)
             self.payload = transaction_dict
             self.contract_function = contract_function
             self.failures = {
@@ -423,41 +423,42 @@ class BlockchainInterface:
 
     @classmethod
     def _handle_failed_transaction(cls,
-                                   exception: Exception,
                                    transaction_dict: dict,
                                    contract_function: Union[ContractFunction, ContractConstructor],
+                                   exception: Exception = TransactionFailed,
+                                   message: str = None,
                                    logger: Logger = None
                                    ) -> None:
         """
-        Re-raising error handler and context manager for transaction broadcast or
+        Re-raising error handler and context manager for contract transaction signing, broadcast or
         build failure events at the interface layer. This method is a last line of defense
         against unhandled exceptions caused by transaction failures and must raise an exception.
         # TODO: #1504 - Additional Handling of validation failures (gas limits, invalid fields, etc.)
         """
+        if exception:
+            try:
+                # Assume this error is formatted as an IPC response
+                code, message = exception.args[0].values()
 
-        try:
-            # Assume this error is formatted as an IPC response
-            code, message = exception.args[0].values()
+            except (ValueError, IndexError, AttributeError) as e:
+                # TODO: #1504 - Try even harder to determine if this is insufficient funds causing the issue,
+                #               This may be best handled at the agent or actor layer for registry and token interactions.
+                # Worst case scenario - raise the exception held in context implicitly
+                raise exception from e
 
-        except (ValueError, IndexError, AttributeError):
-            # TODO: #1504 - Try even harder to determine if this is insufficient funds causing the issue,
-            #               This may be best handled at the agent or actor layer for registry and token interactions.
-            # Worst case scenario - raise the exception held in context implicitly
-            raise exception
-
+            else:
+                if int(code) != cls.TransactionFailed.IPC_CODE:
+                    # Only handle client-specific exceptions
+                    # https://www.jsonrpc.org/specification Section 5.1
+                    raise exception
+                logger.critical(message)                     # simple context
+                raise cls.TransactionFailed(message=message,  # rich error (best case)
+                                            contract_function=contract_function,
+                                            transaction_dict=transaction_dict)
         else:
-            if int(code) != cls.TransactionFailed.IPC_CODE:
-                # Only handle client-specific exceptions
-                # https://www.jsonrpc.org/specification Section 5.1
-                raise exception
-
-            if logger:
-                logger.critical(message)  # simple context
-
-            transaction_failed = cls.TransactionFailed(message=message,  # rich error (best case)
-                                                       contract_function=contract_function,
-                                                       transaction_dict=transaction_dict)
-            raise transaction_failed from exception
+            raise cls.TransactionFailed(message=message,  # rich error (best case)
+                                        contract_function=contract_function,
+                                        transaction_dict=transaction_dict)
 
     def __log_transaction(self, transaction_dict: dict, contract_function: ContractFunction):
         """
@@ -604,7 +605,9 @@ class BlockchainInterface:
         if transaction_status == 0:
             failure = f"Transaction transmitted, but receipt returned status code 0. " \
                       f"Full receipt: \n {pprint.pformat(receipt, indent=2)}"
-            raise self.InterfaceError(failure)
+            raise self._handle_failed_transaction(transaction_dict=transaction_dict,
+                                                  message=failure,
+                                                  contract_function=transaction_name)
 
         if transaction_status is UNKNOWN_TX_STATUS:
             self.log.info(f"Unknown transaction status for {txhash} (receipt did not contain a status field)")

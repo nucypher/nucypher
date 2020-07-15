@@ -42,6 +42,7 @@ from web3.contract import Contract
 from web3.types import Wei, TxReceipt
 from web3._utils.threads import Timeout
 from web3.exceptions import TimeExhausted, TransactionNotFound
+from websockets.exceptions import ConnectionClosedOK
 
 from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
 from nucypher.blockchain.middleware.retry import RetryRequestMiddleware, AlchemyRetryRequestMiddleware, \
@@ -117,16 +118,22 @@ class EthereumClient:
     COOLING_TIME = 5  # seconds
     STALECHECK_ALLOWABLE_DELAY = 30  # seconds
 
-    class ConnectionNotEstablished(RuntimeError):
+    class Web3ClientError(RuntimeError):
         pass
 
-    class SyncTimeout(RuntimeError):
+    class ConnectionNotEstablished(Web3ClientError):
         pass
 
-    class UnknownAccount(ValueError):
+    class ConnectionLost(ConnectionNotEstablished):
         pass
 
-    class TransactionBroadcastError(RuntimeError):
+    class SyncTimeout(Web3ClientError):
+        pass
+
+    class UnknownAccount(Web3ClientError, ValueError):
+        pass
+
+    class TransactionBroadcastError(Web3ClientError):
         pass
 
     class NotEnoughConfirmations(TransactionBroadcastError):
@@ -333,6 +340,8 @@ class EthereumClient:
                                                                 poll_latency=self.TRANSACTION_POLLING_TIME)
             except TimeExhausted:
                 raise  # TODO: #1504 - Handle transaction timeout
+            except ConnectionClosedOK:
+                raise self.ConnectionLost(f'Connection to {self.w3.provider} was lost.')
 
         return receipt
 
