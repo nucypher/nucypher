@@ -1013,7 +1013,7 @@ class Ursula(Teacher, Character, Worker):
         Character.__init__(self,
                            is_me=is_me,
                            checksum_address=checksum_address,
-                           start_learning_now=False,  # Handled later in this function to avoid race condition
+                           start_learning_now=start_learning_now,
                            federated_only=self._federated_only_instances,
                            # TODO: 'Ursula' object has no attribute '_federated_only_instances' if an is_me Ursula is not inited prior to this moment  NRN
                            crypto_power=crypto_power,
