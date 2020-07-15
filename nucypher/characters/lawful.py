@@ -779,7 +779,7 @@ class Bob(Character):
                 alice_verifying_key=alice_verifying_key,
                 *capsules_to_activate)
 
-            self.log.info(f"Found {len(complete_work_orders)} for this Capsule ({capsule}).")
+            self.log.debug(f"Found {len(complete_work_orders)} complete WorkOrders for this Capsule ({capsule}).")
 
             if complete_work_orders:
                 if use_precedent_work_orders:
