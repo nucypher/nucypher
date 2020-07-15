@@ -410,9 +410,10 @@ class Learner:
         if self._learning_task.running:
             self._learning_task.stop()
 
-    def handle_learning_errors(self, *args, **kwargs):
-        failure = args[0]
-        if self._abort_on_learning_error:
+    def handle_learning_errors(self, failure, *args, **kwargs):
+        _exception = failure.value
+        crash_right_now = getattr(_exception, "crash_right_now", False)
+        if self._abort_on_learning_error or crash_right_now:
             self.log.critical("Unhandled error during node learning.  Attempting graceful crash.")
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
@@ -654,8 +655,14 @@ class Learner:
         remembered = []
 
         if not self.done_seeding:
-            remembered_seednodes = self.load_seednodes(record_fleet_state=False)
-            remembered.extend(remembered_seednodes)
+            try:
+                remembered_seednodes = self.load_seednodes(record_fleet_state=False)
+            except Exception as e:
+                # Even if we aren't aborting on learning errors, we want this to crash the process pronto.
+                e.crash_right_now = True
+                raise
+            else:
+                remembered.extend(remembered_seednodes)
 
         self._learning_round += 1
 
