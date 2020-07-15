@@ -477,7 +477,9 @@ class Learner:
         Continually learn about new nodes.
         """
         # TODO: Allow the user to set eagerness?  1712
-        self.learn_from_teacher_node(eager=False)
+        # TODO: Also, if we do allow eager, don't even defer; block right here.
+        d = deferToThread(self.learn_from_teacher_node, eager=False)
+        return d
 
     def learn_about_specific_nodes(self, addresses: Set):
         self._node_ids_to_learn_about_immediately.update(addresses)  # hmmmm
