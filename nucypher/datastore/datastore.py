@@ -163,7 +163,8 @@ class Datastore:
         with self.__db_env.begin(write=writeable) as datastore_tx:
             db_cursor = datastore_tx.cursor()
 
-            # Set the cursor to the closest key (if it exists) by the query params 
+            # Set the cursor to the closest key (if it exists) by the query params.
+            #
             # By providing a `filter_field`, the query will immediately be
             # limited to the subset of keys for the `filter_field`.
             query_key = f'{record_type.__name__}:{filter_field}'.encode()
@@ -192,6 +193,7 @@ class Datastore:
                     continue
 
                 record = partial(record_type, datastore_tx, curr_key.record_id)
+
                 # We pass the field to the filter_func if `filter_field` and
                 # `filter_func` are both provided. In the event that the
                 # given `filter_field` doesn't exist for the record or the
@@ -201,29 +203,11 @@ class Datastore:
                         field = getattr(record(writeable=False), filter_field)
                     except (TypeError, AttributeError):
                         continue
-
-                    record = partial(record_type, datastore_tx, curr_key.record_id)
-                    # We pass the field to the filter_func if `filter_field` and
-                    # `filter_func` are both provided. In the event that the
-                    # given `filter_field` doesn't exist for the record or the
-                    # `filter_func` returns `False`, we call `continue`.
-                    if filter_field and filter_func:
-                        try:
-                            field = getattr(record(writeable=False), filter_field)
-                        except (TypeError, AttributeError):
-                            continue
-                        else:
-                            if not filter_func(field):
-                                continue
-
-                    # If only a filter_func is given, we pass a readonly record to it.
-                    # Likewise to the above, if `filter_func` returns `False`, we
-                    # call `continue`.
-                    elif filter_func:
-                        if not filter_func(record(writeable=False)):
+                    else:
+                        if not filter_func(field):
                             continue
 
-                # If only a filter_func is given, we pass a read-only record to it.
+                # If only a filter_func is given, we pass a readonly record to it.
                 # Likewise to the above, if `filter_func` returns `False`, we
                 # call `continue`.
                 elif filter_func:
