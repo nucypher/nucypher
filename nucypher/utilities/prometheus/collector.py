@@ -321,12 +321,11 @@ class CommitmentMadeEventMetricsCollector(EventMetricsCollector):
             # use local event filter for initial data
             last_committed_period = self.contract_agent.get_last_committed_period(staker_address=self.staker_address)
             arg_filters = {'staker': self.staker_address, 'period': last_committed_period}
-            # check from the beginning - difficult to determine blocknumber for previous period
+            # check from the beginning - difficult to determine block number for previous period
             # however, 'staker' and 'period' filters should help reduce load
             initial_event_filter = self.contract_agent.contract.events[self.event_name].createFilter(
                 fromBlock=0, argument_filters=arg_filters)
             events = initial_event_filter.get_all_entries()
-            # we expect only one event to be returned due to period filter
             for event in events:
                 self._event_occurred(event)
 
