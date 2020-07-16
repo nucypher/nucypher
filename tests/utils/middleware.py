@@ -58,7 +58,7 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
             raise RuntimeError(
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
 
-    def parse_node_or_host_and_port(self, node, host, port):
+    def parse_node_or_host_and_port(self, node=None, host=None, port=None):
         if node:
             if any((host, port)):
                 raise ValueError("Don't pass host and port if you are passing the node.")
@@ -93,9 +93,9 @@ class MockRestMiddleware(RestMiddleware):
     class TEACHER_NODES:
 
         @classmethod
-        def get(_cls, item, default):
+        def get(_cls, item, _default):
             if item is TEMPORARY_DOMAIN:
-                nodes = tuple(u.rest_url() for u in MOCK_KNOWN_URSULAS_CACHE.values())
+                nodes = tuple(u.rest_url() for u in MOCK_KNOWN_URSULAS_CACHE.values())[0:2]
             else:
                 nodes = tuple()
             return nodes

@@ -74,7 +74,7 @@ def make_cli_character(character_config,
 
     # Handle Teachers
     # TODO: Is this still relevant?  Is it better to DRY this up by doing it later?
-    teacher_nodes = list()
+    sage_nodes = list()
     # if load_preferred_teachers:
     #     teacher_nodes = load_seednodes(emitter,
     #                                    teacher_uris=[teacher_uri] if teacher_uri else None,
@@ -89,7 +89,15 @@ def make_cli_character(character_config,
     #
 
     # Produce Character
-    CHARACTER = character_config(known_nodes=teacher_nodes,
+    if teacher_uri:
+        maybe_sage_node = character_config.known_node_class.from_teacher_uri(teacher_uri=teacher_uri,
+                         min_stake=0,  # TODO: Where to get this?
+                         federated_only=character_config.federated_only,
+                         network_middleware=character_config.network_middleware,
+                         registry=character_config.registry)
+        sage_nodes.append(maybe_sage_node)
+
+    CHARACTER = character_config(known_nodes=sage_nodes,
                                  network_middleware=character_config.network_middleware,
                                  **config_args)
 

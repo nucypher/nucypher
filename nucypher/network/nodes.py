@@ -234,7 +234,7 @@ class Learner:
     def known_nodes(self):
         return self.__known_nodes
 
-    def load_seednodes(self, read_storage: bool = True):
+    def load_seednodes(self, read_storage: bool = True, record_fleet_state=False):
         """
         Engage known nodes from storages and pre-fetch hardcoded seednode certificates for node learning.
 
@@ -243,25 +243,26 @@ class Learner:
         if self.done_seeding:
             raise RuntimeError("Already finished seeding.  Why try again?  Is this a thread safety problem?")
 
-        canonical_sage_uris = self.network_middleware.TEACHER_NODES.get(tuple(self.learning_domains)[0], ())  # TODO: Are we done with multiple domains?
-
         discovered = []
 
-        for uri in canonical_sage_uris:
-            try:
-                maybe_sage_node = self.node_class.from_teacher_uri(teacher_uri=uri,
-                                                       min_stake=0,  # TODO: Where to get this?
-                                                       federated_only=self.federated_only,
-                                                       network_middleware=self.network_middleware,
-                                                       registry=self.registry)
-            except NodeSeemsToBeDown:
-                self.unresponsive_seed_nodes.add(uri)
-            else:
-                if maybe_sage_node is UNKNOWN_VERSION:
-                    continue
+        if self.learning_domains:
+            canonical_sage_uris = self.network_middleware.TEACHER_NODES.get(tuple(self.learning_domains)[0], ())  # TODO: Are we done with multiple domains?
+
+            for uri in canonical_sage_uris:
+                try:
+                    maybe_sage_node = self.node_class.from_teacher_uri(teacher_uri=uri,
+                                                           min_stake=0,  # TODO: Where to get this?
+                                                           federated_only=self.federated_only,
+                                                           network_middleware=self.network_middleware,
+                                                           registry=self.registry)
+                except NodeSeemsToBeDown:
+                    self.unresponsive_seed_nodes.add(uri)
                 else:
-                    new_node = self.remember_node(maybe_sage_node, record_fleet_state=False)
-                    discovered.append(new_node)
+                    if maybe_sage_node is UNKNOWN_VERSION:
+                        continue
+                    else:
+                        new_node = self.remember_node(maybe_sage_node, record_fleet_state=False)
+                        discovered.append(new_node)
 
         for seednode_metadata in self._seed_nodes:
 
@@ -275,6 +276,8 @@ class Learner:
                                                       federated_only=self.federated_only)  # TODO: 466
             if seed_node is False:
                 self.unresponsive_seed_nodes.add(seednode_metadata)
+            elif seed_node is UNKNOWN_VERSION:
+                continue  # TODO: Bucket this?  We already emitted a warning.
             else:
                 self.unresponsive_seed_nodes.discard(seednode_metadata)
                 new_node = self.remember_node(seed_node, record_fleet_state=False)
@@ -290,8 +293,10 @@ class Learner:
 
         discovered.extend(nodes_restored_from_storage)
 
-        if discovered:
+        if discovered and record_fleet_state:
             self.known_nodes.record_fleet_state()
+
+        return discovered
 
 
     def read_nodes_from_storage(self) -> None:
@@ -388,7 +393,6 @@ class Learner:
             return self.learning_deferred
         else:
             self.log.info("Starting Learning Loop.")
-            self.cycle_teacher_node()
 
             learning_deferreds = list()
 
@@ -436,8 +440,6 @@ class Learner:
         self.teacher_nodes.extend(nodes_we_know_about)
 
     def cycle_teacher_node(self):
-        if not self.done_seeding:
-            self.load_seednodes()
         if not self.teacher_nodes:
             self.select_teacher_nodes()
         try:
@@ -649,6 +651,12 @@ class Learner:
 
         TODO: Does this (and related methods) belong on FleetSensor for portability?
         """
+        remembered = []
+
+        if not self.done_seeding:
+            remembered_seednodes = self.load_seednodes(record_fleet_state=False)
+            remembered.extend(remembered_seednodes)
+
         self._learning_round += 1
 
         current_teacher = self.current_teacher_node()  # Will raise if there's no available teacher.
@@ -740,7 +748,7 @@ class Learner:
         # somewhere more performant, like mature() or verify_node().
 
         sprouts = self.node_class.batch_from_bytes(node_payload)
-        remembered = []
+
         for sprout in sprouts:
             fail_fast = True  # TODO  NRN
             try:
@@ -759,30 +767,31 @@ class Learner:
                 self.log.info(f"Verification Failed - "
                               f"Cannot establish connection to {sprout}.")
 
-            except sprout.StampNotSigned:
-                self.log.warn(f'Verification Failed - '
-                              f'{sprout} stamp is unsigned.')
-
-            except sprout.NotStaking:
-                self.log.warn(f'Verification Failed - '
-                              f'{sprout} has no active stakes in the current period '
-                              f'({self.staking_agent.get_current_period()}')
-
-            except sprout.InvalidWorkerSignature:
-                self.log.warn(f'Verification Failed - '
-                              f'{sprout} has an invalid wallet signature for {sprout.decentralized_identity_evidence}')
-
-            except sprout.UnbondedWorker:
-                self.log.warn(f'Verification Failed - '
-                              f'{sprout} is not bonded to a Staker.')
-
-            except sprout.Invalidsprout:
-                self.log.warn(sprout.invalid_metadata_message.format(sprout))
-
-            except sprout.SuspiciousActivity:
-                message = f"Suspicious Activity: Discovered sprout with bad signature: {sprout}." \
-                          f"Propagated by: {current_teacher}"
-                self.log.warn(message)
+            # TODO: This whole section is weird; sprouts down have any of these things.
+            # except sprout.StampNotSigned:
+            #     self.log.warn(f'Verification Failed - '
+            #                   f'{sprout} stamp is unsigned.')
+            #
+            # except sprout.NotStaking:
+            #     self.log.warn(f'Verification Failed - '
+            #                   f'{sprout} has no active stakes in the current period '
+            #                   f'({self.staking_agent.get_current_period()}')
+            #
+            # except sprout.InvalidWorkerSignature:
+            #     self.log.warn(f'Verification Failed - '
+            #                   f'{sprout} has an invalid wallet signature for {sprout.decentralized_identity_evidence}')
+            #
+            # except sprout.UnbondedWorker:
+            #     self.log.warn(f'Verification Failed - '
+            #                   f'{sprout} is not bonded to a Staker.')
+            #
+            # # except sprout.Invalidsprout:
+            # #     self.log.warn(sprout.invalid_metadata_message.format(sprout))
+            #
+            # except sprout.SuspiciousActivity:
+            #     message = f"Suspicious Activity: Discovered sprout with bad signature: {sprout}." \
+            #               f"Propagated by: {current_teacher}"
+            #     self.log.warn(message)
 
 
         # Is cycling happening in the right order?

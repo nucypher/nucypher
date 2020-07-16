@@ -16,41 +16,33 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import contextlib
 from contextlib import suppress
+from typing import ClassVar, Dict, List, Optional, Set, Union
+
+from cryptography.exceptions import InvalidSignature
+from eth_keys import KeyAPI as EthKeyAPI
+from eth_utils import to_canonical_address, to_checksum_address
 
 from constant_sorrow import default_constant_splitter
 from constant_sorrow.constants import (DO_NOT_SIGN, NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTOCOL,
                                        NO_DECRYPTION_PERFORMED, NO_NICKNAME, NO_SIGNING_POWER,
                                        SIGNATURE_IS_ON_CIPHERTEXT, SIGNATURE_TO_FOLLOW, STRANGER)
-from cryptography.exceptions import InvalidSignature
-from eth_keys import KeyAPI as EthKeyAPI
-from eth_utils import to_canonical_address, to_checksum_address
-from typing import ClassVar, Dict, List, Optional, Set, Union
-
 from nucypher.acumen.nicknames import nickname_from_seed
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
-
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.control.controllers import CLIController, JSONRPCController
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import (
-    CryptoPower,
-    SigningPower,
-    DecryptingPower,
-    NoSigningPower,
-    CryptoPowerUp,
-    DelegatingPower, TransactingPower, NoTransactingPower
-)
-from nucypher.crypto.signing import signature_splitter, StrangerStamp, SignatureStamp
 from nucypher.crypto.powers import (CryptoPower, CryptoPowerUp, DecryptingPower, DelegatingPower, NoSigningPower,
                                     SigningPower)
+from nucypher.crypto.powers import (
+    TransactingPower, NoTransactingPower
+)
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp, signature_splitter
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Learner
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
 
 
 class Character(Learner):
@@ -160,10 +152,6 @@ class Character(Learner):
             self._crypto_power = CryptoPower(power_ups=crypto_power_ups)
         else:
             self._crypto_power = CryptoPower(power_ups=self._default_crypto_powerups)
-
-        # Fleet and Blockchain Connection (Everyone)
-        if not domains:
-            domains = {CharacterConfiguration.DEFAULT_DOMAIN}
 
         #
         # Self-Character
@@ -555,3 +543,6 @@ class Character(Learner):
 
         self.controller = controller
         return controller
+
+    def disenchant(self):
+        Learner.stop_learning_loop(self)

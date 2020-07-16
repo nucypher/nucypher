@@ -73,6 +73,7 @@ class BobConfigOptions:
                  federated_only: bool,
                  gas_strategy: str,
                  signer_uri: str,
+                 lonely: bool
                  ):
 
         self.provider_uri = provider_uri
@@ -85,6 +86,7 @@ class BobConfigOptions:
         self.dev = dev
         self.middleware = middleware
         self.federated_only = federated_only
+        self.lonely = lonely
 
     def create_config(self, emitter: StdoutEmitter, config_file: str) -> BobConfiguration:
         if self.dev:
@@ -97,7 +99,9 @@ class BobConfigOptions:
                 signer_uri=self.signer_uri,
                 federated_only=True,
                 checksum_address=self.checksum_address,
-                network_middleware=self.middleware)
+                network_middleware=self.middleware,
+                lonely=self.lonely
+            )
         else:
             try:
                 return BobConfiguration.from_configuration_file(
@@ -110,7 +114,9 @@ class BobConfigOptions:
                     signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
                     registry_filepath=self.registry_filepath,
-                    network_middleware=self.middleware)
+                    network_middleware=self.middleware,
+                    lonely=self.lonely
+                )
             except FileNotFoundError:
                 handle_missing_configuration_file(character_config_class=BobConfiguration,
                                                   config_file=config_file)
@@ -133,6 +139,7 @@ class BobConfigOptions:
             provider_uri=self.provider_uri,
             signer_uri=self.signer_uri,
             gas_strategy=self.gas_strategy,
+            lonely=self.lonely
         )
 
     def get_updates(self) -> dict:
@@ -142,7 +149,8 @@ class BobConfigOptions:
                        registry_filepath=self.registry_filepath,
                        provider_uri=self.provider_uri,
                        signer_uri=self.signer_uri,
-                       gas_strategy=self.gas_strategy
+                       gas_strategy=self.gas_strategy,
+                       lonely=self.lonely
                        )
         # Depends on defaults being set on Configuration classes, filtrates None values
         updates = {k: v for k, v in payload.items() if v is not None}
