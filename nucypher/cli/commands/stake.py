@@ -520,8 +520,8 @@ def create(general_config, transacting_staker_options, config_file, force, value
         raise click.Abort
 
     # Execute
-    new_stake = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods)
-    paint_staking_confirmation(emitter=emitter, staker=STAKEHOLDER, new_stake=new_stake)
+    receipt = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods)
+    paint_staking_confirmation(emitter=emitter, staker=STAKEHOLDER, receipt=receipt)
 
 
 @stake.command()
@@ -703,12 +703,10 @@ def divide(general_config, transacting_staker_options, config_file, force, value
         raise click.Abort
 
     # Execute
-    modified_stake, new_stake = STAKEHOLDER.divide_stake(stake_index=current_stake.index,
-                                                         target_value=value,
-                                                         additional_periods=extension)
+    receipt = STAKEHOLDER.divide_stake(stake=current_stake, target_value=value, additional_periods=extension)
     emitter.echo(SUCCESSFUL_STAKE_DIVIDE, color='green', verbosity=1)
     paint_receipt_summary(emitter=emitter,
-                          receipt=new_stake.receipt,
+                          receipt=receipt,
                           chain_name=blockchain.client.chain_name)
 
     # Show the resulting stake list
@@ -774,7 +772,7 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
         raise click.Abort
 
     # Execute
-    receipt = STAKEHOLDER.prolong_stake(stake_index=current_stake.index, additional_periods=lock_periods)
+    receipt = STAKEHOLDER.prolong_stake(stake=current_stake, additional_periods=lock_periods)
 
     # Report
     emitter.echo(SUCCESSFUL_STAKE_PROLONG, color='green', verbosity=1)

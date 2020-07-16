@@ -892,50 +892,39 @@ class Staker(NucypherTokenActor):
 
     @only_me
     def divide_stake(self,
-                     stake_index: int,
+                     stake: Stake,
                      target_value: NU,
                      additional_periods: int = None,
-                     expiration: maya.MayaDT = None) -> tuple:
+                     expiration: maya.MayaDT = None) -> Tuple[str, str]:
 
         # Calculate duration in periods
         if additional_periods and expiration:
             raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
 
-        # Update staking cache element
-        stakes = self.stakes
-
-        # Select stake to divide from local cache
-        try:
-            current_stake = stakes[stake_index]
-        except KeyError:
-            if len(stakes):
-                message = f"Cannot divide stake - No stake exists with index {stake_index}."
-            else:
-                message = "Cannot divide stake - There are no active stakes."
-            raise Stake.StakingError(message)
-
         # Calculate stake duration in periods
         if expiration:
-            additional_periods = datetime_to_period(datetime=expiration, seconds_per_period=self.economics.seconds_per_period) - current_stake.final_locked_period
+            additional_periods = datetime_to_period(datetime=expiration, seconds_per_period=self.economics.seconds_per_period) - stake.final_locked_period
             if additional_periods <= 0:
                 raise Stake.StakingError(f"New expiration {expiration} must be at least 1 period from the "
-                                         f"current stake's end period ({current_stake.final_locked_period}).")
+                                         f"current stake's end period ({stake.final_locked_period}).")
 
         # Do it already!
-        modified_stake, new_stake = current_stake.divide(target_value=target_value,
-                                                         additional_periods=additional_periods)
+        stake.validate_divide(target_value=target_value, additional_periods=additional_periods)
+        receipt = self._divide_stake(stake_index=stake.index,
+                                     additional_periods=additional_periods,
+                                     target_value=int(target_value))
 
         # Update staking cache element
         self.refresh_stakes()
 
-        return modified_stake, new_stake
+        return receipt
 
     @only_me
     def initialize_stake(self,
                          amount: NU = None,
                          lock_periods: int = None,
                          expiration: maya.MayaDT = None,
-                         entire_balance: bool = False) -> Stake:
+                         entire_balance: bool = False) -> Tuple[str, str]:
 
         """Create a new stake."""
 
@@ -959,24 +948,32 @@ class Staker(NucypherTokenActor):
                                           f"for new stake initialization of {amount}")
 
         # Ensure the new stake will not exceed the staking limit
-        if (self.current_stake + amount) > self.economics.maximum_allowed_locked:
+        if (self.locked_tokens(periods=1) + amount) > self.economics.maximum_allowed_locked:
             raise Stake.StakingError(f"Cannot initialize stake - "
                                      f"Maximum stake value exceeded for {self.checksum_address} "
                                      f"with a target value of {amount}.")
 
         # Write to blockchain
-        new_stake = Stake.initialize_stake(staker=self,
+        new_stake = Stake.initialize_stake(staking_agent=self.staking_agent,
+                                           economics=self.economics,
+                                           checksum_address=self.checksum_address,
                                            amount=amount,
                                            lock_periods=lock_periods)
+
+        # Create stake on-chain
+        receipt = self._deposit(amount=new_stake.value.to_nunits(), lock_periods=new_stake.duration)
+
+        # Log and return Stake instance
+        self.log.info(f"{self.checksum_address} Initialized new stake: {amount} tokens for {lock_periods} periods")
 
         # Update staking cache element
         self.refresh_stakes()
 
-        return new_stake
+        return receipt
 
     @only_me
     def prolong_stake(self,
-                      stake_index: int,
+                      stake: Stake,
                       additional_periods: int = None,
                       expiration: maya.MayaDT = None) -> tuple:
 
@@ -984,33 +981,32 @@ class Staker(NucypherTokenActor):
         if additional_periods and expiration:
             raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
 
-        # Update staking cache element
-        stakes = self.stakes
-
-        # Select stake to prolong from local cache
-        try:
-            current_stake = stakes[stake_index]
-        except KeyError:
-            if len(stakes):
-                message = f"Cannot prolong stake - No stake exists with index {stake_index}."
-            else:
-                message = "Cannot prolong stake - There are no active stakes."
-            raise Stake.StakingError(message)
-
         # Calculate stake duration in periods
         if expiration:
-            additional_periods = datetime_to_period(datetime=expiration, seconds_per_period=self.economics.seconds_per_period) - current_stake.final_locked_period
+            additional_periods = datetime_to_period(datetime=expiration, seconds_per_period=self.economics.seconds_per_period) - stake.final_locked_period
             if additional_periods <= 0:
                 raise Stake.StakingError(f"New expiration {expiration} must be at least 1 period from the "
-                                         f"current stake's end period ({current_stake.final_locked_period}).")
+                                         f"current stake's end period ({stake.final_locked_period}).")
 
-        stake = current_stake.prolong(additional_periods=additional_periods)
+        stake.validate_prolong(additional_periods=additional_periods)
+        receipt = self._prolong_stake(stake_index=stake.index, lock_periods=additional_periods)
 
         # Update staking cache element
         self.refresh_stakes()
-        return stake
+        return receipt
 
-    def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
+    def _prolong_stake(self, stake_index: int, lock_periods: int) -> Tuple[str, str]:
+        """Public facing method for stake prolongation."""
+        # TODO #1497 #1358
+        # if self.is_contract:
+        #     receipt = self.preallocation_escrow_agent.prolong_stake(stake_index=stake_index, lock_periods=lock_periods)
+        # else:
+        receipt = self.staking_agent.prolong_stake(stake_index=stake_index,
+                                                   periods=lock_periods,
+                                                   staker_address=self.checksum_address)
+        return receipt
+
+    def _deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
         """Public facing method for token locking."""
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.deposit_as_staker(amount=amount, lock_periods=lock_periods)
@@ -1019,6 +1015,18 @@ class Staker(NucypherTokenActor):
                                                         target_address=self.staking_agent.contract_address,
                                                         sender_address=self.checksum_address,
                                                         call_data=Web3.toBytes(lock_periods))
+        return receipt
+
+    def _divide_stake(self, stake_index: int, additional_periods: int, target_value: int) -> Tuple[str, str]:
+        """Public facing method for stake dividing."""
+        # TODO #1497 #1358
+        # if self.is_contract:
+        #     receipt = self.preallocation_escrow_agent...
+        # else:
+        receipt = self.staking_agent.divide_stake(staker_address=self.checksum_address,
+                                                  stake_index=stake_index,
+                                                  target_value=target_value,
+                                                  periods=additional_periods)
         return receipt
 
     @property
@@ -1105,11 +1113,9 @@ class Staker(NucypherTokenActor):
 
         return mintable_periods
 
-
     #
     # Bonding with Worker
     #
-
     @only_me
     @save_receipt
     @validate_checksum_address

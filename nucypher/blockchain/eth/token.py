@@ -228,7 +228,6 @@ class Stake:
         if validate_now:
             self.validate()
 
-        self.receipt = NO_STAKING_RECEIPT
         self._status = None
 
     def __repr__(self) -> str:
@@ -433,13 +432,10 @@ class Stake:
         self.value = NU.from_nunits(stake_info.locked_value)
         self._status = None
 
-    def divide(self, target_value: NU, additional_periods: int = None) -> Tuple['Stake', 'Stake']:
+    def validate_divide(self, target_value: NU, additional_periods: int = None) -> None:
         """
-        Modifies the unlocking schedule and value of already locked tokens.
-
-        This actor requires that is_me is True, and that the expiration datetime is after the existing
-        locking schedule of this staker, or an exception will be raised.
-       """
+        Validates possibility to divide specified stake into two stakes using provided parameters.
+        """
 
         # Read on-chain stake
         self.sync()
@@ -488,60 +484,45 @@ class Stake:
         modified_stake.validate_value()
         new_stake.validate_value()
 
-        #
-        # Transmit
-        #
-
-        # TODO: Entrypoint for PreallocationEscrowAgent here - #1497
-        # Transmit the stake division transaction
-        receipt = self.staking_agent.divide_stake(staker_address=self.staker_address,
-                                                  stake_index=self.index,
-                                                  target_value=int(target_value),
-                                                  periods=additional_periods)
-        new_stake.receipt = receipt
-
-        return modified_stake, new_stake
-
     @classmethod
-    def initialize_stake(cls, staker, amount: NU, lock_periods: int) -> 'Stake':
+    def initialize_stake(cls,
+                         staking_agent,
+                         economics,
+                         checksum_address: str,
+                         amount: NU,
+                         lock_periods: int) -> 'Stake':
 
         # Value
         amount = NU(int(amount), 'NuNit')
 
         # Duration
-        current_period = staker.staking_agent.get_current_period()
+        current_period = staking_agent.get_current_period()
         final_locked_period = current_period + lock_periods
 
-        stake = Stake(checksum_address=staker.checksum_address,
+        stake = Stake(checksum_address=checksum_address,
                       first_locked_period=current_period + 1,
                       final_locked_period=final_locked_period,
                       value=amount,
                       index=NEW_STAKE,
-                      staking_agent=staker.staking_agent,
-                      economics=staker.economics)
+                      staking_agent=staking_agent,
+                      economics=economics)
 
         # Validate
         stake.validate_value()
         stake.validate_duration()
-
-        # Create stake on-chain
-        stake.receipt = staker.deposit(amount=int(amount), lock_periods=lock_periods)
-
-        # Log and return Stake instance
-        log = Logger(f'stake-{staker.checksum_address}-creation')
-        log.info(f"{staker.checksum_address} Initialized new stake: {amount} tokens for {lock_periods} periods")
         return stake
 
-    def prolong(self, additional_periods: int):
+    def validate_prolong(self, additional_periods: int) -> None:
         self.sync()
         status = self.status()
         if not status.is_child(Stake.Status.EDITABLE):
             raise self.StakingError(f'Cannot prolong a non-editable stake. '
                                     f'Selected stake expired {self.unlock_datetime}.')
-        receipt = self.staking_agent.prolong_stake(staker_address=self.staker_address,
-                                                   stake_index=self.index,
-                                                   periods=additional_periods)
-        return receipt
+        new_duration = self.periods_remaining + additional_periods - 1
+        if new_duration < self.economics.minimum_locked_periods:
+            raise self.StakingError(f'Sub-stake duration of {new_duration} periods after prolongation'
+                                    f'is shorter than minimum allowed duration '
+                                    f'of {self.economics.minimum_locked_periods} periods.')
 
 
 class WorkTracker:

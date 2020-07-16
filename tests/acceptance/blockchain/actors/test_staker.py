@@ -58,7 +58,8 @@ def test_staker_divides_stake(staker, token_economics):
 
     stake_index = 0
     staker.initialize_stake(amount=stake_value, lock_periods=int(token_economics.minimum_locked_periods))
-    staker.divide_stake(target_value=new_stake_value, stake_index=stake_index+1, additional_periods=2)
+    stake = staker.stakes[stake_index + 1]
+    staker.divide_stake(target_value=new_stake_value, stake=stake, additional_periods=2)
 
     current_period = staker.staking_agent.get_current_period()
     expected_old_stake = (current_period + 1, current_period + 30, stake_value - new_stake_value)
@@ -69,7 +70,8 @@ def test_staker_divides_stake(staker, token_economics):
     assert expected_new_stake == staker.stakes[stake_index + 2].to_stake_info(), 'New stake values are invalid'
 
     yet_another_stake_value = NU(token_economics.minimum_allowed_locked, 'NuNit')
-    staker.divide_stake(target_value=yet_another_stake_value, stake_index=stake_index + 2, additional_periods=2)
+    stake = staker.stakes[stake_index + 2]
+    staker.divide_stake(target_value=yet_another_stake_value, stake=stake, additional_periods=2)
 
     expected_new_stake = (current_period + 1, current_period + 32, new_stake_value - yet_another_stake_value)
     expected_yet_another_stake = Stake(first_locked_period=current_period + 1,
