@@ -63,6 +63,7 @@ class CharacterControllerBase(ABC):
         response = method(**params)  # < ---- INLET
 
         response_data = serializer.dump(response)
+        self.stop_character()
         return response_data
 
 
@@ -114,6 +115,9 @@ class CharacterControlServer(CharacterControllerBase):
                 predicate=inspect.ismethod)
             if hasattr(method, '_schema')
         }
+
+    def stop_character(self):
+        self.interface.character.disenchant()
 
     @abstractmethod
     def make_control_transport(self):

@@ -20,7 +20,6 @@ from unittest.mock import patch
 
 from nucypher.network.server import make_rest_app
 from tests.mock.serials import good_serials
-from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
 from umbral.config import default_params
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature

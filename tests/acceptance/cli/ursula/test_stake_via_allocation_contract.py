@@ -555,7 +555,6 @@ def test_collect_rewards_integration(click_runner,
     assert arrangement.ursula == ursula
 
     # Bob learns about the new staker and joins the policy
-    blockchain_bob.start_learning_loop()
     blockchain_bob.remember_node(node=ursula)
     blockchain_bob.join_policy(random_policy_label, bytes(blockchain_alice.stamp))
 
