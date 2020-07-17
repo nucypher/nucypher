@@ -21,7 +21,7 @@ services:
     ports:
       - 11500
     image: circle:nucypher
-    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.1 --rest-port 11500 --lonely
+    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.1 --rest-port 11500 --lonely --disable-availability-check
     networks:
       nucypher_circle_net:
         ipv4_address: 172.29.1.1
@@ -32,7 +32,7 @@ services:
     image: circle:nucypher
     depends_on:
       - circleursula1
-    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.2 --rest-port 11500 --teacher 172.29.1.1:11500
+    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.2 --rest-port 11500 --disable-availability-check --teacher 172.29.1.1:11500
     networks:
       nucypher_circle_net:
         ipv4_address: 172.29.1.2
@@ -43,7 +43,7 @@ services:
     image: circle:nucypher
     depends_on:
       - circleursula2
-    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.3 --rest-port 11500 --teacher 172.29.1.1:11500
+    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.3 --rest-port 11500 --disable-availability-check --teacher 172.29.1.1:11500
     networks:
       nucypher_circle_net:
         ipv4_address: 172.29.1.3
@@ -53,12 +53,101 @@ services:
       - 11500
     image: circle:nucypher
     depends_on:
-      - circleursula3
-    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.4 --rest-port 11500 --teacher 172.29.1.1:11500
+      - circleursula1
+    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.4 --rest-port 11500 --disable-availability-check --teacher 172.29.1.1:11500
     networks:
       nucypher_circle_net:
         ipv4_address: 172.29.1.4
     container_name: circleursula4
+  circleursula5:
+    ports:
+      - 11500
+    image: circle:nucypher
+    depends_on:
+      - circleursula1
+    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.5 --rest-port 11500 --disable-availability-check --teacher 172.29.1.1:11500
+    networks:
+      nucypher_circle_net:
+        ipv4_address: 172.29.1.5
+    container_name: circleursula5
+  circleursula6:
+    ports:
+      - 11500
+    image: circle:nucypher
+    depends_on:
+      - circleursula1
+    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.6 --rest-port 11500 --disable-availability-check --teacher 172.29.1.1:11500
+    networks:
+      nucypher_circle_net:
+        ipv4_address: 172.29.1.6
+    container_name: circleursula6
+  circleursula7:
+    ports:
+      - 11500
+    image: circle:nucypher
+    depends_on:
+      - circleursula1
+    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.7 --rest-port 11500 --disable-availability-check --teacher 172.29.1.1:11500
+    networks:
+      nucypher_circle_net:
+        ipv4_address: 172.29.1.7
+    container_name: circleursula7
+  circleursula8:
+    ports:
+      - 11500
+    image: circle:nucypher
+    depends_on:
+      - circleursula1
+    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.8 --rest-port 11500 --disable-availability-check --teacher 172.29.1.1:11500
+    networks:
+      nucypher_circle_net:
+        ipv4_address: 172.29.1.8
+    container_name: circleursula8
+  circleursula9:
+    ports:
+      - 11500
+    image: circle:nucypher
+    depends_on:
+      - circleursula1
+    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.9 --rest-port 11500 --disable-availability-check --teacher 172.29.1.1:11500
+    networks:
+      nucypher_circle_net:
+        ipv4_address: 172.29.1.9
+    container_name: circleursula9
+  circleursula10:
+    ports:
+      - 11500
+    image: circle:nucypher
+    depends_on:
+      - circleursula1
+    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.10 --rest-port 11500 --disable-availability-check --teacher 172.29.1.1:11500
+    networks:
+      nucypher_circle_net:
+        ipv4_address: 172.29.1.10
+    container_name: circleursula10
+  circleursula11:
+    ports:
+      - 11500
+    image: circle:nucypher
+    depends_on:
+      - circleursula1
+    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.11 --rest-port 11500 --disable-availability-check --teacher 172.29.1.1:11500
+    networks:
+      nucypher_circle_net:
+        ipv4_address: 172.29.1.11
+    container_name: circleursula11
+  circleursula12:
+    ports:
+      - 11500
+    image: circle:nucypher
+    depends_on:
+      - circleursula1
+    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.12 --rest-port 11500 --disable-availability-check --teacher 172.29.1.1:11500
+    networks:
+      nucypher_circle_net:
+        ipv4_address: 172.29.1.12
+    container_name: circleursula12
+
 
 
 networks:
