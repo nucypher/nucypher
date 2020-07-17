@@ -172,7 +172,7 @@ class PolicyPayloadMutex(DeferredList):
         self._policy_locking_queue = Queue()
 
         super().__init__(deferredList, *args, **kwargs)
-        self._block_until_this_many_are_complete = int(len(deferredList) / self.percent_to_complete_before_release)
+        self._block_until_this_many_are_complete = int(len(deferredList) * self.percent_to_complete_before_release / 100)
 
     def _cbDeferred(self, *args, **kwargs):
         result = super()._cbDeferred(*args, **kwargs)
