@@ -14,11 +14,21 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from nucypher.exceptions import DevelopmentInstallationRequired
 
 try:
     from prometheus_client import Gauge, Enum, Counter, Info, Histogram, Summary
 except ImportError:
     raise ImportError('"prometheus_client" must be installed - run "pip install nucypher[ursula]" and try again.')
+
+try:
+    from prometheus_client.core import Timestamp
+    from prometheus_client.registry import CollectorRegistry, REGISTRY
+    from prometheus_client.utils import floatToGoString
+except ImportError:
+    raise DevelopmentInstallationRequired(importable_name='prometheus_client')
+
+import json
 
 from nucypher.utilities.prometheus.collector import (
     MetricsCollector,
@@ -31,17 +41,11 @@ from nucypher.utilities.prometheus.collector import (
     ReStakeEventMetricsCollector,
     WindDownEventMetricsCollector,
     WorkerBondedEventMetricsCollector,
-    BidRefundCompositeEventMetricsCollector)
+    BidRefundCompositeEventMetricsCollector,
+    CommitmentMadeEventMetricsCollector)
 
-import json
 from typing import List
 
-try:
-    from prometheus_client.core import Timestamp
-    from prometheus_client.registry import CollectorRegistry, REGISTRY
-    from prometheus_client.utils import floatToGoString
-except ImportError:
-    raise DevelopmentInstallationRequired(importable_name='prometheus_client')
 from twisted.internet import reactor, task
 from twisted.web.resource import Resource
 
@@ -214,16 +218,17 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
     collectors: List[MetricsCollector] = []
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=ursula.registry)
 
+    staker_address = ursula.checksum_address
+
     # CommitmentMade
-    collectors.append(EventMetricsCollector(
-        event_name='CommitmentMade',
+    collectors.append(CommitmentMadeEventMetricsCollector(
         event_args_config={
             "value": (Gauge,
                       f'{metrics_prefix}_activity_confirmed_value',
                       'CommitmentMade to next period with value of locked tokens'),
             "period": (Gauge, f'{metrics_prefix}_activity_confirmed_period', 'Commitment made for period')
         },
-        argument_filters={'staker': ursula.checksum_address},
+        staker_address=staker_address,
         contract_agent=staking_agent))
 
     # Minted
@@ -234,7 +239,7 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
             "period": (Gauge, f'{metrics_prefix}_mined_period', 'Minted period'),
             "block_number": (Gauge, f'{metrics_prefix}_mined_block_number', 'Minted block number')
         },
-        argument_filters={'staker': ursula.checksum_address},
+        argument_filters={'staker': staker_address},
         contract_agent=staking_agent))
 
     # Slashed
@@ -246,7 +251,7 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
                              f'{metrics_prefix}_last_slashed_penalty_block_number',
                              'Slashed penalty block number')
         },
-        argument_filters={'staker': ursula.checksum_address},
+        argument_filters={'staker': staker_address},
         contract_agent=staking_agent))
 
     # RestakeSet
@@ -254,8 +259,7 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
         event_args_config={
             "reStake": (Gauge, f'{metrics_prefix}_restaking', 'Restake set')
         },
-        argument_filters={'staker': ursula.checksum_address},
-        staker_address=ursula.checksum_address,
+        staker_address=staker_address,
         contract_agent=staking_agent))
 
     # WindDownSet
@@ -263,8 +267,7 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
         event_args_config={
             "windDown": (Gauge, f'{metrics_prefix}_wind_down', 'is windDown')
         },
-        argument_filters={'staker': ursula.checksum_address},
-        staker_address=ursula.checksum_address,
+        staker_address=staker_address,
         contract_agent=staking_agent))
 
     # WorkerBonded
@@ -273,8 +276,7 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
             "startPeriod": (Gauge, f'{metrics_prefix}_worker_set_start_period', 'New worker was bonded'),
             "block_number": (Gauge, f'{metrics_prefix}_worker_set_block_number', 'WorkerBonded block number')
         },
-        argument_filters={'staker': ursula.checksum_address},
-        staker_address=ursula.checksum_address,
+        staker_address=staker_address,
         worker_address=ursula.worker_address,
         contract_agent=staking_agent))
 
@@ -285,14 +287,15 @@ def create_worklock_events_metric_collectors(ursula: 'Ursula', metrics_prefix: s
     """Create collectors for worklock-related events."""
     collectors: List[MetricsCollector] = []
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=ursula.registry)
+    staker_address = ursula.checksum_address
 
-    # Deposited
+    # Deposited\
     collectors.append(EventMetricsCollector(
         event_name='Deposited',
         event_args_config={
             "value": (Gauge, f'{metrics_prefix}_worklock_deposited_value', 'Deposited value')
         },
-        argument_filters={"sender": ursula.checksum_address},
+        argument_filters={"sender": staker_address},
         contract_agent=worklock_agent))
 
     # Claimed
@@ -301,12 +304,12 @@ def create_worklock_events_metric_collectors(ursula: 'Ursula', metrics_prefix: s
         event_args_config={
             "claimedTokens": (Gauge, f'{metrics_prefix}_worklock_claimed_claimedTokens', 'Claimed tokens value')
         },
-        argument_filters={"sender": ursula.checksum_address},
+        argument_filters={"sender": staker_address},
         contract_agent=worklock_agent))
 
     # Bid/Refund (Modify a common metric)
     collectors.append(BidRefundCompositeEventMetricsCollector(
-        staker_address=ursula.checksum_address,
+        staker_address=staker_address,
         contract_registry=ursula.registry,
         metrics_prefix=metrics_prefix))
 
