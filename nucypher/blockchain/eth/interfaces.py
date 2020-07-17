@@ -31,6 +31,7 @@ from constant_sorrow.constants import (
 )
 from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
+from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from typing import Callable, NamedTuple, Tuple, Union
 from urllib.parse import urlparse
@@ -867,14 +868,31 @@ class BlockchainDeployerInterface(BlockchainInterface):
                 current_version = version
         return current_version, current_data
 
-    def get_contract_factory(self, contract_name: str, version: str = 'latest') -> VersionedContract:
+    def __get_contract_interface(self,
+                                 contract_name: str,
+                                 version: str = 'latest',
+                                 address: ChecksumAddress = None) -> VersionedContract:
         """Retrieve compiled interface data from the cache and return web3 contract"""
         version, interface = self.find_raw_contract_data(contract_name, version)
         contract = self.client.w3.eth.contract(abi=interface['abi'],
                                                bytecode=interface['bin'],
                                                version=version,
+                                               address=address,
                                                ContractFactoryClass=self._contract_factory)
         return contract
+
+    def get_contract_instance(self,
+                              address: ChecksumAddress,
+                              contract_name: str,
+                              version: str = 'latest') -> VersionedContract:
+        """Retrieve compiled contract data from the cache and return web3 contract instantiated for some address"""
+        contract_instance = self.__get_contract_interface(address=address, contract_name=contract_name, version=version)
+        return contract_instance
+
+    def get_contract_factory(self, contract_name: str, version: str = 'latest') -> VersionedContract:
+        """Retrieve compiled contract data from the cache and return web3 contract factory"""
+        contract_factory = self.__get_contract_interface(contract_name=contract_name, version=version)
+        return contract_factory
 
     def _wrap_contract(self,
                        wrapper_contract: VersionedContract,
