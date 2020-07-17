@@ -246,7 +246,8 @@ class Learner:
         discovered = []
 
         if self.learning_domains:
-            canonical_sage_uris = self.network_middleware.TEACHER_NODES.get(tuple(self.learning_domains)[0], ())  # TODO: Are we done with multiple domains?
+            one_and_only_learning_domain = tuple(self.learning_domains)[0] # TODO: Are we done with multiple domains?  2144
+            canonical_sage_uris = self.network_middleware.TEACHER_NODES.get(one_and_only_learning_domain, ())
 
             for uri in canonical_sage_uris:
                 try:
