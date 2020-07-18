@@ -19,6 +19,7 @@ import os
 
 import pytest
 from eth_utils import to_canonical_address
+from web3 import Web3
 
 from nucypher.blockchain.eth.aragon import CallScriptCodec
 
@@ -30,20 +31,27 @@ def test_callscriptcodec():
 def test_callscript_encoding_empty():
     actions = tuple()
 
-    callscript_data = CallScriptCodec.encode(actions)
+    callscript_data = CallScriptCodec.encode_actions(actions)
     expected_callscript = CallScriptCodec.CALLSCRIPT_ID
     assert expected_callscript == callscript_data
 
 
 @pytest.mark.parametrize('data_length', range(0, 100, 5))
 def test_callscript_encoding_one_action(get_random_checksum_address, data_length):
+    # Action is a byte string
     target = get_random_checksum_address()
     data = os.urandom(data_length)
     actions = [(target, data)]
 
-    callscript_data = CallScriptCodec.encode(actions)
+    callscript_data = CallScriptCodec.encode_actions(actions)
     expected_callscript = b''.join((CallScriptCodec.CALLSCRIPT_ID,
                                     to_canonical_address(target),
                                     data_length.to_bytes(4, 'big'),
                                     data))
+    assert expected_callscript == callscript_data
+
+    # Action is a hex string
+    data = Web3.toHex(data)
+    actions = [(target, data)]
+    callscript_data = CallScriptCodec.encode_actions(actions)
     assert expected_callscript == callscript_data

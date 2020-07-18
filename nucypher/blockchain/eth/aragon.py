@@ -14,9 +14,9 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Union
 
-from eth_typing import ChecksumAddress
+from eth_typing import ChecksumAddress, HexStr
 from eth_utils import to_canonical_address
 from web3 import Web3
 from web3.contract import Contract, ContractFunction
@@ -56,14 +56,18 @@ class TokenManagerTranslator(Translator):
         return function_call
 
 
+Action = Tuple[ChecksumAddress, Union[ContractFunction, HexStr, bytes]]
+
+
 class CallScriptCodec:
 
     CALLSCRIPT_ID = Web3.toBytes(hexstr='0x00000001')
 
     @classmethod
-    def encode(cls, actions: Iterable[Tuple[str, bytes]]):
+    def encode_actions(cls, actions: Iterable[Action]) -> bytes:
         callscript = [cls.CALLSCRIPT_ID]
 
+        actions = cls._format_actions(actions=actions)
         for target, action_data in actions:
             encoded_action = (to_canonical_address(target),
                               len(action_data).to_bytes(4, 'big'),
@@ -72,3 +76,21 @@ class CallScriptCodec:
 
         callscript_data = b''.join(callscript)
         return callscript_data
+
+    @classmethod
+    def _format_actions(cls, actions: Iterable[Action]) -> Iterable[Tuple[ChecksumAddress, bytes]]:
+        actions_bytes = list()
+        for target, function_call in actions:
+            try:
+                encoded_action = function_call._encode_transaction_data()
+            except AttributeError:
+                encoded_action = function_call
+
+            try:
+                action_bytes = Web3.toBytes(hexstr=encoded_action)
+            except TypeError:
+                action_bytes = encoded_action
+
+            actions_bytes.append((target, action_bytes))
+
+        return actions_bytes
