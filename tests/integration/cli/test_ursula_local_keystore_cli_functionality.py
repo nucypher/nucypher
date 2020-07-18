@@ -44,7 +44,7 @@ def mock_account_password_keystore(tmp_path_factory):
     json.dump(account.encrypt(password), open(path, 'x+t'))
     return account, password, keystore
 
-
+@pytest.mark.usefixtures('mock_contract_agency')
 def test_ursula_init_with_local_keystore_signer(click_runner,
                                                 tmp_path,
                                                 mocker,
