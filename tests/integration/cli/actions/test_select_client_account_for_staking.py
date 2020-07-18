@@ -20,8 +20,10 @@ from nucypher.cli.actions.select import select_client_account_for_staking
 from nucypher.cli.literature import PREALLOCATION_STAKE_ADVISORY
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import YES
+import pytest
 
 
+@pytest.mark.usefixtures('mock_contract_agency')
 def test_select_client_account_for_staking_cli_action(test_emitter,
                                                       test_registry,
                                                       test_registry_source_manager,
