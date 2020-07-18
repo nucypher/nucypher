@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 
-from nucypher.cli.commands import alice, bob, enrico, felix, multisig, stake, status, ursula, worklock
+from nucypher.cli.commands import alice, bob, dao, enrico, felix, multisig, stake, status, ursula, worklock
 from nucypher.cli.painting.help import echo_version
 
 
@@ -60,6 +60,7 @@ ENTRY_POINTS = (
     ursula.ursula,      # Untrusted Re-Encryption Proxy
 
     # Utility Commands
+    dao.dao,            # NuCypher DAO
     stake.stake,        # Stake Management
     status.status,      # Network Status
     felix.felix,        # Faucet
