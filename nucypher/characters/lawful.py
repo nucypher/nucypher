@@ -1309,7 +1309,6 @@ class Ursula(Teacher, Character, Worker):
                       host: str,
                       port: int,
                       certificate_filepath,
-                      federated_only: bool,
                       *args, **kwargs
                       ):
         response_data = network_middleware.client.node_information(host, port,
@@ -1387,7 +1386,12 @@ class Ursula(Teacher, Character, Worker):
         host, port, checksum_address = parse_node_uri(seed_uri)
 
         # Fetch the hosts TLS certificate and read the common name
-        certificate = network_middleware.get_certificate(host=host, port=port)
+        try:
+            certificate = network_middleware.get_certificate(host=host, port=port)
+        except NodeSeemsToBeDown as e:
+            e.args += (f"While trying to load seednode {seed_uri}",)
+            e.crash_right_now = True
+            raise
         real_host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
 
         # Create a temporary certificate storage area
