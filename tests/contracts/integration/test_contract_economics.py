@@ -38,7 +38,7 @@ def test_reward(testerchain, agency, token_economics, mock_transacting_power_act
                                    sender_address=origin)
     mock_transacting_power_activation(account=ursula, password=INSECURE_DEVELOPMENT_PASSWORD)
     _txhash = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
-                                           target_address=staking_agent.contract_address,
+                                           spender_address=staking_agent.contract_address,
                                            sender_address=ursula)
     _txhash = staking_agent.deposit_tokens(amount=token_economics.minimum_allowed_locked,
                                            lock_periods=100 * token_economics.maximum_rewarded_periods,

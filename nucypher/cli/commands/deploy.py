@@ -101,6 +101,7 @@ from nucypher.cli.utils import (
     establish_deployer_registry,
     initialize_deployer_interface
 )
+from nucypher.types import NuNits
 
 option_deployer_address = click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 option_registry_infile = click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
@@ -547,7 +548,9 @@ def transfer_tokens(general_config, actor_options, target_address, value):
                                                  deployer_address=deployer_address,
                                                  target_address=target_address)
     click.confirm(confirmation, abort=True)
-    receipt = token_agent.transfer(amount=int(value), sender_address=deployer_address, target_address=target_address)
+    receipt = token_agent.transfer(amount=NuNits(int(value)),
+                                   sender_address=deployer_address,
+                                   target_address=target_address)
     paint_receipt_summary(emitter=emitter, receipt=receipt)
 
 
