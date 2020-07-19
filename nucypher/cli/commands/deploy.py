@@ -50,6 +50,7 @@ from nucypher.cli.literature import (
     CONFIRM_NETWORK_ACTIVATION,
     CONFIRM_RETARGET,
     CONFIRM_SELECTED_ACCOUNT,
+    CONFIRM_TOKEN_ALLOWANCE,
     CONFIRM_TOKEN_TRANSFER,
     CONTRACT_DEPLOYMENT_SERIES_BEGIN_ADVISORY,
     CONTRACT_IS_NOT_OWNABLE,
@@ -529,7 +530,8 @@ def allocations(general_config, actor_options, allocation_infile, gas):
 @group_actor_options
 @option_target_address
 @click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
-def transfer_tokens(general_config, actor_options, target_address, value):
+@click.option('--approve', help="Approve token allowance, instead of transfer", is_flag=True, default=False)
+def transfer_tokens(general_config, actor_options, target_address, value, approve):
     """Transfer tokens from contract's owner address to another address"""
 
     emitter = general_config.emitter
@@ -544,13 +546,23 @@ def transfer_tokens(general_config, actor_options, target_address, value):
         stake_value_range = click.FloatRange(min=0, clamp=False)
         value = NU.from_tokens(click.prompt(PROMPT_TOKEN_VALUE, type=stake_value_range))
 
-    confirmation = CONFIRM_TOKEN_TRANSFER.format(value=value,
-                                                 deployer_address=deployer_address,
-                                                 target_address=target_address)
+    value = NuNits(int(value))
+    if approve:
+        confirmation = CONFIRM_TOKEN_ALLOWANCE.format(value=value,
+                                                      deployer_address=deployer_address,
+                                                      spender_address=target_address)
+    else:
+        confirmation = CONFIRM_TOKEN_TRANSFER.format(value=value,
+                                                     deployer_address=deployer_address,
+                                                     target_address=target_address)
     click.confirm(confirmation, abort=True)
-    receipt = token_agent.transfer(amount=NuNits(int(value)),
-                                   sender_address=deployer_address,
-                                   target_address=target_address)
+
+    if approve:
+        receipt = token_agent.approve_transfer(amount=value,
+                                               sender_address=deployer_address,
+                                               spender_address=target_address)
+    else:
+        receipt = token_agent.transfer(amount=value, sender_address=deployer_address, target_address=target_address)
     paint_receipt_summary(emitter=emitter, receipt=receipt)
 
 

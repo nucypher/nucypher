@@ -128,13 +128,10 @@ def test_deploy_single_contract(click_runner, tempfile_path):
     assert result.exit_code == 0
 
 
-def test_transfer_tokens(click_runner, registry_filepath):
-    #
-    # Setup
-    #
+def test_transfer_tokens(click_runner, registry_filepath, get_random_checksum_address, testerchain):
 
     # Let's transfer some NU to a random stranger
-    recipient_address = to_checksum_address(os.urandom(20))
+    recipient_address = get_random_checksum_address()
 
     registry = LocalContractRegistry(filepath=registry_filepath)
     token_agent = NucypherTokenAgent(registry=registry)
@@ -152,6 +149,25 @@ def test_transfer_tokens(click_runner, registry_filepath):
 
     # Check that the NU has arrived to the recipient
     assert token_agent.get_balance(address=recipient_address) == 42
+
+    # Let's approve an allowance to a random spender
+    spender_address = get_random_checksum_address()
+    owner_address = testerchain.client.accounts[0]
+    assert token_agent.get_allowance(spender=spender_address, owner=owner_address) == 0
+
+    command = ['transfer-tokens',
+               '--target-address', spender_address,
+               '--value', 42,
+               '--approve',
+               '--registry-infile', registry_filepath,
+               '--provider', TEST_PROVIDER_URI]
+
+    user_input = '0\n' + 'Y\n' + 'Y\n'
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    # Check that the NU was approved for the spender
+    assert token_agent.get_allowance(spender=spender_address, owner=owner_address) == 42
 
 
 def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
