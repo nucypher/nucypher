@@ -1412,7 +1412,6 @@ class Ursula(Teacher, Character, Worker):
             port=port,
             network_middleware=network_middleware,
             certificate_filepath=temp_certificate_filepath,
-            federated_only=federated_only,
             *args,
             **kwargs
         )
