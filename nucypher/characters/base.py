@@ -342,6 +342,7 @@ class Character(Learner):
             # Once in a while, in tests or demos, we init a plain Character who doesn't already know about its node class.
             from nucypher.characters.lawful import Ursula
             known_node_class = Ursula
+        self.known_node_class = known_node_class
         # If we're federated only, we assume that all other nodes in our domain are as well.
         known_node_class.set_federated_mode(federated_only)
 
