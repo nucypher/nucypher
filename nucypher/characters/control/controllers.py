@@ -63,7 +63,6 @@ class CharacterControllerBase(ABC):
         response = method(**params)  # < ---- INLET
 
         response_data = serializer.dump(response)
-        self.stop_character()
         return response_data
 
 
