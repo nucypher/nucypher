@@ -108,7 +108,6 @@ class Character(Learner):
             #                                         and whether maybe only Lawful characters have an interface
             self.interface = self._interface_class(character=self)
 
-
         if is_me:
             self._set_known_node_class(known_node_class, federated_only)
         else:
