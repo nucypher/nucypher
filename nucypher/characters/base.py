@@ -458,7 +458,17 @@ class Character(Learner):
         if signature_to_use:
             is_valid = signature_to_use.verify(message, sender_verifying_key)  # FIXME: Message is undefined here
             if not is_valid:
-                raise InvalidSignature("Signature for message isn't valid: {}".format(signature_to_use))
+                try:
+                    node_on_the_other_end = self.known_node_class.from_seednode_metadata(stranger.seed_node_metadata(),
+                                                                                         network_middleware=self.network_middleware)
+                    if node_on_the_other_end != stranger:
+                        raise self.known_node_class.InvalidNode(
+                            f"Expected to connect to {stranger}, got {node_on_the_other_end} instead.")
+                    else:
+                        raise InvalidSignature("Signature for message isn't valid: {}".format(signature_to_use))
+                except (TypeError, AttributeError):
+                    raise self.known_node_class.InvalidNode(
+                        f"Unable to verify message from strange node at {stranger.rest_url()}")
         else:
             raise InvalidSignature("No signature provided -- signature presumed invalid.")
 
