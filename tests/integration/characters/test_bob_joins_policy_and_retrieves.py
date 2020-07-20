@@ -74,6 +74,10 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
               known_nodes=a_couple_of_ursulas,
               )
 
+    import inspect
+    frame = inspect.currentframe()
+    bob._FOR_TEST = frame.f_code.co_name
+
     # Bob has only connected to 2 nodes.
     assert sum(node.verified_node for node in bob.known_nodes) == 2
 
