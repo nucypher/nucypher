@@ -61,20 +61,18 @@ def test_worker_auto_commitments(mocker,
                                         commit_to_next_period=False,
                                         registry=test_registry).pop()
 
-    commit_spy.assert_not_called()
-
     initial_period = staker.staking_agent.get_current_period()
 
     def start():
         # Start running the worker
         start_pytest_ursula_services(ursula=ursula)
-        ursula.work_tracker.start(act_now=True)
 
     def time_travel(_):
         testerchain.time_travel(periods=1)
         clock.advance(WorkTracker.REFRESH_RATE+1)
+        return clock
 
-    def verify(_):
+    def verify(clock):
         # Verify that periods were committed on-chain automatically
         last_committed_period = staker.staking_agent.get_last_committed_period(staker_address=staker.checksum_address)
         current_period = staker.staking_agent.get_current_period()

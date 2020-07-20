@@ -133,7 +133,6 @@ class Alice(Character, BlockchainPolicyAuthor):
 
             self.publication_threadpool = ThreadPool(maxthreads=120, name="Alice Policy Publication")  # In the future, this value is perhaps best set to something like 3-4 times the optimal "high n", whatever we determine that to be.
             self.publication_threadpool.start()
-            reactor.addSystemEventTrigger("before", "shutdown", self.publication_threadpool.stop)  # TODO: Congregate Character Stop activity.
         else:
             self.m = STRANGER_ALICE
             self.n = STRANGER_ALICE
@@ -444,6 +443,11 @@ class Alice(Character, BlockchainPolicyAuthor):
             return response
 
         return controller
+
+    def disenchant(self):
+        super().disenchant()
+        self.publication_threadpool.stop()
+
 
 
 class Bob(Character):
@@ -779,7 +783,7 @@ class Bob(Character):
                 alice_verifying_key=alice_verifying_key,
                 *capsules_to_activate)
 
-            self.log.info(f"Found {len(complete_work_orders)} for this Capsule ({capsule}).")
+            self.log.debug(f"Found {len(complete_work_orders)} complete WorkOrders for this Capsule ({capsule}).")
 
             if complete_work_orders:
                 if use_precedent_work_orders:
@@ -1013,7 +1017,7 @@ class Ursula(Teacher, Character, Worker):
         Character.__init__(self,
                            is_me=is_me,
                            checksum_address=checksum_address,
-                           start_learning_now=False,  # Handled later in this function to avoid race condition
+                           start_learning_now=start_learning_now,
                            federated_only=self._federated_only_instances,
                            # TODO: 'Ursula' object has no attribute '_federated_only_instances' if an is_me Ursula is not inited prior to this moment  NRN
                            crypto_power=crypto_power,
@@ -1047,9 +1051,11 @@ class Ursula(Teacher, Character, Worker):
 
             # Prepare a TransactingPower from worker node's transacting keys
             _transacting_power = TransactingPower(account=worker_address,
-                                                      password=client_password,
-                                                      signer=self.signer,
-                                                      cache=True)
+                                                  password=client_password,
+                                                  signer=self.signer,
+                                                  cache=True)
+
+            self.transacting_power = _transacting_power
             self._crypto_power.consume_power_up(_transacting_power)
             self._set_checksum_address(checksum_address)
 
@@ -1303,7 +1309,6 @@ class Ursula(Teacher, Character, Worker):
                       host: str,
                       port: int,
                       certificate_filepath,
-                      federated_only: bool,
                       *args, **kwargs
                       ):
         response_data = network_middleware.client.node_information(host, port,
@@ -1381,7 +1386,12 @@ class Ursula(Teacher, Character, Worker):
         host, port, checksum_address = parse_node_uri(seed_uri)
 
         # Fetch the hosts TLS certificate and read the common name
-        certificate = network_middleware.get_certificate(host=host, port=port)
+        try:
+            certificate = network_middleware.get_certificate(host=host, port=port)
+        except NodeSeemsToBeDown as e:
+            e.args += (f"While trying to load seednode {seed_uri}",)
+            e.crash_right_now = True
+            raise
         real_host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
 
         # Create a temporary certificate storage area
@@ -1624,7 +1634,7 @@ class Enrico(Character):
 
         # Encrico never uses the blockchain, hence federated_only)
         kwargs['federated_only'] = True
-        kwargs['known_node_class'] = Ursula
+        kwargs['known_node_class'] = None
         super().__init__(*args, **kwargs)
 
         if controller:
@@ -1657,6 +1667,11 @@ class Enrico(Character):
         if not self._policy_pubkey:
             raise TypeError("This Enrico doesn't know which policy encrypting key he used.  Oh well.")
         return self._policy_pubkey
+
+    def _set_known_node_class(self, *args, **kwargs):
+        """
+        Enrico doesn't init nodes, so it doesn't care what class they are.
+        """
 
     def make_web_controller(drone_enrico, crash_on_error: bool = False):
 

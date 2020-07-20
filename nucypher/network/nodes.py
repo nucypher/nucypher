@@ -246,7 +246,8 @@ class Learner:
         discovered = []
 
         if self.learning_domains:
-            canonical_sage_uris = self.network_middleware.TEACHER_NODES.get(tuple(self.learning_domains)[0], ())  # TODO: Are we done with multiple domains?
+            one_and_only_learning_domain = tuple(self.learning_domains)[0] # TODO: Are we done with multiple domains?  2144
+            canonical_sage_uris = self.network_middleware.TEACHER_NODES.get(one_and_only_learning_domain, ())
 
             for uri in canonical_sage_uris:
                 try:
@@ -410,9 +411,10 @@ class Learner:
         if self._learning_task.running:
             self._learning_task.stop()
 
-    def handle_learning_errors(self, *args, **kwargs):
-        failure = args[0]
-        if self._abort_on_learning_error:
+    def handle_learning_errors(self, failure, *args, **kwargs):
+        _exception = failure.value
+        crash_right_now = getattr(_exception, "crash_right_now", False)
+        if self._abort_on_learning_error or crash_right_now:
             self.log.critical("Unhandled error during node learning.  Attempting graceful crash.")
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
@@ -476,7 +478,9 @@ class Learner:
         Continually learn about new nodes.
         """
         # TODO: Allow the user to set eagerness?  1712
-        self.learn_from_teacher_node(eager=False)
+        # TODO: Also, if we do allow eager, don't even defer; block right here.
+        d = deferToThread(self.learn_from_teacher_node, eager=False)
+        return d
 
     def learn_about_specific_nodes(self, addresses: Set):
         self._node_ids_to_learn_about_immediately.update(addresses)  # hmmmm
@@ -654,8 +658,14 @@ class Learner:
         remembered = []
 
         if not self.done_seeding:
-            remembered_seednodes = self.load_seednodes(record_fleet_state=False)
-            remembered.extend(remembered_seednodes)
+            try:
+                remembered_seednodes = self.load_seednodes(record_fleet_state=False)
+            except Exception as e:
+                # Even if we aren't aborting on learning errors, we want this to crash the process pronto.
+                e.crash_right_now = True
+                raise
+            else:
+                remembered.extend(remembered_seednodes)
 
         self._learning_round += 1
 
