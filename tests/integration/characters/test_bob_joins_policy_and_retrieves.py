@@ -175,6 +175,8 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
                                    label=policy.label,
                                    )
 
+    bob.disenchant()
+
 
 def test_treasure_map_serialization(enacted_federated_policy, federated_bob):
     treasure_map = enacted_federated_policy.treasure_map
