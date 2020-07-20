@@ -23,3 +23,4 @@ def test_serialize_ursula(federated_ursulas):
     ursula_as_bytes = bytes(ursula)
     ursula_object = Ursula.from_bytes(ursula_as_bytes)
     assert ursula == ursula_object
+    ursula.stop()

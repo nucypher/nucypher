@@ -386,6 +386,9 @@ def federated_ursulas(ursula_federated_test_config):
     for port in _ports_to_remove:
         del MOCK_KNOWN_URSULAS_CACHE[port]
 
+    for u in _ursulas:
+        u.stop()
+
 
 @pytest.fixture(scope="function")
 def lonely_ursula_maker(ursula_federated_test_config):
@@ -403,6 +406,7 @@ def lonely_ursula_maker(ursula_federated_test_config):
 
         def clean(self):
             for ursula in self._made:
+                ursula.stop()
                 del MOCK_KNOWN_URSULAS_CACHE[ursula.rest_interface.port]
     _maker = _PartialUrsulaMaker()
     yield _maker
