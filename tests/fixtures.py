@@ -360,15 +360,19 @@ def blockchain_alice(alice_blockchain_test_config, testerchain):
 
 @pytest.fixture(scope="module")
 def federated_bob(bob_federated_test_config):
+    frames = inspect.stack(3)
     bob = bob_federated_test_config.produce()
-    return bob
+    # Since Bob is sometimes "left hanging" at the end of tests, this is an invaluable piece of information for debugging problems like #2150.
+    bob._FOR_TEST = frames[1].frame.f_locals['request'].module
+    yield bob
+    bob.disenchant()
 
 
 @pytest.fixture(scope="module")
 def blockchain_bob(bob_blockchain_test_config, testerchain):
-    _bob = bob_blockchain_test_config.produce()
-    return _bob
-
+    bob = bob_blockchain_test_config.produce()
+    yield bob
+    bob.disenchant()
 
 @pytest.fixture(scope="module")
 def federated_ursulas(ursula_federated_test_config):
