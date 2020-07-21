@@ -410,6 +410,47 @@ class StakingEscrowAgent(EthereumContractAgent):
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return receipt
 
+    @contract_api(TRANSACTION)
+    def deposit_and_increase(self,
+                             staker_address: ChecksumAddress,
+                             amount: NuNits,
+                             stake_index: int
+                             ) -> TxReceipt:
+        """
+        Send tokens to the escrow from the sender's address to be locked on behalf of the staker address.
+        This method will add tokens amount to the selected sub-stake.
+        Note that this resolved to two separate contract function signatures.
+        """
+        contract_function: ContractFunction = self.contract.functions.depositAndIncrease(stake_index, amount)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        return receipt
+
+    @contract_api(TRANSACTION)
+    def lock_and_create(self,
+                        staker_address: ChecksumAddress,
+                        amount: NuNits,
+                        lock_periods: PeriodDelta
+                        ) -> TxReceipt:
+        """
+        Locks tokens amount and create new sub-stake
+        """
+        contract_function: ContractFunction = self.contract.functions.lockAndCreate(amount, lock_periods)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        return receipt
+
+    @contract_api(TRANSACTION)
+    def lock_and_increase(self,
+                          staker_address: ChecksumAddress,
+                          amount: NuNits,
+                          stake_index: int
+                          ) -> TxReceipt:
+        """
+        Locks tokens amount and add them to selected sub-stake
+        """
+        contract_function: ContractFunction = self.contract.functions.lockAndIncrease(stake_index, amount)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        return receipt
+
     @contract_api(CONTRACT_CALL)
     def construct_batch_deposit_parameters(self, deposits: Dict[ChecksumAddress, List[Tuple[int, int]]]) -> Tuple[list, list, list, list]:
         max_substakes: int = self.contract.functions.MAX_SUB_STAKES().call()

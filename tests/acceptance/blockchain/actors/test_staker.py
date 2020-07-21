@@ -14,14 +14,15 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+import maya
 import pytest
 from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.token import NU, Stake
-from tests.constants import FEE_RATE_RANGE, INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.blockchain.eth.utils import datetime_at_period
+from tests.constants import FEE_RATE_RANGE, INSECURE_DEVELOPMENT_PASSWORD, DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
+from tests.utils.blockchain import token_airdrop
 from tests.utils.ursula import make_decentralized_ursulas
 
 
@@ -59,6 +60,11 @@ def test_staker_divides_stake(staker, token_economics):
     stake_index = 0
     staker.initialize_stake(amount=stake_value, lock_periods=int(token_economics.minimum_locked_periods))
     stake = staker.stakes[stake_index + 1]
+
+    # Can't use additional periods and expiration together
+    with pytest.raises(ValueError):
+        staker.divide_stake(target_value=new_stake_value, stake=stake, additional_periods=2, expiration=maya.now())
+
     staker.divide_stake(target_value=new_stake_value, stake=stake, additional_periods=2)
 
     current_period = staker.staking_agent.get_current_period()
@@ -69,11 +75,32 @@ def test_staker_divides_stake(staker, token_economics):
     assert expected_old_stake == staker.stakes[stake_index + 1].to_stake_info(), 'Old stake values are invalid'
     assert expected_new_stake == staker.stakes[stake_index + 2].to_stake_info(), 'New stake values are invalid'
 
+    # Provided stake must be part of current stakes
+    new_stake_value = NU.from_nunits(token_economics.minimum_allowed_locked)
+    with pytest.raises(ValueError):
+        staker.divide_stake(target_value=new_stake_value, stake=stake, additional_periods=2)
+    stake = staker.stakes[stake_index + 1]
+    stake.index = len(staker.stakes)
+    with pytest.raises(ValueError):
+        staker.divide_stake(target_value=new_stake_value, stake=stake, additional_periods=2)
+
     yet_another_stake_value = NU(token_economics.minimum_allowed_locked, 'NuNit')
     stake = staker.stakes[stake_index + 2]
-    staker.divide_stake(target_value=yet_another_stake_value, stake=stake, additional_periods=2)
 
-    expected_new_stake = (current_period + 1, current_period + 32, new_stake_value - yet_another_stake_value)
+    # New expiration date must extend stake duration
+    origin_stake = stake
+    new_expiration = datetime_at_period(period=origin_stake.final_locked_period,
+                                        seconds_per_period=token_economics.seconds_per_period,
+                                        start_of_period=True)
+    with pytest.raises(ValueError):
+        staker.divide_stake(target_value=yet_another_stake_value, stake=stake, expiration=new_expiration)
+
+    new_expiration = datetime_at_period(period=origin_stake.final_locked_period + 2,
+                                        seconds_per_period=token_economics.seconds_per_period,
+                                        start_of_period=True)
+    staker.divide_stake(target_value=yet_another_stake_value, stake=stake, expiration=new_expiration)
+
+    expected_new_stake = (current_period + 1, current_period + 32, new_stake_value)
     expected_yet_another_stake = Stake(first_locked_period=current_period + 1,
                                        final_locked_period=current_period + 34,
                                        value=yet_another_stake_value,
@@ -86,6 +113,87 @@ def test_staker_divides_stake(staker, token_economics):
     assert expected_old_stake == staker.stakes[stake_index + 1].to_stake_info(), 'Old stake values are invalid after two stake divisions'
     assert expected_new_stake == staker.stakes[stake_index + 2].to_stake_info(), 'New stake values are invalid after two stake divisions'
     assert expected_yet_another_stake.value == staker.stakes[stake_index + 3].value, 'Third stake values are invalid'
+
+
+@pytest.mark.slow()
+@pytest.mark.usefixtures("agency")
+def test_staker_prolongs_stake(staker, token_economics):
+    stake_index = 0
+    origin_stake = staker.stakes[stake_index]
+
+    # Can't use additional periods and expiration together
+    with pytest.raises(ValueError):
+        staker.prolong_stake(stake=origin_stake, additional_periods=2, expiration=maya.now())
+
+    staker.prolong_stake(stake=origin_stake, additional_periods=2)
+
+    stake = staker.stakes[stake_index]
+    assert stake.first_locked_period == origin_stake.first_locked_period
+    assert stake.final_locked_period == origin_stake.final_locked_period + 2
+    assert stake.value == origin_stake.value
+
+    # Provided stake must be part of current stakes
+    with pytest.raises(ValueError):
+        staker.prolong_stake(stake=origin_stake, additional_periods=2)
+    stake.index = len(staker.stakes)
+    with pytest.raises(ValueError):
+        staker.prolong_stake(stake=stake, additional_periods=2)
+    stake.index = stake_index
+
+    # New expiration date must extend stake duration
+    origin_stake = stake
+    new_expiration = datetime_at_period(period=origin_stake.final_locked_period,
+                                        seconds_per_period=token_economics.seconds_per_period,
+                                        start_of_period=True)
+    with pytest.raises(ValueError):
+        staker.prolong_stake(stake=origin_stake, expiration=new_expiration)
+
+    new_expiration = origin_stake.unlock_datetime
+    staker.prolong_stake(stake=origin_stake, expiration=new_expiration)
+
+    stake = staker.stakes[stake_index]
+    assert stake.first_locked_period == origin_stake.first_locked_period
+    assert stake.final_locked_period == origin_stake.final_locked_period + 1
+    assert stake.value == origin_stake.value
+
+
+@pytest.mark.slow()
+@pytest.mark.usefixtures("agency")
+def test_staker_increases_stake(staker, token_economics):
+    stake_index = 0
+    origin_stake = staker.stakes[stake_index]
+    additional_amount = NU.from_nunits(token_economics.minimum_allowed_locked // 100)
+
+    with pytest.raises(ValueError):
+        staker.increase_stake(stake=origin_stake)
+    # Can't use amount and entire balance flag together
+    with pytest.raises(ValueError):
+        staker.increase_stake(stake=origin_stake, amount=additional_amount, entire_balance=True)
+
+    staker.increase_stake(stake=origin_stake, amount=additional_amount)
+
+    stake = staker.stakes[stake_index]
+    assert stake.first_locked_period == origin_stake.first_locked_period
+    assert stake.final_locked_period == origin_stake.final_locked_period
+    assert stake.value == origin_stake.value + additional_amount
+
+    # Provided stake must be part of current stakes
+    with pytest.raises(ValueError):
+        staker.increase_stake(stake=origin_stake, amount=additional_amount)
+    stake.index = len(staker.stakes)
+    with pytest.raises(ValueError):
+        staker.increase_stake(stake=stake, amount=additional_amount)
+    stake.index = stake_index
+
+    # Try to increase again using entire balance
+    origin_stake = stake
+    balance = staker.token_balance
+    staker.increase_stake(stake=stake, entire_balance=True)
+
+    stake = staker.stakes[stake_index]
+    assert stake.first_locked_period == origin_stake.first_locked_period
+    assert stake.final_locked_period == origin_stake.final_locked_period
+    assert stake.value == origin_stake.value + balance
 
 
 def test_staker_manages_restaking(testerchain, test_registry, staker):
@@ -124,6 +232,12 @@ def test_staker_collects_staking_reward(testerchain,
                                         mock_transacting_power_activation,
                                         ursula_decentralized_test_config):
     token_agent, staking_agent, policy_agent = agency
+
+    # Give more tokens to staker
+    token_airdrop(token_agent=token_agent,
+                  origin=testerchain.etherbase_account,
+                  addresses=[staker.checksum_address],
+                  amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 
     mock_transacting_power_activation(account=staker.checksum_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 

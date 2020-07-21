@@ -202,32 +202,25 @@ def test_get_staker_info(agency, testerchain):
     assert info.worker == worker_account
 
 
-@pytest.mark.skip('To be implemented')
-def test_divide_stake(agency, token_economics):
+@pytest.mark.slow()
+def test_divide_stake(agency, testerchain, token_economics):
     token_agent, staking_agent, policy_agent = agency
     agent = staking_agent
-    testerchain = agent.blockchain
-    origin, someone, *everybody_else = testerchain.client.accounts
+    staker_account = testerchain.unassigned_accounts[0]
 
-    stakes = list(agent.get_all_stakes(staker_address=someone))
-    assert len(stakes) == 1
-
-    # Approve
-    _txhash = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked*2,
-                                           spender_address=agent.contract_address,
-                                           sender_address=someone)
+    locked_tokens = token_economics.minimum_allowed_locked * 2
 
     # Deposit
-    _txhash = agent.deposit_tokens(amount=token_economics.minimum_allowed_locked*2,
+    _txhash = agent.deposit_tokens(amount=locked_tokens,
                                    lock_periods=token_economics.minimum_locked_periods,
-                                   sender_address=someone,
-                                   staker_address=someone)
+                                   sender_address=staker_account,
+                                   staker_address=staker_account)
 
-    # Commit to next period
-    _txhash = agent.commit_to_next_period(node_address=someone)
-    testerchain.time_travel(periods=1)
+    stakes = list(agent.get_all_stakes(staker_address=staker_account))
+    stakes_length = len(stakes)
+    origin_stake = stakes[-1]
 
-    receipt = agent.divide_stake(staker_address=someone,
+    receipt = agent.divide_stake(staker_address=staker_account,
                                  stake_index=1,
                                  target_value=token_economics.minimum_allowed_locked,
                                  periods=1)
@@ -235,8 +228,12 @@ def test_divide_stake(agency, token_economics):
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
 
-    stakes = list(agent.get_all_stakes(staker_address=someone))
-    assert len(stakes) == 3
+    stakes = list(agent.get_all_stakes(staker_address=staker_account))
+    assert len(stakes) == stakes_length + 1
+    assert stakes[-2].locked_value == origin_stake.locked_value - token_economics.minimum_allowed_locked
+    assert stakes[-2].last_period == origin_stake.last_period
+    assert stakes[-1].locked_value == token_economics.minimum_allowed_locked
+    assert stakes[-1].last_period == origin_stake.last_period + 1
 
 
 @pytest.mark.slow()
@@ -245,15 +242,37 @@ def test_prolong_stake(agency, testerchain, test_registry):
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
     stakes = list(staking_agent.get_all_stakes(staker_address=staker_account))
-    original_termination = stakes[0][1]
+    original_termination = stakes[0].last_period
 
     receipt = staking_agent.prolong_stake(staker_address=staker_account, stake_index=0, periods=1)
     assert receipt['status'] == 1
 
     # Ensure stake was extended by one period.
     stakes = list(staking_agent.get_all_stakes(staker_address=staker_account))
-    new_termination = stakes[0][1]
+    new_termination = stakes[0].last_period
     assert new_termination == original_termination + 1
+
+
+@pytest.mark.slow()
+def test_deposit_and_increase(agency, testerchain, test_registry, token_economics):
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    staker_account, worker_account, *other = testerchain.unassigned_accounts
+
+    stakes = list(staking_agent.get_all_stakes(staker_address=staker_account))
+    original_stake = stakes[0]
+    locked_tokens = staking_agent.get_locked_tokens(staker_account, 1)
+
+    amount = token_economics.minimum_allowed_locked // 2
+    receipt = staking_agent.deposit_and_increase(staker_address=staker_account,
+                                                 stake_index=0,
+                                                 amount=amount)
+    assert receipt['status'] == 1
+
+    # Ensure stake was extended by one period.
+    stakes = list(staking_agent.get_all_stakes(staker_address=staker_account))
+    new_stake = stakes[0]
+    assert new_stake.locked_value == original_stake.locked_value + amount
+    assert staking_agent.get_locked_tokens(staker_account, 1) == locked_tokens + amount
 
 
 @pytest.mark.slow()
@@ -358,6 +377,58 @@ def test_winding_down(agency, testerchain, test_registry, token_economics):
     check_last_period()
     staking_agent.commit_to_next_period(worker_address=worker_account)
     check_last_period()
+
+
+@pytest.mark.slow()
+def test_lock_and_create(agency, testerchain, test_registry, token_economics):
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    staker_account, worker_account, *other = testerchain.unassigned_accounts
+
+    stakes = list(staking_agent.get_all_stakes(staker_address=staker_account))
+    stakes_length = len(stakes)
+    current_locked_tokens = staking_agent.get_locked_tokens(staker_account, 0)
+    next_locked_tokens = staking_agent.get_locked_tokens(staker_account, 1)
+
+    amount = token_economics.minimum_allowed_locked
+    receipt = staking_agent.lock_and_create(staker_address=staker_account,
+                                            lock_periods=token_economics.minimum_locked_periods,
+                                            amount=amount)
+    assert receipt['status'] == 1
+
+    # Ensure stake was extended by one period.
+    stakes = list(staking_agent.get_all_stakes(staker_address=staker_account))
+    assert len(stakes) == stakes_length + 1
+    new_stake = stakes[-1]
+    current_period = staking_agent.get_current_period()
+    assert new_stake.last_period == current_period + token_economics.minimum_locked_periods
+    assert new_stake.first_period == current_period + 1
+    assert new_stake.locked_value == amount
+    assert staking_agent.get_locked_tokens(staker_account, 1) == next_locked_tokens + amount
+    assert staking_agent.get_locked_tokens(staker_account, 0) == current_locked_tokens
+
+
+@pytest.mark.slow()
+def test_lock_and_increase(agency, testerchain, test_registry, token_economics):
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    staker_account, worker_account, *other = testerchain.unassigned_accounts
+
+    stakes = list(staking_agent.get_all_stakes(staker_address=staker_account))
+    original_stake = stakes[0]
+    current_locked_tokens = staking_agent.get_locked_tokens(staker_account, 0)
+    next_locked_tokens = staking_agent.get_locked_tokens(staker_account, 1)
+
+    amount = staking_agent.calculate_staking_reward(staker_address=staker_account)
+    receipt = staking_agent.lock_and_increase(staker_address=staker_account,
+                                              stake_index=0,
+                                              amount=amount)
+    assert receipt['status'] == 1
+
+    # Ensure stake was extended by one period.
+    stakes = list(staking_agent.get_all_stakes(staker_address=staker_account))
+    new_stake = stakes[0]
+    assert new_stake.locked_value == original_stake.locked_value + amount
+    assert staking_agent.get_locked_tokens(staker_account, 1) == next_locked_tokens + amount
+    assert staking_agent.get_locked_tokens(staker_account, 0) == current_locked_tokens
 
 
 @pytest.mark.slow()
