@@ -65,8 +65,9 @@ By agreeing to stake {tokens} ({nunits} NuNits):
 - Agree to allow NuCypher network users to carry out uninterrupted re-encryption
   work orders at-will without interference.
 
-Failure to keep your node online, or violation of re-encryption work orders
-will result in the loss of staked tokens as described in the NuCypher slashing protocol.
+Failure to keep your node online or fulfill re-encryption work orders will result
+in loss of staked NU as described in the NuCypher slashing protocol:
+https://docs.nucypher.com/en/latest/architecture/slashing.html.
 
 Keeping your Ursula node online during the staking period and successfully
 producing correct re-encryption work orders will result in rewards
@@ -462,7 +463,7 @@ WORKLOCK_AGREEMENT = """
 
 - By participating in NuCypher's WorkLock you are committing to operating a staking
   NuCypher node once the allocation period opens.
-
+    
 - WorkLock allocation is provided in the form of a stake and will be locked for
   the stake duration ({duration} periods). During this time, 
   you are obligated to maintain a networked and available
@@ -472,9 +473,9 @@ WORKLOCK_AGREEMENT = """
   per confirmed period. This rate may vary until {end_date}.
 
 - You agree to allow NuCypher network users to carry out uninterrupted work orders
-  at will without interference. Failure to keep your node online, or violation of
-  work orders will result in the loss of staked tokens as described
-  in the NuCypher slashing protocol.
+  at will without interference.  Failure to keep your node online or fulfill re-encryption 
+  work orders will result in loss of staked NU as described in the NuCypher slashing protocol:
+  https://docs.nucypher.com/en/latest/architecture/slashing.html
 
 - Correctly servicing work orders will result in rewards paid out in ethers retro-actively
   and on-demand.
