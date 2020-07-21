@@ -113,7 +113,7 @@ Pull Request Conflicts
 ----------------------
 
 As an effort to preserve authorship and a cohesive commit history, we prefer if proposed contributions
-are rebased over master (or appropriate branch) when a merge conflict arises,
+are rebased over `main` (or appropriate branch) when a merge conflict arises,
 instead of making a merge commit back into the contributors fork.
 
 Generally speaking the preferred process of doing so is with an `interactive rebase`:
@@ -129,7 +129,7 @@ Generally speaking the preferred process of doing so is with an `interactive reb
    $ git remote update
    ...  (some upstream changes are reported)
 
-2. Initiate an interactive rebase over ``nucypher/nucypher@master``
+2. Initiate an interactive rebase over ``nucypher/nucypher@main``
 
 .. note::
 
@@ -138,7 +138,7 @@ Generally speaking the preferred process of doing so is with an `interactive reb
 
 .. code-block:: bash
 
-   $ git rebase -i upstream/master
+   $ git rebase -i upstream/main
    ...  (edit & save rebase TODO list)
 
 3. Resolve Conflicts
@@ -216,7 +216,7 @@ Issuing a New Release
 
 .. important::
 
-   Ensure your local tree is based on ``master`` and has no uncommitted changes.
+   Ensure your local tree is based on ``main`` and has no uncommitted changes.
 
 1. Decide what part of the version to bump.
 The version string follows the format ``{major}.{minor}.{patch}-{stage}.{devnum}``,

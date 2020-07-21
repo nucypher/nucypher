@@ -126,7 +126,7 @@ workflows:
             tags:
               only: /v[0-9]+.*/
             branches:
-              only: master
+              only: main
           requires:
             - test_build
       - publish_docker_experimental:
@@ -137,7 +137,7 @@ workflows:
             tags:
               only: /.*/
             branches:
-              only: master
+              only: main
       - request_publication_approval:
           type: approval
           requires:
@@ -172,7 +172,7 @@ workflows:
           filters:
             branches:
               only:
-                - master
+                - main
     jobs:
       - pipenv_install_36:
           filters:
@@ -311,7 +311,7 @@ workflows:
             tags:
               only: /v[0-9]+.*/
             branches:
-              only: master
+              only: main
           requires:
             - test_build
 

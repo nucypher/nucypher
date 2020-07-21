@@ -86,7 +86,7 @@ Install ``nucypher`` with ``git`` and ``pip3`` into your virtual environment.
 
 .. note::
 
-   We recommend NuFT nodes install directly from master to help ensure your node is using pre-released features and hotfixes
+   We recommend NuFT nodes install directly from main to help ensure your node is using pre-released features and hotfixes
 
 
 Re-activate your environment after installing
