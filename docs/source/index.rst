@@ -12,10 +12,10 @@ NuCypher
     :target: https://pypi.org/project/nucypher/
 
 .. image:: https://img.shields.io/circleci/project/github/nucypher/nucypher.svg?logo=circleci
-    :target: https://circleci.com/gh/nucypher/nucypher/tree/master
+    :target: https://circleci.com/gh/nucypher/nucypher/tree/main
     :alt: CircleCI build status
 
-.. image:: https://codecov.io/gh/nucypher/nucypher/branch/master/graph/badge.svg
+.. image:: https://codecov.io/gh/nucypher/nucypher/branch/main/graph/badge.svg
     :target: https://codecov.io/gh/nucypher/nucypher
 
 .. image:: https://img.shields.io/discord/411401661714792449.svg?logo=discord
