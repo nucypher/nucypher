@@ -530,8 +530,8 @@ def allocations(general_config, actor_options, allocation_infile, gas):
 @group_actor_options
 @option_target_address
 @click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
-@click.option('--approve', help="Approve token allowance, instead of transfer", is_flag=True, default=False)
-def transfer_tokens(general_config, actor_options, target_address, value, approve):
+@click.option('--allowance', help="Allow target address to spend tokens on behalf of owner", is_flag=True, default=False)
+def transfer_tokens(general_config, actor_options, target_address, value, allowance):
     """Transfer tokens from contract's owner address to another address"""
 
     emitter = general_config.emitter
@@ -547,7 +547,7 @@ def transfer_tokens(general_config, actor_options, target_address, value, approv
         value = NU.from_tokens(click.prompt(PROMPT_TOKEN_VALUE, type=stake_value_range))
 
     value = NuNits(int(value))
-    if approve:
+    if allowance:
         confirmation = CONFIRM_TOKEN_ALLOWANCE.format(value=value,
                                                       deployer_address=deployer_address,
                                                       spender_address=target_address)
@@ -557,7 +557,7 @@ def transfer_tokens(general_config, actor_options, target_address, value, approv
                                                      target_address=target_address)
     click.confirm(confirmation, abort=True)
 
-    if approve:
+    if allowance:
         receipt = token_agent.approve_transfer(amount=value,
                                                sender_address=deployer_address,
                                                spender_address=target_address)

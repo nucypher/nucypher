@@ -158,7 +158,7 @@ def test_transfer_tokens(click_runner, registry_filepath, get_random_checksum_ad
     command = ['transfer-tokens',
                '--target-address', spender_address,
                '--value', 42,
-               '--approve',
+               '--allowance',
                '--registry-infile', registry_filepath,
                '--provider', TEST_PROVIDER_URI]
 
