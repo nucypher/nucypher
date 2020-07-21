@@ -56,6 +56,7 @@ def test_issuer(testerchain, token, deploy_contract):
 
     creator = testerchain.client.accounts[0]
     staker = testerchain.client.accounts[1]
+    owner = testerchain.client.accounts[2]
 
     # Only token contract is allowed in Issuer constructor
     bad_args = dict(_token=staker,
@@ -75,8 +76,12 @@ def test_issuer(testerchain, token, deploy_contract):
     issuer, _ = deploy_contract(contract_name='IssuerMock', **args)
     events = issuer.events.Initialized.createFilter(fromBlock='latest')
 
-    # Give staker tokens for reward and initialize contract
+    # Approve issuer contract to get funds when initializing
     tx = token.functions.approve(issuer.address, economics.erc20_reward_supply).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    # Transfer ownership of contracts from the creator to the expected owner
+    tx = issuer.functions.transferOwnership(owner).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Can't donate tokens before initialization
@@ -84,18 +89,18 @@ def test_issuer(testerchain, token, deploy_contract):
         tx = issuer.functions.donate(1).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
-    # Only owner can initialize
+    # Only owner can initialize, not even the original creator
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = issuer.functions.initialize(0, staker).transact({'from': staker})
+        tx = issuer.functions.initialize(0, staker).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
-    # Only owner can initialize
+    # Can't initialize if the funding address doesn't have enough tokens
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = issuer.functions.initialize(economics.erc20_reward_supply, staker).transact({'from': creator})
+        tx = issuer.functions.initialize(economics.erc20_reward_supply, staker).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
 
-    # Initialization requires amount and funding address
-    tx = issuer.functions.initialize(economics.erc20_reward_supply, creator).transact({'from': creator})
+    # Initialization must be performed by the owner, and requires amount and funding address
+    tx = issuer.functions.initialize(economics.erc20_reward_supply, creator).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
 
     events = events.get_all_entries()
@@ -105,7 +110,7 @@ def test_issuer(testerchain, token, deploy_contract):
 
     # Can't initialize second time
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = issuer.functions.initialize(0, creator).transact({'from': creator})
+        tx = issuer.functions.initialize(0, owner).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
 
     # First phase
