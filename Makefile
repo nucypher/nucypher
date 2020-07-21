@@ -53,7 +53,7 @@ release: clean
 	# previous dry-run runs *without* --allow-dirty which ensures it's really just the release notes
 	# file that we are allowing to sit here dirty, waiting to get included in the release commit.
 	bumpversion --allow-dirty $(bump)
-	git push upstream master && git push upstream v$(UPCOMING_VERSION)
+	git push upstream main && git push upstream v$(UPCOMING_VERSION)
 	# Restore the original system setting for commit signing
 	git config commit.gpgSign "$(CURRENT_SIGN_SETTING)"
 

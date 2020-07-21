@@ -31,7 +31,7 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 USER = "nucypher"
 REPO = "nucypher"
-BRANCH = "master"
+BRANCH = "main"
 GITHUB_SOURCE_LINK = f"https://api.github.com/repos/{USER}/{REPO}/contents/nucypher/blockchain/eth/sol/source?ref={BRANCH}"
 
 
