@@ -119,7 +119,8 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
     bob.start_learning_loop()
 
     # ...and block until the unknown_nodes have all been found.
-    bob.block_until_specific_nodes_are_known(unknown_nodes)
+    d = threads.deferToThread(bob.block_until_specific_nodes_are_known, unknown_nodes)
+    yield d
 
     # ...and he now has no more unknown_nodes.
     assert len(bob.known_nodes) == len(treasure_map)
