@@ -51,15 +51,16 @@ def test_get_cert_from_running_seed_node(lonely_ursula_maker):
                                            network_middleware=RestMiddleware()).pop()
     assert not any_other_ursula.known_nodes
 
-    def start_lonely_learning_loop():
-        any_other_ursula.log.info(
-            "Known nodes when starting learning loop were: {}".format(any_other_ursula.known_nodes))
-        any_other_ursula.start_learning_loop()
-        result = any_other_ursula.block_until_specific_nodes_are_known(set([firstula.checksum_address]),
-                                                                       timeout=2)
-        assert result
-
-    yield deferToThread(start_lonely_learning_loop)
+    # def start_lonely_learning_loop():
+    #     any_other_ursula.log.info(
+    #         "Known nodes when starting learning loop were: {}".format(any_other_ursula.known_nodes))
+    #     any_other_ursula.start_learning_loop()
+    #     result = any_other_ursula.block_until_specific_nodes_are_known(set([firstula.checksum_address]),
+    #                                                                    timeout=2)
+    #     assert result
+    #
+    # yield deferToThread(start_lonely_learning_loop)
+    yield deferToThread(any_other_ursula.load_seednodes)
     assert firstula in any_other_ursula.known_nodes
 
     firstula_as_learned = any_other_ursula.known_nodes[firstula.checksum_address]
