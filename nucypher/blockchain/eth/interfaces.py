@@ -253,12 +253,13 @@ class BlockchainInterface:
         return self.client.is_connected
 
     @classmethod
-    def get_gas_strategy(cls, gas_strategy: Union[str, Callable]) -> Callable:
+    def get_gas_strategy(cls, gas_strategy: Union[str, Callable] = None) -> Callable:
         try:
             gas_strategy = cls.GAS_STRATEGIES[gas_strategy]
         except KeyError:
-            if gas_strategy and not callable(gas_strategy):
-                raise ValueError(f"{gas_strategy} must be callable to be a valid gas strategy.")
+            if gas_strategy:
+                if not callable(gas_strategy):
+                    raise ValueError(f"{gas_strategy} must be callable to be a valid gas strategy.")
             else:
                 gas_strategy = cls.GAS_STRATEGIES[cls.DEFAULT_GAS_STRATEGY]
         return gas_strategy
