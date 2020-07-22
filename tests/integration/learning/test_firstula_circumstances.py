@@ -42,7 +42,7 @@ def test_get_cert_from_running_seed_node(lonely_ursula_maker):
 
     node_deployer.addServices()
     node_deployer.catalogServers(node_deployer.hendrix)
-    node_deployer.start()
+    node_deployer.start()   # If this port happens not to be open, we'll get an error here.  THis might be one of the few sane places to reintroduce a check.
 
     certificate_as_deployed = node_deployer.cert.to_cryptography()
 
