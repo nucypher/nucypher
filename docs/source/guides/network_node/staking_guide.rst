@@ -57,6 +57,8 @@ All staking-related operations done by Staker are performed through the ``nucyph
 +----------------------+-------------------------------------------------------------------------------+
 |  ``create``          | Initialize NuCypher stakes (used with ``--value`` and ``--duration``)         |
 +----------------------+-------------------------------------------------------------------------------+
+|  ``increase``        | Increase an existing stake's value                                            |
++----------------------+-------------------------------------------------------------------------------+
 |  ``list``            | List active stakes for current stakeholder                                    |
 +----------------------+-------------------------------------------------------------------------------+
 |  ``accounts``        | Show ETH and NU balances for stakeholder's accounts                           |
@@ -324,6 +326,8 @@ Several administrative operations can be performed on active stakes:
 +----------------------+-------------------------------------------------------------------------------+
 |  ``divide``          | Create a new stake from part of an existing one                               |
 +----------------------+-------------------------------------------------------------------------------+
+|  ``increase``        | Increase an existing stake's value                                            |
++----------------------+-------------------------------------------------------------------------------+
 
 
 Manage automatic reward re-staking
@@ -362,7 +366,7 @@ Prolong
 *******
 
 Existing stakes can be extended by a number of periods as long as the resulting
-stake's duration is not longer than the maximum. To prolong an existing stake's duration:
+stake's duration is not shorter than the minimum. To prolong an existing stake's duration:
 
 .. code:: bash
 
@@ -440,6 +444,16 @@ To divide an existing stake:
     │ 	1   │ 15000 NU                	  │         51  │ Jun 19 2020 │ Aug 11 2020   │
     ╘═══════╧═════════════════════════════╧═════════════╧═════════════╧═══════════════╛
 
+
+Increase
+********
+
+Existing stakes can be increased by a number of NU as long as the resulting
+staker's locked value is not greater than the maximum. To increase an existing stake's value:
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake increase --hw-wallet
 
 
 Collect rewards earned by the staker
