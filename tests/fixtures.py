@@ -30,6 +30,10 @@ import maya
 import pytest
 from click.testing import CliRunner
 from eth_utils import to_checksum_address
+from sqlalchemy.engine import create_engine
+from twisted.internet import defer
+from twisted.internet.defer import Deferred
+from twisted.logger import Logger
 from io import StringIO
 from web3 import Web3
 
@@ -114,6 +118,7 @@ from umbral.signing import Signer
 
 test_logger = Logger("test-logger")
 
+defer.setDebugging(True)
 
 #
 # Temporary
