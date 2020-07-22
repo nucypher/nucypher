@@ -276,10 +276,14 @@ class BlockchainInterface:
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
         # Gas Price Strategy
-        self.client.w3.eth.setGasPriceStrategy(self.gas_strategy)
-        self.client.w3.middleware_onion.add(middleware.time_based_cache_middleware)
-        self.client.w3.middleware_onion.add(middleware.latest_block_based_cache_middleware)
-        self.client.w3.middleware_onion.add(middleware.simple_cache_middleware)
+
+        self.client.set_gas_strategy(gas_strategy=gas_strategy)
+        gwei_gas_price = Web3.fromWei(self.client.generate_gas_price(), 'gwei')
+        self.log.debug(f"Currently, our gas strategy returns a gas price of {gwei_gas_price} gwei")
+
+        self.client.add_middleware(middleware.time_based_cache_middleware)
+        self.client.add_middleware(middleware.latest_block_based_cache_middleware)
+        self.client.add_middleware(middleware.simple_cache_middleware)
 
     def connect(self):
 
