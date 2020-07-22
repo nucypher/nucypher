@@ -363,9 +363,9 @@ def blockchain_alice(alice_blockchain_test_config, testerchain):
 
 @pytest.fixture(scope="module")
 def federated_bob(bob_federated_test_config):
-    frames = inspect.stack(3)
     bob = bob_federated_test_config.produce()
     # Since Bob is sometimes "left hanging" at the end of tests, this is an invaluable piece of information for debugging problems like #2150.
+    frames = inspect.stack(3)
     bob._FOR_TEST = frames[1].frame.f_locals['request'].module
     yield bob
     bob.disenchant()
@@ -403,13 +403,20 @@ def lonely_ursula_maker(ursula_federated_test_config):
         _made = []
 
         def __call__(self, *args, **kwargs):
-            ursula = self._partial(*args, **kwargs)
-            self._made.extend(ursula)
-            return ursula
+            ursulas = self._partial(*args, **kwargs)
+            self._made.extend(ursulas)
+            frames = inspect.stack(3)
+            for ursula in ursulas:
+                try:
+                    ursula._FOR_TEST = frames[1].frame.f_code.co_name
+                except KeyError as e:
+                    raise
+            return ursulas
 
         def clean(self):
             for ursula in self._made:
                 ursula.stop()
+            for ursula in self._made:
                 del MOCK_KNOWN_URSULAS_CACHE[ursula.rest_interface.port]
     _maker = _PartialUrsulaMaker()
     yield _maker
@@ -983,6 +990,7 @@ def fleet_of_highperf_mocked_ursulas(ursula_federated_test_config, request):
                 _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
                                                   quantity=quantity, know_each_other=False)
                 all_ursulas = {u.checksum_address: u for u in _ursulas}
+
                 for ursula in _ursulas:
                     ursula.known_nodes._nodes = all_ursulas
                     ursula.known_nodes.checksum = b"This is a fleet state checksum..".hex()
