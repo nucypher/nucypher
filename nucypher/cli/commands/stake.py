@@ -68,7 +68,8 @@ from nucypher.cli.literature import (
     SUCCESSFUL_STAKE_PROLONG,
     SUCCESSFUL_WORKER_BONDING, NO_MINTABLE_PERIODS, STILL_LOCKED_TOKENS, CONFIRM_MINTING, SUCCESSFUL_MINTING,
     CONFIRM_COLLECTING_WITHOUT_MINTING, NO_TOKENS_TO_WITHDRAW, NO_FEE_TO_WITHDRAW, CONFIRM_INCREASING_STAKE,
-    PROMPT_STAKE_INCREASE_VALUE, SUCCESSFUL_STAKE_INCREASE
+    PROMPT_STAKE_INCREASE_VALUE, SUCCESSFUL_STAKE_INCREASE, INSUFFICIENT_BALANCE_TO_INCREASE, MAXIMUM_STAKE_REACHED,
+    INSUFFICIENT_BALANCE_TO_CREATE
 )
 from nucypher.cli.options import (
     group_options,
@@ -477,6 +478,14 @@ def create(general_config, transacting_staker_options, config_file, force, value
         lower_limit = NU.from_nunits(STAKEHOLDER.economics.minimum_allowed_locked)
         locked_tokens = STAKEHOLDER.locked_tokens(periods=1).to_nunits()
         upper_limit = min(token_balance, NU.from_nunits(STAKEHOLDER.economics.maximum_allowed_locked - locked_tokens))
+
+        if token_balance <= lower_limit:
+            emitter.echo(INSUFFICIENT_BALANCE_TO_CREATE, color='red')
+            raise click.Abort
+        if upper_limit <= lower_limit:
+            emitter.echo(MAXIMUM_STAKE_REACHED, color='red')
+            raise click.Abort
+
         value = click.prompt(f"Enter stake value in NU "
                              f"({lower_limit} - {upper_limit})",
                              type=stake_value_range,
@@ -564,6 +573,14 @@ def increase(general_config, transacting_staker_options, config_file, force, val
         token_balance = STAKEHOLDER.token_balance
         locked_tokens = STAKEHOLDER.locked_tokens(periods=1).to_nunits()
         upper_limit = min(token_balance, NU.from_nunits(STAKEHOLDER.economics.maximum_allowed_locked - locked_tokens))
+
+        if token_balance == 0:
+            emitter.echo(INSUFFICIENT_BALANCE_TO_INCREASE, color='red')
+            raise click.Abort
+        if upper_limit == 0:
+            emitter.echo(MAXIMUM_STAKE_REACHED, color='red')
+            raise click.Abort
+
         stake_value_range = click.FloatRange(min=0, max=upper_limit.to_tokens(), clamp=False)
         value = click.prompt(PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit),
                              type=stake_value_range)

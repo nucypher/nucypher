@@ -418,7 +418,7 @@ class StakingEscrowAgent(EthereumContractAgent):
                              ) -> TxReceipt:
         """
         Send tokens to the escrow from the sender's address to be locked on behalf of the staker address.
-        This method will add tokens amount to the selected sub-stake.
+        This method will add tokens to the selected sub-stake.
         Note that this resolved to two separate contract function signatures.
         """
         contract_function: ContractFunction = self.contract.functions.depositAndIncrease(stake_index, amount)
@@ -432,7 +432,7 @@ class StakingEscrowAgent(EthereumContractAgent):
                         lock_periods: PeriodDelta
                         ) -> TxReceipt:
         """
-        Locks tokens amount and create new sub-stake
+        Locks tokens amount and creates new sub-stake
         """
         contract_function: ContractFunction = self.contract.functions.lockAndCreate(amount, lock_periods)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)

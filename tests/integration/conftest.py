@@ -65,7 +65,9 @@ def mock_contract_agency(monkeypatch, module_mocker, token_economics):
 
 @pytest.fixture(scope='function', autouse=True)
 def mock_token_agent(mock_testerchain, token_economics, mock_contract_agency):
-    return mock_contract_agency.get_agent(NucypherTokenAgent)
+    mock_agent = mock_contract_agency.get_agent(NucypherTokenAgent)
+    yield mock_agent
+    mock_agent.reset()
 
 
 @pytest.fixture(scope='function', autouse=True)

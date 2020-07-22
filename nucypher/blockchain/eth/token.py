@@ -416,14 +416,14 @@ class Stake:
 def validate_value(stake: Stake) -> None:
     """Validate a single staking value against pre-defined requirements"""
     if stake.minimum_nu > stake.value:
-        raise Stake.StakingError(f'Stake amount too low; ({stake.value}) must be at least {stake.minimum_nu}')
+        raise Stake.StakingError(f'Stake amount of {stake.value} is too low; must be at least {stake.minimum_nu}')
 
 
 def validate_duration(stake: Stake) -> None:
     """Validate a single staking lock-time against pre-defined requirements"""
     if stake.economics.minimum_locked_periods > stake.duration:
         raise Stake.StakingError(
-            'Stake duration of ({duration}) periods is too short; must be at least {minimum} periods.'
+            'Stake duration of {duration} periods is too short; must be at least {minimum} periods.'
             .format(minimum=stake.economics.minimum_locked_periods, duration=stake.duration))
 
 

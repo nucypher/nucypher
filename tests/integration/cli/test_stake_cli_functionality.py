@@ -20,7 +20,7 @@ from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.constants import MAX_UINT16
-from nucypher.blockchain.eth.token import NU, StakeList
+from nucypher.blockchain.eth.token import NU
 from nucypher.cli.actions.select import select_client_account_for_staking
 from nucypher.cli.commands.stake import stake, StakeHolderConfigOptions, StakerOptions, TransactingStakerOptions
 from nucypher.cli.literature import (
@@ -28,7 +28,8 @@ from nucypher.cli.literature import (
     NO_FEE_TO_WITHDRAW, COLLECTING_ETH_FEE, NO_MINTABLE_PERIODS, STILL_LOCKED_TOKENS, CONFIRM_MINTING,
     PROMPT_PROLONG_VALUE, CONFIRM_PROLONG, SUCCESSFUL_STAKE_PROLONG, PERIOD_ADVANCED_WARNING, PROMPT_STAKE_DIVIDE_VALUE,
     PROMPT_STAKE_EXTEND_VALUE, CONFIRM_BROADCAST_STAKE_DIVIDE, SUCCESSFUL_STAKE_DIVIDE, SUCCESSFUL_STAKE_INCREASE,
-    PROMPT_STAKE_INCREASE_VALUE, CONFIRM_INCREASING_STAKE
+    PROMPT_STAKE_INCREASE_VALUE, CONFIRM_INCREASING_STAKE, MAXIMUM_STAKE_REACHED,
+    INSUFFICIENT_BALANCE_TO_INCREASE
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.types import SubStakeInfo
@@ -551,9 +552,7 @@ def test_increase_interactive(click_runner,
     sub_stake_index = len(surrogate_stakes) - 1
     additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10)
 
-    mock_staking_agent.get_locked_tokens.return_value = token_economics.maximum_allowed_locked // 2
-    balance = token_economics.minimum_allowed_locked * 5
-    mock_token_agent.get_balance.return_value = balance
+    mock_token_agent.get_balance.return_value = 0
 
     command = ('increase',
                '--provider', MOCK_PROVIDER_URI,
@@ -564,6 +563,24 @@ def test_increase_interactive(click_runner,
                             str(additional_value.to_tokens()),
                             YES,
                             INSECURE_DEVELOPMENT_PASSWORD))
+
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 1
+    assert INSUFFICIENT_BALANCE_TO_INCREASE in result.output
+    assert MAXIMUM_STAKE_REACHED not in result.output
+    assert SUCCESSFUL_STAKE_INCREASE not in result.output
+
+    mock_staking_agent.get_locked_tokens.return_value = token_economics.maximum_allowed_locked
+    balance = token_economics.minimum_allowed_locked * 5
+    mock_token_agent.get_balance.return_value = balance
+
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 1
+    assert INSUFFICIENT_BALANCE_TO_INCREASE not in result.output
+    assert MAXIMUM_STAKE_REACHED in result.output
+    assert SUCCESSFUL_STAKE_INCREASE not in result.output
+
+    mock_staking_agent.get_locked_tokens.return_value = token_economics.maximum_allowed_locked // 2
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -581,17 +598,21 @@ def test_increase_interactive(click_runner,
     mock_staking_agent.assert_only_transactions([mock_staking_agent.deposit_and_increase])
     mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
                                                                  stake_index=sub_stake_index)
+    mock_token_agent.increase_allowance.assert_called_once_with(sender_address=surrogate_staker.checksum_address,
+                                                                spender_address=mock_staking_agent.contract.address,
+                                                                increase=additional_value.to_nunits())
+    mock_token_agent.assert_only_transactions([mock_token_agent.increase_allowance])
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_divide_non_interactive(click_runner,
-                                mocker,
-                                surrogate_staker,
-                                surrogate_stakes,
-                                mock_token_agent,
-                                mock_staking_agent,
-                                token_economics,
-                                mock_testerchain):
+def test_increase_non_interactive(click_runner,
+                                  mocker,
+                                  surrogate_staker,
+                                  surrogate_stakes,
+                                  mock_token_agent,
+                                  mock_staking_agent,
+                                  token_economics,
+                                  mock_testerchain):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     sub_stake_index = len(surrogate_stakes) - 1
@@ -599,7 +620,7 @@ def test_divide_non_interactive(click_runner,
 
     locked_tokens = token_economics.minimum_allowed_locked * 5
     mock_staking_agent.get_locked_tokens.return_value = locked_tokens
-    mock_token_agent.get_balance.return_value = token_economics.maximum_allowed_locked // 2
+    mock_token_agent.get_balance.return_value = 2 * token_economics.maximum_allowed_locked
 
     command = ('increase',
                '--provider', MOCK_PROVIDER_URI,
@@ -613,7 +634,7 @@ def test_divide_non_interactive(click_runner,
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    upper_limit = NU.from_nunits(locked_tokens)
+    upper_limit = NU.from_nunits(token_economics.maximum_allowed_locked - locked_tokens)
     assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) not in result.output
     assert CONFIRM_INCREASING_STAKE.format(stake_index=sub_stake_index, value=additional_value) not in result.output
     assert SUCCESSFUL_STAKE_INCREASE in result.output
@@ -627,3 +648,7 @@ def test_divide_non_interactive(click_runner,
     mock_staking_agent.assert_only_transactions([mock_staking_agent.deposit_and_increase])
     mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
                                                                  stake_index=sub_stake_index)
+    mock_token_agent.increase_allowance.assert_called_once_with(sender_address=surrogate_staker.checksum_address,
+                                                                spender_address=mock_staking_agent.contract.address,
+                                                                increase=additional_value.to_nunits())
+    mock_token_agent.assert_only_transactions([mock_token_agent.increase_allowance])

@@ -82,7 +82,13 @@ CONFIRM_LARGE_STAKE_DURATION = "Woah, {lock_periods} is a long time - Are you su
 
 CONFIRM_BROADCAST_CREATE_STAKE = "Publish staged stake to the blockchain?"
 
-CONFIRM_INCREASING_STAKE = "Confirm increase stake ({stake_index} index) of {value}?"
+CONFIRM_INCREASING_STAKE = "Confirm increase stake (index: {stake_index}) by {value}?"
+
+INSUFFICIENT_BALANCE_TO_INCREASE = "There are no tokens to increase stake"
+
+INSUFFICIENT_BALANCE_TO_CREATE = "There are not enough tokens to create stake"
+
+MAXIMUM_STAKE_REACHED = "Maximum stake reached, can't lock more"
 
 PROMPT_STAKE_INCREASE_VALUE = "Enter stake value in NU (up to {upper_limit})"
 

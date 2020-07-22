@@ -448,7 +448,7 @@ To divide an existing stake:
 Increase
 ********
 
-Existing stakes can be increased by a number of NU as long as the resulting
+Existing stakes can be increased by an amount of NU as long as the resulting
 staker's locked value is not greater than the maximum. To increase an existing stake's value:
 
 .. code:: bash
