@@ -67,7 +67,8 @@ from nucypher.cli.literature import (
     SUCCESSFUL_STAKE_DIVIDE,
     SUCCESSFUL_STAKE_PROLONG,
     SUCCESSFUL_WORKER_BONDING, NO_MINTABLE_PERIODS, STILL_LOCKED_TOKENS, CONFIRM_MINTING, SUCCESSFUL_MINTING,
-    CONFIRM_COLLECTING_WITHOUT_MINTING, NO_TOKENS_TO_WITHDRAW, NO_FEE_TO_WITHDRAW
+    CONFIRM_COLLECTING_WITHOUT_MINTING, NO_TOKENS_TO_WITHDRAW, NO_FEE_TO_WITHDRAW, CONFIRM_INCREASING_STAKE,
+    PROMPT_STAKE_INCREASE_VALUE, SUCCESSFUL_STAKE_INCREASE
 )
 from nucypher.cli.options import (
     group_options,
@@ -103,6 +104,7 @@ from nucypher.config.characters import StakeHolderConfiguration
 option_value = click.option('--value', help="Token value of stake", type=click.INT)
 option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
 option_worker_address = click.option('--worker-address', help="Address to bond as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
+option_index = click.option('--index', help="The staker-specific stake index to edit", type=click.INT)
 
 
 class StakeHolderConfigOptions:
@@ -471,9 +473,10 @@ def create(general_config, transacting_staker_options, config_file, force, value
     #
 
     if not value:
-        token_balance = NU.from_nunits(STAKEHOLDER.token_agent.get_balance(staking_address))
+        token_balance = STAKEHOLDER.token_balance
         lower_limit = NU.from_nunits(STAKEHOLDER.economics.minimum_allowed_locked)
-        upper_limit = min(token_balance, NU.from_nunits(STAKEHOLDER.economics.maximum_allowed_locked))
+        locked_tokens = STAKEHOLDER.locked_tokens(periods=1).to_nunits()
+        upper_limit = min(token_balance, NU.from_nunits(STAKEHOLDER.economics.maximum_allowed_locked - locked_tokens))
         value = click.prompt(f"Enter stake value in NU "
                              f"({lower_limit} - {upper_limit})",
                              type=stake_value_range,
@@ -522,6 +525,80 @@ def create(general_config, transacting_staker_options, config_file, force, value
     # Execute
     receipt = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods)
     paint_staking_confirmation(emitter=emitter, staker=STAKEHOLDER, receipt=receipt)
+
+
+@stake.command()
+@group_transacting_staker_options
+@option_config_file
+@option_force
+@option_value
+@option_index
+@group_general_config
+def increase(general_config, transacting_staker_options, config_file, force, value, index):
+    """Increase an existing stake."""
+
+    # Setup
+    emitter = setup_emitter(general_config)
+    STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
+    blockchain = transacting_staker_options.get_blockchain()
+    economics = STAKEHOLDER.economics
+
+    client_account, staking_address = select_client_account_for_staking(
+        emitter=emitter,
+        stakeholder=STAKEHOLDER,
+        staking_address=transacting_staker_options.staker_options.staking_address,
+        individual_allocation=STAKEHOLDER.individual_allocation,
+        force=force)
+
+    # Handle stake update and selection
+    if index is not None:  # 0 is valid.
+        current_stake = STAKEHOLDER.stakes[index]
+    else:
+        current_stake = select_stake(staker=STAKEHOLDER, emitter=emitter)
+
+    #
+    # Stage Stake
+    #
+
+    if not value:
+        token_balance = STAKEHOLDER.token_balance
+        locked_tokens = STAKEHOLDER.locked_tokens(periods=1).to_nunits()
+        upper_limit = min(token_balance, NU.from_nunits(STAKEHOLDER.economics.maximum_allowed_locked - locked_tokens))
+        stake_value_range = click.FloatRange(min=0, max=upper_limit.to_tokens(), clamp=False)
+        value = click.prompt(PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit),
+                             type=stake_value_range)
+    value = NU.from_tokens(value)
+
+    #
+    # Review and Publish
+    #
+
+    if not force:
+        lock_periods = current_stake.periods_remaining - 1
+        current_period = STAKEHOLDER.staking_agent.get_current_period()
+        unlock_period = current_stake.final_locked_period + 1
+
+        confirm_large_stake(value=value, lock_periods=lock_periods)
+        paint_staged_stake(emitter=emitter,
+                           stakeholder=STAKEHOLDER,
+                           staking_address=staking_address,
+                           stake_value=value,
+                           lock_periods=lock_periods,
+                           start_period=current_period + 1,
+                           unlock_period=unlock_period)
+        click.confirm(CONFIRM_INCREASING_STAKE.format(stake_index=current_stake.index, value=value), abort=True)
+
+    # Authenticate
+    password = transacting_staker_options.get_password(blockchain, client_account)
+    STAKEHOLDER.assimilate(password=password)
+
+    # Execute
+    receipt = STAKEHOLDER.increase_stake(stake=current_stake, amount=value)
+
+    # Report
+    emitter.echo(SUCCESSFUL_STAKE_INCREASE, color='green', verbosity=1)
+    paint_receipt_summary(emitter=emitter, receipt=receipt, chain_name=blockchain.client.chain_name)
+    paint_stakes(emitter=emitter, staker=STAKEHOLDER)
 
 
 @stake.command()
@@ -634,7 +711,7 @@ def winddown(general_config, transacting_staker_options, config_file, enable, fo
 @option_force
 @option_value
 @option_lock_periods
-@click.option('--index', help="A specific stake index to resume", type=click.INT)
+@option_index
 @group_general_config
 def divide(general_config, transacting_staker_options, config_file, force, value, lock_periods, index):
     """Create a new stake from part of an existing one."""
@@ -718,7 +795,7 @@ def divide(general_config, transacting_staker_options, config_file, force, value
 @option_config_file
 @option_force
 @option_lock_periods
-@click.option('--index', help="The staker-specific stake index to prolong", type=click.INT)
+@option_index
 @group_general_config
 def prolong(general_config, transacting_staker_options, config_file, force, lock_periods, index):
     """Prolong an existing stake's duration."""

@@ -896,7 +896,8 @@ class Staker(NucypherTokenActor):
                          amount: NU = None,
                          lock_periods: int = None,
                          expiration: maya.MayaDT = None,
-                         entire_balance: bool = False) -> Tuple[str, str]:
+                         entire_balance: bool = False
+                         ) -> Tuple[str, str]:
 
         """Create a new stake."""
 
@@ -948,7 +949,8 @@ class Staker(NucypherTokenActor):
                      stake: Stake,
                      target_value: NU,
                      additional_periods: int = None,
-                     expiration: maya.MayaDT = None) -> Tuple[str, str]:
+                     expiration: maya.MayaDT = None
+                     ) -> Tuple[str, str]:
         self._ensure_stake_exists(stake)
 
         # Calculate duration in periods
@@ -980,7 +982,8 @@ class Staker(NucypherTokenActor):
     def increase_stake(self,
                        stake: Stake,
                        amount: NU = None,
-                       entire_balance: bool = False) -> Tuple[str, str]:
+                       entire_balance: bool = False
+                       ) -> Tuple[str, str]:
         """Add tokens to existing stake."""
         self._ensure_stake_exists(stake)
 

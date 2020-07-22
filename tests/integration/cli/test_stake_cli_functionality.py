@@ -27,7 +27,8 @@ from nucypher.cli.literature import (
     NO_TOKENS_TO_WITHDRAW, COLLECTING_TOKEN_REWARD, CONFIRM_COLLECTING_WITHOUT_MINTING,
     NO_FEE_TO_WITHDRAW, COLLECTING_ETH_FEE, NO_MINTABLE_PERIODS, STILL_LOCKED_TOKENS, CONFIRM_MINTING,
     PROMPT_PROLONG_VALUE, CONFIRM_PROLONG, SUCCESSFUL_STAKE_PROLONG, PERIOD_ADVANCED_WARNING, PROMPT_STAKE_DIVIDE_VALUE,
-    PROMPT_STAKE_EXTEND_VALUE, CONFIRM_BROADCAST_STAKE_DIVIDE, SUCCESSFUL_STAKE_DIVIDE
+    PROMPT_STAKE_EXTEND_VALUE, CONFIRM_BROADCAST_STAKE_DIVIDE, SUCCESSFUL_STAKE_DIVIDE, SUCCESSFUL_STAKE_INCREASE,
+    PROMPT_STAKE_INCREASE_VALUE, CONFIRM_INCREASING_STAKE
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.types import SubStakeInfo
@@ -508,11 +509,11 @@ def test_divide_non_interactive(click_runner,
     command = ('divide',
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-                '--staking-address', surrogate_staker.checksum_address,
-                '--index', sub_stake_index,
-                '--lock-periods', lock_periods,
-                '--value', NU.from_nunits(target_value).to_tokens(),
-                '--force')
+               '--staking-address', surrogate_staker.checksum_address,
+               '--index', sub_stake_index,
+               '--lock-periods', lock_periods,
+               '--value', NU.from_nunits(target_value).to_tokens(),
+               '--force')
 
     user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
@@ -531,5 +532,98 @@ def test_divide_non_interactive(click_runner,
                                                             target_value=target_value,
                                                             periods=lock_periods)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.divide_stake])
+    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+                                                                 stake_index=sub_stake_index)
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_increase_interactive(click_runner,
+                              mocker,
+                              surrogate_staker,
+                              surrogate_stakes,
+                              mock_token_agent,
+                              mock_staking_agent,
+                              token_economics,
+                              mock_testerchain):
+    mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
+
+    selected_index = 0
+    sub_stake_index = len(surrogate_stakes) - 1
+    additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10)
+
+    mock_staking_agent.get_locked_tokens.return_value = token_economics.maximum_allowed_locked // 2
+    balance = token_economics.minimum_allowed_locked * 5
+    mock_token_agent.get_balance.return_value = balance
+
+    command = ('increase',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN)
+
+    user_input = '\n'.join((str(selected_index),
+                            str(sub_stake_index),
+                            str(additional_value.to_tokens()),
+                            YES,
+                            INSECURE_DEVELOPMENT_PASSWORD))
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    upper_limit = NU.from_nunits(balance)
+    assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) in result.output
+    assert CONFIRM_INCREASING_STAKE.format(stake_index=sub_stake_index, value=additional_value) in result.output
+    assert SUCCESSFUL_STAKE_INCREASE in result.output
+
+    mock_staking_agent.get_all_stakes.assert_called()
+    mock_staking_agent.get_current_period.assert_called()
+    mock_refresh_stakes.assert_called()
+    mock_staking_agent.deposit_and_increase.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+                                                                    stake_index=sub_stake_index,
+                                                                    amount=additional_value.to_nunits())
+    mock_staking_agent.assert_only_transactions([mock_staking_agent.deposit_and_increase])
+    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+                                                                 stake_index=sub_stake_index)
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_divide_non_interactive(click_runner,
+                                mocker,
+                                surrogate_staker,
+                                surrogate_stakes,
+                                mock_token_agent,
+                                mock_staking_agent,
+                                token_economics,
+                                mock_testerchain):
+    mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
+
+    sub_stake_index = len(surrogate_stakes) - 1
+    additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10)
+
+    locked_tokens = token_economics.minimum_allowed_locked * 5
+    mock_staking_agent.get_locked_tokens.return_value = locked_tokens
+    mock_token_agent.get_balance.return_value = token_economics.maximum_allowed_locked // 2
+
+    command = ('increase',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
+               '--staking-address', surrogate_staker.checksum_address,
+               '--index', sub_stake_index,
+               '--value', additional_value.to_tokens(),
+               '--force')
+
+    user_input = INSECURE_DEVELOPMENT_PASSWORD
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    upper_limit = NU.from_nunits(locked_tokens)
+    assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) not in result.output
+    assert CONFIRM_INCREASING_STAKE.format(stake_index=sub_stake_index, value=additional_value) not in result.output
+    assert SUCCESSFUL_STAKE_INCREASE in result.output
+
+    mock_staking_agent.get_all_stakes.assert_called()
+    mock_staking_agent.get_current_period.assert_called()
+    mock_refresh_stakes.assert_called()
+    mock_staking_agent.deposit_and_increase.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+                                                                    stake_index=sub_stake_index,
+                                                                    amount=additional_value.to_nunits())
+    mock_staking_agent.assert_only_transactions([mock_staking_agent.deposit_and_increase])
     mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
                                                                  stake_index=sub_stake_index)
