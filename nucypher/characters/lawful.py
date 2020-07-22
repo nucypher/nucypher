@@ -445,9 +445,9 @@ class Alice(Character, BlockchainPolicyAuthor):
         return controller
 
     def disenchant(self):
+        print(f"disenchanting {self}")
         super().disenchant()
         self.publication_threadpool.stop()
-
 
 
 class Bob(Character):
