@@ -37,7 +37,7 @@ from bytestring_splitter import BytestringSplitter, BytestringSplittingError, Pa
     VariableLengthBytestring
 from constant_sorrow import constant_or_bytes
 from constant_sorrow.constants import (CERTIFICATE_NOT_SAVED, FLEET_STATES_MATCH, NEVER_SEEN, NOT_SIGNED,
-                                       NO_KNOWN_NODES, NO_STORAGE_AVAILIBLE, UNKNOWN_FLEET_STATE, UNKNOWN_VERSION)
+                                       NO_KNOWN_NODES, NO_STORAGE_AVAILIBLE, UNKNOWN_FLEET_STATE, UNKNOWN_VERSION, RELAX)
 from nucypher.acumen.nicknames import nickname_from_seed
 from nucypher.acumen.perception import FleetSensor, icon_from_checksum
 from nucypher.blockchain.economics import EconomicsFactory
@@ -121,6 +121,18 @@ class NodeSprout(PartiallyKwargifiedBytes):
         return self  # To reduce the awkwardity of renaming; this is always the weird part of polymorphism for me.
 
 
+class DiscoveryCanceller:
+
+    def __init__(self):
+        self.stop_now = False
+
+    def __call__(self, learning_deferred):
+        if self.stop_now:
+            assert False
+        self.stop_now = True
+        learning_deferred.callback(RELAX)
+
+
 class Learner:
     """
     Any participant in the "learning loop" - a class inheriting from
@@ -182,6 +194,7 @@ class Learner:
 
         self.log = Logger("learning-loop")  # type: Logger
 
+        self.learning_deferred = Deferred()
         self.learning_domains = domains
         if not self.federated_only:
             default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS(registry=self.registry)
@@ -201,6 +214,7 @@ class Learner:
         self.lonely = lonely
         self.done_seeding = False
         self._learning_deferred = None
+        self._discovery_canceller = DiscoveryCanceller()
 
         if not node_storage:
             # Fallback storage backend
@@ -399,7 +413,7 @@ class Learner:
         else:
             self.log.info("Starting Learning Loop.")
 
-            learner_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
+            learner_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)  # TODO: now=now?  This block is always False, no?
             learner_deferred.addErrback(self.handle_learning_errors)
 
             self.learning_deferred = learner_deferred
@@ -414,6 +428,11 @@ class Learner:
 
         if self._learning_deferred:
             self._learning_deferred.cancel()
+            self._learning_deferred = RELAX
+        elif self._learning_deferred is RELAX:
+            assert False
+
+        # self.learning_deferred.cancel()
 
     def handle_learning_errors(self, failure, *args, **kwargs):
         _exception = failure.value
@@ -488,39 +507,30 @@ class Learner:
 
         print(f"+++++++++++{self} deferring learning cycle at {datetime.datetime.now()}")
 
-        while self._learning_deferred is not None:
-            print(f"^^^^^^^^^{self} waiting at {datetime.datetime.now()}")
-            time.sleep(.1)
+        # while self._learning_deferred is not None:
+        #     print(f"^^^^^^^^^{self} waiting at {datetime.datetime.now()}")
+        #     time.sleep(.1)
 
-        class DiscoveryCanceller:
-
-            def __init__(self):
-                self.stop_now = False
-
-            def __call__(self, learning_deferred):
-                self.stop_now = True
-
-        _canceller = DiscoveryCanceller()
         # TODO: Allow the user to set eagerness?  1712
         # TODO: Also, if we do allow eager, don't even defer; block right here.
 
-        self._learning_deferred = Deferred(canceller=_canceller)
+        self._learning_deferred = Deferred(canceller=self._discovery_canceller)
 
         def _discover_or_abort(_first_result):
             print(f"========={self} learning at {datetime.datetime.now()}")
-            result = self.learn_from_teacher_node(eager=False, canceller=_canceller)
+            result = self.learn_from_teacher_node(eager=False, canceller=self._discovery_canceller)
             print(f"///////////{self} finished learning at {datetime.datetime.now()}")
             return result
 
         self._learning_deferred.addCallback(_discover_or_abort)
         self._learning_deferred.addErrback(self.handle_learning_errors)
 
-        def clear_learning_deferred(result_of_last_learning_cycle):
-            # TODO: This is an interesting opportunity to add throttling and / or check against a canonical fleet state.  #1712  #1000
-            print(f"Clearing {self} at {datetime.datetime.now()}")
-            self._learning_deferred = None
-
-        self._learning_deferred.addCallback(clear_learning_deferred)
+        # def clear_learning_deferred(result_of_last_learning_cycle):
+        #     # TODO: This is an interesting opportunity to add throttling and / or check against a canonical fleet state.  #1712  #1000
+        #     print(f"Clearing {self} at {datetime.datetime.now()}")
+        #     self._learning_deferred = None
+        #
+        # self._learning_deferred.addCallback(clear_learning_deferred)
 
         # Instead of None, we might want to pass something useful about the context.
         # Alternately, it might be nice for learn_from_teacher_node to (some or all of the time) return a Deferred.
@@ -586,10 +596,10 @@ class Learner:
         start = maya.now()
         starting_round = self._learning_round
 
-        if not learn_on_this_thread:
-            # Get a head start by firing the looping call now.  If it's very fast, maybe we'll have enough nodes on the first iteration.
-            if self._learning_task.running:
-                self._learning_task()
+        # if not learn_on_this_thread:
+        #     # Get a head start by firing the looping call now.  If it's very fast, maybe we'll have enough nodes on the first iteration.
+        #     # if self._learning_task.running:
+        #     #     self._learning_task()
 
         while True:
             if self._crashed:
@@ -727,6 +737,8 @@ class Learner:
         #
         # Request
         #
+        if canceller and canceller.stop_now:
+            return RELAX
 
         try:
             response = self.network_middleware.get_nodes_via_rest(node=current_teacher,
