@@ -574,10 +574,9 @@ class Allocator:
         allowance = token_agent.get_allowance(owner=deployer_address, spender=self.staking_agent.contract_address)
         if allowance < self.__total_to_allocate:
             self.log.debug(f"Allocating a total of {NU.from_nunits(self.__total_to_allocate)}")
-            allowance_function = token_agent.contract.functions.increaseAllowance(self.staking_agent.contract_address,
-                                                                                  self.__total_to_allocate - allowance)
-            _allowance_receipt = self.staking_agent.blockchain.send_transaction(contract_function=allowance_function,
-                                                                                sender_address=deployer_address)
+            _allowance_receipt = token_agent.increase_allowance(sender_address=deployer_address,
+                                                                spender_address=self.staking_agent.contract_address,
+                                                                increase=NuNits(self.__total_to_allocate - allowance))
 
     def _add_substake(self, staker, amount, lock_periods):
         try:

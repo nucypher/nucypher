@@ -146,14 +146,14 @@ abstract contract Issuer is Upgradeable {
     /**
     * @notice Initialize reserved tokens for reward
     */
-    function initialize(uint256 _reservedReward) external onlyOwner {
+    function initialize(uint256 _reservedReward, address _sourceOfFunds) external onlyOwner {
         require(currentMintingPeriod == 0);
         // Reserved reward must be sufficient for at least one period of the first phase
         require(firstPhaseMaxIssuance <= _reservedReward);
         currentMintingPeriod = getCurrentPeriod();
         currentPeriodSupply = totalSupply - uint128(_reservedReward);
         previousPeriodSupply = currentPeriodSupply;
-        token.safeTransferFrom(msg.sender, address(this), _reservedReward);
+        token.safeTransferFrom(_sourceOfFunds, address(this), _reservedReward);
         emit Initialized(_reservedReward);
     }
 

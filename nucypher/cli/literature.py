@@ -359,6 +359,8 @@ The staker's fee rate was set to the default value {default} such that it falls 
 
 CONTRACT_IS_NOT_OWNABLE = "Contract {contract_name} is not ownable."
 
+CONFIRM_TOKEN_ALLOWANCE = "Approve allowance of {value} from {deployer_address} to {spender_address}?"
+
 CONFIRM_TOKEN_TRANSFER = "Transfer {value} from {deployer_address} to {target_address}?"
 
 PROMPT_TOKEN_VALUE = "Enter value in NU"

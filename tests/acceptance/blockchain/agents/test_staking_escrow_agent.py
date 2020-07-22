@@ -61,7 +61,7 @@ def test_deposit_tokens(testerchain, agency, token_economics, mock_transacting_p
     #
 
     _receipt = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked * 10,  # Approve
-                                            target_address=staking_agent.contract_address,
+                                            spender_address=staking_agent.contract_address,
                                             sender_address=staker_account)
 
     receipt = staking_agent.deposit_tokens(amount=locked_tokens,
@@ -214,7 +214,7 @@ def test_divide_stake(agency, token_economics):
 
     # Approve
     _txhash = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked*2,
-                                           target_address=agent.contract_address,
+                                           spender_address=agent.contract_address,
                                            sender_address=someone)
 
     # Deposit
@@ -390,7 +390,7 @@ def test_batch_deposit(testerchain,
     tokens_in_batch = sum(batch_parameters[2])
 
     _receipt = token_agent.approve_transfer(amount=tokens_in_batch,
-                                            target_address=staking_agent.contract_address,
+                                            spender_address=staking_agent.contract_address,
                                             sender_address=testerchain.etherbase_account)
 
     not_enough_gas = 800_000

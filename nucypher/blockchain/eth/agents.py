@@ -167,21 +167,24 @@ class NucypherTokenAgent(EthereumContractAgent):
     @contract_api(TRANSACTION)
     def increase_allowance(self,
                            sender_address: ChecksumAddress,
-                           target_address: ChecksumAddress,
+                           spender_address: ChecksumAddress,
                            increase: NuNits
                            ) -> TxReceipt:
-        contract_function: ContractFunction = self.contract.functions.increaseAllowance(target_address, increase)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
+        """Increase the allowance of a spender address funded by a sender address"""
+        contract_function: ContractFunction = self.contract.functions.increaseAllowance(spender_address, increase)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                              sender_address=sender_address)
         return receipt
 
     @contract_api(TRANSACTION)
-    def approve_transfer(self, amount: NuNits,
-                         target_address: ChecksumAddress,
+    def approve_transfer(self,
+                         amount: NuNits,
+                         spender_address: ChecksumAddress,
                          sender_address: ChecksumAddress
                          ) -> TxReceipt:
-        """Approve the transfer of tokens from the sender address to the target address."""
+        """Approve the spender address to transfer an amount of tokens on behalf of the sender address"""
         payload: TxParams = {'gas': Wei(500_000)}  # TODO #842: gas needed for use with geth! <<<< Is this still open?
-        contract_function: ContractFunction = self.contract.functions.approve(target_address, amount)
+        contract_function: ContractFunction = self.contract.functions.approve(spender_address, amount)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                               payload=payload,
                                                               sender_address=sender_address)
@@ -191,7 +194,8 @@ class NucypherTokenAgent(EthereumContractAgent):
     def transfer(self, amount: NuNits, target_address: ChecksumAddress, sender_address: ChecksumAddress) -> TxReceipt:
         """Transfer an amount of tokens from the sender address to the target address."""
         contract_function: ContractFunction = self.contract.functions.transfer(target_address, amount)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                              sender_address=sender_address)
         return receipt
 
     @contract_api(TRANSACTION)

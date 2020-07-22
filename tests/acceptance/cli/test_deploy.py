@@ -19,7 +19,6 @@ import json
 
 import os
 import pytest
-from eth_utils import to_checksum_address
 
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.agents import (AdjudicatorAgent, ContractAgency, NucypherTokenAgent, PolicyManagerAgent,
@@ -28,7 +27,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.sol.compile import SOLIDITY_COMPILER_VERSION
 from nucypher.cli.commands.deploy import deploy
-from tests.constants import TEST_PROVIDER_URI
+from tests.constants import TEST_PROVIDER_URI, YES_ENTER
 
 PLANNED_UPGRADES = 4
 CONTRACTS_TO_UPGRADE = ('StakingEscrow', 'PolicyManager', 'Adjudicator', 'StakingInterface')
@@ -63,7 +62,7 @@ def test_nucypher_deploy_contracts(click_runner,
                '--provider', TEST_PROVIDER_URI,
                '--se-test-mode']
 
-    user_input = '0\n' + 'Y\n' + 'DEPLOY'
+    user_input = '0\n' + YES_ENTER + 'DEPLOY'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -123,18 +122,15 @@ def test_deploy_single_contract(click_runner, tempfile_path):
                '--provider', TEST_PROVIDER_URI,
                '--debug']
 
-    user_input = '0\n' + 'Y\n'
+    user_input = '0\n' + YES_ENTER
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
 
-def test_transfer_tokens(click_runner, registry_filepath):
-    #
-    # Setup
-    #
+def test_transfer_tokens(click_runner, registry_filepath, get_random_checksum_address, testerchain):
 
     # Let's transfer some NU to a random stranger
-    recipient_address = to_checksum_address(os.urandom(20))
+    recipient_address = get_random_checksum_address()
 
     registry = LocalContractRegistry(filepath=registry_filepath)
     token_agent = NucypherTokenAgent(registry=registry)
@@ -146,12 +142,31 @@ def test_transfer_tokens(click_runner, registry_filepath):
                '--registry-infile', registry_filepath,
                '--provider', TEST_PROVIDER_URI]
 
-    user_input = '0\n' + 'Y\n' + 'Y\n'
+    user_input = '0\n' + YES_ENTER + YES_ENTER
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
     # Check that the NU has arrived to the recipient
     assert token_agent.get_balance(address=recipient_address) == 42
+
+    # Let's approve an allowance to a random spender
+    spender_address = get_random_checksum_address()
+    owner_address = testerchain.client.accounts[0]
+    assert token_agent.get_allowance(spender=spender_address, owner=owner_address) == 0
+
+    command = ['transfer-tokens',
+               '--target-address', spender_address,
+               '--value', 42,
+               '--allowance',
+               '--registry-infile', registry_filepath,
+               '--provider', TEST_PROVIDER_URI]
+
+    user_input = '0\n' + YES_ENTER + YES_ENTER
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    # Check that the NU was approved for the spender
+    assert token_agent.get_allowance(spender=spender_address, owner=owner_address) == 42
 
 
 def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
@@ -173,7 +188,6 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
 
     cli_action = 'upgrade'
     base_command = ('--registry-infile', registry_filepath, '--provider', TEST_PROVIDER_URI)
-    yes = 'Y\n'  # :-)
 
     #
     # Stage Upgrades
@@ -230,7 +244,7 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
 
         # Select upgrade interactive input scenario
         current_version = version_tracker[contract_name]
-        user_input = '0\n' + yes + yes
+        user_input = '0\n' + YES_ENTER + YES_ENTER
 
         # Execute upgrade (Meat)
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
@@ -285,9 +299,6 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
 def test_rollback(click_runner, testerchain, registry_filepath):
     """Roll 'em back!"""
 
-    # Input Components
-    yes = 'Y\n'
-
     # Stage Rollbacks
     contracts_to_rollback = ('StakingEscrow',  # v4 -> v3
                              'PolicyManager',  # v4 -> v3
@@ -302,7 +313,7 @@ def test_rollback(click_runner, testerchain, registry_filepath):
                    '--registry-infile', registry_filepath,
                    '--provider', TEST_PROVIDER_URI)
 
-        user_input = '0\n' + yes
+        user_input = '0\n' + YES_ENTER
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
         assert result.exit_code == 0
 
