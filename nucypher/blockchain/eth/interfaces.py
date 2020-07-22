@@ -73,7 +73,7 @@ class BlockchainInterface:
 
     TIMEOUT = 600  # seconds  # TODO: Correlate with the gas strategy - #2070
 
-    DEFAULT_GAS_STRATEGY = 'medium'
+    DEFAULT_GAS_STRATEGY = 'fast'
     GAS_STRATEGIES = {'glacial': time_based.glacial_gas_price_strategy,     # 24h
                       'slow': time_based.slow_gas_price_strategy,           # 1h
                       'medium': time_based.medium_gas_price_strategy,       # 5m
