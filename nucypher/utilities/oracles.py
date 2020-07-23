@@ -19,7 +19,8 @@ from typing import Optional
 
 import requests
 from web3 import Web3
-from web3.types import Wei
+from web3.gas_strategies.rpc import rpc_gas_price_strategy
+from web3.types import Wei, TxParams
 
 
 class Oracle(ABC):
@@ -27,6 +28,7 @@ class Oracle(ABC):
     class OracleError(RuntimeError):
         """Base class for Oracle-related exceptions"""
 
+    name = NotImplemented
     api_url = NotImplemented  # TODO: Deal with API keys
 
     def _probe_oracle(self):
@@ -61,16 +63,20 @@ class EthereumGasPriceOracle(Oracle):
 
     @classmethod
     def construct_gas_strategy(cls):
-        def oracle_based_gas_price_strategy(web3, transaction_params=None) -> Wei:
+        def oracle_based_gas_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:
             oracle = cls()
             gas_price = oracle.get_gas_price()
             return gas_price
         return oracle_based_gas_price_strategy
 
+    def __repr__(self):
+        return f"{self.name} ({self.api_url})"
+
 
 class EtherchainGasPriceOracle(EthereumGasPriceOracle):
     """Gas price oracle from Etherchain"""
 
+    name = "Etherchain oracle"
     api_url = "https://www.etherchain.org/api/gasPriceOracle"
     _speed_names = ('safeLow', 'standard', 'fast', 'fastest')
     _default_speed = 'fast'
@@ -83,6 +89,7 @@ class EtherchainGasPriceOracle(EthereumGasPriceOracle):
 class UpvestGasPriceOracle(EthereumGasPriceOracle):
     """Gas price oracle from Upvest"""
 
+    name = "Upvest oracle"
     api_url = "https://fees.upvest.co/estimate_eth_fees"
     _speed_names = ('slow', 'medium', 'fast', 'fastest')
     _default_speed = 'fastest'
@@ -90,6 +97,22 @@ class UpvestGasPriceOracle(EthereumGasPriceOracle):
     def _parse_gas_prices(self):
         self._probe_oracle()
         self.gas_prices = {k: int(Web3.toWei(v, 'gwei')) for k, v in self._raw_data['estimates'].items()}
+
+
+def oracle_fallback_gas_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:
+    oracles = (EtherchainGasPriceOracle, UpvestGasPriceOracle)
+
+    for gas_price_oracle_class in oracles:
+        try:
+            gas_strategy = gas_price_oracle_class.construct_gas_strategy()
+            gas_price = gas_strategy(web3, transaction_params)
+        except EtherchainGasPriceOracle.OracleError:
+            continue
+        else:
+            return gas_price
+    else:
+        # Worst-case scenario, we get the price from the ETH node itself
+        return rpc_gas_price_strategy(web3, transaction_params)
 
 
 
