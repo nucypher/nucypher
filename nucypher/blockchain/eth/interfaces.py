@@ -486,8 +486,7 @@ class BlockchainInterface:
 
         base_payload = {'chainId': int(self.client.chain_id),
                         'nonce': self.client.w3.eth.getTransactionCount(sender_address, 'pending'),
-                        'from': sender_address,
-                        'gasPrice': self.client.gas_price}
+                        'from': sender_address}
 
         # Aggregate
         if not payload:
