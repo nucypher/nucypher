@@ -40,7 +40,7 @@ from web3.exceptions import TimeExhausted, ValidationError
 from web3.gas_strategies import time_based
 from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS
+from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS, InfuraClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
     _get_auto_provider,
@@ -57,6 +57,7 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
+from nucypher.utilities.oracles import oracle_fallback_gas_price_strategy
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
@@ -276,8 +277,13 @@ class BlockchainInterface:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
-        # Gas Price Strategy
-
+        # Gas Price Strategy:
+        # Bundled web3 strategies are too expensive for Infura (it takes ~1 minute to get a price),
+        # so we use external gas price oracles, instead (see #2139)
+        if isinstance(self.client, InfuraClient):
+            gas_strategy = oracle_fallback_gas_price_strategy
+        else:
+            gas_strategy = self.gas_strategy
         self.client.set_gas_strategy(gas_strategy=gas_strategy)
         gwei_gas_price = Web3.fromWei(self.client.generate_gas_price(), 'gwei')
         self.log.debug(f"Currently, our gas strategy returns a gas price of {gwei_gas_price} gwei")
