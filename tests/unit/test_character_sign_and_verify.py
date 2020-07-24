@@ -27,8 +27,6 @@ from nucypher.crypto.powers import (CryptoPower, NoSigningPower, SigningPower)
 """
 Chapter 1: SIGNING
 """
-
-
 def test_actor_without_signing_power_cannot_sign():
     """
     We can create a Character with no real CryptoPower to speak of.
