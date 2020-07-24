@@ -106,6 +106,7 @@ def test_anybody_can_verify():
 
     cleartext = somebody.verify_from(hearsay_alice, message, signature, decrypt=False)
     assert cleartext is constants.NO_DECRYPTION_PERFORMED
+    alice.disenchant()
 
 
 """
