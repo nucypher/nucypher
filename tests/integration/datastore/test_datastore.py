@@ -257,7 +257,7 @@ def test_datastore_record_read():
         # Check the default attrs.
         test_rec = TestRecord(db_tx, 'testing', writeable=False)
         assert test_rec._record_id == 'testing'
-        assert test_rec._DatastoreRecord__db_tx == db_tx
+        assert test_rec._DatastoreRecord__db_transaction == db_tx
         assert test_rec._DatastoreRecord__writeable == False
         assert test_rec._DatastoreRecord__storagekey == 'TestRecord:{record_field}:{record_id}'
 

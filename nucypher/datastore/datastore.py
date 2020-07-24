@@ -59,7 +59,7 @@ class DatastoreKey(NamedTuple):
     def compare_key(self, key_bytestring: bytes) -> bool:
         """
         This method compares a key to another key given a key's bytestring.
-        Usually, the `key_bytestring` will be a _query key_, and the `self`
+        Usually, the `key_bytestring` will be a query key, and the `self`
         key will be a key in the `Datastore`.
 
         The logic below offers precedence when performing matches on a query.
@@ -67,7 +67,7 @@ class DatastoreKey(NamedTuple):
         As such, if `other_key` doesn't specify a key attr (it will be None),
         we will take the key attr conferred by `self`.
 
-        Specifically, this allows us to match _partial keys to specific keys_,
+        Specifically, this allows us to match partial keys to specific keys,
         where the `Datastore` will _always_ return specific keys, but queries
         will almost always be partial keys.
         """
@@ -138,9 +138,9 @@ class Datastore:
     @contextmanager
     def query_by(self,
               record_type: 'DatastoreRecord',
-              filter_func: Callable[[Union[Any, 'DatastoreRecord']], bool]=None,
-              filter_field: str="",
-              writeable: bool=False,
+              filter_func: Callable[[Union[Any, 'DatastoreRecord']], bool] = None,
+              filter_field: str = "",
+              writeable: bool = False,
               ) -> List['DatastoreRecord']:
         """
         Performs a query on the datastore for the record by `record_type`.

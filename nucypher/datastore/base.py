@@ -59,11 +59,11 @@ class DatastoreRecord:
         return super().__new__(cls)
 
     def __init__(self,
-                 db_tx: 'lmdb.Transaction',
+                 db_transaction: 'lmdb.Transaction',
                  record_id: Union[int, str],
                  writeable: bool = False) -> None:
         self._record_id = record_id
-        self.__db_tx = db_tx
+        self.__db_transaction = db_transaction
         self.__writeable = writeable
 
     def __setattr__(self, attr: str, value: Any) -> None:
@@ -138,7 +138,7 @@ class DatastoreRecord:
         If the record doesn't exist, this method raises an `AttributeError`.
         """
         key = self.__storagekey.format(record_field=record_field, record_id=self._record_id).encode()
-        field_value = self.__db_tx.get(key, default=None)
+        field_value = self.__db_transaction.get(key, default=None)
         if field_value is None:
             raise AttributeError(f"No {record_field} record found for ID: {self._record_id}.")
         return field_value
@@ -150,7 +150,7 @@ class DatastoreRecord:
         If the record is unable to be written, this method raises a `DBWriteError`.
         """
         key = self.__storagekey.format(record_field=record_field, record_id=self._record_id).encode()
-        if not self.__db_tx.put(key, value, overwrite=True):
+        if not self.__db_transaction.put(key, value, overwrite=True):
             raise DBWriteError(f"Couldn't write the record (key: {key}) to the database.")
 
     def __delete_record(self, record_field: str) -> None:
@@ -158,7 +158,7 @@ class DatastoreRecord:
         Deletes the record from the datastore.
         """
         key = self.__storagekey.format(record_field=record_field, record_id=self._record_id).encode()
-        if not self.__db_tx.delete(key) and self.__db_tx.get(key) is not None:
+        if not self.__db_transaction.delete(key) and self.__db_transaction.get(key) is not None:
             # We do this check to ensure that the key was actually deleted.
             raise DBWriteError(f"Couldn't delete the record (key: {key}) from the database.")
 
