@@ -465,9 +465,8 @@ class Character(Learner):
                             f"Expected to connect to {stranger}, got {node_on_the_other_end} instead.")
                     else:
                         raise InvalidSignature("Signature for message isn't valid: {}".format(signature_to_use))
-                except (TypeError, AttributeError):
-                    raise self.known_node_class.InvalidNode(
-                        f"Unable to verify message from strange node at {stranger.rest_url()}")
+                except (TypeError, AttributeError) as e:
+                    raise InvalidSignature(f"Unable to verify message from stranger: {stranger}")
         else:
             raise InvalidSignature("No signature provided -- signature presumed invalid.")
 
