@@ -52,10 +52,11 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
         return mock_client
 
     def _get_ursula_by_port(self, port):
+        mkuc = MOCK_KNOWN_URSULAS_CACHE
         try:
-            return MOCK_KNOWN_URSULAS_CACHE[port]
+            return mkuc[port]
         except KeyError:
-            raise RuntimeError(
+             raise RuntimeError(
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
 
     def parse_node_or_host_and_port(self, node=None, host=None, port=None):
