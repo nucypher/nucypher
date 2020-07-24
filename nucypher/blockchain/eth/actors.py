@@ -26,6 +26,7 @@ import traceback
 import click
 import maya
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
+from eth_typing import ChecksumAddress
 from eth_utils import to_canonical_address, to_checksum_address
 from typing import Dict, Iterable, List, Optional, Tuple
 from web3 import Web3
@@ -45,6 +46,7 @@ from nucypher.blockchain.eth.agents import (
     WorkLockAgent,
     StakersReservoir,
 )
+from nucypher.blockchain.eth.aragon import CallScriptCodec, TokenManagerTranslator
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import (
     only_me,
@@ -2160,3 +2162,41 @@ class Bidder(NucypherTokenActor):
     def available_claim(self) -> int:
         tokens = self.worklock_agent.eth_to_tokens(self.get_deposited_eth)
         return tokens
+
+
+class DaoActor(BaseActor):
+    """Base class for actors that interact with the NuCypher DAO"""
+
+
+class SecurityCouncilManager(DaoActor):  # TODO: Find a different name for this. "Security Council" sounds silly
+
+    def __init__(self, token_manager_address: ChecksumAddress, council_voting_address: ChecksumAddress):
+        self.token_manager = TokenManagerTranslator(address=token_manager_address)  # TODO: Use some sort of registry
+        self.voting_agent = VotingAgent(address=council_voting_address)
+
+    def rotate_council_members(self,
+                               members_out: Iterable[ChecksumAddress],
+                               members_in: Iterable[ChecksumAddress]):
+
+        members_out_set = set(members_out)
+        if not members_out_set.isdisjoint(members_in):
+            raise ValueError(f"{members_out_set.intersection(members_in)} can't be both new and exiting members")
+
+        # TODO: Additional checks? e.g., members_out have tokens, members_in don't, etc.
+
+        burn_calls = [self.token_manager.burn(holder_address=member, amount=1) for member in members_out]
+        mint_calls = [self.token_manager.mint(receiver_address=member, amount=1) for member in members_in]
+
+        calls = burn_calls + mint_calls
+
+        actions = [(self.token_manager.contract.address, call) for call in calls]
+
+        council_rotation_callscript = CallScriptCodec.encode_actions(actions=actions)
+
+        receipt = self.voting_agent.forward(callscript=council_rotation_callscript)
+        return receipt
+
+# TODO:
+# - Voting Agent, following the Forwarding interface
+# - Registry for DAO Contracts. Note that there may be repeated types of contracts (e.g., standard voting, council voting)
+# - Tests for DAO stuff requires mocking the DAO. We need stuff like MockTokenManager, MockVoting, etcda
