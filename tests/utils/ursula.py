@@ -73,7 +73,14 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
             test_name = frames[frame].frame.f_locals['request'].module
             break
         except KeyError:
-            continue
+            try:
+                if frames[frame].function.startswith("test"):
+                    test_name = frames[frame].function
+                    break
+                else:
+                    continue
+            except AttributeError:
+                continue
 
     for port in range(starting_port, starting_port+quantity):
 
