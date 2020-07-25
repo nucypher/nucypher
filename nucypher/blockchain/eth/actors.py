@@ -157,12 +157,6 @@ class ContractAdministrator(NucypherTokenActor):
     The administrator of network contracts.
     """
 
-    __interface_class = BlockchainDeployerInterface
-
-    #
-    # Deployer Registry
-    #
-
     # Note: Deployer classes are sorted by deployment dependency order.
 
     standard_deployer_classes = (

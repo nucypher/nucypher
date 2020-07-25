@@ -118,7 +118,6 @@ class EthereumContractAgent:
             transaction_gas = EthereumContractAgent.DEFAULT_TRANSACTION_GAS_LIMITS['default']
         self.transaction_gas = transaction_gas
 
-        super().__init__()
         self.log.info("Initialized new {} for {} with {} and {}".format(self.__class__.__name__,
                                                                         self.contract.address,
                                                                         self.blockchain.provider_uri,

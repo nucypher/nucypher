@@ -24,7 +24,7 @@ import requests
 import shutil
 import tempfile
 from abc import ABC, abstractmethod
-from constant_sorrow.constants import NO_REGISTRY_SOURCE, REGISTRY_COMMITTED
+from constant_sorrow.constants import REGISTRY_COMMITTED
 from typing import Dict, Iterator, List, Tuple, Type, Union
 
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
@@ -202,8 +202,6 @@ class BaseContractRegistry(ABC):
     REGISTRY_NAME = 'contract_registry.json'  # TODO: #1511 Save registry with ID-time-based filename
     DEVELOPMENT_REGISTRY_NAME = 'dev_contract_registry.json'
 
-    NO_REGISTRY_SOURCE.bool_value(False)
-
     class RegistryError(Exception):
         pass
 
@@ -222,7 +220,7 @@ class BaseContractRegistry(ABC):
     class CantOverwriteRegistry(RegistryError):
         pass
 
-    def __init__(self, source=NO_REGISTRY_SOURCE, *args, **kwargs):
+    def __init__(self, source=None, *args, **kwargs):
         self.__source = source
         self.log = Logger("registry")
         self._id = None
