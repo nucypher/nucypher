@@ -29,7 +29,7 @@ mock_cert_storage = patch("nucypher.config.storages.ForgetfulNodeStorage.store_n
 mock_message_verification = patch('nucypher.characters.lawful.Alice.verify_from', new=lambda *args, **kwargs: None)
 
 
-def fake_keep_learning(learner, *args, **kwargs):
+def fake_keep_learning(selfish, learner=None, *args, **kwargs):
     return None
 
 
