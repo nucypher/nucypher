@@ -147,6 +147,11 @@ class CLIController(CharacterControlServer):
         self.emitter.ipc(response=response, request_id=start.epoch, duration=maya.now() - start)
         return response
 
+    def _perform_action(self, *args, **kwargs) -> dict:
+        response_data = super()._perform_action(*args, **kwargs)
+        self.stop_character()
+        return response_data
+
 
 class JSONRPCController(CharacterControlServer):
 
