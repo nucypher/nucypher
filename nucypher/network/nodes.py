@@ -238,7 +238,17 @@ class Learner:
 
         self.teacher_nodes = deque()
         self._current_teacher_node = None  # type: Teacher
-        self._learning_task = task.LoopingCall(self.keep_learning_about_nodes, learner=self)
+        self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
+
+        # Some debugging shit.
+        # Very slow, but provides useful info when trying to track down a stray Character.
+        # Seems mostly useful for Bob or federated Ursulas, but perhaps useful for other Characters as well.
+        # import inspect
+        # frames = inspect.stack(3)
+        # self._learning_task = task.LoopingCall(self.keep_learning_about_nodes, learner=self, frames=frames)
+        # self._init_frames = frames
+        #######
+
         self._learning_round = 0  # type: int
         self._rounds_without_new_nodes = 0  # type: int
         self._seed_nodes = seed_nodes or []
@@ -496,12 +506,13 @@ class Learner:
             self.log.info("Learning loop wasn't started; forcing start now.")
             self._learning_task.start(self._SHORT_LEARNING_DELAY, now=True)
 
-    def keep_learning_about_nodes(self, learner=None):
+    def keep_learning_about_nodes(self, learner=None, frames=None):
         """
         Continually learn about new nodes.
 
         learner is for debugging and logging only.
         """
+        self.log.info("WAAAAAAMP")
 
         import datetime
 
