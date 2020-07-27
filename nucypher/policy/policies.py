@@ -166,6 +166,7 @@ class BlockchainArrangement(Arrangement):
 
 
 class PolicyPayloadMutex(DeferredList):
+    log = Logger("Policy")
 
     def __init__(self, deferredList, percent_to_complete_before_release=5, *args, **kwargs):
         self.percent_to_complete_before_release = percent_to_complete_before_release
@@ -185,7 +186,9 @@ class PolicyPayloadMutex(DeferredList):
         """
         https://www.youtube.com/watch?v=OkSLswPSq2o
         """
-        return self._policy_locking_queue.get()
+        _ = self._policy_locking_queue.get()  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
+        self.log.debug(f"{self.finishedCount} nodes were contacted while blocking for a little while.")
+        return
 
 
 class Policy(ABC):
