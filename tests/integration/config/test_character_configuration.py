@@ -92,6 +92,10 @@ def test_federated_development_character_configurations(character, configuration
         assert another_character not in _characters
         _characters.append(another_character)
 
+    if character is Alice:
+        for alice in _characters:
+            alice.disenchant()
+
 
 @pytest.mark.parametrize('configuration_class', all_configurations)
 def test_default_character_configuration_preservation(configuration_class, testerchain, test_registry_source_manager):
@@ -172,6 +176,9 @@ def test_ursula_development_configuration(federated_only=True):
         ursula = config()
         assert ursula not in ursulas
         ursulas.append(ursula)
+
+    for ursula in ursulas:
+        ursula.stop()
 
 
 @pytest.mark.skip("See #2016")
