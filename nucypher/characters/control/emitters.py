@@ -248,7 +248,9 @@ class WebEmitter:
 
         message = f"{drone_character} [{str(response_code)} - {error_message}] | ERROR: {str(e)}"
         logger = getattr(drone_character.log, log_level)
-        logger(message)
+        # See #724 / 2156
+        message_cleaned_for_logger = message.replace("{", "<^<").replace("}", ">^>")
+        logger(message_cleaned_for_logger)
         if drone_character.crash_on_error:
             raise e
         return drone_character.sink(str(e), status=response_code)
