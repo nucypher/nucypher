@@ -74,7 +74,8 @@ def test_characters_use_keyring(tmpdir):
         rest=False,
         keyring_root=tmpdir)
     keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
-    Alice(federated_only=True, start_learning_now=False, keyring=keyring)
+    a = Alice(federated_only=True, start_learning_now=False, keyring=keyring)
     Bob(federated_only=True, start_learning_now=False, keyring=keyring)
     Ursula(federated_only=True, start_learning_now=False, keyring=keyring,
            rest_host='127.0.0.1', rest_port=12345)
+    a.disenchant()  # To stop Alice's publication threadpool.  TODO: Maybe only start it at first enactment?
