@@ -72,6 +72,7 @@ class NodeSprout(PartiallyKwargifiedBytes):
         self.timestamp = maya.MayaDT(
             self.timestamp)  # Weird for this to be in init. maybe this belongs in the splitter also.
         self._repr = None
+        self._is_finishing = False
 
     def __hash__(self):
         if not self._hash:
@@ -110,14 +111,20 @@ class NodeSprout(PartiallyKwargifiedBytes):
         return self._nickname
 
     def mature(self):
+        # TODO: Something is fishy here.  Another race condition maybe.  Sometimes raises AttributeError because Ursula doesn't have _finished_values.
+        # This might need a mutex.
+        if self._is_finishing:
+            return self
+        self._is_finishing = True  # Prevent reentrance.
+
         mature_node = self.finish()
+        self.__class__ = mature_node.__class__
+        self.__dict__ = mature_node.__dict__
 
         # As long as we're doing egregious workarounds, here's another one.  # TODO: 1481
         filepath = mature_node._cert_store_function(certificate=mature_node.certificate)
         mature_node.certificate_filepath = filepath
 
-        self.__class__ = mature_node.__class__
-        self.__dict__ = mature_node.__dict__
         return self  # To reduce the awkwardity of renaming; this is always the weird part of polymorphism for me.
 
 
