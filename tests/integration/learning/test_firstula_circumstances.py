@@ -30,6 +30,7 @@ def test_proper_seed_node_instantiation(lonely_ursula_maker):
     any_other_ursula = _lonely_ursula_maker(seed_nodes=[firstula_as_seed_node], domains=["useless domain"]).pop()
 
     assert not any_other_ursula.known_nodes
+    # print(f"**********************Starting {any_other_ursula} loop")
     any_other_ursula.start_learning_loop(now=True)
     assert firstula in any_other_ursula.known_nodes
 

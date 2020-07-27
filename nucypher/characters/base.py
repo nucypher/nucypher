@@ -559,4 +559,5 @@ class Character(Learner):
         return controller
 
     def disenchant(self):
+        self.log.debug(f"Disenchanting {self}")
         Learner.stop_learning_loop(self)

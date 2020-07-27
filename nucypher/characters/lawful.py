@@ -445,7 +445,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         return controller
 
     def disenchant(self):
-        print(f"disenchanting {self}")
+        self.log.debug(f"disenchanting {self}")
         super().disenchant()
         self.publication_threadpool.stop()
 
@@ -1245,6 +1245,7 @@ class Ursula(Teacher, Character, Worker):
 
     def stop(self, halt_reactor: bool = False) -> None:
         """Stop services"""
+        self.log.debug(f"---------Stopping {self}")
         self._availability_tracker.stop()
         self.stop_learning_loop()
         if not self.federated_only:

@@ -517,7 +517,7 @@ class Learner:
 
         import datetime
 
-        print(f"+++++++++++{self} deferring learning cycle at {datetime.datetime.now()}")
+        self.log.debug(f"+++++++++++{self} deferring learning cycle at {datetime.datetime.now()}")
 
         # while self._learning_deferred is not None:
         #     print(f"^^^^^^^^^{self} waiting at {datetime.datetime.now()}")
@@ -529,9 +529,9 @@ class Learner:
         self._learning_deferred = Deferred(canceller=self._discovery_canceller)  # TODO: No longer relevant.
 
         def _discover_or_abort(_first_result):
-            print(f"========={self} learning at {datetime.datetime.now()}")
+            self.log.debug(f"========={self} learning at {datetime.datetime.now()}")
             result = self.learn_from_teacher_node(eager=False, canceller=self._discovery_canceller)
-            print(f"///////////{self} finished learning at {datetime.datetime.now()}")
+            self.log.debug(f"///////////{self} finished learning at {datetime.datetime.now()}")
             return result
 
         self._learning_deferred.addCallback(_discover_or_abort)
