@@ -625,6 +625,7 @@ def test_stake_unbond_worker(click_runner,
                              manual_worker,
                              agency_local_registry,
                              stakeholder_configuration_file_location):
+    testerchain.time_travel(periods=1)
 
     staker = Staker(is_me=True,
                     checksum_address=manual_staker,

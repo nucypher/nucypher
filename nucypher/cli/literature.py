@@ -80,6 +80,12 @@ CONFIRM_LARGE_STAKE_VALUE = "Wow, {value} - That's a lot of NU - Are you sure th
 
 CONFIRM_LARGE_STAKE_DURATION = "Woah, {lock_periods} is a long time - Are you sure this is correct?"
 
+PROMPT_STAKE_CREATE_VALUE = "Enter stake value in NU ({lower_limit} - {upper_limit})"
+
+PROMPT_STAKE_CREATE_LOCK_PERIODS = "Enter stake duration ({min_locktime} - {max_locktime})"
+
+PROMPT_DEPOSIT_OR_LOCK = "Transfer tokens from the staker address (otherwise unlocked tokens in the escrow will be used)?"
+
 CONFIRM_BROADCAST_CREATE_STAKE = "Publish staged stake to the blockchain?"
 
 CONFIRM_INCREASING_STAKE = "Confirm increase stake (index: {stake_index}) by {value}?"
