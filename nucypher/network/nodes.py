@@ -130,7 +130,7 @@ class DiscoveryCanceller:
         if self.stop_now:
             assert False
         self.stop_now = True
-        learning_deferred.callback(RELAX)
+        # learning_deferred.callback(RELAX)
 
 
 class Learner:
@@ -436,13 +436,14 @@ class Learner:
         if self._learning_task.running:
             self._learning_task.stop()
 
-        if self._learning_deferred:
-            self._learning_deferred.cancel()
-            self._learning_deferred = RELAX
-        elif self._learning_deferred is RELAX:
+        if self._learning_deferred is RELAX:
             assert False
 
-        # self.learning_deferred.cancel()
+        if self._learning_deferred is not None:
+            # self._learning_deferred.cancel()  # TODO: The problem here is that this might already be called.
+            self._discovery_canceller(self._learning_deferred)
+
+        # self.learning_deferred.cancel()  # TODO: The problem here is that there's no way to get a canceller into the LoopingCall.
 
     def handle_learning_errors(self, failure, *args, **kwargs):
         _exception = failure.value
@@ -525,7 +526,7 @@ class Learner:
         # TODO: Allow the user to set eagerness?  1712
         # TODO: Also, if we do allow eager, don't even defer; block right here.
 
-        self._learning_deferred = Deferred(canceller=self._discovery_canceller)
+        self._learning_deferred = Deferred(canceller=self._discovery_canceller)  # TODO: No longer relevant.
 
         def _discover_or_abort(_first_result):
             print(f"========={self} learning at {datetime.datetime.now()}")
@@ -721,6 +722,8 @@ class Learner:
         Sends a request to node_url to find out about known nodes.
 
         TODO: Does this (and related methods) belong on FleetSensor for portability?
+
+        TODO: A lot of other code can be simplified if this is converted to async def.  That's a project, though.
         """
         remembered = []
 
@@ -756,6 +759,11 @@ class Learner:
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
                                                                   fleet_checksum=self.known_nodes.checksum)
+        except RuntimeError as e:
+            if canceller and canceller.stop_now:
+                # Race condition that seems limited to tests.
+                # TODO: Sort this out.
+                return RELAX
         except NodeSeemsToBeDown as e:
             unresponsive_nodes.add(current_teacher)
             self.log.info("Bad Response from teacher: {}:{}.".format(current_teacher, e))
