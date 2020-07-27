@@ -75,6 +75,7 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
     assert policy_pubkey == bob_policy.public_key
 
     # ... and Alice and her configuration disappear.
+    alice.disenchant()
     del alice
     del alice_config
 
@@ -117,3 +118,4 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
 
     # Both policies must share the same public key (i.e., the policy public key)
     assert policy_pubkey == roberto_policy.public_key
+    new_alice.disenchant()
