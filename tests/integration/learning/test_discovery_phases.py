@@ -48,7 +48,7 @@ Node Discovery happens in phases.  The first step is for a network actor to lear
 This is a straightforward step which we currently do with our own logic, but which may someday be replaced by something
 like libp2p, depending on the course of development of those sorts of tools.  The introduction of hamming distance
 in particular is useful when wanting to learn about a small number (~500) of nodes among a much larger (25,000+) swarm.
-This toolchain is not built for that scenario at this time, although it is not a stated nongoal. 
+This toolchain is not built for that scenario at this time, although it is not a stated nongoal.
 
 After this, our "Learning Loop" does four other things in sequence which are not part of the offering of node discovery tooling alone:
 
@@ -214,7 +214,7 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
 
         partial_blocking_duration = little_while_ended_at - started
         # Before Treasure Island (1741), this process took about 3 minutes.
-        assert partial_blocking_duration.total_seconds() < 3
-        assert complete_distribution_time.total_seconds() < 10
+        assert partial_blocking_duration.total_seconds() < 5
+        assert complete_distribution_time.total_seconds() < 13
         # On CI, we expect these times to be even less.  (Around 1 and 3.5 seconds, respectively)
         # But with debuggers and other processes running on laptops, we give a little leeway.
