@@ -85,6 +85,10 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
               abort_on_learning_error=True,
               federated_only=True)
 
+    import inspect
+    frame = inspect.currentframe()
+    bob._FOR_TEST = frame.f_code.co_name
+
     # Again, let's assume that he received the TreasureMap via a side channel.
     hrac, treasure_map = enacted_federated_policy.hrac(), enacted_federated_policy.treasure_map
     map_id = treasure_map.public_id()
@@ -120,6 +124,7 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
 
     # ...and he now has no more unknown_nodes.
     assert len(bob.known_nodes) == len(treasure_map)
+    bob.disenchant()
 
 
 def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_policy, federated_bob,

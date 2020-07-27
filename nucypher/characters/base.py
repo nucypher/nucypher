@@ -108,7 +108,6 @@ class Character(Learner):
             #                                         and whether maybe only Lawful characters have an interface
             self.interface = self._interface_class(character=self)
 
-
         if is_me:
             self._set_known_node_class(known_node_class, federated_only)
         else:
@@ -342,6 +341,7 @@ class Character(Learner):
             # Once in a while, in tests or demos, we init a plain Character who doesn't already know about its node class.
             from nucypher.characters.lawful import Ursula
             known_node_class = Ursula
+        self.known_node_class = known_node_class
         # If we're federated only, we assume that all other nodes in our domain are as well.
         known_node_class.set_federated_mode(federated_only)
 
@@ -457,7 +457,16 @@ class Character(Learner):
         if signature_to_use:
             is_valid = signature_to_use.verify(message, sender_verifying_key)  # FIXME: Message is undefined here
             if not is_valid:
-                raise InvalidSignature("Signature for message isn't valid: {}".format(signature_to_use))
+                try:
+                    node_on_the_other_end = self.known_node_class.from_seednode_metadata(stranger.seed_node_metadata(),
+                                                                                         network_middleware=self.network_middleware)
+                    if node_on_the_other_end != stranger:
+                        raise self.known_node_class.InvalidNode(
+                            f"Expected to connect to {stranger}, got {node_on_the_other_end} instead.")
+                    else:
+                        raise InvalidSignature("Signature for message isn't valid: {}".format(signature_to_use))
+                except (TypeError, AttributeError) as e:
+                    raise InvalidSignature(f"Unable to verify message from stranger: {stranger}")
         else:
             raise InvalidSignature("No signature provided -- signature presumed invalid.")
 
@@ -550,4 +559,5 @@ class Character(Learner):
         return controller
 
     def disenchant(self):
+        self.log.debug(f"Disenchanting {self}")
         Learner.stop_learning_loop(self)

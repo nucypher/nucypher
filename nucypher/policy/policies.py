@@ -166,6 +166,7 @@ class BlockchainArrangement(Arrangement):
 
 
 class PolicyPayloadMutex(DeferredList):
+    log = Logger("Policy")
 
     def __init__(self, deferredList, percent_to_complete_before_release=5, *args, **kwargs):
         self.percent_to_complete_before_release = percent_to_complete_before_release
@@ -185,7 +186,9 @@ class PolicyPayloadMutex(DeferredList):
         """
         https://www.youtube.com/watch?v=OkSLswPSq2o
         """
-        return self._policy_locking_queue.get()
+        _ = self._policy_locking_queue.get()  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
+        self.log.debug(f"{self.finishedCount} nodes were contacted while blocking for a little while.")
+        return
 
 
 class Policy(ABC):
@@ -295,20 +298,21 @@ class Policy(ABC):
             # TODO: Optionally, block.  This is increasingly important.
             raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
 
-        responses = list()
         self.log.debug(f"Pushing {self.treasure_map} to all known nodes from {self.alice}")
         treasure_map_id = self.treasure_map.public_id()
 
         self.alice.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
+
+        publication_deferreds = list()
         for node in self.bob.matching_nodes_among(self.alice.known_nodes):
 
-            responses.append(deferToThreadPool(reactor, self.alice.publication_threadpool,
+            publication_deferreds.append(deferToThreadPool(reactor, self.alice.publication_threadpool,
                                                network_middleware.put_treasure_map_on_node,
                                                node=node,
                                                map_id=treasure_map_id,
                                                map_payload=bytes(self.treasure_map)
                                                ))
-        self.publishing_mutex = PolicyPayloadMutex(responses, percent_to_complete_before_release=10)
+        self.publishing_mutex = PolicyPayloadMutex(publication_deferreds, percent_to_complete_before_release=10)
         # return self.publishing_mutex  # I dunno.. return this?  Why not just use the composed version?
 
     def credential(self, with_treasure_map=True):

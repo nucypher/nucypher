@@ -21,7 +21,8 @@ from unittest.mock import patch
 import maya
 import pytest
 import pytest_twisted
-from twisted.internet.threads import deferToThread
+from twisted.internet import defer, reactor
+from twisted.internet.threads import deferToThread, blockingCallFromThread
 
 from nucypher.characters.lawful import Ursula
 from tests.utils.middleware import SluggishLargeFleetMiddleware
@@ -127,15 +128,13 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
                                      highperf_mocked_bob):
     """
     Large-scale map placement with a middleware that simulates network latency.
+
+    In three parts.
     """
     # The nodes who match the map distribution criteria.
-    nodes_we_expect_to_have_the_map = highperf_mocked_bob.matching_nodes_among(highperf_mocked_alice.known_nodes)
-
+    nodes_we_expect_to_have_the_map = highperf_mocked_bob.matching_nodes_among(fleet_of_highperf_mocked_ursulas)
 
     preparation_started = datetime.now()
-    for node in nodes_we_expect_to_have_the_map:
-        node.mature()
-    maturation_time = datetime.now() - preparation_started
 
     # # # Loop through and instantiate actual rest apps so as not to pollute the time measurement (doesn't happen in real world).
     for node in nodes_we_expect_to_have_the_map:
@@ -148,12 +147,16 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
     started = datetime.now()
 
     with patch('umbral.keys.UmbralPublicKey.__eq__', lambda *args, **kwargs: True), mock_metadata_validation:
+
+        # PART I: The function returns sychronously and quickly.
+
+        defer.setDebugging(False)  # Debugging messes up the timing here; comment this line out if you actually need it.
         # returns instantly.
         policy.publish_treasure_map(network_middleware=highperf_mocked_alice.network_middleware)
 
         nodes_that_have_the_map_when_we_return = []
 
-        for ursula in fleet_of_highperf_mocked_ursulas:
+        for ursula in nodes_we_expect_to_have_the_map:
             if policy.treasure_map in list(ursula.treasure_maps.values()):
                 nodes_that_have_the_map_when_we_return.append(ursula)
 
@@ -162,26 +165,36 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
         assert len(
             nodes_that_have_the_map_when_we_return) <= 5  # Maybe a couple finished already, especially if this is a lightning fast computer.  But more than five is weird.
 
+        defer.setDebugging(True)
+
+        # PART II: We block for a little while to ensure that the distribution is going well.
+
         # Wait until about ten percent of the distribution has occurred.
         # We do it in a deferred here in the test because it will block the entire process, but in the real-world, we can do this on the granting thread.
-        yield deferToThread(policy.publishing_mutex.block_for_a_little_while)
-        initial_blocking_duration = datetime.now() - started
 
-        # Here we'll just count the nodes that have the map.  In the real world, we can do a sanity check
-        # to make sure things haven't gone sideways.
+        def count_recipients_after_block():
+            policy.publishing_mutex.block_for_a_little_while()
+            little_while_ended_at = datetime.now()
 
-        nodes_that_have_the_map_when_we_unblock = []
+            # Here we'll just count the nodes that have the map.  In the real world, we can do a sanity check
+            # to make sure things haven't gone sideways.
 
-        for ursula in fleet_of_highperf_mocked_ursulas:
-            if policy.treasure_map in list(ursula.treasure_maps.values()):
-                nodes_that_have_the_map_when_we_unblock.append(ursula)
+            nodes_that_have_the_map_when_we_unblock = sum(policy.treasure_map in list(u.treasure_maps.values()) for u in nodes_we_expect_to_have_the_map)
 
-        approximate_number_of_nodes_we_expect_to_have_the_map_already = len(nodes_we_expect_to_have_the_map) / 5
-        assert len(nodes_that_have_the_map_when_we_unblock) == pytest.approx(
-            approximate_number_of_nodes_we_expect_to_have_the_map_already, .5)
+            return nodes_that_have_the_map_when_we_unblock, little_while_ended_at
 
-        # The rest of the distributions is continuing in the background.
+        d = deferToThread(count_recipients_after_block)
+        yield d
+        nodes_that_have_the_map_when_we_unblock, little_while_ended_at = d.result
 
+        # The number of nodes having the map is at least the minimum to have unblocked.
+        assert nodes_that_have_the_map_when_we_unblock >= policy.publishing_mutex._block_until_this_many_are_complete
+
+        # The number of nodes having the map is approximately the number you'd expect from full utilization of Alice's publication threadpool.
+        assert nodes_that_have_the_map_when_we_unblock == pytest.approx(highperf_mocked_alice.publication_threadpool.max, .6)
+
+        # PART III: Having made proper assertions about the publication call and the first block, we allow the rest to
+        # happen in the background and then ensure that each phase was timely.
         successful_responses = []
 
         def find_successful_responses(map_publication_responses):
@@ -197,12 +210,11 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
         # We have the same number of successful responses as nodes we expected to have the map.
         assert len(successful_responses) == len(nodes_we_expect_to_have_the_map)
 
+        # TODO: Assert that no nodes outside those expected received the map.
+
+        partial_blocking_duration = little_while_ended_at - started
         # Before Treasure Island (1741), this process took about 3 minutes.
+        assert partial_blocking_duration.total_seconds() < 3
+        assert complete_distribution_time.total_seconds() < 10
         # On CI, we expect these times to be even less.  (Around 1 and 3.5 seconds, respectively)
         # But with debuggers and other processes running on laptops, we give a little leeway.
-        assert initial_blocking_duration.total_seconds() < 3
-        assert complete_distribution_time.total_seconds() < 10
-
-        # Takes about .8 on jMyles' laptop; still the bulk of init time.
-        # Assuming this is 10 percent of the fleet, that's another 8 second savings for first policy enactment.
-        assert maturation_time.total_seconds() < 2

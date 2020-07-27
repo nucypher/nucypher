@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import contextlib
+import inspect
 
 import socket
 
@@ -65,11 +66,31 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
         starting_port = max(MOCK_KNOWN_URSULAS_CACHE.keys()) + 1
 
     federated_ursulas = set()
+    frames = inspect.stack(3)
+    # This gets called from various places.
+    for frame in range(1, 10):
+        try:
+            test_name = frames[frame].frame.f_locals['request'].module
+            break
+        except KeyError:
+            try:
+                if frames[frame].function.startswith("test"):
+                    test_name = frames[frame].function
+                    break
+                else:
+                    continue
+            except AttributeError:
+                continue
+
     for port in range(starting_port, starting_port+quantity):
 
         ursula = ursula_config.produce(rest_port=port + 100,
                                        db_filepath=MOCK_URSULA_DB_FILEPATH,
                                        **ursula_overrides)
+        try:
+            ursula._FOR_TEST = test_name
+        except UnboundLocalError:
+            raise RuntimeError("Unable to find a test name to assign to this ursula in the first 10 frames.")
 
         federated_ursulas.add(ursula)
 
