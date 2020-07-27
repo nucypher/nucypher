@@ -117,7 +117,7 @@ from umbral.signing import Signer
 
 test_logger = Logger("test-logger")
 
-defer.setDebugging(True)
+# defer.setDebugging(True)
 
 #
 # Temporary
@@ -387,6 +387,7 @@ def federated_ursulas(ursula_federated_test_config):
     yield _ursulas
 
     for port in _ports_to_remove:
+        test_logger.debug(f"Removing {port} ({MOCK_KNOWN_URSULAS_CACHE[port]}).")
         del MOCK_KNOWN_URSULAS_CACHE[port]
 
     for u in _ursulas:
