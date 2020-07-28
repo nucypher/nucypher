@@ -1,0 +1,1159 @@
+{
+	"environments": {
+		"default": {
+			"registry": "0x5f6f7e8cc7346a11ca2def8f827b7a0b612c56a1",
+			"appName": "token-manager.aragonpm.eth",
+			"network": "rpc"
+		},
+		"mainnet": {
+			"registry": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
+			"appName": "token-manager.aragonpm.eth",
+			"network": "mainnet"
+		},
+		"rinkeby": {
+			"registry": "0x98Df287B6C145399Aaa709692c8D308357bC085D",
+			"appName": "token-manager.aragonpm.eth",
+			"network": "rinkeby"
+		},
+		"ropsten": {
+			"registry": "0x6afe2cacee211ea9179992f89dc61ff25c61e923",
+			"appName": "token-manager.aragonpm.eth",
+			"network": "ropsten"
+		},
+		"staging": {
+			"registry": "0xfe03625ea880a8cba336f9b5ad6e15b0a3b5a939",
+			"appName": "token-manager.aragonpm.eth",
+			"network": "rinkeby"
+		},
+		"rinkeby-old": {
+			"registry": "0xfbae32d1cde62858bc45f51efc8cc4fa1415447e",
+			"appName": "token-manager.aragonpm.eth",
+			"network": "rinkeby"
+		}
+	},
+	"roles": [
+		{
+			"name": "Mint tokens",
+			"id": "MINT_ROLE",
+			"params": [
+				"Receiver",
+				"Token amount"
+			],
+			"bytes": "0x154c00819833dac601ee5ddded6fda79d9d8b506b911b3dbd54cdb95fe6c3686"
+		},
+		{
+			"name": "Issue tokens",
+			"id": "ISSUE_ROLE",
+			"params": [
+				"Token amount"
+			],
+			"bytes": "0x2406f1e99f79cea012fb88c5c36566feaeefee0f4b98d3a376b49310222b53c4"
+		},
+		{
+			"name": "Assign tokens",
+			"id": "ASSIGN_ROLE",
+			"params": [
+				"Receiver",
+				"Token amount"
+			],
+			"bytes": "0xf5a08927c847d7a29dc35e105208dbde5ce951392105d712761cc5d17440e2ff"
+		},
+		{
+			"name": "Revoke vesting",
+			"id": "REVOKE_VESTINGS_ROLE",
+			"params": [
+				"Holder"
+			],
+			"bytes": "0x95ffc68daedf1eb334cfcd22ee24a5eeb5a8e58aa40679f2ad247a84140f8d6e"
+		},
+		{
+			"name": "Burn tokens",
+			"id": "BURN_ROLE",
+			"params": [
+				"Holder",
+				"Token amount"
+			],
+			"bytes": "0xe97b137254058bd94f28d2f3eb79e2d34074ffb488d042e3bc958e0a57d2fa22"
+		}
+	],
+	"path": "contracts/TokenManager.sol",
+	"appName": "token-manager.aragonpm.eth",
+	"env": {
+		"registry": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
+		"appName": "token-manager.aragonpm.eth",
+		"network": "mainnet"
+	},
+	"appId": "0x6b20a3010614eeebf2138ccec99f028a61c811b3b1a3343b6ff635985c75c91f",
+	"abi": [
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "hasInitialized",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "MAX_VESTINGS_PER_ADDRESS",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_script",
+					"type": "bytes"
+				}
+			],
+			"name": "getEVMScriptExecutor",
+			"outputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "getRecoveryVault",
+			"outputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "appId",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "ISSUE_ROLE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "getInitializationBlock",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"name": "vestingsLengths",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_token",
+					"type": "address"
+				}
+			],
+			"name": "transferToVault",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_sender",
+					"type": "address"
+				},
+				{
+					"name": "_role",
+					"type": "bytes32"
+				},
+				{
+					"name": "_params",
+					"type": "uint256[]"
+				}
+			],
+			"name": "canPerform",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "getEVMScriptRegistry",
+			"outputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "ASSIGN_ROLE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "BURN_ROLE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "kernel",
+			"outputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "isPetrified",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "MINT_ROLE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "maxAccountTokens",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "REVOKE_VESTINGS_ROLE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "token",
+			"outputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "receiver",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"name": "vestingId",
+					"type": "uint256"
+				},
+				{
+					"indexed": false,
+					"name": "amount",
+					"type": "uint256"
+				}
+			],
+			"name": "NewVesting",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "receiver",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"name": "vestingId",
+					"type": "uint256"
+				},
+				{
+					"indexed": false,
+					"name": "nonVestedAmount",
+					"type": "uint256"
+				}
+			],
+			"name": "RevokeVesting",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "executor",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"name": "script",
+					"type": "bytes"
+				},
+				{
+					"indexed": false,
+					"name": "input",
+					"type": "bytes"
+				},
+				{
+					"indexed": false,
+					"name": "returnData",
+					"type": "bytes"
+				}
+			],
+			"name": "ScriptResult",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "vault",
+					"type": "address"
+				},
+				{
+					"indexed": true,
+					"name": "token",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"name": "amount",
+					"type": "uint256"
+				}
+			],
+			"name": "RecoverToVault",
+			"type": "event"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_token",
+					"type": "address"
+				},
+				{
+					"name": "_transferable",
+					"type": "bool"
+				},
+				{
+					"name": "_maxAccountTokens",
+					"type": "uint256"
+				}
+			],
+			"name": "initialize",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_receiver",
+					"type": "address"
+				},
+				{
+					"name": "_amount",
+					"type": "uint256"
+				}
+			],
+			"name": "mint",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_amount",
+					"type": "uint256"
+				}
+			],
+			"name": "issue",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_receiver",
+					"type": "address"
+				},
+				{
+					"name": "_amount",
+					"type": "uint256"
+				}
+			],
+			"name": "assign",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_holder",
+					"type": "address"
+				},
+				{
+					"name": "_amount",
+					"type": "uint256"
+				}
+			],
+			"name": "burn",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_receiver",
+					"type": "address"
+				},
+				{
+					"name": "_amount",
+					"type": "uint256"
+				},
+				{
+					"name": "_start",
+					"type": "uint64"
+				},
+				{
+					"name": "_cliff",
+					"type": "uint64"
+				},
+				{
+					"name": "_vested",
+					"type": "uint64"
+				},
+				{
+					"name": "_revokable",
+					"type": "bool"
+				}
+			],
+			"name": "assignVested",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_holder",
+					"type": "address"
+				},
+				{
+					"name": "_vestingId",
+					"type": "uint256"
+				}
+			],
+			"name": "revokeVesting",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_from",
+					"type": "address"
+				},
+				{
+					"name": "_to",
+					"type": "address"
+				},
+				{
+					"name": "_amount",
+					"type": "uint256"
+				}
+			],
+			"name": "onTransfer",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "",
+					"type": "address"
+				},
+				{
+					"name": "",
+					"type": "address"
+				},
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"name": "onApprove",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"name": "proxyPayment",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": true,
+			"stateMutability": "payable",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "isForwarder",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "pure",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_evmScript",
+					"type": "bytes"
+				}
+			],
+			"name": "forward",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_sender",
+					"type": "address"
+				},
+				{
+					"name": "",
+					"type": "bytes"
+				}
+			],
+			"name": "canForward",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_recipient",
+					"type": "address"
+				},
+				{
+					"name": "_vestingId",
+					"type": "uint256"
+				}
+			],
+			"name": "getVesting",
+			"outputs": [
+				{
+					"name": "amount",
+					"type": "uint256"
+				},
+				{
+					"name": "start",
+					"type": "uint64"
+				},
+				{
+					"name": "cliff",
+					"type": "uint64"
+				},
+				{
+					"name": "vesting",
+					"type": "uint64"
+				},
+				{
+					"name": "revokable",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_holder",
+					"type": "address"
+				}
+			],
+			"name": "spendableBalanceOf",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_holder",
+					"type": "address"
+				},
+				{
+					"name": "_time",
+					"type": "uint256"
+				}
+			],
+			"name": "transferableBalance",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_token",
+					"type": "address"
+				}
+			],
+			"name": "allowRecoverability",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		}
+	],
+	"functions": [
+		{
+			"sig": "initialize(address,bool,uint256)",
+			"roles": [],
+			"notice": "Initialize Token Manager for `_token.symbol(): string`, whose tokens are `_transferable ? '' : 'not'` transferable`_maxAccountTokens > 0 ? ' and limited to a maximum of ' + @tokenAmount(_token, _maxAccountTokens, false) + ' per account' : ''`",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_token",
+						"type": "address"
+					},
+					{
+						"name": "_transferable",
+						"type": "bool"
+					},
+					{
+						"name": "_maxAccountTokens",
+						"type": "uint256"
+					}
+				],
+				"name": "initialize",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "mint(address,uint256)",
+			"roles": [
+				"MINT_ROLE"
+			],
+			"notice": "Mint `@tokenAmount(self.token(): address, _amount, false)` tokens for `_receiver`",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_receiver",
+						"type": "address"
+					},
+					{
+						"name": "_amount",
+						"type": "uint256"
+					}
+				],
+				"name": "mint",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "issue(uint256)",
+			"roles": [
+				"ISSUE_ROLE"
+			],
+			"notice": "Mint `@tokenAmount(self.token(): address, _amount, false)` tokens for the Token Manager",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_amount",
+						"type": "uint256"
+					}
+				],
+				"name": "issue",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "assign(address,uint256)",
+			"roles": [
+				"ASSIGN_ROLE"
+			],
+			"notice": "Assign `@tokenAmount(self.token(): address, _amount, false)` tokens to `_receiver` from the Token Manager's holdings",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_receiver",
+						"type": "address"
+					},
+					{
+						"name": "_amount",
+						"type": "uint256"
+					}
+				],
+				"name": "assign",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "burn(address,uint256)",
+			"roles": [
+				"BURN_ROLE"
+			],
+			"notice": "Burn `@tokenAmount(self.token(): address, _amount, false)` tokens from `_holder`",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_holder",
+						"type": "address"
+					},
+					{
+						"name": "_amount",
+						"type": "uint256"
+					}
+				],
+				"name": "burn",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "assignVested(address,uint256,uint64,uint64,uint64,bool)",
+			"roles": [
+				"ASSIGN_ROLE"
+			],
+			"notice": "Assign `@tokenAmount(self.token(): address, _amount, false)` tokens to `_receiver` from the Token Manager's holdings with a `_revokable : 'revokable' : ''` vesting starting at `@formatDate(_start)`, cliff at `@formatDate(_cliff)` (first portion of tokens transferable), and completed vesting at `@formatDate(_vested)` (all tokens transferable)",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_receiver",
+						"type": "address"
+					},
+					{
+						"name": "_amount",
+						"type": "uint256"
+					},
+					{
+						"name": "_start",
+						"type": "uint64"
+					},
+					{
+						"name": "_cliff",
+						"type": "uint64"
+					},
+					{
+						"name": "_vested",
+						"type": "uint64"
+					},
+					{
+						"name": "_revokable",
+						"type": "bool"
+					}
+				],
+				"name": "assignVested",
+				"outputs": [
+					{
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "revokeVesting(address,uint256)",
+			"roles": [
+				"REVOKE_VESTINGS_ROLE"
+			],
+			"notice": "Revoke vesting #`_vestingId` from `_holder`, returning unvested tokens to the Token Manager",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_holder",
+						"type": "address"
+					},
+					{
+						"name": "_vestingId",
+						"type": "uint256"
+					}
+				],
+				"name": "revokeVesting",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "onTransfer(address,address,uint256)",
+			"roles": [],
+			"notice": null,
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_from",
+						"type": "address"
+					},
+					{
+						"name": "_to",
+						"type": "address"
+					},
+					{
+						"name": "_amount",
+						"type": "uint256"
+					}
+				],
+				"name": "onTransfer",
+				"outputs": [
+					{
+						"name": "",
+						"type": "bool"
+					}
+				],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "onApprove(address,address,uint256)",
+			"roles": [],
+			"notice": null,
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "",
+						"type": "address"
+					},
+					{
+						"name": "",
+						"type": "address"
+					},
+					{
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"name": "onApprove",
+				"outputs": [
+					{
+						"name": "",
+						"type": "bool"
+					}
+				],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "proxyPayment(address)",
+			"roles": [],
+			"notice": null,
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "",
+						"type": "address"
+					}
+				],
+				"name": "proxyPayment",
+				"outputs": [
+					{
+						"name": "",
+						"type": "bool"
+					}
+				],
+				"payable": true,
+				"stateMutability": "payable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "forward(bytes)",
+			"roles": [],
+			"notice": "Execute desired action as a token holder",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_evmScript",
+						"type": "bytes"
+					}
+				],
+				"name": "forward",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		}
+	],
+	"deprecatedFunctions": {
+		"1.0.0": [
+			{
+				"sig": "onTransfer(address,address,uint)",
+				"roles": [],
+				"notice": null
+			},
+			{
+				"sig": "onApprove(address,address,uint)",
+				"roles": [],
+				"notice": null
+			}
+		]
+	}
+}
