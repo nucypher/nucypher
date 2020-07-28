@@ -45,6 +45,7 @@ from nucypher.blockchain.eth.agents import (
     StakingEscrowAgent,
     WorkLockAgent,
     StakersReservoir,
+    ForwarderAgent,
 )
 from nucypher.blockchain.eth.aragon import CallScriptCodec, TokenManagerTranslator
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
@@ -2164,9 +2165,13 @@ class DaoActor(BaseActor):
 
 class SecurityCouncilManager(DaoActor):  # TODO: Find a different name for this. "Security Council" sounds silly
 
-    def __init__(self, token_manager_address: ChecksumAddress, council_voting_address: ChecksumAddress):
+    def __init__(self,
+                 token_manager_address: ChecksumAddress,
+                 standard_voting_address: ChecksumAddress,
+                 aggregator_address: ChecksumAddress):
         self.token_manager = TokenManagerTranslator(address=token_manager_address)  # TODO: Use some sort of registry
-        self.voting_agent = VotingAgent(address=council_voting_address)
+        self.voting = ForwarderAgent(address=standard_voting_address)
+        self.voting_aggregator = ForwarderAgent(address=aggregator_address)
 
     def rotate_council_members(self,
                                members_out: Iterable[ChecksumAddress],
@@ -2185,9 +2190,14 @@ class SecurityCouncilManager(DaoActor):  # TODO: Find a different name for this.
 
         actions = [(self.token_manager.contract.address, call) for call in calls]
 
-        council_rotation_callscript = CallScriptCodec.encode_actions(actions=actions)
+        token_manager_callscript = CallScriptCodec.encode_actions(actions=actions)
 
-        receipt = self.voting_agent.forward(callscript=council_rotation_callscript)
+        forwarding_to_voting = (self.voting.contract.address,
+                                self.voting._forward(callscript=token_manager_callscript))
+
+        voting_callscript = CallScriptCodec.encode_actions(actions=[forwarding_to_voting])
+
+        receipt = self.voting_aggregator.forward(callscript=voting_callscript, sender_address=self.checksum_address)
         return receipt
 
 # TODO:
