@@ -467,15 +467,10 @@ class BlockchainInterface:
 
     @validate_checksum_address
     def build_transaction(self,
-                          contract_function: ContractFunction,
                           sender_address: str,
                           payload: dict = None,
                           transaction_gas_limit: int = None,
                           ) -> dict:
-
-        #
-        # Build Payload
-        #
 
         base_payload = {'chainId': int(self.client.chain_id),
                         'nonce': self.client.w3.eth.getTransactionCount(sender_address, 'pending'),
@@ -489,11 +484,18 @@ class BlockchainInterface:
         # Explicit gas override - will skip gas estimation in next operation.
         if transaction_gas_limit:
             payload['gas'] = int(transaction_gas_limit)
+        return payload
 
-        #
-        # Build Transaction
-        #
-
+    @validate_checksum_address
+    def build_contract_transaction(self,
+                                   contract_function: ContractFunction,
+                                   sender_address: str,
+                                   payload: dict = None,
+                                   transaction_gas_limit: int = None,
+                                   ) -> dict:
+        payload = self.build_transaction(sender_address=sender_address,
+                                         payload=payload,
+                                         transaction_gas_limit=transaction_gas_limit)
         self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
         try:
             transaction_dict = contract_function.buildTransaction(payload)  # Gas estimation occurs here
@@ -590,10 +592,10 @@ class BlockchainInterface:
                          confirmations: int = 0
                          ) -> dict:
 
-        transaction = self.build_transaction(contract_function=contract_function,
-                                             sender_address=sender_address,
-                                             payload=payload,
-                                             transaction_gas_limit=transaction_gas_limit)
+        transaction = self.build_contract_transaction(contract_function=contract_function,
+                                                      sender_address=sender_address,
+                                                      payload=payload,
+                                                      transaction_gas_limit=transaction_gas_limit)
 
         # Get transaction name
         try:

@@ -452,9 +452,9 @@ class ProxyContractDeployer(BaseContractDeployer):
                                    gas_limit: int = None) -> dict:
         self._validate_retarget(new_target)
         upgrade_function = self._contract.functions.upgrade(new_target)
-        unsigned_transaction = self.blockchain.build_transaction(contract_function=upgrade_function,
-                                                                 sender_address=self.deployer_address,
-                                                                 transaction_gas_limit=gas_limit)
+        unsigned_transaction = self.blockchain.build_contract_transaction(contract_function=upgrade_function,
+                                                                          sender_address=self.deployer_address,
+                                                                          transaction_gas_limit=gas_limit)
         return unsigned_transaction
 
     def rollback(self, gas_limit: int = None) -> dict:
