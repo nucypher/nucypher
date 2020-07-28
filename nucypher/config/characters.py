@@ -229,10 +229,13 @@ class FelixConfiguration(CharacterConfiguration):
         self.db_filepath = db_filepath or os.path.join(self.config_root, self.DEFAULT_DB_NAME)
 
     def static_payload(self) -> dict:
+        if not self.signer_uri:
+            self.signer_uri = self.provider_uri
         payload = dict(
          rest_host=self.rest_host,
          rest_port=self.rest_port,
          db_filepath=self.db_filepath,
+        signer_uri=self.signer_uri
         )
         return {**super().static_payload(), **payload}
 
