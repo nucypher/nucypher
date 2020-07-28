@@ -14,7 +14,10 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import Iterable, Tuple, Union
+
+import json
+from pathlib import Path
+from typing import Iterable, Tuple, Union, List, Dict
 
 from eth_typing import ChecksumAddress, HexStr
 from eth_utils import to_canonical_address
@@ -94,3 +97,17 @@ class CallScriptCodec:
             actions_bytes.append((target, action_bytes))
 
         return actions_bytes
+
+
+class Artifact:
+    _HERE = Path(__file__).parent
+    _ARTIFACTS_DIR = _HERE / "aragon_artifacts"
+
+    def __init__(self, name: str):
+        artifact_filepath = self._ARTIFACTS_DIR / f"{name}.json"
+        with open(artifact_filepath, 'r') as artifact_file:
+            self.raw_data = json.load(artifact_file)
+
+    @property
+    def abi(self) -> List[Dict]:
+        return self.raw_data["abi"]
