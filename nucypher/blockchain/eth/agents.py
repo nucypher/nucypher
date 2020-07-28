@@ -38,6 +38,7 @@ from nucypher.blockchain.eth.constants import (
     ADJUDICATOR_CONTRACT_NAME,
     DISPATCHER_CONTRACT_NAME,
     ETH_ADDRESS_BYTE_LENGTH,
+    FORWARDER_INTERFACE_NAME,
     MULTISIG_CONTRACT_NAME,
     NUCYPHER_TOKEN_CONTRACT_NAME,
     NULL_ADDRESS,
@@ -46,6 +47,7 @@ from nucypher.blockchain.eth.constants import (
     STAKING_ESCROW_CONTRACT_NAME,
     STAKING_INTERFACE_CONTRACT_NAME,
     STAKING_INTERFACE_ROUTER_CONTRACT_NAME,
+    VOTING_CONTRACT_NAME,
     WORKLOCK_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.decorators import contract_api, validate_checksum_address
@@ -94,7 +96,7 @@ class EthereumContractAgent:
         """
 
     def __init__(self,
-                 registry: BaseContractRegistry,
+                 registry: BaseContractRegistry = None,
                  provider_uri: Optional[str] = None,
                  contract: Optional[Contract] = None,
                  transaction_gas: Optional[Wei] = None):
@@ -1562,6 +1564,65 @@ class MultiSigAgent(EthereumContractAgent):
         contract_function: ContractFunction = self.contract.functions.execute(v, r, s, destination, value, data)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return receipt
+
+
+class InstanceAgent(EthereumContractAgent):
+    """Base class for agents that interact with contracts instantiated by address"""
+
+    def __init__(self, address: str, provider_uri: str = None):
+        self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=provider_uri)
+        contract: Contract = self.blockchain.get_contract_instance(contract_name=self.contract_name, address=address)
+        super().__init__(contract=contract, provider_uri=provider_uri)
+
+
+class ForwarderAgent(InstanceAgent):
+    """Agent for Aragon apps that implement the Forwarder interface"""
+
+    contract_name = FORWARDER_INTERFACE_NAME
+
+    def _forward(self, callscript: bytes) -> ContractFunction:  # TODO: Generalize this approach
+        return self.contract.functions.forward(callscript)
+
+    @contract_api(TRANSACTION)
+    def forward(self, callscript: bytes, sender_address: ChecksumAddress) -> TxReceipt:
+        receipt = self.blockchain.send_transaction(contract_function=self._forward(callscript),
+                                                   sender_address=sender_address)
+        return TxReceipt(receipt)
+
+
+class VotingAgent(ForwarderAgent):
+    """Agent to interact with Aragon's Voting apps"""
+
+    contract_name = VOTING_CONTRACT_NAME
+
+    def _new_vote(self,
+                  callscript: bytes,
+                  metadata: str,
+                  cast_vote: bool = None,
+                  execute_if_decided: bool = None) -> ContractFunction:
+        if cast_vote is None and execute_if_decided is None:
+            return self.contract.functions.newVote(callscript, metadata)
+        elif cast_vote is not None and execute_if_decided is not None:
+            return self.contract.functions.newVote(callscript, metadata, cast_vote, execute_if_decided)
+        else:
+            raise ValueError
+
+    @contract_api(TRANSACTION)
+    def new_vote(self,
+                 callscript: bytes,
+                 metadata: str,
+                 sender_address: ChecksumAddress,
+                 cast_vote: bool = None,
+                 execute_if_decided: bool = None) -> TxReceipt:
+        contract_function = self._new_vote(callscript, metadata, cast_vote, execute_if_decided)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
+        return TxReceipt(receipt)
+
+    @contract_api(TRANSACTION)
+    def vote(self, vote_id: int, support_proposal: bool, execute_if_decided: bool, sender_address: ChecksumAddress):
+        contract_function = self.contract.functions.vote(vote_id, support_proposal, execute_if_decided)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
+        return TxReceipt(receipt)
 
 
 class ContractAgency:
