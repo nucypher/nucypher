@@ -284,13 +284,13 @@ class BaseContractRegistry(ABC):
 
     @property
     def enrolled_addresses(self) -> Iterator:
-        entries = iter(record[1] for record in self.read())
+        entries = iter(record[2] for record in self.read())
         return entries
 
     def enroll(self, contract_name, contract_address, contract_abi, contract_version) -> None:
         """
-        Enrolls a contract to the chain registry by writing the name, address,
-        and abi information to the filesystem as JSON.
+        Enrolls a contract to the chain registry by writing the name, version,
+        address, and abi information to the filesystem as JSON.
 
         Note: Unless you are developing NuCypher, you most likely won't ever
         need to use this.
@@ -322,15 +322,10 @@ class BaseContractRegistry(ABC):
 
         try:
             for contract in registry_data:
-                if len(contract) == 3:
-                    name, address, abi = contract
-                    version = None
-                else:
-                    name, version, address, abi = contract
-                if contract_name == name and \
-                        (contract_version is None or version == contract_version) or \
-                        contract_address == address:
-                    contracts.append((name, version, address, abi))
+                name, version, address, abi = contract
+                if contract_address == address or \
+                        contract_name == name and (contract_version is None or version == contract_version):
+                    contracts.append(contract)
         except ValueError:
             message = "Missing or corrupted registry data"
             self.log.critical(message)
