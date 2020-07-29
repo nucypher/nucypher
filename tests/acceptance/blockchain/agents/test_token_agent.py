@@ -23,7 +23,7 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.fixture(scope='module')
-def agent(testerchain, test_registry):
+def agent(testerchain, test_registry) -> NucypherTokenAgent:
     origin, *everybody_else = testerchain.client.accounts
     token_deployer = NucypherTokenDeployer(registry=test_registry, deployer_address=origin)
 
@@ -70,7 +70,7 @@ def test_approve_transfer(agent, token_economics, mock_transacting_power_activat
 
     # Approve
     receipt = agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
-                                     target_address=agent.contract_address,
+                                     spender_address=agent.contract_address,
                                      sender_address=someone)
 
     assert receipt['status'] == 1, "Transaction Rejected"
