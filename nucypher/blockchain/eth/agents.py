@@ -740,17 +740,22 @@ class StakingEscrowAgent(EthereumContractAgent):
                               duration: int,
                               without: Iterable[ChecksumAddress] = [],
                               pagination_size: Optional[int] = None) -> 'StakersReservoir':
+
         n_tokens, stakers_map = self.get_all_active_stakers(periods=duration,
-                                                     pagination_size=pagination_size)
+                                                            pagination_size=pagination_size)
 
-        self.log.debug(f"Got {len(stakers_map)} stakers with {n_tokens} total tokens")
-
+        filtered_out = 0
         for address in without:
-            del stakers_map[address]
+            if address in stakers_map:
+                n_tokens -= stakers_map[address]
+                del stakers_map[address]
+                filtered_out += 1
 
-        # TODO: or is it enough to just make sure the number of remaining stakers is non-zero?
-        if sum(stakers_map.values()) == 0:
-            raise self.NotEnoughStakers('There are no locked tokens for duration {}.'.format(duration))
+        self.log.debug(f"Got {len(stakers_map)} stakers with {n_tokens} total tokens "
+                       f"({filtered_out} filtered out)")
+
+        if n_tokens == 0:
+            raise self.NotEnoughStakers(f'There are no locked tokens for duration {duration}.')
 
         return StakersReservoir(stakers_map)
 
@@ -1614,7 +1619,7 @@ class ContractAgency:
 
 class WeightedSampler:
     """
-    Samples random elements with probabilities proportioinal to given weights.
+    Samples random elements with probabilities proportional to given weights.
     """
 
     def __init__(self, elements: Iterable, weights: Iterable[int]):

@@ -628,7 +628,7 @@ class BlockchainPolicy(Policy):
             if delta.total_seconds() >= timeout:
                 still_checking = ', '.join(to_check)
                 raise RuntimeError(f"Timed out after {timeout} seconds; "
-                                   f"need {quantity} more, still checking {still_checking}.")
+                                   f"need {quantity_remaining} more, still checking {still_checking}.")
 
         found_ursulas = list(selected_ursulas)
 
