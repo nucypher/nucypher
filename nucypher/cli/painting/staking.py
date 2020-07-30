@@ -178,10 +178,10 @@ Staking address: {staking_address}
     emitter.echo('═'*73, bold=True)
 
 
-def paint_staking_confirmation(emitter, staker, new_stake):
+def paint_staking_confirmation(emitter, staker, receipt):
     emitter.echo("\nStake initialization transaction was successful.", color='green')
     emitter.echo(f'\nTransaction details:')
-    paint_receipt_summary(emitter=emitter, receipt=new_stake.receipt, transaction_type="deposit stake")
+    paint_receipt_summary(emitter=emitter, receipt=receipt, transaction_type="deposit stake")
     emitter.echo(f'\n{STAKING_ESCROW_CONTRACT_NAME} address: {staker.staking_agent.contract_address}', color='blue')
     emitter.echo(POST_STAKING_ADVICE, color='green')
 

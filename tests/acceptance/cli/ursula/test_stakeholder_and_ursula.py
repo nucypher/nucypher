@@ -199,6 +199,43 @@ def test_stake_prolong(click_runner,
     assert new_termination == old_termination + 1
 
 
+def test_stake_increase(click_runner,
+                        stakeholder_configuration_file_location,
+                        token_economics,
+                        testerchain,
+                        agency_local_registry,
+                        manual_staker):
+        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
+        stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
+        stakes_length = len(stakes)
+        assert stakes_length > 0
+
+        selection = 0
+        new_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10)
+        origin_stake = stakes[selection]
+
+        stake_args = ('stake', 'increase',
+                      '--config-file', stakeholder_configuration_file_location,
+                      '--staking-address', manual_staker,
+                      '--value', new_value.to_tokens(),
+                      '--index', selection,
+                      '--force')
+
+        user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n'
+        result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
+        assert result.exit_code == 0
+
+        # Verify the stake is on-chain
+        # Test integration with Agency
+        stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
+        assert len(stakes) == stakes_length
+
+        # Test integration with NU
+        _start_period, end_period, value = stakes[selection]
+        assert NU(int(value), 'NuNit') == origin_stake.locked_value + new_value
+        assert end_period == origin_stake.last_period
+
+
 def test_stake_bond_worker(click_runner,
                            testerchain,
                            agency_local_registry,

@@ -24,6 +24,9 @@ import maya
 import os
 import sys
 import time
+
+from web3.types import TxReceipt
+
 from constant_sorrow.constants import FULL, NO_WORKER_BONDED, WORKER_NOT_RUNNING
 from decimal import Decimal
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
@@ -65,7 +68,8 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, Bloc
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.registry import BaseContractRegistry, IndividualAllocationRegistry
 from nucypher.blockchain.eth.signers import KeystoreSigner, Signer, Web3Signer
-from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
+from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker, validate_prolong, validate_increase, \
+    validate_divide
 from nucypher.blockchain.eth.utils import (
     calculate_period_duration,
     datetime_at_period,
@@ -507,7 +511,7 @@ class ContractAdministrator(NucypherTokenActor):
                            minimum: int,
                            default: int,
                            maximum: int,
-                           transaction_gas_limit: int = None) -> dict:
+                           transaction_gas_limit: int = None) -> TxReceipt:
 
         policy_manager_deployer = PolicyManagerDeployer(registry=self.registry,
                                                         deployer_address=self.deployer_address,
@@ -891,57 +895,18 @@ class Staker(NucypherTokenActor):
         return stakes
 
     @only_me
-    def divide_stake(self,
-                     stake_index: int,
-                     target_value: NU,
-                     additional_periods: int = None,
-                     expiration: maya.MayaDT = None) -> tuple:
-
-        # Calculate duration in periods
-        if additional_periods and expiration:
-            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
-
-        # Update staking cache element
-        stakes = self.stakes
-
-        # Select stake to divide from local cache
-        try:
-            current_stake = stakes[stake_index]
-        except KeyError:
-            if len(stakes):
-                message = f"Cannot divide stake - No stake exists with index {stake_index}."
-            else:
-                message = "Cannot divide stake - There are no active stakes."
-            raise Stake.StakingError(message)
-
-        # Calculate stake duration in periods
-        if expiration:
-            additional_periods = datetime_to_period(datetime=expiration, seconds_per_period=self.economics.seconds_per_period) - current_stake.final_locked_period
-            if additional_periods <= 0:
-                raise Stake.StakingError(f"New expiration {expiration} must be at least 1 period from the "
-                                         f"current stake's end period ({current_stake.final_locked_period}).")
-
-        # Do it already!
-        modified_stake, new_stake = current_stake.divide(target_value=target_value,
-                                                         additional_periods=additional_periods)
-
-        # Update staking cache element
-        self.refresh_stakes()
-
-        return modified_stake, new_stake
-
-    @only_me
     def initialize_stake(self,
                          amount: NU = None,
                          lock_periods: int = None,
                          expiration: maya.MayaDT = None,
-                         entire_balance: bool = False) -> Stake:
+                         entire_balance: bool = False
+                         ) -> TxReceipt:
 
         """Create a new stake."""
 
         # Duration
-        if lock_periods and expiration:
-            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
+        if not (bool(lock_periods) ^ bool(expiration)):
+            raise ValueError(f"Pass either lock periods or expiration; got {'both' if lock_periods else 'neither'}")
         if expiration:
             lock_periods = calculate_period_duration(future_time=expiration,
                                                      seconds_per_period=self.economics.seconds_per_period)
@@ -952,65 +917,143 @@ class Staker(NucypherTokenActor):
         elif not entire_balance and not amount:
             raise ValueError("Specify an amount or entire balance, got neither")
 
+        token_balance = self.token_balance
         if entire_balance:
-            amount = self.token_balance
-        if not self.token_balance >= amount:
-            raise self.InsufficientTokens(f"Insufficient token balance ({self.token_agent}) "
+            amount = token_balance
+        if not token_balance >= amount:
+            raise self.InsufficientTokens(f"Insufficient token balance ({token_balance}) "
                                           f"for new stake initialization of {amount}")
 
-        # Ensure the new stake will not exceed the staking limit
-        if (self.current_stake + amount) > self.economics.maximum_allowed_locked:
-            raise Stake.StakingError(f"Cannot initialize stake - "
-                                     f"Maximum stake value exceeded for {self.checksum_address} "
-                                     f"with a target value of {amount}.")
-
         # Write to blockchain
-        new_stake = Stake.initialize_stake(staker=self,
+        new_stake = Stake.initialize_stake(staking_agent=self.staking_agent,
+                                           economics=self.economics,
+                                           checksum_address=self.checksum_address,
                                            amount=amount,
                                            lock_periods=lock_periods)
 
+        # Create stake on-chain
+        receipt = self._deposit(amount=new_stake.value.to_nunits(), lock_periods=new_stake.duration)
+
+        # Log and return receipt
+        self.log.info(f"{self.checksum_address} initialized new stake: {amount} tokens for {lock_periods} periods")
+
         # Update staking cache element
         self.refresh_stakes()
 
-        return new_stake
+        return receipt
+
+    def _ensure_stake_exists(self, stake: Stake):
+        if len(self.stakes) <= stake.index:
+            raise ValueError(f"There is no stake with index {stake.index}")
+        if self.stakes[stake.index] != stake:
+            raise ValueError(f"Stake with index {stake.index} is not equal to provided stake")
 
     @only_me
-    def prolong_stake(self,
-                      stake_index: int,
-                      additional_periods: int = None,
-                      expiration: maya.MayaDT = None) -> tuple:
+    def divide_stake(self,
+                     stake: Stake,
+                     target_value: NU,
+                     additional_periods: int = None,
+                     expiration: maya.MayaDT = None
+                     ) -> TxReceipt:
+        self._ensure_stake_exists(stake)
 
-        # Calculate duration in periods
-        if additional_periods and expiration:
-            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
-
-        # Update staking cache element
-        stakes = self.stakes
-
-        # Select stake to prolong from local cache
-        try:
-            current_stake = stakes[stake_index]
-        except KeyError:
-            if len(stakes):
-                message = f"Cannot prolong stake - No stake exists with index {stake_index}."
-            else:
-                message = "Cannot prolong stake - There are no active stakes."
-            raise Stake.StakingError(message)
+        if not (bool(additional_periods) ^ bool(expiration)):
+            raise ValueError(f"Pass either the number of lock periods or expiration; "
+                             f"got {'both' if additional_periods else 'neither'}")
 
         # Calculate stake duration in periods
         if expiration:
-            additional_periods = datetime_to_period(datetime=expiration, seconds_per_period=self.economics.seconds_per_period) - current_stake.final_locked_period
+            additional_periods = datetime_to_period(datetime=expiration, seconds_per_period=self.economics.seconds_per_period) - stake.final_locked_period
             if additional_periods <= 0:
-                raise Stake.StakingError(f"New expiration {expiration} must be at least 1 period from the "
-                                         f"current stake's end period ({current_stake.final_locked_period}).")
+                raise ValueError(f"New expiration {expiration} must be at least 1 period from the "
+                                 f"current stake's end period ({stake.final_locked_period}).")
 
-        stake = current_stake.prolong(additional_periods=additional_periods)
+        # Read on-chain stake and validate
+        stake.sync()
+        validate_divide(stake=stake, target_value=target_value, additional_periods=additional_periods)
+
+        # Do it already!
+        receipt = self._divide_stake(stake_index=stake.index,
+                                     additional_periods=additional_periods,
+                                     target_value=int(target_value))
 
         # Update staking cache element
         self.refresh_stakes()
-        return stake
 
-    def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
+        return receipt
+
+    @only_me
+    def increase_stake(self,
+                       stake: Stake,
+                       amount: NU = None,
+                       entire_balance: bool = False
+                       ) -> TxReceipt:
+        """Add tokens to existing stake."""
+        self._ensure_stake_exists(stake)
+
+        # Value
+        if not (bool(entire_balance) ^ bool(amount)):
+            raise ValueError(f"Pass either an amount or entire balance; "
+                             f"got {'both' if entire_balance else 'neither'}")
+
+        token_balance = self.token_balance
+        if entire_balance:
+            amount = token_balance
+        if not token_balance >= amount:
+            raise self.InsufficientTokens(f"Insufficient token balance ({token_balance}) "
+                                          f"to increase stake by {amount}")
+
+        # Read on-chain stake and validate
+        stake.sync()
+        validate_increase(stake=stake, amount=amount)
+
+        # Write to blockchain
+        receipt = self._deposit_and_increase(stake_index=stake.index, amount=int(amount))
+
+        # Update staking cache element
+        self.refresh_stakes()
+        return receipt
+
+    @only_me
+    def prolong_stake(self,
+                      stake: Stake,
+                      additional_periods: int = None,
+                      expiration: maya.MayaDT = None) -> TxReceipt:
+        self._ensure_stake_exists(stake)
+
+        if not (bool(additional_periods) ^ bool(expiration)):
+            raise ValueError(f"Pass either the number of lock periods or expiration; "
+                             f"got {'both' if additional_periods else 'neither'}")
+
+        # Calculate stake duration in periods
+        if expiration:
+            additional_periods = datetime_to_period(datetime=expiration, seconds_per_period=self.economics.seconds_per_period) - stake.final_locked_period
+            if additional_periods <= 0:
+                raise ValueError(f"New expiration {expiration} must be at least 1 period from the "
+                                 f"current stake's end period ({stake.final_locked_period}).")
+
+        # Read on-chain stake and validate
+        stake.sync()
+        validate_prolong(stake=stake, additional_periods=additional_periods)
+
+        receipt = self._prolong_stake(stake_index=stake.index, lock_periods=additional_periods)
+
+        # Update staking cache element
+        self.refresh_stakes()
+        return receipt
+
+    def _prolong_stake(self, stake_index: int, lock_periods: int) -> TxReceipt:
+        """Public facing method for stake prolongation."""
+        # TODO #1497 #1358
+        # if self.is_contract:
+        #     receipt = self.preallocation_escrow_agent.prolong_stake(stake_index=stake_index, lock_periods=lock_periods)
+        # else:
+        receipt = self.staking_agent.prolong_stake(stake_index=stake_index,
+                                                   periods=lock_periods,
+                                                   staker_address=self.checksum_address)
+        return receipt
+
+    def _deposit(self, amount: int, lock_periods: int) -> TxReceipt:
         """Public facing method for token locking."""
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.deposit_as_staker(amount=amount, lock_periods=lock_periods)
@@ -1021,6 +1064,32 @@ class Staker(NucypherTokenActor):
                                                         call_data=Web3.toBytes(lock_periods))
         return receipt
 
+    def _divide_stake(self, stake_index: int, additional_periods: int, target_value: int) -> TxReceipt:
+        """Public facing method for stake dividing."""
+        # TODO #1497 #1358
+        # if self.is_contract:
+        #     receipt = self.preallocation_escrow_agent...
+        # else:
+        receipt = self.staking_agent.divide_stake(staker_address=self.checksum_address,
+                                                  stake_index=stake_index,
+                                                  target_value=target_value,
+                                                  periods=additional_periods)
+        return receipt
+
+    def _deposit_and_increase(self, stake_index: int, amount: int) -> TxReceipt:
+        """Public facing method for deposit and increasing stake."""
+        # TODO #1497 #1358
+        # if self.is_contract:
+        #     receipt = self.preallocation_escrow_agent...
+        # else:
+        self.token_agent.increase_allowance(increase=amount,
+                                            sender_address=self.checksum_address,
+                                            spender_address=self.staking_agent.contract.address)
+        receipt = self.staking_agent.deposit_and_increase(staker_address=self.checksum_address,
+                                                          stake_index=stake_index,
+                                                          amount=amount)
+        return receipt
+
     @property
     def is_restaking(self) -> bool:
         restaking = self.staking_agent.is_restaking(staker_address=self.checksum_address)
@@ -1028,20 +1097,20 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def _set_restaking(self, value: bool) -> dict:
+    def _set_restaking(self, value: bool) -> TxReceipt:
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.set_restaking(value=value)
         else:
             receipt = self.staking_agent.set_restaking(staker_address=self.checksum_address, value=value)
         return receipt
 
-    def enable_restaking(self) -> dict:
+    def enable_restaking(self) -> TxReceipt:
         receipt = self._set_restaking(value=True)
         return receipt
 
     @only_me
     @save_receipt
-    def enable_restaking_lock(self, release_period: int):
+    def enable_restaking_lock(self, release_period: int) -> TxReceipt:
         current_period = self.staking_agent.get_current_period()
         if release_period < current_period:
             raise ValueError(f"Release period for re-staking lock must be in the future.  "
@@ -1058,7 +1127,7 @@ class Staker(NucypherTokenActor):
         status = self.staking_agent.is_restaking_locked(staker_address=self.checksum_address)
         return status
 
-    def disable_restaking(self) -> dict:
+    def disable_restaking(self) -> TxReceipt:
         receipt = self._set_restaking(value=False)
         return receipt
 
@@ -1069,18 +1138,18 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def _set_winding_down(self, value: bool) -> dict:
+    def _set_winding_down(self, value: bool) -> TxReceipt:
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.set_winding_down(value=value)
         else:
             receipt = self.staking_agent.set_winding_down(staker_address=self.checksum_address, value=value)
         return receipt
 
-    def enable_winding_down(self) -> dict:
+    def enable_winding_down(self) -> TxReceipt:
         receipt = self._set_winding_down(value=True)
         return receipt
 
-    def disable_winding_down(self) -> dict:
+    def disable_winding_down(self) -> TxReceipt:
         receipt = self._set_winding_down(value=False)
         return receipt
 
@@ -1105,15 +1174,13 @@ class Staker(NucypherTokenActor):
 
         return mintable_periods
 
-
     #
     # Bonding with Worker
     #
-
     @only_me
     @save_receipt
     @validate_checksum_address
-    def bond_worker(self, worker_address: str) -> dict:
+    def bond_worker(self, worker_address: str) -> TxReceipt:
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.bond_worker(worker_address=worker_address)
         else:
@@ -1137,7 +1204,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def unbond_worker(self) -> dict:
+    def unbond_worker(self) -> TxReceipt:
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.release_worker()
         else:
@@ -1151,7 +1218,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def mint(self) -> Tuple[str, str]:
+    def mint(self) -> TxReceipt:
         """Computes and transfers tokens to the staker's account"""
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.mint()
@@ -1170,7 +1237,7 @@ class Staker(NucypherTokenActor):
     @only_me
     @save_receipt
     @validate_checksum_address
-    def collect_policy_fee(self, collector_address=None) -> dict:
+    def collect_policy_fee(self, collector_address=None) -> TxReceipt:
         """Collect fees (ETH) earned since last withdrawal"""
         if self.is_contract:
             if collector_address and collector_address != self.beneficiary_address:
@@ -1185,7 +1252,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def collect_staking_reward(self) -> dict:
+    def collect_staking_reward(self) -> TxReceipt:
         """Withdraw tokens rewarded for staking"""
         if self.is_contract:
             reward_amount = self.calculate_staking_reward()
@@ -1197,7 +1264,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def withdraw(self, amount: NU) -> dict:
+    def withdraw(self, amount: NU) -> TxReceipt:
         """Withdraw tokens from StakingEscrow (assuming they're unlocked)"""
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.withdraw_as_staker(value=int(amount))
@@ -1208,7 +1275,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def withdraw_preallocation_tokens(self, amount: NU) -> dict:
+    def withdraw_preallocation_tokens(self, amount: NU) -> TxReceipt:
         """Withdraw tokens from PreallocationEscrow (assuming they're unlocked)"""
         if amount <= 0:
             raise ValueError(f"Don't try to withdraw {amount}.")
@@ -1220,7 +1287,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def withdraw_preallocation_eth(self) -> dict:
+    def withdraw_preallocation_eth(self) -> TxReceipt:
         """Withdraw ETH from PreallocationEscrow"""
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.withdraw_eth()
@@ -1236,7 +1303,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def set_min_fee_rate(self, min_rate: int) -> Tuple[str, str]:
+    def set_min_fee_rate(self, min_rate: int) -> TxReceipt:
         """Public facing method for staker to set the minimum acceptable fee rate for their associated worker"""
         minimum, _default, maximum = self.policy_agent.get_fee_rate_range()
         if min_rate < minimum or min_rate > maximum:
@@ -1394,7 +1461,7 @@ class Worker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def commit_to_next_period(self) -> dict:
+    def commit_to_next_period(self) -> TxReceipt:
         """For each period that the worker makes a commitment, the staker is rewarded"""
         receipt = self.staking_agent.commit_to_next_period(worker_address=self.__worker_address)
         return receipt
@@ -1777,7 +1844,7 @@ class Bidder(NucypherTokenActor):
     # Transactions
     #
 
-    def place_bid(self, value: int) -> dict:
+    def place_bid(self, value: int) -> TxReceipt:
         self.ensure_bidding_is_open()
         minimum = self.worklock_agent.minimum_allowed_bid
         if not self.get_deposited_eth and value < minimum:
@@ -1786,7 +1853,7 @@ class Bidder(NucypherTokenActor):
         receipt = self.worklock_agent.bid(checksum_address=self.checksum_address, value=value)
         return receipt
 
-    def claim(self) -> dict:
+    def claim(self) -> TxReceipt:
 
         # Require the cancellation window is closed
         self._ensure_cancellation_window(ensure_closed=True)
@@ -1805,7 +1872,7 @@ class Bidder(NucypherTokenActor):
         receipt = self.worklock_agent.claim(checksum_address=self.checksum_address)
         return receipt
 
-    def cancel_bid(self) -> dict:
+    def cancel_bid(self) -> TxReceipt:
         self._ensure_cancellation_window(ensure_closed=False)
 
         # Require an active bid
@@ -1872,7 +1939,7 @@ class Bidder(NucypherTokenActor):
 
         return whales
 
-    def force_refund(self) -> dict:
+    def force_refund(self) -> TxReceipt:
         self._ensure_cancellation_window(ensure_closed=True)
 
         whales = self.get_whales()
@@ -1923,7 +1990,7 @@ class Bidder(NucypherTokenActor):
         receipt = self.worklock_agent.refund(checksum_address=self.checksum_address)
         return receipt
 
-    def withdraw_compensation(self) -> dict:
+    def withdraw_compensation(self) -> TxReceipt:
         """Withdraw compensation after force refund"""
         if not self.available_compensation:
             raise self.BidderError(f'There is no compensation available for {self.checksum_address}; '

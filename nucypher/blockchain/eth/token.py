@@ -187,8 +187,7 @@ class Stake:
                  first_locked_period: int,
                  final_locked_period: int,
                  index: int,
-                 economics,
-                 validate_now: bool = True):
+                 economics):
 
         self.log = Logger(f'stake-{checksum_address}-{index}')
 
@@ -224,11 +223,6 @@ class Stake:
         self.unlock_datetime = datetime_at_period(period=final_locked_period + 1,
                                                   seconds_per_period=self.economics.seconds_per_period,
                                                   start_of_period=True)
-
-        if validate_now:
-            self.validate()
-
-        self.receipt = NO_STAKING_RECEIPT
         self._status = None
 
     def __repr__(self) -> str:
@@ -320,7 +314,6 @@ class Stake:
                        final_locked_period=stake_info.last_period,
                        value=NU(stake_info.locked_value, 'NuNit'),
                        economics=economics,
-                       validate_now=False,
                        *args, **kwargs)
 
         return instance
@@ -371,50 +364,6 @@ class Stake:
         return data
 
     #
-    # Validation
-    #
-
-    @staticmethod
-    def __handle_validation_failure(rulebook: Tuple[Tuple[bool, str], ...]) -> bool:
-        """Validate a staking rulebook"""
-        for rule, failure_message in rulebook:
-            if not rule:
-                raise ValueError(failure_message)
-        return True
-
-    def validate(self) -> bool:
-        return all((self.validate_value(), self.validate_duration()))
-
-    def validate_value(self, raise_on_fail: bool = True) -> Union[bool, Tuple[Tuple[bool, str]]]:
-        """Validate a single staking value against pre-defined requirements"""
-
-        rulebook = (
-            (self.minimum_nu <= self.value,
-             f'Stake amount too low; ({self.value}) must be at least {self.minimum_nu}'),
-
-            # Add any additional rules here following the above format...
-        )
-
-        if raise_on_fail is True:
-            self.__handle_validation_failure(rulebook=rulebook)
-        return all(rulebook)
-
-    def validate_duration(self, raise_on_fail=True) -> Union[bool, Tuple[Tuple[bool, str]]]:
-        """Validate a single staking lock-time against pre-defined requirements"""
-
-        rulebook = (
-
-            (self.economics.minimum_locked_periods <= self.duration,
-             'Stake duration of ({duration}) periods is too short; must be at least {minimum} periods.'
-             .format(minimum=self.economics.minimum_locked_periods, duration=self.duration)),
-
-        )
-
-        if raise_on_fail is True:
-            self.__handle_validation_failure(rulebook=rulebook)
-        return all(rulebook)
-
-    #
     # Blockchain
     #
 
@@ -433,115 +382,129 @@ class Stake:
         self.value = NU.from_nunits(stake_info.locked_value)
         self._status = None
 
-    def divide(self, target_value: NU, additional_periods: int = None) -> Tuple['Stake', 'Stake']:
-        """
-        Modifies the unlocking schedule and value of already locked tokens.
-
-        This actor requires that is_me is True, and that the expiration datetime is after the existing
-        locking schedule of this staker, or an exception will be raised.
-       """
-
-        # Read on-chain stake
-        self.sync()
-
-        # Ensure selected stake is active
-        status = self.status()
-        if not status.is_child(Stake.Status.DIVISIBLE):
-            raise self.StakingError(f'Cannot divide an non-divisible stake. '
-                                    f'Selected stake expired {self.unlock_datetime} and has value {self.value}.')
-
-        if target_value >= self.value:
-            raise self.StakingError(f"Cannot divide stake; Target value ({target_value}) must be less "
-                                    f"than the existing stake value {self.value}.")
-
-        #
-        # Generate SubStakes
-        #
-
-        # Modified Original Stake
-        remaining_stake_value = self.value - target_value
-        modified_stake = Stake(checksum_address=self.staker_address,
-                               index=self.index,
-                               first_locked_period=self.first_locked_period,
-                               final_locked_period=self.final_locked_period,
-                               value=remaining_stake_value,
-                               staking_agent=self.staking_agent,
-                               economics=self.economics,
-                               validate_now=False)
-
-        # New Derived Stake
-        end_period = self.final_locked_period + additional_periods
-        new_stake = Stake(checksum_address=self.staker_address,
-                          first_locked_period=self.first_locked_period,
-                          final_locked_period=end_period,
-                          value=target_value,
-                          index=NEW_STAKE,
-                          staking_agent=self.staking_agent,
-                          economics=self.economics,
-                          validate_now=False)
-
-        #
-        # Validate
-        #
-
-        # Ensure both halves are for valid amounts
-        modified_stake.validate_value()
-        new_stake.validate_value()
-
-        #
-        # Transmit
-        #
-
-        # TODO: Entrypoint for PreallocationEscrowAgent here - #1497
-        # Transmit the stake division transaction
-        receipt = self.staking_agent.divide_stake(staker_address=self.staker_address,
-                                                  stake_index=self.index,
-                                                  target_value=int(target_value),
-                                                  periods=additional_periods)
-        new_stake.receipt = receipt
-
-        return modified_stake, new_stake
-
     @classmethod
-    def initialize_stake(cls, staker, amount: NU, lock_periods: int) -> 'Stake':
+    def initialize_stake(cls,
+                         staking_agent,
+                         economics,
+                         checksum_address: str,
+                         amount: NU,
+                         lock_periods: int) -> 'Stake':
 
         # Value
         amount = NU(int(amount), 'NuNit')
 
         # Duration
-        current_period = staker.staking_agent.get_current_period()
+        current_period = staking_agent.get_current_period()
         final_locked_period = current_period + lock_periods
 
-        stake = Stake(checksum_address=staker.checksum_address,
-                      first_locked_period=current_period + 1,
-                      final_locked_period=final_locked_period,
-                      value=amount,
-                      index=NEW_STAKE,
-                      staking_agent=staker.staking_agent,
-                      economics=staker.economics)
+        stake = cls(checksum_address=checksum_address,
+                    first_locked_period=current_period + 1,
+                    final_locked_period=final_locked_period,
+                    value=amount,
+                    index=NEW_STAKE,
+                    staking_agent=staking_agent,
+                    economics=economics)
 
         # Validate
-        stake.validate_value()
-        stake.validate_duration()
+        validate_value(stake)
+        validate_duration(stake)
+        validate_max_value(stake)
 
-        # Create stake on-chain
-        stake.receipt = staker.deposit(amount=int(amount), lock_periods=lock_periods)
-
-        # Log and return Stake instance
-        log = Logger(f'stake-{staker.checksum_address}-creation')
-        log.info(f"{staker.checksum_address} Initialized new stake: {amount} tokens for {lock_periods} periods")
         return stake
 
-    def prolong(self, additional_periods: int):
-        self.sync()
-        status = self.status()
-        if not status.is_child(Stake.Status.EDITABLE):
-            raise self.StakingError(f'Cannot prolong a non-editable stake. '
-                                    f'Selected stake expired {self.unlock_datetime}.')
-        receipt = self.staking_agent.prolong_stake(staker_address=self.staker_address,
-                                                   stake_index=self.index,
-                                                   periods=additional_periods)
-        return receipt
+
+def validate_value(stake: Stake) -> None:
+    """Validate a single staking value against pre-defined requirements"""
+    if stake.minimum_nu > stake.value:
+        raise Stake.StakingError(f'Stake amount of {stake.value} is too low; must be at least {stake.minimum_nu}')
+
+
+def validate_duration(stake: Stake) -> None:
+    """Validate a single staking lock-time against pre-defined requirements"""
+    if stake.economics.minimum_locked_periods > stake.duration:
+        raise Stake.StakingError(
+            'Stake duration of {duration} periods is too short; must be at least {minimum} periods.'
+            .format(minimum=stake.economics.minimum_locked_periods, duration=stake.duration))
+
+
+def validate_divide(stake: Stake, target_value: NU, additional_periods: int = None) -> None:
+    """
+    Validates possibility to divide specified stake into two stakes using provided parameters.
+    """
+
+    # Ensure selected stake is active
+    status = stake.status()
+    if not status.is_child(Stake.Status.DIVISIBLE):
+        raise Stake.StakingError(f'Cannot divide an non-divisible stake. '
+                                 f'Selected stake expired {stake.unlock_datetime} and has value {stake.value}.')
+
+    if target_value >= stake.value:
+        raise Stake.StakingError(f"Cannot divide stake; Target value ({target_value}) must be less "
+                                 f"than the existing stake value {stake.value}.")
+
+    #
+    # Generate SubStakes
+    #
+
+    # Modified Original Stake
+    remaining_stake_value = stake.value - target_value
+    modified_stake = Stake(checksum_address=stake.staker_address,
+                           index=stake.index,
+                           first_locked_period=stake.first_locked_period,
+                           final_locked_period=stake.final_locked_period,
+                           value=remaining_stake_value,
+                           staking_agent=stake.staking_agent,
+                           economics=stake.economics)
+
+    # New Derived Stake
+    end_period = stake.final_locked_period + additional_periods
+    new_stake = Stake(checksum_address=stake.staker_address,
+                      first_locked_period=stake.first_locked_period,
+                      final_locked_period=end_period,
+                      value=target_value,
+                      index=NEW_STAKE,
+                      staking_agent=stake.staking_agent,
+                      economics=stake.economics)
+
+    #
+    # Validate
+    #
+
+    # Ensure both halves are for valid amounts
+    validate_value(modified_stake)
+    validate_value(new_stake)
+
+
+def validate_max_value(stake: Stake, amount: NU = None) -> None:
+    amount = amount or stake.value
+
+    # Ensure the new stake will not exceed the staking limit
+    locked_tokens = stake.staking_agent.get_locked_tokens(staker_address=stake.staker_address, periods=1)
+    if (locked_tokens + amount) > stake.economics.maximum_allowed_locked:
+        raise Stake.StakingError(f"Cannot initialize stake - "
+                                 f"Maximum stake value exceeded for {stake.staker_address} "
+                                 f"with a target value of {amount}.")
+
+
+def validate_prolong(stake: Stake, additional_periods: int) -> None:
+    status = stake.status()
+    if not status.is_child(Stake.Status.EDITABLE):
+        raise Stake.StakingError(f'Cannot prolong a non-editable stake. '
+                                 f'Selected stake expired {stake.unlock_datetime}.')
+    new_duration = stake.periods_remaining + additional_periods - 1
+    if new_duration < stake.economics.minimum_locked_periods:
+        raise stake.StakingError(f'Sub-stake duration of {new_duration} periods after prolongation'
+                                 f'is shorter than minimum allowed duration '
+                                 f'of {stake.economics.minimum_locked_periods} periods.')
+
+
+def validate_increase(stake: Stake, amount: NU) -> None:
+    status = stake.status()
+    if not status.is_child(Stake.Status.EDITABLE):
+        raise Stake.StakingError(f'Cannot increase a non-editable stake. '
+                                 f'Selected stake expired {stake.unlock_datetime}.')
+
+    validate_max_value(stake=stake, amount=amount)
 
 
 class WorkTracker:

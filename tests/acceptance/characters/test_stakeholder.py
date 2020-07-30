@@ -76,8 +76,8 @@ def test_initialize_stake_with_existing_account(testerchain,
     # Stake, deriving a new account with a password,
     # sending tokens and ethers from the funding account
     # to the staker's account, then initializing a new stake.
-    stake = software_stakeholder.initialize_stake(amount=stake_value,
-                                                  lock_periods=token_economics.minimum_locked_periods)
+    software_stakeholder.initialize_stake(amount=stake_value, lock_periods=token_economics.minimum_locked_periods)
+    stake = software_stakeholder.stakes[0]
 
     # Wait for stake to begin
     testerchain.time_travel(periods=1)
@@ -99,9 +99,9 @@ def test_divide_stake(software_stakeholder, token_economics, test_registry):
     target_value = token_economics.minimum_allowed_locked
     pre_divide_stake_value = stake.value
 
-    original_stake, new_stake = software_stakeholder.divide_stake(stake_index=0,
-                                                                  additional_periods=10,
-                                                                  target_value=target_value)
+    software_stakeholder.divide_stake(stake=stake, additional_periods=10, target_value=target_value)
+    original_stake = software_stakeholder.stakes[0]
+    new_stake = software_stakeholder.stakes[-1]
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     stakes = list(staking_agent.get_all_stakes(staker_address=stake.staker_address))

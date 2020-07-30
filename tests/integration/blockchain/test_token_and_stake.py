@@ -17,7 +17,7 @@
 import pytest
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.token import NU, Stake
+from nucypher.blockchain.eth.token import NU, Stake, validate_divide, validate_prolong, validate_increase
 from nucypher.types import StakerInfo
 
 
@@ -80,8 +80,7 @@ def test_stake_status(mock_testerchain, token_economics, mock_staking_agent):
                      value=value,
                      index=0,
                      staking_agent=mock_staking_agent,
-                     economics=token_economics,
-                     validate_now=False)
+                     economics=token_economics)
 
     # Prepare unlocked sub-stake
     nu = NU.from_nunits(2 * token_economics.minimum_allowed_locked - 1)
@@ -137,8 +136,7 @@ def test_stake_sync(mock_testerchain, token_economics, mock_staking_agent):
                   value=nu,
                   index=0,
                   staking_agent=mock_staking_agent,
-                  economics=token_economics,
-                  validate_now=False)
+                  economics=token_economics)
     assert stake.status() == Stake.Status.EDITABLE
 
     # Update locked value and sync
@@ -174,3 +172,102 @@ def test_stake_sync(mock_testerchain, token_economics, mock_staking_agent):
 
     with pytest.raises(Stake.StakingError):
         stake.sync()
+
+
+def test_stake_validation(mock_testerchain, token_economics, mock_staking_agent):
+
+    address = mock_testerchain.etherbase_account
+
+    # Validate stake initialization
+    with pytest.raises(Stake.StakingError):
+        Stake.initialize_stake(staking_agent=mock_staking_agent,
+                               checksum_address=address,
+                               economics=token_economics,
+                               amount=token_economics.minimum_allowed_locked - 1,
+                               lock_periods=token_economics.minimum_locked_periods)
+
+    with pytest.raises(Stake.StakingError):
+        Stake.initialize_stake(staking_agent=mock_staking_agent,
+                               checksum_address=address,
+                               economics=token_economics,
+                               amount=token_economics.minimum_allowed_locked,
+                               lock_periods=token_economics.minimum_locked_periods - 1)
+
+    with pytest.raises(Stake.StakingError):
+        Stake.initialize_stake(staking_agent=mock_staking_agent,
+                               checksum_address=address,
+                               economics=token_economics,
+                               amount=token_economics.maximum_allowed_locked + 1,
+                               lock_periods=token_economics.minimum_locked_periods)
+
+    mock_staking_agent.get_locked_tokens.return_value = 0
+    Stake.initialize_stake(staking_agent=mock_staking_agent,
+                           checksum_address=address,
+                           economics=token_economics,
+                           amount=token_economics.maximum_allowed_locked,
+                           lock_periods=token_economics.minimum_locked_periods)
+
+    # Validate divide method
+    current_period = 10
+    mock_staking_agent.get_current_period.return_value = 10
+
+    def make_sub_stake(value, first_locked_period, final_locked_period):
+        return Stake(checksum_address=address,
+                     first_locked_period=first_locked_period,
+                     final_locked_period=final_locked_period,
+                     value=value,
+                     index=0,
+                     staking_agent=mock_staking_agent,
+                     economics=token_economics)
+
+    nu = NU.from_nunits(2 * token_economics.minimum_allowed_locked - 1)
+    stake = make_sub_stake(first_locked_period=current_period - 2,
+                           final_locked_period=current_period + 1,
+                           value=nu)
+
+    with pytest.raises(Stake.StakingError):
+        validate_divide(stake=stake, target_value=token_economics.minimum_allowed_locked, additional_periods=1)
+
+    stake = make_sub_stake(first_locked_period=current_period - 2,
+                           final_locked_period=current_period,
+                           value=nu + 1)
+    with pytest.raises(Stake.StakingError):
+        validate_divide(stake=stake, target_value=token_economics.minimum_allowed_locked, additional_periods=1)
+
+    stake = make_sub_stake(first_locked_period=current_period - 2,
+                           final_locked_period=current_period + 1,
+                           value=nu + 1)
+    with pytest.raises(Stake.StakingError):
+        validate_divide(stake=stake, target_value=token_economics.minimum_allowed_locked - 1, additional_periods=1)
+    validate_divide(stake=stake, target_value=token_economics.minimum_allowed_locked, additional_periods=1)
+
+    # Validate prolong method
+    stake = make_sub_stake(first_locked_period=current_period - 2,
+                           final_locked_period=current_period,
+                           value=nu)
+    with pytest.raises(Stake.StakingError):
+        validate_prolong(stake=stake, additional_periods=1)
+
+    stake = make_sub_stake(first_locked_period=current_period - 2,
+                           final_locked_period=current_period + 10,
+                           value=nu)
+    with pytest.raises(Stake.StakingError):
+        validate_prolong(stake=stake, additional_periods=1)
+    with pytest.raises(Stake.StakingError):
+        validate_prolong(stake=stake, additional_periods=token_economics.minimum_locked_periods - 11)
+    validate_prolong(stake=stake, additional_periods=token_economics.minimum_locked_periods - 10)
+
+    # Validate increase method
+    stake = make_sub_stake(first_locked_period=current_period - 2,
+                           final_locked_period=current_period,
+                           value=nu)
+    with pytest.raises(Stake.StakingError):
+        validate_increase(stake=stake, amount=nu)
+
+    stake = make_sub_stake(first_locked_period=current_period - 2,
+                           final_locked_period=current_period + 1,
+                           value=nu)
+    stake.staking_agent.get_locked_tokens.return_value = nu
+    with pytest.raises(Stake.StakingError):
+        validate_increase(stake=stake, amount=NU.from_nunits(token_economics.maximum_allowed_locked - int(nu) + 1))
+    validate_increase(stake=stake, amount=NU.from_nunits(token_economics.maximum_allowed_locked - int(nu)))
