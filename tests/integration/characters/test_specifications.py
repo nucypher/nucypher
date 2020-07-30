@@ -149,3 +149,17 @@ def test_key_validation(federated_bob):
 
     result = BobKeyInputRequirer().load(dict(bobkey=bytes(federated_bob.public_keys(DecryptingPower)).hex()))
     assert isinstance(result['bobkey'], bytes)
+
+
+def test_mixed_up_bytestring_validation(mock_messagekit, mock_treasuremap):
+    """
+    Tests that we get a helpful error message when passing the wrong data
+    """
+
+    class MessageKitsOnly(BaseSchema):
+
+        mkit = fields.UmbralMessageKit()
+
+    with pytest.raises(SpecificationError) as e:
+        MessageKitsOnly().load({'mkit': b64encode(bytes(mock_treasuremap))})
+    assert "Input data seems to be the bytes for a MockTreasureMap and not a MessageKit" in str(e)

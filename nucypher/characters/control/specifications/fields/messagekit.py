@@ -41,12 +41,12 @@ class UmbralMessageKit(BaseField, fields.Field):
     def _validate(self, value):
 
         try:
-
+            value = b64decode(value)
             metadata = UmbralMessageKitClass.splitter().get_metadata(value)
 
             if not UmbralMessageKitClass.splitter().validate_checksum(value):
                 if metadata['checksum'] in BYTESTRING_REGISTRY:
-                    raise InvalidInputData(f"Input data seems to be a {BYTESTRING_REGISTRY[metadata['checksum']]} and not a MessageKit")
+                    raise InvalidInputData(f"Input data seems to be the bytes for a {BYTESTRING_REGISTRY[metadata['checksum']].__name__} and not a MessageKit")
                 raise InvalidInputData(f"Could not validate supplied MessageKit bytes against known any supported bytestring formats")
 
             if metadata['version'] > UmbralMessageKitClass.version:

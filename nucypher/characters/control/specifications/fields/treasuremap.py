@@ -43,12 +43,12 @@ class TreasureMap(BaseField, fields.Field):
 
         from nucypher.policy.collections import TreasureMap
         try:
-
+            value = b64decode(value)
             metadata = TreasureMap.splitter().get_metadata(value)
 
             if not TreasureMap.splitter().validate_checksum(value):
                 if metadata['checksum'] in BYTESTRING_REGISTRY:
-                    raise InvalidInputData(f"Input data seems to be a {BYTESTRING_REGISTRY[metadata['checksum']]} and not a TreasureMap")
+                    raise InvalidInputData(f"Input data seems to be the bytes for a {BYTESTRING_REGISTRY[metadata['checksum']].__name__} and not a TreasureMap")
                 raise InvalidInputData(f"Could not validate supplied TreasureMap bytes against known any supported bytestring formats")
 
             if metadata['version'] > TreasureMap.version:
