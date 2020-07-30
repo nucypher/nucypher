@@ -15,14 +15,13 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import maya
 import pytest
 import os
 from umbral import pre
 from umbral.signing import Signer
-from umbral.config import default_params
-from umbral.keys import UmbralPrivateKey
-
 from nucypher.policy.collections import TreasureMap, DecentralizedTreasureMap
+from nucypher.policy.policies import Arrangement
 from nucypher.crypto.kits import UmbralMessageKit
 from tests.mock.performance_mocks import NotAPrivateKey, NotAPublicKey
 from nucypher.crypto.signing import SignatureStamp
@@ -96,3 +95,22 @@ def mock_decentralized_treasuremap():
         label=label,
     )
     return instance
+
+
+@pytest.fixture(scope='module')
+def mock_arrangement():
+
+    alice_priv_key = NotAPrivateKey()
+    alice_pub_key = alice_priv_key.get_pubkey()
+    alice_stamp = SignatureStamp(alice_pub_key, signer=Signer(alice_priv_key))
+
+    class MockAlice:
+
+        def __init__(self, stamp):
+            self.stamp = stamp
+
+    arrangement = Arrangement(
+        alice=MockAlice(alice_stamp),
+        expiration=maya.now() + maya.timedelta(days=30)
+    )
+    return arrangement

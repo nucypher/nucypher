@@ -36,6 +36,7 @@ from umbral.kfrags import KFrag
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
 from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakingEscrowAgent
 from nucypher.characters.lawful import Alice, Ursula
+from nucypher.config.splitters import NCBytestringSplitter
 from nucypher.crypto.api import keccak_digest, secure_random
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import RevocationKit
@@ -45,16 +46,18 @@ from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 
 
+
 class Arrangement:
     """
     A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
     """
     federated = True
     ID_LENGTH = 32
+    version = 1
 
-    splitter = BytestringSplitter((UmbralPublicKey, PUBLIC_KEY_LENGTH),  # alice.stamp
-                                  (bytes, ID_LENGTH),  # arrangement_ID
-                                  (bytes, VariableLengthBytestring))  # expiration
+    splitter = NCBytestringSplitter((UmbralPublicKey, PUBLIC_KEY_LENGTH),  # alice.stamp
+                                   (bytes, ID_LENGTH),  # arrangement_ID
+                                   (bytes, VariableLengthBytestring))
 
     def __init__(self,
                  alice: Alice,
@@ -88,7 +91,9 @@ class Arrangement:
         self.ursula = ursula
 
     def __bytes__(self):
-        return bytes(self.alice.stamp) + self.id + bytes(VariableLengthBytestring(self.expiration.iso8601().encode()))
+        return self.splitter.render(
+             bytes(self.alice.stamp) + self.id + bytes(VariableLengthBytestring(self.expiration.iso8601().encode())),
+             version=self.version)
 
     @classmethod
     def from_bytes(cls, arrangement_as_bytes):

@@ -109,3 +109,29 @@ def test_decentralized_treasuremap_deserialization(mock_decentralized_treasurema
     assert bytes(tm_from_bytes.message_kit) == bytes(mock_treasuremap.message_kit)
     assert tm_from_bytes._public_signature == mock_treasuremap._public_signature
     assert tm_from_bytes._blockchain_signature == mock_treasuremap._blockchain_signature
+
+
+def test_arrangement_serialization(mock_arrangement):
+
+    arrangement = mock_arrangement
+    splitter = arrangement.splitter
+
+    arrangement_bytes = bytes(arrangement)
+
+    assert arrangement_bytes.startswith(
+        splitter.generate_checksum() + arrangement.version.to_bytes(2, "big"))
+
+    metadata = splitter.get_metadata(arrangement_bytes)
+    assert metadata['version'] == 1
+    assert metadata['checksum'] == splitter.generate_checksum()
+
+
+def test_arrangement_deserialization(mock_arrangement):
+
+    arrangement_bytes = bytes(mock_arrangement)
+
+    arrangment_from_bytes = mock_arrangement.__class__.from_bytes(arrangement_bytes)
+
+    assert arrangment_from_bytes.alice.stamp == mock_arrangement.alice.stamp
+    assert arrangment_from_bytes.id == mock_arrangement.id
+    assert arrangment_from_bytes.expiration == mock_arrangement.expiration

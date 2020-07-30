@@ -100,6 +100,12 @@ from tests.mock.performance_mocks import (
     mock_secret_source,
     mock_verify_node
 )
+
+from tests.mock.products import (
+    mock_treasuremap, mock_messagekit, mock_decentralized_treasuremap,
+    mock_arrangement
+)
+
 from tests.utils.blockchain import TesterBlockchain, token_airdrop
 from tests.utils.config import (
     make_alice_test_configuration,
@@ -115,7 +121,6 @@ from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
-from tests.mock.products import mock_treasuremap, mock_messagekit, mock_decentralized_treasuremap
 
 test_logger = Logger("test-logger")
 
