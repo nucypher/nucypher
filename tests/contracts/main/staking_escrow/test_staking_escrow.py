@@ -861,6 +861,11 @@ def test_merge(testerchain, token, escrow_contract, token_economics):
         tx = escrow.functions.mergeStake(0, 2).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
 
+    # Can't merge sub-stake with itself
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.mergeStake(0, 0).transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+
     # Merge two equal sub-stakes
     tx = escrow.functions.mergeStake(1, 0).transact({'from': staker})
     testerchain.wait_for_receipt(tx)

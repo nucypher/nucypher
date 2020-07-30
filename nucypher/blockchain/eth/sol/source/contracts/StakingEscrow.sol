@@ -40,7 +40,7 @@ interface WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v5.2.1|
+* @dev |v5.2.2|
 */
 contract StakingEscrow is Issuer, IERC900History {
 
@@ -995,6 +995,8 @@ contract StakingEscrow is Issuer, IERC900History {
     * @param _index2 Index of the second sub-stake
     */
     function mergeStake(uint256 _index1, uint256 _index2) external onlyStaker {
+        require(_index1 != _index2); // must be different sub-stakes
+
         StakerInfo storage info = stakerInfo[msg.sender];
         SubStakeInfo storage subStake1 = info.subStakes[_index1];
         SubStakeInfo storage subStake2 = info.subStakes[_index2];
