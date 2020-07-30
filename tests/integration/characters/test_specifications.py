@@ -161,5 +161,14 @@ def test_mixed_up_bytestring_validation(mock_messagekit, mock_treasuremap):
         mkit = fields.UmbralMessageKit()
 
     with pytest.raises(SpecificationError) as e:
-        MessageKitsOnly().load({'mkit': b64encode(bytes(mock_treasuremap))})
+        MessageKitsOnly().load({'mkit': b64encode(bytes(mock_treasuremap)).decode()})
     assert "Input data seems to be the bytes for a MockTreasureMap and not a MessageKit" in str(e)
+
+
+    class TreasureMapsOnly(BaseSchema):
+
+        tmap = fields.TreasureMap()
+
+    with pytest.raises(SpecificationError) as e:
+        TreasureMapsOnly().load({'tmap': b64encode(bytes(mock_messagekit)).decode()})
+    assert "Input data seems to be the bytes for a PolicyMessageKit and not a TreasureMap" in str(e)

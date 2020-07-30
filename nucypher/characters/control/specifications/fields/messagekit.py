@@ -18,7 +18,6 @@
 from base64 import b64decode, b64encode
 
 from marshmallow import fields
-
 from nucypher.characters.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
 from nucypher.characters.control.specifications.fields.base import BaseField
 from nucypher.crypto.kits import UmbralMessageKit as UmbralMessageKitClass
@@ -40,10 +39,11 @@ class UmbralMessageKit(BaseField, fields.Field):
 
     def _validate(self, value):
 
-        try:
-            value = b64decode(value)
-            metadata = UmbralMessageKitClass.splitter().get_metadata(value)
 
+        if not isinstance(value, bytes):
+            value = b64decode(value)
+        try:
+            metadata = UmbralMessageKitClass.splitter().get_metadata(value)
             if not UmbralMessageKitClass.splitter().validate_checksum(value):
                 if metadata['checksum'] in BYTESTRING_REGISTRY:
                     raise InvalidInputData(f"Input data seems to be the bytes for a {BYTESTRING_REGISTRY[metadata['checksum']].__name__} and not a MessageKit")
