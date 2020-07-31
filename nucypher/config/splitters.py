@@ -26,13 +26,12 @@ class NCBytestringSplitter(StructureChecksumMixin, VersioningMixin, BytestringSp
     Renders bytestrings as: <checksum (4 bytes)><version (2 bytes)><bytestring content>
     """
 
-    def __init__(self, byteclass, *args, **kwargs):
-        super().__init__(byteclass, *args, **kwargs)
-        BYTESTRING_REGISTRY[self.generate_checksum()] = byteclass
-
     def validate_checksum(self, *args, **kwargs):
         # until https://github.com/nucypher/bytestringSplitter/pull/34 is merged and deployed
         return self.get_metadata(args[0])['checksum'] == self.generate_checksum()
 
 class NucypherBSSKwargifier(NCBytestringSplitter, BytestringKwargifier):
-    pass
+
+    def __init__(self, byteclass, *args, **kwargs):
+        super().__init__(byteclass, *args, **kwargs)
+        BYTESTRING_REGISTRY[self.generate_checksum()] = byteclass

@@ -59,6 +59,7 @@ def test_bob_rpc_character_control_retrieve_with_tmap(
         enacted_blockchain_policy, blockchain_bob, blockchain_alice,
         bob_rpc_controller, retrieve_control_request):
     tmap_64 = b64encode(bytes(enacted_blockchain_policy.treasure_map)).decode()
+
     method_name, params = retrieve_control_request
     params['treasure_map'] = tmap_64
     request_data = {'method': method_name, 'params': params}

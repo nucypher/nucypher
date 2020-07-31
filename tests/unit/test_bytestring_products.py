@@ -114,7 +114,7 @@ def test_decentralized_treasuremap_deserialization(mock_decentralized_treasurema
 def test_arrangement_serialization(mock_arrangement):
 
     arrangement = mock_arrangement
-    splitter = arrangement.splitter
+    splitter = arrangement.splitter()
 
     arrangement_bytes = bytes(arrangement)
 
