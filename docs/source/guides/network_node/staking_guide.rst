@@ -79,6 +79,8 @@ All staking-related operations done by Staker are performed through the ``nucyph
 +----------------------+-------------------------------------------------------------------------------+
 |  ``mint``            | Mint last portion of reward                                                   |
 +----------------------+-------------------------------------------------------------------------------+
+|  ``merge``           | Merge two stakes into one                                                     |
++----------------------+-------------------------------------------------------------------------------+
 
 **Stake Command Options**
 
@@ -454,6 +456,17 @@ staker's locked value is not greater than the maximum. To increase an existing s
 .. code:: bash
 
     (nucypher)$ nucypher stake increase --hw-wallet
+
+
+Merge
+*****
+
+Two stakes with the same final period can be merged into one stake. 
+This can help to decrease gas consumption in some operations. To merge two stakes:
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake merge --hw-wallet
 
 
 Collect rewards earned by the staker
