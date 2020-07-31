@@ -68,7 +68,7 @@ from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.registry import BaseContractRegistry, IndividualAllocationRegistry
 from nucypher.blockchain.eth.signers import KeystoreSigner, Signer, Web3Signer
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker, validate_prolong, validate_increase, \
-    validate_divide
+    validate_divide, validate_merge
 from nucypher.blockchain.eth.utils import (
     calculate_period_duration,
     datetime_at_period,
@@ -84,6 +84,7 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.types import NuNits, Period
 from nucypher.utilities.logging import Logger
+from typing import Callable
 
 
 class BaseActor:
@@ -878,19 +879,30 @@ class Staker(NucypherTokenActor):
         """The total number of staked tokens, i.e., tokens locked in the current period."""
         return self.locked_tokens(periods=0)
 
-    def stakes_filtered_by_status(self, parent_status: Stake.Status) -> Iterable[Stake]:
-        """Returns stakes for this staker which have specified or child status."""
+    def filtered_stakes(self,
+                        parent_status: Stake.Status = None,
+                        filter_function: Callable[[Stake], bool] = None
+                        ) -> Iterable[Stake]:
+        """Returns stakes for this staker which filtered by specified or child status or by provided function."""
+        if not parent_status and not filter_function:
+            raise ValueError(f"Pass parent status or filter function or both.")
 
         # Read once from chain and reuse these values
         staker_info = self.staking_agent.get_staker_info(self.checksum_address)  # TODO related to #1514
         current_period = self.staking_agent.get_current_period()                 # TODO #1514 this is online only.
 
-        stakes = (stake for stake in self.stakes if stake.status(staker_info, current_period).is_child(parent_status))
+        stakes = (stake for stake in self.stakes
+                  if (parent_status is None or stake.status(staker_info, current_period).is_child(parent_status)) and
+                  (filter_function is None or filter_function(stake)))
         return stakes
 
-    def sorted_stakes(self, parent_status: Stake.Status = None) -> List[Stake]:
+    def sorted_stakes(self,
+                      parent_status: Stake.Status = None,
+                      filter_function: Callable[[Stake], bool] = None
+                      ) -> List[Stake]:
         """Returns a list of filtered stakes sorted by account wallet index."""
-        filtered_stakes = self.stakes_filtered_by_status(parent_status) if parent_status is not None else self.stakes
+        filtered_stakes = self.filtered_stakes(parent_status, filter_function) \
+            if parent_status is not None or filter_function is not None else self.stakes
         stakes = sorted(filtered_stakes, key=lambda s: s.address_index_ordering_key)
         return stakes
 
@@ -1026,7 +1038,8 @@ class Staker(NucypherTokenActor):
     def prolong_stake(self,
                       stake: Stake,
                       additional_periods: int = None,
-                      expiration: maya.MayaDT = None) -> TxReceipt:
+                      expiration: maya.MayaDT = None
+                      ) -> TxReceipt:
         self._ensure_stake_exists(stake)
 
         if not (bool(additional_periods) ^ bool(expiration)):
@@ -1045,6 +1058,25 @@ class Staker(NucypherTokenActor):
         validate_prolong(stake=stake, additional_periods=additional_periods)
 
         receipt = self._prolong_stake(stake_index=stake.index, lock_periods=additional_periods)
+
+        # Update staking cache element
+        self.refresh_stakes()
+        return receipt
+
+    @only_me
+    def merge_stakes(self,
+                     stake_1: Stake,
+                     stake_2: Stake
+                     ) -> TxReceipt:
+        self._ensure_stake_exists(stake_1)
+        self._ensure_stake_exists(stake_2)
+
+        # Read on-chain stake and validate
+        stake_1.sync()
+        stake_2.sync()
+        validate_merge(stake_1=stake_1, stake_2=stake_2)
+
+        receipt = self._merge_stakes(stake_index_1=stake_1.index, stake_index_2=stake_2.index)
 
         # Update staking cache element
         self.refresh_stakes()
@@ -1118,6 +1150,17 @@ class Staker(NucypherTokenActor):
         receipt = self.staking_agent.lock_and_increase(staker_address=self.checksum_address,
                                                        stake_index=stake_index,
                                                        amount=amount)
+        return receipt
+
+    def _merge_stakes(self, stake_index_1: int, stake_index_2: int) -> TxReceipt:
+        """Public facing method for stakes merging."""
+        # TODO #1497 #1358
+        # if self.is_contract:
+        #     receipt = self.preallocation_escrow_agent.prolong_stake(stake_index=stake_index, lock_periods=lock_periods)
+        # else:
+        receipt = self.staking_agent.merge_stakes(stake_index_1=stake_index_1,
+                                                  stake_index_2=stake_index_2,
+                                                  staker_address=self.checksum_address)
         return receipt
 
     @property

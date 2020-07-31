@@ -432,6 +432,32 @@ def test_lock_and_increase(agency, testerchain, test_registry, token_economics):
 
 
 @pytest.mark.slow()
+def test_merge(agency, testerchain, test_registry, token_economics):
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    staker_account = testerchain.unassigned_accounts[0]
+
+    stakes = list(staking_agent.get_all_stakes(staker_address=staker_account))
+    original_stake_1 = stakes[0]
+    original_stake_2 = stakes[2]
+    assert original_stake_1.last_period == original_stake_2.last_period
+
+    current_locked_tokens = staking_agent.get_locked_tokens(staker_account, 0)
+    next_locked_tokens = staking_agent.get_locked_tokens(staker_account, 1)
+
+    receipt = staking_agent.merge_stakes(staker_address=staker_account,
+                                         stake_index_1=0,
+                                         stake_index_2=2)
+    assert receipt['status'] == 1
+
+    # Ensure stake was extended by one period.
+    stakes = list(staking_agent.get_all_stakes(staker_address=staker_account))
+    new_stake = stakes[0]
+    assert new_stake.locked_value == original_stake_1.locked_value + original_stake_2.locked_value
+    assert staking_agent.get_locked_tokens(staker_account, 1) == next_locked_tokens
+    assert staking_agent.get_locked_tokens(staker_account, 0) == current_locked_tokens
+
+
+@pytest.mark.slow()
 def test_batch_deposit(testerchain,
                        agency,
                        token_economics,

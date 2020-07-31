@@ -31,7 +31,7 @@ from nucypher.cli.literature import (
     PROMPT_STAKE_INCREASE_VALUE, CONFIRM_INCREASING_STAKE, PROMPT_DEPOSIT_OR_LOCK, PROMPT_STAKE_CREATE_VALUE,
     PROMPT_STAKE_CREATE_LOCK_PERIODS, CONFIRM_LARGE_STAKE_VALUE, CONFIRM_LARGE_STAKE_DURATION, CONFIRM_STAGED_STAKE,
     CONFIRM_BROADCAST_CREATE_STAKE, INSUFFICIENT_BALANCE_TO_INCREASE, MAXIMUM_STAKE_REACHED,
-    INSUFFICIENT_BALANCE_TO_CREATE
+    INSUFFICIENT_BALANCE_TO_CREATE, ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE, CONFIRM_MERGE, SUCCESSFUL_STAKES_MERGE
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.types import SubStakeInfo
@@ -53,8 +53,8 @@ def surrogate_stakes(mock_staking_agent, token_economics, surrogate_staker):
     current_period = 10
     duration = token_economics.minimum_locked_periods + 1
     final_period = current_period + duration
-    # TODO: Add non divisible, non editable and inactive sub-stakes
     stakes = [SubStakeInfo(current_period - 1, final_period - 1, nu),
+              SubStakeInfo(current_period - 1, final_period, nu),
               SubStakeInfo(current_period + 1, final_period, nu)]
 
     mock_staking_agent.get_current_period.return_value = current_period
@@ -1034,3 +1034,88 @@ def test_create_lock_non_interactive(click_runner,
                                                                lock_periods=lock_periods,
                                                                staker_address=surrogate_staker.checksum_address)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_create])
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_merge_interactive(click_runner,
+                           mocker,
+                           surrogate_staker,
+                           surrogate_stakes,
+                           mock_staking_agent,
+                           token_economics,
+                           mock_testerchain):
+    mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
+
+    selected_index = 0
+    sub_stake_index_1 = 1
+    sub_stake_index_2 = 2
+
+    command = ('merge',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN)
+
+    user_input = '\n'.join((str(selected_index),
+                            str(sub_stake_index_1),
+                            str(sub_stake_index_2),
+                            YES,
+                            INSECURE_DEVELOPMENT_PASSWORD))
+
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    final_period = surrogate_stakes[sub_stake_index_1].last_period
+    assert ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE.format(final_period=final_period) in result.output
+    assert CONFIRM_MERGE.format(stake_index_1=sub_stake_index_1, stake_index_2=sub_stake_index_2) in result.output
+    assert SUCCESSFUL_STAKES_MERGE in result.output
+
+    mock_staking_agent.get_all_stakes.assert_called()
+    mock_staking_agent.get_current_period.assert_called()
+    mock_refresh_stakes.assert_called()
+    mock_staking_agent.merge_stakes.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+                                                            stake_index_1=sub_stake_index_1,
+                                                            stake_index_2=sub_stake_index_2)
+    mock_staking_agent.assert_only_transactions([mock_staking_agent.merge_stakes])
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_merge_non_interactive(click_runner,
+                               mocker,
+                               surrogate_staker,
+                               surrogate_stakes,
+                               mock_staking_agent,
+                               token_economics,
+                               mock_testerchain):
+    mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
+
+    selected_index = 0
+    sub_stake_index_1 = 1
+    sub_stake_index_2 = 2
+
+    mock_staking_agent.get_locked_tokens.return_value = token_economics.minimum_allowed_locked * 2
+    unlocked_tokens = token_economics.minimum_allowed_locked * 5
+    mock_staking_agent.calculate_staking_reward.return_value = unlocked_tokens
+
+    command = ('merge',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
+               '--staking-address', surrogate_staker.checksum_address,
+               '--index-1', sub_stake_index_1,
+               '--index-2', sub_stake_index_2,
+               '--force')
+
+    user_input = INSECURE_DEVELOPMENT_PASSWORD
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    final_period = surrogate_stakes[sub_stake_index_1].last_period
+    assert ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE.format(final_period=final_period) not in result.output
+    assert CONFIRM_MERGE.format(stake_index_1=sub_stake_index_1, stake_index_2=sub_stake_index_2) not in result.output
+    assert SUCCESSFUL_STAKES_MERGE in result.output
+
+    mock_staking_agent.get_all_stakes.assert_called()
+    mock_staking_agent.get_current_period.assert_called()
+    mock_refresh_stakes.assert_called()
+    mock_staking_agent.merge_stakes.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+                                                            stake_index_1=sub_stake_index_1,
+                                                            stake_index_2=sub_stake_index_2)
+    mock_staking_agent.assert_only_transactions([mock_staking_agent.merge_stakes])

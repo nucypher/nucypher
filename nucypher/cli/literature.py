@@ -229,11 +229,13 @@ SUCCESSFUL_SET_MIN_POLICY_RATE = "\nMinimum fee rate {min_rate} successfully set
 
 
 #
-# Divide and Prolong
+# Divide, Prolong and Merge
 #
 
 
 ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE = "NOTE: Showing divisible stakes only"
+
+ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE = "NOTE: Showing stakes with {final_period} final period only"
 
 CONFIRM_BROADCAST_STAKE_DIVIDE = "Publish stake division to the blockchain?"
 
@@ -248,6 +250,10 @@ PROMPT_PROLONG_VALUE = "Enter number of periods to extend ({minimum}-{maximum})"
 CONFIRM_PROLONG = "Publish stake extension of {lock_periods} period(s) to the blockchain?"
 
 SUCCESSFUL_STAKE_PROLONG = 'Successfully Prolonged Stake'
+
+CONFIRM_MERGE = "Publish merging of {stake_index_1} and {stake_index_2} stakes?"
+
+SUCCESSFUL_STAKES_MERGE = 'Successfully Merged Stakes'
 
 #
 # Rewards

@@ -69,7 +69,8 @@ from nucypher.cli.literature import (
     SUCCESSFUL_WORKER_BONDING, NO_MINTABLE_PERIODS, STILL_LOCKED_TOKENS, CONFIRM_MINTING, SUCCESSFUL_MINTING,
     CONFIRM_COLLECTING_WITHOUT_MINTING, NO_TOKENS_TO_WITHDRAW, NO_FEE_TO_WITHDRAW, CONFIRM_INCREASING_STAKE,
     PROMPT_STAKE_INCREASE_VALUE, SUCCESSFUL_STAKE_INCREASE, INSUFFICIENT_BALANCE_TO_INCREASE, MAXIMUM_STAKE_REACHED,
-    INSUFFICIENT_BALANCE_TO_CREATE, PROMPT_STAKE_CREATE_VALUE, PROMPT_DEPOSIT_OR_LOCK, PROMPT_STAKE_CREATE_LOCK_PERIODS
+    INSUFFICIENT_BALANCE_TO_CREATE, PROMPT_STAKE_CREATE_VALUE, PROMPT_DEPOSIT_OR_LOCK, PROMPT_STAKE_CREATE_LOCK_PERIODS,
+    ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE, CONFIRM_MERGE, SUCCESSFUL_STAKES_MERGE
 )
 from nucypher.cli.options import (
     group_options,
@@ -879,6 +880,73 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
 
     # Report
     emitter.echo(SUCCESSFUL_STAKE_PROLONG, color='green', verbosity=1)
+    paint_receipt_summary(emitter=emitter, receipt=receipt, chain_name=blockchain.client.chain_name)
+    paint_stakes(emitter=emitter, staker=STAKEHOLDER)
+
+
+@stake.command()
+@group_transacting_staker_options
+@option_config_file
+@option_force
+@group_general_config
+@click.option('--index-1', help="First index of stake to merge", type=click.INT)
+@click.option('--index-2', help="Second index of stake to merge", type=click.INT)
+def merge(general_config, transacting_staker_options, config_file, force, index_1, index_2):
+    """Merge two stakes into one."""
+
+    # Setup
+    emitter = setup_emitter(general_config)
+    STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
+    action_period = STAKEHOLDER.staking_agent.get_current_period()
+    blockchain = transacting_staker_options.get_blockchain()
+
+    client_account, staking_address = select_client_account_for_staking(
+        emitter=emitter,
+        stakeholder=STAKEHOLDER,
+        staking_address=transacting_staker_options.staker_options.staking_address,
+        individual_allocation=STAKEHOLDER.individual_allocation,
+        force=force)
+
+    # Handle stakes selection
+    stake_1 = None
+    stake_2 = None
+
+    if index_1 is not None and index_2 is not None:
+        stake_1 = STAKEHOLDER.stakes[index_1]
+        stake_2 = STAKEHOLDER.stakes[index_2]
+    elif index_1 is not None:  # 0 is valid.
+        stake_1 = STAKEHOLDER.stakes[index_1]
+    elif index_2 is not None:
+        stake_2 = STAKEHOLDER.stakes[index_1]
+
+    if stake_1 is None:
+        stake_1 = select_stake(staker=STAKEHOLDER, emitter=emitter)
+    if stake_2 is None:
+        emitter.echo(ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE.format(final_period=stake_1.final_locked_period),
+                     color='yellow')
+        stake_2 = select_stake(staker=STAKEHOLDER,
+                               emitter=emitter,
+                               filter_function=lambda s: s.index != stake_1.index and
+                                                         s.final_locked_period == stake_1.final_locked_period)
+
+    if not force:
+        click.confirm(CONFIRM_MERGE.format(stake_index_1=stake_1.index, stake_index_2=stake_2.index), abort=True)
+
+    # Authenticate
+    password = transacting_staker_options.get_password(blockchain, client_account)
+    STAKEHOLDER.assimilate(password=password)
+
+    # Non-interactive: Consistency check to prevent the above agreement from going stale.
+    last_second_current_period = STAKEHOLDER.staking_agent.get_current_period()
+    if action_period != last_second_current_period:
+        emitter.echo(PERIOD_ADVANCED_WARNING, color='red')
+        raise click.Abort
+
+    # Execute
+    receipt = STAKEHOLDER.merge_stakes(stake_1=stake_1, stake_2=stake_2)
+
+    # Report
+    emitter.echo(SUCCESSFUL_STAKES_MERGE, color='green', verbosity=1)
     paint_receipt_summary(emitter=emitter, receipt=receipt, chain_name=blockchain.client.chain_name)
     paint_stakes(emitter=emitter, staker=STAKEHOLDER)
 
