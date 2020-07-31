@@ -43,7 +43,7 @@ def test_datastore_describe():
     # Tests for `Datastore.describe`
     #
 
-    # Getting writeable access to a record can be done by not setting `writeable` to `True`.
+    # Getting writeable access to a record can be done by setting `writeable` to `True`.
     # `writeable` is, by default, `False`.
     # In the event a record doesn't exist, this will raise a `RecordNotFound` error iff `writeable=False`.
     with pytest.raises(datastore.RecordNotFound):
