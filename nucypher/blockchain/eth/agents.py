@@ -34,6 +34,7 @@ from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast
 from web3.contract import Contract, ContractFunction
 from web3.types import Wei, Timestamp, TxReceipt, TxParams, Nonce
 
+from nucypher.blockchain.eth.aragon import Artifact
 from nucypher.blockchain.eth.constants import (
     ADJUDICATOR_CONTRACT_NAME,
     DISPATCHER_CONTRACT_NAME,
@@ -1569,13 +1570,24 @@ class MultiSigAgent(EthereumContractAgent):
 class InstanceAgent(EthereumContractAgent):
     """Base class for agents that interact with contracts instantiated by address"""
 
-    def __init__(self, address: str, provider_uri: str = None):
-        self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=provider_uri)
-        contract: Contract = self.blockchain.get_contract_instance(contract_name=self.contract_name, address=address)
+    def __init__(self, address: str, abi: List[Dict] = None, provider_uri: str = None):
+        blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=provider_uri)
+        if abi:
+            contract = blockchain.client.w3.eth.contract(abi=abi, address=address)
+        else:  # FIXME: This only works if the blockchain is a deployer interface (i.e. has the solidity compiler)
+            contract = blockchain.get_contract_instance(contract_name=self.contract_name, address=address)
         super().__init__(contract=contract, provider_uri=provider_uri)
 
 
-class ForwarderAgent(InstanceAgent):
+class AragonAgent(InstanceAgent):
+    """Base agent for Aragon contracts that uses ABIs from artifact.json files"""
+
+    def __init__(self, address: str, provider_uri: str = None):
+        self.artifact = Artifact(name=self.contract_name)
+        super().__init__(abi=self.artifact.abi, address=address, provider_uri=provider_uri)
+
+
+class ForwarderAgent(AragonAgent):
     """Agent for Aragon apps that implement the Forwarder interface"""
 
     contract_name = FORWARDER_INTERFACE_NAME
