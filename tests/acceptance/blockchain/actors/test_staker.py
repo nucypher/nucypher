@@ -20,6 +20,8 @@ from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.token import NU, Stake
+from nucypher.crypto.powers import TransactingPower
+from tests.constants import FEE_RATE_RANGE, INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.ursula import make_decentralized_ursulas
 from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.utils import datetime_at_period
