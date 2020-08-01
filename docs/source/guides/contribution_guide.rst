@@ -113,7 +113,7 @@ Pull Request Conflicts
 ----------------------
 
 As an effort to preserve authorship and a cohesive commit history, we prefer if proposed contributions
-are rebased over ``main`` (or appropriate branch) when a merge conflict arises,
+are rebased over ``main`` (or appropriate branch) when a merge conflict arises
 instead of making a merge commit back into the contributors fork.
 
 Generally speaking the preferred process of doing so is with an `interactive rebase`:
