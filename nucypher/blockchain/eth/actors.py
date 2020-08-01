@@ -20,7 +20,7 @@ import json
 import os
 import sys
 import time
-from constant_sorrow.constants import FULL, NO_WORKER_BONDED, WORKER_NOT_RUNNING
+import traceback
 from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
 from web3.types import TxReceipt
