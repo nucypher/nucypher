@@ -1027,7 +1027,8 @@ class Staker(NucypherTokenActor):
 
         # Calculate stake duration in periods
         if expiration:
-            additional_periods = datetime_to_period(datetime=expiration, seconds_per_period=self.economics.seconds_per_period) - stake.final_locked_period
+            additional_periods = datetime_to_period(datetime=expiration,
+                                                    seconds_per_period=self.economics.seconds_per_period) - stake.final_locked_period
             if additional_periods <= 0:
                 raise ValueError(f"New expiration {expiration} must be at least 1 period from the "
                                  f"current stake's end period ({stake.final_locked_period}).")
