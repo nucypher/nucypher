@@ -163,9 +163,10 @@ class MockContractAgent:
     def reset(self, clear_side_effects: bool = True, clear_return_values: bool = True) -> None:
         for mock in self._MOCK_METHODS:
             mock.reset_mock(return_value=clear_return_values, side_effect=clear_side_effects)
-            interface = getattr(mock, self.__COLLECTION_MARKER)
-            default_return = self.__DEFAULTS.get(interface)
-            mock.return_value = default_return
+            if clear_return_values:
+                interface = getattr(mock, self.__COLLECTION_MARKER)
+                default_return = self.__DEFAULTS.get(interface)
+                mock.return_value = default_return
 
 
 class MockContractAgency(ContractAgency):
