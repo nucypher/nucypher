@@ -19,9 +19,34 @@ import os
 
 import pytest
 from eth_utils import to_canonical_address
-from web3 import Web3
+from web3 import Web3, EthereumTesterProvider
 
 from nucypher.blockchain.eth.aragon import CallScriptCodec
+
+
+@pytest.fixture()
+def mock_web3_contract():
+    w3 = Web3(EthereumTesterProvider())
+
+    foo_abi = dict(constant=False,
+                   inputs=[],
+                   name="foo",
+                   outputs=[],
+                   payable=False,
+                   stateMutability="pure",
+                   type="function")
+
+    bar_abi = dict(constant=False,
+                   inputs=[dict(name="", type="address")],
+                   name="bar",
+                   outputs=[],
+                   payable=False,
+                   stateMutability="pure",
+                   type="function")
+
+    abi = [foo_abi, bar_abi]
+    contract = w3.eth.contract(abi=abi)
+    return contract
 
 
 def test_callscriptcodec():
@@ -37,7 +62,7 @@ def test_callscript_encoding_empty():
 
 
 @pytest.mark.parametrize('data_length', range(0, 100, 5))
-def test_callscript_encoding_one_action(get_random_checksum_address, data_length):
+def test_callscript_encoding_one_action(get_random_checksum_address, data_length, mock_web3_contract):
     # Action is a byte string
     target = get_random_checksum_address()
     data = os.urandom(data_length)
@@ -53,5 +78,17 @@ def test_callscript_encoding_one_action(get_random_checksum_address, data_length
     # Action is a hex string
     data = Web3.toHex(data)
     actions = [(target, data)]
+    callscript_data = CallScriptCodec.encode_actions(actions)
+    assert expected_callscript == callscript_data
+
+    # Action is a ContractFunction
+    function_call = mock_web3_contract.functions.foo()
+    actions = [(target, function_call)]
+    encoded_foo = Web3.toBytes(hexstr=mock_web3_contract.encodeABI(fn_name="foo"))
+
+    expected_callscript = b''.join((CallScriptCodec.CALLSCRIPT_ID,
+                                    to_canonical_address(target),
+                                    len(encoded_foo).to_bytes(4, 'big'),
+                                    encoded_foo))
     callscript_data = CallScriptCodec.encode_actions(actions)
     assert expected_callscript == callscript_data
