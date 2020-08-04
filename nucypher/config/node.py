@@ -63,7 +63,7 @@ class CharacterConfiguration(BaseConfiguration):
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
     TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
 
-    # When we begin to support other threshold schemes, this will be one of the concepts that makes us want a factory.
+    # When we begin to support other threshold schemes, this will be one of the concepts that makes us want a factory.  #571
     known_node_class = Ursula
 
     # Gas
