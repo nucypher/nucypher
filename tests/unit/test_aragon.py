@@ -16,6 +16,7 @@
 """
 
 import os
+import random
 
 import pytest
 from eth_utils import to_canonical_address
@@ -90,5 +91,18 @@ def test_callscript_encoding_one_action(get_random_checksum_address, data_length
                                     to_canonical_address(target),
                                     len(encoded_foo).to_bytes(4, 'big'),
                                     encoded_foo))
+    callscript_data = CallScriptCodec.encode_actions(actions)
+    assert expected_callscript == callscript_data
+
+
+@pytest.mark.parametrize('number_of_actions', range(1, 5))
+def test_callscript_encode_multiple_actions(get_random_checksum_address, number_of_actions):
+    actions = [(get_random_checksum_address(), os.urandom(random.randrange(100))) for _ in range(number_of_actions)]
+
+    callscript_chunks = [CallScriptCodec.CALLSCRIPT_ID]
+    for target, data in actions:
+        callscript_chunks.extend([to_canonical_address(target), len(data).to_bytes(4, 'big'), data])
+    expected_callscript = b''.join(callscript_chunks)
+
     callscript_data = CallScriptCodec.encode_actions(actions)
     assert expected_callscript == callscript_data
