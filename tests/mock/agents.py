@@ -160,11 +160,12 @@ class MockContractAgent:
         unexpected_transactions = self.get_unexpected_transactions(allowed=None)
         assert not bool(unexpected_transactions)
 
-    def reset(self, clear_side_effects: bool = True) -> None:
+    def reset(self, clear_side_effects: bool = True, clear_return_values: bool = True) -> None:
         for mock in self._MOCK_METHODS:
-            mock.reset_mock()
-            if clear_side_effects:
-                mock.side_effect = None
+            mock.reset_mock(return_value=clear_return_values, side_effect=clear_side_effects)
+            interface = getattr(mock, self.__COLLECTION_MARKER)
+            default_return = self.__DEFAULTS.get(interface)
+            mock.return_value = default_return
 
 
 class MockContractAgency(ContractAgency):
