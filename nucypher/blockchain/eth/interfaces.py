@@ -40,6 +40,7 @@ from web3.contract import Contract, ContractConstructor, ContractFunction
 from web3.exceptions import TimeExhausted, ValidationError
 from web3.gas_strategies import time_based
 from web3.middleware import geth_poa_middleware
+from web3.types import TxReceipt
 
 from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS, InfuraClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -779,7 +780,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                         confirmations: int = 0,
                         contract_version: str = 'latest',
                         **constructor_kwargs
-                        ) -> Tuple[VersionedContract, dict]:
+                        ) -> Tuple[VersionedContract, TxReceipt]:
         """
         Retrieve compiled interface data from the cache and
         return an instantiated deployed contract

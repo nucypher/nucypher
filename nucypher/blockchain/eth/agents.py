@@ -48,6 +48,7 @@ from nucypher.blockchain.eth.constants import (
     STAKING_ESCROW_CONTRACT_NAME,
     STAKING_INTERFACE_CONTRACT_NAME,
     STAKING_INTERFACE_ROUTER_CONTRACT_NAME,
+    TOKEN_MANAGER_CONTRACT_NAME,
     VOTING_CONTRACT_NAME,
     WORKLOCK_CONTRACT_NAME
 )
@@ -1635,6 +1636,27 @@ class VotingAgent(ForwarderAgent):
         contract_function = self.contract.functions.vote(vote_id, support_proposal, execute_if_decided)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return TxReceipt(receipt)
+
+
+class TokenManagerAgent(ForwarderAgent):
+
+    contract_name = TOKEN_MANAGER_CONTRACT_NAME
+
+    def _mint(self, receiver_address: ChecksumAddress, amount: int) -> ContractFunction:
+        function_call = self.contract.functions.mint(receiver_address, amount)
+        return function_call
+
+    def _issue(self, amount: int) -> ContractFunction:
+        function_call = self.contract.functions.issue(amount)
+        return function_call
+
+    def _assign(self, receiver_address: ChecksumAddress, amount: int) -> ContractFunction:
+        function_call = self.contract.functions.assign(receiver_address, amount)
+        return function_call
+
+    def _burn(self, holder_address: ChecksumAddress, amount: int) -> ContractFunction:
+        function_call = self.contract.functions.burn(holder_address, amount)
+        return function_call
 
 
 class ContractAgency:

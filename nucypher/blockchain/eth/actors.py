@@ -38,16 +38,17 @@ from nucypher.blockchain.economics import BaseEconomics, EconomicsFactory, Stand
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
+    ForwarderAgent,
     MultiSigAgent,
     NucypherTokenAgent,
     PolicyManagerAgent,
     PreallocationEscrowAgent,
-    StakingEscrowAgent,
-    WorkLockAgent,
     StakersReservoir,
-    ForwarderAgent,
+    StakingEscrowAgent,
+    TokenManagerAgent,
+    WorkLockAgent,
 )
-from nucypher.blockchain.eth.aragon import CallScriptCodec, TokenManagerTranslator
+from nucypher.blockchain.eth.aragon import CallScriptCodec
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import (
     only_me,
@@ -65,7 +66,7 @@ from nucypher.blockchain.eth.deployers import (
     StakingInterfaceRouterDeployer,
     WorklockDeployer
 )
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.registry import BaseContractRegistry, IndividualAllocationRegistry
 from nucypher.blockchain.eth.signers import KeystoreSigner, Signer, Web3Signer
@@ -2169,7 +2170,7 @@ class SecurityCouncilManager(DaoActor):  # TODO: Find a different name for this.
                  token_manager_address: ChecksumAddress,
                  standard_voting_address: ChecksumAddress,
                  aggregator_address: ChecksumAddress):
-        self.token_manager = TokenManagerTranslator(address=token_manager_address)  # TODO: Use some sort of registry
+        self.token_manager = TokenManagerAgent(address=token_manager_address)  # TODO: Use some sort of registry
         self.voting = ForwarderAgent(address=standard_voting_address)
         self.voting_aggregator = ForwarderAgent(address=aggregator_address)
 
@@ -2183,8 +2184,8 @@ class SecurityCouncilManager(DaoActor):  # TODO: Find a different name for this.
 
         # TODO: Additional checks? e.g., members_out have tokens, members_in don't, etc.
 
-        burn_calls = [self.token_manager.burn(holder_address=member, amount=1) for member in members_out]
-        mint_calls = [self.token_manager.mint(receiver_address=member, amount=1) for member in members_in]
+        burn_calls = [self.token_manager._burn(holder_address=member, amount=1) for member in members_out]
+        mint_calls = [self.token_manager._mint(receiver_address=member, amount=1) for member in members_in]
 
         calls = burn_calls + mint_calls
 
@@ -2201,6 +2202,4 @@ class SecurityCouncilManager(DaoActor):  # TODO: Find a different name for this.
         return receipt
 
 # TODO:
-# - Voting Agent, following the Forwarding interface
-# - Registry for DAO Contracts. Note that there may be repeated types of contracts (e.g., standard voting, council voting)
-# - Tests for DAO stuff requires mocking the DAO. We need stuff like MockTokenManager, MockVoting, etcda
+# - Tests for DAO stuff requires mocking the DAO. We need stuff like MockTokenManager, MockVoting, etc
