@@ -895,8 +895,12 @@ class Bob(Character):
             search_boundary += 2
 
             if search_boundary > 42:  # We've searched the entire string and can't match any.  TODO: Portable learning is a nice idea here.
-                # TODO: This fails in tests once in a while because there aren't matching nodes among the few test nodes.  Not sure what to do.
-                raise self.NotEnoughNodes
+                # Not enough matching nodes.  Fine, we'll just publish to the first few.
+                try:
+                    # TODO: This is almost certainly happening in a test.  If it does happen in production, it's a bit of a problem.  Need to fix #2124 to mitigate.
+                    target_nodes = nodes[0:6]
+                except IndexError:
+                    raise self.NotEnoughNodes("There aren't enough nodes on the network to enact this policy.  Unless this is day one of the network and nodes are still getting spun up, something is bonkers.")
 
             # TODO: 1995 all throughout here (we might not (need to) know the checksum address yet; canonical will do.)
             # This might be a performance issue above a few thousand nodes.

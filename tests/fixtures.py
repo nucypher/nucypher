@@ -210,7 +210,7 @@ def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry)
 
 
 @pytest.fixture(scope="module")
-def bob_blockchain_test_config(blockchain_ursulas, testerchain, test_registry):
+def bob_blockchain_test_config(testerchain, test_registry):
     config = make_bob_test_configuration(federated=False,
                                          provider_uri=TEST_PROVIDER_URI,
                                          test_registry=test_registry,
@@ -383,6 +383,8 @@ def federated_ursulas(ursula_federated_test_config):
         raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
     _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
                                       quantity=NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
+    # Since we mutate this list in some tests, it's not enough to remember and remove the Ursulas; we have to remember them by port.
+    # The same is true of blockchain_ursulas below.
     _ports_to_remove = [ursula.rest_interface.port for ursula in _ursulas]
     yield _ursulas
 
@@ -583,11 +585,11 @@ def _make_agency(testerchain,
                                          registry=test_registry)
     worklock_deployer.deploy()
 
-    token_agent = token_deployer.make_agent()  # 1 Token
-    staking_agent = staking_escrow_deployer.make_agent()  # 2 Staking Escrow
-    policy_agent = policy_manager_deployer.make_agent()  # 3 Policy Agent
-    _adjudicator_agent = adjudicator_deployer.make_agent()  # 4 Adjudicator
-    _worklock_agent = worklock_deployer.make_agent()  # 5 Worklock
+    token_agent = token_deployer.make_agent()                           # 1 Token
+    staking_agent = staking_escrow_deployer.make_agent()                # 2 Staking Escrow
+    policy_agent = policy_manager_deployer.make_agent()                 # 3 Policy Agent
+    _adjudicator_agent = adjudicator_deployer.make_agent()              # 4 Adjudicator
+    _worklock_agent = worklock_deployer.make_agent()                    # 5 Worklock
 
     # Set additional parameters
     minimum, default, maximum = FEE_RATE_RANGE
