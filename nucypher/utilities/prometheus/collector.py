@@ -135,8 +135,11 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
                                      'missing_commitments': str(missing_commitments)}
             base_payload.update(decentralized_payload)
 
-            # TODO should this be here?
-            self.metrics["policies_held_gauge"].set(len(self.ursula.datastore.get_all_policy_arrangements()))
+            try:
+                with self.ursula.datastore.query_by(PolicyArrangement) as policy_arrangements:
+                    self.metrics["policies_held_gauge"].set(len(policy_arrangements))
+            except RecordNotFound:
+                self.metrics["policies_held_gauge"].set(0)
 
         self.metrics["host_info"].info(base_payload)
 
