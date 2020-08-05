@@ -20,6 +20,7 @@ import time
 from collections import defaultdict
 from collections import deque
 from contextlib import suppress
+from queue import Queue
 from typing import Set, Tuple, Union
 
 import maya
@@ -76,6 +77,7 @@ class NodeSprout(PartiallyKwargifiedBytes):
             self.timestamp)  # Weird for this to be in init. maybe this belongs in the splitter also.
         self._repr = None
         self._is_finishing = False
+        self._finishing_mutex = Queue()
 
     def __hash__(self):
         if not self._hash:
@@ -114,11 +116,11 @@ class NodeSprout(PartiallyKwargifiedBytes):
         return self._nickname
 
     def mature(self):
-        # TODO: Something is fishy here.  Another race condition maybe.  Sometimes raises AttributeError because Ursula doesn't have _finished_values.
-        # This might need a mutex.
         if self._is_finishing:
-            return self
+            return self._finishing_mutex.get()
+
         self._is_finishing = True  # Prevent reentrance.
+        _finishing_mutex = self._finishing_mutex
 
         mature_node = self.finish()
         self.__class__ = mature_node.__class__
@@ -128,6 +130,7 @@ class NodeSprout(PartiallyKwargifiedBytes):
         filepath = mature_node._cert_store_function(certificate=mature_node.certificate)
         mature_node.certificate_filepath = filepath
 
+        _finishing_mutex.put(self)
         return self  # To reduce the awkwardity of renaming; this is always the weird part of polymorphism for me.
 
 
