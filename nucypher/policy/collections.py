@@ -294,6 +294,9 @@ class PolicyCredential:
 class WorkOrder:
 
     class PRETask:
+
+        splitter = capsule_splitter + signature_splitter # splitter for task without cfrag and signature TODO: should we formalize this?
+
         def __init__(self, capsule, signature, cfrag=None, cfrag_signature=None):
             self.capsule = capsule
             self.signature = signature
@@ -316,8 +319,7 @@ class WorkOrder:
 
         @classmethod
         def from_bytes(cls, data: bytes):
-            item_splitter = capsule_splitter + signature_splitter
-            capsule, signature, remainder = item_splitter(data, return_remainder=True)
+            capsule, signature, remainder = cls.splitter(data, return_remainder=True)
             if remainder:
                 remainder_splitter = BytestringSplitter((CapsuleFrag, VariableLengthBytestring), Signature)
                 cfrag, reencryption_signature = remainder_splitter(remainder)
@@ -391,22 +393,17 @@ class WorkOrder:
     @classmethod
     def from_rest_payload(cls, arrangement_id, rest_payload, ursula, alice_address):
 
-        payload_splitter = BytestringSplitter(Signature) + key_splitter
-        payload_elements = payload_splitter(rest_payload, msgpack_remainder=True)
+        payload_splitter = BytestringSplitter(Signature) + key_splitter + BytestringSplitter(32)
 
-        signature, bob_verifying_key, (tasks_bytes, blockhash) = payload_elements
-
+        signature, bob_verifying_key, blockhash, remainder = payload_splitter(rest_payload, return_remainder=True)
+        tasks = [cls.PRETask(*args) for args in cls.PRETask.splitter.repeat(remainder)]
         # TODO: check freshness of blockhash?
 
         ursula_identity_evidence = b''
         if ursula._stamp_has_valid_signature_by_worker():
             ursula_identity_evidence = ursula.decentralized_identity_evidence
 
-        tasks = []
-        for task_bytes in tasks_bytes:
-            task = cls.PRETask.from_bytes(task_bytes)
-            tasks.append(task)
-
+        for task in tasks:
             # Each task signature has to match the original specification
             specification = task.get_specification(ursula.stamp,
                                                    alice_address,
@@ -431,9 +428,12 @@ class WorkOrder:
                    receipt_signature=signature)
 
     def payload(self):
-        tasks_bytes = [bytes(item) for item in self.tasks.values()]
-        payload_elements = msgpack.dumps((tasks_bytes, self.blockhash))
-        return bytes(self.receipt_signature) + self.bob.stamp + payload_elements
+        """
+        Creates a serialized workorder called either by Bob requesting a reencryption or by Ursula
+        re-encrypting
+        """
+        tasks_bytes = b''.join(bytes(item) for item in self.tasks.values())
+        return bytes(self.receipt_signature) + self.bob.stamp + self.blockhash + tasks_bytes
 
     def complete(self, cfrags_and_signatures):
         good_cfrags = []
