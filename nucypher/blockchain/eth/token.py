@@ -504,7 +504,7 @@ def validate_merge(stake_1: Stake, stake_2: Stake) -> None:
                                  f'Selected stakes have the same index {stake_1.index}.')
 
     if stake_1.final_locked_period != stake_2.final_locked_period:
-        raise Stake.StakingError(f'Both stakes must have the same final locked period. '
+        raise Stake.StakingError(f'Both stakes must have the same unlock date. '
                                  f'Selected stakes expired {stake_1.unlock_datetime} and {stake_2.unlock_datetime}.')
 
     status = stake_1.status()

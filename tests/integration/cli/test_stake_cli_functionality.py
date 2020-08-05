@@ -1078,6 +1078,54 @@ def test_merge_interactive(click_runner,
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_merge_partially_interactive(click_runner,
+                                     mocker,
+                                     surrogate_staker,
+                                     surrogate_stakes,
+                                     mock_staking_agent,
+                                     token_economics,
+                                     mock_testerchain):
+    mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
+
+    sub_stake_index_1 = 1
+    sub_stake_index_2 = 2
+
+    base_command = ('merge',
+                    '--provider', MOCK_PROVIDER_URI,
+                    '--network', TEMPORARY_DOMAIN,
+                    '--staking-address', surrogate_staker.checksum_address)
+    user_input = '\n'.join((str(sub_stake_index_2),
+                            YES,
+                            INSECURE_DEVELOPMENT_PASSWORD))
+
+    command = base_command + ('--index-1', sub_stake_index_1)
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    final_period = surrogate_stakes[sub_stake_index_1].last_period
+    assert ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE.format(final_period=final_period) in result.output
+    assert CONFIRM_MERGE.format(stake_index_1=sub_stake_index_1, stake_index_2=sub_stake_index_2) in result.output
+    assert SUCCESSFUL_STAKES_MERGE in result.output
+
+    command = base_command + ('--index-2', sub_stake_index_1)
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    final_period = surrogate_stakes[sub_stake_index_1].last_period
+    assert ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE.format(final_period=final_period) in result.output
+    assert CONFIRM_MERGE.format(stake_index_1=sub_stake_index_1, stake_index_2=sub_stake_index_2) in result.output
+    assert SUCCESSFUL_STAKES_MERGE in result.output
+
+    mock_staking_agent.get_all_stakes.assert_called()
+    mock_staking_agent.get_current_period.assert_called()
+    mock_refresh_stakes.assert_called()
+    mock_staking_agent.merge_stakes.assert_called_with(staker_address=surrogate_staker.checksum_address,
+                                                       stake_index_1=sub_stake_index_1,
+                                                       stake_index_2=sub_stake_index_2)
+    mock_staking_agent.assert_only_transactions([mock_staking_agent.merge_stakes])
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_merge_non_interactive(click_runner,
                                mocker,
                                surrogate_staker,
@@ -1087,7 +1135,6 @@ def test_merge_non_interactive(click_runner,
                                mock_testerchain):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
-    selected_index = 0
     sub_stake_index_1 = 1
     sub_stake_index_2 = 2
 

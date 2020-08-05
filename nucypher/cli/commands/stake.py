@@ -908,8 +908,7 @@ def merge(general_config, transacting_staker_options, config_file, force, index_
         force=force)
 
     # Handle stakes selection
-    stake_1 = None
-    stake_2 = None
+    stake_1, stake_2 = None, None
 
     if index_1 is not None and index_2 is not None:
         stake_1 = STAKEHOLDER.stakes[index_1]
@@ -917,7 +916,7 @@ def merge(general_config, transacting_staker_options, config_file, force, index_
     elif index_1 is not None:  # 0 is valid.
         stake_1 = STAKEHOLDER.stakes[index_1]
     elif index_2 is not None:
-        stake_2 = STAKEHOLDER.stakes[index_1]
+        stake_1 = STAKEHOLDER.stakes[index_2]
 
     if stake_1 is None:
         stake_1 = select_stake(staker=STAKEHOLDER, emitter=emitter)

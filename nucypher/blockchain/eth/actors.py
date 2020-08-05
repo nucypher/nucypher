@@ -883,17 +883,22 @@ class Staker(NucypherTokenActor):
                         parent_status: Stake.Status = None,
                         filter_function: Callable[[Stake], bool] = None
                         ) -> Iterable[Stake]:
-        """Returns stakes for this staker which filtered by specified or child status or by provided function."""
+        """Returns stakes for this staker which filtered by status or by a provided function."""
         if not parent_status and not filter_function:
-            raise ValueError(f"Pass parent status or filter function or both.")
+            raise ValueError("Pass parent status or filter function or both.")
 
         # Read once from chain and reuse these values
         staker_info = self.staking_agent.get_staker_info(self.checksum_address)  # TODO related to #1514
         current_period = self.staking_agent.get_current_period()                 # TODO #1514 this is online only.
 
-        stakes = (stake for stake in self.stakes
-                  if (parent_status is None or stake.status(staker_info, current_period).is_child(parent_status)) and
-                  (filter_function is None or filter_function(stake)))
+        stakes = list()
+        for stake in self.stakes:
+            if parent_status and not stake.status(staker_info, current_period).is_child(parent_status):
+                continue
+            if filter_function and not filter_function(stake):
+                continue
+            stakes.append(stake)
+
         return stakes
 
     def sorted_stakes(self,
@@ -901,8 +906,11 @@ class Staker(NucypherTokenActor):
                       filter_function: Callable[[Stake], bool] = None
                       ) -> List[Stake]:
         """Returns a list of filtered stakes sorted by account wallet index."""
-        filtered_stakes = self.filtered_stakes(parent_status, filter_function) \
-            if parent_status is not None or filter_function is not None else self.stakes
+        if parent_status is not None or filter_function is not None:
+            filtered_stakes = self.filtered_stakes(parent_status, filter_function)
+        else:
+            filtered_stakes = self.stakes
+
         stakes = sorted(filtered_stakes, key=lambda s: s.address_index_ordering_key)
         return stakes
 

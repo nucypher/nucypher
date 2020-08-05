@@ -362,7 +362,7 @@ def test_no_stakes_with_filter_function(test_emitter,
                      filter_function=lambda stake: stake.final_locked_period == current_period)
 
     # Divisible warning was displayed, but having
-    # no divisible stakes cases an expected failure
+    # no divisible stakes causes an expected failure
     captured = capsys.readouterr()
     assert NO_STAKES_FOUND in captured.out
     assert_stake_table_not_painted(output=captured.out)
