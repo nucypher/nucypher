@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 
 import "contracts/PolicyManager.sol";
@@ -12,7 +12,7 @@ import "contracts/StakingEscrow.sol";
 */
 contract PolicyManagerBad is PolicyManager {
 
-    constructor(StakingEscrow _escrow) public PolicyManager(_escrow) {
+    constructor(StakingEscrow _escrow) PolicyManager(_escrow) {
     }
 
     function getNodeFeeDelta(address, uint16) public view override returns (int256) {}
@@ -27,7 +27,7 @@ contract PolicyManagerV2Mock is PolicyManager {
 
     uint256 public valueToCheck;
 
-    constructor(StakingEscrow _escrow) public PolicyManager(_escrow) {
+    constructor(StakingEscrow _escrow) PolicyManager(_escrow) {
     }
 
     function setValueToCheck(uint256 _valueToCheck) public {
@@ -60,7 +60,7 @@ contract StakingEscrowForPolicyMock {
     /**
     * @param _hoursPerPeriod Size of period in hours
     */
-    constructor(uint16 _hoursPerPeriod) public {
+    constructor(uint16 _hoursPerPeriod) {
         secondsPerPeriod = uint32(_hoursPerPeriod * 1 hours);
     }
 
@@ -159,7 +159,7 @@ contract StakingEscrowForPolicyMock {
 */
 contract ExtendedPolicyManager is PolicyManager {
 
-    constructor(StakingEscrow _escrow) public PolicyManager(_escrow) {
+    constructor(StakingEscrow _escrow) PolicyManager(_escrow) {
     }
 
     function setNodeFeeDelta(address _node, uint16 _period, int256 _value) external {

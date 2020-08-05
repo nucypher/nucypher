@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 
 import "contracts/NuCypherToken.sol";
@@ -87,9 +87,7 @@ abstract contract Issuer is Upgradeable {
         uint16 _maximumRewardedPeriods,
         uint256 _firstPhaseTotalSupply,
         uint256 _firstPhaseMaxIssuance
-    )
-        public
-    {
+    ) {
         uint256 localTotalSupply = _token.totalSupply();
         require(localTotalSupply > 0 &&
             _issuanceDecayCoefficient != 0 &&

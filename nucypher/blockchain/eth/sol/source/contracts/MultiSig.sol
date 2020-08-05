@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.6.1;
+pragma solidity ^0.7.0;
 
 
 import "zeppelin/math/SafeMath.sol";
@@ -38,7 +38,7 @@ contract MultiSig {
     * @param _required Number of required signings
     * @param _owners List of initial owners.
     */
-    constructor (uint8 _required, address[] memory _owners) public {
+    constructor (uint8 _required, address[] memory _owners) {
         require(_owners.length <= MAX_OWNER_COUNT &&
             _required <= _owners.length &&
             _required > 0);

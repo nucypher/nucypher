@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.6.1;
+pragma solidity ^0.7.0;
 
 
 import "zeppelin/token/ERC20/ERC20.sol";
@@ -18,7 +18,7 @@ contract NuCypherToken is ERC20, ERC20Detailed('NuCypher', 'NU', 18) {
     * @notice Set amount of tokens
     * @param _totalSupplyOfTokens Total number of tokens
     */
-    constructor (uint256 _totalSupplyOfTokens) public {
+    constructor (uint256 _totalSupplyOfTokens) {
         _mint(msg.sender, _totalSupplyOfTokens);
     }
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.6.1;
+pragma solidity ^0.7.0;
 
 
 import "./ContractV1.sol";
@@ -63,7 +63,7 @@ contract ContractV2BadStorage is Upgradeable {
 */
 contract ContractV2BadVerifyState is ContractV1(1) {
 
-    function verifyState(address) public override {
+    function verifyState(address) public pure override {
         revert();
     }
 

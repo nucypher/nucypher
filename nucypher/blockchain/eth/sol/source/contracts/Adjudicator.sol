@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 import "contracts/lib/ReEncryptionValidator.sol";
 import "contracts/lib/SignatureVerifier.sol";
@@ -59,9 +59,7 @@ contract Adjudicator is Upgradeable {
         uint256 _penaltyHistoryCoefficient,
         uint256 _percentagePenaltyCoefficient,
         uint256 _rewardCoefficient
-    )
-        public
-    {
+    ) {
         // Sanity checks.
         require(_escrow.secondsPerPeriod() > 0 &&  // This contract has an escrow, and it's not the null address.
             // The reward and penalty coefficients are set.
