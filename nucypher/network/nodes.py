@@ -174,7 +174,7 @@ class Learner:
         pass
 
     class NotEnoughTeachers(NotEnoughNodes):
-        pass
+        crash_right_now = True
 
     class UnresponsiveTeacher(ConnectionError):
         pass
