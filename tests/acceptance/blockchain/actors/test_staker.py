@@ -303,6 +303,10 @@ def test_staker_manages_winding_down(testerchain,
                                         commit_to_next_period=False,
                                         registry=test_registry).pop()
 
+    # Unlock
+    transacting_power = ursula._crypto_power.power_ups(TransactingPower)
+    transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
+
     # Enable winding down
     testerchain.time_travel(periods=1)
     base_duration = token_economics.minimum_locked_periods + 4
