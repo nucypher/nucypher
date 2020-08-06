@@ -440,9 +440,10 @@ class BlockchainInterface:
                 # https://www.jsonrpc.org/specification Section 5.1
                 raise exception
             self.log.critical(message)                     # simple context
-            raise self.TransactionFailed(message=message,  # rich error (best case)
-                                         contract_function=contract_function,
-                                         transaction_dict=transaction_dict)
+            transaction_failed = self.TransactionFailed(message=message,  # rich error (best case)
+                                                        contract_function=contract_function,
+                                                        transaction_dict=transaction_dict)
+            raise transaction_failed from exception
 
     def __log_transaction(self, transaction_dict: dict, contract_function: ContractFunction):
         """
