@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 
 import "contracts/StakingEscrow.sol";
@@ -10,6 +10,7 @@ import "contracts/NuCypherToken.sol";
 * @notice Enhanced version of StakingEscrow to use in tests
 */
 contract EnhancedStakingEscrow is StakingEscrow {
+    using AdditionalMath for uint16;
 
     constructor(
         NuCypherToken _token,
@@ -26,7 +27,6 @@ contract EnhancedStakingEscrow is StakingEscrow {
         uint16 _minWorkerPeriods,
         bool _isTestContract
     )
-        public
         StakingEscrow(
             _token,
             _hoursPerPeriod,
@@ -83,7 +83,6 @@ contract StakingEscrowBad is StakingEscrow {
         uint16 _minWorkerPeriods,
         bool _isTestContract
     )
-        public
         StakingEscrow(
             _token,
             _hoursPerPeriod,
@@ -130,7 +129,6 @@ contract StakingEscrowV2Mock is StakingEscrow {
         bool _isTestContract,
         uint256 _valueToCheck
     )
-        public
         StakingEscrow(
             _token,
             _hoursPerPeriod,
@@ -175,7 +173,7 @@ contract PolicyManagerForStakingEscrowMock {
     StakingEscrow public immutable escrow;
     mapping (address => uint16[]) public nodes;
 
-    constructor(address, StakingEscrow _escrow) public {
+    constructor(address, StakingEscrow _escrow) {
         escrow = _escrow;
     }
 
@@ -209,7 +207,7 @@ contract AdjudicatorForStakingEscrowMock {
 
     StakingEscrow public immutable escrow;
 
-    constructor(StakingEscrow _escrow) public {
+    constructor(StakingEscrow _escrow) {
         escrow = _escrow;
     }
 
@@ -233,7 +231,7 @@ contract Intermediary {
     NuCypherToken immutable token;
     StakingEscrow immutable escrow;
 
-    constructor(NuCypherToken _token, StakingEscrow _escrow) public {
+    constructor(NuCypherToken _token, StakingEscrow _escrow) {
         token = _token;
         escrow = _escrow;
     }
@@ -261,7 +259,7 @@ contract WorkLockForStakingEscrowMock {
 
     StakingEscrow public immutable escrow;
 
-    constructor(StakingEscrow _escrow) public {
+    constructor(StakingEscrow _escrow) {
         escrow = _escrow;
     }
 

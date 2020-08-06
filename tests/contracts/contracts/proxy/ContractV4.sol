@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.6.1;
+pragma solidity ^0.7.0;
 
 
 import "contracts/proxy/Upgradeable.sol";
@@ -48,7 +48,7 @@ contract ContractV4 is Upgradeable {
     uint256 reservedSlot12;
     uint256 public anotherStorageValue;
 
-    constructor(uint256 _storageValueToCheck) public {
+    constructor(uint256 _storageValueToCheck) {
         setStorageValueToCheck(_storageValueToCheck);
     }
 

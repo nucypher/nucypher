@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 
 import "contracts/staking_contracts/AbstractStakingContract.sol";
@@ -33,9 +33,7 @@ contract BaseStakingInterface {
         StakingEscrow _escrow,
         PolicyManager _policyManager,
         WorkLock _workLock
-    )
-        public
-    {
+    ) {
         require(_token.totalSupply() > 0 &&
             _escrow.secondsPerPeriod() > 0 &&
             _policyManager.secondsPerPeriod() > 0 &&
@@ -110,7 +108,7 @@ contract StakingInterface is BaseStakingInterface {
         PolicyManager _policyManager,
         WorkLock _workLock
     )
-        public BaseStakingInterface(_token, _escrow, _policyManager, _workLock)
+        BaseStakingInterface(_token, _escrow, _policyManager, _workLock)
     {
     }
 

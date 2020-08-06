@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.6.1;
+pragma solidity ^0.7.0;
 
 
 import "./IERC20.sol";
@@ -17,7 +17,7 @@ abstract contract ERC20Detailed is IERC20 {
     string private _symbol;
     uint8 private _decimals;
 
-    constructor (string memory name, string memory symbol, uint8 decimals) public {
+    constructor (string memory name, string memory symbol, uint8 decimals) {
         _name = name;
         _symbol = symbol;
         _decimals = decimals;

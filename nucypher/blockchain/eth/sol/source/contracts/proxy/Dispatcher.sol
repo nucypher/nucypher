@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.6.1;
+pragma solidity ^0.7.0;
 
 
 import "./Upgradeable.sol";
@@ -39,7 +39,7 @@ contract Dispatcher is Upgradeable, ERCProxy {
     /**
     * @param _target Target contract address
     */
-    constructor(address _target) public upgrading {
+    constructor(address _target) upgrading {
         require(_target.isContract());
         // Checks that target contract inherits Dispatcher state
         verifyState(_target);

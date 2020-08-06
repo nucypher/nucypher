@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.6.1;
+pragma solidity ^0.7.0;
 
 
 import "contracts/proxy/Upgradeable.sol";
@@ -14,7 +14,7 @@ contract Destroyable is Upgradeable {
     uint256 public constructorValue;
     uint256 public functionValue;
 
-    constructor(uint256 _constructorValue) public {
+    constructor(uint256 _constructorValue) {
         constructorValue = _constructorValue;
     }
 

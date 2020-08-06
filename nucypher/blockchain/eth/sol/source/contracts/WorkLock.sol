@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 
 import "zeppelin/math/SafeMath.sol";
@@ -103,9 +103,7 @@ contract WorkLock is Ownable {
         uint256 _boostingRefund,
         uint16 _stakingPeriods,
         uint256 _minAllowedBid
-    )
-        public
-    {
+    ) {
         uint256 totalSupply = _token.totalSupply();
         require(totalSupply > 0 &&                              // token contract is deployed and accessible
             _escrow.secondsPerPeriod() > 0 &&                   // escrow contract is deployed and accessible

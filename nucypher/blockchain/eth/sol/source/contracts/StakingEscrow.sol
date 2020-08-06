@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 
 import "aragon/interfaces/IERC900History.sol";
@@ -8,6 +8,7 @@ import "contracts/Issuer.sol";
 import "contracts/lib/Bits.sol";
 import "contracts/lib/Snapshot.sol";
 import "zeppelin/math/SafeMath.sol";
+import "zeppelin/token/ERC20/SafeERC20.sol";
 
 
 /**
@@ -49,6 +50,7 @@ contract StakingEscrow is Issuer, IERC900History {
     using Bits for uint256;
     using SafeMath for uint256;
     using Snapshot for uint128[];
+    using SafeERC20 for NuCypherToken;
 
     event Deposited(address indexed staker, uint256 value, uint16 periods);
     event Locked(address indexed staker, uint256 value, uint16 firstPeriod, uint16 periods);
@@ -186,7 +188,6 @@ contract StakingEscrow is Issuer, IERC900History {
         uint16 _minWorkerPeriods,
         bool _isTestContract
     )
-        public
         Issuer(
             _token,
             _hoursPerPeriod,

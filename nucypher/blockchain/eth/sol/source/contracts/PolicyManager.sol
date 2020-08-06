@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 
 import "zeppelin/token/ERC20/SafeERC20.sol";
@@ -16,7 +16,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 /**
 * @notice Contract holds policy data and locks accrued policy fees
-* @dev |v6.1.1|
+* @dev |v6.1.2|
 */
 contract PolicyManager is Upgradeable {
     using SafeERC20 for NuCypherToken;
@@ -88,6 +88,14 @@ contract PolicyManager is Upgradeable {
         mapping (uint16 => int256) feeDelta;
     }
 
+    // TODO used only for `delegateGetNodeInfo`, probably will be removed after #1512
+    struct MemoryNodeInfo {
+        uint128 fee;
+        uint16 previousFeePeriod;
+        uint256 feeRate;
+        uint256 minFeeRate;
+    }
+
     struct Range {
         uint128 min;
         uint128 defaultValue;
@@ -111,7 +119,7 @@ contract PolicyManager is Upgradeable {
     * @notice Constructor sets address of the escrow contract
     * @param _escrow Escrow contract
     */
-    constructor(StakingEscrow _escrow) public {
+    constructor(StakingEscrow _escrow) {
         // if the input address is not the StakingEscrow then calling `secondsPerPeriod` will throw error
         uint32 localSecondsPerPeriod = _escrow.secondsPerPeriod();
         require(localSecondsPerPeriod > 0);
@@ -683,7 +691,7 @@ contract PolicyManager is Upgradeable {
     * @dev Get NodeInfo structure by delegatecall
     */
     function delegateGetNodeInfo(address _target, address _node)
-        internal returns (NodeInfo memory result)
+        internal returns (MemoryNodeInfo memory result)
     {
         bytes32 memoryAddress = delegateGetData(_target, this.nodes.selector, 1, bytes32(uint256(_node)), 0);
         assembly {
@@ -729,7 +737,7 @@ contract PolicyManager is Upgradeable {
         }
 
         NodeInfo storage nodeInfo = nodes[RESERVED_NODE];
-        NodeInfo memory nodeInfoToCheck = delegateGetNodeInfo(_testTarget, RESERVED_NODE);
+        MemoryNodeInfo memory nodeInfoToCheck = delegateGetNodeInfo(_testTarget, RESERVED_NODE);
         require(nodeInfoToCheck.fee == nodeInfo.fee &&
             nodeInfoToCheck.feeRate == nodeInfo.feeRate &&
             nodeInfoToCheck.previousFeePeriod == nodeInfo.previousFeePeriod &&

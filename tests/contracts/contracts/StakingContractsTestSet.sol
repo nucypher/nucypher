@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 
 import "contracts/NuCypherToken.sol";
@@ -24,7 +24,7 @@ contract StakingEscrowForStakingContractMock {
     address public worker;
     bool public windDown;
 
-    constructor(NuCypherToken _token) public {
+    constructor(NuCypherToken _token) {
         token = _token;
     }
 
@@ -241,11 +241,13 @@ contract DestroyableStakingInterface {
 * @notice Simple implementation of AbstractStakingContract
 */
 contract SimpleStakingContract is AbstractStakingContract, Ownable {
+    using SafeERC20 for NuCypherToken;
+    using Address for address payable;
 
     /**
     * @param _router Address of the StakingInterfaceRouter contract
     */
-    constructor(StakingInterfaceRouter _router) public AbstractStakingContract(_router) {}
+    constructor(StakingInterfaceRouter _router) AbstractStakingContract(_router) {}
 
     /**
     * @notice Withdraw available amount of tokens to owner
@@ -267,7 +269,7 @@ contract SimpleStakingContract is AbstractStakingContract, Ownable {
     /**
     * @notice Calling fallback function is allowed only for the owner
     */
-    function isFallbackAllowed() public override returns (bool) {
+    function isFallbackAllowed() public view override returns (bool) {
         return msg.sender == owner();
     }
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 
 import "zeppelin/ownership/Ownable.sol";
@@ -14,6 +14,8 @@ import "contracts/staking_contracts/AbstractStakingContract.sol";
 */
 contract PreallocationEscrow is AbstractStakingContract, Ownable {
     using SafeMath for uint256;
+    using SafeERC20 for NuCypherToken;
+    using Address for address payable;
 
     event TokensDeposited(address indexed sender, uint256 value, uint256 duration);
     event TokensWithdrawn(address indexed owner, uint256 value);
@@ -27,7 +29,7 @@ contract PreallocationEscrow is AbstractStakingContract, Ownable {
     /**
     * @param _router Address of the StakingInterfaceRouter contract
     */
-    constructor(StakingInterfaceRouter _router) public AbstractStakingContract(_router) {
+    constructor(StakingInterfaceRouter _router) AbstractStakingContract(_router) {
         stakingEscrow = _router.target().escrow();
     }
 
@@ -131,7 +133,7 @@ contract PreallocationEscrow is AbstractStakingContract, Ownable {
     /**
     * @notice Calling fallback function is allowed only for the owner
     */
-    function isFallbackAllowed() public override returns (bool) {
+    function isFallbackAllowed() public view override returns (bool) {
         return msg.sender == owner();
     }
 

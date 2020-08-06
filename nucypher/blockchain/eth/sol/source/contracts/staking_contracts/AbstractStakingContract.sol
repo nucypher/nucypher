@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 
 import "zeppelin/ownership/Ownable.sol";
@@ -18,7 +18,7 @@ contract StakingInterfaceRouter is Ownable {
     /**
     * @param _target Address of the interface contract
     */
-    constructor(BaseStakingInterface _target) public {
+    constructor(BaseStakingInterface _target) {
         require(address(_target.token()) != address(0));
         target = _target;
     }
@@ -51,7 +51,7 @@ abstract contract AbstractStakingContract {
     /**
     * @param _router Interface router contract address
     */
-    constructor(StakingInterfaceRouter _router) public {
+    constructor(StakingInterfaceRouter _router) {
         router = _router;
         NuCypherToken localToken = _router.target().token();
         require(address(localToken) != address(0));
