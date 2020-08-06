@@ -847,22 +847,19 @@ class Learner:
         #
         try:
             signature, node_payload = signature_splitter(response.content, return_remainder=True)
-        except BytestringSplittingError as e:
+        except BytestringSplittingError:
             self.log.warn("No signature prepended to Teacher {} payload: {}".format(current_teacher, response.content))
             return
 
         try:
             self.verify_from(current_teacher, node_payload, signature=signature)
-        except InvalidSignature as e:
-            self.suspicious_activities_witnessed['vladimirs'].append(
-                ('Node payload improperly signed', node_payload, signature))
-            self.log.warn(
-                f"Invalid signature ({signature}) received from teacher {current_teacher} for payload {node_payload}")
+        except Learner.InvalidSignature:  # TODO: Ensure wev've got the right InvalidSignature exception here
+            self.suspicious_activities_witnessed['vladimirs'].append(('Node payload improperly signed', node_payload, signature))
+            self.log.warn(f"Invalid signature ({signature}) received from teacher {current_teacher} for payload {node_payload}")
 
         # End edge case handling.
-        fleet_state_checksum_bytes, fleet_state_updated_bytes, node_payload = FleetSensor.snapshot_splitter(
-            node_payload,
-            return_remainder=True)
+        payload = FleetSensor.snapshot_splitter(node_payload, return_remainder=True)
+        fleet_state_checksum_bytes, fleet_state_updated_bytes, node_payload = payload
 
         current_teacher.last_seen = maya.now()
         # TODO: This is weird - let's get a stranger FleetState going.  NRN
@@ -900,30 +897,31 @@ class Learner:
                               f"Cannot establish connection to {sprout}.")
 
             # TODO: This whole section is weird; sprouts down have any of these things.
-            # except sprout.StampNotSigned:
-            #     self.log.warn(f'Verification Failed - '
-            #                   f'{sprout} stamp is unsigned.')
-            #
-            # except sprout.NotStaking:
-            #     self.log.warn(f'Verification Failed - '
-            #                   f'{sprout} has no active stakes in the current period '
-            #                   f'({self.staking_agent.get_current_period()}')
-            #
-            # except sprout.InvalidWorkerSignature:
-            #     self.log.warn(f'Verification Failed - '
-            #                   f'{sprout} has an invalid wallet signature for {sprout.decentralized_identity_evidence}')
-            #
-            # except sprout.UnbondedWorker:
-            #     self.log.warn(f'Verification Failed - '
-            #                   f'{sprout} is not bonded to a Staker.')
-            #
-            # # except sprout.Invalidsprout:
-            # #     self.log.warn(sprout.invalid_metadata_message.format(sprout))
-            #
-            # except sprout.SuspiciousActivity:
-            #     message = f"Suspicious Activity: Discovered sprout with bad signature: {sprout}." \
-            #               f"Propagated by: {current_teacher}"
-            #     self.log.warn(message)
+            except sprout.StampNotSigned:
+                self.log.warn(f'Verification Failed - '
+                              f'{sprout} stamp is unsigned.')
+
+            except sprout.NotStaking:
+                self.log.warn(f'Verification Failed - '
+                              f'{sprout} has no active stakes in the current period '
+                              f'({self.staking_agent.get_current_period()}')
+
+            except sprout.InvalidWorkerSignature:
+                self.log.warn(f'Verification Failed - '
+                              f'{sprout} has an invalid wallet signature for {sprout.decentralized_identity_evidence}')
+
+            except sprout.UnbondedWorker:
+                self.log.warn(f'Verification Failed - '
+                              f'{sprout} is not bonded to a Staker.')
+
+            # TODO: Handle invalid sprouts
+            # except sprout.Invalidsprout:
+            #     self.log.warn(sprout.invalid_metadata_message.format(sprout))
+
+            except sprout.SuspiciousActivity:
+                message = f"Suspicious Activity: Discovered sprout with bad signature: {sprout}." \
+                          f"Propagated by: {current_teacher}"
+                self.log.warn(message)
 
         # Is cycling happening in the right order?
         current_teacher.update_snapshot(checksum=checksum,
