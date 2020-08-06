@@ -17,6 +17,7 @@
 
 import os
 
+import pytest
 from eth_utils import is_checksum_address, to_checksum_address
 
 from nucypher.blockchain.eth.actors import ContractAdministrator
@@ -55,6 +56,7 @@ def test_geth_create_new_account(instant_geth_dev_node):
     assert is_checksum_address(new_account)
 
 
+@pytest.mark.skip('See PR #2074')
 @skip_on_circleci
 def test_geth_deployment_integration(instant_geth_dev_node, test_registry):
     blockchain = BlockchainDeployerInterface(provider_process=instant_geth_dev_node, poa=True)  # always poa here.
