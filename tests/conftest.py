@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from collections import defaultdict
 
 import pytest
 
@@ -35,6 +36,9 @@ TEACHER_NODES = dict()
 
 # Prevent halting the reactor via health checks during tests
 AvailabilityTracker._halt_reactor = lambda *a, **kw: True
+
+# Global test character cache
+global_mutable_where_everybody = defaultdict(list)
 
 ##########################################
 
