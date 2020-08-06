@@ -495,10 +495,20 @@ class Learner:
         A facility for crashing more gracefully in the event that an exception
         is unhandled in a different thread, especially inside a loop like the acumen loop, Alice's publication loop, or Bob's retrieval loop..
         """
+
         self._crashed = failure
+
+        # TODO: Maybe patch this in tests too?
+        from tests.conftest import global_mutable_where_everybody
+        gmwe = global_mutable_where_everybody
+
         failure.raiseException()
         # TODO: We don't actually have checksum_address at this level - maybe only Characters can crash gracefully :-)  1711
         self.log.critical("{} crashed with {}".format(self.checksum_address, failure))
+
+
+        pytest.fail()
+        reactor.stop()
 
     def select_teacher_nodes(self):
         nodes_we_know_about = self.known_nodes.shuffled()
