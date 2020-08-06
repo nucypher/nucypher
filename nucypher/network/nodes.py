@@ -265,7 +265,6 @@ class Learner:
         self._init_frames = frames
         from tests.conftest import global_mutable_where_everybody
 
-
         for frame in frames:
             try:
                 test_name = frame.frame.f_locals['request'].module.__name__
