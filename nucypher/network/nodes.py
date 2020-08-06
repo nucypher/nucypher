@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import contextlib
+import inspect
 import time
 from collections import defaultdict
 from collections import deque
@@ -24,6 +25,7 @@ from queue import Queue
 from typing import Set, Tuple, Union
 
 import maya
+import pytest
 import requests
 from cryptography.exceptions import InvalidSignature
 from cryptography.x509 import Certificate
@@ -248,16 +250,37 @@ class Learner:
 
         self.teacher_nodes = deque()
         self._current_teacher_node = None  # type: Teacher
-        self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
+        # self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
 
-        # Some debugging shit.
+        # Some debugging shit.  TODO: Maybe move this to a test patch?
         # Very slow, but provides useful info when trying to track down a stray Character.
         # Seems mostly useful for Bob or federated Ursulas, but perhaps useful for other Characters as well.
-        # import inspect
-        # frames = inspect.stack(3)
-        # self._learning_task = task.LoopingCall(self.keep_learning_about_nodes, learner=self, frames=frames)
-        # self._init_frames = frames
-        #######
+
+        import inspect, os
+        frames = inspect.stack(3)
+        self._learning_task = task.LoopingCall(self.keep_learning_about_nodes, learner=self, frames=frames)
+        self._init_frames = frames
+        from tests.conftest import global_mutable_where_everybody
+        for frame in frames:
+            try:
+                test_name = frame.frame.f_locals['request'].module.__name__
+                break
+            except KeyError:
+                try:
+                    if frame.function.startswith("test"):
+                        test_name = frame.function
+                        break
+                    else:
+                        continue
+                except AttributeError:
+                    continue
+        else:
+            # Didn't find which test from which this object came.  Hmph.
+            # It's possible that this is wrong, but it's better than nothing:
+            test_name = os.environ["PYTEST_CURRENT_TEST"].split("::")[1]
+        global_mutable_where_everybody[test_name].append(self)
+        self._FOR_TEST = test_name
+        ########################
 
         self._learning_round = 0  # type: int
         self._rounds_without_new_nodes = 0  # type: int
