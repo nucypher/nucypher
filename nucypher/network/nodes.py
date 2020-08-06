@@ -16,25 +16,36 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import contextlib
-import random
 from collections import OrderedDict, defaultdict, deque, namedtuple
 from contextlib import suppress
+from typing import Set, Tuple, Union, Iterable
 
 import binascii
 import maya
+import random
 import requests
 import time
-from bytestring_splitter import BytestringSplitter, BytestringSplittingError, PartiallyKwargifiedBytes, \
+from bytestring_splitter import (
+    BytestringSplitter,
+    BytestringSplittingError,
+    PartiallyKwargifiedBytes,
     VariableLengthBytestring
+)
 from constant_sorrow import constant_or_bytes
-from constant_sorrow.constants import (CERTIFICATE_NOT_SAVED, FLEET_STATES_MATCH, NEVER_SEEN, NOT_SIGNED,
-                                       NO_KNOWN_NODES, NO_STORAGE_AVAILIBLE, UNKNOWN_FLEET_STATE)
+from constant_sorrow.constants import (
+    CERTIFICATE_NOT_SAVED,
+    FLEET_STATES_MATCH,
+    NEVER_SEEN,
+    NOT_SIGNED,
+    NO_KNOWN_NODES,
+    NO_STORAGE_AVAILIBLE,
+    UNKNOWN_FLEET_STATE
+)
 from cryptography.x509 import Certificate
 from eth_utils import to_checksum_address
 from requests.exceptions import SSLError
 from twisted.internet import defer, reactor, task
 from twisted.internet.threads import deferToThread
-from typing import Set, Tuple, Union, Iterable
 from umbral.signing import Signature
 
 import nucypher
