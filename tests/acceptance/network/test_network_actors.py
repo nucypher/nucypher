@@ -178,7 +178,7 @@ def test_treasure_map_cannot_be_duplicated(blockchain_ursulas, blockchain_alice,
                                     expiration=policy_end_datetime)
 
     u = blockchain_bob.matching_nodes_among(blockchain_alice.known_nodes)[0]
-    saved_map = u.treasure_maps[bytes.fromhex(policy.treasure_map.public_id())]
+    saved_map = u._stored_treasure_maps[bytes.fromhex(policy.treasure_map.public_id())]
     assert saved_map == policy.treasure_map
     # This Ursula was actually a Vladimir.
     # Thus, he has access to the (encrypted) TreasureMap and can use its details to
