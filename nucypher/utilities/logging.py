@@ -15,11 +15,19 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import re
 from contextlib import contextmanager
 
 import pathlib
-from twisted.logger import FileLogObserver, LogLevel, formatEvent, formatEventAsClassicLogText, globalLogPublisher, \
+from twisted.logger import (
+    FileLogObserver,
+    LogLevel,
+    formatEvent,
+    formatEventAsClassicLogText,
+    globalLogPublisher,
     jsonFileLogObserver
+)
+from twisted.logger import Logger as TwistedLogger
 from twisted.python.logfile import LogFile
 
 import nucypher
@@ -175,3 +183,31 @@ def get_text_file_observer(name="nucypher.log", path=USER_LOG_DIR):
     logfile = LogFile(name=name, directory=path, rotateLength=MAXIMUM_LOG_SIZE, maxRotatedFiles=MAX_LOG_FILES)
     observer = FileLogObserver(formatEvent=formatEventAsClassicLogText, outFile=logfile)
     return observer
+
+
+class Logger(TwistedLogger):
+    """Drop-in replacement of Twisted's Logger, patching the emit() method to tolerate inputs with curly braces,
+    i.e., not compliant with PEP 3101.
+
+    See Issue #724 and, particularly, https://github.com/nucypher/nucypher/issues/724#issuecomment-600190455"""
+
+    CURLY_BRACES_REGEX = re.compile('{+|}+')
+
+    @classmethod
+    def escape_format_string(cls, string):
+        """
+        Escapes curly braces from a PEP-3101's format string when there's a sequence of odd length
+        """
+
+        def escape_group_of_curly_braces(match):
+            curlies = match.group()
+            if len(curlies) % 2 == 1:
+                curlies += curlies
+            return curlies
+
+        escaped_string = cls.CURLY_BRACES_REGEX.sub(escape_group_of_curly_braces, string)
+        return escaped_string
+
+    def emit(self, level, format=None, **kwargs):
+        clean_format = self.escape_format_string(str(format))
+        super().emit(level=level, format=clean_format, **kwargs)
