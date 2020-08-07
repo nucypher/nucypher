@@ -28,6 +28,7 @@ from web3 import Web3
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import (ContractAgency, NucypherTokenAgent, PreallocationEscrowAgent,
                                             StakingEscrowAgent)
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry, IndividualAllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeList
@@ -257,7 +258,7 @@ def test_stake_unbond_worker(click_runner,
                     individual_allocation=individual_allocation,
                     registry=agency_local_registry)
 
-    assert not staker.worker_address
+    assert staker.worker_address == NULL_ADDRESS
 
     # Ok ok, let's bond the worker again.
 

@@ -19,7 +19,7 @@ import pytest
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker, StakeHolder
-from nucypher.blockchain.eth.constants import MAX_UINT16
+from nucypher.blockchain.eth.constants import MAX_UINT16, NULL_ADDRESS
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.actions.select import select_client_account_for_staking
 from nucypher.cli.commands.stake import stake, StakeHolderConfigOptions, StakerOptions, TransactingStakerOptions
@@ -460,7 +460,7 @@ def test_divide_interactive(click_runner,
     min_allowed_locked = token_economics.minimum_allowed_locked
     target_value = min_allowed_locked
 
-    mock_staking_agent.get_worker_from_staker.return_value = surrogate_staker.checksum_address
+    mock_staking_agent.get_worker_from_staker.return_value = NULL_ADDRESS
 
     command = ('divide',
                '--provider', MOCK_PROVIDER_URI,
