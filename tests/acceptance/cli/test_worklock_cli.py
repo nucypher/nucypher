@@ -23,6 +23,7 @@ import pytest
 from eth_utils import to_wei
 from web3 import Web3
 
+from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.actors import Bidder, Staker
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
@@ -237,6 +238,10 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
     # Ensure there is work to do
     remaining_work = worklock_agent.get_remaining_work(checksum_address=bidder)
     assert remaining_work > 0
+
+    # Unlock
+    transacting_power = worker._crypto_power.power_ups(TransactingPower)
+    transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Do some work
     for i in range(3):

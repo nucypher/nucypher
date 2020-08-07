@@ -47,7 +47,9 @@ def test_alice_sets_treasure_map(enacted_federated_policy, federated_ursulas):
     assert found
 
 
-def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(federated_alice, federated_bob, federated_ursulas,
+def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(federated_alice,
+                                                                  federated_bob,
+                                                                  federated_ursulas,
                                                                   enacted_federated_policy):
     """
     The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.

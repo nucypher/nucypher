@@ -1033,7 +1033,7 @@ class Ursula(Teacher, Character, Worker):
 
         if is_me:
             # In-Memory TreasureMap tracking
-            self._stored_treasure_maps = dict()
+            self._stored_treasure_maps = dict()  # TODO: Something more persistent (See PR #2132)
 
             # Learner
             self._start_learning_now = start_learning_now
