@@ -15,14 +15,14 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from pathlib import Path
-
 import pytest
 
 from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from nucypher.blockchain.eth.sol.compile import compile_nucypher
+from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
+from nucypher.blockchain.eth.sol.compile.types import SourceBundle
+from nucypher.config.constants import NUCYPHER_TEST_DIR
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
@@ -94,9 +94,13 @@ def test_testerchain_creation(testerchain, another_testerchain):
 def test_multiversion_contract():
 
     # Prepare compiler
-    base_dir = Path(__file__).parent / 'contracts' / 'multiversion'
+    base_dir = NUCYPHER_TEST_DIR / 'test_contracts' / 'multiversion'
     v1_dir, v2_dir = base_dir / 'v1', base_dir / 'v2'
-    compiled_contracts = compile_nucypher(source_dirs=(v1_dir, v2_dir))
+    bundles = (
+        SourceBundle(base_path=v1_dir),
+        SourceBundle(base_path=v2_dir)
+    )
+    compiled_contracts = multiversion_compile(source_bundles=bundles, allow_paths=[base_dir])
 
     # Prepare chain
     blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm/2',

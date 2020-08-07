@@ -16,11 +16,10 @@
 """
 
 from pathlib import Path
-from typing import Tuple
 
-from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 

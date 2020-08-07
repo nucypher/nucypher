@@ -15,16 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import re
 from logging import Logger
 from pathlib import Path
-from typing import Tuple, Pattern, NamedTuple, List
+from typing import Tuple
 
+import tests
 from nucypher.config.constants import NUCYPHER_TEST_DIR
-
-
-
 
 # Logging
 SOLC_LOGGER = Logger("solidity-compilation")
@@ -36,6 +32,9 @@ TEST_SOLIDITY_SOURCE_ROOT: Path = Path(NUCYPHER_TEST_DIR).parent / CONTRACTS / C
 
 from nucypher.blockchain.eth import sol
 SOLIDITY_SOURCE_ROOT: Path = Path(sol.__file__).parent / 'source'
+CONTRACT_SOURCE_ROOT = SOLIDITY_SOURCE_ROOT / CONTRACTS
+ZEPPELIN_ROOT = SOLIDITY_SOURCE_ROOT / 'zeppelin'
+ARAGON_ROOT = SOLIDITY_SOURCE_ROOT / 'aragon'
 
 # Do not compile contracts containing...
 IGNORE_CONTRACT_PREFIXES: Tuple[str, ...] = (

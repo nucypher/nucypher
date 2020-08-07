@@ -15,8 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import maya
 import os
 from pathlib import Path
 from typing import List, Tuple, Union
@@ -27,11 +25,13 @@ from eth_utils import to_canonical_address
 from hexbytes import HexBytes
 from web3 import Web3
 
-import tests
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
+from nucypher.blockchain.eth.sol.compile.constants import TEST_SOLIDITY_SOURCE_ROOT
+from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.crypto.powers import TransactingPower
@@ -77,8 +77,10 @@ class TesterBlockchain(BlockchainDeployerInterface):
     __test__ = False  # prohibit pytest from collecting this object as a test
 
     # Solidity
-    TEST_CONTRACTS_DIR = Path(tests.__file__).parent / 'contracts' / 'contracts'
-    SOURCES: Tuple[Path, ...] = (*BlockchainDeployerInterface.SOURCES, TEST_CONTRACTS_DIR)
+    SOURCES: Tuple[SourceBundle, ...] = (
+        *BlockchainDeployerInterface.SOURCES,
+        SourceBundle(base_path=TEST_SOLIDITY_SOURCE_ROOT)
+    )
 
     # Web3
     GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES, 'free': free_gas_price_strategy}
@@ -134,6 +136,17 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         if eth_airdrop is True:  # ETH for everyone!
             self.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
+
+    # TODO: DRY this up
+    def connect(self, compile_now: bool = True, ignore_solidity_check: bool = False) -> bool:
+        super().connect()
+        if compile_now:
+            # Execute the compilation if we're recompiling
+            # Otherwise read compiled contract data from the registry.
+            check = not ignore_solidity_check
+            compiled_contracts = multiversion_compile(source_bundles=self.SOURCES, compiler_version_check=check)
+            self._raw_contract_cache = compiled_contracts
+        return self.is_connected
 
     def attach_middleware(self):
         if self.free_transactions:
