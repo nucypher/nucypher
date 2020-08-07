@@ -38,7 +38,6 @@ from nucypher.blockchain.economics import BaseEconomics, EconomicsFactory, Stand
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
-    ForwarderAgent,
     MultiSigAgent,
     NucypherTokenAgent,
     PolicyManagerAgent,
@@ -46,10 +45,17 @@ from nucypher.blockchain.eth.agents import (
     StakersReservoir,
     StakingEscrowAgent,
     TokenManagerAgent,
+    VotingAgent,
+    VotingAggregatorAgent,
     WorkLockAgent,
 )
-from nucypher.blockchain.eth.aragon import CallScriptCodec
-from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.aragon import CallScriptCodec, DAORegistry
+from nucypher.blockchain.eth.constants import (
+    NULL_ADDRESS,
+    COUNCIL_MANAGER,
+    STANDARD_AGGREGATOR,
+    STANDARD_VOTING
+)
 from nucypher.blockchain.eth.decorators import (
     only_me,
     save_receipt,
@@ -98,17 +104,17 @@ class BaseActor:
         pass
 
     @validate_checksum_address
-    def __init__(self, registry: BaseContractRegistry, domains=None, checksum_address: str = None):
+    def __init__(self, registry: BaseContractRegistry, domains=None, checksum_address: ChecksumAddress = None):
 
         # TODO: Consider this pattern - None for address?.  #1507
         # Note: If the base class implements multiple inheritance and already has a checksum address...
         try:
-            parent_address = self.checksum_address  # type: str
+            parent_address = self.checksum_address  # type: ChecksumAddress
             if checksum_address is not None:
                 if parent_address != checksum_address:
                     raise ValueError("Can't have two different addresses.")
         except AttributeError:
-            self.checksum_address = checksum_address  # type: str
+            self.checksum_address = checksum_address  # type: ChecksumAddress
 
         self.registry = registry
         if domains:  # StakeHolder config inherits from character config, which has 'domains' - #1580
@@ -2163,16 +2169,30 @@ class Bidder(NucypherTokenActor):
 class DaoActor(BaseActor):
     """Base class for actors that interact with the NuCypher DAO"""
 
+    def __init__(self,
+                 network: str,
+                 checksum_address: ChecksumAddress,
+                 registry=None,
+                 signer: Signer = None,
+                 client_password: str = None,
+                 transacting: bool = True):
+        super().__init__(registry=registry, domains=[network], checksum_address=checksum_address)  # TODO: See #1580
+        self.dao_registry = DAORegistry(network=network)
+        if transacting:  # TODO: This logic is repeated in Bidder and possible others.
+            self.transacting_power = TransactingPower(signer=signer,
+                                                      password=client_password,
+                                                      account=checksum_address)
+            self.transacting_power.activate()
+
 
 class SecurityCouncilManager(DaoActor):  # TODO: Find a different name for this. "Security Council" sounds silly
 
-    def __init__(self,
-                 token_manager_address: ChecksumAddress,
-                 standard_voting_address: ChecksumAddress,
-                 aggregator_address: ChecksumAddress):
-        self.token_manager = TokenManagerAgent(address=token_manager_address)  # TODO: Use some sort of registry
-        self.voting = ForwarderAgent(address=standard_voting_address)
-        self.voting_aggregator = ForwarderAgent(address=aggregator_address)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.token_manager = TokenManagerAgent(address=self.dao_registry.get_address_of(COUNCIL_MANAGER))
+        self.voting = VotingAgent(address=self.dao_registry.get_address_of(STANDARD_VOTING))
+        self.voting_aggregator = VotingAggregatorAgent(self.dao_registry.get_address_of(STANDARD_AGGREGATOR))
 
     def rotate_council_members(self,
                                members_out: Iterable[ChecksumAddress],

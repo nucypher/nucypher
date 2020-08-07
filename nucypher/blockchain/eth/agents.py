@@ -50,6 +50,7 @@ from nucypher.blockchain.eth.constants import (
     STAKING_INTERFACE_ROUTER_CONTRACT_NAME,
     TOKEN_MANAGER_CONTRACT_NAME,
     VOTING_CONTRACT_NAME,
+    VOTING_AGGREGATOR_CONTRACT_NAME,
     WORKLOCK_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.decorators import contract_api, validate_checksum_address
@@ -1636,6 +1637,12 @@ class VotingAgent(ForwarderAgent):
         contract_function = self.contract.functions.vote(vote_id, support_proposal, execute_if_decided)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return TxReceipt(receipt)
+
+
+class VotingAggregatorAgent(ForwarderAgent):
+    """Agent to interact with Aragon's Voting Aggregator app"""
+
+    contract_name = VOTING_AGGREGATOR_CONTRACT_NAME
 
 
 class TokenManagerAgent(ForwarderAgent):
