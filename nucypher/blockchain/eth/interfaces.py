@@ -723,7 +723,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
     # TODO: Make more func - use as a parameter
     # Source directories to (recursively) compile
     SOURCES: Tuple[SourceBundle, ...] = (
-        SourceBundle(base_path=SOLIDITY_SOURCE_ROOT)
+        SourceBundle(base_path=SOLIDITY_SOURCE_ROOT),
     )
 
     _raw_contract_cache = NO_COMPILATION_PERFORMED
