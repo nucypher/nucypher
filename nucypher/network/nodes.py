@@ -265,23 +265,28 @@ class Learner:
         self._init_frames = frames
         from tests.conftest import global_mutable_where_everybody
 
-        for frame in frames:
-            try:
-                test_name = frame.frame.f_locals['request'].module.__name__
-                break
-            except KeyError:
-                try:
-                    if frame.function.startswith("test"):
-                        test_name = frame.function
-                        break
-                    else:
-                        continue
-                except AttributeError:
-                    continue
-        else:
-            # Didn't find which test from which this object came.  Hmph.
-            # It's possible that this is wrong, but it's better than nothing:
-            test_name = os.environ["PYTEST_CURRENT_TEST"].split("::")[1]
+        # Below is the variant where we iterate through frames.  If there's a race condition within a test itself, this will be more reliable.
+        # for frame in frames:
+        #     try:
+        #         test_name = frame.frame.f_locals['request'].module
+        #         break
+        #     except KeyError:
+        #         try:
+        #             if frame.function.startswith("test"):
+        #                 where = frame[0]
+        #                 test_name = where
+        #                 break
+        #             else:
+        #                 continue
+        #         except AttributeError:
+        #             continue
+        # else:
+        #     # Didn't find which test from which this object came.  Hmph.
+        #     # It's possible that this is wrong, but it's better than nothing:
+        #     test_name = os.environ["PYTEST_CURRENT_TEST"].split("::")[1]
+        test_name = os.environ["PYTEST_CURRENT_TEST"]
+        if test_name == 'test_ursula_and_local_keystore_signer_integration':
+            assert True
         global_mutable_where_everybody[test_name].append(self)
         self._FOR_TEST = test_name
         ########################
@@ -550,6 +555,7 @@ class Learner:
             self.log.warn(
                 "Learning loop isn't started; can't learn about nodes now.  You can override this with force=True.")
         elif force:
+            # TODO: What if this has been stopped?
             self.log.info("Learning loop wasn't started; forcing start now.")
             self._learning_task.start(self._SHORT_LEARNING_DELAY, now=True)
 
