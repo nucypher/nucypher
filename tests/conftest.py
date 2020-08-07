@@ -138,3 +138,29 @@ def pytest_collection_modifyitems(config, items):
     GlobalLoggerSettings.set_log_level(log_level_name)
     GlobalLoggerSettings.start_text_file_logging()
     GlobalLoggerSettings.start_json_file_logging()
+
+
+global_mutable_where_everybody = defaultdict(list)
+
+@pytest.fixture(scope='module', autouse=True)
+def check_character_state_after_test(request):
+    # TODO: Maybe patch here instead of the debug nonsense?
+    yield
+    gmwe = global_mutable_where_everybody
+    module_name = request.module.__name__
+
+    test_learners = global_mutable_where_everybody.get(module_name, [])
+    # Those match the module name exactly; maybe there are some that we got by frame.
+    for maybe_frame, learners in global_mutable_where_everybody.items():
+        if f"{module_name}.py" in maybe_frame:
+            test_learners.extend(learners)
+
+    still_running = [learner if learner._learning_task.running else None for learner in test_learners]
+
+    if any(still_running):
+        for learner in still_running:
+            try:  # TODO: Deal with stop vs disenchant.  Currently stop is only for Ursula.
+                learner.stop()
+            except AttributeError:
+                learner.disenchant()
+        pytest.fail(f"Learners remaining: {still_running} ")
