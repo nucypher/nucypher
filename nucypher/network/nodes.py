@@ -536,8 +536,7 @@ class Learner:
             self.log.critical("Unhandled error during node learning.  Attempting graceful crash.")
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
-            cleaned_traceback = failure.getTraceback().replace('{', '').replace('}', '')  # FIXME: Amazing.  724
-            self.log.warn("Unhandled error during node learning: {}".format(cleaned_traceback))
+            self.log.warn(f"Unhandled error during node learning: {failure.getTraceback()}")
             if not self._learning_task.running:
                 self.start_learning_loop()  # TODO: Consider a single entry point for this with more elegant pause and unpause.  NRN
 

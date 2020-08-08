@@ -770,7 +770,6 @@ class BlockchainDeployerInterface(BlockchainInterface):
             deploy_transaction.update({'gas': gas_limit})
 
         pprint_args = ', '.join(list(map(str, constructor_args)) + list(f"{k}={v}" for k, v in constructor_kwargs.items()))
-        pprint_args = pprint_args.replace("{", "{{").replace("}", "}}")  # TODO: See #724
 
         contract_factory = self.get_contract_factory(contract_name=contract_name, version=contract_version)
         self.log.info(f"Deploying contract {contract_name}:{contract_factory.version} with "
