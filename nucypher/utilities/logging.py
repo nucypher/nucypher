@@ -21,17 +21,22 @@ from contextlib import contextmanager
 import pathlib
 from twisted.logger import (
     FileLogObserver,
-    LogLevel,
     formatEvent,
     formatEventAsClassicLogText,
     globalLogPublisher,
-    jsonFileLogObserver
+    jsonFileLogObserver,
+    LogLevel,
 )
 from twisted.logger import Logger as TwistedLogger
 from twisted.python.logfile import LogFile
 
 import nucypher
-from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT, USER_LOG_DIR
+from nucypher.config.constants import (
+    DEFAULT_JSON_LOG_FILENAME,
+    DEFAULT_LOG_FILENAME,
+    NUCYPHER_SENTRY_ENDPOINT,
+    USER_LOG_DIR,
+)
 
 ONE_MEGABYTE = 1_048_576
 MAXIMUM_LOG_SIZE = ONE_MEGABYTE * 10
@@ -171,14 +176,14 @@ def _ensure_dir_exists(path):
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
 
-def get_json_file_observer(name="nucypher.json", path=USER_LOG_DIR):
+def get_json_file_observer(name=DEFAULT_JSON_LOG_FILENAME, path=USER_LOG_DIR):
     _ensure_dir_exists(path)
     logfile = LogFile(name=name, directory=path, rotateLength=MAXIMUM_LOG_SIZE, maxRotatedFiles=MAX_LOG_FILES)
     observer = jsonFileLogObserver(outFile=logfile)
     return observer
 
 
-def get_text_file_observer(name="nucypher.log", path=USER_LOG_DIR):
+def get_text_file_observer(name=DEFAULT_LOG_FILENAME, path=USER_LOG_DIR):
     _ensure_dir_exists(path)
     logfile = LogFile(name=name, directory=path, rotateLength=MAXIMUM_LOG_SIZE, maxRotatedFiles=MAX_LOG_FILES)
     observer = FileLogObserver(formatEvent=formatEventAsClassicLogText, outFile=logfile)
