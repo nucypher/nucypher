@@ -23,7 +23,6 @@ from appdirs import AppDirs
 from pathlib import Path
 
 import nucypher
-from nucypher.blockchain.eth import sol
 
 # Environment variables
 NUCYPHER_ENVVAR_KEYRING_PASSWORD = "NUCYPHER_KEYRING_PASSWORD"
@@ -38,8 +37,6 @@ NUCYPHER_ENVVAR_WORKER_IP_ADDRESS = 'NUCYPHER_WORKER_IP_ADDRESS'
 NUCYPHER_PACKAGE = Path(nucypher.__file__).parent.resolve()
 BASE_DIR = NUCYPHER_PACKAGE.parent.resolve()
 DEPLOY_DIR = BASE_DIR / 'deploy'
-SOL_PACKAGE = Path(sol.__file__).parent.resolve()
-CONTRACT_ROOT = SOL_PACKAGE / 'source' / 'contracts'
 
 
 # User Application Filepaths
