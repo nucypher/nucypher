@@ -24,14 +24,14 @@ from constant_sorrow.constants import (EMPTY_STAKING_SLOT, NEW_STAKE, NOT_STAKIN
                                        UNKNOWN_WORKER_STATUS)
 from eth_utils import currency, is_checksum_address
 from twisted.internet import reactor, task
-from twisted.logger import Logger
-from typing import Callable, Dict, Tuple, Union
+from typing import Callable, Dict, Union
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.types import SubStakeInfo, NuNits, StakerInfo, Period
+from nucypher.utilities.logging import Logger
 
 
 class NU:

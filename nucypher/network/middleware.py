@@ -24,9 +24,10 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, EXEMPT_FROM_VERIFICATION
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
-from twisted.logger import Logger
 from umbral.cfrags import CapsuleFrag
 from umbral.signing import Signature
+
+from nucypher.utilities.logging import Logger
 
 EXEMPT_FROM_VERIFICATION.bool_value(False)
 

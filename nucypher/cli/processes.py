@@ -24,10 +24,10 @@ import os
 from twisted.internet import reactor
 from twisted.internet.protocol import connectionDone
 from twisted.internet.stdio import StandardIO
-from twisted.logger import Logger
 from twisted.protocols.basic import LineReceiver
 
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
+from nucypher.utilities.logging import Logger
 
 
 class UrsulaCommandProtocol(LineReceiver):

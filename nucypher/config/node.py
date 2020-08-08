@@ -28,7 +28,6 @@ from constant_sorrow.constants import (
 )
 from eth_utils.address import is_checksum_address
 from tempfile import TemporaryDirectory
-from twisted.logger import Logger
 from typing import Callable, List, Set, Union
 from umbral.signing import Signature
 
@@ -45,6 +44,7 @@ from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import ForgetfulNodeStorage, LocalFileBasedNodeStorage, NodeStorage
 from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
 from nucypher.network.middleware import RestMiddleware
+from nucypher.utilities.logging import Logger
 
 
 # TODO: Relocate - #1575

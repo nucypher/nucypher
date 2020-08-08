@@ -25,10 +25,10 @@ from constant_sorrow.constants import (
     UNKNOWN_CONTRACT_INTERFACE
 )
 from datetime import datetime
-from twisted.logger import Logger
 from typing import Callable, Optional, Union
 
 from nucypher.types import ContractReturnValue
+from nucypher.utilities.logging import Logger
 
 ContractInterfaces = Union[
     CONTRACT_CALL,

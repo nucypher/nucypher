@@ -34,7 +34,6 @@ from eth_utils import to_checksum_address
 from requests.exceptions import SSLError
 from twisted.internet import defer, reactor, task
 from twisted.internet.threads import deferToThread
-from twisted.logger import Logger
 from typing import Set, Tuple, Union
 from umbral.signing import Signature
 
@@ -55,6 +54,7 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
+from nucypher.utilities.logging import Logger
 
 
 def icon_from_checksum(checksum,

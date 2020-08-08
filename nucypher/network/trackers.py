@@ -20,12 +20,12 @@ import random
 import maya
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
-from twisted.logger import Logger
 from typing import Union
 
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout
+from nucypher.utilities.logging import Logger
 
 
 class AvailabilityTracker:

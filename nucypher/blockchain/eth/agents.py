@@ -29,7 +29,6 @@ from eth_typing.encoding import HexStr
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
 from hexbytes.main import HexBytes
-from twisted.logger import Logger  # type: ignore
 from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast
 from web3.contract import Contract, ContractFunction
 from web3.types import Wei, Timestamp, TxReceipt, TxParams, Nonce
@@ -67,6 +66,7 @@ from nucypher.types import (
     StakingEscrowParameters,
     Evidence
 )
+from nucypher.utilities.logging import Logger  # type: ignore
 
 
 class EthereumContractAgent:

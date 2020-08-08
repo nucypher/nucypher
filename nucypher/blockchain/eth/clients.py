@@ -25,7 +25,6 @@ from constant_sorrow.constants import NOT_RUNNING, UNKNOWN_DEVELOPMENT_CHAIN_ID
 from cytoolz.dicttoolz import dissoc
 from eth_account import Account
 from eth_account.messages import encode_defunct
-from eth_typing import HexStr
 from eth_typing.evm import BlockNumber, ChecksumAddress
 from eth_utils import to_canonical_address, to_checksum_address
 from geth import LoggingMixin
@@ -37,7 +36,6 @@ from geth.chain import (
     is_ropsten_chain
 )
 from geth.process import BaseGethProcess
-from twisted.logger import Logger
 from typing import Union
 from web3 import Web3
 from web3.contract import Contract
@@ -47,6 +45,7 @@ from web3.exceptions import TimeExhausted, TransactionNotFound
 
 from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
+from nucypher.utilities.logging import Logger
 
 UNKNOWN_DEVELOPMENT_CHAIN_ID.bool_value(True)
 

@@ -28,9 +28,7 @@ import tempfile
 from click.testing import CliRunner
 from datetime import datetime, timedelta
 from eth_utils import to_checksum_address
-from io import StringIO
 from sqlalchemy.engine import create_engine
-from twisted.logger import Logger
 from typing import Tuple
 from umbral import pre
 from umbral.curvebn import CurveBN
@@ -69,7 +67,8 @@ from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.datastore import datastore
 from nucypher.datastore.db import Base
 from nucypher.policy.collections import IndisputableEvidence, WorkOrder
-from nucypher.utilities.logging import GlobalLoggerSettings
+from nucypher.utilities.logging import GlobalLoggerSettings, Logger
+
 from tests.constants import (
     BASE_TEMP_DIR,
     BASE_TEMP_PREFIX,
