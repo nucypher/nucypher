@@ -155,7 +155,15 @@ def check_character_state_after_test(request):
         if f"{module_name}.py" in maybe_frame:
             test_learners.extend(learners)
 
-    still_running = [learner if learner._learning_task.running else None for learner in test_learners]
+    crashed = [learner for learner in test_learners if learner._crashed]
+
+    if any(crashed):
+        failure_message = ""
+        for learner in crashed:
+            failure_message += learner._crashed.getBriefTraceback()
+        pytest.fail(f"Some learners crashed:{failure_message}")
+
+    still_running = [learner for learner in test_learners if learner._learning_task.running]
 
     if any(still_running):
         for learner in still_running:
