@@ -413,7 +413,7 @@ class Policy(ABC):
         raise NotImplementedError
 
     def sample(self, handpicked_ursulas: Optional[Set[Ursula]] = None) -> Set[Ursula]:
-        handpicked_ursulas = handpicked_ursulas if handpicked_ursulas else set()
+        handpicked_ursulas = handpicked_ursulas or set()
         selected_ursulas = set(handpicked_ursulas)
 
         # Calculate the target sample quantity
@@ -578,7 +578,7 @@ class BlockchainPolicy(Policy):
                          quantity: int,
                          handpicked_ursulas: Set[Ursula],
                          learner_timeout: int = 1,
-                         timeout: int = 10) -> Set[Ursula]:
+                         timeout: int = 10) -> Set[Ursula]: # TODO #843: Make timeout configurable
 
         selected_ursulas = set(handpicked_ursulas)
         quantity_remaining = quantity
@@ -592,10 +592,10 @@ class BlockchainPolicy(Policy):
             error = f"Cannot create policy with {quantity} arrangements"
             raise self.NotEnoughBlockchainUrsulas(error)
 
-        to_check = reservoir.draw(quantity_remaining)
+        to_check = set(reservoir.draw(quantity_remaining))
 
         # Sample stakers in a loop and feed them to the learner to check
-        # until we have enough in selected_ursulas`.
+        # until we have enough in `selected_ursulas`.
 
         start_time = maya.now()
         new_to_check = to_check
@@ -604,10 +604,10 @@ class BlockchainPolicy(Policy):
 
             # Check if the sampled addresses are already known.
             # If we're lucky, we won't have to wait for the learner iteration to finish.
-            known = list(filter(lambda x: x in self.alice.known_nodes, to_check))
-            to_check = list(filter(lambda x: x not in self.alice.known_nodes, to_check))
+            known = {x for x in to_check if x in self.alice.known_nodes}
+            to_check = to_check - known
 
-            known = known[:min(len(known), quantity_remaining)] # we only need so many
+            known = random.sample(known, min(len(known), quantity_remaining)) # we only need so many
             selected_ursulas.update([self.alice.known_nodes[address] for address in known])
             quantity_remaining -= len(known)
 
@@ -615,7 +615,7 @@ class BlockchainPolicy(Policy):
                 break
             else:
                 new_to_check = reservoir.draw_at_most(quantity_remaining)
-                to_check.extend(new_to_check)
+                to_check.update(new_to_check)
 
             # Feed newly sampled stakers to the learner
             self.alice.learn_about_specific_nodes(new_to_check)

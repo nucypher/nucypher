@@ -727,15 +727,6 @@ class StakingEscrowAgent(EthereumContractAgent):
             staker_address: ChecksumAddress = self.contract.functions.stakers(index).call()
             yield staker_address
 
-    def sample(self,
-               quantity: int,
-               duration: int,
-               pagination_size: Optional[int] = None
-               ) -> List[ChecksumAddress]:
-        reservoir = self.get_stakers_reservoir(duration=duration, pagination_size=pagination_size)
-        return reservoir.draw(quantity)
-
-    @contract_api(CONTRACT_CALL)
     def get_stakers_reservoir(self,
                               duration: int,
                               without: Iterable[ChecksumAddress] = [],
@@ -1622,8 +1613,8 @@ class WeightedSampler:
     Samples random elements with probabilities proportional to given weights.
     """
 
-    def __init__(self, elements: Iterable, weights: Iterable[int]):
-        assert len(elements) == len(weights)
+    def __init__(self, weighted_elements: Dict[Any, int]):
+        elements, weights = zip(*weighted_elements.items())
         self.totals = list(accumulate(weights))
         self.elements = elements
 
@@ -1666,10 +1657,8 @@ class WeightedSampler:
 
 class StakersReservoir:
 
-    def __init__(self, stakers_map):
-        addresses = list(stakers_map.keys())
-        tokens = list(stakers_map.values())
-        self._sampler = WeightedSampler(addresses, tokens)
+    def __init__(self, stakers_map: Dict[ChecksumAddress, int]):
+        self._sampler = WeightedSampler(stakers_map)
         self._rng = random.SystemRandom()
 
     def __len__(self):

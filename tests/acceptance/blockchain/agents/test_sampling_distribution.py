@@ -156,13 +156,14 @@ def probability_reference_no_replacement(weights, idxs):
 @pytest.mark.parametrize('sample_size', [1, 2, 3])
 def test_weighted_sampler(sample_size):
     weights = [1, 9, 100, 2, 18, 70]
+    elements = list(range(len(weights)))
     rng = random.SystemRandom()
     counter = Counter()
 
-    elements = list(range(len(weights)))
+    weighted_elements = {element: weight for element, weight in zip(elements, weights)}
 
     samples = 100000
-    sampler = WeightedSampler(elements, weights)
+    sampler = WeightedSampler(weighted_elements)
     for i in range(samples):
         sample_set = sampler.sample_no_replacement(rng, sample_size)
         counter.update({tuple(sample_set): 1})
