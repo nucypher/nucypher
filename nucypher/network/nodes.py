@@ -488,8 +488,8 @@ class Learner:
         _exception = failure.value
         crash_right_now = getattr(_exception, "crash_right_now", False)
         if self._abort_on_learning_error or crash_right_now:
-            self.log.critical("Unhandled error during node learning.  Attempting graceful crash.")
             reactor.callFromThread(self._crash_gracefully, failure=failure)
+            self.log.critical("Unhandled error during node learning.  Attempting graceful crash.")
         else:
             cleaned_traceback = failure.getTraceback().replace('{', '').replace('}', '')  # FIXME: Amazing.  724
             self.log.warn("Unhandled error during node learning: {}".format(cleaned_traceback))
@@ -613,9 +613,9 @@ class Learner:
         start = maya.now()
         starting_round = self._learning_round
 
-        if not learn_on_this_thread:
-            # Get a head start by firing the looping call now.  If it's very fast, maybe we'll have enough nodes on the first iteration.
-            self._learning_task()
+        # if not learn_on_this_thread and self._learning_task.running:
+        #     # Get a head start by firing the looping call now.  If it's very fast, maybe we'll have enough nodes on the first iteration.
+        #     self._learning_task()
 
         while True:
             rounds_undertaken = self._learning_round - starting_round
