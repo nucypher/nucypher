@@ -1209,6 +1209,11 @@ class Staker(NucypherTokenActor):
         status = self.staking_agent.is_restaking_locked(staker_address=self.checksum_address)
         return status
 
+    @property
+    def restake_unlock_period(self) -> int:
+        period = self.staking_agent.get_restake_unlock_period(staker_address=self.checksum_address)
+        return period
+
     def disable_restaking(self) -> TxReceipt:
         receipt = self._set_restaking(value=False)
         return receipt
@@ -1238,6 +1243,11 @@ class Staker(NucypherTokenActor):
     def non_withdrawable_stake(self) -> NU:
         staked_amount: NuNits = self.staking_agent.non_withdrawable_stake(staker_address=self.checksum_address)
         return NU.from_nunits(staked_amount)
+
+    @property
+    def last_committed_period(self) -> int:
+        period = self.staking_agent.get_last_committed_period(staker_address=self.checksum_address)
+        return period
 
     def mintable_periods(self) -> int:
         """
