@@ -23,7 +23,6 @@ from constant_sorrow.constants import FLEET_STATES_MATCH, NO_BLOCKCHAIN_CONNECTI
 from flask import Flask, Response, jsonify, request
 from hendrix.experience import crosstown_traffic
 from jinja2 import Template, TemplateError
-from twisted.logger import Logger
 from typing import Tuple
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
@@ -42,6 +41,7 @@ from nucypher.datastore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
+from nucypher.utilities.logging import Logger
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")

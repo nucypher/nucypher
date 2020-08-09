@@ -38,7 +38,6 @@ from json.decoder import JSONDecodeError
 from sqlalchemy.exc import OperationalError
 from twisted.internet import reactor, stdio, threads
 from twisted.internet.task import LoopingCall
-from twisted.logger import Logger
 from typing import Dict, Iterable, List, Set, Tuple, Union
 from umbral import pre
 from umbral.keys import UmbralPublicKey
@@ -76,6 +75,7 @@ from nucypher.network.nodes import NodeSprout, Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
+from nucypher.utilities.logging import Logger
 
 
 class Alice(Character, BlockchainPolicyAuthor):

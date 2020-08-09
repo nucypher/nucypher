@@ -31,7 +31,6 @@ from nacl.hash import sha256
 from sqlalchemy import create_engine, or_
 from twisted.internet import reactor, threads
 from twisted.internet.task import LoopingCall
-from twisted.logger import Logger
 
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.actors import NucypherTokenActor
@@ -44,6 +43,7 @@ from nucypher.characters.base import Character
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH, TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower, TransactingPower
 from nucypher.datastore.threading import ThreadedSession
+from nucypher.utilities.logging import Logger
 
 
 class Felix(Character, NucypherTokenActor):

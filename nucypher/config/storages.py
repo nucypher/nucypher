@@ -27,13 +27,13 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
 from eth_utils import is_checksum_address
-from twisted.logger import Logger
 from typing import Any, Callable, Set, Tuple, Union
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import read_certificate_pseudonym
+from nucypher.utilities.logging import Logger
 
 
 class NodeStorage(ABC):

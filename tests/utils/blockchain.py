@@ -21,7 +21,6 @@ import os
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from hexbytes import HexBytes
-from twisted.logger import Logger
 from typing import List, Tuple, Union
 from web3 import Web3
 
@@ -33,6 +32,8 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.crypto.powers import TransactingPower
+from nucypher.utilities.logging import Logger
+
 from tests.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     INSECURE_DEVELOPMENT_PASSWORD,

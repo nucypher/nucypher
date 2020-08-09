@@ -37,7 +37,6 @@ from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
-from twisted.logger import Logger
 from typing import Callable, ClassVar, Dict, List, Tuple, Union
 from umbral.keys import UmbralKeyingMaterial, UmbralPrivateKey, UmbralPublicKey, derive_key_from_password
 
@@ -46,6 +45,7 @@ from nucypher.crypto.api import generate_teacher_certificate
 from nucypher.crypto.constants import BLAKE2B
 from nucypher.crypto.powers import (DecryptingPower, DerivedKeyBasedPower, KeyPairBasedPower, SigningPower)
 from nucypher.network.server import TLSHostingPower
+from nucypher.utilities.logging import Logger
 
 FILE_ENCODING = 'utf-8'
 

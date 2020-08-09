@@ -16,16 +16,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import collections
 from os.path import abspath, dirname
 
 import itertools
 import os
 import re
-from twisted.logger import Logger
 from typing import List, NamedTuple, Optional, Set
 
 from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
+from nucypher.utilities.logging import Logger
 
 
 class SourceDirs(NamedTuple):

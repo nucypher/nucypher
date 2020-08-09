@@ -21,7 +21,6 @@ import random
 import maya
 import os
 import pytest
-from twisted.logger import Logger
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker
@@ -33,13 +32,14 @@ from nucypher.blockchain.eth.token import NU, Stake, StakeList
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.utilities.logging import Logger
 from tests.constants import (FAKE_PASSWORD_CONFIRMED, INSECURE_DEVELOPMENT_PASSWORD,
                              MOCK_INDIVIDUAL_ALLOCATION_FILEPATH, MOCK_IP_ADDRESS,
                              ONE_YEAR_IN_SECONDS,
                              TEST_PROVIDER_URI)
-from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT, select_test_port
-from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.utils.middleware import MockRestMiddleware
+from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT, select_test_port
 
 
 #

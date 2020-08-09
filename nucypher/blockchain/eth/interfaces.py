@@ -16,8 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import collections
-
 import click
 import os
 import pprint
@@ -34,8 +32,7 @@ from constant_sorrow.constants import (
 from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import to_checksum_address
-from twisted.logger import Logger
-from typing import Callable, List, NamedTuple, Tuple, Union
+from typing import Callable, NamedTuple, Tuple, Union
 from urllib.parse import urlparse
 from web3 import HTTPProvider, IPCProvider, Web3, WebsocketProvider, middleware
 from web3.contract import Contract, ContractConstructor, ContractFunction
@@ -59,7 +56,7 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
-from nucypher.utilities.logging import GlobalLoggerSettings
+from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
@@ -773,7 +770,6 @@ class BlockchainDeployerInterface(BlockchainInterface):
             deploy_transaction.update({'gas': gas_limit})
 
         pprint_args = ', '.join(list(map(str, constructor_args)) + list(f"{k}={v}" for k, v in constructor_kwargs.items()))
-        pprint_args = pprint_args.replace("{", "{{").replace("}", "}}")  # TODO: See #724
 
         contract_factory = self.get_contract_factory(contract_name=contract_name, version=contract_version)
         self.log.info(f"Deploying contract {contract_name}:{contract_factory.version} with "

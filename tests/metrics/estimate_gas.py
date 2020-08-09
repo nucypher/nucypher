@@ -27,7 +27,7 @@ import re
 import sys
 import tabulate
 import time
-from twisted.logger import ILogObserver, Logger, globalLogPublisher, jsonFileLogObserver
+from twisted.logger import ILogObserver, globalLogPublisher, jsonFileLogObserver
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 from unittest.mock import Mock
@@ -38,6 +38,7 @@ from nucypher.blockchain.eth.agents import AdjudicatorAgent, NucypherTokenAgent,
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.policy.policies import Policy
+from nucypher.utilities.logging import Logger
 from tests.utils.blockchain import TesterBlockchain
 
 # FIXME: Needed to use a fixture here, but now estimate_gas.py only runs if executed from main directory

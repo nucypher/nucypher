@@ -34,7 +34,6 @@ from eth_utils import to_checksum_address
 from requests.exceptions import SSLError
 from twisted.internet import defer, reactor, task
 from twisted.internet.threads import deferToThread
-from twisted.logger import Logger
 from typing import Set, Tuple, Union
 from umbral.signing import Signature
 
@@ -55,6 +54,7 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
+from nucypher.utilities.logging import Logger
 
 
 def icon_from_checksum(checksum,
@@ -536,8 +536,7 @@ class Learner:
             self.log.critical("Unhandled error during node learning.  Attempting graceful crash.")
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
-            cleaned_traceback = failure.getTraceback().replace('{', '').replace('}', '')  # FIXME: Amazing.  724
-            self.log.warn("Unhandled error during node learning: {}".format(cleaned_traceback))
+            self.log.warn(f"Unhandled error during node learning: {failure.getTraceback()}")
             if not self._learning_task.running:
                 self.start_learning_loop()  # TODO: Consider a single entry point for this with more elegant pause and unpause.  NRN
 

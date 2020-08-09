@@ -25,12 +25,12 @@ import shutil
 import tempfile
 from abc import ABC, abstractmethod
 from constant_sorrow.constants import NO_REGISTRY_SOURCE, REGISTRY_COMMITTED
-from twisted.logger import Logger
 from typing import Dict, Iterator, List, Tuple, Type, Union
 
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.utilities.logging import Logger
 
 
 class CanonicalRegistrySource(ABC):

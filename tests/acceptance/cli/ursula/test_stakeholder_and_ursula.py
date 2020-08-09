@@ -21,7 +21,6 @@ from unittest import mock
 
 import maya
 import os
-from twisted.logger import Logger
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
@@ -31,6 +30,8 @@ from nucypher.cli.literature import SUCCESSFUL_MINTING
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.utilities.logging import Logger
+
 from tests.constants import FAKE_PASSWORD_CONFIRMED, FEE_RATE_RANGE, INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, \
     TEST_PROVIDER_URI
 from tests.utils.middleware import MockRestMiddleware

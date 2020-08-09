@@ -22,7 +22,6 @@ import maya
 from abc import ABC, abstractmethod
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG
-from twisted.logger import Logger
 from typing import Generator, List, Set
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
@@ -37,6 +36,7 @@ from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
+from nucypher.utilities.logging import Logger
 
 
 class Arrangement:

@@ -31,7 +31,6 @@ from constant_sorrow.constants import FULL, NO_WORKER_BONDED, WORKER_NOT_RUNNING
 from decimal import Decimal
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import to_canonical_address, to_checksum_address
-from twisted.logger import Logger
 from typing import Dict, Iterable, List, Optional, Tuple
 from web3 import Web3
 from web3.exceptions import ValidationError
@@ -84,6 +83,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.types import NuNits, Period
+from nucypher.utilities.logging import Logger
 
 
 class BaseActor:

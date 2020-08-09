@@ -21,10 +21,10 @@ import click
 import os
 from flask import Response
 from functools import partial
-from twisted.logger import Logger
 from typing import Callable, Union
 
 import nucypher
+from nucypher.utilities.logging import Logger
 
 
 def null_stream():

@@ -21,7 +21,6 @@ from unittest import mock
 
 import os
 import pytest
-from twisted.logger import Logger
 
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter
 from nucypher.characters.lawful import Ursula
@@ -32,7 +31,7 @@ from nucypher.config.characters import BobConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower
-from nucypher.utilities.logging import GlobalLoggerSettings
+from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from tests.constants import (
     FAKE_PASSWORD_CONFIRMED,
     INSECURE_DEVELOPMENT_PASSWORD,

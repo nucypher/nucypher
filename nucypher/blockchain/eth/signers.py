@@ -27,14 +27,13 @@ from eth_account.messages import encode_defunct
 from eth_account.signers.local import LocalAccount
 from eth_utils import apply_formatters_to_dict, is_address, to_checksum_address
 from hexbytes import HexBytes
-from pathlib import Path
-from twisted.logger import Logger
 from typing import Dict, List, Tuple
 from urllib.parse import urlparse
 from web3 import IPCProvider, Web3
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.utilities.logging import Logger
 
 
 class Signer(ABC):
