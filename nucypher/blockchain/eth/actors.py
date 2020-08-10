@@ -1386,6 +1386,7 @@ class Worker(NucypherTokenActor):
 
     class UnbondedWorker(WorkerError):
         """Raised when the Worker is not bonded to a Staker in the StakingEscrow contract."""
+        crash_right_now = True
 
     def __init__(self,
                  is_me: bool,
