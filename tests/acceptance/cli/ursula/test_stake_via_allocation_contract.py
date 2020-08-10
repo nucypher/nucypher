@@ -21,6 +21,8 @@ import random
 import maya
 import os
 import pytest
+import tempfile
+from twisted.logger import Logger
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker
@@ -521,7 +523,8 @@ def test_collect_rewards_integration(click_runner,
                     rest_host='127.0.0.1',
                     rest_port=ursula_port,
                     start_working_now=False,
-                    network_middleware=MockRestMiddleware())
+                    network_middleware=MockRestMiddleware(),
+                    db_filepath=tempfile.mkdtemp())
 
     MOCK_KNOWN_URSULAS_CACHE[ursula_port] = ursula
     assert ursula.worker_address == worker_address

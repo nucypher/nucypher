@@ -22,6 +22,7 @@ from umbral.kfrags import KFrag
 
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.api import keccak_digest
+from nucypher.datastore.models import PolicyArrangement
 from nucypher.policy.collections import Revocation
 
 
@@ -54,9 +55,8 @@ def test_federated_grant(federated_alice, federated_bob):
         arrangement = policy._enacted_arrangements[kfrag]
 
         # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
-        retrieved_policy = arrangement.ursula.datastore.get_policy_arrangement(arrangement.id.hex().encode())
-        retrieved_kfrag = KFrag.from_bytes(retrieved_policy.kfrag)
-
+        with arrangement.ursula.datastore.describe(PolicyArrangement, arrangement.id.hex()) as policy_arrangement:
+            retrieved_kfrag = policy_arrangement.kfrag
         assert kfrag == retrieved_kfrag
 
 

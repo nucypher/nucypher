@@ -24,7 +24,7 @@ from nucypher.characters.control.specifications import alice, bob, enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.utils import construct_policy_id
-from nucypher.datastore.datastore import NotFound
+from nucypher.network.middleware import RestMiddleware
 
 
 def attach_schema(schema):
@@ -139,7 +139,7 @@ class AliceInterface(CharacterPublicInterface):
         if len(failed_revocations) > 0:
             for node_id, attempt in failed_revocations.items():
                 revocation, fail_reason = attempt
-                if fail_reason == NotFound:
+                if fail_reason == RestMiddleware.NotFound:
                     del (failed_revocations[node_id])
         if len(failed_revocations) <= (policy.n - policy.treasure_map.m + 1):
             del (self.character.active_policies[policy_id])

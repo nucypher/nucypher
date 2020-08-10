@@ -28,7 +28,8 @@ import tempfile
 from click.testing import CliRunner
 from datetime import datetime, timedelta
 from eth_utils import to_checksum_address
-from sqlalchemy.engine import create_engine
+from io import StringIO
+from twisted.logger import Logger
 from typing import Tuple
 from umbral import pre
 from umbral.curvebn import CurveBN
@@ -65,7 +66,6 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.datastore import datastore
-from nucypher.datastore.db import Base
 from nucypher.policy.collections import IndisputableEvidence, WorkOrder
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
@@ -136,9 +136,7 @@ def temp_dir_path():
 
 @pytest.fixture(scope="module")
 def test_datastore():
-    engine = create_engine('sqlite:///:memory:')
-    Base.metadata.create_all(engine)
-    test_datastore = datastore.Datastore(engine)
+    test_datastore = datastore.Datastore(tempfile.mkdtemp())
     yield test_datastore
 
 

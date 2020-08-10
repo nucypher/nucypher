@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import binascii
 import os
+import uuid
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH, NO_BLOCKCHAIN_CONNECTION, NO_KNOWN_NODES
@@ -35,9 +36,9 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.utils import canonical_address_from_umbral_key
-from nucypher.datastore.datastore import NotFound
+from nucypher.datastore.datastore import RecordNotFound, DatastoreTransactionError
 from nucypher.datastore.keypairs import HostingKeypair
-from nucypher.datastore.threading import ThreadedSession
+from nucypher.datastore.models import PolicyArrangement, Workorder
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
@@ -86,22 +87,9 @@ def make_rest_app(
     forgetful_node_storage = ForgetfulNodeStorage(federated_only=this_node.federated_only)
 
     from nucypher.datastore import datastore
-    from nucypher.datastore.db import Base
-    from sqlalchemy.engine import create_engine
 
     log.info("Starting datastore {}".format(db_filepath))
-
-    # See: https://docs.sqlalchemy.org/en/rel_0_9/dialects/sqlite.html#connect-strings
-    if db_filepath:
-        db_uri = f'sqlite:///{db_filepath}'
-    else:
-        db_uri = 'sqlite://'  # TODO: Is this a sane default? See #667
-
-    engine = create_engine(db_uri)
-
-    Base.metadata.create_all(engine)
-    datastore = datastore.Datastore(engine)
-    db_engine = engine
+    datastore = datastore.Datastore(db_filepath)
 
     from nucypher.characters.lawful import Alice, Ursula
     _alice_class = Alice
@@ -238,13 +226,11 @@ def make_rest_app(
         arrangement = Arrangement.from_bytes(request.data)
 
         # TODO: Look at the expiration and figure out if we're even staking that long.  1701
-        with ThreadedSession(db_engine) as session:
-            new_policy_arrangement = datastore.add_policy_arrangement(
-                arrangement.expiration.datetime(),
-                arrangement_id=arrangement.id.hex().encode(),
-                alice_verifying_key=arrangement.alice.stamp,
-                session=session,
-            )
+        with datastore.describe(PolicyArrangement, arrangement.id.hex(), writeable=True) as new_policy_arrangement:
+            new_policy_arrangement.arrangement_id = arrangement.id.hex().encode()
+            new_policy_arrangement.expiration = arrangement.expiration
+            new_policy_arrangement.alice_verifying_key = arrangement.alice.stamp.as_umbral_pubkey()
+
         # TODO: Fine, we'll add the arrangement here, but if we never hear from Alice again to enact it,
         # we need to prune it at some point.  #1700
 
@@ -294,12 +280,10 @@ def make_rest_app(
         if not kfrag.verify(signing_pubkey=alices_verifying_key):
             raise InvalidSignature("{} is invalid".format(kfrag))
 
-        with ThreadedSession(db_engine) as session:
-            datastore.attach_kfrag_to_saved_arrangement(
-                alice,
-                id_as_hex,
-                kfrag,
-                session=session)
+        with datastore.describe(PolicyArrangement, id_as_hex, writeable=True) as policy_arrangement:
+            if not policy_arrangement.alice_verifying_key == alice.stamp.as_umbral_pubkey():
+                raise alice.SuspiciousActivity
+            policy_arrangement.kfrag = kfrag
 
         # TODO: Sign the arrangement here.  #495
         return ""  # TODO: Return A 200, with whatever policy metadata.
@@ -313,22 +297,17 @@ def make_rest_app(
 
         revocation = Revocation.from_bytes(request.data)
         log.info("Received revocation: {} -- for arrangement {}".format(bytes(revocation).hex(), id_as_hex))
-        try:
-            with ThreadedSession(db_engine) as session:
-                # Verify the Notice was signed by Alice
-                policy_arrangement = datastore.get_policy_arrangement(
-                    id_as_hex.encode(), session=session)
-                alice_pubkey = UmbralPublicKey.from_bytes(
-                    policy_arrangement.alice_verifying_key.key_data)
 
-                # Check that the request is the same for the provided revocation
-                if id_as_hex != revocation.arrangement_id.hex():
-                    log.debug("Couldn't identify an arrangement with id {}".format(id_as_hex))
-                    return Response(status_code=400)
-                elif revocation.verify_signature(alice_pubkey):
-                    datastore.del_policy_arrangement(
-                        id_as_hex.encode(), session=session)
-        except (NotFound, InvalidSignature) as e:
+        # Check that the request is the same for the provided revocation
+        if not id_as_hex == revocation.arrangement_id.hex():
+            log.debug("Couldn't identify an arrangement with id {}".format(id_as_hex))
+            return Response(status_code=400)
+
+        try:
+            with datastore.describe(PolicyArrangement, id_as_hex, writeable=True) as policy_arrangement:
+                if revocation.verify_signature(policy_arrangement.alice_verifying_key):
+                    policy_arrangement.delete()
+        except (DatastoreTransactionError, InvalidSignature) as e:
             log.debug("Exception attempting to revoke: {}".format(e))
             return Response(response='KFrag not found or revocation signature is invalid.', status=404)
         else:
@@ -344,19 +323,16 @@ def make_rest_app(
         except (binascii.Error, TypeError):
             return Response(response=b'Invalid arrangement ID', status=405)
         try:
-            with ThreadedSession(db_engine) as session:
-                arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(), session=session)
-        except NotFound:
+            # Get KFrag
+            # TODO: Yeah, well, what if this arrangement hasn't been enacted?  1702
+            with datastore.describe(PolicyArrangement, id_as_hex) as policy_arrangement:
+                kfrag = policy_arrangement.kfrag
+                alice_verifying_key = policy_arrangement.alice_verifying_key
+        except RecordNotFound:
             return Response(response=arrangement_id, status=404)
-
-        # Get KFrag
-        # TODO: Yeah, well, what if this arrangement hasn't been enacted?  1702
-        kfrag = KFrag.from_bytes(arrangement.kfrag)
 
         # Get Work Order
         from nucypher.policy.collections import WorkOrder  # Avoid circular import
-        alice_verifying_key_bytes = arrangement.alice_verifying_key.key_data
-        alice_verifying_key = UmbralPublicKey.from_bytes(alice_verifying_key_bytes)
         alice_address = canonical_address_from_umbral_key(alice_verifying_key)
         work_order_payload = request.data
         work_order = WorkOrder.from_rest_payload(arrangement_id=arrangement_id,
@@ -371,10 +347,11 @@ def make_rest_app(
                                         alice_verifying_key=alice_verifying_key)
 
         # Now, Ursula saves this workorder to her database...
-        with ThreadedSession(db_engine):
-            this_node.datastore.save_workorder(bob_verifying_key=bytes(work_order.bob.stamp),
-                                               bob_signature=bytes(work_order.receipt_signature),
-                                               arrangement_id=work_order.arrangement_id)
+        # Note: we give the work order a random ID to store it under.
+        with datastore.describe(Workorder, str(uuid.uuid4()), writeable=True) as new_workorder:
+            new_workorder.arrangement_id = work_order.arrangement_id
+            new_workorder.bob_verifying_key = work_order.bob.stamp.as_umbral_pubkey()
+            new_workorder.bob_signature = work_order.receipt_signature
 
         headers = {'Content-Type': 'application/octet-stream'}
         return Response(headers=headers, response=response)

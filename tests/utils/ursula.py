@@ -17,8 +17,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import contextlib
-
 import socket
+import tempfile
 
 from cryptography.x509 import Certificate
 from typing import Iterable, List, Optional, Set
@@ -103,7 +103,7 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
     for port, (staker_address, worker_address) in enumerate(stakers_and_workers, start=starting_port):
         ursula = ursula_config.produce(checksum_address=staker_address,
                                        worker_address=worker_address,
-                                       db_filepath=MOCK_URSULA_DB_FILEPATH,
+                                       db_filepath=tempfile.mkdtemp(),
                                        rest_port=port + 100,
                                        **ursula_overrides)
         if commit_to_next_period:

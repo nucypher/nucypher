@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
 import random
+import tempfile
 from unittest import mock
 
 import maya
@@ -475,7 +476,8 @@ def test_collect_rewards_integration(click_runner,
                     registry=agency_local_registry,
                     rest_host='127.0.0.1',
                     rest_port=ursula_port,
-                    network_middleware=MockRestMiddleware())
+                    network_middleware=MockRestMiddleware(),
+                    db_filepath=tempfile.mkdtemp())
 
     MOCK_KNOWN_URSULAS_CACHE[ursula_port] = ursula
     assert ursula.worker_address == worker_address

@@ -17,10 +17,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import click
+import lmdb
 import os
 import pytest
+from contextlib import contextmanager
 from eth_account import Account
 from eth_account.account import Account
+from functools import partial
 
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import (
@@ -42,6 +45,7 @@ from tests.constants import (
     MOCK_PROVIDER_URI,
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS
 )
+from nucypher.datastore.datastore import Datastore  # yikes TODO
 from tests.fixtures import _make_testerchain, make_token_economics
 from tests.mock.agents import MockContractAgency, MockContractAgent
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
@@ -52,6 +56,43 @@ from tests.utils.config import (
     make_ursula_test_configuration
 )
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
+
+
+class TestLMDBEnv:
+    """
+    This class is used to have LMDB environments open just-in-time as they're
+    needed.
+
+    This is necessary in testing environments because there may be too many
+    LMDB environments open at once.
+    """
+    __test__ = False    # Prohibit pytest from collecting this
+
+    LMDB_OPEN_FUNC = lmdb.open
+
+    def __init__(self, *args, **kwargs):
+        self.db_path = args[0]
+        self.open = partial(self.LMDB_OPEN_FUNC, *args, **kwargs)
+
+    @contextmanager
+    def begin(self, *args, **kwargs):
+        try:
+            with self.open() as lmdb_env:
+                with lmdb_env.begin(*args, **kwargs) as lmdb_tx:
+                    yield lmdb_tx
+        finally:
+            pass
+
+    def path(self):
+        return self.db_path
+
+@pytest.fixture(autouse=True)
+def JIT_lmdb_env(monkeypatch):
+    monkeypatch.setattr("lmdb.open", TestLMDBEnv)
+
+@pytest.fixture(autouse=True)
+def reduced_memory_page_lmdb(monkeypatch):
+    monkeypatch.setattr(Datastore, "LMDB_MAP_SIZE", 10_000_000)
 
 
 @pytest.fixture(scope='function', autouse=True)

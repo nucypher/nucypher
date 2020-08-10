@@ -21,6 +21,7 @@ import pytest
 from umbral.kfrags import KFrag
 
 from nucypher.crypto.api import keccak_digest
+from nucypher.datastore.models import PolicyArrangement
 from nucypher.policy.collections import PolicyCredential
 
 
@@ -54,10 +55,8 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, agency):
         arrangement = policy._enacted_arrangements[kfrag]
 
         # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
-        retrieved_policy = arrangement.ursula.datastore.get_policy_arrangement(arrangement.id.hex().encode())
-        retrieved_kfrag = KFrag.from_bytes(retrieved_policy.kfrag)
-
-        assert kfrag == retrieved_kfrag
+        with arrangement.ursula.datastore.describe(PolicyArrangement, arrangement.id.hex()) as policy_arrangement:
+            assert kfrag == policy_arrangement.kfrag
 
     # Test PolicyCredential w/o TreasureMap
     credential = policy.credential(with_treasure_map=False)

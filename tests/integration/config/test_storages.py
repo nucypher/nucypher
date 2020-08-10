@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 
 from nucypher.characters.lawful import Ursula
-from nucypher.config.storages import (ForgetfulNodeStorage, NodeStorage, SQLiteForgetfulNodeStorage,
+from nucypher.config.storages import (ForgetfulNodeStorage, NodeStorage,
                                       TemporaryFileBasedNodeStorage)
 from tests.constants import (
     MOCK_URSULA_DB_FILEPATH)
@@ -105,13 +105,6 @@ class BaseTestNodeStorageBackends:
 class TestInMemoryNodeStorage(BaseTestNodeStorageBackends):
     storage_backend = ForgetfulNodeStorage(character_class=BaseTestNodeStorageBackends.character_class,
                                            federated_only=BaseTestNodeStorageBackends.federated_only)
-    storage_backend.initialize()
-
-
-class TestInMemorySQLiteNodeStorage(BaseTestNodeStorageBackends):
-    storage_backend = SQLiteForgetfulNodeStorage(db_filepath=':memory:',
-                                                 character_class=BaseTestNodeStorageBackends.character_class,
-                                                 federated_only=BaseTestNodeStorageBackends.federated_only)
     storage_backend.initialize()
 
 

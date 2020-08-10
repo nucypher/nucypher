@@ -14,269 +14,222 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+import lmdb
 import maya
+from contextlib import contextmanager, suppress
+from functools import partial
+from typing import Any, Callable, List, NamedTuple, Optional, Type, Union
+
 from bytestring_splitter import BytestringSplitter
-from datetime import datetime
-from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import sessionmaker
-from typing import List
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
-
 from nucypher.crypto.signing import Signature
-from nucypher.crypto.utils import fingerprint_from_key
-from nucypher.datastore.db.models import Key, PolicyArrangement, Workorder
+from nucypher.datastore.base import DatastoreRecord, DBWriteError, RecordField
+from nucypher.datastore.models import PolicyArrangement, Workorder
 
 
-class NotFound(Exception):
+class RecordNotFound(Exception):
     """
     Exception class for Datastore calls for objects that don't exist.
     """
     pass
 
 
+class DatastoreTransactionError(Exception):
+    """
+    Exception class for errors during transactions in the datastore.
+    """
+    pass
+
+
+class DatastoreKey(NamedTuple):
+    """
+    Used for managing keys when querying the datastore.
+    """
+    record_type: Optional[str] = None
+    record_field: Optional[str] = None
+    record_id: Optional[Union[bytes, int]] = None
+
+    @classmethod
+    def from_bytestring(cls, key_bytestring: bytes) -> 'DatastoreKey':
+        key_parts = key_bytestring.decode().split(':')
+        with suppress(ValueError):
+            # If the ID can be an int, we convert it
+            key_parts[-1] = int(key_parts[-1])
+        return cls(*key_parts)
+
+    def compare_key(self, key_bytestring: bytes) -> bool:
+        """
+        This method compares a key to another key given a key's bytestring.
+        Usually, the `key_bytestring` will be a query key, and the `self`
+        key will be a key in the `Datastore`.
+
+        The logic below offers precedence when performing matches on a query.
+        We _prefer_ the `other_key` over `self`.
+        As such, if `other_key` doesn't specify a key attr (it will be None),
+        we will take the key attr conferred by `self`.
+
+        Specifically, this allows us to match partial keys to specific keys,
+        where the `Datastore` will _always_ return specific keys, but queries
+        will almost always be partial keys.
+        """
+        other_key = DatastoreKey.from_bytestring(key_bytestring)
+        return self.record_type == (other_key.record_type or self.record_type) and \
+               self.record_field == (other_key.record_field or self.record_field) and \
+               self.record_id == (other_key.record_id or self.record_id)
+
+
 class Datastore:
     """
-    A storage class of persistent cryptographic entities for use by Ursula.
+    A persistent storage layer for arbitrary data for use by NuCypher characters.
     """
-    kfrag_splitter = BytestringSplitter(Signature, (KFrag, KFrag.expected_bytes_length()))
 
-    def __init__(self, sqlalchemy_engine=None) -> None:
+    # LMDB has a `map_size` arg that caps the total size of the database.
+    # We can set this arbitrarily high (1TB) to prevent any run-time crashes.
+    LMDB_MAP_SIZE = 1_000_000_000_000
+
+    def __init__(self, db_path: str) -> None:
         """
-        Initializes a Datastore object.
+        Initializes a Datastore object by path.
 
-        :param sqlalchemy_engine: SQLAlchemy engine object to create session
+        :param db_path: Filepath to a lmdb database.
         """
-        self.engine = sqlalchemy_engine
-        Session = sessionmaker(bind=sqlalchemy_engine)
+        self.db_path = db_path
+        self.__db_env = lmdb.open(db_path, map_size=self.LMDB_MAP_SIZE)
 
-        # This will probably be on the reactor thread for most production configs.
-        # Best to treat like hot lava.
-        self._session_on_init_thread = Session()
-
-    @staticmethod
-    def __commit(session) -> None:
-        try:
-            session.commit()
-        except OperationalError:
-            session.rollback()
-            raise
-
-    #
-    # Keys
-    #
-
-    def add_key(self,
-                key: UmbralPublicKey,
-                is_signing: bool = True,
-                session=None
-                ) -> Key:
+    @contextmanager
+    def describe(self,
+                 record_type: Type['DatastoreRecord'],
+                 record_id: Union[int, str],
+                 writeable: bool = False) -> Type['DatastoreRecord']:
         """
-        :param key: Keypair object to store in the keystore.
+        This method is used to perform CRUD operations on the datastore within
+        the safety of a context manager by returning an instance of the
+        `record_type` identified by the `record_id` provided.
 
-        :return: The newly added key object.
+        When `writeable` is `False`, the record returned by this method
+        cannot be used for any operations that write to the datastore. If an
+        attempt is made to retrieve a non-existent record whilst `writeable`
+        is `False`, this method raises a `RecordNotFound` error.
+
+        When `writeable` is `True`, the record can be used to perform writes
+        on the datastore. In the event an error occurs during the write, the
+        transaction will be aborted and no data will be written, and a
+        `DatastoreTransactionError` will be raised.
+
+        If the record is used outside the scope of the context manager, any
+        writes or reads will error.
         """
-        session = session or self._session_on_init_thread
-        fingerprint = fingerprint_from_key(key)
-        key_data = bytes(key)
-        new_key = Key(fingerprint, key_data, is_signing)
+        with suppress(ValueError):
+            # If the ID can be converted to an int, we do it.
+            record_id = int(record_id)
 
-        session.add(new_key)
-        self.__commit(session=session)
-        return new_key
+        with self.__db_env.begin(write=writeable) as datastore_tx:
+            record = record_type(datastore_tx, record_id, writeable=writeable)
+            try:
+                yield record
+            except (AttributeError, TypeError, DBWriteError) as tx_err:
+                # Handle `RecordNotFound` cases when `writeable` is `False`.
+                if not writeable and isinstance(tx_err, AttributeError):
+                    raise RecordNotFound(tx_err)
+                raise DatastoreTransactionError(f'An error was encountered during the transaction (no data was written): {tx_err}')
+            finally:
+                # Now we ensure that the record is not writeable
+                record.__dict__['_DatastoreRecord__writeable'] = False
 
-    def get_key(self, fingerprint: bytes, session=None) -> UmbralPublicKey:
+    @contextmanager
+    def query_by(self,
+              record_type: Type['DatastoreRecord'],
+              filter_func: Optional[Callable[[Union[Any, Type['DatastoreRecord']]], bool]] = None,
+              filter_field: str = "",
+              writeable: bool = False,
+              ) -> List[Type['DatastoreRecord']]:
         """
-        Returns a key from the Datastore.
+        Performs a query on the datastore for the record by `record_type`.
 
-        :param fingerprint: Fingerprint, in bytes, of key to return
+        An optional `filter_func` callable will take the decoded field
+        specified by the optional arg `filter_field` (see below) for the given
+        `record_type` iff the `filter_field` has been provided.
+        If no `filter_field` has been provided, then the `filter_func` will
+        receive a _readonly_ `DatastoreRecord`.
 
-        :return: Keypair of the returned key.
+        An optional `filter_field` can be provided as a `str` to perform a
+        query on a specific field for a `record_type`. This will cause the
+        `filter_func` to receive the decoded `filter_field` per the `record_type`.
+        Additionally, providing a `filter_field` will limit the query to
+        iterating over only the subset of records specific to that field.
+
+        If records can't be found, this method will raise `RecordNotFound`.
         """
-        session = session or self._session_on_init_thread
+        valid_records = set()
+        with self.__db_env.begin(write=writeable) as datastore_tx:
+            db_cursor = datastore_tx.cursor()
 
-        key = session.query(Key).filter_by(fingerprint=fingerprint).first()
-        if not key:
-            raise NotFound("No key with fingerprint {} found.".format(fingerprint))
+            # Set the cursor to the closest key (if it exists) by the query params.
+            #
+            # By providing a `filter_field`, the query will immediately be
+            # limited to the subset of keys for the `filter_field`.
+            query_key = f'{record_type.__name__}:{filter_field}'.encode()
+            if not db_cursor.set_range(query_key):
+                # The cursor couldn't identify any records by the key
+                raise RecordNotFound(f"No records exist for the key from the specified query parameters: '{query_key}'")
 
-        pubkey = UmbralPublicKey.from_bytes(key.key_data)
-        return pubkey
+            # Check if the record at the cursor is valid for the query
+            curr_key = DatastoreKey.from_bytestring(db_cursor.key())
+            if not curr_key.compare_key(query_key):
+                raise RecordNotFound(f"No records exist for the key from the specified query parameters: '{query_key}'")
 
-    def del_key(self, fingerprint: bytes, session=None):
-        """
-        Deletes a key from the Datastore.
+            # Everything checks out, let's begin iterating!
+            # We begin by comparing the current key to the query key.
+            # If the key doesn't match the query key, we know that there are
+            # no records for the query because lmdb orders the keys lexicographically.
+            # Ergo, if the current key doesn't match the query key, we know
+            # we have gone beyond the relevant keys and can `break` the loop.
+            # Additionally, if the record is already in the `valid_records`
+            # set (identified by the `record_id`, we call `continue`.
+            for db_key in db_cursor.iternext(keys=True, values=False):
+                curr_key = DatastoreKey.from_bytestring(db_key)
+                if not curr_key.compare_key(query_key):
+                    break
+                elif curr_key.record_id in valid_records:
+                    continue
 
-        :param fingerprint: Fingerprint of key to delete
-        """
-        session = session or self._session_on_init_thread
+                record = partial(record_type, datastore_tx, curr_key.record_id)
 
-        session.query(Key).filter_by(fingerprint=fingerprint).delete()
-        self.__commit(session=session)
+                # We pass the field to the filter_func if `filter_field` and
+                # `filter_func` are both provided. In the event that the
+                # given `filter_field` doesn't exist for the record or the
+                # `filter_func` returns `False`, we call `continue`.
+                if filter_field and filter_func:
+                    try:
+                        field = getattr(record(writeable=False), filter_field)
+                    except (TypeError, AttributeError):
+                        continue
+                    else:
+                        if not filter_func(field):
+                            continue
 
-    #
-    # Arrangements
-    #
+                # If only a filter_func is given, we pass a readonly record to it.
+                # Likewise to the above, if `filter_func` returns `False`, we
+                # call `continue`.
+                elif filter_func:
+                    if not filter_func(record(writeable=False)):
+                        continue
 
-    def add_policy_arrangement(self,
-                               expiration: maya.MayaDT,
-                               arrangement_id: bytes,
-                               kfrag: KFrag = None,
-                               alice_verifying_key: UmbralPublicKey = None,
-                               alice_signature: Signature = None,  # TODO: Why is this unused?
-                               session=None
-                               ) -> PolicyArrangement:
-        """
-        Creates a PolicyArrangement to the Keystore.
+                # Finally, having a record that satisfies the above conditional
+                # constraints, we can add the record to the set
+                valid_records.add(record(writeable=writeable))
 
-        :return: The newly added PolicyArrangement object
-        """
-        session = session or self._session_on_init_thread
-
-        alice_key_instance = session.query(Key).filter_by(key_data=bytes(alice_verifying_key)).first()
-        if not alice_key_instance:
-            alice_key_instance = Key.from_umbral_key(alice_verifying_key, is_signing=True)
-
-        new_policy_arrangement = PolicyArrangement(
-            expiration=expiration,
-            id=arrangement_id,
-            kfrag=kfrag,
-            alice_verifying_key=alice_key_instance,
-            alice_signature=None,
-            # bob_verifying_key.id  # TODO: Is this needed?
-        )
-
-        session.add(new_policy_arrangement)
-        self.__commit(session=session)
-        return new_policy_arrangement
-
-    def get_policy_arrangement(self, arrangement_id: bytes, session=None) -> PolicyArrangement:
-        """
-        Retrieves a PolicyArrangement by its HRAC.
-
-        :return: The PolicyArrangement object
-        """
-        session = session or self._session_on_init_thread
-        policy_arrangement = session.query(PolicyArrangement).filter_by(id=arrangement_id).first()
-        if not policy_arrangement:
-            raise NotFound("No PolicyArrangement {} found.".format(arrangement_id))
-        return policy_arrangement
-
-    def get_all_policy_arrangements(self, session=None) -> List[PolicyArrangement]:
-        """
-        Returns all the PolicyArrangements
-
-        :return: The list of PolicyArrangement objects
-        """
-        session = session or self._session_on_init_thread
-        arrangements = session.query(PolicyArrangement).all()
-        return arrangements
-
-    def attach_kfrag_to_saved_arrangement(self, alice, id_as_hex, kfrag, session=None):
-        session = session or self._session_on_init_thread
-        policy_arrangement = session.query(PolicyArrangement).filter_by(id=id_as_hex.encode()).first()
-
-        if policy_arrangement is None:
-            raise NotFound("Can't attach a kfrag to non-existent Arrangement {}".format(id_as_hex))
-
-        if policy_arrangement.alice_verifying_key.key_data != alice.stamp:
-            raise alice.SuspiciousActivity
-
-        policy_arrangement.kfrag = bytes(kfrag)
-        self.__commit(session=session)
-
-    def del_policy_arrangement(self, arrangement_id: bytes, session=None) -> int:
-        """
-        Deletes a PolicyArrangement from the Keystore.
-        """
-        session = session or self._session_on_init_thread
-        deleted_records = session.query(PolicyArrangement).filter_by(id=arrangement_id).delete()
-
-        self.__commit(session=session)
-        return deleted_records
-
-    def del_expired_policy_arrangements(self, session=None, now=None) -> int:
-        """
-        Deletes all expired PolicyArrangements from the Keystore.
-        """
-        session = session or self._session_on_init_thread
-        now = now or datetime.now()
-        result = session.query(PolicyArrangement).filter(PolicyArrangement.expiration <= now)
-
-        deleted_records = 0
-        if result.count() > 0:
-            deleted_records = result.delete()
-        self.__commit(session=session)
-        return deleted_records
-
-    #
-    # Work Orders
-    #
-
-    def save_workorder(self,
-                       bob_verifying_key: UmbralPublicKey,
-                       bob_signature: Signature,
-                       arrangement_id: bytes,
-                       session=None
-                       ) -> Workorder:
-        """
-        Adds a Workorder to the keystore.
-        """
-        session = session or self._session_on_init_thread
-
-        # Get or Create Bob Verifying Key
-        fingerprint = fingerprint_from_key(bob_verifying_key)
-        key = session.query(Key).filter_by(fingerprint=fingerprint).first()
-        if not key:
-            key = self.add_key(key=bob_verifying_key)
-
-        new_workorder = Workorder(bob_verifying_key_id=key.id,
-                                  bob_signature=bob_signature,
-                                  arrangement_id=arrangement_id)
-
-        session.add(new_workorder)
-        self.__commit(session=session)
-        return new_workorder
-
-    def get_workorders(self,
-                       arrangement_id: bytes = None,
-                       bob_verifying_key: bytes = None,
-                       session=None
-                       ) -> List[Workorder]:
-        """
-        Returns a list of Workorders by HRAC.
-        """
-        session = session or self._session_on_init_thread
-        query = session.query(Workorder)
-
-        if not arrangement_id and not bob_verifying_key:
-            workorders = query.all()  # Return all records
-
-        else:
-
-            # Return arrangement records
-            if arrangement_id:
-                workorders = query.filter_by(arrangement_id=arrangement_id)
-
-            # Return records for Bob
-            else:
-                fingerprint = fingerprint_from_key(bob_verifying_key)
-                key = session.query(Key).filter_by(fingerprint=fingerprint).first()
-                workorders = query.filter_by(bob_verifying_key_id=key.id)
-
-            if not workorders:
-                raise NotFound
-
-        return list(workorders)
-
-    def del_workorders(self, arrangement_id: bytes, session=None) -> int:
-        """
-        Deletes a Workorder from the Keystore.
-        """
-        session = session or self._session_on_init_thread
-
-        workorders = session.query(Workorder).filter_by(arrangement_id=arrangement_id)
-        deleted = workorders.delete()
-        self.__commit(session=session)
-        return deleted
+            # If after the iteration we have no records, we raise `RecordNotFound`
+            if len(valid_records) == 0:
+                raise RecordNotFound(f"No records exist for the key from the specified query parameters: '{query_key}'")
+            # We begin the context manager try/finally block
+            try:
+                # At last, we yield the queried records
+                yield list(valid_records)
+            except (AttributeError, TypeError, DBWriteError) as tx_err:
+                # Handle `RecordNotFound` cases when `writeable` is `False`.
+                if not writeable and isinstance(tx_err, AttributeError):
+                    raise RecordNotFound(tx_err)
+                raise DatastoreTransactionError(f'An error was encountered during the transaction (no data was written): {tx_err}')
+            finally:
+                for record in valid_records:
+                    record.__dict__['_DatastoreRecord__writeable'] = False

@@ -25,6 +25,7 @@ from umbral.kfrags import KFrag
 from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.datastore.models import PolicyArrangement, Workorder
 from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
 
 
@@ -199,9 +200,8 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     else:
         raise RuntimeError("We've lost track of the Ursula that has the WorkOrder. Can't really proceed.")
 
-    kfrag_bytes = ursula.datastore.get_policy_arrangement(
-        work_order.arrangement_id.hex().encode()).kfrag
-    the_kfrag = KFrag.from_bytes(kfrag_bytes)
+    with ursula.datastore.describe(PolicyArrangement, work_order.arrangement_id.hex()) as policy_arrangement:
+        the_kfrag = policy_arrangement.kfrag
     the_correct_cfrag = pre.reencrypt(the_kfrag, capsule)
 
     # The first CFRAG_LENGTH_WITHOUT_PROOF bytes (ie, the cfrag proper, not the proof material), are the same:
@@ -211,9 +211,10 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     assert the_correct_cfrag.verify_correctness(capsule)
 
     # Now we'll show that Ursula saved the correct WorkOrder.
-    work_orders_from_bob = ursula.work_orders(bob=federated_bob)
-    assert len(work_orders_from_bob) == 1
-    assert work_orders_from_bob[0].bob_signature == work_order.receipt_signature
+    with ursula.datastore.query_by(Workorder, filter_field='bob_verifying_key',
+            filter_func=lambda bob_key: bob_key == federated_bob.stamp.as_umbral_pubkey()) as work_orders_from_bob:
+        assert len(work_orders_from_bob) == 1
+        assert work_orders_from_bob[0].bob_signature == work_order.receipt_signature
 
 
 def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_policy,
