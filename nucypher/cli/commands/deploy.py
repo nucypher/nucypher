@@ -85,8 +85,8 @@ from nucypher.cli.options import (
     option_network,
     option_poa,
     option_provider_uri,
-    option_signer_uri
-)
+    option_signer_uri,
+    option_parameters)
 from nucypher.cli.painting.deployment import (
     paint_contract_deployment,
     paint_deployer_contract_inspection,
@@ -392,9 +392,8 @@ def rollback(general_config, actor_options):
 @group_actor_options
 @option_gas
 @option_ignore_deployed
+@option_parameters
 @click.option('--confirmations', help="Number of required block confirmations", type=click.IntRange(min=0))
-@click.option('--parameters', help="Filepath to a JSON file containing additional deployment parameters",
-              type=EXISTING_READABLE_FILE)
 @click.option('--mode',
               help="Deploy a contract following all steps ('full'), up to idle status ('idle'), "
                    "or just the bare contract ('bare'). Defaults to 'full'",

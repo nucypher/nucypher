@@ -65,8 +65,8 @@ from nucypher.cli.options import (
     option_network,
     option_provider_uri,
     option_registry_filepath,
-    option_signer_uri
-)
+    option_signer_uri,
+    option_participant_address)
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.painting.worklock import (
     paint_bidder_status,
@@ -76,10 +76,6 @@ from nucypher.cli.painting.worklock import (
 )
 from nucypher.cli.types import DecimalRange, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
-
-option_bidder_address = click.option('--participant-address',
-                                     help="Participant's checksum address.",
-                                     type=EIP55_CHECKSUM_ADDRESS)
 
 
 class WorkLockOptions:
@@ -141,7 +137,7 @@ class WorkLockOptions:
 
 group_worklock_options = group_options(
     WorkLockOptions,
-    participant_address=option_bidder_address,
+    participant_address=option_participant_address,
     signer_uri=option_signer_uri,
     provider_uri=option_provider_uri(required=True, default=os.environ.get(NUCYPHER_ENVVAR_PROVIDER_URI)),
     network=option_network(default=NetworksInventory.DEFAULT, validate=True),  # TODO: See 2214
