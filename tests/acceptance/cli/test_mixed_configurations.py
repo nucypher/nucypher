@@ -69,6 +69,7 @@ def test_coexisting_configurations(click_runner,
     assert not custom_filepath.exists()
 
     # Parse node addresses
+    # TODO: Is testerchain & Full contract deployment needed here (causes massive slowdown)?
     alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
 
     envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
@@ -180,14 +181,13 @@ def test_coexisting_configurations(click_runner,
     # Run an Ursula amidst the other configuration files
     run_args = ('ursula', 'run',
                 '--dry-run',
-                '--interactive',
                 '--config-file', another_ursula_configuration_file_location)
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' * 2
 
     Worker.BONDING_POLL_RATE = 1
     Worker.BONDING_TIMEOUT = 1
-    with pytest.raises(Teacher.UnbondedWorker):
+    with pytest.raises(Teacher.UnbondedWorker):  # TODO: Why is this being checked here?
         # Worker init success, but not bonded.
         result = click_runner.invoke(nucypher_cli, run_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
