@@ -22,22 +22,10 @@ import maya
 import pytest
 import pytest_twisted
 from twisted.internet import defer
-from tests.performance_mocks import NotAPublicKey, NotARestApp, VerificationTracker, mock_cert_loading, \
-    mock_cert_storage, mock_message_verification, mock_metadata_validation, mock_pubkey_from_bytes, mock_secret_source, \
-    mock_signature_bytes, mock_stamp_call, mock_verify_node
 from twisted.internet.threads import deferToThread
 
 from nucypher.characters.lawful import Ursula
-from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
 from nucypher.datastore.base import RecordField
-import pytest_twisted
-from twisted.internet import defer, reactor
-from twisted.internet.threads import deferToThread, blockingCallFromThread
-
-from nucypher.characters.lawful import Ursula
-from tests.utils.middleware import SluggishLargeFleetMiddleware
-from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
-from umbral.keys import UmbralPublicKey
 from tests.mock.performance_mocks import (
     NotAPublicKey,
     NotARestApp,
@@ -53,6 +41,7 @@ from tests.mock.performance_mocks import (
     mock_verify_node
 )
 from tests.utils.middleware import SluggishLargeFleetMiddleware
+from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
 from umbral.keys import UmbralPublicKey
 
 """
@@ -85,7 +74,7 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     # A quick setup so that the bytes casting of Ursulas (on what in the real world will be the remote node)
     # doesn't take up all the time.
     _teacher_known_nodes_bytestring = actual_ursula.bytestring_of_known_nodes()
-    actual_ursula.bytestring_of_known_nodes = lambda *args, ** kwargs: _teacher_known_nodes_bytestring  # TODO: Formalize this?  #1537
+    actual_ursula.bytestring_of_known_nodes = lambda *args, **kwargs: _teacher_known_nodes_bytestring  # TODO: Formalize this?  #1537
 
     with mock_cert_storage, mock_cert_loading, mock_verify_node, mock_message_verification, mock_metadata_validation:
         with mock_pubkey_from_bytes(), mock_stamp_call, mock_signature_bytes:
@@ -142,6 +131,7 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
     # TODO: Make some assertions about policy.
     total_verified = sum(node.verified_node for node in highperf_mocked_alice.known_nodes)
     assert total_verified == 30
+    _POLICY_PRESERVER.append(policy)
 
 
 @pytest_twisted.inlineCallbacks
@@ -160,7 +150,8 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
 
     # # # Loop through and instantiate actual rest apps so as not to pollute the time measurement (doesn't happen in real world).
     for node in nodes_we_expect_to_have_the_map:
-        highperf_mocked_alice.network_middleware.client.parse_node_or_host_and_port(node)  # Causes rest app to be made (happens JIT in other testS)
+        highperf_mocked_alice.network_middleware.client.parse_node_or_host_and_port(
+            node)  # Causes rest app to be made (happens JIT in other testS)
 
     highperf_mocked_alice.network_middleware = SluggishLargeFleetMiddleware()
 
@@ -201,7 +192,8 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
             # Here we'll just count the nodes that have the map.  In the real world, we can do a sanity check
             # to make sure things haven't gone sideways.
 
-            nodes_that_have_the_map_when_we_unblock = sum(policy.treasure_map in list(u.treasure_maps.values()) for u in nodes_we_expect_to_have_the_map)
+            nodes_that_have_the_map_when_we_unblock = sum(
+                policy.treasure_map in list(u.treasure_maps.values()) for u in nodes_we_expect_to_have_the_map)
 
             return nodes_that_have_the_map_when_we_unblock, little_while_ended_at
 
@@ -213,7 +205,8 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
         assert nodes_that_have_the_map_when_we_unblock >= policy.publishing_mutex._block_until_this_many_are_complete
 
         # The number of nodes having the map is approximately the number you'd expect from full utilization of Alice's publication threadpool.
-        assert nodes_that_have_the_map_when_we_unblock == pytest.approx(highperf_mocked_alice.publication_threadpool.max, .6)
+        assert nodes_that_have_the_map_when_we_unblock == pytest.approx(
+            highperf_mocked_alice.publication_threadpool.max, .6)
 
         # PART III: Having made proper assertions about the publication call and the first block, we allow the rest to
         # happen in the background and then ensure that each phase was timely.
