@@ -18,7 +18,7 @@ import lmdb
 import maya
 from contextlib import contextmanager, suppress
 from functools import partial
-from typing import Any, Callable, List, NamedTuple, Optional, Union
+from typing import Any, Callable, List, NamedTuple, Optional, Type, Union
 
 from bytestring_splitter import BytestringSplitter
 from nucypher.crypto.signing import Signature
@@ -97,9 +97,9 @@ class Datastore:
 
     @contextmanager
     def describe(self,
-                 record_type: 'DatastoreRecord',
+                 record_type: Type['DatastoreRecord'],
                  record_id: Union[int, str],
-                 writeable: bool=False) -> 'DatastoreRecord':
+                 writeable: bool = False) -> Type['DatastoreRecord']:
         """
         This method is used to perform CRUD operations on the datastore within
         the safety of a context manager by returning an instance of the
@@ -137,11 +137,11 @@ class Datastore:
 
     @contextmanager
     def query_by(self,
-              record_type: 'DatastoreRecord',
-              filter_func: Callable[[Union[Any, 'DatastoreRecord']], bool] = None,
+              record_type: Type['DatastoreRecord'],
+              filter_func: Optional[Callable[[Union[Any, Type['DatastoreRecord']]], bool]] = None,
               filter_field: str = "",
               writeable: bool = False,
-              ) -> List['DatastoreRecord']:
+              ) -> List[Type['DatastoreRecord']]:
         """
         Performs a query on the datastore for the record by `record_type`.
 

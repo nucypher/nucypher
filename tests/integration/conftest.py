@@ -45,6 +45,7 @@ from tests.constants import (
     MOCK_PROVIDER_URI,
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS
 )
+from nucypher.datastore.datastore import Datastore  # yikes TODO
 from tests.fixtures import _make_testerchain, make_token_economics
 from tests.mock.agents import MockContractAgency, MockContractAgent
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
@@ -65,6 +66,7 @@ class TestLMDBEnv:
     This is necessary in testing environments because there may be too many
     LMDB environments open at once.
     """
+    __test__ = False    # Prohibit pytest from collecting this
 
     LMDB_OPEN_FUNC = lmdb.open
 
@@ -87,6 +89,10 @@ class TestLMDBEnv:
 @pytest.fixture(autouse=True)
 def JIT_lmdb_env(monkeypatch):
     monkeypatch.setattr("lmdb.open", TestLMDBEnv)
+
+@pytest.fixture(autouse=True)
+def reduced_memory_page_lmdb(monkeypatch):
+    monkeypatch.setattr(Datastore, "LMDB_MAP_SIZE", 10_000_000)
 
 
 @pytest.fixture(scope='function', autouse=True)

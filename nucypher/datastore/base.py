@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import msgpack
-from typing import Any, Callable, Iterable, NamedTuple, Optional, Union
+from typing import Any, Callable, Iterable, NamedTuple, Union
 
 
 class DBWriteError(Exception):
@@ -47,8 +47,8 @@ class RecordField(NamedTuple):
     will probably always want to provide a `decode`.
     """
     field_type: Any
-    encode: Optional[Callable[[Any], bytes]] = lambda field: field
-    decode: Optional[Callable[[bytes], Any]] = lambda field: field
+    encode: Callable[[Any], bytes] = lambda field: field
+    decode: Callable[[bytes], Any] = lambda field: field
 
 
 class DatastoreRecord:
