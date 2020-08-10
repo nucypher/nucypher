@@ -990,7 +990,6 @@ class Teacher:
         self.verified_worker = False
         self.verified_interface = False
         self.verified_node = False
-        self.__worker_address = None
 
     class InvalidNode(SuspiciousActivity):
         """Raised when a node has an invalid characteristic - stamp, interface, or address."""
@@ -1264,18 +1263,18 @@ class Teacher:
 
     @property
     def worker_address(self):
-        if not self.__worker_address and not self.federated_only:
+        if not self._checksum_address and not self.federated_only:
             if self.decentralized_identity_evidence is NOT_SIGNED:
                 raise self.StampNotSigned  # TODO: Find a better exception  NRN
-            self.__worker_address = recover_address_eip_191(message=bytes(self.stamp),
-                                                            signature=self.decentralized_identity_evidence)
-        return self.__worker_address
+            self._checksum_address = recover_address_eip_191(message=bytes(self.stamp),
+                                                             signature=self.decentralized_identity_evidence)
+        return self._checksum_address
 
     def substantiate_stamp(self):
         transacting_power = self._crypto_power.power_ups(TransactingPower)
         signature = transacting_power.sign_message(message=bytes(self.stamp))
         self.__decentralized_identity_evidence = signature
-        self.__worker_address = transacting_power.account
+        self._checksum_address = transacting_power.account
 
     #
     # Interface
