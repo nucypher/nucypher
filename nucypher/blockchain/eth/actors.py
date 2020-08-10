@@ -1437,7 +1437,7 @@ class Worker(NucypherTokenActor):
 
         timeout = timeout or self.BONDING_TIMEOUT
         poll_rate = poll_rate or self.BONDING_POLL_RATE
-        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)  # TODO: use the agent on self
         client = staking_agent.blockchain.client
         start = maya.now()
 
