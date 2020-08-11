@@ -15,16 +15,27 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import os
 from unittest import mock
 
-import os
+import pytest
 
+from tests.conftest import cleanup_gmwe
 from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
-from tests.constants import (FAKE_PASSWORD_CONFIRMED, INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH,
-                             MOCK_IP_ADDRESS)
+from tests.constants import (
+    FAKE_PASSWORD_CONFIRMED,
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_CUSTOM_INSTALLATION_PATH
+)
+
+
+@pytest.fixture(scope='function')
+def stop_alice(request):
+    yield
+    cleanup_gmwe(request, fail_with_active=False)
 
 
 @mock.patch('nucypher.config.characters.AliceConfiguration.default_filepath', return_value='/non/existent/file')
@@ -59,7 +70,7 @@ def test_initialize_alice_defaults(click_runner, mocker, custom_filepath, monkey
     assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
 
 
-def test_alice_control_starts_with_mocked_keyring(click_runner, mocker, monkeypatch):
+def test_alice_control_starts_with_mocked_keyring(click_runner, mocker, monkeypatch, stop_alice):
     monkeypatch.delenv(NUCYPHER_ENVVAR_KEYRING_PASSWORD, raising=False)
 
     class MockKeyring:
@@ -108,7 +119,7 @@ def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_
     assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
 
 
-def test_alice_control_starts_with_preexisting_configuration(click_runner, custom_filepath):
+def test_alice_control_starts_with_preexisting_configuration(click_runner, custom_filepath, stop_alice):
     custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.generate_filename())
     run_args = ('alice', 'run', '--dry-run', '--lonely', '--config-file', custom_config_filepath)
     result = click_runner.invoke(nucypher_cli, run_args, input=FAKE_PASSWORD_CONFIRMED)

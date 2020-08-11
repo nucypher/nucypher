@@ -265,6 +265,11 @@ class Character(Learner):
             r = f"({self.__class__.__name__})⇀{self.nickname}↽"
         return r
 
+    def is_running(self) -> bool:
+        """Returns True if this character has any running services currently."""
+        learning = bool(self._learning_task.running)
+        return learning
+
     @property
     def name(self):
         return self.__class__.__name__

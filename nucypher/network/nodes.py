@@ -91,8 +91,7 @@ class NodeSprout(PartiallyKwargifiedBytes):
 
     def __hash__(self):
         if not self._hash:
-            self._hash = int.from_bytes(self.public_address,
-                                        byteorder="big")  # stop-propagation logic (ie, only propagate verified, staked nodes) keeps this unique and BFT.
+            self._hash = int.from_bytes(self.public_address, byteorder="big")  # stop-propagation logic (ie, only propagate verified, staked nodes) keeps this unique and BFT.
         return self._hash
 
     def __repr__(self):
@@ -487,12 +486,11 @@ class Learner:
             self._learning_task.stop()
 
         if self._learning_deferred is RELAX:
-            assert False
+            assert False  # TODO: Raise instead of assert!
 
         if self._learning_deferred is not None:
             # self._learning_deferred.cancel()  # TODO: The problem here is that this might already be called.
             self._discovery_canceller(self._learning_deferred)
-
         # self.learning_deferred.cancel()  # TODO: The problem here is that there's no way to get a canceller into the LoopingCall.
 
     def handle_learning_errors(self, failure, *args, **kwargs):

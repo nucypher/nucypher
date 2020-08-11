@@ -140,35 +140,35 @@ def pytest_collection_modifyitems(config, items):
     GlobalLoggerSettings.start_json_file_logging()
 
 
-global_mutable_where_everybody = defaultdict(list)
-
 @pytest.fixture(scope='module', autouse=True)
 def check_character_state_after_test(request):
-    # TODO: Maybe patch here instead of the debug nonsense?
+    # TODO: Maybe patch here instead of the debug nonsense?  # TODO: Make sense of this TODO
     yield
-    gmwe = global_mutable_where_everybody
-    module_name = request.module.__name__
+    cleanup_gmwe(request)
 
-    test_learners = global_mutable_where_everybody.get(module_name, [])
+
+def cleanup_gmwe(request, fail_with_active: bool = True):
+    module_name = request.module.__name__
+    module_characters = global_mutable_where_everybody.get(module_name, [])
+
     # Those match the module name exactly; maybe there are some that we got by frame.
     for maybe_frame, learners in global_mutable_where_everybody.items():
         if f"{module_name}.py" in maybe_frame:
-            test_learners.extend(learners)
+            module_characters.extend(learners)
 
-    crashed = [learner for learner in test_learners if learner._crashed]
-
-    if any(crashed):
+    faulty_characters = [char for char in module_characters if char._crashed]  # TODO: "crash" -> "fault"
+    if any(faulty_characters):
         failure_message = ""
-        for learner in crashed:
-            failure_message += learner._crashed.getBriefTraceback()
-        pytest.fail(f"Some learners crashed:{failure_message}")
+        for char in faulty_characters:
+            failure_message += char._crashed.getBriefTraceback()
+        pytest.fail(f"Characters services crashed:{failure_message}")
 
-    still_running = [learner for learner in test_learners if learner._learning_task.running]
-
-    if any(still_running):
-        for learner in still_running:
+    active_characters = [char for char in module_characters if char.is_running()]
+    if any(active_characters):
+        for character in active_characters:
             try:  # TODO: Deal with stop vs disenchant.  Currently stop is only for Ursula.
-                learner.stop()
+                character.stop()
             except AttributeError:
-                learner.disenchant()
-        pytest.fail(f"Learners remaining: {still_running} ")
+                character.disenchant()
+        if fail_with_active:
+            pytest.fail(f"Characters services are actively running: {active_characters} ")

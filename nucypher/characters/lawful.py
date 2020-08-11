@@ -25,6 +25,7 @@ from random import shuffle
 import maya
 import time
 
+from twisted._threads._ithreads import AlreadyQuit
 from twisted.python.threadpool import ThreadPool
 
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
@@ -444,10 +445,23 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         return controller
 
+    def is_running(self) -> bool:
+        """Returns True if this character has any running services currently."""
+        super_running = super().is_running
+        alive_threads = lambda: any(t for t in self.publication_threadpool.threads if t.is_alive())  # lazy
+        checks = (super_running, alive_threads)
+        for check in checks:
+            if check():
+                return True
+        return False
+
     def disenchant(self):
         self.log.debug(f"disenchanting {self}")
         super().disenchant()
-        self.publication_threadpool.stop()
+        try:
+            self.publication_threadpool.stop()
+        except AlreadyQuit:
+            pass  # TODO: something else?
 
 
 class Bob(Character):
@@ -1261,6 +1275,13 @@ class Ursula(Teacher, Character, Worker):
 
         elif start_reactor:  # ... without hendrix
             reactor.run()  # <--- Blocking Call (Reactor)
+
+    def is_running(self) -> bool:
+        """Returns True if this character has any running services currently."""
+        # TODO: Glean the status of all of Ursula's services.
+        # Sync up with start/stop logic ... it's a "service"
+        super_running = super().is_running()
+        return super_running
 
     def stop(self, halt_reactor: bool = False) -> None:
         """

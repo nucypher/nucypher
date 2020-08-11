@@ -21,12 +21,19 @@ import datetime
 import maya
 import pytest
 
+from tests.conftest import cleanup_gmwe
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.alice import GrantPolicy
 from nucypher.characters.control.specifications.base import BaseSchema
 from nucypher.characters.control.specifications.exceptions import (InvalidArgumentCombo, InvalidInputData,
                                                                    SpecificationError)
 from nucypher.crypto.powers import DecryptingPower
+
+
+@pytest.fixture(scope='module', autouse=True)
+def stop_alice(request):  # TODO: Dont love it.
+    yield
+    cleanup_gmwe(request, fail_with_active=False)
 
 
 def test_various_field_validations_by_way_of_alice_grant(federated_bob):

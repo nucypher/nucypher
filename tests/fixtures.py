@@ -371,6 +371,7 @@ def blockchain_bob(bob_blockchain_test_config, testerchain):
     yield bob
     bob.disenchant()
 
+
 @pytest.fixture(scope="module")
 def federated_ursulas(ursula_federated_test_config):
     if MOCK_KNOWN_URSULAS_CACHE:
@@ -394,9 +395,8 @@ def federated_ursulas(ursula_federated_test_config):
 def lonely_ursula_maker(ursula_federated_test_config):
     class _PartialUrsulaMaker:
         _partial = partial(make_federated_ursulas,
-                         ursula_config=ursula_federated_test_config,
-                         know_each_other=False,
-                         )
+                           ursula_config=ursula_federated_test_config,
+                           know_each_other=False)
         _made = []
 
         def __call__(self, *args, **kwargs):
@@ -420,10 +420,10 @@ def lonely_ursula_maker(ursula_federated_test_config):
     _maker.clean()
 
 
-
 #
 # Blockchain
 #
+
 
 def make_token_economics(blockchain):
     # Get current blocktime
@@ -534,7 +534,8 @@ def testerchain(_testerchain) -> TesterBlockchain:
 
 def _make_agency(testerchain,
                  test_registry,
-                 token_economics) -> Tuple[NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent]:
+                 token_economics
+                 ) -> Tuple[NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent]:
     """
     Launch the big three contracts on provided chain,
     make agents for each and return them.

@@ -39,7 +39,8 @@ def capture_output():
 @pytest.fixture(scope='module')
 def ursula(federated_ursulas):
     ursula = federated_ursulas.pop()
-    return ursula
+    yield ursula
+    ursula.disenchant()
 
 
 @pytest.fixture(scope='module')
@@ -50,10 +51,8 @@ def protocol(ursula):
 
 
 def test_ursula_command_protocol_creation(ursula):
-
     emitter = StdoutEmitter()
     protocol = UrsulaCommandProtocol(ursula=ursula, emitter=emitter)
-
     assert protocol.ursula == ursula
     assert b'Ursula' in protocol.prompt
 
@@ -104,7 +103,6 @@ def test_ursula_command_help(protocol, ursula):
 
 
 def test_ursula_command_status(protocol, ursula):
-
     with capture_output() as (out, err):
         protocol.paintStatus()
     result = out.getvalue()
@@ -114,7 +112,6 @@ def test_ursula_command_status(protocol, ursula):
 
 
 def test_ursula_command_known_nodes(protocol, ursula):
-
     with capture_output() as (out, err):
         protocol.paintKnownNodes()
     result = out.getvalue()
