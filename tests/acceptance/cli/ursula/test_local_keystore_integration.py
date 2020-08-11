@@ -147,15 +147,18 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     ursula = ursula_config.produce(client_password=password,
                                    block_until_ready=False)
 
-    # Verify the keystore path is still preserved
-    assert isinstance(ursula.signer, KeystoreSigner)
-    assert isinstance(ursula.signer.path, str), "Use str"
-    assert ursula.signer.path == str(mock_keystore_path)
+    try:
+        # Verify the keystore path is still preserved
+        assert isinstance(ursula.signer, KeystoreSigner)
+        assert isinstance(ursula.signer.path, str), "Use str"
+        assert ursula.signer.path == str(mock_keystore_path)
 
-    # Show that we can produce the exact same signer as pre-config...
-    assert pre_config_signer.path == ursula.signer.path
+        # Show that we can produce the exact same signer as pre-config...
+        assert pre_config_signer.path == ursula.signer.path
 
-    # ...and that transactions are signed by the keytore signer
-    receipt = ursula.commit_to_next_period()
-    transaction_data = testerchain.client.w3.eth.getTransaction(receipt['transactionHash'])
-    assert transaction_data['from'] == worker_account.address
+        # ...and that transactions are signed by the keytore signer
+        receipt = ursula.commit_to_next_period()
+        transaction_data = testerchain.client.w3.eth.getTransaction(receipt['transactionHash'])
+        assert transaction_data['from'] == worker_account.address
+    finally:
+        ursula.stop()
