@@ -392,10 +392,15 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
                                                     metrics_prefix=metrics_prefix,
                                                     listen_address=metrics_listen_address)
 
-    return URSULA.run(emitter=emitter,
-                      start_reactor=not dry_run,
-                      interactive=interactive,
-                      prometheus_config=prometheus_config)
+    # TODO should we just not call run at all for "dry_run"
+    try:
+        URSULA.run(emitter=emitter,
+                   start_reactor=not dry_run,
+                   interactive=interactive,
+                   prometheus_config=prometheus_config)
+    finally:
+        if dry_run:
+            URSULA.stop()
 
 
 @ursula.command(name='save-metadata')
