@@ -35,7 +35,7 @@ class TestRecord(DatastoreRecord):
 def test_datastore_describe():
     temp_path = tempfile.mkdtemp()
     storage = datastore.Datastore(temp_path)
-    assert storage.LMDB_MAP_SIZE == 1_000_000_000_000
+    assert storage.LMDB_MAP_SIZE == 10_000_000
     assert storage.db_path == temp_path
     assert storage._Datastore__db_env.path() == temp_path
 
